@@ -149,6 +149,7 @@ pub enum ConnectorEnum {
     TsysTransit,
     TwocTwopPaco,
     Juspay,
+    Glomopay,
     Payconex,
     Tamara,
     Hyperswitch,
@@ -456,6 +457,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Flywire => Ok(Self::Flywire),
             grpc_api_types::payments::Connector::Kount => Ok(Self::Kount),
             grpc_api_types::payments::Connector::Tesouro => Ok(Self::Tesouro),
+            grpc_api_types::payments::Connector::Glomopay => Ok(Self::Glomopay),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -691,6 +693,14 @@ pub enum SettlementStatus {
     NotSettled,
 }
 
+/// Connector's reported status: the raw code, message and reason as returned.
+#[derive(Debug, Clone, Default)]
+pub struct RawConnectorStatus {
+    pub code: Option<String>,
+    pub message: Option<String>,
+    pub reason: Option<String>,
+}
+
 #[derive(Debug, Clone)]
 pub struct PaymentFlowData {
     pub merchant_id: common_utils::id_type::MerchantId,
@@ -743,6 +753,8 @@ pub struct PaymentFlowData {
     /// Lives on PaymentFlowData (not PaymentsSyncData) so other flows can
     /// populate it in the future if a connector starts reporting settlement state on authorize, capture, etc.
     pub settlement_status: Option<SettlementStatus>,
+    /// Raw status the connector returned (code/message/reason).
+    pub raw_connector_status: Option<RawConnectorStatus>,
 }
 
 impl PaymentFlowData {
@@ -2096,6 +2108,48 @@ impl<T: PaymentMethodDataTypes> PaymentsPreAuthenticateData<T> {
     }
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SdkInformation {
+    pub sdk_app_id: String,
+    pub sdk_enc_data: String,
+    pub sdk_ephem_pub_key: std::collections::HashMap<String, String>,
+    pub sdk_trans_id: String,
+    pub sdk_reference_number: String,
+    pub sdk_max_timeout: u8,
+    pub sdk_type: Option<SdkType>,
+    pub device_details: Option<DeviceDetails>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DeviceDetails {
+    pub device_type: Option<String>,
+    pub device_brand: Option<String>,
+    pub device_os: Option<String>,
+    pub device_display: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub enum SdkType {
+    #[serde(rename = "01")]
+    DefaultSdk,
+    #[serde(rename = "02")]
+    SplitSdk,
+    #[serde(rename = "03")]
+    LimitedSdk,
+    #[serde(rename = "04")]
+    BrowserSdk,
+    #[serde(rename = "05")]
+    ShellSdk,
+}
+
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq)]
+pub enum DeviceChannel {
+    #[serde(rename = "APP")]
+    App,
+    #[serde(rename = "BRW")]
+    Browser,
+}
+
 #[derive(Debug, Clone)]
 pub struct PaymentsAuthenticateData<T: PaymentMethodDataTypes> {
     pub payment_method_data: Option<PaymentMethodData<T>>,
@@ -2113,6 +2167,8 @@ pub struct PaymentsAuthenticateData<T: PaymentMethodDataTypes> {
     pub webhook_url: Option<String>,
     /// Domain-specific data (e.g. student fields) for connectors that need it.
     pub domain_data: Option<DomainData>,
+    pub sdk_information: Option<SdkInformation>,
+    pub device_channel: Option<DeviceChannel>,
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsAuthenticateData<T> {
@@ -2520,6 +2576,8 @@ pub struct RefundFlowData {
     /// Required by connectors (e.g. 2C2P PACO) that demand a per-request
     /// idempotency token on their wire envelope.
     pub merchant_request_id: Option<String>,
+    /// Raw status the connector returned (code/message/reason) for the refund.
+    pub raw_connector_status: Option<RawConnectorStatus>,
 }
 
 impl RawConnectorRequestResponse for RefundFlowData {
@@ -3345,6 +3403,8 @@ pub struct SetupMandateRequestData<T: PaymentMethodDataTypes> {
     pub mit_category: Option<common_enums::MitCategory>,
     pub split_payments: Option<SplitPaymentsDetails>,
     pub authentication_data: Option<router_request_types::AuthenticationData>,
+    /// Partner / merchant application identifiers (e.g. Checkout metadata udf5).
+    pub partner_merchant_identifier_details: Option<PartnerMerchantIdentifierDetails>,
 }
 
 impl<T: PaymentMethodDataTypes> SetupMandateRequestData<T> {
@@ -3418,6 +3478,9 @@ pub struct RepeatPaymentData<T: PaymentMethodDataTypes> {
     pub connector_feature_data: Option<SecretSerdeValue>,
     pub off_session: Option<bool>,
     pub router_return_url: Option<String>,
+    /// Hyperswitch complete-authorize URL, used as the PayPal return target when a
+    /// wallet MIT requires buyer re-approval so the buyer returns to HS for completion.
+    pub complete_authorize_url: Option<String>,
     pub split_payments: Option<SplitPaymentsDetails>,
     pub recurring_mandate_payment_data: Option<router_data::RecurringMandatePaymentData>,
     pub shipping_cost: Option<MinorUnit>,
@@ -3735,6 +3798,7 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
     fn from(pm_data: PaymentMethodData<T>) -> Self {
         match pm_data {
             PaymentMethodData::Card(_) => Self::Card,
+            PaymentMethodData::CardWithNoCvc(_) => Self::CardWithNoCvc,
             PaymentMethodData::CardRedirect(card_redirect_data) => match card_redirect_data {
                 payment_method_data::CardRedirectData::Knet {} => Self::Knet,
                 payment_method_data::CardRedirectData::Benefit {} => Self::Benefit,
@@ -5252,6 +5316,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::PinelabsOnline(_) => Ok(Self::Payment(ConnectorEnum::PinelabsOnline)),
             AuthType::Easebuzz(_) => Ok(Self::Payment(ConnectorEnum::Easebuzz)),
             AuthType::Juspay(_) => Ok(Self::Payment(ConnectorEnum::Juspay)),
+            AuthType::Glomopay(_) => Ok(Self::Payment(ConnectorEnum::Glomopay)),
             AuthType::Qwikcilver(_) => Ok(Self::Payment(ConnectorEnum::Qwikcilver)),
             AuthType::Payconex(_) => Ok(Self::Payment(ConnectorEnum::Payconex)),
             AuthType::Kount(_) => Ok(Self::Payment(ConnectorEnum::Kount)),

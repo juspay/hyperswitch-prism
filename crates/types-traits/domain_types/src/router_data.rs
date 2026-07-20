@@ -865,6 +865,10 @@ pub enum ConnectorSpecificConfig {
         merchant_id: Secret<String>,
         base_url: Option<String>,
     },
+    Glomopay {
+        api_key: Secret<String>,
+        base_url: Option<String>,
+    },
     Payconex {
         api_key: Secret<String>,
         account_id: Secret<String>,
@@ -1234,6 +1238,7 @@ impl ConnectorSpecificConfig {
                 api_key,
                 merchant_id
             },
+            Glomopay { api_key },
             Payconex {
                 api_key,
                 account_id
@@ -1681,6 +1686,7 @@ impl ConnectorSpecificConfig {
                     api_key,
                     merchant_id
                 },
+                Glomopay { api_key },
                 Payconex {
                     api_key,
                     account_id
@@ -2349,6 +2355,10 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 public_key: affirm.public_key.ok_or_else(err)?,
                 private_key: affirm.private_key.ok_or_else(err)?,
                 base_url: affirm.base_url,
+            }),
+            AuthType::Glomopay(glomopay) => Ok(Self::Glomopay {
+                api_key: glomopay.api_key.ok_or_else(err)?,
+                base_url: glomopay.base_url,
             }),
         }
     }
@@ -3458,6 +3468,13 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Juspay {
                         api_key: api_key.clone(),
                         merchant_id: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Glomopay => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Glomopay {
+                        api_key: api_key.clone(),
                         base_url: None,
                     }),
                     _ => Err(err().into()),

@@ -698,5 +698,6 @@ macros::macro_connector_flow_status_impls!(
         Authenticate,
         PostAuthenticate,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
     ],
 );

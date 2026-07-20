@@ -404,6 +404,7 @@ crate::connectors::macros::macro_connector_flow_status_impls!(
         Accept,
         ClientAuthenticationToken,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         DefendDispute,
         MandateRevoke,
         Authenticate,

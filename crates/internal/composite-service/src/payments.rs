@@ -11,10 +11,11 @@ use grpc_api_types::payments::{
     payment_method_authentication_service_server::PaymentMethodAuthenticationService,
     payment_service_server::PaymentService, refund_service_server::RefundService,
     CompositeAuthorizeRequest, CompositeAuthorizeResponse, CompositeCaptureRequest,
-    CompositeCaptureResponse, CompositeGetRequest, CompositeGetResponse, CompositeRefundGetRequest,
+    CompositeCaptureResponse, CompositeGetRequest, CompositeGetResponse,
+    CompositePreAuthenticateRequest, CompositePreAuthenticateResponse, CompositeRefundGetRequest,
     CompositeRefundGetResponse, CompositeRefundRequest, CompositeRefundResponse, CompositeStatus,
     CompositeVoidRequest, CompositeVoidResponse, ConnectorState, CustomerServiceCreateResponse,
-    MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
+    CustomerServiceGetRequest, MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
     MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse, PaymentMethod,
@@ -31,7 +32,7 @@ use grpc_api_types::payments::{
 };
 use interfaces::connector_types::AuthenticationStep;
 
-use crate::transformers::ForeignFrom;
+use crate::transformers::{ForeignFrom, ForeignTryFrom};
 use crate::utils::{
     connector_from_composite_authorize_metadata, is_failure_payment_status,
     is_terminal_payment_status,
@@ -57,7 +58,36 @@ pub trait CompositeSessionTokenRequest {
     fn has_session_token(&self) -> bool;
 }
 
+/// Trait for abstracting request construction for composite pre-authenticate flows.
+pub trait CompositePreAuthenticatePayload {
+    fn build_pre_authenticate_request(
+        &self,
+        access_token_response: Option<
+            &MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
+        >,
+    ) -> PaymentMethodAuthenticationServicePreAuthenticateRequest;
+}
+
 impl CompositeAccessTokenRequest for CompositeAuthorizeRequest {
+    fn payment_method(&self) -> Option<PaymentMethod> {
+        self.payment_method.clone()
+    }
+
+    fn state(&self) -> Option<&ConnectorState> {
+        self.state.as_ref()
+    }
+
+    fn build_access_token_request(
+        &self,
+        connector: &ConnectorVariant,
+    ) -> MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
+        MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest::foreign_from((
+            self, connector,
+        ))
+    }
+}
+
+impl CompositeAccessTokenRequest for CompositePreAuthenticateRequest {
     fn payment_method(&self) -> Option<PaymentMethod> {
         self.payment_method.clone()
     }
@@ -88,6 +118,34 @@ impl CompositeSessionTokenRequest for CompositeAuthorizeRequest {
 
     fn has_session_token(&self) -> bool {
         self.session_token.is_some()
+    }
+}
+
+impl CompositePreAuthenticatePayload for CompositeAuthorizeRequest {
+    fn build_pre_authenticate_request(
+        &self,
+        access_token_response: Option<
+            &MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
+        >,
+    ) -> PaymentMethodAuthenticationServicePreAuthenticateRequest {
+        PaymentMethodAuthenticationServicePreAuthenticateRequest::foreign_from((
+            self,
+            access_token_response,
+        ))
+    }
+}
+
+impl CompositePreAuthenticatePayload for CompositePreAuthenticateRequest {
+    fn build_pre_authenticate_request(
+        &self,
+        access_token_response: Option<
+            &MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
+        >,
+    ) -> PaymentMethodAuthenticationServicePreAuthenticateRequest {
+        PaymentMethodAuthenticationServicePreAuthenticateRequest::foreign_from((
+            self,
+            access_token_response,
+        ))
     }
 }
 
@@ -234,6 +292,15 @@ struct AuthorizeCompositeState {
     completed_step: Option<AuthenticationStep>,
 }
 
+/// Outcome of a connector-side customer lookup. `Found` carries a create-shaped
+/// response so the caller can reuse the ID without hitting CREATE; `NotFound`
+/// covers both "connector returned no match" and "lookup call failed" — the
+/// caller falls through to CREATE in either case.
+enum ConnectorCustomerLookup {
+    Found(Box<CustomerServiceCreateResponse>),
+    NotFound,
+}
+
 #[derive(Clone)]
 pub struct Payments<P, M, C, R, A> {
     payment_service: P,
@@ -360,6 +427,57 @@ where
         Ok(session_token_response)
     }
 
+    /// For connectors that support lookup (e.g. Glomopay, which 4xxs on
+    /// duplicate email), issue a GET to see if the customer already exists.
+    /// Returns `Ok(Found(response))` when the connector confirms an existing
+    /// customer with an ID, `Ok(NotFound)` when the lookup succeeded but
+    /// returned no matching customer, and `Err(status)` on transient
+    /// failures (network / connector / auth). Errors are propagated rather
+    /// than treated as `NotFound` — swallowing them would silently fall
+    /// through to CREATE and produce duplicate customers on the connector.
+    async fn get_connector_customer(
+        &self,
+        payload: &CompositeAuthorizeRequest,
+        metadata: &tonic::metadata::MetadataMap,
+        extensions: &tonic::Extensions,
+    ) -> Result<ConnectorCustomerLookup, tonic::Status> {
+        let get_payload = CustomerServiceGetRequest::foreign_from(payload);
+        let mut get_request = tonic::Request::new(get_payload);
+        *get_request.metadata_mut() = metadata.clone();
+        *get_request.extensions_mut() = extensions.clone();
+
+        let get_response = self.customer_service.get(get_request).await?.into_inner();
+
+        // Consume the explicit lookup_status enum rather than inferring
+        // found-vs-not-found from field presence. A malformed or partially
+        // populated response no longer silently routes to a duplicate CREATE.
+        match grpc_api_types::payments::CustomerLookupStatus::try_from(get_response.lookup_status) {
+            Ok(grpc_api_types::payments::CustomerLookupStatus::Found) => {
+                CustomerServiceCreateResponse::foreign_try_from(get_response)
+                    .map(|r| ConnectorCustomerLookup::Found(Box::new(r)))
+                    .map_err(|_| {
+                        tonic::Status::internal(
+                            "CustomerServiceGetResponse.lookup_status was CustomerFound \
+                             but the response did not include a connector_customer_id — \
+                             refusing to fall through to CREATE and risk duplicates",
+                        )
+                    })
+            }
+            Ok(grpc_api_types::payments::CustomerLookupStatus::NotFound) => {
+                Ok(ConnectorCustomerLookup::NotFound)
+            }
+            Ok(grpc_api_types::payments::CustomerLookupStatus::Unspecified) => {
+                Err(tonic::Status::internal(
+                    "CustomerServiceGetResponse.lookup_status was unspecified — \
+                     connector did not signal found/not-found explicitly",
+                ))
+            }
+            Err(_) => Err(tonic::Status::internal(
+                "CustomerServiceGetResponse.lookup_status contained an unknown value",
+            )),
+        }
+    }
+
     async fn create_connector_customer(
         &self,
         connector: &ConnectorEnum,
@@ -382,23 +500,47 @@ where
             connector_data.connector.should_create_connector_customer()
                 && connector_customer_id.is_none();
 
-        let create_customer_response = match should_create_connector_customer {
-            true => {
-                let create_customer_payload =
-                    grpc_api_types::payments::CustomerServiceCreateRequest::foreign_from(payload);
-                let mut create_customer_request = tonic::Request::new(create_customer_payload);
-                *create_customer_request.metadata_mut() = metadata.clone();
-                *create_customer_request.extensions_mut() = extensions.clone();
-
-                let create_customer_response = self
-                    .customer_service
-                    .create(create_customer_request)
+        let create_customer_response = if should_create_connector_customer {
+            // Try lookup first for connectors that support get-or-create
+            // semantics (e.g. Glomopay). If the customer already exists on
+            // the connector, reuse that ID instead of hitting CREATE.
+            let existing_customer_response = if connector_data
+                .connector
+                .should_get_connector_customer()
+            {
+                match self
+                    .get_connector_customer(payload, metadata, extensions)
                     .await?
-                    .into_inner();
+                {
+                    ConnectorCustomerLookup::Found(customer_response) => Some(customer_response),
+                    ConnectorCustomerLookup::NotFound => None,
+                }
+            } else {
+                None
+            };
 
-                Some(create_customer_response)
-            }
-            false => None,
+            let customer_response = match existing_customer_response {
+                Some(customer_response) => customer_response,
+                None => {
+                    let create_customer_payload =
+                        grpc_api_types::payments::CustomerServiceCreateRequest::foreign_from(
+                            payload,
+                        );
+                    let mut create_customer_request = tonic::Request::new(create_customer_payload);
+                    *create_customer_request.metadata_mut() = metadata.clone();
+                    *create_customer_request.extensions_mut() = extensions.clone();
+
+                    Box::new(
+                        self.customer_service
+                            .create(create_customer_request)
+                            .await?
+                            .into_inner(),
+                    )
+                }
+            };
+            Some(*customer_response)
+        } else {
+            None
         };
 
         Ok(create_customer_response)
@@ -408,6 +550,7 @@ where
         &self,
         connector: &ConnectorEnum,
         payload: &CompositeAuthorizeRequest,
+        create_customer_response: Option<&CustomerServiceCreateResponse>,
         metadata: &tonic::metadata::MetadataMap,
         extensions: &tonic::Extensions,
     ) -> Result<Option<PaymentServiceCreateOrderResponse>, tonic::Status> {
@@ -420,8 +563,14 @@ where
 
         let create_order_response = match should_execute_create_order {
             true => {
-                // Build PaymentServiceCreateOrderRequest from CompositeAuthorizeRequest
-                let create_order_payload = PaymentServiceCreateOrderRequest::foreign_from(payload);
+                // Build PaymentServiceCreateOrderRequest from CompositeAuthorizeRequest,
+                // threading in the freshly-created connector customer id (if any) so
+                // connectors like Glomopay whose CreateOrder API requires customer_id
+                // work correctly on first-time-customer flows.
+                let create_order_payload = PaymentServiceCreateOrderRequest::foreign_from((
+                    payload,
+                    create_customer_response,
+                ));
                 let mut create_order_request = tonic::Request::new(create_order_payload);
                 *create_order_request.metadata_mut() = metadata.clone();
                 *create_order_request.extensions_mut() = extensions.clone();
@@ -482,20 +631,19 @@ where
         Ok(authorize_response)
     }
 
-    async fn pre_authenticate(
+    async fn pre_authenticate<Req>(
         &self,
-        payload: &CompositeAuthorizeRequest,
+        payload: &Req,
         access_token_response: Option<
             &MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
         >,
         metadata: &tonic::metadata::MetadataMap,
         extensions: &tonic::Extensions,
-    ) -> Result<PaymentMethodAuthenticationServicePreAuthenticateResponse, tonic::Status> {
-        let pre_auth_payload =
-            PaymentMethodAuthenticationServicePreAuthenticateRequest::foreign_from((
-                payload,
-                access_token_response,
-            ));
+    ) -> Result<PaymentMethodAuthenticationServicePreAuthenticateResponse, tonic::Status>
+    where
+        Req: CompositePreAuthenticatePayload,
+    {
+        let pre_auth_payload = payload.build_pre_authenticate_request(access_token_response);
         let mut pre_auth_request = tonic::Request::new(pre_auth_payload);
         *pre_auth_request.metadata_mut() = metadata.clone();
         *pre_auth_request.extensions_mut() = extensions.clone();
@@ -625,8 +773,15 @@ where
         let create_customer_response = self
             .create_connector_customer(&connector, &payload, &metadata, &extensions)
             .await?;
+
         let create_order_response = self
-            .create_order(&connector, &payload, &metadata, &extensions)
+            .create_order(
+                &connector,
+                &payload,
+                create_customer_response.as_ref(),
+                &metadata,
+                &extensions,
+            )
             .await?;
 
         // Extract flow parameters from payload
@@ -805,6 +960,32 @@ where
         Ok(tonic::Response::new(CompositeGetResponse {
             access_token_response,
             get_response: Some(get_response),
+        }))
+    }
+
+    async fn process_pre_authenticate(
+        &self,
+        request: tonic::Request<CompositePreAuthenticateRequest>,
+    ) -> Result<tonic::Response<CompositePreAuthenticateResponse>, tonic::Status> {
+        let (metadata, extensions, payload) = request.into_parts();
+
+        let connector =
+            connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
+        let access_token_response = self
+            .create_server_authentication_token(&connector, &payload, &metadata, &extensions)
+            .await?;
+        let pre_authenticate_response = self
+            .pre_authenticate(
+                &payload,
+                access_token_response.as_ref(),
+                &metadata,
+                &extensions,
+            )
+            .await?;
+
+        Ok(tonic::Response::new(CompositePreAuthenticateResponse {
+            pre_authenticate_response: Some(pre_authenticate_response),
+            access_token_response,
         }))
     }
 
@@ -1147,6 +1328,13 @@ where
         request: tonic::Request<CompositeAuthorizeRequest>,
     ) -> Result<tonic::Response<CompositeAuthorizeResponse>, tonic::Status> {
         Box::pin(self.process_composite_authorize(request)).await
+    }
+
+    async fn pre_authenticate(
+        &self,
+        request: tonic::Request<CompositePreAuthenticateRequest>,
+    ) -> Result<tonic::Response<CompositePreAuthenticateResponse>, tonic::Status> {
+        self.process_pre_authenticate(request).await
     }
 
     async fn get(
