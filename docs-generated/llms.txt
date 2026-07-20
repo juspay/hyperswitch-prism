@@ -1,5 +1,5 @@
 # Connector Service — LLM Navigation Index
-# Connectors: 98
+# Connectors: 99
 #
 # This file helps AI coding assistants navigate connector-service documentation.
 # Each connector block lists: doc path, scenarios, supported payment methods,
@@ -8,7 +8,7 @@
 # Usage: fetch this file first, then fetch the specific connector doc or example.
 
 overview:
-  total_connectors: 98
+  total_connectors: 99
   docs_root: docs-generated/connectors/
   examples_root: examples/
   all_connectors_matrix: docs-generated/all_connector.md
@@ -309,6 +309,14 @@ scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_paymen
 payment_methods: Card, Eps, Ideal
 flows: authorize, capture, create_client_authentication_token, create_server_authentication_token, get, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, token_authorize, void
 examples_python: examples/globalpay/globalpay.py
+
+## Glomopay
+connector_id: glomopay
+doc: docs/connectors/glomopay.md
+scenarios: checkout_autocapture, refund, get_payment
+payment_methods: Card
+flows: authorize, customer_get, get, handle_event, parse_event, proxy_authorize, refund, refund_get
+examples_python: examples/glomopay/glomopay.py
 
 ## Helcim
 connector_id: helcim

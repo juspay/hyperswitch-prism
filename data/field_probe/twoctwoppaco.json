@@ -485,6 +485,12 @@
         "error": "create_connector_customer flow not supported by twoc_twop_paco connector"
       }
     },
+    "customer_get": {
+      "default": {
+        "status": "not_supported",
+        "error": "get_connector_customer flow not supported by twoc_twop_paco connector"
+      }
+    },
     "dispute_accept": {
       "default": {
         "status": "not_supported",

@@ -777,6 +777,7 @@ macros::macro_connector_flow_status_impls!(
         SetupMandate,
         VoidPC,
         PostAuthenticate,
+        GetConnectorCustomer,
     ],
     not_supported: [
         VoidPostRefund,

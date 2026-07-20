@@ -636,9 +636,22 @@ macro_rules! implement_connector_operation {
                 None => None,
             };
 
+            // Apply merchant-supplied per-request connector config overrides
+            // (e.g. base_url) before building common_flow_data. Without this,
+            // the macro would silently drop the override and downstream
+            // connector calls would hit the TOML default host — creating a
+            // split-brain where different flows in the same composite payment
+            // talk to different environments (sandbox vs prod).
+            let overridden_connectors =
+                ucs_interface_common::config::connectors_with_connector_config_overrides(
+                    &connector_config,
+                    &config,
+                )
+                .to_grpc_error()?;
+
             // Create common request data (shared by both the direct and proxy paths;
             // it already carries the parsed `x-external-vault-metadata` vault headers).
-            let common_flow_data = $common_flow_data_constructor((payload.clone(), config.connectors.clone(), &masked_metadata))
+            let common_flow_data = $common_flow_data_constructor((payload.clone(), overridden_connectors, &masked_metadata))
                 .to_grpc_error()?;
 
             // Calculate flow name for dynamic flow-specific configurations
@@ -973,8 +986,21 @@ macro_rules! implement_connector_operation {
             let specific_request_data = $request_data_constructor(payload.clone())
                 .to_grpc_error()?;
 
+            // Apply merchant-supplied per-request connector config overrides
+            // (e.g. base_url) before building common_flow_data. Without this,
+            // the macro would silently drop the override and downstream
+            // connector calls would hit the TOML default host — creating a
+            // split-brain where different flows in the same composite payment
+            // talk to different environments (sandbox vs prod).
+            let overridden_connectors =
+                ucs_interface_common::config::connectors_with_connector_config_overrides(
+                    &connector_config,
+                    &config,
+                )
+                .to_grpc_error()?;
+
             // Create common request data
-            let common_flow_data = $common_flow_data_constructor((payload.clone(), config.connectors.clone(), &masked_metadata))
+            let common_flow_data = $common_flow_data_constructor((payload.clone(), overridden_connectors, &masked_metadata))
                 .to_grpc_error()?;
 
             // Create router data

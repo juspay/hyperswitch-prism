@@ -33,6 +33,9 @@ const FLOWS = {
   // customer_create: CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information.
   customer_create                            : { request: "CustomerServiceCreateRequest", response: "CustomerServiceCreateResponse" },
 
+  // customer_get: CustomerService.Get — Retrieves customer details from the payment processor. Callers typically use this before Create to implement get-or-create semantics for connectors that reject duplicates (e.g. Glomopay).
+  customer_get                               : { request: "CustomerServiceGetRequest", response: "CustomerServiceGetResponse" },
+
   // defend: DisputeService.Defend — Submit defense with reason code for dispute. Presents formal argument against customer's chargeback claim with supporting documentation.
   defend                                     : { request: "DisputeServiceDefendRequest", response: "DisputeServiceDefendResponse" },
 

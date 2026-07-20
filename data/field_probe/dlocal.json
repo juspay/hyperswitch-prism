@@ -506,6 +506,12 @@
         "error": "create_connector_customer flow not supported by dlocal connector"
       }
     },
+    "customer_get": {
+      "default": {
+        "status": "not_supported",
+        "error": "get_connector_customer flow not supported by dlocal connector"
+      }
+    },
     "dispute_accept": {
       "default": {
         "status": "not_supported",

@@ -580,6 +580,12 @@
         "error": "This feature is not implemented: create_connector_customer flow for paytm"
       }
     },
+    "customer_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: get_connector_customer flow for paytm"
+      }
+    },
     "dispute_accept": {
       "default": {
         "status": "not_implemented",

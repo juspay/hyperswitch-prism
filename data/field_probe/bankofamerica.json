@@ -639,6 +639,12 @@
         "error": "This feature is not implemented: create_connector_customer flow for bankofamerica"
       }
     },
+    "customer_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: get_connector_customer flow for bankofamerica"
+      }
+    },
     "dispute_accept": {
       "default": {
         "status": "not_implemented",

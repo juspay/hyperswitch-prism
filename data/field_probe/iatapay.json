@@ -662,6 +662,12 @@
         "error": "create_connector_customer flow not supported by iatapay connector"
       }
     },
+    "customer_get": {
+      "default": {
+        "status": "not_supported",
+        "error": "get_connector_customer flow not supported by iatapay connector"
+      }
+    },
     "dispute_accept": {
       "default": {
         "status": "not_supported",

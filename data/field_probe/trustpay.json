@@ -928,6 +928,12 @@
         "error": "create_connector_customer flow not supported by trustpay connector"
       }
     },
+    "customer_get": {
+      "default": {
+        "status": "not_supported",
+        "error": "get_connector_customer flow not supported by trustpay connector"
+      }
+    },
     "dispute_accept": {
       "default": {
         "status": "not_supported",

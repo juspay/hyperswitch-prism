@@ -822,6 +822,7 @@ enum Connector {
   TSYS_TRANSIT = 127;
   KOUNT = 128;
   FLYWIRE = 129;
+  GLOMOPAY = 130;
 }
 
 // Payment method types
@@ -4399,13 +4400,30 @@ message CustomerServiceGetRequest {
   optional string merchant_customer_id = 1;
 
   // Customer Information
-  string connector_customer_id = 2;
+  optional string connector_customer_id = 2;
+  optional SecretString email = 3;         // Email address of the customer
+  optional SecretString phone_number = 4;  // Phone number of the customer
+
+  // Connector-specific metadata for the transaction (required by the generic
+  // flow runner in field-probe, which injects `connector_feature_data` into
+  // every probe request regardless of flow shape).
+  optional SecretString connector_feature_data = 5;
+}
+
+// Outcome of a connector-side customer lookup. Explicit signal so callers
+// don't have to infer presence-of-id vs absent as found-vs-not-found, which
+// would silently misroute malformed responses into a duplicate CREATE.
+enum CustomerLookupStatus {
+  CUSTOMER_LOOKUP_STATUS_UNSPECIFIED = 0;
+  CUSTOMER_LOOKUP_STATUS_FOUND = 1;
+  CUSTOMER_LOOKUP_STATUS_NOT_FOUND = 2;
 }
 
 // Response message for getting a customer
 message CustomerServiceGetResponse {
-  // Customer Information
-  Customer customer = 1;
+  // Customer Information. Absent when lookup_status is CUSTOMER_NOT_FOUND;
+  // populated when lookup_status is CUSTOMER_FOUND.
+  optional Customer customer = 1;
 
   // Error Information
   optional ErrorInfo error = 2;
@@ -4414,6 +4432,11 @@ message CustomerServiceGetResponse {
 
   // Reference
   optional string merchant_customer_id = 5;
+
+  // Lookup outcome. Connectors implementing GetConnectorCustomer must set
+  // this so the caller can distinguish "not found" from partially populated
+  // or malformed responses.
+  CustomerLookupStatus lookup_status = 6;
 }
 
 // Request message for updating a customer
@@ -5234,6 +5257,11 @@ message HyperswitchConfig {
   optional string base_url = 50;
 }
 
+message GlomopayConfig {
+  SecretString api_key = 1;
+  optional string base_url = 50;
+}
+
 // ConnectorSpecificConfig message with oneof containing all connector
 // configurations. Comment above each field (e.g. "// PAYPAL = 62") is the
 // Connector enum value from this file;
@@ -5530,6 +5558,8 @@ message ConnectorSpecificConfig {
     AffirmConfig affirm = 135;
     // FLYWIRE = 129
     FlywireConfig flywire = 136;
+    // GLOMOPAY = 130
+    GlomopayConfig glomopay = 137;
   }
 }
 

@@ -19,6 +19,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.07.20.0
+
+### Features
+
+- **composite:** Added Composite Device Data Collection Flow ([#1921](https://github.com/juspay/connector-service/pull/1921)) ([`0b83ba8`](https://github.com/juspay/connector-service/commit/0b83ba89b9de8acba0306d2262bd231d55cfb84d))
+- **connector:** Added new connector glomopay ([#1944](https://github.com/juspay/connector-service/pull/1944)) ([`b07af7d`](https://github.com/juspay/connector-service/commit/b07af7d9dac271de729548e74217ddcf895c602b))
+
+**Full Changelog:** [`2026.07.17.0...2026.07.20.0`](https://github.com/juspay/connector-service/compare/2026.07.17.0...2026.07.20.0)
+
+- - -
+
 ## 2026.07.17.0
 
 ### Features

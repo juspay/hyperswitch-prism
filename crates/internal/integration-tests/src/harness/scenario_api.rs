@@ -4872,6 +4872,9 @@ mod tests {
             "CustomerService/Create" => validate_tonic_payload_shape::<
                 payments::CustomerServiceCreateRequest,
             >(connector, suite, scenario, grpc_req),
+            "CustomerService/Get" => validate_tonic_payload_shape::<
+                payments::CustomerServiceGetRequest,
+            >(connector, suite, scenario, grpc_req),
             "PaymentMethodAuthenticationService/PreAuthenticate" => validate_tonic_payload_shape::<
                 payments::PaymentMethodAuthenticationServicePreAuthenticateRequest,
             >(connector, suite, scenario, grpc_req),

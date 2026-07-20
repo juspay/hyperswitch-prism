@@ -688,6 +688,12 @@
         "error": "Failed to obtain authentication type"
       }
     },
+    "customer_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: get_connector_customer flow for airwallex"
+      }
+    },
     "dispute_accept": {
       "default": {
         "status": "not_implemented",
