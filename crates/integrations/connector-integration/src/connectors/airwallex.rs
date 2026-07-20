@@ -35,9 +35,9 @@ use interfaces::{
 use serde::Serialize;
 use transformers::{
     self as airwallex, AirwallexAccessTokenRequest, AirwallexAccessTokenResponse,
-    AirwallexCaptureRequest, AirwallexCaptureResponse, AirwallexCustomerRequest,
-    AirwallexCustomerResponse, AirwallexIntentRequest, AirwallexIntentResponse,
-    AirwallexAuthorizeRequest, AirwallexPaymentsResponse, AirwallexRefundRequest,
+    AirwallexAuthorizeRequest, AirwallexCaptureRequest, AirwallexCaptureResponse,
+    AirwallexCustomerRequest, AirwallexCustomerResponse, AirwallexIntentRequest,
+    AirwallexIntentResponse, AirwallexPaymentsResponse, AirwallexRefundRequest,
     AirwallexRefundResponse, AirwallexRefundSyncResponse, AirwallexRepeatPaymentRequest,
     AirwallexRepeatPaymentResponse, AirwallexSetupMandateRequest, AirwallexSetupMandateResponse,
     AirwallexSyncResponse, AirwallexVoidRequest, AirwallexVoidResponse,

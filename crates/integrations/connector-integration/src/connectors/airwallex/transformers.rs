@@ -548,15 +548,15 @@ fn get_wallet_details(
                     context: Default::default(),
                 }
             })?;
-            Ok(AirwallexPaymentMethod::Wallets(AirwallexWalletData::Paypal(
-                AirwallexPaypalData {
+            Ok(AirwallexPaymentMethod::Wallets(
+                AirwallexWalletData::Paypal(AirwallexPaypalData {
                     paypal: AirwallexPaypalDetails {
                         shopper_name,
                         country_code,
                     },
                     payment_method_type: AirwallexPaymentType::Paypal,
-                },
-            )))
+                }),
+            ))
         }
         domain_types::payment_method_data::WalletData::Skrill(_) => {
             // Prefer the explicit customer_name; fall back to the billing full name, mirroring
@@ -579,16 +579,16 @@ fn get_wallet_details(
                     context: Default::default(),
                 }
             })?;
-            Ok(AirwallexPaymentMethod::Wallets(AirwallexWalletData::Skrill(
-                AirwallexSkrillData {
+            Ok(AirwallexPaymentMethod::Wallets(
+                AirwallexWalletData::Skrill(AirwallexSkrillData {
                     skrill: AirwallexSkrillDetails {
                         shopper_name,
                         shopper_email,
                         country_code,
                     },
                     payment_method_type: AirwallexPaymentType::Skrill,
-                },
-            )))
+                }),
+            ))
         }
         _ => Err(error_stack::report!(IntegrationError::NotImplemented(
             "Wallet Payment Method".to_string(),
@@ -622,8 +622,7 @@ fn get_paylater_details(
                             email: resource_common_data.get_optional_billing_email(),
                             first_name: resource_common_data.get_optional_billing_first_name(),
                             last_name: resource_common_data.get_optional_billing_last_name(),
-                            phone_number: resource_common_data
-                                .get_optional_billing_phone_number(),
+                            phone_number: resource_common_data.get_optional_billing_phone_number(),
                             address: Some(AirwallexPayLaterAddress {
                                 country_code: resource_common_data.get_optional_billing_country(),
                                 city: resource_common_data.get_optional_billing_city(),
@@ -690,12 +689,12 @@ fn get_banktransfer_details(
                     })?,
                     // `bank_name` is required by Airwallex to route the Indonesian bank transfer;
                     // map the domain bank to Airwallex's exact token (rejecting unsupported banks).
-                    bank_name: AirwallexIndonesianBankName::try_from(
-                        bank_name.as_ref().ok_or(IntegrationError::MissingRequiredField {
+                    bank_name: AirwallexIndonesianBankName::try_from(bank_name.as_ref().ok_or(
+                        IntegrationError::MissingRequiredField {
                             field_name: "bank_name",
                             context: Default::default(),
-                        })?,
-                    )?
+                        },
+                    )?)?
                     .0,
                     country_code: resource_common_data.get_billing_country().map_err(|_| {
                         IntegrationError::MissingRequiredField {
@@ -862,7 +861,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 get_wallet_details(
                     &wallet_data,
                     &item.router_data.resource_common_data,
-                    item.router_data.request.customer_name.clone().map(Secret::new),
+                    item.router_data
+                        .request
+                        .customer_name
+                        .clone()
+                        .map(Secret::new),
                 )?
             }
             domain_types::payment_method_data::PaymentMethodData::PayLater(paylater_data) => {
@@ -957,7 +960,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         super::AirwallexRouterData<
-            RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+            RouterDataV2<
+                Authorize,
+                PaymentFlowData,
+                PaymentsAuthorizeData<T>,
+                PaymentsResponseData,
+            >,
             T,
         >,
     > for AirwallexAuthorizeRequest
@@ -966,7 +974,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
     fn try_from(
         item: super::AirwallexRouterData<
-            RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+            RouterDataV2<
+                Authorize,
+                PaymentFlowData,
+                PaymentsAuthorizeData<T>,
+                PaymentsResponseData,
+            >,
             T,
         >,
     ) -> Result<Self, Self::Error> {
@@ -1798,7 +1811,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 get_wallet_details(
                     &wallet_data,
                     &item.router_data.resource_common_data,
-                    item.router_data.request.customer_name.clone().map(Secret::new),
+                    item.router_data
+                        .request
+                        .customer_name
+                        .clone()
+                        .map(Secret::new),
                 )?
             }
             domain_types::payment_method_data::PaymentMethodData::PayLater(paylater_data) => {
@@ -2423,9 +2440,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // in payment_method_id but round-trips the connector token in mandate_metadata as
         // {"id": ...}; prefer that, falling back to payment_method_id for older stored mandates.
         let payment_method_id = mandate_metadata
-            .and_then(|meta| {
-                serde_json::from_value::<AirwallexMandateMetadata>(meta.expose()).ok()
-            })
+            .and_then(|meta| serde_json::from_value::<AirwallexMandateMetadata>(meta.expose()).ok())
             .and_then(|meta| meta.id)
             .or(payment_method_id)
             .ok_or(IntegrationError::MissingRequiredField {
