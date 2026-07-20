@@ -5567,7 +5567,7 @@ message ConnectorSpecificConfig {
     // GLOMOPAY = 130
     GlomopayConfig glomopay = 137;
 
-    // GIVEPAYMENTS = 138
+    // GIVEPAYMENTS = 131
     GivepaymentsConfig givepayments = 138;
   }
 }

@@ -109,6 +109,7 @@ pub struct GivepaymentsPaymentProcessingError {
 }
 
 #[derive(Debug, Display, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
 pub enum GivepaymentsPaymentProcessingErrorCode {
     ProcessingError,
     ServiceNotAvailable,
@@ -393,6 +394,20 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
+        if !item.router_data.request.is_auto_capture() {
+            Err(errors::IntegrationError::CaptureMethodNotSupported {
+                context: errors::IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Use Automatic capture method for Givepayments connector.".to_string(),
+                    ),
+                    doc_url: None,
+                    additional_context: Some(
+                        "Givepayments connector supports Automatic capture method.".to_string(),
+                    ),
+                },
+            })?
+        }
+
         let paymethod = match &item.router_data.request.payment_method_data {
             PaymentMethodData::Card(ref card_data) => {
                 let card = CardDetails {
@@ -844,14 +859,33 @@ impl TryFrom<ResponseRouterData<GivepaymentsRefundResponseData, Self>>
     ) -> Result<Self, Self::Error> {
         let refund_status = item.response.processing_state.into();
 
-        Ok(Self {
-            response: Ok(RefundsResponseData {
-                connector_refund_id: item.response.id,
-                refund_status,
+        if utils::is_refund_failure(refund_status) {
+            let error_response = Err(ErrorResponse {
                 status_code: item.http_code,
-            }),
-            ..item.router_data
-        })
+                code: consts::NO_ERROR_CODE.to_string(),
+                message: consts::NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+            });
+
+            Ok(Self {
+                response: error_response,
+                ..item.router_data
+            })
+        } else {
+            Ok(Self {
+                response: Ok(RefundsResponseData {
+                    connector_refund_id: item.response.id,
+                    refund_status,
+                    status_code: item.http_code,
+                }),
+                ..item.router_data
+            })
+        }
     }
 }
 
@@ -870,14 +904,33 @@ impl TryFrom<ResponseRouterData<GivepaymentsRefundResponseData, Self>>
 
         let refund_status = response.processing_state.clone().into();
 
-        Ok(Self {
-            response: Ok(RefundsResponseData {
-                connector_refund_id: response.id,
-                refund_status,
+        if utils::is_refund_failure(refund_status) {
+            let error_response = Err(ErrorResponse {
                 status_code: http_code,
-            }),
-            ..router_data
-        })
+                code: consts::NO_ERROR_CODE.to_string(),
+                message: consts::NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+            });
+
+            Ok(Self {
+                response: error_response,
+                ..router_data
+            })
+        } else {
+            Ok(Self {
+                response: Ok(RefundsResponseData {
+                    connector_refund_id: response.id,
+                    refund_status,
+                    status_code: http_code,
+                }),
+                ..router_data
+            })
+        }
     }
 }
 

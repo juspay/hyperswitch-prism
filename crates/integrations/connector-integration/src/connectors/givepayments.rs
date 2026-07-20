@@ -2,7 +2,6 @@ pub mod transformers;
 
 use std::{self, fmt::Debug};
 
-use base64::{engine::general_purpose::URL_SAFE, Engine};
 use common_enums::{AttemptStatus, CurrencyUnit, RefundStatus};
 use common_utils::{
     crypto::{self, VerifySignature},
@@ -44,7 +43,7 @@ use transformers::{
 };
 
 use super::macros;
-use crate::{types::ResponseRouterData, with_error_response_body};
+use crate::{types::ResponseRouterData, utils, with_error_response_body};
 
 use error_stack::ResultExt;
 
@@ -94,8 +93,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .ok_or_else(|| report!(errors::WebhookError::WebhookSignatureNotFound))
             .attach_printable("Missing incoming webhook signature for givepayments connector")?;
 
-        URL_SAFE
-            .decode(signature)
+        utils::safe_base64_decode(signature.to_string())
             .change_context(errors::WebhookError::WebhookSourceVerificationFailed)
     }
 
@@ -433,7 +431,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         let response: givepayments::GivepaymentsErrorResponse = res
             .response
             .parse_struct("GivepaymentsErrorResponse")
-            .change_context(crate::utils::response_deserialization_fail(
+            .change_context(utils::response_deserialization_fail(
                 res.status_code,
                 "givepayments: response body did not match the expected format; confirm API version and connector documentation."),
             )?;
@@ -683,8 +681,8 @@ macros::macro_connector_implementation!(
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Givepayments,
-    curl_request: Json(GivepaymentsRefundRequest),
-    curl_response: GivepaymentsRefundResponse,
+    curl_request: Json(GivepaymentsRefundRequestData),
+    curl_response: GivepaymentsRefundResponseData,
     flow_name: Refund,
     resource_common_data: RefundFlowData,
     flow_request: RefundsData,
@@ -739,11 +737,11 @@ macros::macro_connector_implementation!(
             let connector_refund_id = &req.request.connector_refund_id;
             if connector_refund_id.is_empty() {
                 return Err(errors::IntegrationError::MissingRequiredField {
-                    field_name: "connector_transaction_id",
+                    field_name: "connector_refund_id",
                     context: errors::IntegrationErrorContext {
                         suggested_action: None,
                         doc_url: None,
-                        additional_context: Some("connector_transaction_id is missing from the Rsync request.".to_string()),
+                        additional_context: Some("connector_refund_id is missing from the Rsync request.".to_string()),
                     },
                 }
                 .into());
