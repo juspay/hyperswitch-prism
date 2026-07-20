@@ -1972,12 +1972,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             zip: common_data.get_optional_billing_zip(),
             country: common_data.get_optional_billing_country(),
             phone: common_data.get_optional_billing_phone_number(),
-            // Prefer the billing-address email (mirrors the hyperswitch reference
-            // NMI MIT path), falling back to the top-level `RepeatPaymentData.email`
-            // so the customer email is still sent when no billing email is present.
-            email: common_data
-                .get_optional_billing_email()
-                .or_else(|| router_data.request.email.clone()),
+            // Source `email` from the billing address only, matching the hyperswitch
+            // reference NMI MIT path (`get_billing_details` -> `get_optional_billing_email`).
+            // No fallback to the top-level `RepeatPaymentData.email`: the reference omits
+            // the field entirely when the billing address carries no email, so falling
+            // back to the customer email would send `email` when Direct sends nothing.
+            email: common_data.get_optional_billing_email(),
             shipping_details: Some(NmiShippingDetails {
                 shipping_firstname: common_data.get_optional_shipping_first_name(),
                 shipping_lastname: common_data.get_optional_shipping_last_name(),
@@ -1987,11 +1987,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 shipping_state: common_data.get_optional_shipping_state(),
                 shipping_zip: common_data.get_optional_shipping_zip(),
                 shipping_country: common_data.get_optional_shipping_country(),
-                // Same precedence for the shipping email: shipping-address email
-                // first, then the top-level `RepeatPaymentData.email` fallback.
-                shipping_email: common_data
-                    .get_optional_shipping_email()
-                    .or_else(|| router_data.request.email.clone()),
+                // Same as billing: shipping email comes from the shipping address only,
+                // matching the reference (`get_shipping_details` -> `get_optional_shipping_email`),
+                // with no `RepeatPaymentData.email` fallback.
+                shipping_email: common_data.get_optional_shipping_email(),
             }),
         })
     }
