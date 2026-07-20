@@ -561,9 +561,12 @@ pub enum NoonPaymentStatus {
     Reversed,
     Rejected,
     Locked,
+    #[serde(other)]
+    Unknown,
 }
 
-fn get_payment_status(item: NoonPaymentStatus) -> AttemptStatus {
+fn get_payment_status(data: (NoonPaymentStatus, AttemptStatus)) -> AttemptStatus {
+    let (item, current_status) = data;
     match item {
         NoonPaymentStatus::Authorized => AttemptStatus::Authorized,
         NoonPaymentStatus::Captured
@@ -583,7 +586,14 @@ fn get_payment_status(item: NoonPaymentStatus) -> AttemptStatus {
         NoonPaymentStatus::Initiated
         | NoonPaymentStatus::PaymentInfoAdded
         | NoonPaymentStatus::Authenticated => AttemptStatus::Started,
-        NoonPaymentStatus::Locked => AttemptStatus::Unspecified,
+        NoonPaymentStatus::Locked => current_status,
+        NoonPaymentStatus::Unknown => {
+            tracing::warn!(
+                "Received unknown noon payment status; retaining previous status {:?}",
+                current_status
+            );
+            current_status
+        }
     }
 }
 
@@ -627,7 +637,10 @@ impl<F, T> TryFrom<ResponseRouterData<NoonPaymentsResponse, Self>>
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<NoonPaymentsResponse, Self>) -> Result<Self, Self::Error> {
         let order = item.response.result.order;
-        let status = get_payment_status(order.status);
+        let status = get_payment_status((
+            order.status,
+            item.router_data.resource_common_data.status,
+        ));
         let redirection_data = item.response.result.checkout_data.map(|redirection_data| {
             Box::new(RedirectForm::Form {
                 endpoint: redirection_data.post_url.to_string(),
@@ -1440,7 +1453,10 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<SetupMandateResponse, Self>) -> Result<Self, Self::Error> {
         let order = item.response.result.order;
-        let status = get_payment_status(order.status);
+        let status = get_payment_status((
+            order.status,
+            item.router_data.resource_common_data.status,
+        ));
         let redirection_data = item.response.result.checkout_data.map(|redirection_data| {
             Box::new(RedirectForm::Form {
                 endpoint: redirection_data.post_url.to_string(),
@@ -1658,7 +1674,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         } = item;
 
         let order = payments_response.result.order;
-        let status = get_payment_status(order.status);
+        let status = get_payment_status((
+            order.status,
+            router_data.resource_common_data.status,
+        ));
         let redirection_data = payments_response
             .result
             .checkout_data
