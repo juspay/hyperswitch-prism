@@ -112,6 +112,15 @@ pub struct PaysafeSetupMandateRequest<T: PaymentMethodDataTypes> {
     pub billing_details: Option<PaysafeBillingDetails>,
 }
 
+/// PreAuthenticate (card + 3DS) reuses the payment-handle wire shape; a distinct alias keeps the
+/// flow's request type self-documenting.
+pub type PaysafePreAuthenticateRequest<T> = PaysafeSetupMandateRequest<T>;
+
+/// Authenticate is a body-less `GET /v1/paymenthandles?merchantRefNum=`; the empty body satisfies
+/// the connector macro's request plumbing.
+#[derive(Debug, Serialize)]
+pub struct PaysafeAuthenticateRequest {}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]
