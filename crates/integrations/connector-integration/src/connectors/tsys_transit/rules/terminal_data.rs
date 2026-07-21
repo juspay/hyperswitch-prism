@@ -72,7 +72,6 @@ pub fn resolve(
         _ => terminal_data.card_data_source,
     };
 
-
     ResolvedTerminalData {
         card_data_source,
         terminal_capability: terminal_data.terminal_capability.clone(),
