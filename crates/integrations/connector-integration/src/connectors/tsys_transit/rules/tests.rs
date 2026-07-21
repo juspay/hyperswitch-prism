@@ -873,6 +873,28 @@ fn recurring_mit_card_data_source_follows_channel_not_recurring() {
 }
 
 #[test]
+fn card_family_falls_back_to_bin_when_network_absent() {
+    // A MIT card fetched from the locker (CardDetailsForNetworkTransactionId)
+    // can arrive without a network. cardOnFile / cardOnFileTransactionIdentifier
+    // are gated on CardFamily::Visa, so the family must be recovered from the
+    // PAN when the network is absent.
+    use common_enums::CardNetwork;
+    assert!(matches!(
+        CardFamily::from_card_number("4012000098765439"),
+        CardFamily::Visa
+    ));
+    assert!(matches!(
+        CardFamily::from_network_or_number(None, "4012000098765439"),
+        CardFamily::Visa
+    ));
+    // An explicit network still wins over BIN detection.
+    assert!(matches!(
+        CardFamily::from_network_or_number(Some(&CardNetwork::Mastercard), "4012000098765439"),
+        CardFamily::Mastercard
+    ));
+}
+
+#[test]
 fn recurring_mit_mastercard_cardholder_present_detail_is_recurring() {
     // Cert (Recurring tab): Mastercard recurring CIT uses
     // CARDHOLDER_NOT_PRESENT_RECURRING_TRANSACTION.

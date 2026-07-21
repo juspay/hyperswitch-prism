@@ -33,6 +33,35 @@ impl CardFamily {
         }
     }
 
+    /// Fallback when the card network is not supplied — infer the family from
+    /// the card number's BIN. A MIT card fetched from the locker
+    /// (`CardDetailsForNetworkTransactionId`) can arrive without a network, and
+    /// cert-critical fields (cardOnFile / cardOnFileTransactionIdentifier) are
+    /// gated on the family, so the network must still be recognised from the PAN.
+    pub fn from_card_number(card_number: &str) -> Self {
+        use domain_types::utils::CardIssuer;
+        match domain_types::utils::get_card_issuer(card_number) {
+            Ok(CardIssuer::Visa) => Self::Visa,
+            Ok(CardIssuer::Master | CardIssuer::Maestro) => Self::Mastercard,
+            Ok(CardIssuer::AmericanExpress) => Self::Amex,
+            Ok(CardIssuer::Discover) => Self::Discover,
+            Ok(CardIssuer::JCB) => Self::Jcb,
+            Ok(CardIssuer::DinersClub | CardIssuer::CarteBlanche | CardIssuer::CartesBancaires) => {
+                Self::Diners
+            }
+            Ok(CardIssuer::UnionPay) => Self::UnionPay,
+            Err(_) => Self::Unknown,
+        }
+    }
+
+    /// Prefer the explicit network; fall back to BIN detection from the PAN.
+    pub fn from_network_or_number(network: Option<&CardNetwork>, card_number: &str) -> Self {
+        match Self::from_network(network) {
+            Self::Unknown => Self::from_card_number(card_number),
+            family => family,
+        }
+    }
+
     /// AMEX and JCB share the "MANUALLY_ENTERED_WITH_KEYED_CID_AMEX_JCB"
     /// `cardDataInputMode` rule when a CVV is sent.
     pub fn is_amex_or_jcb(self) -> bool {
