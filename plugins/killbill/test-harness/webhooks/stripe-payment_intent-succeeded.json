@@ -1,0 +1,15 @@
+{
+  "id": "evt_test_harness_001",
+  "object": "event",
+  "type": "payment_intent.succeeded",
+  "created": 1700000000,
+  "data": {
+    "object": {
+      "id": "pi_test_harness_001",
+      "object": "payment_intent",
+      "amount": 1000,
+      "currency": "usd",
+      "status": "succeeded"
+    }
+  }
+}

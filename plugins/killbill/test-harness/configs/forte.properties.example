@@ -1,0 +1,8 @@
+# Copy to forte.properties and fill in real sandbox credentials.
+org.killbill.billing.plugin.hyperswitch.connector=forte
+org.killbill.billing.plugin.hyperswitch.environment=SANDBOX
+org.killbill.billing.plugin.hyperswitch.captureMethod=AUTOMATIC
+org.killbill.billing.plugin.hyperswitch.forte.apiAccessId=REPLACE_ME
+org.killbill.billing.plugin.hyperswitch.forte.organizationId=REPLACE_ME
+org.killbill.billing.plugin.hyperswitch.forte.locationId=REPLACE_ME
+org.killbill.billing.plugin.hyperswitch.forte.apiSecretKey=REPLACE_ME
