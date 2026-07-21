@@ -8,7 +8,8 @@ use crate::{
 use common_enums;
 use common_utils::{events::FlowName, lineage, metadata::MaskedMetadata, SecretSerdeValue};
 use connector_integration::types::{
-    ConnectorData, ConnectorDataProvider, FrmConnectorData, PayoutConnectorData,
+    AuthenticatorConnectorData, ConnectorData, ConnectorDataProvider, FrmConnectorData,
+    PayoutConnectorData,
 };
 use domain_types::payment_method_data;
 use domain_types::{
@@ -2021,6 +2022,20 @@ impl PaymentMethodService for PaymentMethod {
                         &metadata_payload.lineage_ids,
                     );
 
+                    // Authenticator connectors (e.g. Plaid) exchange a token via `metadata`
+                    // and do not carry a `payment_method` field. Route to the dedicated path.
+                    if matches!(metadata_payload.connector, ConnectorVariant::Authenticator(_)) {
+                        let result = Box::pin(self.handle_tokenize_authenticator_flow(
+                            &config,
+                            payload,
+                            &metadata_payload,
+                            &request_data.masked_metadata,
+                            &service_name,
+                            request_id,
+                        )).await?;
+                        return Ok(tonic::Response::new(result));
+                    }
+
                     let payment_method_data_action = PaymentMethodDataAction::get_payment_method_data_action(payload.payment_method.clone().ok_or(ucs_env::error::GrpcError::from(IntegrationError::MissingRequiredField { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() }))?)
                     .map_err(|err| {
                         tracing::error!("PAYMENT_AUTHORIZE_FLOW: failed to get payment method data action - error: {:?}", err);
@@ -2329,7 +2344,7 @@ impl PaymentMethod {
     );
 
     implement_connector_operation!(
-        fn_name: internal_get_payment_method,
+        fn_name: internal_get_payment_method_payment,
         log_prefix: "GET_PAYMENT_METHOD",
         request_type: PaymentMethodServiceGetRequest,
         response_type: PaymentMethodServiceGetResponse,
@@ -2343,6 +2358,39 @@ impl PaymentMethod {
         connector_data_type: ConnectorData<DefaultPCIHolder>,
         all_keys_required: None
     );
+
+    implement_connector_operation!(
+        fn_name: internal_get_payment_method_authenticator,
+        log_prefix: "GET_PAYMENT_METHOD",
+        request_type: PaymentMethodServiceGetRequest,
+        response_type: PaymentMethodServiceGetResponse,
+        flow_marker: GetPaymentMethod,
+        resource_common_data_type: PaymentFlowData,
+        request_data_type: GetPaymentMethodData,
+        response_data_type: GetPaymentMethodResponseData,
+        request_data_constructor: GetPaymentMethodData::foreign_try_from,
+        common_flow_data_constructor: PaymentFlowData::foreign_try_from,
+        generate_response_fn: generate_get_payment_method_response,
+        connector_data_type: AuthenticatorConnectorData,
+        all_keys_required: None
+    );
+
+    async fn internal_get_payment_method(
+        &self,
+        request: RequestData<PaymentMethodServiceGetRequest>,
+    ) -> Result<
+        tonic::Response<PaymentMethodServiceGetResponse>,
+        error_stack::Report<ucs_env::error::GrpcError>,
+    > {
+        if matches!(
+            request.extracted_metadata.connector,
+            ConnectorVariant::Authenticator(_)
+        ) {
+            self.internal_get_payment_method_authenticator(request).await
+        } else {
+            self.internal_get_payment_method_payment(request).await
+        }
+    }
 
     implement_connector_operation!(
         fn_name: internal_pm_eligibility,
@@ -2487,6 +2535,139 @@ impl PaymentMethod {
                 .to_grpc_error()?;
 
         Ok(payment_method_token_response)
+    }
+
+    /// Tokenize flow for authenticator connectors (e.g. Plaid public-token exchange).
+    /// These connectors carry the token in `metadata` rather than `payment_method`.
+    async fn handle_tokenize_authenticator_flow(
+        &self,
+        config: &Arc<Config>,
+        request: PaymentMethodServiceTokenizeRequest,
+        metadata_payload: &utils::MetadataPayload,
+        masked_metadata: &MaskedMetadata,
+        service_name: &str,
+        request_id: &str,
+    ) -> Result<
+        PaymentMethodServiceTokenizeResponse,
+        error_stack::Report<ucs_env::error::GrpcError>,
+    > {
+        use connector_integration::types::ConnectorDataProvider as _;
+
+        let connector_data: AuthenticatorConnectorData =
+            AuthenticatorConnectorData::from_connector_variant(&metadata_payload.connector)
+                .ok_or_else(|| {
+                    error_stack::Report::new(ucs_env::error::GrpcError::from(
+                        IntegrationError::NotSupported {
+                            message: "Invalid connector type for authenticator tokenize flow"
+                                .to_string(),
+                            connector: "N/A",
+                            context: domain_types::errors::IntegrationErrorContext::default(),
+                        },
+                    ))
+                })?;
+
+        let connector_integration: BoxedConnectorIntegrationV2<
+            '_,
+            PaymentMethodToken,
+            PaymentFlowData,
+            PaymentMethodTokenizationData<DefaultPCIHolder>,
+            PaymentMethodTokenResponse,
+        > = connector_data.connector.get_connector_integration_v2();
+
+        let connectors = utils::connectors_with_connector_config_overrides(
+            &metadata_payload.connector_config,
+            config,
+        )
+        .to_grpc_error()?;
+
+        let payment_flow_data =
+            PaymentFlowData::foreign_try_from((request.clone(), connectors, masked_metadata))
+                .map_err(|e| e.to_grpc_error())?;
+
+        // Authenticator connectors only use `metadata` (the public_token).
+        // Populate a minimal PaymentMethodTokenizationData; `payment_method_data` is unused.
+        let dummy_pm_data = payment_method_data::PaymentMethodData::PaymentMethodToken(
+            payment_method_data::PaymentMethodToken {
+                token: hyperswitch_masking::Secret::new(String::new()),
+            },
+        );
+        let tokenization_data = PaymentMethodTokenizationData::<DefaultPCIHolder> {
+            payment_method_data: dummy_pm_data,
+            metadata: request.metadata.clone(),
+            connector_feature_data: request
+                .connector_feature_data
+                .as_ref()
+                .and_then(|s| serde_json::from_str(s.peek()).ok()),
+            amount: common_utils::types::MinorUnit::new(0),
+            currency: common_enums::Currency::USD,
+            browser_info: None,
+            capture_method: None,
+            customer_acceptance: None,
+            setup_future_usage: None,
+            setup_mandate_details: None,
+            mandate_id: None,
+            integrity_object: None,
+            split_payments: None,
+        };
+
+        let router_data = RouterDataV2::<
+            PaymentMethodToken,
+            PaymentFlowData,
+            PaymentMethodTokenizationData<DefaultPCIHolder>,
+            PaymentMethodTokenResponse,
+        > {
+            flow: std::marker::PhantomData,
+            resource_common_data: payment_flow_data,
+            connector_config: metadata_payload.connector_config.clone(),
+            request: tokenization_data,
+            response: Err(ErrorResponse::default()),
+        };
+
+        let api_tag = config.api_tags.get_tag(FlowName::PaymentMethodToken, None);
+        let test_context = config.test.create_test_context(request_id).map_err(|e| {
+            error_stack::Report::new(ucs_env::error::GrpcError::from(
+                InternalError::TestContextCreationFailed {
+                    reason: e.to_string(),
+                },
+            ))
+        })?;
+
+        let event_params = EventProcessingParams {
+            connector_name: &metadata_payload.connector.get_connector_name(),
+            service_name,
+            service_type: utils::service_type_str(&config.server.type_),
+            flow_name: FlowName::PaymentMethodToken,
+            event_config: &config.events,
+            request_id,
+            lineage_ids: &metadata_payload.lineage_ids,
+            reference_id: &metadata_payload.reference_id,
+            resource_id: &metadata_payload.resource_id,
+            shadow_mode: metadata_payload.shadow_mode,
+            proxy_name: metadata_payload.proxy_name.as_deref(),
+            tenant_id: &metadata_payload.tenant_id,
+            merchant_id: metadata_payload.merchant_id.as_str(),
+            return_raw_connector_data: config.common.return_raw_connector_data,
+            connector_latency: metadata_payload.connector_latency.clone(),
+        };
+
+        let response = Box::pin(
+            external_services::service::execute_connector_processing_step(
+                &config.proxy,
+                connector_integration,
+                router_data,
+                None,
+                event_params,
+                None,
+                common_enums::CallConnectorAction::Trigger,
+                test_context,
+                api_tag,
+            ),
+        )
+        .await;
+
+        let success_response = response.to_grpc_error()?;
+        domain_types::types::generate_create_payment_method_token_response(success_response)
+            .to_grpc_error()
     }
 }
 
@@ -2653,10 +2834,10 @@ impl MerchantAuthentication {
             ConnectorVariant::Payout(conn) => PayoutConnectorData::get_connector_by_name(conn)
                 .connector
                 .get_connector_integration_v2(),
-            ConnectorVariant::Surcharge(_) => {
+            ConnectorVariant::Surcharge(_) | ConnectorVariant::Authenticator(_) => {
                 return Err(error_stack::Report::new(ucs_env::error::GrpcError::from(
                     IntegrationError::NotSupported {
-                        message: "Surcharge connectors do not support server authentication tokens"
+                        message: "Surcharge/Authenticator connectors do not support server authentication tokens"
                             .to_string(),
                         connector: "N/A",
                         context: domain_types::errors::IntegrationErrorContext {
@@ -2743,11 +2924,9 @@ impl MerchantAuthentication {
         // Use generate_access_token_response for consistency
         domain_types::types::generate_access_token_response(response).to_grpc_error()
     }
-}
 
-impl MerchantAuthenticationOperational for MerchantAuthentication {
     implement_connector_operation!(
-        fn_name: internal_sdk_session_token,
+        fn_name: internal_sdk_session_token_payment,
         log_prefix: "SDK_SESSION",
         request_type: MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
         response_type: MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
@@ -2761,6 +2940,41 @@ impl MerchantAuthenticationOperational for MerchantAuthentication {
         connector_data_type: ConnectorData<DefaultPCIHolder>,
         all_keys_required: None
     );
+
+    implement_connector_operation!(
+        fn_name: internal_sdk_session_token_authenticator,
+        log_prefix: "SDK_SESSION_AUTHENTICATOR",
+        request_type: MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
+        response_type: MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
+        flow_marker: ClientAuthenticationToken,
+        resource_common_data_type: MerchantAuthenticationFlowData,
+        request_data_type: ClientAuthenticationTokenRequestData,
+        response_data_type: PaymentsResponseData,
+        request_data_constructor: ClientAuthenticationTokenRequestData::foreign_try_from,
+        common_flow_data_constructor: MerchantAuthenticationFlowData::foreign_try_from,
+        generate_response_fn: generate_payment_sdk_session_token_response,
+        connector_data_type: AuthenticatorConnectorData,
+        all_keys_required: None
+    );
+}
+
+impl MerchantAuthenticationOperational for MerchantAuthentication {
+    async fn internal_sdk_session_token(
+        &self,
+        request: RequestData<MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest>,
+    ) -> Result<
+        tonic::Response<MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse>,
+        error_stack::Report<ucs_env::error::GrpcError>,
+    > {
+        if matches!(
+            request.extracted_metadata.connector,
+            ConnectorVariant::Authenticator(_)
+        ) {
+            self.internal_sdk_session_token_authenticator(request).await
+        } else {
+            self.internal_sdk_session_token_payment(request).await
+        }
+    }
 }
 
 #[tonic::async_trait]
@@ -2806,7 +3020,7 @@ impl MerchantAuthenticationService for MerchantAuthentication {
             &service_name,
             config,
             FlowName::ClientAuthenticationToken,
-            |request_data| async move { self.internal_sdk_session_token(request_data).await },
+            |request_data| Box::pin(self.internal_sdk_session_token(request_data)),
         )
         .await
     }

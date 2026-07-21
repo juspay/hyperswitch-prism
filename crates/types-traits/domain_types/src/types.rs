@@ -2494,6 +2494,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
                 Ok(PaymentMethodType::Netbanking)
             }
             grpc_api_types::payments::PaymentMethodType::Affirm => Ok(PaymentMethodType::Affirm),
+            grpc_api_types::payments::PaymentMethodType::Ach => Ok(PaymentMethodType::Ach),
             _ => Err(IntegrationError::InvalidDataFormat {
                 field_name: "payment_method_type",
                 context: IntegrationErrorContext {

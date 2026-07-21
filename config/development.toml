@@ -1,7 +1,7 @@
 [common]
 environment = "development"
 # Whether to return raw connector request/response in the response (default: true)
-return_raw_connector_data = false
+return_raw_connector_data = true
 
 [log.console]
 enabled = true
@@ -18,8 +18,8 @@ buffer_limit = 100000
 
 [server]
 host = "0.0.0.0"
-port = 8000
-type = "grpc"
+port = 8011
+type = "http"
 
 [metrics]
 host = "0.0.0.0"
@@ -60,6 +60,7 @@ connectors_with_webhook_source_verification_call = "paypal, truelayer"
 [connectors]
 kount.base_url = "https://api-sandbox.kount.com"
 kount.secondary_base_url = "https://login.kount.com"
+plaid.base_url = "https://sandbox.plaid.com"
 hyperswitch.base_url = "https://sandbox.hyperswitch.io"
 payconex.base_url = "https://cert.payconex.net"
 affirm.base_url = "https://sandbox.affirm.com"
