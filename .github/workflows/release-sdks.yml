@@ -73,8 +73,6 @@ on:
         required: true
       PYPI_TOKEN:
         required: true
-      NPM_TOKEN:
-        required: true
 
 # Literal group, not ${{ github.workflow }}: when called via `uses:` that resolves
 # to the caller's name and collides with the caller's group, deadlocking the run.
@@ -481,6 +479,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: [setup, collect-sdks]
     if: always() && needs.collect-sdks.result == 'success' && (needs.setup.outputs.preview_only == 'true' || needs.setup.outputs.publish_java == 'true' || needs.setup.outputs.publish_python == 'true' || needs.setup.outputs.publish_javascript == 'true')
+    # id-token so the npm auth check can verify OIDC issuance pre-flight.
+    permissions:
+      contents: read
+      id-token: write
     env:
       VERSION: ${{ needs.setup.outputs.version }}
     steps:
@@ -491,9 +493,10 @@ jobs:
         with:
           python-version: '3.11'
 
+      # Kept in step with the publish job so the dry-run exercises the same npm.
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           registry-url: 'https://registry.npmjs.org'
 
       - uses: actions/setup-java@v4
@@ -570,20 +573,29 @@ jobs:
           TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
         run: make -C sdk/python publish-check-auth
 
-      - name: Check JavaScript auth
+      # There is no stored npm token to check `npm whoami` against any more.
+      # The publish credential is minted from the GitHub OIDC token at publish
+      # time, so the pre-flight equivalent is confirming this run can actually
+      # mint one. It cannot verify the trusted-publisher config on npmjs.com —
+      # only that the OIDC half works.
+      - name: Check JavaScript auth (OIDC)
         id: check-js-auth
         if: ${{ needs.setup.outputs.preview_only == 'true' || needs.setup.outputs.publish_javascript == 'true' }}
         continue-on-error: true
-        working-directory: sdk/javascript
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          if npm whoami >/dev/null 2>&1; then
-            echo "npm authenticated as: $(npm whoami)"
-          else
-            echo "Error: npm authentication failed"
+          if [ -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ]; then
+            echo "Error: no OIDC token endpoint — job is missing 'id-token: write'"
             exit 1
           fi
+          token="$(curl -sf \
+            -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=npm:registry.npmjs.org" \
+            | jq -r '.value // empty')"
+          if [ -z "$token" ]; then
+            echo "Error: failed to mint an OIDC token for npm"
+            exit 1
+          fi
+          echo "OIDC token minted for npm (workflow_ref must match the trusted publisher on npmjs.com)"
 
       # --- Version checks ---
       - name: Check Java version
@@ -653,8 +665,6 @@ jobs:
         if: ${{ needs.setup.outputs.preview_only == 'true' || needs.setup.outputs.publish_javascript == 'true' }}
         continue-on-error: true
         working-directory: sdk/javascript
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           npm ci
           npm publish ../../artifacts/sdk-javascript/*.tgz --dry-run --access public
@@ -844,6 +854,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: [setup, preview-publish, pre-publish-check]
     if: always() && needs.setup.outputs.publish_javascript == 'true' && needs.setup.outputs.preview_only == 'false' && needs.pre-publish-check.result == 'success'
+    # Must match the Environment field of the trusted publisher on npmjs.com —
+    # declaring it here is what puts the "production" claim in the OIDC token.
+    environment: production
     permissions:
       contents: read
       id-token: write
@@ -851,10 +864,18 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref }}
+      # Node 24 ships npm 11.x. npm >= 11.5.1 is required for OIDC trusted
+      # publishing; registry-url writes the .npmrc that scopes the OIDC
+      # exchange to registry.npmjs.org.
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           registry-url: 'https://registry.npmjs.org'
+      - name: Verify npm supports trusted publishing
+        run: |
+          echo "npm $(npm --version) / node $(node --version)"
+          npx --yes semver -r '>=11.5.1' "$(npm --version)" >/dev/null \
+            || { echo "npm >= 11.5.1 required for OIDC trusted publishing"; exit 1; }
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
         with:
@@ -896,11 +917,17 @@ jobs:
           else
             echo "✅ Will publish to npm"
           fi
+      # Publishes via OIDC trusted publishing — no stored token. Requires the
+      # job's id-token: write above, npm >= 11.5.1, and a trusted publisher
+      # registered on npmjs.com for juspay/hyperswitch-prism :: release-sdks.yml
+      # :: production. This workflow must be the top-level run for that ref to
+      # match, which is why release-stable-version.yml dispatches it instead of
+      # calling it. Provenance is attached automatically.
       - name: Publish to npm
         if: ${{ needs.setup.outputs.preview_only == 'false' }}
         working-directory: sdk/javascript
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_LOGLEVEL: verbose
         run: |
           npm ci
           npm publish ../../artifacts/sdk-javascript/*.tgz --access public
