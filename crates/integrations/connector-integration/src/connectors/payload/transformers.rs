@@ -8,12 +8,15 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, ClientAuthenticationToken, CreateConnectorCustomer, RSync, Refund,
-        SetupMandate, Void,
+        Authorize, Capture, ClientAuthenticationToken, ConnectorWebhookRegister,
+        CreateConnectorCustomer, RSync, Refund, SetupMandate, Void,
     },
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
-        ConnectorCustomerResponse, ConnectorSpecificClientAuthenticationResponse, MandateReference,
+        ConnectorCustomerResponse, ConnectorSpecificClientAuthenticationResponse,
+        ConnectorWebhookRegisterData, ConnectorWebhookRegisterFlowData,
+        ConnectorWebhookRegisterResponseData, ConnectorWebhookRegistrationEventType,
+        ConnectorWebhookRegistrationScope, ConnectorWebhookRegistrationStatus, MandateReference,
         PayloadClientAuthenticationResponse as PayloadClientAuthenticationResponseDomain,
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
         PaymentsResponseData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
@@ -29,7 +32,7 @@ use domain_types::{
     router_data_v2::RouterDataV2,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeOptionInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, ExposeOptionInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use super::{requests, responses};
@@ -39,16 +42,127 @@ use crate::types::ResponseRouterData;
 pub use super::requests::{
     PayloadCaptureRequest, PayloadCardsRequestData, PayloadCustomerRequest, PayloadPaymentsRequest,
     PayloadRefundRequest, PayloadRepeatPaymentRequest, PayloadVoidRequest,
+    PayloadWebhookRegisterEventType, PayloadWebhookRegisterRequest,
 };
 pub use super::responses::{
     PayloadAuthorizeResponse, PayloadCaptureResponse, PayloadCustomerResponse,
     PayloadErrorResponse, PayloadEventDetails, PayloadPSyncResponse, PayloadPaymentsResponse,
     PayloadRSyncResponse, PayloadRefundResponse, PayloadRepeatPaymentResponse,
-    PayloadSetupMandateResponse, PayloadVoidResponse, PayloadWebhookEvent, PayloadWebhooksTrigger,
+    PayloadSetupMandateResponse, PayloadVoidResponse, PayloadWebhookEvent,
+    PayloadWebhookRegisterResponse, PayloadWebhooksTrigger,
 };
 
 type Error = error_stack::Report<IntegrationError>;
 type ResponseError = error_stack::Report<ConnectorError>;
+
+impl TryFrom<ConnectorWebhookRegistrationEventType> for PayloadWebhookRegisterEventType {
+    type Error = Error;
+
+    fn try_from(value: ConnectorWebhookRegistrationEventType) -> Result<Self, Self::Error> {
+        use ConnectorWebhookRegistrationEventType as Event;
+        match value {
+            Event::PaymentProcessing => Ok(Self::Payment),
+            Event::PaymentAuthorized | Event::PaymentPartiallyAuthorized => Ok(Self::Authorized),
+            Event::PaymentSucceeded | Event::PaymentCaptured => Ok(Self::Processed),
+            Event::PaymentFailed | Event::RefundFailed | Event::PayoutFailed => Ok(Self::Decline),
+            Event::PaymentCancelled | Event::PayoutCancelled => Ok(Self::Void),
+            Event::PaymentCancelledPostCapture
+            | Event::DisputeAccepted
+            | Event::DisputeLost
+            | Event::PayoutReversed => Ok(Self::Reversal),
+            Event::RefundSucceeded => Ok(Self::Refund),
+            Event::DisputeOpened => Ok(Self::Reject),
+            Event::PayoutInitiated | Event::PayoutProcessing => Ok(Self::Credit),
+            Event::PayoutSuccess => Ok(Self::Deposit),
+            _ => Err(IntegrationError::NotSupported {
+                message: "webhook registration event type".to_string(),
+                connector: "payload",
+                context: Default::default(),
+            }
+            .into()),
+        }
+    }
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        PayloadRouterData<
+            RouterDataV2<
+                ConnectorWebhookRegister,
+                ConnectorWebhookRegisterFlowData,
+                ConnectorWebhookRegisterData,
+                ConnectorWebhookRegisterResponseData,
+            >,
+            T,
+        >,
+    > for PayloadWebhookRegisterRequest
+{
+    type Error = Error;
+
+    fn try_from(
+        item: PayloadRouterData<
+            RouterDataV2<
+                ConnectorWebhookRegister,
+                ConnectorWebhookRegisterFlowData,
+                ConnectorWebhookRegisterData,
+                ConnectorWebhookRegisterResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let event_type = match item.router_data.request.scope {
+            ConnectorWebhookRegistrationScope::EventType(event) => {
+                PayloadWebhookRegisterEventType::try_from(event)?
+            }
+            _ => {
+                return Err(IntegrationError::MissingRequiredField {
+                    field_name: "scope.event_type",
+                    context: Default::default(),
+                }
+                .into())
+            }
+        };
+        Ok(Self {
+            trigger: event_type,
+            url: Secret::new(
+                item.router_data
+                    .request
+                    .webhook_url
+                    .clone()
+                    .expose()
+                    .to_string(),
+            ),
+            sender_secret: None,
+        })
+    }
+}
+
+impl TryFrom<ResponseRouterData<PayloadWebhookRegisterResponse, Self>>
+    for RouterDataV2<
+        ConnectorWebhookRegister,
+        ConnectorWebhookRegisterFlowData,
+        ConnectorWebhookRegisterData,
+        ConnectorWebhookRegisterResponseData,
+    >
+{
+    type Error = ResponseError;
+
+    fn try_from(
+        item: ResponseRouterData<PayloadWebhookRegisterResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(ConnectorWebhookRegisterResponseData {
+                scope: item.router_data.request.scope.clone(),
+                status: ConnectorWebhookRegistrationStatus::Success,
+                connector_webhook_id: Some(item.response.id),
+                connector_webhook_secret: None,
+                metadata: None,
+                status_code: item.http_code,
+            }),
+            ..item.router_data
+        })
+    }
+}
 
 // Helper function to check if capture method is manual
 fn is_manual_capture(capture_method: Option<enums::CaptureMethod>) -> bool {

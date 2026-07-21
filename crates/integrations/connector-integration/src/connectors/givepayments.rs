@@ -10,13 +10,15 @@ use common_utils::{
     ext_traits::ByteSliceExt,
 };
 use domain_types::{
-    connector_flow::{Authorize, PSync, RSync, Refund, RepeatPayment},
+    connector_flow::{Authorize, ConnectorWebhookRegister, PSync, RSync, Refund, RepeatPayment},
     connector_types::{
-        ConnectorWebhookSecrets, EventContext, EventType, MandateReference, PaymentFlowData,
-        PaymentWebhookReference, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse, RefundWebhookReference,
-        RefundsData, RefundsResponseData, RepeatPaymentData, RequestDetails, ResponseId,
-        WebhookDetailsResponse, WebhookResourceReference,
+        ConnectorWebhookRegisterData, ConnectorWebhookRegisterFlowData,
+        ConnectorWebhookRegisterResponseData, ConnectorWebhookSecrets, EventContext, EventType,
+        MandateReference, PaymentFlowData, PaymentWebhookReference, PaymentsAuthorizeData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData,
+        RefundWebhookDetailsResponse, RefundWebhookReference, RefundsData, RefundsResponseData,
+        RepeatPaymentData, RequestDetails, ResponseId, WebhookDetailsResponse,
+        WebhookResourceReference,
     },
     errors,
     payment_method_data::PaymentMethodDataTypes,
@@ -40,6 +42,7 @@ use transformers::{
     GivepaymentsPaymentsRequestData as GivepaymentsRepeatPaymentRequest,
     GivepaymentsRefundRequestData, GivepaymentsRefundResponseData,
     GivepaymentsRefundResponseData as GivepaymentsRefundSyncResponse, GivepaymentsWebhookData,
+    GivepaymentsWebhookRegisterRequest, GivepaymentsWebhookRegisterResponse,
 };
 
 use super::macros;
@@ -346,6 +349,12 @@ macros::create_all_prerequisites!(
             flow: RSync,
             response_body: GivepaymentsRefundSyncResponse,
             router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ),
+        (
+            flow: ConnectorWebhookRegister,
+            request_body: GivepaymentsWebhookRegisterRequest,
+            response_body: GivepaymentsWebhookRegisterResponse,
+            router_data: RouterDataV2<ConnectorWebhookRegister, ConnectorWebhookRegisterFlowData, ConnectorWebhookRegisterData, ConnectorWebhookRegisterResponseData>,
         )
     ],
     amount_converters: [],
@@ -473,6 +482,33 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         })
     }
 }
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_headers, get_content_type, get_error_response_v2],
+    connector: Givepayments,
+    curl_request: Json(GivepaymentsWebhookRegisterRequest),
+    curl_response: GivepaymentsWebhookRegisterResponse,
+    flow_name: ConnectorWebhookRegister,
+    resource_common_data: ConnectorWebhookRegisterFlowData,
+    flow_request: ConnectorWebhookRegisterData,
+    flow_response: ConnectorWebhookRegisterResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_url(
+            &self,
+            req: &RouterDataV2<
+                ConnectorWebhookRegister,
+                ConnectorWebhookRegisterFlowData,
+                ConnectorWebhookRegisterData,
+                ConnectorWebhookRegisterResponseData,
+            >,
+        ) -> CustomResult<String, errors::IntegrationError> {
+            Ok(req.request.connector_webhook_registration_url.to_string())
+        }
+    }
+);
 
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],

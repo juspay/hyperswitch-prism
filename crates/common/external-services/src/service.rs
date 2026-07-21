@@ -134,6 +134,18 @@ impl AdditionalHeaders for domain_types::connector_types::PaymentFlowData {
     }
 }
 
+impl ConnectorRequestReference for domain_types::connector_types::ConnectorWebhookRegisterFlowData {
+    fn get_connector_request_reference_id(&self) -> &str {
+        &self.connector_request_reference_id
+    }
+}
+
+impl AdditionalHeaders for domain_types::connector_types::ConnectorWebhookRegisterFlowData {
+    fn get_vault_headers(&self) -> Option<&HashMap<String, Secret<String>>> {
+        None
+    }
+}
+
 impl ConnectorRequestReference for domain_types::connector_types::RefundFlowData {
     fn get_connector_request_reference_id(&self) -> &str {
         &self.connector_request_reference_id
@@ -258,6 +270,11 @@ pub trait GetFlowStatus {
 impl GetFlowStatus for domain_types::connector_types::PaymentFlowData {
     fn flow_status(&self) -> Option<domain_types::router_data::FlowStatus> {
         Some(domain_types::router_data::FlowStatus::Payment(self.status))
+    }
+}
+impl GetFlowStatus for domain_types::connector_types::ConnectorWebhookRegisterFlowData {
+    fn flow_status(&self) -> Option<domain_types::router_data::FlowStatus> {
+        None
     }
 }
 impl GetFlowStatus for domain_types::connector_types::RefundFlowData {

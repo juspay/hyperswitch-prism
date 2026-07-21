@@ -9,14 +9,16 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, ClientAuthenticationToken, CreateConnectorCustomer, PSync, RSync,
-        Refund, RepeatPayment, SetupMandate, Void,
+        Authorize, Capture, ClientAuthenticationToken, ConnectorWebhookRegister,
+        CreateConnectorCustomer, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void,
     },
     connector_types::{
         ClientAuthenticationTokenRequestData, ConnectorCustomerData, ConnectorCustomerResponse,
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, RepeatPaymentData, SetupMandateRequestData,
+        ConnectorWebhookRegisterData, ConnectorWebhookRegisterFlowData,
+        ConnectorWebhookRegisterResponseData, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        SetupMandateRequestData,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
@@ -39,7 +41,8 @@ use transformers::{
     PayloadCustomerRequest, PayloadCustomerResponse, PayloadErrorResponse, PayloadPSyncResponse,
     PayloadPaymentsRequest, PayloadRSyncResponse, PayloadRefundRequest, PayloadRefundResponse,
     PayloadRepeatPaymentRequest, PayloadRepeatPaymentResponse, PayloadSetupMandateResponse,
-    PayloadVoidRequest, PayloadVoidResponse,
+    PayloadVoidRequest, PayloadVoidResponse, PayloadWebhookRegisterRequest,
+    PayloadWebhookRegisterResponse,
 };
 
 use super::macros;
@@ -191,6 +194,12 @@ macros::create_all_prerequisites!(
             request_body: PayloadCustomerRequest,
             response_body: PayloadCustomerResponse,
             router_data: RouterDataV2<CreateConnectorCustomer, PaymentFlowData, ConnectorCustomerData, ConnectorCustomerResponse>,
+        ),
+        (
+            flow: ConnectorWebhookRegister,
+            request_body: PayloadWebhookRegisterRequest,
+            response_body: PayloadWebhookRegisterResponse,
+            router_data: RouterDataV2<ConnectorWebhookRegister, ConnectorWebhookRegisterFlowData, ConnectorWebhookRegisterData, ConnectorWebhookRegisterResponseData>,
         )
     ],
     amount_converters: [],
@@ -313,6 +322,54 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         })
     }
 }
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_error_response_v2],
+    connector: Payload,
+    curl_request: FormUrlEncoded(PayloadWebhookRegisterRequest),
+    curl_response: PayloadWebhookRegisterResponse,
+    flow_name: ConnectorWebhookRegister,
+    resource_common_data: ConnectorWebhookRegisterFlowData,
+    flow_request: ConnectorWebhookRegisterData,
+    flow_response: ConnectorWebhookRegisterResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<
+                ConnectorWebhookRegister,
+                ConnectorWebhookRegisterFlowData,
+                ConnectorWebhookRegisterData,
+                ConnectorWebhookRegisterResponseData,
+            >,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            let mut headers = vec![(
+                headers::CONTENT_TYPE.to_string(),
+                "application/x-www-form-urlencoded".to_string().into(),
+            )];
+            headers.append(&mut self.get_auth_header(&req.connector_config)?);
+            Ok(headers)
+        }
+
+        fn get_content_type(&self) -> &'static str {
+            "application/x-www-form-urlencoded"
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<
+                ConnectorWebhookRegister,
+                ConnectorWebhookRegisterFlowData,
+                ConnectorWebhookRegisterData,
+                ConnectorWebhookRegisterResponseData,
+            >,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(req.request.connector_webhook_registration_url.to_string())
+        }
+    }
+);
 
 // Authorize flow implementation
 macros::macro_connector_implementation!(

@@ -77,6 +77,9 @@ pub struct MandateRevoke;
 pub struct VerifyWebhookSource;
 
 #[derive(Debug, Clone)]
+pub struct ConnectorWebhookRegister;
+
+#[derive(Debug, Clone)]
 pub struct PayoutCreate;
 
 #[derive(Debug, Clone)]

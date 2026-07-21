@@ -11,10 +11,13 @@ use connector_integration::types::{
 };
 use domain_types::{
     connector_flow::{
-        FrmChargebackReceived, FrmPaymentOutcome, FrmRefundProcessed, SurchargePaymentSucceeded,
-        SurchargeRefundSucceeded, VerifyWebhookSource,
+        ConnectorWebhookRegister, FrmChargebackReceived, FrmPaymentOutcome, FrmRefundProcessed,
+        SurchargePaymentSucceeded, SurchargeRefundSucceeded, VerifyWebhookSource,
     },
-    connector_types::{VerifyWebhookSourceFlowData, WebhookIntegrityCheck},
+    connector_types::{
+        ConnectorWebhookRegisterData, ConnectorWebhookRegisterFlowData,
+        ConnectorWebhookRegisterResponseData, VerifyWebhookSourceFlowData, WebhookIntegrityCheck,
+    },
     errors::WebhookError,
     frm::frm_types::{
         FrmChargebackReceivedRequest, FrmChargebackReceivedResponse, FrmFlowData,
@@ -39,7 +42,8 @@ use domain_types::{
 };
 use external_services::service::EventProcessingParams;
 use grpc_api_types::payments::{
-    event_service_server::EventService, EventServiceHandleRequest, EventServiceHandleResponse,
+    event_service_server::EventService, ConnectorWebhookRegisterRequest,
+    ConnectorWebhookRegisterResponse, EventServiceHandleRequest, EventServiceHandleResponse,
     EventServiceParseRequest, EventServiceParseResponse, NotifyConnectorRequest,
     NotifyConnectorResponse,
 };
@@ -415,6 +419,163 @@ impl EventService for EventServiceImpl {
                             )))
                         }
                     }
+                })
+            },
+        )
+        .await
+    }
+
+    #[tracing::instrument(
+        name = "EventService::register_webhook",
+        skip(self, request),
+        fields(
+            name = common_utils::consts::NAME,
+            service_name = tracing::field::Empty,
+            service_method = "RegisterWebhook",
+            request_body = tracing::field::Empty,
+            response_body = tracing::field::Empty,
+            error_message = tracing::field::Empty,
+            merchant_id = tracing::field::Empty,
+            gateway = tracing::field::Empty,
+            request_id = tracing::field::Empty,
+            status_code = tracing::field::Empty,
+            message_ = "Golden Log Line (incoming)",
+            response_time = tracing::field::Empty,
+            tenant_id = tracing::field::Empty,
+            flow = FlowName::ConnectorWebhookRegister.to_string(),
+            flow_specific_fields.status = tracing::field::Empty,
+        )
+    )]
+    async fn register_webhook(
+        &self,
+        request: tonic::Request<ConnectorWebhookRegisterRequest>,
+    ) -> Result<tonic::Response<ConnectorWebhookRegisterResponse>, tonic::Status> {
+        let service_name = request
+            .extensions()
+            .get::<String>()
+            .cloned()
+            .unwrap_or_else(|| "EventService".to_string());
+        let config = get_config_from_request(&request).into_grpc_status()?;
+        let service_name_for_closure = service_name.clone();
+
+        grpc_logging_wrapper_with_parser(
+            request,
+            &service_name,
+            config.clone(),
+            FlowName::ConnectorWebhookRegister,
+            RequestData::from_grpc_request,
+            move |request_data| {
+                let service_name = service_name_for_closure.clone();
+                Box::pin(async move {
+                    let metadata_payload = request_data.extracted_metadata;
+                    let masked_metadata = request_data.masked_metadata;
+                    let request = request_data.payload;
+                    let connector = metadata_payload.connector.as_payment().ok_or_else(|| {
+                        ucs_env::error::GrpcError::from(
+                            domain_types::errors::IntegrationError::FlowNotSupported {
+                                flow: FlowName::ConnectorWebhookRegister.to_string(),
+                                connector: metadata_payload.connector.get_connector_name(),
+                                context: domain_types::errors::IntegrationErrorContext::default(),
+                            },
+                        )
+                    })?;
+
+                    let connector_integration: BoxedConnectorIntegrationV2<
+                        'static,
+                        ConnectorWebhookRegister,
+                        ConnectorWebhookRegisterFlowData,
+                        ConnectorWebhookRegisterData,
+                        ConnectorWebhookRegisterResponseData,
+                    > = match connector {
+                        domain_types::connector_types::ConnectorEnum::Adyen => Box::new(
+                            connector_integration::connectors::Adyen::<DefaultPCIHolder>::new(),
+                        ),
+                        domain_types::connector_types::ConnectorEnum::Payload => Box::new(
+                            connector_integration::connectors::Payload::<DefaultPCIHolder>::new(),
+                        ),
+                        domain_types::connector_types::ConnectorEnum::Givepayments => Box::new(
+                            connector_integration::connectors::Givepayments::<DefaultPCIHolder>::new(),
+                        ),
+                        _ => {
+                            return Err(ucs_env::error::GrpcError::from(
+                                domain_types::errors::IntegrationError::FlowNotSupported {
+                                    flow: FlowName::ConnectorWebhookRegister.to_string(),
+                                    connector: connector.to_string(),
+                                    context: domain_types::errors::IntegrationErrorContext {
+                                        suggested_action: Some(
+                                            "Use connector_webhook_register only for connectors implemented in Prism"
+                                                .to_string(),
+                                        ),
+                                        ..Default::default()
+                                    },
+                                },
+                            )
+                            .into())
+                        }
+                    };
+
+                    let flow_request = ConnectorWebhookRegisterData::foreign_try_from(
+                        request.clone(),
+                    )
+                    .to_grpc_error()?;
+                    let common_flow_data = ConnectorWebhookRegisterFlowData::foreign_try_from((
+                        request,
+                        config.connectors.clone(),
+                        &masked_metadata,
+                    ))
+                    .to_grpc_error()?;
+                    let router_data = RouterDataV2::<
+                        ConnectorWebhookRegister,
+                        ConnectorWebhookRegisterFlowData,
+                        ConnectorWebhookRegisterData,
+                        ConnectorWebhookRegisterResponseData,
+                    > {
+                        flow: std::marker::PhantomData,
+                        resource_common_data: common_flow_data,
+                        connector_config: metadata_payload.connector_config,
+                        request: flow_request,
+                        response: Err(ErrorResponse::default()),
+                    };
+
+                    let event_params = EventProcessingParams {
+                        connector_name: connector_integration.id(),
+                        service_name: &service_name,
+                        service_type: utils::service_type_str(&config.server.type_),
+                        flow_name: FlowName::ConnectorWebhookRegister,
+                        event_config: &config.events,
+                        request_id: &metadata_payload.request_id,
+                        lineage_ids: &metadata_payload.lineage_ids,
+                        reference_id: &metadata_payload.reference_id,
+                        resource_id: &metadata_payload.resource_id,
+                        shadow_mode: metadata_payload.shadow_mode,
+                        proxy_name: metadata_payload.proxy_name.as_deref(),
+                        tenant_id: &metadata_payload.tenant_id,
+                        merchant_id: metadata_payload.merchant_id.as_str(),
+                        return_raw_connector_data: config.common.return_raw_connector_data,
+                        connector_latency: metadata_payload.connector_latency.clone(),
+                    };
+
+                    let response = Box::pin(
+                        external_services::service::execute_connector_processing_step(
+                            &config.proxy,
+                            connector_integration,
+                            router_data,
+                            None,
+                            event_params,
+                            None,
+                            common_enums::CallConnectorAction::Trigger,
+                            None,
+                            None,
+                        ),
+                    )
+                    .await
+                    .to_grpc_error()?;
+
+                    let response = domain_types::types::generate_connector_webhook_register_response(
+                        response,
+                    )
+                    .to_grpc_error()?;
+                    Ok(tonic::Response::new(response))
                 })
             },
         )

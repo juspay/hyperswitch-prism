@@ -1786,6 +1786,84 @@ message NotifyConnectorResponse {
   optional ErrorInfo error = 2;
 }
 
+// Scope used when registering an outgoing webhook endpoint with a connector.
+message ConnectorWebhookRegistrationScope {
+  oneof identifier {
+    google.protobuf.Empty not_specific = 1;
+    PaymentMethodType payment_method_type = 2;
+    ConnectorWebhookRegistrationEventType event_type = 3;
+    ConnectorWebhookRegistrationEventTypes event_types = 4;
+  }
+}
+
+message ConnectorWebhookRegistrationEventTypes {
+  repeated ConnectorWebhookRegistrationEventType event_types = 1;
+}
+
+// Event types accepted by connector webhook-registration APIs. This remains
+// distinct from WebhookEventType because registration needs to preserve the
+// exact Hyperswitch event (for example, cancel versus post-capture cancel).
+enum ConnectorWebhookRegistrationEventType {
+  CONNECTOR_WEBHOOK_REGISTRATION_EVENT_TYPE_UNSPECIFIED = 0;
+  CONNECTOR_WEBHOOK_REGISTRATION_EVENT_TYPE_PAYMENT_SUCCEEDED = 1;
+  CONNECTOR_WEBHOOK_REGISTRATION_EVENT_TYPE_PAYMENT_FAILED = 2;
+  CONNECTOR_WEBHOOK_REGISTRATION_EVENT_TYPE_PAYMENT_PROCESSING = 3;
+  CONNECTOR_WEBHOOK_REGISTRATION_EVENT_TYPE_PAYMENT_CANCELLED = 4;
+  CONNECTOR_WEBHOOK_REGISTRATION_EVENT_TYPE_PAYMENT_CANCELLED_POST_CAPTURE = 5;
+  CONNECTOR_WEBHOOK_REGISTRATION_EVENT_TYPE_PAYMENT_AUTHORIZED = 6;
+  CONNECTOR_WEBHOOK_REGISTRATION_EVENT_TYPE_PAYMENT_PARTIALLY_AUTHORIZED = 7;
+  CONNECTOR_WEBHOOK_REGISTRATION_EVENT_TYPE_PAYMENT_CAPTURED = 8;
+  CONNECTOR_WEBHOOK_REGISTRATION_EVENT_TYPE_PAYMENT_EXPIRED = 9;
+  CONNECTOR_WEBHOOK_REGISTRATION_EVENT_TYPE_ACTION_REQUIRED = 10;
+  CONNECTOR_WEBHOOK_REGISTRATION_EVENT_TYPE_REFUND_PROCESSING = 11;
+  CONNECTOR_WEBHOOK_REGISTRATION_EVENT_TYPE_REFUND_SUCCEEDED = 12;
+  CONNECTOR_WEBHOOK_REGISTRATION_EVENT_TYPE_REFUND_FAILED = 13;
+  CONNECTOR_WEBHOOK_REGISTRATION_EVENT_TYPE_DISPUTE_OPENED = 14;
+  CONNECTOR_WEBHOOK_REGISTRATION_EVENT_TYPE_DISPUTE_EXPIRED = 15;
+  CONNECTOR_WEBHOOK_REGISTRATION_EVENT_TYPE_DISPUTE_ACCEPTED = 16;
+  CONNECTOR_WEBHOOK_REGISTRATION_EVENT_TYPE_DISPUTE_CANCELLED = 17;
+  CONNECTOR_WEBHOOK_REGISTRATION_EVENT_TYPE_DISPUTE_CHALLENGED = 18;
+  CONNECTOR_WEBHOOK_REGISTRATION_EVENT_TYPE_DISPUTE_WON = 19;
+  CONNECTOR_WEBHOOK_REGISTRATION_EVENT_TYPE_DISPUTE_LOST = 20;
+  CONNECTOR_WEBHOOK_REGISTRATION_EVENT_TYPE_MANDATE_ACTIVE = 21;
+  CONNECTOR_WEBHOOK_REGISTRATION_EVENT_TYPE_MANDATE_REVOKED = 22;
+  CONNECTOR_WEBHOOK_REGISTRATION_EVENT_TYPE_PAYOUT_SUCCESS = 23;
+  CONNECTOR_WEBHOOK_REGISTRATION_EVENT_TYPE_PAYOUT_FAILED = 24;
+  CONNECTOR_WEBHOOK_REGISTRATION_EVENT_TYPE_PAYOUT_INITIATED = 25;
+  CONNECTOR_WEBHOOK_REGISTRATION_EVENT_TYPE_PAYOUT_PROCESSING = 26;
+  CONNECTOR_WEBHOOK_REGISTRATION_EVENT_TYPE_PAYOUT_CANCELLED = 27;
+  CONNECTOR_WEBHOOK_REGISTRATION_EVENT_TYPE_PAYOUT_EXPIRED = 28;
+  CONNECTOR_WEBHOOK_REGISTRATION_EVENT_TYPE_PAYOUT_REVERSED = 29;
+  CONNECTOR_WEBHOOK_REGISTRATION_EVENT_TYPE_INVOICE_PAID = 30;
+  CONNECTOR_WEBHOOK_REGISTRATION_EVENT_TYPE_SURCHARGE_PAYMENT_SUCCEEDED = 31;
+  CONNECTOR_WEBHOOK_REGISTRATION_EVENT_TYPE_SURCHARGE_REFUND_SUCCEEDED = 32;
+}
+
+enum ConnectorWebhookRegistrationStatus {
+  CONNECTOR_WEBHOOK_REGISTRATION_STATUS_UNSPECIFIED = 0;
+  CONNECTOR_WEBHOOK_REGISTRATION_STATUS_SUCCESS = 1;
+  CONNECTOR_WEBHOOK_REGISTRATION_STATUS_FAILURE = 2;
+}
+
+// Hyperswitch resolves connector-specific registration endpoints before
+// calling UCS. Prism owns authentication and connector payload construction.
+message ConnectorWebhookRegisterRequest {
+  ConnectorWebhookRegistrationScope scope = 1;
+  SecretString webhook_url = 2;
+  string connector_webhook_registration_url = 3;
+  optional ConnectorState state = 4;
+}
+
+message ConnectorWebhookRegisterResponse {
+  ConnectorWebhookRegistrationScope scope = 1;
+  ConnectorWebhookRegistrationStatus status = 2;
+  optional string connector_webhook_id = 3;
+  optional ErrorInfo error = 4;
+  optional SecretString metadata = 5;
+  uint32 status_code = 6;
+  optional SecretString connector_webhook_secret = 7;
+}
+
 // Suggested HTTP response for webhook acknowledgement (status, headers, body).
 message EventAckResponse {
   uint32 status_code = 1;

@@ -516,6 +516,10 @@ pub struct VerifyWebhookSourceIntegrityObject {
     pub webhook_id: String,
 }
 
+/// Connector webhook registration has no payment invariants to compare.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ConnectorWebhookRegisterIntegrityObject {}
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct RechargeIntegrityObject {
     pub amount: common_utils::types::MinorUnit,

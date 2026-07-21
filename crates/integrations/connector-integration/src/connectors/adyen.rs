@@ -21,20 +21,22 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Accept, Authorize, Capture, ClientAuthenticationToken, CreateOrder, DefendDispute,
-        IncrementalAuthorization, PSync, Refund, RepeatPayment, SetupMandate, SubmitEvidence, Void,
-        VoidPC,
+        Accept, Authorize, Capture, ClientAuthenticationToken, ConnectorWebhookRegister,
+        CreateOrder, DefendDispute, IncrementalAuthorization, PSync, Refund, RepeatPayment,
+        SetupMandate, SubmitEvidence, Void, VoidPC,
     },
     connector_types::{
         AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorSpecifications,
-        ConnectorWebhookSecrets, DisputeDefendData, DisputeFlowData, DisputeResponseData,
-        DisputeWebhookReference, EventContext, PaymentCreateOrderData, PaymentCreateOrderResponse,
-        PaymentFlowData, PaymentVoidData, PaymentWebhookReference, PaymentsAuthorizeData,
-        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundWebhookDetailsResponse,
-        RefundWebhookReference, RefundsData, RefundsResponseData, RepeatPaymentData,
-        RequestDetails, ResponseId, SetupMandateRequestData, SubmitEvidenceData,
-        SupportedPaymentMethodsExt, WebhookDetailsResponse, WebhookResourceReference,
+        ConnectorWebhookRegisterData, ConnectorWebhookRegisterFlowData,
+        ConnectorWebhookRegisterResponseData, ConnectorWebhookSecrets, DisputeDefendData,
+        DisputeFlowData, DisputeResponseData, DisputeWebhookReference, EventContext,
+        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentVoidData,
+        PaymentWebhookReference, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
+        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsResponseData,
+        PaymentsSyncData, RefundFlowData, RefundWebhookDetailsResponse, RefundWebhookReference,
+        RefundsData, RefundsResponseData, RepeatPaymentData, RequestDetails, ResponseId,
+        SetupMandateRequestData, SubmitEvidenceData, SupportedPaymentMethodsExt,
+        WebhookDetailsResponse, WebhookResourceReference,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{DefaultPCIHolder, PaymentMethodData, PaymentMethodDataTypes},
@@ -50,7 +52,7 @@ use domain_types::{
 };
 use error_stack::{report, ResultExt};
 use hex;
-use hyperswitch_masking::{Mask, Maskable};
+use hyperswitch_masking::{ExposeInterface, Mask, Maskable};
 use interfaces::{
     api::ConnectorCommon,
     connector_integration_v2::ConnectorIntegrationV2,
@@ -68,7 +70,8 @@ use transformers::{
     AdyenPaymentResponse, AdyenRedirectRequest, AdyenRefundRequest, AdyenRefundResponse,
     AdyenRepeatPaymentRequest, AdyenRepeatPaymentResponse, AdyenReversalRequest,
     AdyenReversalResponse, AdyenSubmitEvidenceResponse, AdyenVoidRequest, AdyenVoidResponse,
-    SetupMandateRequest, SetupMandateResponse,
+    AdyenWebhookRegisterRequest, AdyenWebhookRegisterResponse, SetupMandateRequest,
+    SetupMandateResponse,
 };
 
 use super::macros;
@@ -250,6 +253,12 @@ macros::create_all_prerequisites!(
             request_body: AdyenReversalRequest,
             response_body: AdyenReversalResponse,
             router_data: RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
+        ),
+        (
+            flow: ConnectorWebhookRegister,
+            request_body: AdyenWebhookRegisterRequest,
+            response_body: AdyenWebhookRegisterResponse,
+            router_data: RouterDataV2<ConnectorWebhookRegister, ConnectorWebhookRegisterFlowData, ConnectorWebhookRegisterData, ConnectorWebhookRegisterResponseData>,
         )
     ],
     amount_converters: [
@@ -406,6 +415,40 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         }
     }
 }
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_headers, get_content_type, get_error_response_v2],
+    connector: Adyen,
+    curl_request: Json(AdyenWebhookRegisterRequest),
+    curl_response: AdyenWebhookRegisterResponse,
+    flow_name: ConnectorWebhookRegister,
+    resource_common_data: ConnectorWebhookRegisterFlowData,
+    flow_request: ConnectorWebhookRegisterData,
+    flow_response: ConnectorWebhookRegisterResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_url(
+            &self,
+            req: &RouterDataV2<
+                ConnectorWebhookRegister,
+                ConnectorWebhookRegisterFlowData,
+                ConnectorWebhookRegisterData,
+                ConnectorWebhookRegisterResponseData,
+            >,
+        ) -> CustomResult<String, IntegrationError> {
+            let auth = adyen::AdyenAuthType::try_from(&req.connector_config)?;
+            let merchant_account = auth.merchant_account.expose();
+            Ok(req
+                .request
+                .connector_webhook_registration_url
+                .to_string()
+                .replace("{merchantId}", &merchant_account)
+                .replace("%7BmerchantId%7D", &merchant_account))
+        }
+    }
+);
 
 const ADYEN_API_VERSION: &str = "v68";
 const ADYEN_AMOUNT_UPDATES_DOC_URL: &str =
