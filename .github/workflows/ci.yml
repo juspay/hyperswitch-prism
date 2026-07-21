@@ -54,6 +54,7 @@ jobs:
       sdk: ${{ steps.filter.outputs.sdk }}
       proto: ${{ steps.filter.outputs.proto }}
       docs-trigger: ${{ steps.filter.outputs.docs-trigger }}
+      stripe: ${{ steps.filter.outputs.stripe }}
       any-rs: ${{ steps.filter.outputs.any-rs }}
       ci: ${{ steps.filter.outputs.ci }}
       connector-names: ${{ steps.connector-names.outputs.list }}
