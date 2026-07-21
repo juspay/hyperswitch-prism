@@ -635,6 +635,13 @@ jobs:
           cp artifacts/sdk-java/*.jar sdk/java/build/libs/
           make -C sdk/java publish-check-dry-run
 
+      - name: Download Python SDK artifact for dry-run
+        if: ${{ needs.setup.outputs.preview_only == 'true' || needs.setup.outputs.publish_python == 'true' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: sdk-python
+          path: artifacts/sdk-python
+
       - name: Python dry-run (twine check)
         id: check-python-dryrun
         if: ${{ needs.setup.outputs.preview_only == 'true' || needs.setup.outputs.publish_python == 'true' }}
@@ -795,26 +802,16 @@ jobs:
           python-version: '3.11'
       - name: Install twine
         run: pip install twine
+      # Publish the wheel exactly as built by the `package-sdk-python` job
+      # (`make dist`, which bundles both the Linux .so and macOS .dylib).
+      # `make publish` uploads this artifact as-is — it does not rebuild — so
+      # the generated sources and native binaries are intentionally NOT
+      # re-downloaded here. The Makefile is the source of truth for what ships.
       - name: Download SDK artifacts
         uses: actions/download-artifact@v4
         with:
           name: sdk-python
           path: artifacts/sdk-python
-      - name: Download generated Python files
-        uses: actions/download-artifact@v4
-        with:
-          name: generated-python
-          path: sdk/python/src/payments/generated/
-      - name: Download Linux binary
-        uses: actions/download-artifact@v4
-        with:
-          name: binary-x86_64-unknown-linux-gnu
-          path: target/x86_64-unknown-linux-gnu/release
-      - name: Download macOS binary
-        uses: actions/download-artifact@v4
-        with:
-          name: binary-aarch64-apple-darwin
-          path: target/aarch64-apple-darwin/release
       - name: Check what will be published (Python)
         run: |
           echo "=== Python SDK Publication Preview ==="

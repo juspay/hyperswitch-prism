@@ -152,13 +152,31 @@ endif
 # generated/ already contains the proto files from a prior generate-proto step
 # or downloaded CI artifact.
 # ---------------------------------------------------------------------------
+# Native FFI libraries bundled into the tarball, one per supported platform.
+LINUX_X86_LIB := $(REPO_ROOT)/target/x86_64-unknown-linux-gnu/release/libconnector_service_ffi.so
+MACOS_ARM_LIB := $(REPO_ROOT)/target/aarch64-apple-darwin/release/libconnector_service_ffi.dylib
+
 dist:
 	@echo "Building JavaScript SDK distribution package..."
 	@mkdir -p $(GENERATED_OUT)
-	@cp -f $(REPO_ROOT)/target/x86_64-unknown-linux-gnu/release/libconnector_service_ffi.so \
-		$(GENERATED_OUT)/ 2>/dev/null || echo "  Note: Linux x86_64 binary not found (skipping)"
-	@cp -f $(REPO_ROOT)/target/aarch64-apple-darwin/release/libconnector_service_ffi.dylib \
-		$(GENERATED_OUT)/ 2>/dev/null || echo "  Note: macOS aarch64 binary not found (skipping)"
+	@# The published tarball must bundle BOTH the Linux .so and macOS .dylib so a
+	@# single package works on both platforms. Fail closed unless
+	@# ALLOW_PARTIAL_DIST=1 is set for a deliberate single-platform build
+	@# (local testing only — such a tarball must NOT be published to npm).
+	@ok=1; \
+	if [ ! -f "$(LINUX_X86_LIB)" ]; then echo "  missing Linux x86_64 (.so):     $(LINUX_X86_LIB)"; ok=0; fi; \
+	if [ ! -f "$(MACOS_ARM_LIB)" ]; then echo "  missing macOS aarch64 (.dylib): $(MACOS_ARM_LIB)"; ok=0; fi; \
+	if [ "$$ok" != "1" ]; then \
+		if [ "$(ALLOW_PARTIAL_DIST)" = "1" ]; then \
+			echo "  WARNING: ALLOW_PARTIAL_DIST=1 — building a single-platform package; do NOT publish it."; \
+		else \
+			echo "ERROR: release package needs both native binaries (see above)." >&2; \
+			echo "       Build/stage the missing target, or set ALLOW_PARTIAL_DIST=1 for a deliberate single-platform build." >&2; \
+			exit 1; \
+		fi; \
+	fi
+	@cp -f "$(LINUX_X86_LIB)" $(GENERATED_OUT)/ 2>/dev/null || true
+	@cp -f "$(MACOS_ARM_LIB)" $(GENERATED_OUT)/ 2>/dev/null || true
 	@$(MAKE) -C $(SDK_ROOT) pack-archive
 	@echo "Distribution package created in $(PACKAGE_DIR)/"
 
