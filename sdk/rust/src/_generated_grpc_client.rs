@@ -18,6 +18,8 @@ use grpc_api_types::payments::{
     refund_service_client::RefundServiceClient,
     surcharge_service_client::SurchargeServiceClient,
     // request / response types (all unique types across all services)
+    ConnectorWebhookRegisterRequest,
+    ConnectorWebhookRegisterResponse,
     CustomerServiceCreateRequest,
     CustomerServiceCreateResponse,
     CustomerServiceGetRequest,
@@ -231,6 +233,12 @@ impl_grpc_client!(
         notify_connector,
         NotifyConnectorRequest,
         NotifyConnectorResponse
+    ),
+    (
+        register_webhook,
+        register_webhook,
+        ConnectorWebhookRegisterRequest,
+        ConnectorWebhookRegisterResponse
     ),
 );
 
