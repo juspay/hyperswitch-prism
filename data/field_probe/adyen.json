@@ -2557,7 +2557,7 @@
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
-          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"paypal\",\"storedPaymentMethodId\":\"probe-mandate-123\",\"holderName\":null},\"reference\":\"\",\"returnUrl\":\"https://example.com/recurring-return\",\"shopperInteraction\":\"ContAuth\",\"recurringProcessingModel\":\"UnscheduledCardOnFile\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperReference\":\"cust_probe_123\"}"
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"paypal\",\"storedPaymentMethodId\":\"probe-mandate-123\"},\"reference\":\"\",\"returnUrl\":\"https://example.com/recurring-return\",\"shopperInteraction\":\"ContAuth\",\"recurringProcessingModel\":\"UnscheduledCardOnFile\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperReference\":\"cust_probe_123\"}"
         }
       }
     },
@@ -2700,7 +2700,7 @@
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
-          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"scheme\",\"storedPaymentMethodId\":\"pm_1AbcXyzStripeTestToken\",\"holderName\":null},\"reference\":\"probe_tokenized_txn_001\",\"returnUrl\":\"https://example.com/return\",\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperName\":{}}"
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"scheme\",\"storedPaymentMethodId\":\"pm_1AbcXyzStripeTestToken\"},\"reference\":\"probe_tokenized_txn_001\",\"returnUrl\":\"https://example.com/return\",\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"},\"shopperName\":{}}"
         }
       }
     },
