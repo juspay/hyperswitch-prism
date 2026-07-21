@@ -2,9 +2,9 @@
 #
 # Run the full KillBill flow for EVERY parity connector that has a config, and print a PASS/FAIL summary.
 #
-# Setup:
-#   for c in stripe adyen braintree cybersource forte; do cp configs/$c.properties.example configs/$c.properties; done
-#   # then edit each configs/<connector>.properties with real sandbox credentials
+# Setup: create configs/<connector>.properties for each connector you want to test — the file's contents are
+# uploaded verbatim as the plugin config. The keys are listed in ../src/main/resources/hyperswitch.properties.
+# Then:
 #   ./run-all.sh
 #
 # Each connector runs in its own tenant (hs-<connector>) so their configs don't collide. Per-connector output
@@ -36,7 +36,7 @@ for c in "${CONNECTORS[@]}"; do
   fi
   cfg="configs/$c.properties"
   if [ ! -f "$cfg" ]; then
-    RESULT[$c]="SKIP — no configs/$c.properties (copy the .example and add creds)"
+    RESULT[$c]="SKIP — no configs/$c.properties (create it; keys in ../src/main/resources/hyperswitch.properties)"
     continue
   fi
 

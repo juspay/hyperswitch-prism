@@ -1,3 +1,2 @@
 # Real credentials live in configs/<connector>.properties — never commit them.
 *.properties
-!*.properties.example

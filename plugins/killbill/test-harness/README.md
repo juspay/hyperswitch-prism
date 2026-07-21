@@ -35,9 +35,13 @@ unreachable or a step errors.
 ## Run for EVERY connector (parity sweep)
 
 ```bash
-# 1. drop in real sandbox creds per connector:
-for c in stripe adyen braintree cybersource forte; do cp configs/$c.properties.example configs/$c.properties; done
-#    ...edit each configs/<connector>.properties...
+# 1. create configs/<connector>.properties for each connector to test (contents = the plugin config; keys are
+#    in ../src/main/resources/hyperswitch.properties). e.g. for Stripe:
+cat > configs/stripe.properties <<'PROPS'
+org.killbill.billing.plugin.hyperswitch.connector=stripe
+org.killbill.billing.plugin.hyperswitch.environment=SANDBOX
+org.killbill.billing.plugin.hyperswitch.stripe.apiKey=sk_test_xxx
+PROPS
 # 2. run the whole set and get a PASS/FAIL table:
 ./run-all.sh
 ```

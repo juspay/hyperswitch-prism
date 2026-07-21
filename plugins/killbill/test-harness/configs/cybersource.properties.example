@@ -1,7 +1,0 @@
-# Copy to cybersource.properties and fill in real sandbox credentials.
-org.killbill.billing.plugin.hyperswitch.connector=cybersource
-org.killbill.billing.plugin.hyperswitch.environment=SANDBOX
-org.killbill.billing.plugin.hyperswitch.captureMethod=AUTOMATIC
-org.killbill.billing.plugin.hyperswitch.cybersource.apiKey=REPLACE_ME
-org.killbill.billing.plugin.hyperswitch.cybersource.merchantAccount=REPLACE_ME
-org.killbill.billing.plugin.hyperswitch.cybersource.apiSecret=REPLACE_ME

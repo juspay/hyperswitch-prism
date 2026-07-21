@@ -1,6 +1,0 @@
-# Copy to adyen.properties and fill in real sandbox credentials.
-org.killbill.billing.plugin.hyperswitch.connector=adyen
-org.killbill.billing.plugin.hyperswitch.environment=SANDBOX
-org.killbill.billing.plugin.hyperswitch.captureMethod=AUTOMATIC
-org.killbill.billing.plugin.hyperswitch.adyen.apiKey=REPLACE_ME
-org.killbill.billing.plugin.hyperswitch.adyen.merchantAccount=REPLACE_ME

@@ -1,7 +1,0 @@
-# Copy to braintree.properties and fill in real sandbox credentials.
-org.killbill.billing.plugin.hyperswitch.connector=braintree
-org.killbill.billing.plugin.hyperswitch.environment=SANDBOX
-org.killbill.billing.plugin.hyperswitch.captureMethod=AUTOMATIC
-org.killbill.billing.plugin.hyperswitch.braintree.publicKey=REPLACE_ME
-org.killbill.billing.plugin.hyperswitch.braintree.privateKey=REPLACE_ME
-#org.killbill.billing.plugin.hyperswitch.braintree.merchantAccountId=

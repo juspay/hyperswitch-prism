@@ -1,5 +1,0 @@
-# Copy to stripe.properties and fill in a real sandbox key. Uploaded verbatim as the plugin config.
-org.killbill.billing.plugin.hyperswitch.connector=stripe
-org.killbill.billing.plugin.hyperswitch.environment=SANDBOX
-org.killbill.billing.plugin.hyperswitch.captureMethod=AUTOMATIC
-org.killbill.billing.plugin.hyperswitch.stripe.apiKey=sk_test_REPLACE_ME
