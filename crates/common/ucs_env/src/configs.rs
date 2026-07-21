@@ -297,7 +297,7 @@ mod test_config_tests {
     fn art_feature_is_disabled_when_replay_and_recording_are_disabled() {
         let config = config_with_art_modes(false, false);
 
-        assert_eq!(config.art_feature(), ArtFeature::Disabled);
+        assert_eq!(config.art_feature(false), ArtFeature::Disabled);
         assert!(config
             .create_art_replay_context("req_art_disabled")
             .expect("disabled ART feature should not error")
@@ -305,10 +305,11 @@ mod test_config_tests {
     }
 
     #[test]
-    fn art_feature_uses_recording_when_only_recording_is_enabled() {
+    fn art_feature_requires_request_opt_in_for_recording() {
         let config = config_with_art_modes(false, true);
 
-        assert_eq!(config.art_feature(), ArtFeature::Record);
+        assert_eq!(config.art_feature(false), ArtFeature::Disabled);
+        assert_eq!(config.art_feature(true), ArtFeature::Record);
         assert!(config
             .create_art_replay_context("req_art_record")
             .expect("record ART feature should not create replay context")
@@ -319,7 +320,7 @@ mod test_config_tests {
     fn art_feature_uses_replay_when_test_config_is_enabled() {
         let config = config_with_art_modes(true, false);
 
-        assert_eq!(config.art_feature(), ArtFeature::Replay);
+        assert_eq!(config.art_feature(false), ArtFeature::Replay);
         let context = config
             .create_art_replay_context("req_art_replay")
             .expect("replay ART feature should create replay context")
@@ -333,7 +334,7 @@ mod test_config_tests {
     fn art_feature_prefers_replay_when_replay_and_recording_are_enabled() {
         let config = config_with_art_modes(true, true);
 
-        assert_eq!(config.art_feature(), ArtFeature::Replay);
+        assert_eq!(config.art_feature(true), ArtFeature::Replay);
         assert!(config
             .create_art_replay_context("req_art_replay_precedence")
             .expect("replay ART feature should create replay context")
@@ -558,10 +559,10 @@ impl WebhookSourceVerificationCall {
 }
 
 impl Config {
-    pub fn art_feature(&self) -> ArtFeature {
+    pub fn art_feature(&self, recording_requested: bool) -> ArtFeature {
         if self.test.enabled {
             ArtFeature::Replay
-        } else if self.art_recording.enabled {
+        } else if self.art_recording.enabled && recording_requested {
             ArtFeature::Record
         } else {
             ArtFeature::Disabled
@@ -572,9 +573,10 @@ impl Config {
         &self,
         request_id: &str,
     ) -> Result<Option<external_services::service::TestContext>, config::ConfigError> {
-        match self.art_feature() {
-            ArtFeature::Replay => self.test.create_test_context(request_id),
-            ArtFeature::Record | ArtFeature::Disabled => Ok(None),
+        if self.test.enabled {
+            self.test.create_test_context(request_id)
+        } else {
+            Ok(None)
         }
     }
 

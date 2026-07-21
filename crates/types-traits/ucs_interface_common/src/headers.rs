@@ -43,7 +43,7 @@ const HEADERS: &[&str] = &[
     consts::X_CONNECTOR_CONFIG,
     consts::X_RESOURCE_ID,
     consts::X_ENVIRONMENT,
-    consts::X_API_TAG,
+    consts::X_ART_RECORDING,
 ];
 
 fn to_metadata_value(key: &str, value: &str) -> Result<MetadataValue<Ascii>, InterfaceError> {
@@ -86,7 +86,7 @@ mod tests {
     use http::{HeaderMap, HeaderValue};
 
     #[test]
-    fn headers_to_metadata_forwards_api_tag() {
+    fn headers_to_metadata_does_not_forward_api_tag_override() {
         let mut headers = HeaderMap::new();
         headers.insert(
             consts::X_API_TAG,
@@ -95,11 +95,21 @@ mod tests {
 
         let metadata = headers_to_metadata(&headers).expect("headers should convert");
 
+        assert!(metadata.get(consts::X_API_TAG).is_none());
+    }
+
+    #[test]
+    fn headers_to_metadata_forwards_art_recording() {
+        let mut headers = HeaderMap::new();
+        headers.insert(consts::X_ART_RECORDING, HeaderValue::from_static("true"));
+
+        let metadata = headers_to_metadata(&headers).expect("headers should convert");
+
         assert_eq!(
             metadata
-                .get(consts::X_API_TAG)
+                .get(consts::X_ART_RECORDING)
                 .and_then(|value| value.to_str().ok()),
-            Some("GW_INIT_COLLECT")
+            Some("true")
         );
     }
 }

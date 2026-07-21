@@ -40,13 +40,13 @@ connector_request_timeout = 30
 bypass_urls = []
 
 [test]
-enabled = true
+enabled = false
 mock_server_url = "http://localhost:8010"
 mock_server_protocol = "art_upload"
 
 
 [art_recording]
-enabled = false
+enabled = true
 record_incoming_api = true
 record_outgoing_http = true
 record_effects = true

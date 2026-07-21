@@ -111,7 +111,6 @@ struct EventParams<'a> {
     request_id: &'a str,
     lineage_ids: &'a lineage::LineageIds<'a>,
     reference_id: &'a Option<String>,
-    api_tag: &'a Option<String>,
     resource_id: &'a Option<String>,
     shadow_mode: bool,
     proxy_name: Option<&'a str>,
@@ -2532,11 +2531,9 @@ impl MerchantAuthentication {
         };
 
         // Get API tag for ServerSessionAuthenticationToken flow with payment method type if available
-        let api_tag = event_params.api_tag.clone().or_else(|| {
-            config
-                .api_tags
-                .get_tag(FlowName::ServerSessionAuthenticationToken, None)
-        });
+        let api_tag = config
+            .api_tags
+            .get_tag(FlowName::ServerSessionAuthenticationToken, None);
 
         // Create ART replay context when replay mode is enabled.
         let test_context = config
@@ -2656,11 +2653,9 @@ impl MerchantAuthentication {
         };
 
         // Get API tag for ServerAuthenticationToken flow with payment method type if available
-        let api_tag = event_params.api_tag.clone().or_else(|| {
-            config
-                .api_tags
-                .get_tag(FlowName::ServerAuthenticationToken, None)
-        });
+        let api_tag = config
+            .api_tags
+            .get_tag(FlowName::ServerAuthenticationToken, None);
 
         // Create ART replay context when replay mode is enabled.
         let test_context = config
@@ -2854,7 +2849,6 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                         request_id: &request_id,
                         lineage_ids: &lineage_ids,
                         reference_id: &metadata_payload.reference_id,
-                        api_tag: &metadata_payload.api_tag,
                         resource_id: &metadata_payload.resource_id,
                         shadow_mode: metadata_payload.shadow_mode,
                         proxy_name: metadata_payload.proxy_name.as_deref(),
@@ -2969,7 +2963,6 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                         request_id: &request_id,
                         lineage_ids: &lineage_ids,
                         reference_id: &metadata_payload.reference_id,
-                        api_tag: &metadata_payload.api_tag,
                         resource_id: &metadata_payload.resource_id,
                         shadow_mode: metadata_payload.shadow_mode,
                         proxy_name: metadata_payload.proxy_name.as_deref(),

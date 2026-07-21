@@ -10,7 +10,7 @@ use crate::utils::{
     connector_and_config_from_metadata, connector_variant_from_metadata, MetadataPayload,
 };
 use ucs_interface_common::metadata::{
-    api_tag_from_metadata, merchant_id_from_metadata, proxy_name_from_metadata,
+    art_recording_enabled_from_metadata, merchant_id_from_metadata, proxy_name_from_metadata,
     request_id_from_metadata, tenant_id_from_metadata,
 };
 /// Structured request data with secure metadata access.
@@ -107,7 +107,7 @@ fn extract_routing_metadata_only(
         .and_then(|v| v.to_str().ok())
         .map(|s| s.to_string());
 
-    let api_tag = api_tag_from_metadata(metadata).unwrap_or_default();
+    let art_recording_enabled = art_recording_enabled_from_metadata(metadata);
 
     let resource_id = metadata
         .get(consts::X_RESOURCE_ID)
@@ -135,7 +135,7 @@ fn extract_routing_metadata_only(
         lineage_ids: common_utils::lineage::LineageIds::empty(""),
         connector_config,
         reference_id,
-        api_tag,
+        art_recording_enabled,
         shadow_mode,
         resource_id,
         environment,

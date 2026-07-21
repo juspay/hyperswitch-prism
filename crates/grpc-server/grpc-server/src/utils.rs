@@ -326,7 +326,7 @@ fn create_art_runtime_for_request(
         hostname: service_name.to_string(),
     };
 
-    match config.art_feature() {
+    match config.art_feature(metadata_payload.art_recording_enabled) {
         configs::ArtFeature::Replay => ArtRuntime::replay(session, Vec::new()),
         configs::ArtFeature::Record => ArtRuntime::recording_with_settings(
             session,
@@ -352,14 +352,11 @@ fn art_order_id_from_metadata(metadata_payload: &MetadataPayload) -> String {
 
 pub fn resolve_api_tag(
     config: &configs::Config,
-    metadata_payload: &MetadataPayload,
+    _metadata_payload: &MetadataPayload,
     flow_name: FlowName,
     payment_method_type: Option<common_enums::PaymentMethodType>,
 ) -> Option<String> {
-    metadata_payload
-        .api_tag
-        .clone()
-        .or_else(|| config.api_tags.get_tag(flow_name, payment_method_type))
+    config.api_tags.get_tag(flow_name, payment_method_type)
 }
 
 fn rec_entry_transform_from_config(
@@ -1527,7 +1524,7 @@ mod art_lifecycle_tests {
             lineage_ids: common_utils::lineage::LineageIds::empty(""),
             connector_config: ConnectorSpecificConfig::NoKey,
             reference_id: None,
-            api_tag: None,
+            art_recording_enabled: false,
             shadow_mode: false,
             resource_id: None,
             environment: None,
@@ -1537,7 +1534,9 @@ mod art_lifecycle_tests {
     }
 
     fn base_config() -> configs::Config {
-        configs::Config::new().expect("default config should load")
+        let mut config = configs::Config::new().expect("default config should load");
+        config.test.enabled = false;
+        config
     }
 
     #[test]
@@ -1566,14 +1565,31 @@ mod art_lifecycle_tests {
     }
 
     #[test]
-    fn art_runtime_uses_record_mode_when_recording_config_is_enabled() {
+    fn art_runtime_stays_disabled_when_recording_header_is_missing() {
+        let mut config = base_config();
+        config.art_recording.enabled = true;
+
+        let runtime = create_art_runtime_for_request(
+            &config,
+            &metadata_payload(),
+            FlowName::Authorize,
+            "PaymentService",
+        );
+
+        assert_eq!(runtime.mode(), ArtMode::Disabled);
+    }
+
+    #[test]
+    fn art_runtime_uses_record_mode_when_recording_config_and_header_are_enabled() {
         let mut config = base_config();
         config.art_recording.enabled = true;
         config.art_recording.max_entries_per_session = 1;
+        let mut metadata = metadata_payload();
+        metadata.art_recording_enabled = true;
 
         let mut runtime = create_art_runtime_for_request(
             &config,
-            &metadata_payload(),
+            &metadata,
             FlowName::Authorize,
             "PaymentService",
         );
@@ -1609,22 +1625,14 @@ mod art_lifecycle_tests {
     }
 
     #[test]
-    fn resolve_api_tag_prefers_request_header_then_config() {
+    fn resolve_api_tag_uses_config_mapping() {
         let mut config = base_config();
         config
             .api_tags
             .tags
             .insert("psync".to_string(), "CONFIG_PSYNC".to_string());
 
-        let mut metadata = metadata_payload();
-        metadata.api_tag = Some("HEADER_PSYNC".to_string());
-
-        assert_eq!(
-            resolve_api_tag(&config, &metadata, FlowName::Psync, None).as_deref(),
-            Some("HEADER_PSYNC")
-        );
-
-        metadata.api_tag = None;
+        let metadata = metadata_payload();
 
         assert_eq!(
             resolve_api_tag(&config, &metadata, FlowName::Psync, None).as_deref(),

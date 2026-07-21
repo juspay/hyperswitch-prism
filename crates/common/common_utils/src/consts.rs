@@ -90,6 +90,8 @@ pub const X_SESSION_ID: &str = "x-session-id";
 pub const X_API_URL: &str = "x-api-url";
 /// Header key for API tag (test mode)
 pub const X_API_TAG: &str = "x-api-tag";
+/// Header key for per-request ART recording opt-in
+pub const X_ART_RECORDING: &str = "x-art-recording";
 
 // =============================================================================
 // Authentication Headers (Internal)

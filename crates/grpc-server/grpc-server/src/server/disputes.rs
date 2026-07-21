@@ -108,7 +108,6 @@ impl DisputeService for Disputes {
                         lineage_ids,
                         connector_config,
                         reference_id,
-                        api_tag,
                         resource_id,
                         shadow_mode,
                         proxy_name,
@@ -117,6 +116,9 @@ impl DisputeService for Disputes {
                         connector_latency,
                         ..
                     } = request_data.extracted_metadata;
+                    let api_tag = config
+                        .api_tags
+                        .get_tag(common_utils::events::FlowName::SubmitEvidence, None);
                     let connector_data: ConnectorData<DefaultPCIHolder> =
                         ConnectorData::from_connector_variant(&connector).ok_or_else(|| {
                             tonic::Status::invalid_argument("Invalid Connector Received")
@@ -336,7 +338,6 @@ impl DisputeService for Disputes {
                         lineage_ids,
                         connector_config,
                         reference_id,
-                        api_tag,
                         resource_id,
                         shadow_mode,
                         proxy_name,
@@ -345,6 +346,9 @@ impl DisputeService for Disputes {
                         connector_latency,
                         ..
                     } = request_data.extracted_metadata;
+                    let api_tag = config
+                        .api_tags
+                        .get_tag(common_utils::events::FlowName::AcceptDispute, None);
                     let connector_data: ConnectorData<DefaultPCIHolder> =
                         ConnectorData::from_connector_variant(&connector).ok_or_else(|| {
                             tonic::Status::invalid_argument("Invalid Connector Received")

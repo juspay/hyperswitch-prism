@@ -36,11 +36,11 @@ pub struct MetadataPayload {
     /// URLs from the merged runtime config instead.
     pub connector_config: ConnectorSpecificConfig,
     pub reference_id: Option<String>,
-    /// Euler-compatible API tag supplied by the caller.
+    /// Request-scoped opt-in for ART recording.
     ///
-    /// This is optional request metadata and is used only by callers that intentionally send
-    /// `x-api-tag`; existing config-derived API tag behavior remains the fallback.
-    pub api_tag: Option<String>,
+    /// This is set by upstream services for selected orders. The global ART recording config must
+    /// still be enabled before UCS records anything.
+    pub art_recording_enabled: bool,
     pub shadow_mode: bool,
     pub resource_id: Option<String>,
     /// Environment dimension for superposition config resolution (e.g., "production", "sandbox")
@@ -65,7 +65,7 @@ pub fn get_metadata_payload(
     let request_id = request_id_from_metadata(metadata)?;
     let lineage_ids = extract_lineage_fields_from_metadata(metadata, &server_config.lineage);
     let reference_id = reference_id_from_metadata(metadata)?;
-    let api_tag = api_tag_from_metadata(metadata)?;
+    let art_recording_enabled = art_recording_enabled_from_metadata(metadata);
     let resource_id = resource_id_from_metadata(metadata)?;
     let shadow_mode = shadow_mode_from_metadata(metadata);
     let environment = environment_from_metadata(metadata);
@@ -79,7 +79,7 @@ pub fn get_metadata_payload(
         lineage_ids,
         connector_config,
         reference_id,
-        api_tag,
+        art_recording_enabled,
         shadow_mode,
         resource_id,
         environment,
@@ -277,16 +277,18 @@ pub fn reference_id_from_metadata(
     parse_optional_metadata(metadata, consts::X_REFERENCE_ID).map(|s| s.map(|s| s.to_string()))
 }
 
-pub fn api_tag_from_metadata(
-    metadata: &metadata::MetadataMap,
-) -> CustomResult<Option<String>, IntegrationError> {
-    parse_optional_metadata(metadata, consts::X_API_TAG).map(|s| s.map(|s| s.to_string()))
-}
-
 pub fn resource_id_from_metadata(
     metadata: &metadata::MetadataMap,
 ) -> CustomResult<Option<String>, IntegrationError> {
     parse_optional_metadata(metadata, consts::X_RESOURCE_ID).map(|s| s.map(|s| s.to_string()))
+}
+
+pub fn art_recording_enabled_from_metadata(metadata: &metadata::MetadataMap) -> bool {
+    parse_optional_metadata(metadata, consts::X_ART_RECORDING)
+        .ok()
+        .flatten()
+        .map(|value| value.trim().eq_ignore_ascii_case("true"))
+        .unwrap_or(false)
 }
 
 pub fn shadow_mode_from_metadata(metadata: &metadata::MetadataMap) -> bool {
@@ -406,11 +408,17 @@ mod tests {
     }
 
     #[test]
-    fn api_tag_resolves_when_present() {
+    fn art_recording_is_enabled_only_for_true_header() {
+        let metadata = MetadataMap::new();
+        assert!(!art_recording_enabled_from_metadata(&metadata));
+
         let mut metadata = MetadataMap::new();
-        metadata.insert(consts::X_API_TAG, "GW_INIT_COLLECT".parse().unwrap());
-        let api_tag = api_tag_from_metadata(&metadata).expect("should resolve");
-        assert_eq!(api_tag.as_deref(), Some("GW_INIT_COLLECT"));
+        metadata.insert(consts::X_ART_RECORDING, "false".parse().unwrap());
+        assert!(!art_recording_enabled_from_metadata(&metadata));
+
+        let mut metadata = MetadataMap::new();
+        metadata.insert(consts::X_ART_RECORDING, "TRUE".parse().unwrap());
+        assert!(art_recording_enabled_from_metadata(&metadata));
     }
 
     #[test]
