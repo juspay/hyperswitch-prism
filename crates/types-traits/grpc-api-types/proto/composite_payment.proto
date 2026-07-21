@@ -570,6 +570,7 @@ message CompositePaymentMethodGetRequest {
   optional SecretString metadata = 8;
   optional string merchant_access_token_id = 9;
   optional string merchant_request_id = 10; // Per-request idempotency / correlation token forwarded to the bootstrap call
+  optional string payment_method_token = 11;  // PaymentMethod Token Information
 }
 
 // Response message for composite payment method get flow.

@@ -19,6 +19,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.07.21.1
+
+### Miscellaneous Tasks
+
+- **ci:** Pipeline changes ([#1973](https://github.com/juspay/connector-service/pull/1973)) ([`6d607aa`](https://github.com/juspay/connector-service/commit/6d607aa09e6a776ace3558f2c98c18bdc941e18b))
+
+**Full Changelog:** [`2026.07.21.0...2026.07.21.1`](https://github.com/juspay/connector-service/compare/2026.07.21.0...2026.07.21.1)
+
+- - -
+
+## 2026.07.21.0
+
+### Features
+
+- **http:** Add revoke-mandate support for rest ([#1945](https://github.com/juspay/connector-service/pull/1945)) ([`81a7841`](https://github.com/juspay/connector-service/commit/81a7841e0674b8887c30a02359f15fa59301abe5))
+- **paysafe:** Connector-native Card 3DS; prove Card no-3DS + Google Pay E2E ([#1952](https://github.com/juspay/connector-service/pull/1952)) ([`40e5644`](https://github.com/juspay/connector-service/commit/40e5644a514d2a3514995f5c4d573c94e540d130))
+- **proto:** Add authenticator connector support and bank account payment method details ([#1951](https://github.com/juspay/connector-service/pull/1951)) ([`d67d1b1`](https://github.com/juspay/connector-service/commit/d67d1b14fe623c18f7da5aa7c81a7ac36caeec9e))
+
+### Bug Fixes
+
+- **connector:** Added stripe moto flag in Authorize, RepeatPayment & SetupMandate request ([#1961](https://github.com/juspay/connector-service/pull/1961)) ([`de0efe6`](https://github.com/juspay/connector-service/commit/de0efe6c293225ef7500f496716b386bd3f0efe2))
+
+**Full Changelog:** [`2026.07.20.0...2026.07.21.0`](https://github.com/juspay/connector-service/compare/2026.07.20.0...2026.07.21.0)
+
+- - -
+
+## 2026.07.20.0
+
+### Features
+
+- **composite:** Added Composite Device Data Collection Flow ([#1921](https://github.com/juspay/connector-service/pull/1921)) ([`0b83ba8`](https://github.com/juspay/connector-service/commit/0b83ba89b9de8acba0306d2262bd231d55cfb84d))
+- **connector:** Added new connector glomopay ([#1944](https://github.com/juspay/connector-service/pull/1944)) ([`b07af7d`](https://github.com/juspay/connector-service/commit/b07af7d9dac271de729548e74217ddcf895c602b))
+
+**Full Changelog:** [`2026.07.17.0...2026.07.20.0`](https://github.com/juspay/connector-service/compare/2026.07.17.0...2026.07.20.0)
+
+- - -
+
 ## 2026.07.17.0
 
 ### Features
