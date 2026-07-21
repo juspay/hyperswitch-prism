@@ -739,8 +739,11 @@ pub struct TsysTransitCardAuthenticationRequest {
     // (F9901). Keep "0" as a placeholder; downstream fields
     // (cardOnFile, citStatusIndicator, authorizationIndicator) all
     // moved earlier in the body to match Sale's schema order.
-    #[serde(rename = "mPosAcceptanceDeviceType")]
-    pub m_pos_acceptance_device_type: String,
+    #[serde(
+        rename = "mPosAcceptanceDeviceType",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub m_pos_acceptance_device_type: Option<String>,
 }
 
 impl GetSoapXml for TsysTransitCardAuthenticationRequest {
@@ -1425,11 +1428,7 @@ fn compute_commercial_card_context<
     let product_details: Option<Vec<TsysTransitProductDetails>> = order_details
         .iter()
         .map(|detail| {
-            build_tsys_product_details(
-                detail,
-                router_data.request.currency,
-                card_network,
-            )
+            build_tsys_product_details(detail, router_data.request.currency, card_network)
         })
         .collect::<Result<Vec<Option<TsysTransitProductDetails>>, Report<IntegrationError>>>()
         .ok()
@@ -1579,6 +1578,26 @@ fn compute_commercial_card_context<
             tax_category: tax_type,
         }];
 
+        let (
+            purchase_order,
+            charge_descriptor,
+            customer_ref_id,
+            supplier_reference_number,
+            ship_to_zip,
+        ) = match card_network {
+            Some(CardNetwork::AmericanExpress) => (
+                None,
+                charge_descriptor,
+                customer_ref_id,
+                supplier_reference_number,
+                ship_to_zip,
+            ),
+            Some(CardNetwork::Visa) | Some(CardNetwork::Mastercard) => {
+                (purchase_order.clone(), None, None, None, None)
+            }
+            _ => (None, None, None, None, None),
+        };
+
         Ok(CommercialCardContext {
             sales_tax,
             additional_tax_details,
@@ -1599,6 +1618,25 @@ fn compute_commercial_card_context<
             destination_country_code,
         })
     } else if is_level2 {
+        let (
+            purchase_order,
+            charge_descriptor,
+            customer_ref_id,
+            supplier_reference_number,
+            ship_to_zip,
+        ) = match card_network {
+            Some(CardNetwork::AmericanExpress) => (
+                None,
+                charge_descriptor,
+                customer_ref_id,
+                supplier_reference_number,
+                ship_to_zip,
+            ),
+            Some(CardNetwork::Visa) | Some(CardNetwork::Mastercard) => {
+                (purchase_order.clone(), None, None, None, None)
+            }
+            _ => (None, None, None, None, None),
+        };
         Ok(CommercialCardContext {
             sales_tax,
             additional_tax_details: Vec::new(),
@@ -3215,7 +3253,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let (cardholder_first_name, cardholder_last_name) =
             split_domain_full_name(card.card_holder_name.clone());
         let is_visa_card_auth = matches!(card.card_network, Some(CardNetwork::Visa));
-        let first_name = if is_visa_card_auth {
+        let is_ecommerce_payment = matches!(
+            router_data.request.payment_channel,
+            Some(PaymentChannel::Ecommerce) | None
+        );
+
+        let first_name = if is_visa_card_auth && !is_ecommerce_payment {
             billing
                 .and_then(|a| a.first_name.clone())
                 .or(cardholder_first_name)
@@ -3227,7 +3270,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .and_then(|a| a.last_name.clone())
             .or(cardholder_last_name)
             .map(|name| Secret::new(sanitize_alphanumeric_space(name.peek(), 25)));
-        let last_name = if is_visa_card_auth {
+
+        let last_name = if is_visa_card_auth && !is_ecommerce_payment {
             Some(derived_last_name.ok_or_else(|| {
                 error_stack::report!(IntegrationError::MissingRequiredField {
                     field_name: "billing.address.last_name required for Visa CardAuthentication Account Name Inquiry",
@@ -3273,6 +3317,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // authentications used to store credentials for future payments.
         let card_on_file = rules::cof_mit::card_on_file(&profile);
         let cit_status_indicator = rules::cof_mit::cit_status_indicator(&profile);
+        let m_pos_acceptance_device_type = if !is_ecommerce_payment {
+            Some("0".to_string())
+        } else {
+            None
+        };
 
         Ok(Self {
             device_id: auth.device_id,
@@ -3310,7 +3359,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             // mPos must be the LAST element on CardAuthentication per
             // the SBX XSD; downstream fields (cardOnFile, etc.) live
             // earlier in the struct now.
-            m_pos_acceptance_device_type: "0".to_string(),
+            m_pos_acceptance_device_type,
             authorization_indicator,
             card_on_file,
             cit_status_indicator,
