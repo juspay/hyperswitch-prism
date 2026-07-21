@@ -196,10 +196,7 @@ impl
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<
-            PlaidLinkTokenResponse,
-            Self,
-        >,
+        item: ResponseRouterData<PlaidLinkTokenResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let res = item.response;
 
@@ -319,10 +316,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static>
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<
-            PlaidPublicTokenExchangeResponse,
-            Self,
-        >,
+        item: ResponseRouterData<PlaidPublicTokenExchangeResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let res = item.response;
         Ok(Self {
@@ -472,12 +466,7 @@ impl
 {
     type Error = error_stack::Report<ConnectorError>;
 
-    fn try_from(
-        item: ResponseRouterData<
-            PlaidAuthGetResponse,
-            Self,
-        >,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: ResponseRouterData<PlaidAuthGetResponse, Self>) -> Result<Self, Self::Error> {
         let res = item.response;
 
         // Build lookup maps from account_id → routing details
@@ -507,9 +496,7 @@ impl
                 let bank_type = acct.subtype.as_deref().and_then(plaid_subtype_to_bank_type);
 
                 let balance = acct.balances.current.map(|amt| common_utils::types::Money {
-                    amount: common_utils::types::MinorUnit::new(
-                        f64::round(amt * 100.0) as i64,
-                    ),
+                    amount: common_utils::types::MinorUnit::new(f64::round(amt * 100.0) as i64),
                     currency: common_enums::Currency::USD,
                 });
                 let available_balance =
@@ -517,7 +504,7 @@ impl
                         .available
                         .map(|amt| common_utils::types::Money {
                             amount: common_utils::types::MinorUnit::new(
-                                f64::round(amt * 100.0) as i64,
+                                f64::round(amt * 100.0) as i64
                             ),
                             currency: common_enums::Currency::USD,
                         });
