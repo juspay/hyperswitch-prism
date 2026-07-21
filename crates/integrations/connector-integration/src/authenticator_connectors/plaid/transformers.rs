@@ -1,5 +1,4 @@
-use common_enums::{BankHolderType, BankType};
-use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt};
+use common_enums::BankType;
 use domain_types::{
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData, GetPaymentMethodData,
@@ -13,10 +12,10 @@ use domain_types::{
         BankAccountRoutingDetails, BankAccountSepaDetails, PaymentMethodDataTypes,
         PaymentMethodDetails,
     },
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
 };
-use error_stack::{report, ResultExt};
+use error_stack::report;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
@@ -199,12 +198,7 @@ impl
     fn try_from(
         item: ResponseRouterData<
             PlaidLinkTokenResponse,
-            RouterDataV2<
-                domain_types::connector_flow::ClientAuthenticationToken,
-                MerchantAuthenticationFlowData,
-                ClientAuthenticationTokenRequestData,
-                PaymentsResponseData,
-            >,
+            Self,
         >,
     ) -> Result<Self, Self::Error> {
         let res = item.response;
@@ -327,12 +321,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static>
     fn try_from(
         item: ResponseRouterData<
             PlaidPublicTokenExchangeResponse,
-            RouterDataV2<
-                domain_types::connector_flow::PaymentMethodToken,
-                PaymentFlowData,
-                PaymentMethodTokenizationData<T>,
-                PaymentMethodTokenResponse,
-            >,
+            Self,
         >,
     ) -> Result<Self, Self::Error> {
         let res = item.response;
@@ -486,12 +475,7 @@ impl
     fn try_from(
         item: ResponseRouterData<
             PlaidAuthGetResponse,
-            RouterDataV2<
-                domain_types::connector_flow::GetPaymentMethod,
-                PaymentFlowData,
-                GetPaymentMethodData,
-                GetPaymentMethodResponseData,
-            >,
+            Self,
         >,
     ) -> Result<Self, Self::Error> {
         let res = item.response;
@@ -523,14 +507,18 @@ impl
                 let bank_type = acct.subtype.as_deref().and_then(plaid_subtype_to_bank_type);
 
                 let balance = acct.balances.current.map(|amt| common_utils::types::Money {
-                    amount: common_utils::types::MinorUnit::new((amt * 100.0) as i64),
+                    amount: common_utils::types::MinorUnit::new(
+                        f64::round(amt * 100.0) as i64,
+                    ),
                     currency: common_enums::Currency::USD,
                 });
                 let available_balance =
                     acct.balances
                         .available
                         .map(|amt| common_utils::types::Money {
-                            amount: common_utils::types::MinorUnit::new((amt * 100.0) as i64),
+                            amount: common_utils::types::MinorUnit::new(
+                                f64::round(amt * 100.0) as i64,
+                            ),
                             currency: common_enums::Currency::USD,
                         });
 
@@ -545,13 +533,13 @@ impl
                         account_number: bacs.account.clone(),
                         sort_code: Secret::new(bacs.sort_code.clone()),
                     }))
-                } else if let Some(sepa) = sepa_map.get(&acct.account_id) {
-                    Some(BankAccountRoutingDetails::Sepa(BankAccountSepaDetails {
-                        iban: sepa.iban.clone(),
-                        bic: sepa.bic.clone(),
-                    }))
                 } else {
-                    None
+                    sepa_map.get(&acct.account_id).map(|sepa| {
+                        BankAccountRoutingDetails::Sepa(BankAccountSepaDetails {
+                            iban: sepa.iban.clone(),
+                            bic: sepa.bic.clone(),
+                        })
+                    })
                 };
 
                 BankAccount {

@@ -176,9 +176,7 @@ impl FrmConnectorData {
 
     fn convert_connector(connector_name: FrmConnectorEnum) -> BoxedFrmConnector {
         match connector_name {
-            FrmConnectorEnum::Kount => Box::new(connectors::Kount::<
-                domain_types::payment_method_data::DefaultPCIHolder,
-            >::new()),
+            FrmConnectorEnum::Kount => Box::new(connectors::Kount::<DefaultPCIHolder>::new()),
         }
     }
 }
