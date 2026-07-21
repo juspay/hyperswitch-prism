@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.07.21.1
+
+### Miscellaneous Tasks
+
+- **ci:** Pipeline changes ([#1973](https://github.com/juspay/connector-service/pull/1973)) ([`6d607aa`](https://github.com/juspay/connector-service/commit/6d607aa09e6a776ace3558f2c98c18bdc941e18b))
+
+**Full Changelog:** [`2026.07.21.0...2026.07.21.1`](https://github.com/juspay/connector-service/compare/2026.07.21.0...2026.07.21.1)
+
+- - -
+
 ## 2026.07.21.0
 
 ### Features
