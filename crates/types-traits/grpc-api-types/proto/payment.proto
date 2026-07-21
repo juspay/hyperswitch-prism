@@ -1022,6 +1022,12 @@ message OrderDetailsWithAmount {
   optional string commodity_code = 18;
   // Discount amount applied to a single unit (in minor currency units)
   optional int64 unit_discount_amount = 19;
+  // Discount name applied to this item
+  optional string discount_name = 20;
+  // Discount percentage applied to this item
+  optional double discount_percentage = 21;
+  // Discount type applied to this item
+  optional string discount_type = 22;
 }
 
 // Access token details
