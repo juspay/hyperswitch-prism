@@ -8,6 +8,8 @@ pub type JsonValue = serde_json::Value;
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "tag", content = "contents")]
 pub enum RecordingEntry {
+    #[serde(rename = "MetadataEntryT")]
+    Metadata(MetadataEntry),
     #[serde(rename = "TimeStampEntryT", alias = "TimestampEntryT")]
     Timestamp(TimestampEntry),
     #[serde(rename = "UuidEntryT", alias = "UUIDEntryT")]
@@ -22,6 +24,21 @@ pub enum RecordingEntry {
     CallApiPii(CallApiEntry),
     #[serde(rename = "IncomingApiEntryT")]
     IncomingApi(IncomingApiEntry),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct MetadataEntry {
+    pub tag: String,
+    pub metadata: JsonValue,
+}
+
+impl MetadataEntry {
+    pub fn new(tag: impl Into<String>, metadata: JsonValue) -> Self {
+        Self {
+            tag: tag.into(),
+            metadata,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -216,4 +233,13 @@ pub struct CsvRecording {
     pub val_type: String,
     #[serde(rename = "recEntry")]
     pub rec_entry: String,
+}
+
+impl CsvRecording {
+    pub fn to_euler_csv_row(&self) -> String {
+        format!(
+            "{},{},{},{},{},{}",
+            self.sess_id, self.merch_id, self.ord_id, self.counter, self.val_type, self.rec_entry
+        )
+    }
 }

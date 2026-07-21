@@ -168,6 +168,7 @@ impl ArtRuntime {
 
     fn should_record_entry(&self, entry: &RecordingEntry) -> bool {
         match entry {
+            RecordingEntry::Metadata(_) => true,
             RecordingEntry::CallApi(_) | RecordingEntry::CallApiPii(_) => {
                 self.settings.record_outgoing_http
             }

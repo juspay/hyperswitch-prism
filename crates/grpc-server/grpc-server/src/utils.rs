@@ -342,12 +342,25 @@ fn create_art_runtime_for_request(
 }
 
 fn art_order_id_from_metadata(metadata_payload: &MetadataPayload) -> String {
-    metadata_payload
-        .reference_id
-        .as_deref()
-        .or(metadata_payload.resource_id.as_deref())
-        .unwrap_or(&metadata_payload.request_id)
-        .to_string()
+    metadata_payload.reference_id.clone().unwrap_or_default()
+}
+
+fn art_metadata_entry_from_request(
+    metadata_payload: &MetadataPayload,
+    flow_name: FlowName,
+    service_name: &str,
+) -> Value {
+    serde_json::json!({
+        "request_id": metadata_payload.request_id.as_str(),
+        "merchant_id": metadata_payload.merchant_id.as_str(),
+        "reference_id": metadata_payload.reference_id.as_deref(),
+        "resource_id": metadata_payload.resource_id.as_deref(),
+        "tenant_id": metadata_payload.tenant_id.as_str(),
+        "connector": metadata_payload.connector.get_connector_name(),
+        "service_name": service_name,
+        "flow": flow_name.as_str(),
+        "execution_mode": ExecutionMode::from_shadow_flag(metadata_payload.shadow_mode).as_str(),
+    })
 }
 
 pub fn resolve_api_tag(
@@ -448,7 +461,7 @@ fn flush_art_recording(runtime: &ArtRuntime, config: &configs::ArtRecordingConfi
 
 async fn run_art_scoped_handler<T, F, Fut, R>(
     request_data: RequestData<T>,
-    art_runtime: ArtRuntime,
+    mut art_runtime: ArtRuntime,
     art_recording_config: &configs::ArtRecordingConfig,
     art_order_id: String,
     should_record_incoming_api: bool,
@@ -462,6 +475,20 @@ where
     Fut: Future<Output = Result<tonic::Response<R>, tonic::Status>>,
     R: Serialize,
 {
+    if art_runtime.mode() == ArtMode::Record {
+        if let Err(error) = art_effects::record_metadata_with_runtime(
+            &mut art_runtime,
+            "PRISM_ART_CONTEXT",
+            art_metadata_entry_from_request(
+                &request_data.extracted_metadata,
+                flow_name,
+                service_name,
+            ),
+        ) {
+            tracing::error!("failed to record ART metadata entry: {error}");
+        }
+    }
+
     let incoming_request = (art_runtime.mode() == ArtMode::Record && should_record_incoming_api)
         .then(|| build_incoming_grpc_api_request(&request_data, flow_name, service_name));
     let start_time = incoming_request.as_ref().map(|_| current_art_timestamp());
@@ -1565,7 +1592,7 @@ mod art_lifecycle_tests {
     }
 
     #[test]
-    fn art_runtime_stays_disabled_when_recording_header_is_missing() {
+    fn art_runtime_records_when_recording_config_is_enabled() {
         let mut config = base_config();
         config.art_recording.enabled = true;
 
@@ -1576,7 +1603,7 @@ mod art_lifecycle_tests {
             "PaymentService",
         );
 
-        assert_eq!(runtime.mode(), ArtMode::Disabled);
+        assert_eq!(runtime.mode(), ArtMode::Record);
     }
 
     #[test]
@@ -1611,17 +1638,17 @@ mod art_lifecycle_tests {
     }
 
     #[test]
-    fn art_order_id_prefers_reference_then_resource_then_request_id() {
+    fn art_order_id_uses_reference_id_only() {
         let mut metadata = metadata_payload();
         metadata.reference_id = Some("ref_123".to_string());
         metadata.resource_id = Some("res_123".to_string());
         assert_eq!(art_order_id_from_metadata(&metadata), "ref_123");
 
         metadata.reference_id = None;
-        assert_eq!(art_order_id_from_metadata(&metadata), "res_123");
+        assert_eq!(art_order_id_from_metadata(&metadata), "");
 
         metadata.resource_id = None;
-        assert_eq!(art_order_id_from_metadata(&metadata), "req_phase_5");
+        assert_eq!(art_order_id_from_metadata(&metadata), "");
     }
 
     #[test]
@@ -1647,7 +1674,7 @@ mod art_lifecycle_tests {
             merch_id: "merchant_123".to_string(),
             ord_id: "order_123".to_string(),
             counter: 1,
-            val_type: "UUIDEntryT".to_string(),
+            val_type: "UUID".to_string(),
             rec_entry: "x".repeat(128),
         }];
 

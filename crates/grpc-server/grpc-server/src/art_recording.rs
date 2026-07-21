@@ -19,10 +19,9 @@ where
     S: ArtRecordingSink,
 {
     for row in rows {
-        let payload = serde_json::to_vec(row)
-            .map_err(|source| ArtRecordingPublishError::SerializeRow { source })?;
+        let payload = row.to_euler_csv_row();
 
-        sink.publish(topic, &row.sess_id, &payload)
+        sink.publish(topic, &row.sess_id, payload.as_bytes())
             .map_err(|error| ArtRecordingPublishError::Publish {
                 message: error.to_string(),
             })?;
@@ -211,38 +210,28 @@ mod tests {
     }
 
     #[test]
-    fn publish_rows_to_sink_serializes_each_row_and_keys_by_session_id() {
+    fn publish_rows_to_sink_publishes_euler_csv_rows_and_keys_by_session_id() {
         let sink = RecordingSink::default();
         let rows = vec![CsvRecording {
             sess_id: "req_123".to_string(),
             merch_id: "merchant_123".to_string(),
             ord_id: "order_123".to_string(),
             counter: 1,
-            val_type: "UUIDEntryT".to_string(),
-            rec_entry: "{\"tag\":\"UUIDEntryT\"}".to_string(),
+            val_type: "UUID".to_string(),
+            rec_entry: "eyJ0YWciOiJVdWlkRW50cnlUIn0=".to_string(),
         }];
 
         let published =
-            publish_rows_to_sink(&rows, "art-recordings", &sink).expect("rows should publish");
+            publish_rows_to_sink(&rows, "euler-art", &sink).expect("rows should publish");
 
         assert_eq!(published, 1);
         let messages = sink.messages.borrow();
         assert_eq!(messages.len(), 1);
-        assert_eq!(messages[0].topic, "art-recordings");
+        assert_eq!(messages[0].topic, "euler-art");
         assert_eq!(messages[0].key, "req_123");
-
-        let payload = serde_json::from_slice::<serde_json::Value>(&messages[0].payload)
-            .expect("payload should be JSON");
         assert_eq!(
-            payload,
-            serde_json::json!({
-                "sessId": "req_123",
-                "merchId": "merchant_123",
-                "ordId": "order_123",
-                "counter": 1,
-                "valType": "UUIDEntryT",
-                "recEntry": "{\"tag\":\"UUIDEntryT\"}"
-            })
+            String::from_utf8(messages[0].payload.clone()).expect("payload should be UTF-8"),
+            "req_123,merchant_123,order_123,1,UUID,eyJ0YWciOiJVdWlkRW50cnlUIn0="
         );
     }
 
@@ -268,7 +257,7 @@ mod tests {
             merch_id: "merchant_123".to_string(),
             ord_id: "order_123".to_string(),
             counter: 1,
-            val_type: "UUIDEntryT".to_string(),
+            val_type: "UUID".to_string(),
             rec_entry: "{}".to_string(),
         }];
 

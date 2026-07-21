@@ -55,7 +55,7 @@ max_buffer_size_mb = 16
 max_entries_per_session = 10000
 flush_async = true
 kafka_brokers = ["localhost:9092"]
-kafka_topic = "art-recordings"
+kafka_topic = "euler-art"
 
 # API tag configuration for flow-based tagging
 # Supports both simple flow tags and payment-method-specific tags

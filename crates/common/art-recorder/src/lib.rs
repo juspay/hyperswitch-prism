@@ -12,9 +12,36 @@ mod schema_tests {
 
     use crate::schema::{
         CallApiEntry, CsvRecording, Either, ErrorPayload, HttpRequestEntry, HttpResponseEntry,
-        IncomingApiEntry, IncomingApiRequestEntry, IncomingApiResponseEntry, RandomBytesEntry,
-        RecordingEntry, TimestampEntry,
+        IncomingApiEntry, IncomingApiRequestEntry, IncomingApiResponseEntry, MetadataEntry,
+        RandomBytesEntry, RecordingEntry, TimestampEntry,
     };
+
+    #[test]
+    fn metadata_entry_serializes_with_eulerhs_tag_contents_shape() {
+        let entry = RecordingEntry::Metadata(MetadataEntry::new(
+            "PRISM_ART_CONTEXT",
+            json!({
+                "request_id": "req_123",
+                "merchant_id": "merchant_123",
+                "reference_id": "order_123"
+            }),
+        ));
+
+        assert_eq!(
+            serde_json::to_value(entry).expect("entry should serialize"),
+            json!({
+                "tag": "MetadataEntryT",
+                "contents": {
+                    "tag": "PRISM_ART_CONTEXT",
+                    "metadata": {
+                        "request_id": "req_123",
+                        "merchant_id": "merchant_123",
+                        "reference_id": "order_123"
+                    }
+                }
+            })
+        );
+    }
 
     #[test]
     fn timestamp_entry_serializes_with_eulerhs_tag_contents_shape() {
@@ -238,7 +265,7 @@ mod schema_tests {
             merch_id: "merchant_123".to_string(),
             ord_id: "order_123".to_string(),
             counter: 7,
-            val_type: "TimeStampEntryT".to_string(),
+            val_type: "TIMESTAMP".to_string(),
             rec_entry: "{\"tag\":\"TimeStampEntryT\"}".to_string(),
         };
 
@@ -249,7 +276,7 @@ mod schema_tests {
                 "merchId": "merchant_123",
                 "ordId": "order_123",
                 "counter": 7,
-                "valType": "TimeStampEntryT",
+                "valType": "TIMESTAMP",
                 "recEntry": "{\"tag\":\"TimeStampEntryT\"}"
             })
         );
@@ -452,6 +479,7 @@ mod effects_tests {
 
 #[cfg(test)]
 mod flush_tests {
+    use base64::{engine::general_purpose::STANDARD as BASE64_ENGINE, Engine};
     use serde_json::json;
 
     use crate::{
@@ -496,9 +524,12 @@ mod flush_tests {
         assert_eq!(rows[0].merch_id, "merchant_123");
         assert_eq!(rows[0].ord_id, "order_123");
         assert_eq!(rows[0].counter, 1);
-        assert_eq!(rows[0].val_type, "TimeStampEntryT");
+        assert_eq!(rows[0].val_type, "TIMESTAMP");
+        let decoded_rec_entry = BASE64_ENGINE
+            .decode(&rows[0].rec_entry)
+            .expect("recEntry should be base64");
         assert_eq!(
-            serde_json::from_str::<serde_json::Value>(&rows[0].rec_entry)
+            serde_json::from_slice::<serde_json::Value>(&decoded_rec_entry)
                 .expect("recEntry should be serialized JSON"),
             json!({
                 "tag": "TimeStampEntryT",
@@ -511,12 +542,12 @@ mod flush_tests {
         );
 
         assert_eq!(rows[1].counter, 2);
-        assert_eq!(rows[1].val_type, "UuidEntryT");
+        assert_eq!(rows[1].val_type, "UUID");
         assert_eq!(rows[1].ord_id, "order_123");
     }
 
     #[test]
-    fn recording_rows_from_runtime_falls_back_to_session_id_for_order_id() {
+    fn recording_rows_from_runtime_uses_empty_order_id_when_reference_id_is_missing() {
         let mut runtime = ArtRuntime::recording(session_context(), Some(10));
         runtime
             .record_entry(RecordingEntry::Uuid(UuidEntry::new(
@@ -529,7 +560,7 @@ mod flush_tests {
         let rows = recording_rows_from_runtime(&runtime, None, RecEntryTransform::Plain)
             .expect("runtime rows should be built");
 
-        assert_eq!(rows[0].ord_id, "req_123");
+        assert_eq!(rows[0].ord_id, "");
     }
 
     #[test]

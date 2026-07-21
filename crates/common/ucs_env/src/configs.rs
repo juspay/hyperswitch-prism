@@ -148,7 +148,7 @@ fn default_art_max_entries_per_session() -> usize {
 }
 
 fn default_art_kafka_topic() -> String {
-    "art-recordings".to_string()
+    "euler-art".to_string()
 }
 
 #[derive(Clone, Deserialize, Debug, Serialize, PartialEq, config_patch_derive::Patch)]
@@ -305,10 +305,10 @@ mod test_config_tests {
     }
 
     #[test]
-    fn art_feature_requires_request_opt_in_for_recording() {
+    fn art_feature_uses_recording_config_without_request_opt_in() {
         let config = config_with_art_modes(false, true);
 
-        assert_eq!(config.art_feature(false), ArtFeature::Disabled);
+        assert_eq!(config.art_feature(false), ArtFeature::Record);
         assert_eq!(config.art_feature(true), ArtFeature::Record);
         assert!(config
             .create_art_replay_context("req_art_record")
@@ -559,10 +559,10 @@ impl WebhookSourceVerificationCall {
 }
 
 impl Config {
-    pub fn art_feature(&self, recording_requested: bool) -> ArtFeature {
+    pub fn art_feature(&self, _recording_requested: bool) -> ArtFeature {
         if self.test.enabled {
             ArtFeature::Replay
-        } else if self.art_recording.enabled && recording_requested {
+        } else if self.art_recording.enabled {
             ArtFeature::Record
         } else {
             ArtFeature::Disabled

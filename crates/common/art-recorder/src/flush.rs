@@ -36,7 +36,7 @@ pub fn recording_rows_from_runtime(
             Ok(CsvRecording {
                 sess_id: session.session_id().to_string(),
                 merch_id: session.merchant_id.clone(),
-                ord_id: order_id.unwrap_or_else(|| session.session_id()).to_string(),
+                ord_id: order_id.unwrap_or_default().to_string(),
                 counter: i32::try_from(index + 1).map_err(|_| FlushError::CounterOverflow)?,
                 val_type: recording_entry_val_type(entry).to_string(),
                 rec_entry: transform_rec_entry(entry, transform)?,
@@ -53,7 +53,7 @@ fn transform_rec_entry(
         serde_json::to_string(entry).map_err(|source| FlushError::SerializeEntry { source })?;
 
     match transform {
-        RecEntryTransform::Plain => Ok(rec_entry),
+        RecEntryTransform::Plain => Ok(BASE64_ENGINE.encode(rec_entry.as_bytes())),
         RecEntryTransform::Aes256Cbc { key, iv } => {
             encrypt_aes_256_cbc(&rec_entry, key, iv).map(|encrypted| {
                 let mut prefixed =
@@ -106,13 +106,13 @@ fn encrypt_aes_256_cbc(plaintext: &str, key: &str, iv: &str) -> Result<String, F
 
 fn recording_entry_val_type(entry: &RecordingEntry) -> &'static str {
     match entry {
-        RecordingEntry::Timestamp(_) => "TimeStampEntryT",
-        RecordingEntry::Uuid(_) => "UuidEntryT",
-        RecordingEntry::RandomRio(_) => "RandomRIOEntryT",
-        RecordingEntry::RandomBytes(_) => "RandomBytesEntryT",
-        RecordingEntry::CallApi(_) => "CallAPIEntryT",
-        RecordingEntry::CallApiPii(_) => "CallAPIEntryPIIT",
-        RecordingEntry::IncomingApi(_) => "IncomingApiEntryT",
+        RecordingEntry::Metadata(_) => "METADATA",
+        RecordingEntry::Timestamp(_) => "TIMESTAMP",
+        RecordingEntry::Uuid(_) => "UUID",
+        RecordingEntry::RandomRio(_) => "RANDOM_RIO",
+        RecordingEntry::RandomBytes(_) => "RANDOM_BYTES",
+        RecordingEntry::CallApi(_) | RecordingEntry::CallApiPii(_) => "OUTGOING_API",
+        RecordingEntry::IncomingApi(_) => "INCOMING_API",
     }
 }
 

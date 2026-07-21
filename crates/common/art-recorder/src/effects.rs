@@ -11,8 +11,8 @@ use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 use crate::{
     runtime::{self, ArtError, ArtMode, ArtRuntime},
     schema::{
-        CallApiEntry, IncomingApiEntry, RandomBytesEntry, RandomRioEntry, RecordingEntry,
-        TimestampEntry, UuidEntry,
+        CallApiEntry, IncomingApiEntry, MetadataEntry, RandomBytesEntry, RandomRioEntry,
+        RecordingEntry, TimestampEntry, UuidEntry,
     },
 };
 
@@ -198,6 +198,25 @@ pub fn record_incoming_api_with_runtime(
     runtime.record_entry(RecordingEntry::IncomingApi(entry))
 }
 
+pub fn record_metadata(
+    tag: impl Into<String>,
+    metadata: serde_json::Value,
+) -> Result<(), ArtError> {
+    let tag = tag.into();
+    runtime::try_with_current(|runtime| {
+        record_metadata_with_runtime(runtime, tag.clone(), metadata.clone())
+    })
+    .unwrap_or(Ok(()))
+}
+
+pub fn record_metadata_with_runtime(
+    runtime: &mut ArtRuntime,
+    tag: impl Into<String>,
+    metadata: serde_json::Value,
+) -> Result<(), ArtError> {
+    runtime.record_entry(RecordingEntry::Metadata(MetadataEntry::new(tag, metadata)))
+}
+
 fn replay_timestamp(runtime: &mut ArtRuntime) -> Result<serde_json::Value, ArtError> {
     match runtime.pop_replay_entry()? {
         RecordingEntry::Timestamp(entry) => Ok(entry.timestamp),
@@ -266,6 +285,7 @@ fn type_mismatch(expected: &'static str, entry: &RecordingEntry) -> ArtError {
 
 fn entry_type(entry: &RecordingEntry) -> &'static str {
     match entry {
+        RecordingEntry::Metadata(_) => "MetadataEntryT",
         RecordingEntry::Timestamp(_) => "TimeStampEntryT",
         RecordingEntry::Uuid(_) => "UuidEntryT",
         RecordingEntry::RandomRio(_) => "RandomRIOEntryT",
