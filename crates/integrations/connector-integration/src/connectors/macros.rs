@@ -2100,6 +2100,17 @@ macro_rules! expand_flow_status_impl {
             response: ::domain_types::connector_types::ConnectorCustomerResponse,
         );
     };
+    (connector: $c:ident, flow: GetConnectorCustomer, status: $st:ident, generic_type: $g:tt, [$($b:tt)*]) => {
+        impl<$g: $($b)*> ::interfaces::connector_types::GetConnectorCustomer for $c<$g> {}
+        $crate::connectors::macros::flow_status_emit!(
+            connector: $c, status: $st, generic_type: $g, [$($b)*],
+            flow: ::domain_types::connector_flow::GetConnectorCustomer,
+            flow_name: "get_connector_customer",
+            flow_common_data: ::domain_types::connector_types::PaymentFlowData,
+            request: ::domain_types::connector_types::ConnectorCustomerData,
+            response: ::domain_types::connector_types::ConnectorCustomerResponse,
+        );
+    };
     (connector: $c:ident, flow: MandateRevoke, status: $st:ident, generic_type: $g:tt, [$($b:tt)*]) => {
         impl<$g: $($b)*> ::interfaces::connector_types::MandateRevokeV2 for $c<$g> {}
         $crate::connectors::macros::flow_status_emit!(

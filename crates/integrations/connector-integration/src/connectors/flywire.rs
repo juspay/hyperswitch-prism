@@ -695,6 +695,7 @@ macros::macro_connector_flow_status_impls!(
         MandateRevoke,
         ServerSessionAuthenticationToken,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
     ],
     not_supported: [
         VoidPC,

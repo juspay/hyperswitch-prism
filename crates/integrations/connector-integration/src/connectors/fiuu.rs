@@ -1157,6 +1157,7 @@ macros::macro_connector_flow_status_impls!(
         ServerSessionAuthenticationToken,
         ServerAuthenticationToken,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         MandateRevoke,
         PaymentMethodToken,
         PreAuthenticate,

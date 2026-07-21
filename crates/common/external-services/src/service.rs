@@ -860,19 +860,20 @@ where
                         &masked_request,
                     );
 
-                    let result = handle_connector_response(
-                        response.change_context(
-                            ConnectorError::response_handling_failed_http_status_unknown(),
-                        ),
-                        updated_router_data,
-                        &connector,
-                        Some(&mut event),
-                        all_keys_required,
-                        &method.to_string(),
-                        url,
-                        Some(&event_params),
-                    )
-                    .map_err(report_connector_response_to_flow);
+                    let result = match response {
+                        Ok(body) => handle_connector_response(
+                            Ok(body),
+                            updated_router_data,
+                            &connector,
+                            Some(&mut event),
+                            all_keys_required,
+                            &method.to_string(),
+                            url,
+                            Some(&event_params),
+                        )
+                        .map_err(report_connector_response_to_flow),
+                        Err(transport_err) => Err(transport_err),
+                    };
 
                     emit_event_with_config(event, event_params.event_config);
                     result
@@ -977,19 +978,20 @@ where
                         &masked_request,
                     );
 
-                    let result = handle_connector_response(
-                        response.change_context(
-                            ConnectorError::response_handling_failed_http_status_unknown(),
-                        ),
-                        router_data,
-                        &connector,
-                        Some(&mut event),
-                        all_keys_required,
-                        "PUBLISH",
-                        topic,
-                        Some(&event_params),
-                    )
-                    .map_err(report_connector_response_to_flow);
+                    let result = match response {
+                        Ok(body) => handle_connector_response(
+                            Ok(body),
+                            router_data,
+                            &connector,
+                            Some(&mut event),
+                            all_keys_required,
+                            "PUBLISH",
+                            topic,
+                            Some(&event_params),
+                        )
+                        .map_err(report_connector_response_to_flow),
+                        Err(publish_err) => Err(publish_err),
+                    };
 
                     emit_event_with_config(event, event_params.event_config);
                     result

@@ -183,11 +183,18 @@ jobs:
     runs-on: ubuntu-latest
     needs: [package]
     if: always() && needs.package.result == 'success' && (inputs.preview_only == true || inputs.publish_npm == true)
+    # id-token so the auth check can verify OIDC issuance pre-flight.
+    permissions:
+      contents: read
+      id-token: write
     steps:
+      # Node 24 ships npm 11.x; npm >= 11.5.1 is required for OIDC trusted
+      # publishing. Kept in step with the publish job so the dry-run exercises
+      # the same npm.
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           registry-url: 'https://registry.npmjs.org'
 
       - name: Download package tarball
@@ -195,15 +202,28 @@ jobs:
         with:
           name: package-tarball
 
-      - name: Check npm authentication
+      # There is no stored npm token to check `npm whoami` against any more. The
+      # publish credential is minted from the GitHub OIDC token at publish time,
+      # so the pre-flight equivalent is confirming this run can mint one. It
+      # cannot verify the trusted-publisher config on npmjs.com.
+      - name: Check npm authentication (OIDC)
         id: check-npm-auth
         continue-on-error: true
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          echo "Checking npm authentication..."
-          npm whoami
-          echo "✅ npm authentication successful"
+          echo "Checking OIDC token issuance..."
+          if [ -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ]; then
+            echo "❌ No OIDC token endpoint — job is missing 'id-token: write'"
+            exit 1
+          fi
+          token="$(curl -sf \
+            -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=npm:registry.npmjs.org" \
+            | jq -r '.value // empty')"
+          if [ -z "$token" ]; then
+            echo "❌ Failed to mint an OIDC token for npm"
+            exit 1
+          fi
+          echo "✅ OIDC token minted for npm"
 
       - name: Check version availability
         id: check-version
@@ -224,8 +244,6 @@ jobs:
       - name: Dry-run publish check
         id: check-dryrun
         continue-on-error: true
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           echo "Running npm publish --dry-run..."
           npm publish *.tgz --dry-run
@@ -266,15 +284,29 @@ jobs:
     runs-on: ubuntu-latest
     needs: [preview, pre-publish-check]
     if: always() && needs.preview.result == 'success' && needs.pre-publish-check.result == 'success' && inputs.publish_npm == true && inputs.preview_only == false
+    # Must match the Environment field of the trusted publisher on npmjs.com —
+    # declaring it here is what puts the "production" claim in the OIDC token.
+    # Note this job runs on the dispatched branch, not on the medusa-*-v* tag
+    # created by bump-version, so `production` must admit that branch.
+    environment: production
     permissions:
       contents: read
       id-token: write
     steps:
+      # Node 24 ships npm 11.x. npm >= 11.5.1 is required for OIDC trusted
+      # publishing; registry-url writes the .npmrc that scopes the OIDC exchange
+      # to registry.npmjs.org.
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           registry-url: 'https://registry.npmjs.org'
+
+      - name: Verify npm supports trusted publishing
+        run: |
+          echo "npm $(npm --version) / node $(node --version)"
+          npx --yes semver -r '>=11.5.1' "$(npm --version)" >/dev/null \
+            || { echo "npm >= 11.5.1 required for OIDC trusted publishing"; exit 1; }
 
       - name: Download package tarball
         uses: actions/download-artifact@v4
@@ -291,9 +323,13 @@ jobs:
           tar -tzf *.tgz | head -30
           echo ""
 
+      # Publishes via OIDC trusted publishing — no stored token. Requires the
+      # job's id-token: write above, npm >= 11.5.1, and a trusted publisher
+      # registered on npmjs.com for this package pointing at
+      # release-medusa-custom-payments.yml. Provenance is attached automatically.
       - name: Publish to npm
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_LOGLEVEL: verbose
         run: |
           echo "Publishing package..."
           npm publish *.tgz --access public
