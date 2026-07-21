@@ -593,9 +593,16 @@ fn get_preauthenticate_response(
             three_ds_method_url,
             continue_redirection_url,
             semantic_version,
+            message_version,
+            authentication_data,
             http_status,
         ),
-        None => build_threeds_exempt_response(response_data, authentication_data),
+        None => build_threeds_exempt_response(
+            response_data,
+            &three_d_s_server_trans_i_d,
+            message_version,
+            authentication_data,
+        ),
     }
 }
 
@@ -605,6 +612,8 @@ fn build_threeds_invoke_response(
     three_ds_method_url: &str,
     continue_redirection_url: Option<&url::Url>,
     protocol_version: common_utils::types::SemanticVersion,
+    message_version: &str,
+    authentication_data: Option<domain_types::router_request_types::AuthenticationData>,
     http_status: u16,
 ) -> Result<responses::PreAuthenticateResponseData, ResponseError> {
     let notification_url = continue_redirection_url
@@ -653,21 +662,41 @@ fn build_threeds_invoke_response(
         form_fields,
     }));
 
+    // Mirror hyperswitch's (Direct) `RedsysThreeDsInvokeData` connector_metadata shape so the
+    // shadow router-data comparison matches (resolves connector_metadata typeDiff on the invoke
+    // path). Keys are snake_case and `three_ds_method_data_submission` is a JSON bool, exactly as
+    // hyperswitch serializes it.
+    let connector_metadata = serde_json::json!({
+        "directory_server_id": three_d_s_server_trans_i_d,
+        "message_version": message_version,
+        "three_ds_method_data": three_ds_method_data,
+        "three_ds_method_data_submission": true,
+        "three_ds_method_url": three_ds_method_url,
+    });
+
     Ok(responses::PreAuthenticateResponseData {
         redirection_data: redirect_form,
-        connector_meta_data: None,
+        connector_meta_data: Some(Secret::new(connector_metadata)),
         response_ref_id: Some(response_data.ds_order.clone()),
-        authentication_data: None,
+        authentication_data,
     })
 }
 
 fn build_threeds_exempt_response(
     response_data: &responses::RedsysPaymentsResponse,
+    three_d_s_server_trans_i_d: &str,
+    message_version: &str,
     authentication_data: Option<domain_types::router_request_types::AuthenticationData>,
 ) -> Result<responses::PreAuthenticateResponseData, ResponseError> {
+    // Mirror hyperswitch's (Direct) `ThreeDsInvokeExempt` connector_metadata shape so the shadow
+    // router-data comparison matches (resolves the connector_metadata typeDiff on the exempt path).
+    let connector_metadata = serde_json::json!({
+        "message_version": message_version,
+        "three_d_s_server_trans_i_d": three_d_s_server_trans_i_d,
+    });
     Ok(responses::PreAuthenticateResponseData {
         redirection_data: None,
-        connector_meta_data: None,
+        connector_meta_data: Some(Secret::new(connector_metadata)),
         response_ref_id: Some(response_data.ds_order.clone()),
         authentication_data,
     })
@@ -957,7 +986,9 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResp
                         ..item.router_data.resource_common_data
                     },
                     response: Ok(PaymentsResponseData::PreAuthenticateResponse {
-                        resource_id: None,
+                        resource_id: response_ref_id
+                            .clone()
+                            .map(ResponseId::ConnectorTransactionId),
                         redirection_data,
                         connector_response_reference_id: response_ref_id,
                         status_code: item.http_code,
@@ -977,7 +1008,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResp
                         .error_code_description
                         .clone()
                         .unwrap_or_else(|| err.error_code.clone()),
-                    reason: err.error_code_description.clone(),
+                    reason: Some(err.error_code.clone()),
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
@@ -1169,7 +1200,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResp
                         .error_code_description
                         .clone()
                         .unwrap_or_else(|| err.error_code.clone()),
-                    reason: err.error_code_description.clone(),
+                    reason: Some(err.error_code.clone()),
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
@@ -1490,7 +1521,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResp
                         .error_code_description
                         .clone()
                         .unwrap_or_else(|| err.error_code.clone()),
-                    reason: err.error_code_description.clone(),
+                    reason: Some(err.error_code.clone()),
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
@@ -1609,7 +1640,7 @@ impl TryFrom<ResponseRouterData<responses::RedsysResponse, Self>>
                         .error_code_description
                         .clone()
                         .unwrap_or_else(|| err.error_code.clone()),
-                    reason: err.error_code_description.clone(),
+                    reason: Some(err.error_code.clone()),
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
@@ -1732,7 +1763,7 @@ impl TryFrom<ResponseRouterData<responses::RedsysResponse, Self>>
                         .error_code_description
                         .clone()
                         .unwrap_or_else(|| err.error_code.clone()),
-                    reason: err.error_code_description.clone(),
+                    reason: Some(err.error_code.clone()),
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
@@ -2042,7 +2073,7 @@ impl TryFrom<ResponseRouterData<responses::RedsysResponse, Self>>
                         .error_code_description
                         .clone()
                         .unwrap_or_else(|| err.error_code.clone()),
-                    reason: err.error_code_description.clone(),
+                    reason: Some(err.error_code.clone()),
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
