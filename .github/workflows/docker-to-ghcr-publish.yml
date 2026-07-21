@@ -3,14 +3,62 @@ name: Docker Build and Push to GHCR
 on:
   workflow_dispatch:
   
-  # Automatically run when nightly tags are created.
-  # Accepts formats like: 2025.12.03.0 or 2025.01.09.12
+  # Automatically run when nightly (CalVer) or stable (SemVer) tags are created.
+  # Accepts formats like: 2025.12.03.0, 2025.01.09.12, or v1.2.3
   push:
     tags:
       - "20[0-9][0-9].[0-1][0-9].[0-3][0-9].*"
+      - "v[0-9]*.[0-9]*.[0-9]*"
 
 jobs:
+  # Tag pushes fire this workflow directly, so nothing upstream guarantees the
+  # tagged commit passed CI. Block publishing until the "CI Result" check
+  # (ci.yml's ci-gate job) has completed successfully on this exact SHA.
+  # The CI run and the tag push start near-simultaneously, so poll rather
+  # than checking once.
+  verify-ci:
+    name: Verify CI passed on tagged commit
+    runs-on: ubuntu-latest
+    permissions:
+      checks: read
+      contents: read
+    steps:
+      - name: Wait for CI Result check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [[ "${{ github.ref_type }}" != "tag" ]]; then
+            echo "Not a tag push — skipping CI verification for manual branch build."
+            exit 0
+          fi
+
+          SHA="${{ github.sha }}"
+          DEADLINE=$((SECONDS + 5400)) # 90 minutes
+
+          while true; do
+            CONCLUSION="$(gh api \
+              "/repos/${{ github.repository }}/commits/${SHA}/check-runs?check_name=CI%20Result&filter=latest" \
+              --jq '[.check_runs[] | select(.status == "completed")][0].conclusion // empty')"
+
+            if [[ "${CONCLUSION}" == "success" ]]; then
+              echo "CI Result check passed on ${SHA}."
+              break
+            elif [[ -n "${CONCLUSION}" ]]; then
+              echo "::error::CI Result check concluded '${CONCLUSION}' on ${SHA}. Refusing to publish an image from a commit that did not pass CI."
+              exit 1
+            fi
+
+            if (( SECONDS >= DEADLINE )); then
+              echo "::error::Timed out waiting for the CI Result check on ${SHA}. Re-run this workflow once CI has completed."
+              exit 1
+            fi
+
+            echo "CI Result check not completed yet on ${SHA}; retrying in 60s..."
+            sleep 60
+          done
+
   build-and-push-dockerfile:
+    needs: [verify-ci]
     permissions:
       contents: read
       packages: write
@@ -88,7 +136,6 @@ jobs:
           push: true
         env:
           CARGO_INCREMENTAL: "0"
-          RUSTFLAGS: "-A warnings"
           SCCACHE_ENABLE: "true"
       
       - name: Set job outputs
@@ -101,6 +148,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write
+      attestations: write
     env:
       VERSION: ${{ needs.build-and-push-dockerfile.outputs.version }}
     steps:
@@ -119,3 +168,18 @@ jobs:
             ghcr.io/${{ github.repository }}:${{ env.VERSION }}-linux-amd64 \
             ghcr.io/${{ github.repository }}:${{ env.VERSION }}-linux-arm64
           echo "Successfully created manifest: ghcr.io/${{ github.repository }}:${{ env.VERSION }}"
+
+      - name: Get manifest digest
+        id: digest
+        run: |
+          DIGEST="$(docker buildx imagetools inspect "ghcr.io/${{ github.repository }}:${{ env.VERSION }}" \
+            --format '{{json .Manifest.Digest}}' | tr -d '"')"
+          echo "Manifest digest: ${DIGEST}"
+          echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-name: ghcr.io/${{ github.repository }}
+          subject-digest: ${{ steps.digest.outputs.digest }}
+          push-to-registry: true
