@@ -179,23 +179,41 @@ jobs:
           fi
 
 
+  # Dispatched rather than invoked with `uses:`. npm trusted publishing
+  # validates the OIDC token's workflow_ref, which for a reusable workflow
+  # resolves to *this* file rather than the one running `npm publish` — and a
+  # package may only have one trusted publisher. Dispatching gives release-sdks
+  # its own top-level run, so this path and manual dispatch both authenticate
+  # against the single registered publisher (juspay/hyperswitch-prism ::
+  # release-sdks.yml).
+  #
+  # A PAT is required: a workflow_dispatch triggered with GITHUB_TOKEN does not
+  # create a new workflow run.
   publish-sdks:
     name: Publish SDKs
+    runs-on: ubuntu-latest
     needs: [tag-release]
     if: ${{ inputs.dry_run == false && needs.tag-release.result == 'success' }}
-    uses: ./.github/workflows/release-sdks.yml
-    with:
-      publish_java: true
-      publish_python: true
-      publish_javascript: true
-      preview_only: false
-      ref: ${{ needs.tag-release.outputs.next_tag }}
-      version: ${{ needs.tag-release.outputs.version }}
-    secrets:
-      CONNECTOR_SERVICE_CI_PAT: ${{ secrets.CONNECTOR_SERVICE_CI_PAT }}
-      CENTRAL_TOKEN_USERNAME: ${{ secrets.CENTRAL_TOKEN_USERNAME }}
-      CENTRAL_TOKEN_PASSWORD: ${{ secrets.CENTRAL_TOKEN_PASSWORD }}
-      GPG_SIGNING_KEY: ${{ secrets.GPG_SIGNING_KEY }}
-      GPG_SIGNING_KEY_PASSWORD: ${{ secrets.GPG_SIGNING_KEY_PASSWORD }}
-      PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
-      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+    steps:
+      - name: Dispatch SDK release
+        env:
+          GH_TOKEN: ${{ secrets.CONNECTOR_SERVICE_CI_PAT }}
+          TAG: ${{ needs.tag-release.outputs.next_tag }}
+          VERSION: ${{ needs.tag-release.outputs.version }}
+        run: |
+          # Dispatch on the release tag, not the branch: the publish job runs in
+          # the `production` environment, whose deployment policy only admits
+          # release tags. This also makes the OIDC ref claim the exact tag being
+          # published.
+          gh workflow run release-sdks.yml \
+            --repo "${{ github.repository }}" \
+            --ref "${TAG}" \
+            --field publish_java=true \
+            --field publish_python=true \
+            --field publish_javascript=true \
+            --field preview_only=false \
+            --field ref="${TAG}" \
+            --field version="${VERSION}"
+
+          echo "Dispatched release-sdks.yml for ${TAG} (version ${VERSION})"
+          echo "Track it at ${{ github.server_url }}/${{ github.repository }}/actions/workflows/release-sdks.yml"
