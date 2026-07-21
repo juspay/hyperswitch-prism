@@ -111,16 +111,27 @@ impl TxProfile {
         T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
     {
         let request = &router_data.request;
-        let card_network = match &request.payment_method_data {
-            PaymentMethodData::Card(card) => card.card_network.clone(),
-            PaymentMethodData::CardDetailsForNetworkTransactionId(nti) => nti.card_network.clone(),
-            _ => None,
+        let (card_network, card_number) = match &request.payment_method_data {
+            PaymentMethodData::Card(card) => (
+                card.card_network.clone(),
+                Some(card.card_number.peek().to_string()),
+            ),
+            PaymentMethodData::CardDetailsForNetworkTransactionId(nti) => (
+                nti.card_network.clone(),
+                Some(nti.card_number.peek().to_string()),
+            ),
+            _ => (None, None),
         };
         let acceptance = AcceptanceProfile::derive(
             request.payment_channel.clone(),
             request.mit_category.clone(),
         );
-        let card_family = CardFamily::from_network(card_network.as_ref());
+        // A MIT card fetched from the locker can arrive without a network; fall
+        // back to BIN detection so cert-critical Visa fields still fire.
+        let card_family = match card_number.as_deref() {
+            Some(number) => CardFamily::from_network_or_number(card_network.as_ref(), number),
+            None => CardFamily::from_network(card_network.as_ref()),
+        };
         let cof_phase = CofPhase::derive(
             request.mandate_id.as_ref(),
             request.mit_category.clone(),
