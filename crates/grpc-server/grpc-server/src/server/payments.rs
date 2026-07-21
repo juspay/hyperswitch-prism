@@ -2386,7 +2386,8 @@ impl PaymentMethod {
             request.extracted_metadata.connector,
             ConnectorVariant::Authenticator(_)
         ) {
-            self.internal_get_payment_method_authenticator(request).await
+            self.internal_get_payment_method_authenticator(request)
+                .await
         } else {
             self.internal_get_payment_method_payment(request).await
         }
@@ -2547,10 +2548,8 @@ impl PaymentMethod {
         masked_metadata: &MaskedMetadata,
         service_name: &str,
         request_id: &str,
-    ) -> Result<
-        PaymentMethodServiceTokenizeResponse,
-        error_stack::Report<ucs_env::error::GrpcError>,
-    > {
+    ) -> Result<PaymentMethodServiceTokenizeResponse, error_stack::Report<ucs_env::error::GrpcError>>
+    {
         use connector_integration::types::ConnectorDataProvider as _;
 
         let connector_data: AuthenticatorConnectorData =

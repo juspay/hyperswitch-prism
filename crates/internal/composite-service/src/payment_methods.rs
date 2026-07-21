@@ -239,18 +239,14 @@ where
     ) -> Result<tonic::Response<CompositePaymentMethodGetResponse>, tonic::Status> {
         let (metadata, extensions, payload) = request.into_parts();
 
-        let access_token_response =
-            if let Ok(connector) = connector_from_composite_authorize_metadata(&metadata) {
-                self.create_server_authentication_token(
-                    &connector,
-                    &payload,
-                    &metadata,
-                    &extensions,
-                )
+        let access_token_response = if let Ok(connector) =
+            connector_from_composite_authorize_metadata(&metadata)
+        {
+            self.create_server_authentication_token(&connector, &payload, &metadata, &extensions)
                 .await?
-            } else {
-                None
-            };
+        } else {
+            None
+        };
 
         let inner = PaymentMethodServiceGetRequest::foreign_from((
             &payload,
