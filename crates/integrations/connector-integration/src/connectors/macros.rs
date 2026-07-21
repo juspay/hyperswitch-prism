@@ -1380,6 +1380,55 @@ pub(crate) use create_amount_converter_wrapper;
 ///
 /// 3. **Base-case arm (`payout_flows: []`)** – Empty list; terminates the recursion.
 macro_rules! macro_connector_payout_implementation {
+    // Concrete payout connector structs (`FooPayouts`) do not carry the
+    // payment-method generic used by normal payment connectors.
+    (
+        connector: $connector: ident
+    ) => {
+        $crate::connectors::macros::macro_connector_payout_implementation!(
+            connector: $connector,
+            payout_flows: [
+                PayoutCreate,
+                PayoutTransfer,
+                PayoutGet,
+                PayoutVoid,
+                PayoutStage,
+                PayoutCreateLink,
+                PayoutCreateRecipient,
+                PayoutEnrollDisburseAccount
+            ]
+        );
+    };
+
+    (
+        connector: $connector: ident,
+        payout_flows: [ $flow: ident, $($rest: tt)* ] $(,)?
+    ) => {
+        $crate::connectors::macros::expand_payout_implementation!(
+            connector: $connector,
+            flow: $flow
+        );
+        $crate::connectors::macros::macro_connector_payout_implementation!(
+            connector: $connector,
+            payout_flows: [ $($rest)* ]
+        );
+    };
+
+    (
+        connector: $connector: ident,
+        payout_flows: [ $flow: ident $(,)? ] $(,)?
+    ) => {
+        $crate::connectors::macros::expand_payout_implementation!(
+            connector: $connector,
+            flow: $flow
+        );
+    };
+
+    (
+        connector: $connector: ident,
+        payout_flows: [] $(,)?
+    ) => {};
+
     // Arm 1: Default – no explicit payout_flows list provided.
     // Supplies the full set of all eight payout flows and re-invokes itself.
     (
@@ -1444,6 +1493,143 @@ pub(crate) use macro_connector_payout_implementation;
 /// the connector:
 ///
 macro_rules! expand_payout_implementation {
+    (
+        connector: $connector: ident,
+        flow: PayoutCreate
+    ) => {
+        $crate::connectors::macros::expand_payout_implementation!(
+            @concrete connector: $connector,
+            marker: ::interfaces::connector_types::PayoutCreateV2,
+            flow: ::domain_types::connector_flow::PayoutCreate,
+            flow_name: "payout_create",
+            request: ::domain_types::payouts::payouts_types::PayoutCreateRequest,
+            response: ::domain_types::payouts::payouts_types::PayoutCreateResponse,
+        );
+    };
+    (
+        connector: $connector: ident,
+        flow: PayoutTransfer
+    ) => {
+        $crate::connectors::macros::expand_payout_implementation!(
+            @concrete connector: $connector,
+            marker: ::interfaces::connector_types::PayoutTransferV2,
+            flow: ::domain_types::connector_flow::PayoutTransfer,
+            flow_name: "payout_transfer",
+            request: ::domain_types::payouts::payouts_types::PayoutTransferRequest,
+            response: ::domain_types::payouts::payouts_types::PayoutTransferResponse,
+        );
+    };
+    (
+        connector: $connector: ident,
+        flow: PayoutGet
+    ) => {
+        $crate::connectors::macros::expand_payout_implementation!(
+            @concrete connector: $connector,
+            marker: ::interfaces::connector_types::PayoutGetV2,
+            flow: ::domain_types::connector_flow::PayoutGet,
+            flow_name: "payout_get",
+            request: ::domain_types::payouts::payouts_types::PayoutGetRequest,
+            response: ::domain_types::payouts::payouts_types::PayoutGetResponse,
+        );
+    };
+    (
+        connector: $connector: ident,
+        flow: PayoutVoid
+    ) => {
+        $crate::connectors::macros::expand_payout_implementation!(
+            @concrete connector: $connector,
+            marker: ::interfaces::connector_types::PayoutVoidV2,
+            flow: ::domain_types::connector_flow::PayoutVoid,
+            flow_name: "payout_void",
+            request: ::domain_types::payouts::payouts_types::PayoutVoidRequest,
+            response: ::domain_types::payouts::payouts_types::PayoutVoidResponse,
+        );
+    };
+    (
+        connector: $connector: ident,
+        flow: PayoutStage
+    ) => {
+        $crate::connectors::macros::expand_payout_implementation!(
+            @concrete connector: $connector,
+            marker: ::interfaces::connector_types::PayoutStageV2,
+            flow: ::domain_types::connector_flow::PayoutStage,
+            flow_name: "payout_stage",
+            request: ::domain_types::payouts::payouts_types::PayoutStageRequest,
+            response: ::domain_types::payouts::payouts_types::PayoutStageResponse,
+        );
+    };
+    (
+        connector: $connector: ident,
+        flow: PayoutCreateLink
+    ) => {
+        $crate::connectors::macros::expand_payout_implementation!(
+            @concrete connector: $connector,
+            marker: ::interfaces::connector_types::PayoutCreateLinkV2,
+            flow: ::domain_types::connector_flow::PayoutCreateLink,
+            flow_name: "payout_create_link",
+            request: ::domain_types::payouts::payouts_types::PayoutCreateLinkRequest,
+            response: ::domain_types::payouts::payouts_types::PayoutCreateLinkResponse,
+        );
+    };
+    (
+        connector: $connector: ident,
+        flow: PayoutCreateRecipient
+    ) => {
+        $crate::connectors::macros::expand_payout_implementation!(
+            @concrete connector: $connector,
+            marker: ::interfaces::connector_types::PayoutCreateRecipientV2,
+            flow: ::domain_types::connector_flow::PayoutCreateRecipient,
+            flow_name: "payout_create_recipient",
+            request: ::domain_types::payouts::payouts_types::PayoutCreateRecipientRequest,
+            response: ::domain_types::payouts::payouts_types::PayoutCreateRecipientResponse,
+        );
+    };
+    (
+        connector: $connector: ident,
+        flow: PayoutEnrollDisburseAccount
+    ) => {
+        $crate::connectors::macros::expand_payout_implementation!(
+            @concrete connector: $connector,
+            marker: ::interfaces::connector_types::PayoutEnrollDisburseAccountV2,
+            flow: ::domain_types::connector_flow::PayoutEnrollDisburseAccount,
+            flow_name: "payout_enroll_disburse_account",
+            request: ::domain_types::payouts::payouts_types::PayoutEnrollDisburseAccountRequest,
+            response: ::domain_types::payouts::payouts_types::PayoutEnrollDisburseAccountResponse,
+        );
+    };
+    (
+        @concrete connector: $connector: ident,
+        marker: $marker:path,
+        flow: $flow:path,
+        flow_name: $flow_name:literal,
+        request: $request:ty,
+        response: $response:ty $(,)?
+    ) => {
+        impl $marker for $connector {}
+        impl ::interfaces::connector_integration_v2::ConnectorIntegrationV2<
+            $flow,
+            ::domain_types::payouts::payouts_types::PayoutFlowData,
+            $request,
+            $response,
+        > for $connector
+        {
+            fn get_url(
+                &self,
+                _req: &::domain_types::router_data_v2::RouterDataV2<
+                    $flow,
+                    ::domain_types::payouts::payouts_types::PayoutFlowData,
+                    $request,
+                    $response,
+                >,
+            ) -> ::common_utils::CustomResult<String, ::domain_types::errors::IntegrationError> {
+                Err(::domain_types::errors::IntegrationError::connector_flow_not_implemented(
+                    ::interfaces::api::ConnectorCommon::id(self),
+                    $flow_name,
+                    ::domain_types::errors::IntegrationErrorContext::default(),
+                ).into())
+            }
+        }
+    };
     (
         connector: $connector: ident,
         flow: PayoutCreate,
@@ -1822,6 +2008,7 @@ macro_rules! macro_connector_flow_status_impls {
         [ $($b:tt)* ],
         flows: []
     ) => {};
+
 }
 pub(crate) use macro_connector_flow_status_impls;
 

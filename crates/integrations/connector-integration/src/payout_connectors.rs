@@ -12,3 +12,6 @@ pub use self::worldpayxml::WorldpayxmlPayouts;
 
 pub mod cybersource;
 pub use self::cybersource::CybersourcePayouts;
+
+pub mod gotyme_sanlam;
+pub use self::gotyme_sanlam::GotymeSanlamPayouts;

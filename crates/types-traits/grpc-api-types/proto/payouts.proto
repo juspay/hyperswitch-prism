@@ -141,6 +141,38 @@ message PixEmvBankTransferPayout {
   SecretString emv = 1;
 }
 
+message PayshapBankTransferPayout {
+  /// Bank account number is a unique identifier assigned by a bank to a customer.
+  SecretString bank_account_number = 1;
+
+  /// Branch code used to identify the bank branch. Required for interbank transfers.
+  optional SecretString branch_code = 2;
+
+  /// Bank account holder name. Required for interbank transfers.
+  optional SecretString account_holder_name = 3;
+
+  /// Bank name. Required for interbank transfers.
+  optional BankNames bank_name = 4;
+}
+
+message PayshapProxyBankTransferPayout {
+  /// Proxy type used for the payout. It can be an email, cellphone number, or Shap ID.
+  enum PayshapProxyType {
+    PROXY_TYPE_UNSPECIFIED = 0;
+    CELLPHONE = 2;
+    SHAP_ID = 3;
+  }
+
+  /// Proxy type used for the payout.
+  PayshapProxyType proxy_type = 1;
+
+  /// Cellphone number.
+  optional SecretString cellphone = 2;
+
+  /// Shap ID.
+  optional SecretString shap_id = 3;
+}
+
 message ApplePayDecrypt {
   // The device primary account number (DPAN)
   CardNumberType dpan = 1;
@@ -215,6 +247,9 @@ message PayoutMethod {
     // BANK TRANSFER METHODS
     PixKeyBankTransferPayout pix_key = 12;
     PixEmvBankTransferPayout pix_emv = 13;
+
+    PayshapBankTransferPayout payshap = 14;
+    PayshapProxyBankTransferPayout payshap_proxy = 15;
   }
 }
 
@@ -226,6 +261,8 @@ message SourceBankData {
     PixBankTransferPayout pix = 4;
     PixKeyBankTransferPayout pix_key = 5;
     PixEmvBankTransferPayout pix_emv = 6;
+    PayshapBankTransferPayout payshap = 7;
+    PayshapProxyBankTransferPayout payshap_proxy = 8;
  }
 }
 // ============================================================================

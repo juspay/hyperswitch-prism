@@ -79,6 +79,8 @@ pub enum Bank {
     Pix(PixBankTransfer),
     PixKey(PixKeyBankTransfer),
     PixEmv(PixEmvBankTransfer),
+    Payshap(PayshapBankTransfer),
+    PayshapProxy(PayshapProxyBankTransfer),
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug)]
@@ -164,6 +166,39 @@ pub struct PixKeyBankTransfer {
 pub struct PixEmvBankTransfer {
     /// EMV data for pix
     pub emv: Secret<String>,
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug)]
+pub struct PayshapBankTransfer {
+    /// Bank account number is a unique identifier assigned by a bank to a customer.
+    pub bank_account_number: Secret<String>,
+
+    /// Branch code used to identify the bank branch.
+    pub branch_code: Option<Secret<String>>,
+
+    /// Bank account holder name.
+    pub account_holder_name: Option<Secret<String>>,
+
+    /// Bank name.
+    pub bank_name: Option<common_enums::BankNames>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug)]
+pub struct PayshapProxyBankTransfer {
+    /// Proxy type used for the payout.
+    pub proxy_type: PayshapProxyType,
+
+    /// Cellphone number.
+    pub cellphone: Option<Secret<String>>,
+
+    /// Shap ID.
+    pub shap_id: Option<Secret<String>>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug)]
+pub enum PayshapProxyType {
+    Cellphone,
+    ShapId,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]

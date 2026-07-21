@@ -651,6 +651,65 @@ impl ForeignTryFrom<grpc_api_types::payouts::PixEmvBankTransferPayout>
     }
 }
 
+impl ForeignTryFrom<grpc_api_types::payouts::PayshapBankTransferPayout>
+    for payouts::payout_method_data::PayshapBankTransfer
+{
+    type Error = IntegrationError;
+    fn foreign_try_from(
+        payshap: grpc_api_types::payouts::PayshapBankTransferPayout,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        Ok(Self {
+            bank_name: match payshap.bank_name() {
+                grpc_api_types::payments::BankNames::Unspecified => None,
+                _ => Some(common_enums::BankNames::foreign_try_from(payshap.bank_name())?),
+            },
+            account_holder_name: payshap.account_holder_name,
+            bank_account_number: payshap.bank_account_number.ok_or(
+                IntegrationError::InvalidDataFormat { field_name: "bank_account_number", context: IntegrationErrorContext { additional_context: Some("Bank account number is required for Payshap Bank Transfer".to_string()), ..Default::default() } },
+            )?,
+            branch_code: payshap.branch_code,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payouts::PayshapProxyBankTransferPayout>
+    for payouts::payout_method_data::PayshapProxyBankTransfer
+{
+    type Error = IntegrationError;
+    fn foreign_try_from(
+        payshap_proxy: grpc_api_types::payouts::PayshapProxyBankTransferPayout,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let proxy_type = match payshap_proxy.proxy_type() {
+            grpc_api_types::payouts::payshap_proxy_bank_transfer_payout::PayshapProxyType::Cellphone => {
+                payouts::payout_method_data::PayshapProxyType::Cellphone
+            }
+            grpc_api_types::payouts::payshap_proxy_bank_transfer_payout::PayshapProxyType::ShapId => {
+                payouts::payout_method_data::PayshapProxyType::ShapId
+            }
+            grpc_api_types::payouts::payshap_proxy_bank_transfer_payout::PayshapProxyType::ProxyTypeUnspecified => {
+                Err(error_stack::report!(IntegrationError::InvalidDataFormat {
+                    field_name: "proxy_type",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "PayShap proxy type must be either Cellphone or ShapId".to_owned(),
+                        ),
+                        suggested_action: Some(
+                            "Provide a supported `proxy_type` for the PayShap proxy payout method data".to_owned(),
+                        ),
+                        doc_url: None,
+                    },
+                }))?
+            }
+        };
+
+        Ok(payouts::payout_method_data::PayshapProxyBankTransfer {
+            proxy_type,
+            cellphone: payshap_proxy.cellphone,
+            shap_id: payshap_proxy.shap_id,
+        })
+    }
+}
+
 impl ForeignTryFrom<grpc_api_types::payouts::ApplePayDecrypt>
     for payouts::payout_method_data::ApplePayDecrypt
 {
@@ -948,6 +1007,18 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutMethod>
                     payouts::payout_method_data::PixEmvBankTransfer::foreign_try_from(pix_emv)?,
                 )))
             }
+            grpc_api_types::payouts::payout_method::PayoutMethodData::Payshap(payshap) => {
+                Ok(Self::Bank(payouts::payout_method_data::Bank::Payshap(
+                    payouts::payout_method_data::PayshapBankTransfer::foreign_try_from(payshap)?,
+                )))
+            }
+            grpc_api_types::payouts::payout_method::PayoutMethodData::PayshapProxy(
+                payshap_proxy,
+            ) => Ok(Self::Bank(payouts::payout_method_data::Bank::PayshapProxy(
+                payouts::payout_method_data::PayshapProxyBankTransfer::foreign_try_from(
+                    payshap_proxy,
+                )?,
+            ))),
             grpc_api_types::payouts::payout_method::PayoutMethodData::ApplePayDecrypt(
                 apple_pay_decrypt,
             ) => Ok(Self::Wallet(
@@ -1029,6 +1100,18 @@ impl ForeignTryFrom<grpc_api_types::payouts::SourceBankData> for payouts::payout
                     payouts::payout_method_data::PixEmvBankTransfer::foreign_try_from(pix_emv)?,
                 ))
             }
+            grpc_api_types::payouts::source_bank_data::SourceBankData::Payshap(payshap) => {
+                Ok(Self::Payshap(
+                    payouts::payout_method_data::PayshapBankTransfer::foreign_try_from(payshap)?,
+                ))
+            }
+            grpc_api_types::payouts::source_bank_data::SourceBankData::PayshapProxy(
+                payshap_proxy,
+            ) => Ok(Self::PayshapProxy(
+                payouts::payout_method_data::PayshapProxyBankTransfer::foreign_try_from(
+                    payshap_proxy,
+                )?,
+            )),
         }
     }
 }
@@ -1787,11 +1870,19 @@ pub fn generate_payout_create_response(
         Err(err) => Ok(grpc_api_types::payouts::PayoutServiceCreateResponse {
             merchant_payout_id: Some(router_data_v2.resource_common_data.payout_id),
             payout_status: Some(
-                grpc_api_types::payouts::payout_enums::PayoutStatus::Pending as i32,
+                err.attempt_status
+                    .clone()
+                    .map(grpc_api_types::payouts::payout_enums::PayoutStatus::foreign_from)
+                    .unwrap_or_default() as i32,
             ),
             connector_payout_id: err.connector_transaction_id.clone(),
             error: Some(grpc_api_types::payouts::ErrorInfo {
-                unified_details: None,
+                unified_details: Some(grpc_api_types::payouts::UnifiedErrorDetails {
+                    code: Some(err.code.clone()),
+                    message: Some(err.message.clone()),
+                    description: err.reason.clone(),
+                    user_guidance_message: None,
+                }),
                 connector_details: Some(grpc_api_types::payouts::ConnectorErrorDetails {
                     code: Some(err.code.clone()),
                     message: Some(err.message.clone()),
@@ -1799,7 +1890,15 @@ pub fn generate_payout_create_response(
                     connector_transaction_id: err.connector_transaction_id.clone(),
                     status: None,
                 }),
-                issuer_details: None,
+                issuer_details: Some(grpc_api_types::payouts::IssuerErrorDetails {
+                    code: None,
+                    message: err.network_error_message.clone(),
+                    network_details: Some(grpc_api_types::payouts::NetworkErrorDetails {
+                        advice_code: err.network_advice_code.clone(),
+                        decline_code: err.network_decline_code.clone(),
+                        error_message: err.network_error_message.clone(),
+                    }),
+                }),
             }),
             status_code: u32::from(err.status_code),
         }),
@@ -1833,11 +1932,19 @@ pub fn generate_payout_transfer_response(
         Err(err) => Ok(grpc_api_types::payouts::PayoutServiceTransferResponse {
             merchant_payout_id: Some(router_data_v2.resource_common_data.payout_id),
             payout_status: Some(
-                grpc_api_types::payouts::payout_enums::PayoutStatus::Pending as i32,
+                err.attempt_status
+                    .clone()
+                    .map(grpc_api_types::payouts::payout_enums::PayoutStatus::foreign_from)
+                    .unwrap_or_default() as i32,
             ),
             connector_payout_id: err.connector_transaction_id.clone(),
             error: Some(grpc_api_types::payouts::ErrorInfo {
-                unified_details: None,
+                unified_details: Some(grpc_api_types::payouts::UnifiedErrorDetails {
+                    code: Some(err.code.clone()),
+                    message: Some(err.message.clone()),
+                    description: err.reason.clone(),
+                    user_guidance_message: None,
+                }),
                 connector_details: Some(grpc_api_types::payouts::ConnectorErrorDetails {
                     code: Some(err.code.clone()),
                     message: Some(err.message.clone()),
@@ -1845,7 +1952,15 @@ pub fn generate_payout_transfer_response(
                     connector_transaction_id: err.connector_transaction_id.clone(),
                     status: None,
                 }),
-                issuer_details: None,
+                issuer_details: Some(grpc_api_types::payouts::IssuerErrorDetails {
+                    code: None,
+                    message: err.network_error_message.clone(),
+                    network_details: Some(grpc_api_types::payouts::NetworkErrorDetails {
+                        advice_code: err.network_advice_code.clone(),
+                        decline_code: err.network_decline_code.clone(),
+                        error_message: err.network_error_message.clone(),
+                    }),
+                }),
             }),
             status_code: u32::from(err.status_code),
         }),

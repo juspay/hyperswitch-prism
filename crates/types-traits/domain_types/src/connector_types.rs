@@ -217,6 +217,7 @@ pub enum PayoutConnectorEnum {
     Itaubank,
     Worldpayxml,
     Cybersource,
+    GotymeSanlam,
 }
 
 impl TryFrom<ConnectorEnum> for PayoutConnectorEnum {
@@ -268,6 +269,7 @@ impl ForeignTryFrom<AuthType> for PayoutConnectorEnum {
             AuthType::Itaubank(_) => Ok(Self::Itaubank),
             AuthType::Worldpayxml(_) => Ok(Self::Worldpayxml),
             AuthType::Cybersource(_) => Ok(Self::Cybersource),
+            AuthType::GotymeSanlam(_) => Ok(Self::GotymeSanlam),
             _ => Err(error_stack::Report::new(
                 IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -5206,6 +5208,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Fiserv(_) => Ok(Self::Payment(ConnectorEnum::Fiserv)),
             AuthType::Fiservemea(_) => Ok(Self::Payment(ConnectorEnum::Fiservemea)),
             AuthType::AbsaSanlam(_) => Ok(Self::Payment(ConnectorEnum::AbsaSanlam)),
+            AuthType::GotymeSanlam(_) => Ok(Self::Payout(PayoutConnectorEnum::GotymeSanlam)),
             AuthType::Forte(_) => Ok(Self::Payment(ConnectorEnum::Forte)),
             AuthType::Getnet(_) => Ok(Self::Payment(ConnectorEnum::Getnet)),
             AuthType::Globalpay(_) => Ok(Self::Payment(ConnectorEnum::Globalpay)),
