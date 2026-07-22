@@ -1,5 +1,5 @@
 # Connector Service — LLM Navigation Index
-# Connectors: 99
+# Connectors: 100
 #
 # This file helps AI coding assistants navigate connector-service documentation.
 # Each connector block lists: doc path, scenarios, supported payment methods,
@@ -8,7 +8,7 @@
 # Usage: fetch this file first, then fetch the specific connector doc or example.
 
 overview:
-  total_connectors: 99
+  total_connectors: 100
   docs_root: docs-generated/connectors/
   examples_root: examples/
   all_connectors_matrix: docs-generated/all_connector.md
@@ -300,6 +300,14 @@ doc: docs/connectors/gigadat.md
 scenarios: none
 payment_methods: Interac
 flows: authorize, get, refund
+examples_python: none
+
+## Givepayments
+connector_id: givepayments
+doc: docs/connectors/givepayments.md
+scenarios: none
+payment_methods: none
+flows: get, handle_event, parse_event, recurring_charge, refund, refund_get
 examples_python: none
 
 ## Globalpay
