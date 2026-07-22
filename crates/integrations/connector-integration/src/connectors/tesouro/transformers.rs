@@ -392,7 +392,9 @@ fn get_card_payment_method<T: PaymentMethodDataTypes>(
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })
-            .attach_printable("Failed to derive 2-digit card expiration month for Tesouro card payment method")?,
+            .attach_printable(
+                "Failed to derive 2-digit card expiration month for Tesouro card payment method",
+            )?,
         expiration_year: card.get_expiry_year_4_digit(),
         account_number: card.card_number.clone(),
         payment_entry_mode: if is_mandate_payment {
