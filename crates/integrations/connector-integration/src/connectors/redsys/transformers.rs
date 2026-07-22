@@ -964,13 +964,6 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResp
                         .error_code_description
                         .clone()
                         .unwrap_or_else(|| err.error_code.clone()),
-                    // Mirror hyperswitch-native redsys, which sets
-                    // `reason: Some(error_code)`. Redsys commonly returns only
-                    // `errorCode` (no description), so sourcing `reason` from the
-                    // optional `error_code_description` left it None -> the gRPC
-                    // response carried a null reason while native HS carried the
-                    // error code string, producing a response.Err.reason typeDiff.
-                    // Fall back to the error code so `reason` is always populated.
                     reason: Some(
                         err.error_code_description
                             .clone()
@@ -1167,13 +1160,6 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResp
                         .error_code_description
                         .clone()
                         .unwrap_or_else(|| err.error_code.clone()),
-                    // Mirror hyperswitch-native redsys, which sets
-                    // `reason: Some(error_code)`. Redsys commonly returns only
-                    // `errorCode` (no description), so sourcing `reason` from the
-                    // optional `error_code_description` left it None -> the gRPC
-                    // response carried a null reason while native HS carried the
-                    // error code string, producing a response.Err.reason typeDiff.
-                    // Fall back to the error code so `reason` is always populated.
                     reason: Some(
                         err.error_code_description
                             .clone()
