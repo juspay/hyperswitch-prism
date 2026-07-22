@@ -5,9 +5,9 @@
 // Finix — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx finix.ts checkout_autocapture
 
-import { PaymentClient, CustomerClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
-const { Environment, CaptureMethod, Currency, PaymentMethodType } = types;
-export const SUPPORTED_FLOWS = ["capture", "customer_create", "get", "recurring_charge", "refund", "refund_get", "token_authorize", "void"];
+import { PaymentClient, CustomerClient, EventClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
+const { Environment, CaptureMethod, Currency, HttpMethod, PaymentMethodType } = types;
+export const SUPPORTED_FLOWS = ["capture", "customer_create", "get", "parse_event", "recurring_charge", "refund", "refund_get", "token_authorize", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -52,6 +52,31 @@ function _buildGetRequest(connectorTransactionId: string): types.IPaymentService
         "amount": {  // Amount Information.
             "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
             "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+    };
+}
+
+function _buildHandleEventRequest(): types.IEventServiceHandleRequest {
+    return {
+        "merchantEventId": "probe_event_001",  // Caller-supplied correlation key, echoed in the response. Not used by UCS for processing.
+        "requestDetails": {
+            "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
+            "uri": "https://example.com/webhook",  // URI of the request.
+            "headers": {  // Headers of the HTTP request.
+            },
+            "body": new Uint8Array(Buffer.from("{\"type\":\"updated\",\"entity\":\"transfer\",\"_embedded\":{\"transfers\":[{\"id\":\"TRsample000000000000000\",\"amount\":1000,\"currency\":\"USD\",\"state\":\"SUCCEEDED\",\"tags\":{},\"type\":\"DEBIT\"}]}}", "utf-8"))  // Body of the HTTP request.
+        }
+    };
+}
+
+function _buildParseEventRequest(): types.IEventServiceParseRequest {
+    return {
+        "requestDetails": {
+            "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
+            "uri": "https://example.com/webhook",  // URI of the request.
+            "headers": {  // Headers of the HTTP request.
+            },
+            "body": new Uint8Array(Buffer.from("{\"type\":\"updated\",\"entity\":\"transfer\",\"_embedded\":{\"transfers\":[{\"id\":\"TRsample000000000000000\",\"amount\":1000,\"currency\":\"USD\",\"state\":\"SUCCEEDED\",\"tags\":{},\"type\":\"DEBIT\"}]}}", "utf-8"))  // Body of the HTTP request.
         }
     };
 }
@@ -150,6 +175,24 @@ async function get(merchantTransactionId: string, config: types.IConnectorConfig
     return getResponse;
 }
 
+// Flow: EventService.HandleEvent
+async function handleEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const eventClient = new EventClient(config);
+
+    const handleResponse = await eventClient.handleEvent(_buildHandleEventRequest());
+
+    return handleResponse;
+}
+
+// Flow: EventService.ParseEvent
+async function parseEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const eventClient = new EventClient(config);
+
+    const parseResponse = await eventClient.parseEvent(_buildParseEventRequest());
+
+    return parseResponse;
+}
+
 // Flow: RecurringPaymentService.Charge
 async function recurringCharge(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const recurringPaymentClient = new RecurringPaymentClient(config);
@@ -198,7 +241,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    capture, customerCreate, get, recurringCharge, refund, refundGet, tokenAuthorize, voidPayment, _buildCaptureRequest, _buildCustomerCreateRequest, _buildGetRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildTokenAuthorizeRequest, _buildVoidRequest
+    capture, customerCreate, get, handleEvent, parseEvent, recurringCharge, refund, refundGet, tokenAuthorize, voidPayment, _buildCaptureRequest, _buildCustomerCreateRequest, _buildGetRequest, _buildHandleEventRequest, _buildParseEventRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildTokenAuthorizeRequest, _buildVoidRequest
 };
 
 // CLI runner

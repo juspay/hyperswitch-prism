@@ -89,6 +89,44 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static>
     }
 }
 
+/// Exposes the requested [`PaymentMethodType`] across the different payment flow request types.
+///
+/// Flows that do not carry a payment method type (e.g. capture and void) return `None`, so
+/// connectors can uniformly read the payment method type in generic response handlers.
+pub trait GetOptionalPaymentMethodType {
+    fn get_optional_payment_method_type(&self) -> Option<common_enums::PaymentMethodType>;
+}
+
+impl<T: PaymentMethodDataTypes> GetOptionalPaymentMethodType for PaymentsAuthorizeData<T> {
+    fn get_optional_payment_method_type(&self) -> Option<common_enums::PaymentMethodType> {
+        self.payment_method_type
+    }
+}
+
+impl GetOptionalPaymentMethodType for PaymentsSyncData {
+    fn get_optional_payment_method_type(&self) -> Option<common_enums::PaymentMethodType> {
+        self.payment_method_type
+    }
+}
+
+impl<T: PaymentMethodDataTypes> GetOptionalPaymentMethodType for RepeatPaymentData<T> {
+    fn get_optional_payment_method_type(&self) -> Option<common_enums::PaymentMethodType> {
+        self.payment_method_type
+    }
+}
+
+impl GetOptionalPaymentMethodType for PaymentsCaptureData {
+    fn get_optional_payment_method_type(&self) -> Option<common_enums::PaymentMethodType> {
+        None
+    }
+}
+
+impl GetOptionalPaymentMethodType for PaymentVoidData {
+    fn get_optional_payment_method_type(&self) -> Option<common_enums::PaymentMethodType> {
+        None
+    }
+}
+
 pub fn missing_field_err(
     message: &'static str,
 ) -> Box<dyn Fn() -> Report<IntegrationError> + 'static> {
@@ -599,12 +637,7 @@ pub fn build_card_holder_name(
 }
 
 pub fn pad_expiry_year_to_four_digits(year: &Secret<String>) -> Secret<String> {
-    let y = year.peek();
-    if y.len() == 2 {
-        Secret::new(format!("20{y}"))
-    } else {
-        Secret::new(y.clone())
-    }
+    domain_types::utils::expand_expiry_year_to_four_digits(year)
 }
 
 /// Used by CyberSource and connectors that run on the same backend (e.g. Wells Fargo).

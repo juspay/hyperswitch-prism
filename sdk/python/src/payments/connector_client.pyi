@@ -7,6 +7,8 @@ from payments.generated.sdk_config_pb2 import ConnectorConfig, RequestConfig
 from payments.generated.payment_pb2 import (
     CustomerServiceCreateRequest,
     CustomerServiceCreateResponse,
+    CustomerServiceGetRequest,
+    CustomerServiceGetResponse,
     DisputeServiceAcceptRequest,
     DisputeServiceAcceptResponse,
     DisputeServiceDefendRequest,
@@ -92,6 +94,10 @@ class _ConnectorClientBase:
 class CustomerClient(_ConnectorClientBase):
     def customer_create(self, request: CustomerServiceCreateRequest, options: RequestConfig | None = ...) -> CustomerServiceCreateResponse:
         """CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information."""
+        ...
+
+    def customer_get(self, request: CustomerServiceGetRequest, options: RequestConfig | None = ...) -> CustomerServiceGetResponse:
+        """CustomerService.Get — Retrieves customer details from the payment processor. Callers typically use this before Create to implement get-or-create semantics for connectors that reject duplicates (e.g. Glomopay)."""
         ...
 
 

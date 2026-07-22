@@ -21,12 +21,12 @@ trait RefundOperationsInternal {
     async fn internal_get(
         &self,
         request: RequestData<RefundServiceGetRequest>,
-    ) -> Result<tonic::Response<RefundResponse>, tonic::Status>;
+    ) -> Result<tonic::Response<RefundResponse>, error_stack::Report<ucs_env::error::GrpcError>>;
 
     async fn internal_void_post_refund(
         &self,
         request: RequestData<RefundServiceVoidPostRefundRequest>,
-    ) -> Result<tonic::Response<RefundResponse>, tonic::Status>;
+    ) -> Result<tonic::Response<RefundResponse>, error_stack::Report<ucs_env::error::GrpcError>>;
 }
 
 #[derive(Debug, Clone)]
@@ -98,7 +98,7 @@ impl RefundService for Refunds {
             .get::<String>()
             .cloned()
             .unwrap_or_else(|| "RefundService".to_string());
-        let config = utils::get_config_from_request(&request)?;
+        let config = utils::get_config_from_request(&request).into_grpc_status()?;
         Box::pin(utils::grpc_logging_wrapper(
             request,
             &service_name,
@@ -139,7 +139,7 @@ impl RefundService for Refunds {
             .get::<String>()
             .cloned()
             .unwrap_or_else(|| "RefundService".to_string());
-        let config = utils::get_config_from_request(&request)?;
+        let config = utils::get_config_from_request(&request).into_grpc_status()?;
         Box::pin(utils::grpc_logging_wrapper(
             request,
             &service_name,

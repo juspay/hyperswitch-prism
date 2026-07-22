@@ -231,6 +231,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
@@ -407,6 +408,7 @@ impl<F, T> TryFrom<ResponseRouterData<BillwerkPaymentsResponse, Self>>
                 connector_mandate_id: Some(rpm.clone()),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: None,
+                mandate_metadata: None,
             })
         });
         let payments_response = PaymentsResponseData::TransactionResponse {

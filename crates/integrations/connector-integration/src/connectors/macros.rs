@@ -334,6 +334,14 @@ macro_rules! expand_fn_get_request_body {
                     router_data: req.clone()
 };
                 let request = bridge.request_body(input_data)?;
+                if let Ok(masked_body) = hyperswitch_masking::masked_serialize(&request) {
+                    tracing::debug!(
+                        connector = stringify!($connector),
+                        flow = stringify!($flow),
+                        request_body = %masked_body,
+                        "connector request body (pre-encoding)"
+                    );
+                }
                 let json_bytes = serde_json::to_vec(&request).change_context(
                     macro_types::IntegrationError::RequestEncodingFailed {
                         context: domain_types::errors::IntegrationErrorContext {
@@ -1908,6 +1916,17 @@ macro_rules! expand_flow_status_impl {
             connector: $c, status: $st, generic_type: $g, [$($b)*],
             flow: ::domain_types::connector_flow::CreateConnectorCustomer,
             flow_name: "create_connector_customer",
+            flow_common_data: ::domain_types::connector_types::PaymentFlowData,
+            request: ::domain_types::connector_types::ConnectorCustomerData,
+            response: ::domain_types::connector_types::ConnectorCustomerResponse,
+        );
+    };
+    (connector: $c:ident, flow: GetConnectorCustomer, status: $st:ident, generic_type: $g:tt, [$($b:tt)*]) => {
+        impl<$g: $($b)*> ::interfaces::connector_types::GetConnectorCustomer for $c<$g> {}
+        $crate::connectors::macros::flow_status_emit!(
+            connector: $c, status: $st, generic_type: $g, [$($b)*],
+            flow: ::domain_types::connector_flow::GetConnectorCustomer,
+            flow_name: "get_connector_customer",
             flow_common_data: ::domain_types::connector_types::PaymentFlowData,
             request: ::domain_types::connector_types::ConnectorCustomerData,
             response: ::domain_types::connector_types::ConnectorCustomerResponse,

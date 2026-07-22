@@ -3,6 +3,7 @@ use common_utils::{
     errors::CustomResult,
     fp_utils,
     lineage::LineageIds,
+    request_metrics::ConnectorLatencyTracker,
 };
 use domain_types::{
     connector_types,
@@ -42,6 +43,8 @@ pub struct MetadataPayload {
     /// Named proxy to use for this request — matches a key in [proxy.proxies.*] config.
     /// If absent, resolved from shadow_mode: true → "shadow", false → "primary".
     pub proxy_name: Option<String>,
+    /// Request-scoped accumulator for outbound connector call latency.
+    pub connector_latency: ConnectorLatencyTracker,
 }
 
 pub fn get_metadata_payload(
@@ -74,6 +77,7 @@ pub fn get_metadata_payload(
         resource_id,
         environment,
         proxy_name,
+        connector_latency: ConnectorLatencyTracker::default(),
     })
 }
 

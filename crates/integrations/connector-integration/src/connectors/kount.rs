@@ -471,9 +471,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
         ConnectorError,
     > {
-        // sessionID derives from the same id Evaluate Order uses as deviceSessionId.
-        let session_id =
-            kount::to_session_id(&data.resource_common_data.connector_request_reference_id);
+        // sessionID = hash(merchant_transaction_id), matching the Evaluate Order
+        // deviceSessionId (which hashes the same merchant transaction id). Falls
+        // back to the connector request reference when it is absent.
+        let session_ref = data
+            .request
+            .merchant_transaction_id
+            .clone()
+            .unwrap_or_else(|| {
+                data.resource_common_data
+                    .connector_request_reference_id
+                    .clone()
+            });
+        let session_id = kount::hash_session_id(&session_ref);
         // Access token threaded via state.access_token → PaymentFlowData.access_token.
         let token = data
             .resource_common_data
@@ -528,6 +538,7 @@ crate::connectors::macros::macro_connector_flow_status_impls!(
         Accept,
         ClientAuthenticationToken,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         DefendDispute,
         MandateRevoke,
         Authenticate,

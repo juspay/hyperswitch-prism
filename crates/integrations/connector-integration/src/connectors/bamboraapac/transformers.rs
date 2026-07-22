@@ -1339,6 +1339,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 connector_mandate_id: Some(connector_mandate_id.clone()),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: None,
+                mandate_metadata: None,
             })),
             connector_metadata: Some(serde_json::json!({
                 "customer_number": response.cust_number.clone(),
