@@ -4836,7 +4836,15 @@ impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for Pay
             .map(|m| ForeignTryFrom::foreign_try_from((m, "feature_data")))
             .transpose()?;
 
-        let order_details: Option<Vec<OrderDetailsWithAmount>> = None;
+        let order_details = value
+            .order_details
+            .map(|details| {
+                details
+                    .into_iter()
+                    .map(OrderDetailsWithAmount::foreign_try_from)
+                    .collect::<Result<Vec<_>, _>>()
+            })
+            .transpose()?;
 
         let access_token = value
             .state
@@ -4844,6 +4852,8 @@ impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for Pay
             .and_then(|state| state.access_token.as_ref())
             .map(ServerAuthenticationTokenResponseData::foreign_try_from)
             .transpose()?;
+
+        print!("sss l2 l3: {:?}", l2_l3_data);
 
         Ok(Self {
             merchant_id: merchant_id_from_header,
