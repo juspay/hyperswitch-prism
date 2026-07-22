@@ -761,11 +761,20 @@ pub struct TsysTransitCardAuthenticationRequest {
         skip_serializing_if = "Option::is_none"
     )]
     pub m_pos_acceptance_device_type: Option<String>,
-    #[serde(rename = "acceptorStreetAddress", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "acceptorStreetAddress",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub acceptor_street_address: Option<Secret<String>>,
-    #[serde(rename = "acceptorCustomerServicePhoneNumber", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "acceptorCustomerServicePhoneNumber",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub acceptor_customer_service_phone_number: Option<Secret<String>>,
-    #[serde(rename = "acceptorPhoneNumber", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "acceptorPhoneNumber",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub acceptor_phone_number: Option<Secret<String>>,
     #[serde(rename = "acceptorURLAddress", skip_serializing_if = "Option::is_none")]
     pub acceptor_u_r_l_address: Option<url::Url>,
@@ -1455,7 +1464,6 @@ struct MerchantAcceptorInfo {
     phone_number: Secret<String>,
     url: url::Url,
 }
-
 
 fn build_merchant_acceptor_info(
     auth_data: &TsysTransitAuthType,
@@ -3384,13 +3392,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             Some(PaymentChannel::Ecommerce) | None
         );
 
-        if matches!(router_data.request.setup_future_usage, Some(FutureUsage::OffSession)) && is_ecommerce_payment {
+        if matches!(
+            router_data.request.setup_future_usage,
+            Some(FutureUsage::OffSession)
+        ) && is_ecommerce_payment
+        {
             return Err(IntegrationError::NotSupported {
-                    message: "off-session e-commerce payments are not supported".to_string(),
-                    connector: "tsysTransit",
-                    context: Default::default(),
-                }
-                .into());
+                message: "off-session e-commerce payments are not supported".to_string(),
+                connector: "tsysTransit",
+                context: Default::default(),
+            }
+            .into());
         };
 
         let card = match &router_data.request.payment_method_data {
@@ -3458,7 +3470,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let terminal_data = rules::terminal_data::terminal_data(&profile);
         let cvv_present = !card.card_cvc.peek().is_empty();
 
-
         // ── terminalData fields (profile/rules only, no merchant override) ─
         let rules::terminal_data::ResolvedTerminalData {
             card_data_source,
@@ -3493,10 +3504,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             (!is_ecommerce_payment).then_some(POS_ACCEPTANCE_DEVICE_TYPE.to_string());
 
         let merchant_acceptor_info = build_merchant_acceptor_info(
-        &auth,
-        card.card_network.as_ref(),
-        router_data.request.payment_channel.as_ref(),
-    )?;
+            &auth,
+            card.card_network.as_ref(),
+            router_data.request.payment_channel.as_ref(),
+        )?;
 
         Ok(Self {
             device_id: auth.device_id,
@@ -3538,9 +3549,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             authorization_indicator,
             card_on_file,
             cit_status_indicator,
-            acceptor_street_address: merchant_acceptor_info.as_ref().map(|info| info.street_address.clone()),
-            acceptor_customer_service_phone_number: merchant_acceptor_info.as_ref().map(|info| info.customer_service_phone_number.clone()),
-            acceptor_phone_number: merchant_acceptor_info.as_ref().map(|info| info.phone_number.clone()),
+            acceptor_street_address: merchant_acceptor_info
+                .as_ref()
+                .map(|info| info.street_address.clone()),
+            acceptor_customer_service_phone_number: merchant_acceptor_info
+                .as_ref()
+                .map(|info| info.customer_service_phone_number.clone()),
+            acceptor_phone_number: merchant_acceptor_info
+                .as_ref()
+                .map(|info| info.phone_number.clone()),
             acceptor_u_r_l_address: merchant_acceptor_info.as_ref().map(|info| info.url.clone()),
         })
     }
