@@ -1099,14 +1099,19 @@ fn build_mandate_reference(
     payment_id: Option<String>,
     activity_date: Option<String>,
 ) -> Option<MandateReference> {
-    token_details.map(|token_details| {
+    // Only surface a mandate when the connector actually returned a token to store; a
+    // MandateReference with a `None` connector_mandate_id is unusable for later MITs.
+    let connector_mandate_id = token_details
+        .and_then(|token_details| token_details.token)
+        .map(|token| token.expose());
+    connector_mandate_id.map(|connector_mandate_id| {
         let mandate_metadata = activity_date.map(|activity_date| {
             common_utils::pii::SecretSerdeValue::new(serde_json::json!(TesouroMandateMetadata {
                 activity_date
             }))
         });
         MandateReference {
-            connector_mandate_id: token_details.token.map(|token| token.expose()),
+            connector_mandate_id: Some(connector_mandate_id),
             payment_method_id: None,
             connector_mandate_request_reference_id: payment_id,
             mandate_metadata,
@@ -1530,14 +1535,16 @@ fn map_sync_status(
             }
         }
         TesouroSyncStatus::DeclinedAuthorization => {
+            // Mirror the Authorize-flow decline mapping: an auto-capture (sale) decline is a
+            // terminal payment `Failure`, while an auth-only decline is `AuthorizationFailed`.
             if auto_capture {
-                AttemptStatus::AuthorizationFailed
-            } else {
                 AttemptStatus::Failure
+            } else {
+                AttemptStatus::AuthorizationFailed
             }
         }
         TesouroSyncStatus::ApprovedReversal => AttemptStatus::Voided,
-        TesouroSyncStatus::DeclinedCapture => AttemptStatus::Failure,
+        TesouroSyncStatus::DeclinedCapture => AttemptStatus::CaptureFailed,
         TesouroSyncStatus::DeclinedReversal => AttemptStatus::VoidFailed,
         TesouroSyncStatus::GenericPaymentTransaction => previous_status,
         TesouroSyncStatus::Authorization => AttemptStatus::Authorizing,
