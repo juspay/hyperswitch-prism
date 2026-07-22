@@ -122,8 +122,8 @@ impl FeatureMatrixPaymentMethod {
         supported_payment_methods: &SupportedPaymentMethods,
     ) -> Vec<Self> {
         let mut payment_methods = supported_payment_methods
-            .iter()
-            .flat_map(|(_, payment_method_type_metadata)| {
+            .values()
+            .flat_map(|payment_method_type_metadata| {
                 payment_method_type_metadata.iter().flat_map(
                     |(payment_method_type, payment_method_details)| match payment_method_type {
                         PaymentMethodType::Card => vec![
