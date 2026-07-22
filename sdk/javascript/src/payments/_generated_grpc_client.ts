@@ -191,6 +191,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   DisputeServiceDefendResponse: ["rawConnectorRequest"],
   DisputeServiceAcceptResponse: ["rawConnectorRequest"],
   PaymentMethodServiceTokenizeRequest: ["metadata", "connectorFeatureData"],
+  PaymentMethodServiceTokenizeResponse: ["rawConnectorResponse", "rawConnectorRequest"],
   PaymentMethodServiceCreateRequest: ["metadata", "connectorFeatureData"],
   PaymentMethodServiceCreateResponse: ["rawConnectorResponse", "rawConnectorRequest"],
   PaymentMethodServiceGetRequest: ["connectorFeatureData", "metadata"],
