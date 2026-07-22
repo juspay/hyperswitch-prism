@@ -401,24 +401,30 @@ crate::connectors::macros::macro_connector_flow_status_impls!(
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     not_implemented: [
-        Accept,
-        ClientAuthenticationToken,
+        // Payment lifecycle beyond auth/sale (Tesouro auto-captures via `automaticCapture`)
+        Capture,
+        Void,
+        VoidPC,
+        CreateOrder,
+        IncrementalAuthorization,
+        // Refunds
+        Refund,
+        RSync,
+        // Mandates / tokenization
+        MandateRevoke,
+        PaymentMethodToken,
+        // Connector customer
         CreateConnectorCustomer,
         GetConnectorCustomer,
-        DefendDispute,
-        MandateRevoke,
+        // Authentication (3DS / session / client tokens)
         Authenticate,
-        Capture,
-        IncrementalAuthorization,
-        CreateOrder,
-        PostAuthenticate,
         PreAuthenticate,
-        PaymentMethodToken,
-        VoidPC,
-        Void,
-        RSync,
-        Refund,
+        PostAuthenticate,
+        ClientAuthenticationToken,
         ServerSessionAuthenticationToken,
+        // Disputes
+        Accept,
+        DefendDispute,
         SubmitEvidence
     ],
     not_supported: [VoidPostRefund],

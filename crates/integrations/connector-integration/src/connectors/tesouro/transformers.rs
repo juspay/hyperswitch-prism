@@ -33,6 +33,9 @@ pub const MAX_PAYMENT_REFERENCE_ID_LENGTH: usize = 28;
 // GraphQL query strings (source of truth, matching the reference connector)
 // =============================================================================
 
+/// GraphQL mutation for the SetupMandate flow. `verifyAccount` runs a zero-amount
+/// account verification and, on success, returns a stored-credential token used as the
+/// mandate id for subsequent MITs.
 pub const SETUP_MANDATE: &str = "mutation VerifyAccount(
     $verifyAccountInput: VerifyAccountInput!
 ) {
@@ -62,6 +65,8 @@ pub const SETUP_MANDATE: &str = "mutation VerifyAccount(
     }
 }";
 
+/// GraphQL mutation for the Authorize flow (customer-initiated / CIT). Returns an
+/// approval or decline; when storing a mandate it also returns the stored-credential token.
 pub const AUTHORIZE_TRANSACTION: &str = "mutation AuthorizeCustomerInitiatedTransaction(
     $authorizeCustomerInitiatedTransactionInput: AuthorizeCustomerInitiatedTransactionInput!
 ) {
@@ -96,6 +101,8 @@ pub const AUTHORIZE_TRANSACTION: &str = "mutation AuthorizeCustomerInitiatedTran
     }
 }";
 
+/// GraphQL mutation for the RepeatPayment flow (merchant-initiated / MIT). Charges a
+/// stored-credential acquirer token obtained during the SetupMandate/Authorize leg.
 pub const AUTHORIZE_RECURRING: &str = "mutation AuthorizeRecurring(
     $authorizeRecurringInput: AuthorizeRecurringInput!
 ) {
@@ -131,6 +138,9 @@ pub const AUTHORIZE_RECURRING: &str = "mutation AuthorizeRecurring(
     }
 }";
 
+/// GraphQL query for the PSync flow. Fetches a payment transaction by id; the response
+/// `__typename` (e.g. `ApprovedAuthorization`, `Sale`, `DeclinedAuthorization`) drives the
+/// attempt-status mapping in `map_sync_status`.
 pub const SYNC_TRANSACTION: &str = "query PaymentTransaction($paymentTransactionId: UUID!) {
   paymentTransaction(id: $paymentTransactionId) {
     __typename
@@ -372,26 +382,17 @@ fn is_auto_capture(capture_method: Option<CaptureMethod>) -> bool {
     matches!(capture_method, Some(CaptureMethod::Automatic) | None)
 }
 
-fn current_date() -> String {
-    let now = time::OffsetDateTime::now_utc();
-    format!(
-        "{:04}-{:02}-{:02}",
-        now.year(),
-        u8::from(now.month()),
-        now.day()
-    )
-}
-
 fn get_card_payment_method<T: PaymentMethodDataTypes>(
     card: &Card<T>,
     is_mandate_payment: bool,
 ) -> Result<TesouroPaymentMethodDetails<T>, Error> {
     let card_data = TesouroCardWithPanDetails {
-        expiration_month: card.get_card_expiry_month_2_digit().change_context(
-            IntegrationError::RequestEncodingFailed {
+        expiration_month: card
+            .get_card_expiry_month_2_digit()
+            .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
-            },
-        )?,
+            })
+            .attach_printable("Failed to derive 2-digit card expiration month for Tesouro card payment method")?,
         expiration_year: card.get_expiry_year_4_digit(),
         account_number: card.card_number.clone(),
         payment_entry_mode: if is_mandate_payment {
@@ -874,11 +875,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let (expiration_month, expiration_year, wallet_type) =
             match &router_data.request.payment_method_data {
                 PaymentMethodData::Card(card) => (
-                    Some(card.get_card_expiry_month_2_digit().change_context(
-                        IntegrationError::RequestEncodingFailed {
-                            context: Default::default(),
-                        },
-                    )?),
+                    Some(
+                        card.get_card_expiry_month_2_digit()
+                            .change_context(IntegrationError::RequestEncodingFailed {
+                                context: Default::default(),
+                            })
+                            .attach_printable(
+                                "Failed to derive 2-digit card expiration month for Tesouro recurring payment",
+                            )?,
+                    ),
                     Some(card.get_expiry_year_4_digit()),
                     None,
                 ),
@@ -919,21 +924,23 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 cit_payment_id: cit_payment_id.into(),
             });
 
-        let original_purchase_date = match &router_data.request.recurring_mandate_payment_data {
-            Some(recurring_data) => match &recurring_data.mandate_metadata {
-                Some(metadata) => {
-                    let tesouro_metadata: TesouroMandateMetadata = serde_json::from_value(
-                        metadata.clone().expose(),
-                    )
+        // `originalPurchaseDate` is optional: it carries the CIT's `activityDate` captured in
+        // the mandate metadata during the SetupMandate/Authorize leg. If it is absent we omit
+        // the field rather than fabricating a value (a "today" date would be incorrect and
+        // could mislead the network's stored-credential framework).
+        let original_purchase_date = router_data
+            .request
+            .recurring_mandate_payment_data
+            .as_ref()
+            .and_then(|recurring_data| recurring_data.mandate_metadata.as_ref())
+            .map(|metadata| {
+                serde_json::from_value::<TesouroMandateMetadata>(metadata.clone().expose())
+                    .map(|tesouro_metadata| tesouro_metadata.activity_date)
                     .change_context(IntegrationError::RequestEncodingFailed {
                         context: Default::default(),
-                    })?;
-                    Some(tesouro_metadata.activity_date)
-                }
-                None => Some(current_date()),
-            },
-            None => Some(current_date()),
-        };
+                    })
+            })
+            .transpose()?;
 
         let amount = TesouroAmountConvertor::convert(
             router_data.request.minor_amount,
@@ -1322,6 +1329,34 @@ pub enum AuthorizeTransactionResponseType {
     AuthorizationDecline,
 }
 
+/// `(authorization outcome, auto_capture)` newtype so the status mapping is a single `From`
+/// impl — a bare tuple can't implement the foreign `AttemptStatus` (orphan rule).
+struct AuthOutcome<'a>(&'a AuthorizeTransactionResponseType, bool);
+
+impl From<AuthOutcome<'_>> for AttemptStatus {
+    /// Maps a Tesouro authorization outcome to an attempt status. `auto_capture` distinguishes a
+    /// sale (auth + capture) from an auth-only transaction: a decline is a terminal `Failure` for
+    /// a sale but `AuthorizationFailed` for an auth-only request, mirroring the PSync mapping.
+    fn from(AuthOutcome(response_type, auto_capture): AuthOutcome<'_>) -> Self {
+        match response_type {
+            AuthorizeTransactionResponseType::AuthorizationApproval => {
+                if auto_capture {
+                    Self::Charged
+                } else {
+                    Self::Authorized
+                }
+            }
+            AuthorizeTransactionResponseType::AuthorizationDecline => {
+                if auto_capture {
+                    Self::Failure
+                } else {
+                    Self::AuthorizationFailed
+                }
+            }
+        }
+    }
+}
+
 pub type TesouroAuthorizeResponse = TesouroApiResponse<TesouroAuthorizeData>;
 /// Distinct alias for the RepeatPayment flow (same wire shape as Authorize) so the
 /// per-flow response templating types generated by the macro do not collide.
@@ -1337,11 +1372,10 @@ fn map_authorization_response(
         let transaction_id = auth_response.transaction_id.clone();
         match auth_response.type_name {
             Some(AuthorizeTransactionResponseType::AuthorizationApproval) => {
-                let status = if auto_capture {
-                    AttemptStatus::Charged
-                } else {
-                    AttemptStatus::Authorized
-                };
+                let status = AttemptStatus::from(AuthOutcome(
+                    &AuthorizeTransactionResponseType::AuthorizationApproval,
+                    auto_capture,
+                ));
                 let mandate_reference = build_mandate_reference(
                     auth_response.token_details,
                     auth_response.payment_id.clone(),
@@ -1358,11 +1392,10 @@ fn map_authorization_response(
                 ))
             }
             Some(AuthorizeTransactionResponseType::AuthorizationDecline) => {
-                let status = if auto_capture {
-                    AttemptStatus::Failure
-                } else {
-                    AttemptStatus::AuthorizationFailed
-                };
+                let status = AttemptStatus::from(AuthOutcome(
+                    &AuthorizeTransactionResponseType::AuthorizationDecline,
+                    auto_capture,
+                ));
                 let message = auth_response
                     .message
                     .clone()
@@ -1395,11 +1428,10 @@ fn map_authorization_response(
             )),
         }
     } else if let Some(errors) = inner.errors {
-        let status = if auto_capture {
-            AttemptStatus::Failure
-        } else {
-            AttemptStatus::AuthorizationFailed
-        };
+        let status = AttemptStatus::from(AuthOutcome(
+            &AuthorizeTransactionResponseType::AuthorizationDecline,
+            auto_capture,
+        ));
         Ok((status, in_band_error(&errors, http_code, status)))
     } else {
         Err(ConnectorError::unexpected_response_error(http_code).into())
@@ -1421,11 +1453,10 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<TesouroAuthorizeRespo
                 item.http_code,
             )?,
             TesouroApiResponse::Error(error_response) => {
-                let status = if auto_capture {
-                    AttemptStatus::Failure
-                } else {
-                    AttemptStatus::AuthorizationFailed
-                };
+                let status = AttemptStatus::from(AuthOutcome(
+                    &AuthorizeTransactionResponseType::AuthorizationDecline,
+                    auto_capture,
+                ));
                 (
                     status,
                     top_level_error(&error_response, item.http_code, status),
@@ -1458,11 +1489,10 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<TesouroAuthorizeRespo
                 item.http_code,
             )?,
             TesouroApiResponse::Error(error_response) => {
-                let status = if auto_capture {
-                    AttemptStatus::Failure
-                } else {
-                    AttemptStatus::AuthorizationFailed
-                };
+                let status = AttemptStatus::from(AuthOutcome(
+                    &AuthorizeTransactionResponseType::AuthorizationDecline,
+                    auto_capture,
+                ));
                 (
                     status,
                     top_level_error(&error_response, item.http_code, status),
