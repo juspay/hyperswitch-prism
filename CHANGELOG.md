@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.07.22.0
+
+### Features
+
+- **logs:** Log decrypted request body for raw_bytes connector ([#1987](https://github.com/juspay/connector-service/pull/1987)) ([`102f227`](https://github.com/juspay/connector-service/commit/102f227c1119c8db3c406b575a989db739924aa2))
+
+**Full Changelog:** [`2026.07.21.2...2026.07.22.0`](https://github.com/juspay/connector-service/compare/2026.07.21.2...2026.07.22.0)
+
+- - -
+
 ## 2026.07.21.2
 
 ### Features
