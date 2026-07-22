@@ -33,6 +33,8 @@ use std::fmt::Debug;
 use super::{super::macros::GetSoapXml, profile::TxProfile, rules, TsysTransitRouterData};
 use crate::types::ResponseRouterData;
 
+const POS_ACCEPTANCE_DEVICE_TYPE: &str = "0";
+
 #[derive(Debug, Serialize, Clone, Copy)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum TsysTransitCardDataSource {
@@ -466,6 +468,12 @@ pub struct TsysTransitAuthorizeBody {
     pub purchase_order: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub charge_descriptor: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub charge_descriptor_2: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub charge_descriptor_3: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub charge_descriptor_4: Option<String>,
     #[serde(rename = "customerVATNumber", skip_serializing_if = "Option::is_none")]
     pub customer_vat_number: Option<String>,
     #[serde(rename = "customerRefID", skip_serializing_if = "Option::is_none")]
@@ -520,7 +528,16 @@ pub struct TsysTransitAuthorizeBody {
     pub authorization_indicator: Option<TsysTransitAuthorizationIndicator>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mit: Option<TsysTransitMit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub acceptor_street_address: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub acceptor_customer_service_phone_number: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub acceptor_phone_number: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub acceptor_u_r_l_address: Option<url::Url>,
 }
+
 #[derive(Debug, Serialize)]
 #[serde(rename = "TransactionInquiry")]
 pub struct TsysTransitTransactionInquiryRequest {
@@ -958,6 +975,13 @@ struct TsysTransitMerchantMetadataInner {
 
 #[derive(Debug, Default, Clone, Deserialize)]
 struct TsysTransitCommercialCardMetadata {
+    charge_descriptor_2: Option<String>,
+    charge_descriptor_3: Option<String>,
+    charge_descriptor_4: Option<String>,
+}
+
+#[derive(Debug, Default, Clone, Deserialize)]
+struct TsysTransitPaymentRequestMetadata {
     vat_invoice_number: Option<String>,
     ship_from_zip: Option<String>,
     customer_vat_number: Option<String>,
@@ -1000,6 +1024,9 @@ struct CommercialCardContext {
     commercial_card_level: Option<TsysTransitCommercialCardLevel>,
     purchase_order: Option<String>,
     charge_descriptor: Option<String>,
+    charge_descriptor_2: Option<String>,
+    charge_descriptor_3: Option<String>,
+    charge_descriptor_4: Option<String>,
     customer_vat_number: Option<String>,
     customer_ref_id: Option<String>,
     supplier_reference_number: Option<String>,
@@ -1009,6 +1036,10 @@ struct CommercialCardContext {
     ship_from_zip: Option<String>,
     ship_to_zip: Option<String>,
     destination_country_code: Option<String>,
+    acceptor_street_address: Option<Secret<String>>,
+    acceptor_customer_service_phone_number: Option<Secret<String>>,
+    acceptor_phone_number: Option<Secret<String>>,
+    acceptor_url: Option<url::Url>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -1170,22 +1201,32 @@ pub struct TsysTransitAuthType {
     pub device_id: Secret<String>,
     pub transaction_key: Secret<String>,
     pub developer_id: Secret<String>,
+    pub merchant_street_address: Option<Secret<String>>,
+    pub customer_service_phone_number: Option<Secret<String>>,
+    pub merchant_url: Option<String>,
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for TsysTransitAuthType {
     type Error = Report<IntegrationError>;
 
     fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
+        println!("auth_type: {:?}", auth_type);
         match auth_type {
             ConnectorSpecificConfig::TsysTransit {
                 device_id,
                 transaction_key,
                 developer_id,
+                merchant_street_address,
+                customer_service_phone_number,
+                merchant_url,
                 ..
             } => Ok(Self {
                 device_id: device_id.to_owned(),
                 transaction_key: transaction_key.to_owned(),
                 developer_id: developer_id.to_owned(),
+                merchant_street_address: merchant_street_address.to_owned(),
+                customer_service_phone_number: customer_service_phone_number.to_owned(),
+                merchant_url: merchant_url.to_owned(),
             }),
             _ => Err(error_stack::report!(IntegrationError::FailedToObtainAuthType {
                 context: Default::default(),
@@ -1319,7 +1360,7 @@ fn build_tsys_product_details(
         .map(|code| sanitize_alphanumeric_space(&code, 12));
 
     // Values hardcoded requires API contract mdification to support these fields
-    let stackable = TsysTransitYesNo::Yes;
+    let stackable = TsysTransitYesNo::No;
     let product_discount_name = "Line Item Discount".to_string();
     let product_discount_percentage = Some("0.01".to_string());
     let product_discount_type = "DISCOUNT".to_string();
@@ -1399,6 +1440,64 @@ fn build_tsys_product_details(
     }))
 }
 
+#[derive(Debug, Clone)]
+struct MerchantAcceptorInfo {
+    street_address: Secret<String>,
+    customer_service_phone_number: Secret<String>,
+    phone_number: Secret<String>,
+    url: url::Url,
+}
+
+
+fn build_merchant_acceptor_info(
+    auth_data: &TsysTransitAuthType,
+    card_network: Option<&CardNetwork>,
+    payment_channel: Option<&PaymentChannel>,
+) -> Result<Option<MerchantAcceptorInfo>, Report<IntegrationError>> {
+    if !matches!(card_network, Some(CardNetwork::Mastercard))
+        || !matches!(payment_channel, Some(PaymentChannel::Ecommerce))
+    {
+        return Ok(None);
+    }
+
+    let street_address = auth_data.merchant_street_address.clone().ok_or(
+        IntegrationError::MissingRequiredField {
+            field_name: "connector_metadata.tsys_transit.merchant_street_address",
+            context: Default::default(),
+        },
+    )?;
+    let customer_service_phone_number = auth_data.customer_service_phone_number.clone().ok_or(
+        IntegrationError::MissingRequiredField {
+            field_name: "connector_metadata.tsys_transit.customer_service_phone_number",
+            context: Default::default(),
+        },
+    )?;
+    let phone_number = customer_service_phone_number.clone();
+    let url = auth_data
+        .merchant_url
+        .clone()
+        .ok_or(
+            IntegrationError::MissingRequiredField {
+                field_name: "connector_metadata.tsys_transit.merchant_url",
+                context: Default::default(),
+            }
+            .into(),
+        )
+        .and_then(|url| {
+            url::Url::parse(&url).change_context(IntegrationError::InvalidDataFormat {
+                field_name: "connector_metadata.tsys_transit.merchant_url",
+                context: Default::default(),
+            })
+        })?;
+
+    Ok(Some(MerchantAcceptorInfo {
+        street_address,
+        customer_service_phone_number,
+        phone_number,
+        url,
+    }))
+}
+
 fn compute_commercial_card_context<
     T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
 >(
@@ -1410,16 +1509,43 @@ fn compute_commercial_card_context<
     >,
     commercial_meta: Option<&TsysTransitCommercialCardMetadata>,
     card_network: Option<&CardNetwork>,
+    auth_data: &TsysTransitAuthType,
 ) -> Result<CommercialCardContext, Report<IntegrationError>> {
     let empty_commercial_meta = TsysTransitCommercialCardMetadata::default();
     let commercial_meta = commercial_meta.unwrap_or(&empty_commercial_meta);
-    let vat_invoice = commercial_meta.vat_invoice_number.clone();
-    let customer_vat_number = commercial_meta.customer_vat_number.clone();
-    let ship_from_zip = commercial_meta.ship_from_zip.clone();
-    let shipping_charges = commercial_meta.shipping_charges.clone();
-    let duty_charges = commercial_meta.duty_charges.clone();
-    let order_date = commercial_meta.order_date.clone();
-    let summary_commodity_code = commercial_meta.summary_commodity_code.clone();
+    let merchant_acceptor_info = build_merchant_acceptor_info(
+        auth_data,
+        card_network,
+        router_data.request.payment_channel.as_ref(),
+    )?;
+    let request_metadata = match router_data.request.metadata.as_ref() {
+        Some(meta) => {
+            serde_json::from_value::<TsysTransitPaymentRequestMetadata>(meta.clone().expose())
+                .change_context(IntegrationError::InvalidDataFormat {
+                    field_name: "connector_metadata.tsys_transit",
+                    context: Default::default(),
+                })?
+        }
+        None => TsysTransitPaymentRequestMetadata::default(),
+    };
+
+    let vat_invoice = request_metadata.vat_invoice_number.clone();
+    let customer_vat_number = request_metadata.customer_vat_number.clone();
+    let ship_from_zip = request_metadata.ship_from_zip.clone();
+    let shipping_charges = request_metadata.shipping_charges.clone();
+    let duty_charges = request_metadata.duty_charges.clone();
+    let order_date = request_metadata.order_date.clone();
+    let summary_commodity_code = request_metadata.summary_commodity_code.clone();
+    let acceptor_street_address = merchant_acceptor_info
+        .as_ref()
+        .map(|info| info.street_address.clone());
+    let acceptor_customer_service_phone_number = merchant_acceptor_info
+        .as_ref()
+        .map(|info| info.customer_service_phone_number.clone());
+    let acceptor_phone_number = merchant_acceptor_info
+        .as_ref()
+        .map(|info| info.phone_number.clone());
+    let acceptor_url = merchant_acceptor_info.as_ref().map(|info| info.url.clone());
     let l2_l3_data = router_data.resource_common_data.l2_l3_data.as_deref();
     let order_details = l2_l3_data
         .and_then(|data| data.get_order_details())
@@ -1607,6 +1733,9 @@ fn compute_commercial_card_context<
             commercial_card_level: Some(TsysTransitCommercialCardLevel::Level3),
             purchase_order: purchase_order.clone(),
             charge_descriptor,
+            charge_descriptor_2: commercial_meta.charge_descriptor_2.clone(),
+            charge_descriptor_3: commercial_meta.charge_descriptor_3.clone(),
+            charge_descriptor_4: commercial_meta.charge_descriptor_4.clone(),
             customer_vat_number,
             customer_ref_id,
             supplier_reference_number,
@@ -1616,6 +1745,10 @@ fn compute_commercial_card_context<
             ship_from_zip,
             ship_to_zip,
             destination_country_code,
+            acceptor_customer_service_phone_number,
+            acceptor_street_address,
+            acceptor_url,
+            acceptor_phone_number,
         })
     } else if is_level2 {
         let (
@@ -1646,6 +1779,9 @@ fn compute_commercial_card_context<
             commercial_card_level: Some(TsysTransitCommercialCardLevel::Level2),
             purchase_order: purchase_order.clone(),
             charge_descriptor,
+            charge_descriptor_2: commercial_meta.charge_descriptor_2.clone(),
+            charge_descriptor_3: commercial_meta.charge_descriptor_3.clone(),
+            charge_descriptor_4: commercial_meta.charge_descriptor_4.clone(),
             customer_vat_number: None,
             customer_ref_id,
             supplier_reference_number,
@@ -1655,9 +1791,19 @@ fn compute_commercial_card_context<
             ship_from_zip: None,
             ship_to_zip,
             destination_country_code: None,
+            acceptor_customer_service_phone_number,
+            acceptor_street_address,
+            acceptor_url,
+            acceptor_phone_number,
         })
     } else {
-        Ok(CommercialCardContext::default())
+        Ok(CommercialCardContext {
+            acceptor_customer_service_phone_number,
+            acceptor_street_address,
+            acceptor_url,
+            acceptor_phone_number,
+            ..Default::default()
+        })
     }
 }
 
@@ -1803,6 +1949,7 @@ fn extract_for_authorize<T: PaymentMethodDataTypes + Debug + Sync + Send + 'stat
         router_data,
         commercial_meta.as_ref(),
         card_network.as_ref(),
+        &auth,
     )?;
     let three_ds_context = compute_three_ds_context(router_data, card_network.as_ref());
 
@@ -2028,6 +2175,9 @@ fn assemble_authorize_body(assembly: AuthorizeAssembly) -> TsysTransitAuthorizeB
             commercial_card_context.purchase_order,
         ),
         charge_descriptor: commercial_card_context.charge_descriptor,
+        charge_descriptor_2: commercial_card_context.charge_descriptor_2,
+        charge_descriptor_3: commercial_card_context.charge_descriptor_3,
+        charge_descriptor_4: commercial_card_context.charge_descriptor_4,
         customer_vat_number: commercial_card_context.customer_vat_number,
         customer_ref_id: rules::commercial::customer_ref_id(
             &profile,
@@ -2070,6 +2220,11 @@ fn assemble_authorize_body(assembly: AuthorizeAssembly) -> TsysTransitAuthorizeB
         last_registered_change_date,
         authorization_indicator,
         mit: mit_block_for_body,
+        acceptor_street_address: commercial_card_context.acceptor_street_address,
+        acceptor_customer_service_phone_number: commercial_card_context
+            .acceptor_customer_service_phone_number,
+        acceptor_phone_number: commercial_card_context.acceptor_phone_number,
+        acceptor_u_r_l_address: commercial_card_context.acceptor_url,
     }
 }
 #[derive(Debug, Clone)]
@@ -3317,11 +3472,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // authentications used to store credentials for future payments.
         let card_on_file = rules::cof_mit::card_on_file(&profile);
         let cit_status_indicator = rules::cof_mit::cit_status_indicator(&profile);
-        let m_pos_acceptance_device_type = if !is_ecommerce_payment {
-            Some("0".to_string())
-        } else {
-            None
-        };
+        let m_pos_acceptance_device_type =
+            (!is_ecommerce_payment).then_some(POS_ACCEPTANCE_DEVICE_TYPE.to_string());
 
         Ok(Self {
             device_id: auth.device_id,

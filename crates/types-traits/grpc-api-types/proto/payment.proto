@@ -5100,6 +5100,9 @@ message TsysTransitConfig {
   SecretString device_id = 1;
   SecretString transaction_key = 2;
   SecretString developer_id = 3;
+  optional SecretString merchant_street_address = 4;
+  optional SecretString customer_service_phone_number = 5;
+  optional string merchant_url = 6;
   optional string base_url = 50;
 }
 
