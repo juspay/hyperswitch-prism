@@ -525,10 +525,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Hyperswitch's Direct path maps any `state.is_failure()` (FAILED/CANCELED/UNKNOWN)
         // to `response: Err(ErrorResponse)` carrying the connector failure code/message, so
         // mirror that here for shadow parity (was previously `Ok` with status=Failure).
-        let is_failure = matches!(
-            response.state,
-            FinixPaymentStatus::Failed | FinixPaymentStatus::Canceled | FinixPaymentStatus::Unknown
-        );
+        let is_failure = domain_types::utils::is_payment_failure(status);
 
         let flow_response = if is_failure {
             Err(ErrorResponse {
@@ -789,10 +786,7 @@ impl TryFrom<ResponseRouterData<FinixCaptureResponse, Self>>
 
         let connector_response = build_finix_connector_response(&response);
 
-        let is_failure = matches!(
-            response.state,
-            FinixPaymentStatus::Failed | FinixPaymentStatus::Canceled | FinixPaymentStatus::Unknown
-        );
+        let is_failure = domain_types::utils::is_payment_failure(status);
 
         let flow_response = if is_failure {
             Err(ErrorResponse {
