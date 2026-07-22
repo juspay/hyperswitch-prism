@@ -1,0 +1,15 @@
+{
+  "issue": 21047,
+  "child_issue": 21051,
+  "connector": "novalnet",
+  "flow": "authorize",
+  "merchant": "bu_de_micromobility",
+  "note": "Novalnet API-level FAILURE (HTTP 200, result.status=FAILURE) must NOT override attempt status. prism's Authorize Failure arm hard-wrote AttemptStatus::Failure while HS Direct leaves resource_common_data.status untouched -> router_diff valueDiff:status {hyperswitch:pending, ucs:failure}. Authorize sibling of prism #1853 (SetupMandate) / #1668 (PSync). Repro: any novalnet authorize whose response envelope is FAILURE (e.g. invalid auth header).",
+  "amount": 1000, "currency": "EUR", "capture_method": "automatic",
+  "payment_method": "card", "payment_method_type": "credit",
+  "authentication_type": "no_three_ds",
+  "card_number": "4111111111111111",
+  "card_exp_month": "03", "card_exp_year": "2030", "card_cvc": "123",
+  "billing": {"line1": "Hauptstr 1", "city": "Berlin", "country": "DE", "zip": "10115"},
+  "expected": {"routerData": {"keyDiff": {}, "valueDiff": {}}}
+}
