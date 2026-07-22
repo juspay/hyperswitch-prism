@@ -178,6 +178,7 @@ fn create_payment_sync_request(transaction_id: &str) -> PaymentServiceGetRequest
         split_payments: None,
         merchant_request_id: None,
         payment_method_type: None,
+        mandate_reference: None,
     }
 }
 

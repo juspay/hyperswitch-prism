@@ -678,7 +678,8 @@ fn wallet_to_juspay(
         | WalletData::Satispay(_)
         | WalletData::Wero(_)
         | WalletData::Paze(_)
-        | WalletData::QwikcilverWalletDirect(_) => Err(error_stack::report!(
+        | WalletData::QwikcilverWalletDirect(_)
+        | WalletData::Skrill(_) => Err(error_stack::report!(
             errors::IntegrationError::NotImplemented(
                 format!("Juspay wallet variant not supported: {wallet:?}"),
                 Default::default(),
@@ -761,7 +762,8 @@ fn paylater_to_juspay(
         | PayLaterData::AfterpayClearpayRedirect {}
         | PayLaterData::PayBrightRedirect {}
         | PayLaterData::WalleyRedirect {}
-        | PayLaterData::AlmaRedirect {}) => Err(error_stack::report!(
+        | PayLaterData::AlmaRedirect {}
+        | PayLaterData::TamaraRedirect {}) => Err(error_stack::report!(
             errors::IntegrationError::NotImplemented(
                 format!(
                     "Juspay CONSUMER_FINANCE does not map cleanly from {other:?} \

@@ -27,12 +27,18 @@ trait FrmOperationsInternal {
     async fn internal_pre_risk_check(
         &self,
         request: RequestData<FrmServicePreRiskCheckRequest>,
-    ) -> Result<tonic::Response<FrmServicePreRiskCheckResponse>, tonic::Status>;
+    ) -> Result<
+        tonic::Response<FrmServicePreRiskCheckResponse>,
+        error_stack::Report<ucs_env::error::GrpcError>,
+    >;
 
     async fn internal_post_risk_check(
         &self,
         request: RequestData<FrmServicePostRiskCheckRequest>,
-    ) -> Result<tonic::Response<FrmServicePostRiskCheckResponse>, tonic::Status>;
+    ) -> Result<
+        tonic::Response<FrmServicePostRiskCheckResponse>,
+        error_stack::Report<ucs_env::error::GrpcError>,
+    >;
 }
 
 #[derive(Debug, Clone)]
@@ -104,7 +110,7 @@ impl FraudAndRiskManagementService for FraudAndRiskManagement {
             .get::<String>()
             .cloned()
             .unwrap_or_else(|| "FraudAndRiskManagementService".to_string());
-        let config = utils::get_config_from_request(&request)?;
+        let config = utils::get_config_from_request(&request).into_grpc_status()?;
         Box::pin(utils::grpc_logging_wrapper(
             request,
             &service_name,
@@ -145,7 +151,7 @@ impl FraudAndRiskManagementService for FraudAndRiskManagement {
             .get::<String>()
             .cloned()
             .unwrap_or_else(|| "FraudAndRiskManagementService".to_string());
-        let config = utils::get_config_from_request(&request)?;
+        let config = utils::get_config_from_request(&request).into_grpc_status()?;
         Box::pin(utils::grpc_logging_wrapper(
             request,
             &service_name,

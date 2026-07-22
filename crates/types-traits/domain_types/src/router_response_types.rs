@@ -46,6 +46,11 @@ pub enum RedirectForm {
     Mifinity {
         initialization_token: String,
     },
+    HostedIframe {
+        endpoint: String,
+        method: Method,
+        events: String,
+    },
     WorldpayDDCForm {
         endpoint: url::Url,
         method: Method,

@@ -635,6 +635,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         Ok(RefundWebhookDetailsResponse {
             connector_refund_id: Some(transaction.transaction_id),
+            merchant_transaction_id: None,
             status: refund_status,
             connector_response_reference_id: Some(transaction.reference_id),
             error_code,
@@ -676,6 +677,7 @@ macros::macro_connector_flow_status_impls!(
         VoidPostRefund,
         Accept,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         DefendDispute,
         ServerAuthenticationToken,
         IncrementalAuthorization,

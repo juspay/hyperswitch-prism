@@ -329,6 +329,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(
             domain_types::connector_types::RefundWebhookDetailsResponse {
                 connector_refund_id: None,
+                merchant_transaction_id: None,
                 status: RefundStatus::from(event.event_type),
                 connector_response_reference_id: None,
                 error_code: None,
@@ -426,6 +427,7 @@ macros::macro_connector_flow_status_impls!(
         PostAuthenticate,
         ServerSessionAuthenticationToken,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         ClientAuthenticationToken,
     ],
 );

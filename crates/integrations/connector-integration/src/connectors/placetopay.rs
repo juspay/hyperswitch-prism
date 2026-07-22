@@ -478,6 +478,7 @@ macros::macro_connector_flow_status_impls!(
         PostAuthenticate,
         ClientAuthenticationToken,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         MandateRevoke,
     ],
     not_supported: [

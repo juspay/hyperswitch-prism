@@ -62,6 +62,8 @@ SERVICE_FLOWS = {
     "CustomerClient": {
         # customer_create: CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information.
         "customer_create": "CustomerServiceCreateResponse",
+        # customer_get: CustomerService.Get — Retrieves customer details from the payment processor. Callers typically use this before Create to implement get-or-create semantics for connectors that reject duplicates (e.g. Glomopay).
+        "customer_get": "CustomerServiceGetResponse",
     },
     "PaymentMethodClient": {
         # eligibility: PaymentMethodService.Eligibility — Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check)

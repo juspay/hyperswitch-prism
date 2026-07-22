@@ -201,7 +201,7 @@ async fn test_connector_scenarios(
                     ));
                 } else if detail.contains("Rust panic:") || detail.starts_with("thread '") {
                     // Rust panic (real SDK crash)
-                    println!("{} — {}", red("FAILED"), &detail);
+                    println!("{} — {}", red("FAILED"), detail);
                     scenarios.push((
                         scenario_key,
                         ScenarioResult {

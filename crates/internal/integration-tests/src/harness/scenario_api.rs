@@ -2267,7 +2267,7 @@ pub fn execute_tonic_request_from_payload(
                     &connector_request_reference_id,
                 );
                 let mut client = grpc_api_types::payments::payment_method_authentication_service_client::PaymentMethodAuthenticationServiceClient::new(channel.clone());
-                let response = client.authenticate(request).await.map_err(|error| {
+                let response = Box::pin(client.authenticate(request)).await.map_err(|error| {
                     ScenarioError::GrpcurlExecution {
                         message: format!(
                             "tonic execution failed for '{suite}/{scenario}': {error}"
@@ -2443,7 +2443,7 @@ pub fn execute_tonic_request_from_payload(
                     &connector_request_reference_id,
                 );
                 let mut client = grpc_api_types::payments::payment_service_client::PaymentServiceClient::new(channel.clone());
-                let response = client.setup_recurring(request).await.map_err(|error| {
+                let response = Box::pin(client.setup_recurring(request)).await.map_err(|error| {
                     ScenarioError::GrpcurlExecution {
                         message: format!(
                             "tonic execution failed for '{suite}/{scenario}': {error}"
@@ -4872,6 +4872,9 @@ mod tests {
             "CustomerService/Create" => validate_tonic_payload_shape::<
                 payments::CustomerServiceCreateRequest,
             >(connector, suite, scenario, grpc_req),
+            "CustomerService/Get" => validate_tonic_payload_shape::<
+                payments::CustomerServiceGetRequest,
+            >(connector, suite, scenario, grpc_req),
             "PaymentMethodAuthenticationService/PreAuthenticate" => validate_tonic_payload_shape::<
                 payments::PaymentMethodAuthenticationServicePreAuthenticateRequest,
             >(connector, suite, scenario, grpc_req),
@@ -4931,14 +4934,12 @@ mod tests {
             "PaymentService/Reverse" => validate_tonic_payload_shape::<
                 payments::PaymentServiceReverseRequest,
             >(connector, suite, scenario, grpc_req),
-            "PaymentService/VerifyRedirectResponse" => validate_tonic_payload_shape::<
-                payments::PaymentServiceVerifyRedirectResponseRequest,
-            >(connector, suite, scenario, grpc_req),
-            "EventService/HandleEvent" => {
-                // Webhook requests use base64 for the proto `bytes body` field,
-                // which grpcurl interprets correctly but tonic serde expects a
-                // byte array.  Skip tonic-level shape validation; the runtime
-                // grpcurl path is the authoritative check.
+            "PaymentService/VerifyRedirectResponse" | "EventService/HandleEvent" => {
+                // Both carry a `RequestDetails` with a proto `bytes body` field.
+                // grpcurl interprets the base64 string body correctly, but tonic
+                // serde expects a byte array, so the two representations conflict.
+                // Skip tonic-level shape validation; the runtime grpcurl path is
+                // the authoritative check.
                 Ok(())
             }
             "PaymentService/TokenAuthorize" => validate_tonic_payload_shape::<
@@ -5776,6 +5777,11 @@ grpc-status: 0
             normalized["connector_recurring_payment_id"]["mandate_id_type"]["ConnectorMandateId"]
                 ["connector_mandate_id"],
             json!("mandate_123")
+        );
+        assert!(
+            normalized["connector_recurring_payment_id"]["mandate_id_type"]["ConnectorMandateId"]
+                .get("update_history")
+                .is_none()
         );
     }
 

@@ -12,6 +12,7 @@ use common_utils::{
     ext_traits::AsyncExt,
     lineage,
     request::{Method, Request, RequestContent},
+    request_metrics::ConnectorLatencyTracker,
 };
 use domain_types::{
     connector_types::{ConnectorResponseHeaders, RawConnectorRequestResponse},
@@ -211,6 +212,8 @@ impl AdditionalHeaders for domain_types::frm::frm_types::FrmFlowData {
     }
 }
 use common_utils::events::{Event, EventConfig, FlowName};
+#[cfg(feature = "injector-client")]
+use common_utils::types::ExecutionMode;
 #[cfg(feature = "injector-client")]
 // TokenData is now imported from hyperswitch_injector
 use common_utils::{consts, emit_event_with_config};
@@ -511,6 +514,7 @@ pub struct EventProcessingParams<'a> {
     pub tenant_id: &'a str,
     pub merchant_id: &'a str,
     pub return_raw_connector_data: bool,
+    pub connector_latency: ConnectorLatencyTracker,
 }
 
 #[cfg(feature = "injector-client")]
@@ -815,6 +819,9 @@ where
                         })
                     };
                     let external_service_elapsed = external_service_start_latency.elapsed();
+                    event_params
+                        .connector_latency
+                        .add_connector_time(external_service_elapsed);
                     metrics::EXTERNAL_SERVICE_API_CALLS_LATENCY
                         .with_label_values(&[
                             &method.to_string(),
@@ -853,19 +860,20 @@ where
                         &masked_request,
                     );
 
-                    let result = handle_connector_response(
-                        response.change_context(
-                            ConnectorError::response_handling_failed_http_status_unknown(),
-                        ),
-                        updated_router_data,
-                        &connector,
-                        Some(&mut event),
-                        all_keys_required,
-                        &method.to_string(),
-                        url,
-                        Some(&event_params),
-                    )
-                    .map_err(report_connector_response_to_flow);
+                    let result = match response {
+                        Ok(body) => handle_connector_response(
+                            Ok(body),
+                            updated_router_data,
+                            &connector,
+                            Some(&mut event),
+                            all_keys_required,
+                            &method.to_string(),
+                            url,
+                            Some(&event_params),
+                        )
+                        .map_err(report_connector_response_to_flow),
+                        Err(transport_err) => Err(transport_err),
+                    };
 
                     emit_event_with_config(event, event_params.event_config);
                     result
@@ -927,6 +935,9 @@ where
                         });
 
                     let external_service_elapsed = external_service_start_latency.elapsed();
+                    event_params
+                        .connector_latency
+                        .add_connector_time(external_service_elapsed);
                     metrics::EXTERNAL_SERVICE_API_CALLS_LATENCY
                         .with_label_values(&[
                             "PUBLISH",
@@ -967,19 +978,20 @@ where
                         &masked_request,
                     );
 
-                    let result = handle_connector_response(
-                        response.change_context(
-                            ConnectorError::response_handling_failed_http_status_unknown(),
-                        ),
-                        router_data,
-                        &connector,
-                        Some(&mut event),
-                        all_keys_required,
-                        "PUBLISH",
-                        topic,
-                        Some(&event_params),
-                    )
-                    .map_err(report_connector_response_to_flow);
+                    let result = match response {
+                        Ok(body) => handle_connector_response(
+                            Ok(body),
+                            router_data,
+                            &connector,
+                            Some(&mut event),
+                            all_keys_required,
+                            "PUBLISH",
+                            topic,
+                            Some(&event_params),
+                        )
+                        .map_err(report_connector_response_to_flow),
+                        Err(publish_err) => Err(publish_err),
+                    };
 
                     emit_event_with_config(event, event_params.event_config);
                     result
@@ -1056,6 +1068,7 @@ fn create_event(
         url,
         method,
         stage: EventStage::ConnectorCall,
+        execution_mode: ExecutionMode::from_shadow_flag(event_params.shadow_mode),
         latency_ms,
         status_code,
         request_data: MaskedSerdeValue::from_masked_optional(masked_request, "connector_request"),
@@ -1289,6 +1302,9 @@ pub fn create_client(
     }
 }
 
+/// Default total timeout (seconds) for a single connector API call.
+const DEFAULT_CONNECTOR_REQUEST_TIMEOUT_SECS: u64 = 30;
+
 static DEFAULT_CLIENT: OnceCell<Client> = OnceCell::new();
 static PROXY_CLIENT_CACHE: OnceCell<RwLock<HashMap<(Proxy, String), Client>>> = OnceCell::new();
 
@@ -1411,6 +1427,11 @@ fn get_client_builder(
             proxy_config
                 .idle_pool_connection_timeout
                 .unwrap_or_default(),
+        ))
+        .timeout(Duration::from_secs(
+            proxy_config
+                .connector_request_timeout
+                .unwrap_or(DEFAULT_CONNECTOR_REQUEST_TIMEOUT_SECS),
         ));
 
     // Disable automatic gzip decompression in test mode

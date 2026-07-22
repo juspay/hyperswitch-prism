@@ -2,7 +2,7 @@
 
 [![npm](https://img.shields.io/npm/v/@juspay-tech/medusa-custom-payments?logo=npm)](https://www.npmjs.com/package/@juspay-tech/medusa-custom-payments)
 
-Custom payments provider plugin for Medusa v2. Enables payment processing through multiple connectors — Stripe, Adyen, PayPal, GlobalPay, Braintree, Cybersource, and Mollie — via a single Prism-powered provider.
+Custom payments provider plugin for Medusa v2. Enables payment processing through multiple connectors — Stripe, Adyen, PayPal, GlobalPay, Braintree, Cybersource, Mollie, and Authorize.Net — via a single Prism-powered provider.
 
 Powered by [Hyperswitch Prism](https://github.com/juspay/hyperswitch-prism), an open-source unified connector service (UCS) that abstracts connector-specific APIs behind a single interface.
 
@@ -47,6 +47,11 @@ GLOBALPAY_APP_KEY=...
 # Mollie
 MOLLIE_API_KEY=test_...          # Mollie API key (test_… / live_…)
 MOLLIE_PROFILE_TOKEN=pfl_...     # public profile id; surfaced to the storefront for Mollie Components
+
+# Authorize.Net
+AUTHORIZEDOTNET_NAME=...              # API Login ID
+AUTHORIZEDOTNET_TRANSACTION_KEY=...   # Transaction Key
+AUTHORIZEDOTNET_BASE_URL=https://apitest.authorize.net/xml/v1/request.api   # optional endpoint override
 ```
 
 ### 2. Register providers in `medusa-config.ts`
@@ -134,6 +139,21 @@ export default defineConfig({
               environment: "SANDBOX",
             },
           },
+          {
+            resolve: "@juspay-tech/medusa-custom-payments",
+            id: "authorizedotnet",
+            options: {
+              connector: "authorizedotnet",
+              connectorConfig: {
+                // API Login ID + Transaction Key (both server-side secrets).
+                name: { value: process.env.AUTHORIZEDOTNET_NAME ?? "" },
+                transactionKey: { value: process.env.AUTHORIZEDOTNET_TRANSACTION_KEY ?? "" },
+                // Optional endpoint override (defaults to the connector's environment).
+                baseUrl: process.env.AUTHORIZEDOTNET_BASE_URL,
+              },
+              environment: "SANDBOX",
+            },
+          },
         ],
       },
     },
@@ -163,7 +183,7 @@ npx medusa develop
 
 | Option | Type | Required | Default | Description |
 |--------|------|----------|---------|-------------|
-| `connector` | `string` | Yes | — | `"stripe"`, `"adyen"`, `"paypal"`, `"globalpay"`, `"braintree"`, `"cybersource"`, `"mollie"` |
+| `connector` | `string` | Yes | — | `"stripe"`, `"adyen"`, `"paypal"`, `"globalpay"`, `"braintree"`, `"cybersource"`, `"mollie"`, `"authorizedotnet"` |
 | `connectorConfig` | `object` | Yes | — | Connector-specific credentials (see examples above) |
 | `environment` | `string` | No | `"SANDBOX"` | `"SANDBOX"` or `"PRODUCTION"` |
 | `capture` | `boolean` | No | `false` | Auto-capture on authorization |
@@ -179,6 +199,7 @@ npx medusa develop
 | `braintree` | `publicKey`, `privateKey` |
 | `cybersource` | `apiKey`, `merchantAccount`, `apiSecret` |
 | `mollie` | `apiKey`, `profileToken` (public profile id `pfl_…` — surfaced to the storefront for Mollie Components) |
+| `authorizedotnet` | `name` (API Login ID), `transactionKey` (Transaction Key); `baseUrl` (optional endpoint override) |
 
 Each credential value is provided as `{ value: string }` to support secret manager integrations.
 
@@ -193,6 +214,7 @@ Each credential value is provided as `{ value: string }` to support secret manag
 | `braintree` | ✅ | ✅ | ✅ | ✅ | ○ |
 | `cybersource` | ✅ | ✅ | ✅ | ✅ | ○ |
 | `mollie` | — | ✅ | ✅ | ✅ | ○ |
+| `authorizedotnet` | — | ○ | ○ | ○ | ○ |
 
 **Legend**
 
@@ -204,7 +226,7 @@ Each credential value is provided as `{ value: string }` to support secret manag
 
 > **Authorize result by connector**
 > - `adyen`, `stripe`, `braintree`, `cybersource` → payment lands as **AUTHORIZED** (funds reserved; Capture or Void available next)
-> - `paypal`, `globalpay`, `mollie` → payment lands as **CAPTURED** (funds collected immediately via `CaptureMethod.AUTOMATIC`; Refund only). For `mollie` this is reached after the customer completes the redirect — the 3DS page for Card, or the Mollie-hosted Klarna checkout for Klarna (Pay later, EUR-only).
+> - `paypal`, `globalpay`, `mollie`, `authorizedotnet` → payment lands as **CAPTURED** (funds collected immediately via `CaptureMethod.AUTOMATIC`; Refund only). For `mollie` this is reached after the customer completes the redirect — the 3DS page for Card, or the Mollie-hosted Klarna checkout for Klarna (Pay later, EUR-only); `authorizedotnet` authorizes a raw card with no redirect.
 
 > **Note:** All flows in the matrix above are tested and verified under the **sandbox / test environment** of each connector. Production behavior should be validated separately before go-live.
 
@@ -220,7 +242,7 @@ Webhook URL pattern:
 |-----------|---------------|--------------------|-----------------------|
 | `adyen` | payment + refund | HMAC-SHA256 | Hex HMAC key from Customer Area → Webhooks → Additional settings (**required**) |
 | `paypal` | payment + refund + dispute | PayPal `verify-webhook-signature` API | Webhook ID from the developer dashboard (**required**) |
-| `stripe`, `globalpay`, `braintree`, `cybersource`, `mollie` | not supported | — | unused |
+| `stripe`, `globalpay`, `braintree`, `cybersource`, `mollie`, `authorizedotnet` | not supported | — | unused |
 
 For unsupported connectors, incoming webhooks are acknowledged and ignored (`NOT_SUPPORTED`); payment state is driven by the synchronous flows (`authorizePayment` / `getPaymentStatus`).
 

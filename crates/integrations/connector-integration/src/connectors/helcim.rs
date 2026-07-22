@@ -458,6 +458,7 @@ macros::macro_connector_flow_status_impls!(
     not_implemented: [
         VoidPC,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         ClientAuthenticationToken,
         MandateRevoke,
         SetupMandate,

@@ -139,6 +139,10 @@
     "api_key": { "value": "<REPLACE_WITH_YOUR_VALUE>" },
     "_comment": "Configuration for gigadat connector"
   },
+  "glomopay": {
+    "api_key": { "value": "<REPLACE_WITH_YOUR_VALUE>" },
+    "_comment": "Configuration for glomopay connector"
+  },
   "globalpay": {
     "api_key": { "value": "<REPLACE_WITH_YOUR_VALUE>" },
     "_comment": "Configuration for globalpay connector"
