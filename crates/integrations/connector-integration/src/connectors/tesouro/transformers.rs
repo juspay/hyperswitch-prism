@@ -29,139 +29,9 @@ type ResponseError = error_stack::Report<ConnectorError>;
 
 pub const MAX_PAYMENT_REFERENCE_ID_LENGTH: usize = 28;
 
-// =============================================================================
-// GraphQL query strings (source of truth, matching the reference connector)
-// =============================================================================
-
-/// GraphQL mutation for the SetupMandate flow. `verifyAccount` runs a zero-amount
-/// account verification and, on success, returns a stored-credential token used as the
-/// mandate id for subsequent MITs.
-pub const SETUP_MANDATE: &str = "mutation VerifyAccount(
-    $verifyAccountInput: VerifyAccountInput!
-) {
-    verifyAccount(
-        verifyAccountInput: $verifyAccountInput
-    ) {
-        verifyAccountResponse {
-            paymentId
-            transactionId
-            tokenDetails {
-                token
-            }
-            activityDate
-        }
-        errors {
-            ... on InternalServiceError { message transactionId processorResponseCode }
-            ... on AcceptorNotFoundError { message transactionId processorResponseCode }
-            ... on RuleInViolationError { message transactionId processorResponseCode }
-            ... on SyntaxOnNetworkResponseError { message transactionId processorResponseCode }
-            ... on TimeoutOnNetworkResponseError { message transactionId processorResponseCode }
-            ... on ValidationFailureError { message processorResponseCode transactionId }
-            ... on UnknownCardError { message processorResponseCode transactionId }
-            ... on TokenNotFoundError { message processorResponseCode transactionId }
-            ... on InvalidTokenError { message processorResponseCode transactionId }
-            ... on RouteNotFoundError { message processorResponseCode transactionId }
-        }
-    }
-}";
-
-/// GraphQL mutation for the Authorize flow (customer-initiated / CIT). Returns an
-/// approval or decline; when storing a mandate it also returns the stored-credential token.
-pub const AUTHORIZE_TRANSACTION: &str = "mutation AuthorizeCustomerInitiatedTransaction(
-    $authorizeCustomerInitiatedTransactionInput: AuthorizeCustomerInitiatedTransactionInput!
-) {
-    authorizeCustomerInitiatedTransaction(
-        authorizeCustomerInitiatedTransactionInput: $authorizeCustomerInitiatedTransactionInput
-    ) {
-        authorizationResponse {
-            paymentId
-            transactionId
-            tokenDetails { token }
-            activityDate
-            __typename
-            ... on AuthorizationApproval {
-                __typename paymentId transactionId tokenDetails { token } activityDate
-            }
-            ... on AuthorizationDecline {
-                __typename transactionId paymentId message tokenDetails { token }
-            }
-        }
-        errors {
-            ... on InternalServiceError { message transactionId processorResponseCode }
-            ... on AcceptorNotFoundError { message transactionId processorResponseCode }
-            ... on RuleInViolationError { message transactionId processorResponseCode }
-            ... on SyntaxOnNetworkResponseError { message transactionId processorResponseCode }
-            ... on TimeoutOnNetworkResponseError { message transactionId processorResponseCode }
-            ... on ValidationFailureError { message processorResponseCode transactionId }
-            ... on UnknownCardError { message processorResponseCode transactionId }
-            ... on TokenNotFoundError { message processorResponseCode transactionId }
-            ... on InvalidTokenError { message processorResponseCode transactionId }
-            ... on RouteNotFoundError { message processorResponseCode transactionId }
-        }
-    }
-}";
-
-/// GraphQL mutation for the RepeatPayment flow (merchant-initiated / MIT). Charges a
-/// stored-credential acquirer token obtained during the SetupMandate/Authorize leg.
-pub const AUTHORIZE_RECURRING: &str = "mutation AuthorizeRecurring(
-    $authorizeRecurringInput: AuthorizeRecurringInput!
-) {
-    authorizeRecurring(
-        authorizeRecurringInput: $authorizeRecurringInput
-    ) {
-        authorizationResponse {
-            paymentId
-            transactionId
-            tokenDetails { token }
-            activityDate
-            __typename
-            ... on AuthorizationApproval {
-                __typename paymentId transactionId tokenDetails { token } activityDate
-            }
-            ... on AuthorizationDecline {
-                __typename transactionId paymentId message
-            }
-        }
-        errors {
-            ... on InternalServiceError { message transactionId processorResponseCode }
-            ... on AcceptorNotFoundError { message transactionId processorResponseCode }
-            ... on RuleInViolationError { message transactionId processorResponseCode }
-            ... on SyntaxOnNetworkResponseError { message transactionId processorResponseCode }
-            ... on TimeoutOnNetworkResponseError { message transactionId processorResponseCode }
-            ... on ValidationFailureError { message processorResponseCode transactionId }
-            ... on UnknownCardError { message processorResponseCode transactionId }
-            ... on TokenNotFoundError { message processorResponseCode transactionId }
-            ... on InvalidTokenError { message processorResponseCode transactionId }
-            ... on RouteNotFoundError { message processorResponseCode transactionId }
-            ... on PriorPaymentNotFoundError { message processorResponseCode transactionId }
-        }
-    }
-}";
-
-/// GraphQL query for the PSync flow. Fetches a payment transaction by id; the response
-/// `__typename` (e.g. `ApprovedAuthorization`, `Sale`, `DeclinedAuthorization`) drives the
-/// attempt-status mapping in `map_sync_status`.
-pub const SYNC_TRANSACTION: &str = "query PaymentTransaction($paymentTransactionId: UUID!) {
-  paymentTransaction(id: $paymentTransactionId) {
-    __typename
-    responseType
-    reference
-    id
-    paymentId
-    ... on AcceptedSale { __typename id processorResponseCode processorResponseMessage }
-    ... on ApprovedAuthorization { __typename id processorResponseCode processorResponseMessage }
-    ... on ApprovedCapture { __typename id processorResponseCode processorResponseMessage }
-    ... on ApprovedReversal { __typename id processorResponseCode processorResponseMessage }
-    ... on DeclinedAuthorization { __typename id processorResponseCode processorResponseMessage }
-    ... on DeclinedCapture { __typename id processorResponseCode processorResponseMessage }
-    ... on DeclinedReversal { __typename id processorResponseCode processorResponseMessage }
-    ... on GenericPaymentTransaction { __typename id processorResponseCode processorResponseMessage }
-    ... on Authorization { __typename id processorResponseCode processorResponseMessage }
-    ... on Capture { __typename id processorResponseCode processorResponseMessage }
-    ... on Reversal { __typename id processorResponseCode processorResponseMessage }
-    ... on Sale { __typename id processorResponseCode processorResponseMessage }
-  }
-}";
+/// GraphQL query/mutation documents for the Tesouro connector, kept in a dedicated module
+/// (mirrors the Hyperswitch `tesouro_queries` layout).
+pub mod tesouro_queries;
 
 // =============================================================================
 // Auth
@@ -637,7 +507,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         };
         Ok(Self {
-            query: SETUP_MANDATE.to_string(),
+            query: tesouro_queries::SETUP_MANDATE.to_string(),
             variables: TesouroVerifyAccountVariables {
                 verify_account_input: TesouroVerifyAccountInput {
                     acceptor_id: auth.acceptor_id,
@@ -753,7 +623,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         )?;
 
         Ok(Self {
-            query: AUTHORIZE_TRANSACTION.to_string(),
+            query: tesouro_queries::AUTHORIZE_TRANSACTION.to_string(),
             variables: TesouroAuthorizeVariables {
                 authorize_customer_initiated_transaction_input:
                     AuthorizeCustomerInitiatedTransactionInput {
@@ -950,7 +820,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         )?;
 
         Ok(Self {
-            query: AUTHORIZE_RECURRING.to_string(),
+            query: tesouro_queries::AUTHORIZE_RECURRING.to_string(),
             variables: TesouroRecurringVariables {
                 authorize_recurring_input: AuthorizeRecurringTransactionInput {
                     acceptor_id: auth.acceptor_id,
@@ -1028,7 +898,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 context: Default::default(),
             })?;
         Ok(Self {
-            query: SYNC_TRANSACTION.to_string(),
+            query: tesouro_queries::SYNC_TRANSACTION.to_string(),
             variables: TesouroSyncVariables {
                 payment_transaction_id,
             },
