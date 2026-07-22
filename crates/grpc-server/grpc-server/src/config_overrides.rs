@@ -7,7 +7,7 @@ use std::{
 };
 use tonic::body::Body;
 use tower::{Layer, Service};
-use ucs_env::configs::Config;
+use ucs_env::{configs::Config, error::IntoGrpcStatus};
 // Simple middleware layer for Tonic
 #[derive(Clone)]
 pub struct RequestExtensionsLayer {
@@ -64,9 +64,7 @@ where
                 req.extensions_mut().insert(cfg);
             }
             Err(e) => {
-                let err = tonic::Status::internal(format!(
-                    "Failed to merge config with override config: {e:?}"
-                ));
+                let err = e.into_grpc_status();
                 let fut = async move { Err(err) };
                 return Box::pin(fut);
             }

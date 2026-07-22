@@ -62,6 +62,10 @@ pub fn create_router(state: AppState) -> Router {
             post(handlers::composite::payment_methods::recharge),
         )
         .route(
+            "/composite/pre_authenticate",
+            post(handlers::composite::payments::pre_authenticate),
+        )
+        .route(
             "/composite/frm/pre_risk_check",
             post(handlers::composite::frm::pre_risk_check),
         )
@@ -108,6 +112,10 @@ pub fn create_router(state: AppState) -> Router {
         .route(
             "/payments/repeat_everything",
             post(handlers::payments::repeat_everything),
+        )
+        .route(
+            "/payments/revoke_mandate",
+            post(handlers::payments::revoke_mandate),
         )
         .route("/payments/refund", post(handlers::payments::refund))
         // .route("/payments/dispute", post(handlers::payments::dispute))

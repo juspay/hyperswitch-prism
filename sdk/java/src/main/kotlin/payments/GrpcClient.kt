@@ -147,6 +147,11 @@ class GrpcCustomerClient internal constructor(
      */
     suspend fun customer_create(req: CustomerServiceCreateRequest): CustomerServiceCreateResponse =
         callGrpc(config, "customer/customer_create", req, CustomerServiceCreateResponse.parser())
+    /**
+     * CustomerService.Get — Retrieves customer details from the payment processor. Callers typically use this before Create to implement get-or-create semantics for connectors that reject duplicates (e.g. Glomopay).
+     */
+    suspend fun customer_get(req: CustomerServiceGetRequest): CustomerServiceGetResponse =
+        callGrpc(config, "customer/customer_get", req, CustomerServiceGetResponse.parser())
 }
 
 /**

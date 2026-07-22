@@ -854,6 +854,7 @@ macros::macro_connector_flow_status_impls!(
         Accept,
         ServerSessionAuthenticationToken,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         PreAuthenticate,
         Authenticate,
         PostAuthenticate,

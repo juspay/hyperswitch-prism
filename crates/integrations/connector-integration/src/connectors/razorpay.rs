@@ -968,6 +968,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         Ok(RefundWebhookDetailsResponse {
             connector_refund_id: Some(notif.entity.id),
+            merchant_transaction_id: None,
             status: transformers::get_razorpay_refund_webhook_status(
                 notif.entity.entity,
                 notif.entity.status,
@@ -1359,6 +1360,7 @@ macros::macro_connector_flow_status_impls!(
         ClientAuthenticationToken,
         ServerAuthenticationToken,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         RepeatPayment,
     ],
     not_supported: [

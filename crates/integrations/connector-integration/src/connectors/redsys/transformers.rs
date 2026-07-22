@@ -286,6 +286,7 @@ where
             | Some(PaymentMethodData::NetworkToken(..))
             | Some(PaymentMethodData::CardDetailsForNetworkTransactionId(_))
             | Some(PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_))
+            | Some(PaymentMethodData::CardWithNoCvc(_))
             | None => Err(IntegrationError::NotImplemented(
                 domain_types::utils::get_unimplemented_payment_method_error_message("redsys"),
                 Default::default(),
@@ -577,6 +578,12 @@ fn get_preauthenticate_response(
         transaction_id: None,
         exemption_indicator: None,
         network_params: None,
+        created_at: None,
+        challenge_code: None,
+        challenge_cancel: None,
+        challenge_code_reason: None,
+        message_extension: None,
+        authentication_type: None,
     });
 
     match &emv3ds.three_d_s_method_u_r_l {
@@ -699,6 +706,12 @@ fn get_payments_response(
         transaction_id: None,
         exemption_indicator: None,
         network_params: None,
+        created_at: None,
+        challenge_code: None,
+        challenge_cancel: None,
+        challenge_code_reason: None,
+        message_extension: None,
+        authentication_type: None,
     });
 
     let ds_order = redsys_payments_response.ds_order.clone();
@@ -964,7 +977,11 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResp
                         .error_code_description
                         .clone()
                         .unwrap_or_else(|| err.error_code.clone()),
-                    reason: err.error_code_description.clone(),
+                    reason: Some(
+                        err.error_code_description
+                            .clone()
+                            .unwrap_or_else(|| err.error_code.clone()),
+                    ),
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
@@ -1156,7 +1173,11 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResp
                         .error_code_description
                         .clone()
                         .unwrap_or_else(|| err.error_code.clone()),
-                    reason: err.error_code_description.clone(),
+                    reason: Some(
+                        err.error_code_description
+                            .clone()
+                            .unwrap_or_else(|| err.error_code.clone()),
+                    ),
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,

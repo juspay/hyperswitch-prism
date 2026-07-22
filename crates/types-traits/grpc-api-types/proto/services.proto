@@ -278,8 +278,10 @@ service CustomerService {
   // for future payment operations without re-sending personal information.
   rpc Create(CustomerServiceCreateRequest) returns (CustomerServiceCreateResponse);
 
-  // // Retrieves customer details from the payment processor.
-  // rpc Get(CustomerServiceGetRequest) returns (CustomerServiceGetResponse);
+  // Retrieves customer details from the payment processor. Callers typically use
+  // this before Create to implement get-or-create semantics for connectors that
+  // reject duplicates (e.g. Glomopay).
+  rpc Get(CustomerServiceGetRequest) returns (CustomerServiceGetResponse);
 
   // // Updates customer record in the payment processor system.
   // rpc Update(CustomerServiceUpdateRequest) returns (CustomerServiceUpdateResponse);

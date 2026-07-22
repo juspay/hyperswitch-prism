@@ -881,6 +881,7 @@ macros::macro_connector_flow_status_impls!(
     not_implemented: [
         PaymentMethodToken,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         PreAuthenticate,
         Authenticate,
         PostAuthenticate,

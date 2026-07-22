@@ -214,7 +214,7 @@ impl
     ) -> CustomResult<String, IntegrationError> {
         Ok(format!(
             "{}api/v1/transactions/outgoing/send_to_interac",
-            &req.resource_common_data.connectors.loonio.base_url
+            req.resource_common_data.connectors.loonio.base_url
         ))
     }
 
@@ -312,7 +312,7 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
         )?;
         Ok(format!(
             "{}api/v1/transactions/{}/details",
-            &req.resource_common_data.connectors.loonio.base_url, connector_payout_id
+            req.resource_common_data.connectors.loonio.base_url, connector_payout_id
         ))
     }
 

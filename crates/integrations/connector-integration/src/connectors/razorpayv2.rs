@@ -882,6 +882,7 @@ macros::macro_connector_flow_status_impls!(
     [PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
     not_implemented: [
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         Capture,
         SetupMandate,
         Accept,

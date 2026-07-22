@@ -15,6 +15,7 @@ pub mod metadata;
 pub mod new_types;
 pub mod pii;
 pub mod request;
+pub mod request_metrics;
 #[cfg(feature = "superposition")]
 pub mod superposition_config;
 pub mod types;

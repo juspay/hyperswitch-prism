@@ -4,7 +4,7 @@ use josekit::jwt;
 use common_utils::{
     consts,
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
-    ext_traits::{OptionExt, ValueExt},
+    ext_traits::{BytesExt, OptionExt, ValueExt},
     pii,
     types::{SemanticVersion, StringMajorUnit},
 };
@@ -41,7 +41,7 @@ use domain_types::{
     },
     router_data_v2::RouterDataV2,
     router_request_types,
-    router_response_types::RedirectForm,
+    router_response_types::{RedirectForm, Response},
     utils::{to_currency_base_unit, CardIssuer},
 };
 use error_stack::ResultExt;
@@ -98,6 +98,8 @@ pub struct CybersourceZeroMandateRequest<
     payment_information: PaymentInformation<T>,
     order_information: OrderInformationWithBill,
     client_reference_information: ClientReferenceInformation,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    consumer_authentication_information: Option<CybersourceConsumerAuthInformation>,
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -313,7 +315,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     | WalletData::CashfreeRedirect(_)
                     | WalletData::PayURedirect(_)
                     | WalletData::EaseBuzzRedirect(_)
-                    | WalletData::QwikcilverWalletDirect(_) => {
+                    | WalletData::QwikcilverWalletDirect(_)
+                    | WalletData::Skrill(_) => {
                         Err(error_stack::report!(IntegrationError::NotSupported {
                             message:
                                 domain_types::utils::get_unimplemented_payment_method_error_message(
@@ -333,6 +336,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | PaymentMethodData::MandatePayment
                 | PaymentMethodData::Reward
                 | PaymentMethodData::RealTimePayment(_)
+                | PaymentMethodData::CardWithNoCvc(_)
                 | PaymentMethodData::MobilePayment(_)
                 | PaymentMethodData::Upi(_)
                 | PaymentMethodData::Voucher(_)
@@ -363,11 +367,29 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             payment_solution: solution.map(String::from),
             bank_transfer_options: None,
         };
+
+        // Mirror Hyperswitch's cybersource zero-mandate builder: when external 3DS
+        // authentication data is present on a card payment, populate
+        // consumerAuthenticationInformation so the UCS request matches HS.
+        let consumer_authentication_information =
+            match &item.router_data.request.payment_method_data {
+                PaymentMethodData::Card(ccard) => item
+                    .router_data
+                    .request
+                    .authentication_data
+                    .as_ref()
+                    .map(|authn_data| {
+                        build_consumer_auth_information(authn_data, ccard.card_network.as_ref())
+                    }),
+                _ => None,
+            };
+
         Ok(Self {
             processing_information,
             payment_information,
             order_information,
             client_reference_information,
+            consumer_authentication_information,
         })
     }
 }
@@ -493,6 +515,12 @@ fn get_authentication_data_for_validation_response(
         transaction_id: response.validate_response.xid,
         exemption_indicator: None,
         network_params: None,
+        created_at: None,
+        challenge_code: None,
+        challenge_cancel: None,
+        challenge_code_reason: None,
+        message_extension: None,
+        authentication_type: None,
     }
 }
 
@@ -538,6 +566,12 @@ fn get_authentication_data_for_authenticate_response(
         ucaf_collection_indicator: validate_response.ucaf_collection_indicator.clone(),
         exemption_indicator: None,
         network_params: None,
+        created_at: None,
+        challenge_code: None,
+        challenge_cancel: None,
+        challenge_code_reason: None,
+        message_extension: None,
+        authentication_type: None,
     }
 }
 
@@ -581,45 +615,6 @@ pub struct CybersourceConsumerAuthInformation {
     acs_transaction_id: Option<String>,
     /// This is the algorithm for generating a cardholder authentication verification value (CAVV) or universal cardholder authentication field (UCAF) data.
     cavv_algorithm: Option<String>,
-}
-
-impl From<router_request_types::AuthenticationData> for CybersourceConsumerAuthInformation {
-    fn from(value: router_request_types::AuthenticationData) -> Self {
-        let router_request_types::AuthenticationData {
-            eci: _,
-            cavv,
-            threeds_server_transaction_id: _,
-            message_version,
-            ds_trans_id,
-            trans_status: _,
-            acs_transaction_id: _,
-            transaction_id,
-            ucaf_collection_indicator,
-            exemption_indicator: _,
-            network_params: _,
-        } = value;
-
-        Self {
-            pares_status: None,
-            ucaf_collection_indicator,
-            ucaf_authentication_data: cavv.clone(),
-            xid: transaction_id,
-            cavv,
-            directory_server_transaction_id: ds_trans_id.map(Secret::new),
-            specification_version: None,
-            pa_specification_version: message_version,
-            veres_enrolled: None,
-            eci_raw: None,
-            authentication_date: None,
-            effective_authentication_type: None,
-            challenge_code: None,
-            signed_pares_status_reason: None,
-            challenge_cancel_code: None,
-            network_score: None,
-            acs_transaction_id: None,
-            cavv_algorithm: None,
-        }
-    }
 }
 
 #[derive(Debug, Serialize)]
@@ -1351,6 +1346,104 @@ fn build_bill_to(
     }
 }
 
+fn extract_score_id(message_extensions: &[MessageExtensionAttribute]) -> Option<u32> {
+    message_extensions.iter().find_map(|attr| {
+        attr.id
+            .ends_with("CB-SCORE")
+            .then(|| {
+                attr.id
+                    .split('_')
+                    .next()
+                    .and_then(|p| p.strip_prefix('A'))
+                    .and_then(|s| {
+                        s.parse::<u32>().map(Some).unwrap_or_else(|err| {
+                            tracing::error!("Failed to parse score_id from '{}': {}", s, err);
+                            None
+                        })
+                    })
+                    .or_else(|| {
+                        tracing::error!("Unexpected prefix format in id: {}", attr.id);
+                        None
+                    })
+            })
+            .flatten()
+    })
+}
+
+/// UCAF collection indicator "2" — Mastercard fully-authenticated transaction
+/// (UCAF data collected and populated).
+const MASTERCARD_UCAF_COLLECTION_INDICATOR: &str = "2";
+/// Verification response enrollment status "Y" — cardholder authenticated. For
+/// external authentication this is always "Y" (mirrors Hyperswitch).
+const VERES_ENROLLED_AUTHENTICATED: &str = "Y";
+/// CAVV algorithm "2" — CVV with Authentication Transaction Number (ATN), the most
+/// common algorithm for 3DS 2.0 (Visa, Mastercard). Used as the default because the
+/// 3DS Server might not include `cavvAlgorithm` in the challenge response (mirrors
+/// Hyperswitch).
+const DEFAULT_CAVV_ALGORITHM: &str = "2";
+
+/// Builds the Cybersource `consumerAuthenticationInformation` block from external 3DS
+/// authentication data, mirroring Hyperswitch's construction at every call site: the
+/// card-network-aware ucaf/cavv split (Mastercard), `authenticationDate` formatted from
+/// `created_at`, and the Cartes Bancaires `networkScore` extracted from `message_extension`.
+fn build_consumer_auth_information(
+    authn_data: &router_request_types::AuthenticationData,
+    card_network: Option<&common_enums::CardNetwork>,
+) -> CybersourceConsumerAuthInformation {
+    let effective_authentication_type = authn_data.authentication_type.as_ref().map(Into::into);
+    let (ucaf_authentication_data, cavv, ucaf_collection_indicator) =
+        if card_network == Some(&common_enums::CardNetwork::Mastercard) {
+            (
+                authn_data.cavv.clone(),
+                None,
+                Some(MASTERCARD_UCAF_COLLECTION_INDICATOR.to_string()),
+            )
+        } else {
+            (None, authn_data.cavv.clone(), None)
+        };
+    let network_score = (card_network == Some(&common_enums::CardNetwork::CartesBancaires))
+        .then_some(authn_data.message_extension.as_ref())
+        .flatten()
+        .map(|secret| secret.clone().expose())
+        .and_then(|exposed| {
+            serde_json::from_value::<Vec<MessageExtensionAttribute>>(exposed)
+                .map_err(|err| {
+                    tracing::error!("Failed to deserialize message_extension: {:?}", err);
+                })
+                .ok()
+                .and_then(|exts| extract_score_id(&exts))
+        });
+    CybersourceConsumerAuthInformation {
+        // For all card payments, we are explicitly setting `pares_status` to
+        // `AuthenticationSuccessful` to indicate that the Payer Authentication was
+        // successful, regardless of actual ACS response (mirrors Hyperswitch).
+        pares_status: Some(CybersourceParesStatus::AuthenticationSuccessful),
+        ucaf_collection_indicator,
+        cavv,
+        ucaf_authentication_data,
+        xid: None,
+        directory_server_transaction_id: authn_data.ds_trans_id.clone().map(Secret::new),
+        specification_version: authn_data.message_version.clone(),
+        pa_specification_version: authn_data.message_version.clone(),
+        veres_enrolled: Some(VERES_ENROLLED_AUTHENTICATED.to_string()),
+        eci_raw: authn_data.eci.clone(),
+        authentication_date: authn_data.created_at.and_then(|created_at| {
+            common_utils::date_time::format_date(
+                created_at,
+                common_utils::date_time::DateFormat::YYYYMMDDHHmmss,
+            )
+            .ok()
+        }),
+        effective_authentication_type,
+        challenge_code: authn_data.challenge_code.clone(),
+        signed_pares_status_reason: authn_data.challenge_code_reason.clone(),
+        challenge_cancel_code: authn_data.challenge_cancel.clone(),
+        network_score,
+        acs_transaction_id: authn_data.acs_transaction_id.clone(),
+        cavv_algorithm: Some(DEFAULT_CAVV_ALGORITHM.to_string()),
+    }
+}
+
 impl From<&common_enums::DecoupledAuthenticationType> for EffectiveAuthenticationType {
     fn from(auth_type: &common_enums::DecoupledAuthenticationType) -> Self {
         match auth_type {
@@ -1401,6 +1494,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let order_information = OrderInformationWithBill::try_from((item, Some(bill_to)))?;
 
         let raw_card_type = ccard.card_network.clone();
+        let card_network = ccard.card_network.clone();
 
         let card_type = match raw_card_type.clone().and_then(get_cybersource_card_type) {
             Some(card_network) => Some(card_network.to_string()),
@@ -1435,12 +1529,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             item.router_data.request.merchant_order_id.clone(),
         );
 
+        // Mirror Hyperswitch's cybersource authorize builder: when external 3DS
+        // authentication data is present on a card payment, populate
+        // consumerAuthenticationInformation so the UCS request matches HS.
         let consumer_authentication_information = item
             .router_data
             .request
             .authentication_data
-            .clone()
-            .map(From::from);
+            .as_ref()
+            .map(|authn_data| build_consumer_auth_information(authn_data, card_network.as_ref()));
         Ok(Self {
             processing_information,
             payment_information,
@@ -2432,7 +2529,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::CashfreeRedirect(_)
                 | WalletData::PayURedirect(_)
                 | WalletData::EaseBuzzRedirect(_)
-                | WalletData::QwikcilverWalletDirect(_) => {
+                | WalletData::QwikcilverWalletDirect(_)
+                | WalletData::Skrill(_) => {
                     Err(error_stack::report!(IntegrationError::NotSupported {
                         message:
                             domain_types::utils::get_unimplemented_payment_method_error_message(
@@ -2494,6 +2592,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Crypto(_)
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
@@ -2596,6 +2695,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
@@ -3365,6 +3465,7 @@ fn get_payment_response(
                             .map(|payment_instrument| payment_instrument.id.expose()),
                         payment_method_id: None,
                         connector_mandate_request_reference_id: None,
+                        mandate_metadata: None,
                     });
 
             Ok(PaymentsResponseData::TransactionResponse {
@@ -3623,6 +3724,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
@@ -3907,6 +4009,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
@@ -4318,6 +4421,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                         .map(|payment_instrument| payment_instrument.id.expose()),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
                 });
         let mut mandate_status = map_cybersource_attempt_status(
             item.response
@@ -4704,6 +4808,52 @@ pub enum Reason {
     ServiceTimeout,
 }
 
+/// std `TryFrom<&Response>` can't be implemented for the foreign `ErrorResponse`
+/// (orphan rule), so this crate-local trait carries the whole HTTP `Response`,
+/// giving the conversion both the parsed body and the status code.
+pub trait ForeignTryFrom<T>: Sized {
+    type Error;
+    fn foreign_try_from(value: T) -> Result<Self, Self::Error>;
+}
+
+impl ForeignTryFrom<&Response> for ErrorResponse {
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn foreign_try_from(res: &Response) -> Result<Self, Self::Error> {
+        // Cybersource returns a structured body on 5xx (e.g. HTTP 502
+        // `{"status":"SERVER_ERROR","reason":"SYSTEM_ERROR","message":"..."}`).
+        // Map `status` -> code/reason and `message` -> message, mirroring the Direct
+        // gateway so the shadow UCS `response.Err.*` match instead of the generic
+        // `bad_gateway` / HTTP-status discriminator.
+        let response: CybersourceServerErrorResponse = res
+            .response
+            .parse_struct("CybersourceServerErrorResponse")
+            .change_context(utils::response_deserialization_fail(
+                res.status_code,
+                "cybersource: 5xx response body did not match the expected server-error format.",
+            ))?;
+        let attempt_status = match response.reason {
+            Some(Reason::SystemError) => {
+                Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure))
+            }
+            Some(Reason::ServerTimeout) | Some(Reason::ServiceTimeout) | None => None,
+        };
+        Ok(Self {
+            status_code: res.status_code,
+            reason: response.status.clone(),
+            code: response.status.unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+            message: response
+                .message
+                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+            attempt_status,
+            connector_transaction_id: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
+        })
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct CybersourceAuthenticationErrorResponse {
     pub response: AuthenticationErrorInformation,
@@ -4945,6 +5095,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | PaymentMethodData::Crypto(_)
                 | PaymentMethodData::Reward
                 | PaymentMethodData::RealTimePayment(_)
+                | PaymentMethodData::CardWithNoCvc(_)
                 | PaymentMethodData::MobilePayment(_)
                 | PaymentMethodData::Upi(_)
                 | PaymentMethodData::Voucher(_)
@@ -5126,8 +5277,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .router_data
             .request
             .authentication_data
-            .clone()
-            .map(From::from);
+            .as_ref()
+            .map(|authn_data| {
+                build_consumer_auth_information(authn_data, ccard.card_network.as_ref())
+            });
 
         Ok(Self {
             processing_information,
@@ -5214,8 +5367,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .router_data
             .request
             .authentication_data
-            .clone()
-            .map(From::from);
+            .as_ref()
+            .map(|authn_data| {
+                build_consumer_auth_information(authn_data, token_data.card_network.as_ref())
+            });
 
         Ok(Self {
             processing_information,
@@ -5360,7 +5515,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     None,
                     None,
                     Some(CybersourceAuthorizationOptions {
-                        initiator: None,
+                        initiator: Some(CybersourcePaymentInitiator {
+                            initiator_type: Some(CybersourcePaymentInitiatorTypes::Merchant),
+                            credential_stored_on_file: None,
+                            stored_credential_used: Some(true),
+                        }),
                         merchant_initiated_transaction: Some(MerchantInitiatedTransaction {
                             reason: None,
                             original_authorized_amount,
@@ -5434,7 +5593,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         merchant_initiated_transaction: Some(MerchantInitiatedTransaction {
                             reason: Some("7".to_string()),
                             original_authorized_amount,
-                            previous_transaction_id: Some(Secret::new(network_transaction_id)),
+                            previous_transaction_id: Some(Secret::new(
+                                network_transaction_id.network_transaction_id,
+                            )),
                         }),
                         ignore_avs_result: connector_merchant_config.disable_avs,
                         ignore_cv_result: connector_merchant_config.disable_cvn,

@@ -130,6 +130,13 @@ class GrpcCustomerClient:
             "customer/customer_create",
             req, payment_pb2.CustomerServiceCreateResponse,
         )
+    def customer_get(self, req: payment_pb2.CustomerServiceGetRequest) -> payment_pb2.CustomerServiceGetResponse:
+        """CustomerService.Get — Retrieves customer details from the payment processor. Callers typically use this before Create to implement get-or-create semantics for connectors that reject duplicates (e.g. Glomopay)."""
+        return _call_grpc(
+            self._ffi, self._config,
+            "customer/customer_get",
+            req, payment_pb2.CustomerServiceGetResponse,
+        )
 
 class GrpcDisputeClient:
     """DisputeService — gRPC sub-client."""

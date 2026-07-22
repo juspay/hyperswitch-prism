@@ -1,3 +1,5 @@
+pub mod profile;
+pub mod rules;
 pub mod transformers;
 
 use std::fmt::Debug;
@@ -731,6 +733,7 @@ macros::macro_connector_flow_status_impls!(
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     not_implemented: [
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         CreateOrder,
         IncrementalAuthorization,
         PaymentMethodToken,
