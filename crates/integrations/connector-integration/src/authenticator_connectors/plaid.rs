@@ -3,7 +3,12 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use common_enums::CurrencyUnit;
-use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
+use common_utils::{
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
+    errors::CustomResult,
+    events,
+    ext_traits::ByteSliceExt,
+};
 use domain_types::{
     connector_flow::{ClientAuthenticationToken, GetPaymentMethod, PaymentMethodToken},
     connector_types::{
@@ -126,12 +131,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             code: response
                 .error_code
                 .clone()
-                .unwrap_or_else(|| "UNKNOWN".to_string()),
+                .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
             message: response
                 .display_message
                 .clone()
                 .or(response.error_message.clone())
-                .unwrap_or_else(|| "Unknown Plaid error".to_string()),
+                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
             reason: response.error_message.or(response.display_message),
             attempt_status: None,
             connector_transaction_id: None,
@@ -154,9 +159,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Plaid<T>
 {
-    fn should_do_access_token(&self, _payment_method: Option<common_enums::PaymentMethod>) -> bool {
-        false
-    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

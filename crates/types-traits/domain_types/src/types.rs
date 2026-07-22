@@ -12999,6 +12999,15 @@ pub fn generate_create_payment_method_token_response<T: PaymentMethodDataTypes>(
     grpc_api_types::payments::PaymentMethodServiceTokenizeResponse,
     error_stack::Report<ConnectorError>,
 > {
+    let raw_connector_response = router_data_v2
+        .resource_common_data
+        .get_raw_connector_response();
+    let raw_connector_request = router_data_v2
+        .resource_common_data
+        .get_raw_connector_request();
+    let response_headers = router_data_v2
+        .resource_common_data
+        .get_connector_response_headers_as_map();
     let token_response = router_data_v2.response;
 
     match token_response {
@@ -13009,12 +13018,12 @@ pub fn generate_create_payment_method_token_response<T: PaymentMethodDataTypes>(
                     payment_method_token: response.token,
                     error: None,
                     status_code: 200,
-                    response_headers: router_data_v2
-                        .resource_common_data
-                        .get_connector_response_headers_as_map(),
+                    response_headers,
                     merchant_payment_method_id: Some(token_clone),
                     state: None,
                     connector_payment_method_id: response.connector_payment_method_id,
+                    raw_connector_response,
+                    raw_connector_request,
                 },
             )
         }
@@ -13033,12 +13042,12 @@ pub fn generate_create_payment_method_token_response<T: PaymentMethodDataTypes>(
                     issuer_details: Some(grpc_payment_types::IssuerErrorDetails::from(&e)),
                 }),
                 status_code: e.status_code as u32,
-                response_headers: router_data_v2
-                    .resource_common_data
-                    .get_connector_response_headers_as_map(),
+                response_headers,
                 merchant_payment_method_id: e.connector_transaction_id,
                 state: None,
                 connector_payment_method_id: None,
+                raw_connector_response,
+                raw_connector_request,
             },
         ),
     }

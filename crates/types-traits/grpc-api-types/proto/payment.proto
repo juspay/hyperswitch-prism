@@ -4226,6 +4226,9 @@ message PaymentMethodServiceTokenizeResponse {
   optional ConnectorState state = 6;
 
   optional string connector_payment_method_id = 7; // Connector-issued payment method ID
+
+  optional SecretString raw_connector_response = 8;
+  optional SecretString raw_connector_request = 9;
 }
 
 message PaymentMethodServiceCreateRequest {
