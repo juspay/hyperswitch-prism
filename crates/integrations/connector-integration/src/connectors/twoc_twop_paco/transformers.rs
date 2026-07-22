@@ -12,7 +12,8 @@ use domain_types::{
     connector_types::{
         self, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
         PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
+        RawConnectorStatus, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        ResponseId,
     },
     errors,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, WalletData},
@@ -1737,11 +1738,13 @@ where
             .clone()
             .map(ResponseId::ConnectorTransactionId)
             .unwrap_or(ResponseId::NoResponseId);
+        let raw_connector_status = raw_connector_status_from_paco(&api_response, &prior);
 
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
                 raw_connector_response: serde_json::to_string(&response).ok().map(Secret::new),
+                raw_connector_status,
                 ..router_data.resource_common_data
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -1806,11 +1809,13 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
         let resource_id = txn_id
             .map(ResponseId::ConnectorTransactionId)
             .unwrap_or(ResponseId::NoResponseId);
+        let raw_connector_status = raw_connector_status_from_paco(&api_response, &prior);
 
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
                 raw_connector_response: serde_json::to_string(&response).ok().map(Secret::new),
+                raw_connector_status,
                 ..router_data.resource_common_data
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -1875,11 +1880,13 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
         let resource_id = txn_id
             .map(ResponseId::ConnectorTransactionId)
             .unwrap_or(ResponseId::NoResponseId);
+        let raw_connector_status = raw_connector_status_from_paco(&api_response, &prior);
 
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
                 raw_connector_response: serde_json::to_string(&response).ok().map(Secret::new),
+                raw_connector_status,
                 ..router_data.resource_common_data
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -1944,11 +1951,13 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
         let resource_id = txn_id
             .map(ResponseId::ConnectorTransactionId)
             .unwrap_or(ResponseId::NoResponseId);
+        let raw_connector_status = raw_connector_status_from_paco(&api_response, &prior);
 
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
                 raw_connector_response: serde_json::to_string(&response).ok().map(Secret::new),
+                raw_connector_status,
                 ..router_data.resource_common_data
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -1982,6 +1991,9 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
             http_code,
         } = item;
         let result = response.flat_data_block();
+        let prior = result
+            .as_ref()
+            .and_then(|b| b.prior_payment_response_details.clone());
 
         let refund_status = match result.as_ref().and_then(|b| b.payment_status_info.as_ref()) {
             Some(info) => map_refund_status(&info.payment_status, &info.payment_step),
@@ -1994,10 +2006,7 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
             .unwrap_or_else(|| router_data.request.refund_id.clone());
 
         if refund_status == RefundStatus::Failure {
-            let (code, message) = error_code_message(
-                &response.api_response,
-                &result.and_then(|b| b.prior_payment_response_details),
-            );
+            let (code, message) = error_code_message(&response.api_response, &prior);
             let error = ErrorResponse {
                 code,
                 message: message.clone(),
@@ -2020,10 +2029,13 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
             });
         }
 
+        let raw_connector_status = raw_connector_status_from_paco(&response.api_response, &prior);
+
         Ok(Self {
             resource_common_data: RefundFlowData {
                 status: refund_status,
                 raw_connector_response: serde_json::to_string(&response).ok().map(Secret::new),
+                raw_connector_status,
                 ..router_data.resource_common_data
             },
             response: Ok(RefundsResponseData {
@@ -2190,11 +2202,13 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoInquiryResponse, Self>>
             .clone()
             .map(ResponseId::ConnectorTransactionId)
             .unwrap_or(ResponseId::NoResponseId);
+        let raw_connector_status = raw_connector_status_from_paco(&response.api_response, &None);
 
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
                 raw_connector_response: serde_json::to_string(&response).ok().map(Secret::new),
+                raw_connector_status,
                 ..router_data.resource_common_data
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -2289,10 +2303,13 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoInquiryResponse, Self>>
             });
         }
 
+        let raw_connector_status = raw_connector_status_from_paco(&response.api_response, &None);
+
         Ok(Self {
             resource_common_data: RefundFlowData {
                 status: refund_status,
                 raw_connector_response: serde_json::to_string(&response).ok().map(Secret::new),
+                raw_connector_status,
                 ..router_data.resource_common_data
             },
             response: Ok(RefundsResponseData {
@@ -2349,6 +2366,41 @@ pub fn error_code_message(
         .or(api_msg)
         .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string());
     (code, message)
+}
+
+/// Builds the raw connector status from PACO's `response_code` / `response_description`.
+/// Prefer the prior-payment details when present, fall back to the top-level `api_response`.
+fn raw_connector_status_from_paco(
+    api_response: &Option<PacoApiResponse>,
+    prior: &Option<PacoPriorPaymentResponseDetails>,
+) -> Option<RawConnectorStatus> {
+    let code = prior
+        .as_ref()
+        .and_then(|p| p.response_code.clone())
+        .or_else(|| api_response.as_ref().and_then(|a| a.response_code.clone()));
+    let message = prior
+        .as_ref()
+        .and_then(|p| p.response_description.clone())
+        .or_else(|| {
+            api_response
+                .as_ref()
+                .and_then(|a| a.response_description.clone())
+        });
+
+    let status = (code.is_some() || message.is_some()).then_some(RawConnectorStatus {
+        code: code.clone(),
+        message: message.clone(),
+        reason: None,
+    });
+    tracing::debug!(
+        connector = "twoc_twop_paco",
+        raw_code = ?code,
+        raw_message = ?message,
+        raw_reason = ?None::<String>,
+        status_present = status.is_some(),
+        "populating raw_connector_status"
+    );
+    status
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
