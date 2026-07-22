@@ -4622,6 +4622,12 @@ impl ForeignTryFrom<grpc_api_types::payments::OrderDetailsWithAmount> for OrderD
                 .unit_discount_amount
                 .map(common_utils::types::MinorUnit::new),
             total_amount: None,
+            discount_name: item
+                .discount_name,
+            discount_percentage: item.discount_percentage,
+            discount_type: item
+                .discount_type
+
         })
     }
 }

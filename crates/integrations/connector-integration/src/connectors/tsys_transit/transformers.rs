@@ -761,6 +761,14 @@ pub struct TsysTransitCardAuthenticationRequest {
         skip_serializing_if = "Option::is_none"
     )]
     pub m_pos_acceptance_device_type: Option<String>,
+    #[serde(rename = "acceptorStreetAddress", skip_serializing_if = "Option::is_none")]
+    pub acceptor_street_address: Option<Secret<String>>,
+    #[serde(rename = "acceptorCustomerServicePhoneNumber", skip_serializing_if = "Option::is_none")]
+    pub acceptor_customer_service_phone_number: Option<Secret<String>>,
+    #[serde(rename = "acceptorPhoneNumber", skip_serializing_if = "Option::is_none")]
+    pub acceptor_phone_number: Option<Secret<String>>,
+    #[serde(rename = "acceptorURLAddress", skip_serializing_if = "Option::is_none")]
+    pub acceptor_u_r_l_address: Option<url::Url>,
 }
 
 impl GetSoapXml for TsysTransitCardAuthenticationRequest {
@@ -3371,6 +3379,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let auth = TsysTransitAuthType::try_from(&router_data.connector_config)?;
+        let is_ecommerce_payment = matches!(
+            router_data.request.payment_channel,
+            Some(PaymentChannel::Ecommerce) | None
+        );
+
+        if matches!(router_data.request.setup_future_usage, Some(FutureUsage::OffSession)) && is_ecommerce_payment {
+            return Err(IntegrationError::NotSupported {
+                    message: "off-session e-commerce payments are not supported".to_string(),
+                    connector: "tsysTransit",
+                    context: Default::default(),
+                }
+                .into());
+        };
 
         let card = match &router_data.request.payment_method_data {
             PaymentMethodData::Card(card) => card,
@@ -3408,11 +3429,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let (cardholder_first_name, cardholder_last_name) =
             split_domain_full_name(card.card_holder_name.clone());
         let is_visa_card_auth = matches!(card.card_network, Some(CardNetwork::Visa));
-        let is_ecommerce_payment = matches!(
-            router_data.request.payment_channel,
-            Some(PaymentChannel::Ecommerce) | None
-        );
-
         let first_name = if is_visa_card_auth && !is_ecommerce_payment {
             billing
                 .and_then(|a| a.first_name.clone())
@@ -3441,6 +3457,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let profile = TxProfile::derive_for_card_authentication(router_data);
         let terminal_data = rules::terminal_data::terminal_data(&profile);
         let cvv_present = !card.card_cvc.peek().is_empty();
+
 
         // ── terminalData fields (profile/rules only, no merchant override) ─
         let rules::terminal_data::ResolvedTerminalData {
@@ -3474,6 +3491,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let cit_status_indicator = rules::cof_mit::cit_status_indicator(&profile);
         let m_pos_acceptance_device_type =
             (!is_ecommerce_payment).then_some(POS_ACCEPTANCE_DEVICE_TYPE.to_string());
+
+        let merchant_acceptor_info = build_merchant_acceptor_info(
+        &auth,
+        card.card_network.as_ref(),
+        router_data.request.payment_channel.as_ref(),
+    )?;
 
         Ok(Self {
             device_id: auth.device_id,
@@ -3515,6 +3538,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             authorization_indicator,
             card_on_file,
             cit_status_indicator,
+            acceptor_street_address: merchant_acceptor_info.as_ref().map(|info| info.street_address.clone()),
+            acceptor_customer_service_phone_number: merchant_acceptor_info.as_ref().map(|info| info.customer_service_phone_number.clone()),
+            acceptor_phone_number: merchant_acceptor_info.as_ref().map(|info| info.phone_number.clone()),
+            acceptor_u_r_l_address: merchant_acceptor_info.as_ref().map(|info| info.url.clone()),
         })
     }
 }
@@ -3605,7 +3632,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         Ok(Self {
             resource_common_data: PaymentFlowData {
-                status: AttemptStatus::Authorized,
+                status: AttemptStatus::Charged,
                 ..router_data.resource_common_data.clone()
             },
             response: Ok(payments_response_data),
