@@ -538,6 +538,8 @@ static PPRO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
             mandates: FeatureStatus::NotSupported,
             refunds: FeatureStatus::Supported,
             supported_capture_methods: ppro_bridge_supported_capture_methods.clone(),
+            supported_countries: Vec::new(),
+            supported_currencies: Vec::new(),
             specific_features: None,
         },
     );
@@ -583,6 +585,8 @@ static PPRO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
             mandates: FeatureStatus::NotSupported,
             refunds: FeatureStatus::Supported,
             supported_capture_methods: ppro_bridge_supported_capture_methods.clone(),
+            supported_countries: Vec::new(),
+            supported_currencies: Vec::new(),
             specific_features: None,
         },
     );

@@ -17,7 +17,10 @@ use grpc_api_types::payments::{
 use interfaces::connector_types::ConnectorServiceTrait;
 use strum::IntoEnumIterator;
 use tonic::{Request, Response, Status};
-use ucs_env::{configs::Config, error::IntoGrpcStatus};
+use ucs_env::{
+    configs::Config,
+    error::{IntoGrpcStatus, ResultExtGrpc},
+};
 
 use crate::utils;
 
@@ -98,7 +101,7 @@ impl ConnectorCapabilityService for ConnectorCapability {
         &self,
         request: Request<FeatureMatrixRequest>,
     ) -> Result<Response<GrpcFeatureMatrixResponse>, Status> {
-        let config = utils::get_config_from_request(&request)?;
+        let config = utils::get_config_from_request(&request).into_grpc_status()?;
         let request = request.into_inner();
         let connectors = request
             .connectors
