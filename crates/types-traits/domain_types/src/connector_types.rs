@@ -157,6 +157,7 @@ pub enum ConnectorEnum {
     Flywire,
     Affirm,
     Kount,
+    Givepayments,
     Tesouro,
 }
 
@@ -458,6 +459,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Kount => Ok(Self::Kount),
             grpc_api_types::payments::Connector::Tesouro => Ok(Self::Tesouro),
             grpc_api_types::payments::Connector::Glomopay => Ok(Self::Glomopay),
+            grpc_api_types::payments::Connector::Givepayments => Ok(Self::Givepayments),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -3484,6 +3486,7 @@ pub struct RepeatPaymentData<T: PaymentMethodDataTypes> {
     pub split_payments: Option<SplitPaymentsDetails>,
     pub recurring_mandate_payment_data: Option<router_data::RecurringMandatePaymentData>,
     pub shipping_cost: Option<MinorUnit>,
+    pub payment_channel: Option<PaymentChannel>,
     pub mit_category: Option<common_enums::MitCategory>,
     pub enable_partial_authorization: Option<bool>,
     pub billing_descriptor: Option<BillingDescriptor>,
@@ -5334,6 +5337,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Tamara(_) => Ok(Self::Payment(ConnectorEnum::Tamara)),
             AuthType::Flywire(_) => Ok(Self::Payment(ConnectorEnum::Flywire)),
             AuthType::Affirm(_) => Ok(Self::Payment(ConnectorEnum::Affirm)),
+            AuthType::Givepayments(_) => Ok(Self::Payment(ConnectorEnum::Givepayments)),
         }
     }
 }

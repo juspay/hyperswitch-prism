@@ -302,6 +302,14 @@ payment_methods: Interac
 flows: authorize, get, refund
 examples_python: none
 
+## Givepayments
+connector_id: givepayments
+doc: docs/connectors/givepayments.md
+scenarios: none
+payment_methods: none
+flows: get, handle_event, parse_event, recurring_charge, refund, refund_get
+examples_python: none
+
 ## Globalpay
 connector_id: globalpay
 doc: docs/connectors/globalpay.md
@@ -531,7 +539,7 @@ connector_id: paysafe
 doc: docs/connectors/paysafe.md
 scenarios: none
 payment_methods: PaySafeCard
-flows: authorize, capture, customer_create, get, refund, refund_get, token_authorize
+flows: authenticate, authorize, capture, customer_create, get, pre_authenticate, refund, refund_get, token_authorize
 examples_python: none
 
 ## Paytm
@@ -594,7 +602,7 @@ examples_python: examples/powertranz/powertranz.py
 connector_id: ppro
 doc: docs/connectors/ppro.md
 scenarios: none
-payment_methods: AliPayRedirect, BancontactCard, Blik, Ideal, MbWay, Satispay, UpiIntent, UpiQr, WeChatPayQr, Wero
+payment_methods: AliPayRedirect, BancontactCard, Blik, Ideal, MbWay, Satispay, Trustly, UpiIntent, UpiQr, WeChatPayQr, Wero
 flows: authorize, capture, get, handle_event, parse_event, recurring_charge, refund, refund_get, verify_redirect, void
 examples_python: none
 
