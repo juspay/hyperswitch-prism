@@ -341,8 +341,56 @@ fn create_art_runtime_for_request(
     }
 }
 
-fn art_order_id_from_metadata(metadata_payload: &MetadataPayload) -> String {
-    metadata_payload.reference_id.clone().unwrap_or_default()
+fn art_order_id_from_request<T: Serialize>(
+    payload: &T,
+    metadata_payload: &MetadataPayload,
+) -> String {
+    art_order_id_from_payload(payload)
+        .or_else(|| metadata_payload.reference_id.clone())
+        .unwrap_or_default()
+}
+
+fn art_order_id_from_payload<T: Serialize>(payload: &T) -> Option<String> {
+    let payload = serde_json::to_value(payload).ok()?;
+    extract_art_order_id_from_payload_value(&payload)
+}
+
+fn extract_art_order_id_from_payload_value(payload: &Value) -> Option<String> {
+    payload
+        .get("metadata")
+        .and_then(extract_order_id_from_metadata_value)
+        .or_else(|| non_empty_string(payload.get("merchant_order_id")))
+}
+
+fn extract_order_id_from_metadata_value(metadata: &Value) -> Option<String> {
+    extract_order_id_from_metadata_json(metadata).or_else(|| {
+        let metadata_value = match metadata {
+            Value::Object(map) => map.get("value"),
+            Value::String(_) => Some(metadata),
+            _ => None,
+        }?;
+        let metadata_str = metadata_value.as_str()?.trim();
+        if metadata_str.is_empty() {
+            return None;
+        }
+        serde_json::from_str::<Value>(metadata_str)
+            .ok()
+            .and_then(|metadata_json| extract_order_id_from_metadata_json(&metadata_json))
+    })
+}
+
+fn extract_order_id_from_metadata_json(metadata: &Value) -> Option<String> {
+    ["metadata[order_id]", "order_id"]
+        .into_iter()
+        .find_map(|key| non_empty_string(metadata.get(key)))
+}
+
+fn non_empty_string(value: Option<&Value>) -> Option<String> {
+    value
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned)
 }
 
 fn art_metadata_entry_from_request(
@@ -683,7 +731,8 @@ where
             flow_name,
             service_name,
         );
-        let art_order_id = art_order_id_from_metadata(&request_data.extracted_metadata);
+        let art_order_id =
+            art_order_id_from_request(&request_data.payload, &request_data.extracted_metadata);
         let result = run_art_scoped_handler(
             request_data,
             art_runtime,
@@ -758,7 +807,8 @@ where
             flow_name,
             service_name,
         );
-        let art_order_id = art_order_id_from_metadata(&request_data.extracted_metadata);
+        let art_order_id =
+            art_order_id_from_request(&request_data.payload, &request_data.extracted_metadata);
         let result = run_art_scoped_handler(
             request_data,
             art_runtime,
@@ -1537,7 +1587,7 @@ mod art_lifecycle_tests {
     use ucs_env::configs;
 
     use super::{
-        art_order_id_from_metadata, art_recording_rows_fit_buffer_limit,
+        art_order_id_from_request, art_recording_rows_fit_buffer_limit,
         create_art_runtime_for_request, record_incoming_grpc_api, resolve_api_tag, MetadataPayload,
     };
     use crate::request::RequestData;
@@ -1637,18 +1687,60 @@ mod art_lifecycle_tests {
             .contains("ART recorder reached max entries per session: 1"));
     }
 
+    #[derive(Serialize)]
+    struct ArtOrderPayload {
+        metadata: Option<SecretPayload>,
+        merchant_order_id: Option<String>,
+    }
+
+    #[derive(Serialize)]
+    struct SecretPayload {
+        value: String,
+    }
+
     #[test]
-    fn art_order_id_uses_reference_id_only() {
+    fn art_order_id_prefers_order_id_from_metadata_value() {
         let mut metadata = metadata_payload();
-        metadata.reference_id = Some("ref_123".to_string());
+        metadata.reference_id = Some("txn_123".to_string());
+        let payload = ArtOrderPayload {
+            metadata: Some(SecretPayload {
+                value: r#"{"metadata[order_id]":"J1784704882","order_id":"fallback_order"}"#
+                    .to_string(),
+            }),
+            merchant_order_id: Some("merchant_order_fallback".to_string()),
+        };
+
+        assert_eq!(
+            art_order_id_from_request(&payload, &metadata),
+            "J1784704882"
+        );
+    }
+
+    #[test]
+    fn art_order_id_falls_back_to_merchant_order_id_then_reference_id() {
+        let mut metadata = metadata_payload();
+        metadata.reference_id = Some("txn_123".to_string());
         metadata.resource_id = Some("res_123".to_string());
-        assert_eq!(art_order_id_from_metadata(&metadata), "ref_123");
+        let payload = ArtOrderPayload {
+            metadata: Some(SecretPayload {
+                value: r#"{"some_key":"some_value"}"#.to_string(),
+            }),
+            merchant_order_id: Some("J1784704882".to_string()),
+        };
+        assert_eq!(
+            art_order_id_from_request(&payload, &metadata),
+            "J1784704882"
+        );
+
+        let payload = ArtOrderPayload {
+            metadata: None,
+            merchant_order_id: None,
+        };
+        assert_eq!(art_order_id_from_request(&payload, &metadata), "txn_123");
 
         metadata.reference_id = None;
-        assert_eq!(art_order_id_from_metadata(&metadata), "");
-
         metadata.resource_id = None;
-        assert_eq!(art_order_id_from_metadata(&metadata), "");
+        assert_eq!(art_order_id_from_request(&payload, &metadata), "");
     }
 
     #[test]
