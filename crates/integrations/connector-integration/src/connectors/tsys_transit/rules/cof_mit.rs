@@ -38,15 +38,19 @@ use super::super::transformers::{
     TsysTransitCardOnFile, TsysTransitMcCitStatusIndicator, TsysTransitMit, TsysTransitMitIndicator,
 };
 
-/// `cardOnFile` — Visa-only "Y" marker, sent for any stored-credential
-/// flow EXCEPT CIT-using-stored (where it's a MIT-only tag).
+/// `cardOnFile` — Visa-only "Y" marker, sent ONLY on CIT-setup (the
+/// transaction that stores the credential). It is NOT sent on a MIT nor on
+/// CIT-using-stored: once the card is on file the MIT references it via
+/// `cardOnFileTransactionIdentifier`, so re-declaring `cardOnFile` is rejected
+/// by TSYS ("cardOnFile tag must not be sent on the 25.50 Visa card on file
+/// transaction in step 9").
 pub fn card_on_file(profile: &TxProfile) -> Option<TsysTransitCardOnFile> {
     if !matches!(profile.card_family, CardFamily::Visa) {
         return None;
     }
     match profile.cof_phase {
-        CofPhase::CitSetup { .. } | CofPhase::Mit(_) => Some(TsysTransitCardOnFile::Y),
-        CofPhase::NoCof | CofPhase::CitUsingStored => None,
+        CofPhase::CitSetup { .. } => Some(TsysTransitCardOnFile::Y),
+        CofPhase::NoCof | CofPhase::CitUsingStored | CofPhase::Mit(_) => None,
     }
 }
 

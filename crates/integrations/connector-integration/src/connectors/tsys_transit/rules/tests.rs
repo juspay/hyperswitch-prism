@@ -610,6 +610,21 @@ fn card_on_file_is_none_on_visa_cit_using_stored() {
 }
 
 #[test]
+fn card_on_file_is_none_on_visa_mit() {
+    // Cert step 9: "cardOnFile tag must not be sent on the 25.50 Visa card on
+    // file transaction." cardOnFile is a storage marker for CIT-setup only; a
+    // MIT references the stored credential via cardOnFileTransactionIdentifier.
+    let p = profile(
+        AcceptanceProfile::MotoPhone,
+        CardFamily::Visa,
+        CofPhase::Mit(MitKind::Unscheduled),
+        CommercialLevel::None,
+        CaptureKind::Auto,
+    );
+    assert!(cof_mit::card_on_file(&p).is_none());
+}
+
+#[test]
 fn cit_status_indicator_c101_on_mastercard_cit_using_stored() {
     // Cert: "mitStatusIndicator tag must not be sent on the 29.75
     // Mastercard transaction in step 5 as this test case is a Card on

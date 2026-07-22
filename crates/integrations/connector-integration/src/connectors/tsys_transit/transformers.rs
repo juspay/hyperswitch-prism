@@ -3750,10 +3750,11 @@ fn repeat_payment_data_to_authorize<T: PaymentMethodDataTypes>(
     };
 
     // The RecurringPaymentServiceChargeRequest proto doesn't carry
-    // payment_channel — recover it from the TSYS merchant metadata's
-    // optional `payment_channel` override so MOTO MIT executions still
-    // produce CARDHOLDER_NOT_PRESENT_PHONE_TRANSACTION etc. instead of
-    // the e-com default.
+    // payment_channel — recover it from the TSYS merchant metadata's optional
+    // `payment_channel` override. When it is absent the transaction defaults to
+    // MOTO/PHONE (tsys_transit is a MOTO connector; legacy stored cards have no
+    // channel on file), so MOTO merchant-initiated transactions produce
+    // CARDHOLDER_NOT_PRESENT_PHONE_TRANSACTION instead of the e-com default.
     let payment_channel_from_metadata = req
         .metadata
         .as_ref()
@@ -3812,10 +3813,14 @@ fn repeat_payment_data_to_authorize<T: PaymentMethodDataTypes>(
         setup_mandate_details: None,
         connector_feature_data: req.connector_feature_data.clone(),
         connector_testing_data: req.connector_testing_data.clone(),
+        // Precedence: the request's own `payment_channel` (now carried on the
+        // charge), then the metadata override, then the MOTO/PHONE default
+        // (tsys_transit is a MOTO connector; stored cards carry no channel).
         payment_channel: req
             .payment_channel
             .clone()
-            .or(payment_channel_from_metadata),
+            .or(payment_channel_from_metadata)
+            .or(Some(PaymentChannel::TelephoneOrder)),
         enable_partial_authorization: req.enable_partial_authorization,
         locale: req.locale.clone(),
         redirect_response: None,
