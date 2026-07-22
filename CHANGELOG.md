@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.07.22.1
+
+### Miscellaneous Tasks
+
+- **twoc_twop_paco:** Log pre-encoding request body at info level ([#1992](https://github.com/juspay/connector-service/pull/1992)) ([`d4e7dd1`](https://github.com/juspay/connector-service/commit/d4e7dd167a9ac44b95a3eafe18b34d7a6ae0a202))
+
+**Full Changelog:** [`2026.07.22.0...2026.07.22.1`](https://github.com/juspay/connector-service/compare/2026.07.22.0...2026.07.22.1)
+
+- - -
+
 ## 2026.07.22.0
 
 ### Features
