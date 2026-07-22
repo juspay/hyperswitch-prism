@@ -1,4 +1,5 @@
 use common_enums::BankType;
+use common_utils::types::FloatMajorUnit;
 
 use domain_types::{
     connector_types::{
@@ -185,18 +186,7 @@ pub struct PlaidLinkTokenResponse {
     pub request_id: String,
 }
 
-impl
-    TryFrom<
-        ResponseRouterData<
-            PlaidLinkTokenResponse,
-            RouterDataV2<
-                domain_types::connector_flow::ClientAuthenticationToken,
-                MerchantAuthenticationFlowData,
-                ClientAuthenticationTokenRequestData,
-                PaymentsResponseData,
-            >,
-        >,
-    >
+impl TryFrom<ResponseRouterData<PlaidLinkTokenResponse, Self>>
     for RouterDataV2<
         domain_types::connector_flow::ClientAuthenticationToken,
         MerchantAuthenticationFlowData,
@@ -326,17 +316,7 @@ pub struct PlaidPublicTokenExchangeResponse {
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static>
-    TryFrom<
-        ResponseRouterData<
-            PlaidPublicTokenExchangeResponse,
-            RouterDataV2<
-                domain_types::connector_flow::PaymentMethodToken,
-                PaymentFlowData,
-                PaymentMethodTokenizationData<T>,
-                PaymentMethodTokenResponse,
-            >,
-        >,
-    >
+    TryFrom<ResponseRouterData<PlaidPublicTokenExchangeResponse, Self>>
     for RouterDataV2<
         domain_types::connector_flow::PaymentMethodToken,
         PaymentFlowData,
@@ -453,8 +433,9 @@ pub struct PlaidAccount {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PlaidBalances {
-    pub current: Option<f64>,
-    pub available: Option<f64>,
+    pub current: Option<FloatMajorUnit>,
+    pub available: Option<FloatMajorUnit>,
+    pub iso_currency_code: Option<common_enums::Currency>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -488,18 +469,7 @@ pub struct PlaidSepaNumbers {
     pub bic: Option<Secret<String>>,
 }
 
-impl
-    TryFrom<
-        ResponseRouterData<
-            PlaidAuthGetResponse,
-            RouterDataV2<
-                domain_types::connector_flow::GetPaymentMethod,
-                PaymentFlowData,
-                GetPaymentMethodData,
-                GetPaymentMethodResponseData,
-            >,
-        >,
-    >
+impl TryFrom<ResponseRouterData<PlaidAuthGetResponse, Self>>
     for RouterDataV2<
         domain_types::connector_flow::GetPaymentMethod,
         PaymentFlowData,
@@ -511,6 +481,12 @@ impl
 
     fn try_from(item: ResponseRouterData<PlaidAuthGetResponse, Self>) -> Result<Self, Self::Error> {
         let res = item.response;
+        let request_currency = item
+            .router_data
+            .resource_common_data
+            .amount
+            .as_ref()
+            .map(|money| money.currency);
 
         // Build lookup maps from account_id → routing details
         let ach_map: std::collections::HashMap<_, _> = res
@@ -558,18 +534,24 @@ impl
                 };
 
                 let bank_type = acct.subtype.as_deref().and_then(plaid_subtype_to_bank_type);
-                let balance = acct.balances.current.map(|amt| common_utils::types::Money {
-                    amount: common_utils::types::MinorUnit::new(f64::round(amt * 100.0) as i64),
-                    currency: common_enums::Currency::USD,
-                });
+                let currency = acct.balances.iso_currency_code.or(request_currency);
+                let balance = acct
+                    .balances
+                    .current
+                    .zip(currency)
+                    .and_then(|(amt, currency)| {
+                        super::PlaidAmountConvertor::convert_back(amt, currency)
+                            .ok()
+                            .map(|amount| common_utils::types::Money { amount, currency })
+                    });
                 let available_balance =
                     acct.balances
                         .available
-                        .map(|amt| common_utils::types::Money {
-                            amount: common_utils::types::MinorUnit::new(
-                                f64::round(amt * 100.0) as i64
-                            ),
-                            currency: common_enums::Currency::USD,
+                        .zip(currency)
+                        .and_then(|(amt, currency)| {
+                            super::PlaidAmountConvertor::convert_back(amt, currency)
+                                .ok()
+                                .map(|amount| common_utils::types::Money { amount, currency })
                         });
 
                 Some(BankAccount {

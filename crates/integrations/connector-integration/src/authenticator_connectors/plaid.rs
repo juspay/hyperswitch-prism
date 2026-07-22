@@ -39,6 +39,8 @@ use transformers::{
 use super::super::connectors::macros;
 use crate::{types::ResponseRouterData, with_error_response_body};
 
+crate::common_macros::create_amount_converter_wrapper!(connector_name: Plaid, amount_type: FloatMajorUnit);
+
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
 }
