@@ -48,7 +48,10 @@ public class HyperswitchConfigProperties {
         this.connector = trimToNull(properties.getProperty(PROPERTY_PREFIX + "connector"));
         this.environment = properties.getProperty(PROPERTY_PREFIX + "environment", DEFAULT_ENVIRONMENT);
         this.captureMethod = properties.getProperty(PROPERTY_PREFIX + "captureMethod", DEFAULT_CAPTURE_METHOD);
-        this.returnUrl = trimToNull(properties.getProperty(PROPERTY_PREFIX + "returnUrl"));
+        // Some connectors (e.g. Adyen) require a return_url even for server-to-server no-3DS flows where no
+        // redirect ever happens — default to a placeholder so mandate setup doesn't fail when unconfigured.
+        final String configuredReturnUrl = trimToNull(properties.getProperty(PROPERTY_PREFIX + "returnUrl"));
+        this.returnUrl = configuredReturnUrl != null ? configuredReturnUrl : "https://killbill.example/plugins/killbill-hyperswitch/return";
         this.webhookSecret = trimToNull(properties.getProperty(PROPERTY_PREFIX + "webhookSecret"));
     }
 

@@ -24,12 +24,12 @@ import com.google.protobuf.ByteString;
 // NOTE (P0 verification): SDK proto message/enum names + builder methods below follow the in-repo Gradle layout
 // and examples/stripe/stripe.kt. Verify against io.hyperswitch:prism:0.0.6 at first compile (enum values, whether
 // card fields are SecretString sub-builders, Money vs Amount, webhook_secrets field name).
-import payments.AcceptanceType;
-import payments.AuthenticationType;
-import payments.CaptureMethod;
-import payments.Currency;
-import payments.FutureUsage;
-import payments.HttpMethod;
+import types.Payment.AcceptanceType;
+import types.Payment.AuthenticationType;
+import types.Payment.CaptureMethod;
+import types.Payment.Currency;
+import types.Payment.FutureUsage;
+import types.Payment.HttpMethod;
 import types.Payment.EventServiceHandleRequest;
 import types.Payment.PaymentServiceAuthorizeRequest;
 import types.Payment.PaymentServiceCaptureRequest;
@@ -128,35 +128,113 @@ public final class PrismRequestBuilder {
 
     // ---- recurring / mandates (P4) -----------------------------------------------------------
 
+    /** Create the customer at the connector — e.g. Stripe requires a Customer to reuse a mandate off-session. */
+    public static types.Payment.CustomerServiceCreateRequest customerCreate(final String merchantCustomerId,
+                                                                            @Nullable final String name,
+                                                                            @Nullable final String email) {
+        final types.Payment.CustomerServiceCreateRequest.Builder b = types.Payment.CustomerServiceCreateRequest.newBuilder();
+        b.setMerchantCustomerId(merchantCustomerId);
+        if (name != null) {
+            b.setCustomerName(name);
+        }
+        if (email != null) {
+            b.getEmailBuilder().setValue(email);
+        }
+        return b.build();
+    }
+
+    /** Populate the billing address (and customer email) from account data — required by e.g. Cybersource. */
+    private static void setBilling(final PaymentServiceSetupRecurringRequest.Builder b,
+                                   @Nullable final HyperswitchPluginProperties.Billing billing) {
+        if (billing == null) {
+            return;
+        }
+        final types.Payment.Address.Builder addr = b.getAddressBuilder().getBillingAddressBuilder();
+        if (billing.firstName != null) addr.getFirstNameBuilder().setValue(billing.firstName);
+        if (billing.lastName != null) addr.getLastNameBuilder().setValue(billing.lastName);
+        if (billing.email != null) {
+            addr.getEmailBuilder().setValue(billing.email);
+            b.getCustomerBuilder().getEmailBuilder().setValue(billing.email);
+        }
+        if (billing.line1 != null) addr.getLine1Builder().setValue(billing.line1);
+        if (billing.city != null) addr.getCityBuilder().setValue(billing.city);
+        if (billing.state != null) addr.getStateBuilder().setValue(billing.state);
+        if (billing.zip != null) addr.getZipCodeBuilder().setValue(billing.zip);
+        if (billing.country != null) {
+            try {
+                addr.setCountryAlpha2Code(types.PaymentMethods.CountryAlpha2.valueOf(billing.country.toUpperCase()));
+            } catch (final IllegalArgumentException ignore) {
+                // unknown ISO code — leave unset rather than fail the whole request
+            }
+        }
+    }
+
     public static PaymentServiceSetupRecurringRequest setupRecurring(final String merchantRecurringPaymentId,
                                                                     final String currencyCode,
                                                                     final Card card,
+                                                                    @Nullable final HyperswitchPluginProperties.Billing billing,
+                                                                    final String customerId,
+                                                                    @Nullable final String connectorCustomerId,
+                                                                    @Nullable final String connectorMetadata,
                                                                     @Nullable final String returnUrl) {
         final PaymentServiceSetupRecurringRequest.Builder b = PaymentServiceSetupRecurringRequest.newBuilder();
         b.setMerchantRecurringPaymentId(merchantRecurringPaymentId);
+        // Connector-specific metadata JSON — some transformers (Cybersource) fail outright when absent, so
+        // callers pass at least "{}".
+        if (connectorMetadata != null) {
+            b.getMetadataBuilder().setValue(connectorMetadata);
+        }
+        // customer.id (merchant-side reference) is REQUIRED by connectors that key mandates on a shopper
+        // reference (Adyen); connector_customer_id carries a connector-created customer (Stripe cus_…).
+        b.getCustomerBuilder().setId(customerId);
+        if (connectorCustomerId != null) {
+            b.getCustomerBuilder().setConnectorCustomerId(connectorCustomerId);
+        }
         b.getAmountBuilder().setMinorAmount(0L).setCurrency(currency(currencyCode));
         setCard(b.getPaymentMethodBuilder().getCardBuilder(), card);
-        b.getAddressBuilder().getBillingAddressBuilder();
+        setBilling(b, billing);
         b.setAuthType(AuthenticationType.NO_THREE_DS);
         b.setSetupFutureUsage(FutureUsage.OFF_SESSION);
         b.getCustomerAcceptanceBuilder().setAcceptanceType(AcceptanceType.OFFLINE).setAcceptedAt(0L);
+        // Some connectors (Adyen) require browser_info even for server-to-server card setup; KillBill has no
+        // real browser context, so send a minimal synthetic one (same approach as other headless integrators).
+        b.getBrowserInfoBuilder()
+         .setJavaScriptEnabled(false)
+         .setJavaEnabled(false)
+         .setColorDepth(24)
+         .setScreenHeight(1080)
+         .setScreenWidth(1920)
+         .setTimeZoneOffsetMinutes(0)
+         .setLanguage("en-US")
+         .setAcceptHeader("*/*")
+         .setUserAgent("KillBill-Hyperswitch-Plugin");
         if (returnUrl != null) {
             b.setReturnUrl(returnUrl);
         }
         return b.build();
     }
 
-    public static RecurringPaymentServiceChargeRequest charge(final String mandateId,
+    public static RecurringPaymentServiceChargeRequest charge(final String merchantChargeId,
+                                                             final String mandateId,
                                                              final long minorAmount,
                                                              final String currencyCode,
-                                                             @Nullable final String token,
+                                                             @Nullable final String connectorCustomerId,
+                                                             @Nullable final String connectorMetadata,
                                                              @Nullable final String returnUrl) {
         final RecurringPaymentServiceChargeRequest.Builder b = RecurringPaymentServiceChargeRequest.newBuilder();
-        b.getConnectorRecurringPaymentIdBuilder().getConnectorMandateIdBuilder().getConnectorMandateIdBuilder().setConnectorMandateId(mandateId);
-        b.getAmountBuilder().setMinorAmount(minorAmount).setCurrency(currency(currencyCode));
-        if (token != null) {
-            b.getPaymentMethodBuilder().getTokenBuilder().getTokenBuilder().setValue(token);
+        // Merchant-side reference for the charge — required by connectors like Adyen ("reference").
+        b.setMerchantChargeId(merchantChargeId);
+        if (connectorMetadata != null) {
+            b.getMetadataBuilder().setValue(connectorMetadata);
         }
+        if (connectorCustomerId != null) {
+            b.setConnectorCustomerId(connectorCustomerId);
+        }
+        // MandateReference.connector_mandate_id is a ConnectorMandateReferenceId carrying the id string directly.
+        // Do NOT also set payment_method: a mandate charge must present ONLY the mandate reference — adding a
+        // token turns it into a token payment, which connectors like Braintree reject for the repeat flow.
+        b.getConnectorRecurringPaymentIdBuilder().getConnectorMandateIdBuilder().setConnectorMandateId(mandateId);
+        b.getAmountBuilder().setMinorAmount(minorAmount).setCurrency(currency(currencyCode));
         b.setOffSession(true);
         if (returnUrl != null) {
             b.setReturnUrl(returnUrl);

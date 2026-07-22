@@ -60,7 +60,8 @@ command -v curl >/dev/null || die "curl not found"
 command -v jq   >/dev/null || die "jq not found"
 
 show_body(){ if jq -e . "$TMP/body" >/dev/null 2>&1; then jq . "$TMP/body"; else cat "$TMP/body"; echo; fi; }
-location_id(){ grep -i '^Location:' "$TMP/hdr" | tr -d '\r' | sed 's#.*/##'; }
+# Some endpoints (e.g. POST …/payments) return a Location with a trailing slash — strip it before taking the last segment.
+location_id(){ grep -i '^Location:' "$TMP/hdr" | tr -d '\r' | sed 's#/*$##; s#.*/##'; }
 ok(){ case "$1" in 2*) return 0;; *) return 1;; esac; }
 
 # RBAC + tenant + common headers. Args: METHOD PATH [JSON_BODY]. Prints the HTTP status code.
@@ -120,7 +121,8 @@ info "config uploaded ($code)"
 
 # ----------------------------- 3. account -----------------------------
 step "3/9  Create account"
-acct="{\"currency\":\"$CURRENCY\",\"name\":\"Test Harness\",\"email\":\"harness@example.com\",\"externalKey\":\"harness-$(date +%s)-$RANDOM\"}"
+# Full billing address on the account: connectors like Cybersource require a complete bill-to for mandate setup.
+acct="{\"currency\":\"$CURRENCY\",\"name\":\"John Doe\",\"email\":\"harness@example.com\",\"address1\":\"1295 Charleston Rd\",\"city\":\"Mountain View\",\"state\":\"CA\",\"postalCode\":\"94043\",\"country\":\"US\",\"externalKey\":\"harness-$(date +%s)-$RANDOM\"}"
 code=$(kb POST /1.0/kb/accounts "$acct")
 ok "$code" || { show_body; die "account creation failed ($code)"; }
 ACCOUNT_ID=$(location_id)
@@ -147,8 +149,9 @@ info "paymentMethodId=$PM_ID"
 
 # ----------------------------- 5. purchase -----------------------------
 step "5/9  Purchase $AMOUNT $CURRENCY"
-pay="{\"transactionType\":\"PURCHASE\",\"amount\":$AMOUNT,\"currency\":\"$CURRENCY\",\"paymentMethodId\":\"$PM_ID\"}"
-code=$(kb POST "/1.0/kb/accounts/$ACCOUNT_ID/payments?withPluginInfo=true" "$pay")
+# paymentMethodId is a query parameter on this endpoint, not a PaymentTransactionJson field.
+pay="{\"transactionType\":\"PURCHASE\",\"amount\":$AMOUNT,\"currency\":\"$CURRENCY\"}"
+code=$(kb POST "/1.0/kb/accounts/$ACCOUNT_ID/payments?withPluginInfo=true&paymentMethodId=$PM_ID" "$pay")
 ok "$code" || { show_body; warn "purchase returned $code (connector may have declined — inspect below)"; }
 PAYMENT_ID=$(jq -r '.paymentId // empty' "$TMP/body" 2>/dev/null || true)
 [ -n "$PAYMENT_ID" ] || PAYMENT_ID=$(location_id)

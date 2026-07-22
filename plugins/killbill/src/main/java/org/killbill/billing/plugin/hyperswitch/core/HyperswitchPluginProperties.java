@@ -45,6 +45,7 @@ public final class HyperswitchPluginProperties {
     public static final String DATA_PRISM_STATUS = "prismStatus";
     public static final String DATA_CONNECTOR_TRANSACTION_ID = "connectorTransactionId";
     public static final String DATA_MANDATE_ID = "connectorRecurringPaymentId";
+    public static final String DATA_CUSTOMER_ID = "connectorCustomerId";
     public static final String DATA_TOKEN = "connectorToken";
 
     private HyperswitchPluginProperties() {
@@ -105,6 +106,31 @@ public final class HyperswitchPluginProperties {
     }
 
     /** Raw card data (secrets — never logged or persisted). */
+    /** Billing details sourced from the KillBill account — connectors like Cybersource require a full bill-to. */
+    public static final class Billing {
+        public final String firstName;
+        public final String lastName;
+        public final String email;
+        public final String line1;
+        public final String city;
+        public final String state;
+        public final String zip;
+        public final String country;
+
+        public Billing(@Nullable final String firstName, @Nullable final String lastName, @Nullable final String email,
+                       @Nullable final String line1, @Nullable final String city, @Nullable final String state,
+                       @Nullable final String zip, @Nullable final String country) {
+            this.firstName = firstName;
+            this.lastName = lastName;
+            this.email = email;
+            this.line1 = line1;
+            this.city = city;
+            this.state = state;
+            this.zip = zip;
+            this.country = country;
+        }
+    }
+
     public static final class Card {
         public final String number;
         public final String expMonth;

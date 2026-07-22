@@ -12,9 +12,7 @@
   ~ License for the specific language governing permissions and limitations
   ~ under the License.
   -->
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>org.kill-bill.billing</groupId>
@@ -30,41 +28,20 @@
     <url>https://github.com/juspay/hyperswitch-prism/tree/main/plugins/killbill</url>
 
     <properties>
-        <!-- Everything under this package is Private-Package'd into the bundle -->
-        <osgi.private>org.killbill.billing.plugin.hyperswitch.*</osgi.private>
+        <check.fail-spotbugs>false</check.fail-spotbugs>
         <!-- The plugin requires JDK 17+ because io.hyperswitch:prism does; confirm the KillBill runtime matches -->
         <maven.compiler.release>17</maven.compiler.release>
-        <check.fail-spotbugs>false</check.fail-spotbugs>
         <maven.javadoc.failOnError>false</maven.javadoc.failOnError>
+        <!-- Everything under this package is Private-Package'd into the bundle -->
+        <osgi.private>org.killbill.billing.plugin.hyperswitch.*</osgi.private>
     </properties>
 
     <dependencies>
-        <!-- ============================ Hyperswitch Prism SDK (embedded, in-process — same model as plugins/medusa) ============================ -->
-        <!--
-            io.hyperswitch:prism uses JNA to load a native Rust lib (connector_service_ffi) for request/response
-            transformation, plus protobuf-java + OkHttp for the outbound processor call. It is the Java analog of
-            the Node `hyperswitch-prism` SDK that the Medusa plugin embeds.
-
-            MUST VERIFY during the P0 spike (see README):
-              1. the published artifact's package names (in-repo examples use `payments.*` / `types.Payment.*`;
-                 the SDK README advertises `com.hyperswitch.payments.*`);
-              2. that the jar bundles a native lib for the target platform (linux x64/arm64) — if not, build the
-                 FFI from source in CI and place it on the JNA path.
-        -->
-        <dependency>
-            <groupId>io.hyperswitch</groupId>
-            <artifactId>prism</artifactId>
-            <version>0.0.6</version>
-        </dependency>
 
         <!-- ============================ Jackson (additional_data (de)serialization) ============================ -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-core</artifactId>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
@@ -80,6 +57,40 @@
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
         </dependency>
+        <!-- The plugin builds/reads Prism proto messages directly (types.Payment.*), so protobuf-java is a
+             direct dependency; the version must match the one the SDK's generated stubs were built with. -->
+        <dependency>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java</artifactId>
+            <version>4.33.4</version>
+        </dependency>
+        <!-- ============================ Hyperswitch Prism SDK (embedded, in-process — same model as plugins/medusa) ============================ -->
+        <!--
+            io.hyperswitch:prism uses JNA to load a native Rust lib (connector_service_ffi) for request/response
+            transformation, plus protobuf-java + OkHttp for the outbound processor call. It is the Java analog of
+            the Node `hyperswitch-prism` SDK that the Medusa plugin embeds.
+
+            MUST VERIFY during the P0 spike (see README):
+              1. the published artifact's package names (in-repo examples use `payments.*` / `types.Payment.*`;
+                 the SDK README advertises `com.hyperswitch.payments.*`);
+              2. that the jar bundles a native lib for the target platform (linux x64/arm64) — if not, build the
+                 FFI from source in CI and place it on the JNA path.
+        -->
+        <dependency>
+            <groupId>io.hyperswitch</groupId>
+            <artifactId>prism</artifactId>
+            <!-- Built from the in-repo sdk/java (VERSION=0.3.0-local ./gradlew publishToMavenLocal) so the
+                 plugin compiles against the same generated API as the bundled native FFI. The published
+                 Maven Central jars do not bundle a native lib, so a local build is required either way. -->
+            <version>0.3.0-local</version>
+        </dependency>
+
+        <!-- Servlet API for the webhook endpoint -->
+        <dependency>
+            <groupId>jakarta.servlet</groupId>
+            <artifactId>jakarta.servlet-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
         <dependency>
             <groupId>javax.inject</groupId>
             <artifactId>javax.inject</artifactId>
@@ -90,10 +101,10 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- Servlet API for the webhook endpoint -->
+        <!-- OSGi framework (provided by the KillBill runtime) -->
         <dependency>
-            <groupId>jakarta.servlet</groupId>
-            <artifactId>jakarta.servlet-api</artifactId>
+            <groupId>org.apache.felix</groupId>
+            <artifactId>org.apache.felix.framework</artifactId>
             <scope>provided</scope>
         </dependency>
 
@@ -101,13 +112,6 @@
         <dependency>
             <groupId>org.jooby</groupId>
             <artifactId>jooby</artifactId>
-        </dependency>
-
-        <!-- OSGi framework (provided by the KillBill runtime) -->
-        <dependency>
-            <groupId>org.apache.felix</groupId>
-            <artifactId>org.apache.felix.framework</artifactId>
-            <scope>provided</scope>
         </dependency>
 
         <!-- jOOQ: local persistence (hyperswitch_responses / hyperswitch_payment_methods) -->
@@ -139,6 +143,11 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
+            <groupId>org.kill-bill.billing</groupId>
+            <artifactId>killbill-platform-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>org.kill-bill.billing.plugin</groupId>
             <artifactId>killbill-plugin-api-notification</artifactId>
             <scope>provided</scope>
@@ -153,26 +162,6 @@
             <groupId>org.kill-bill.billing.plugin.java</groupId>
             <artifactId>killbill-base-plugin</artifactId>
         </dependency>
-        <dependency>
-            <groupId>org.kill-bill.commons</groupId>
-            <artifactId>killbill-clock</artifactId>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.kill-bill.commons</groupId>
-            <artifactId>killbill-metrics-api</artifactId>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.kill-bill.commons</groupId>
-            <artifactId>killbill-utils</artifactId>
-            <scope>runtime</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-            <scope>provided</scope>
-        </dependency>
 
         <!-- ============================ Test ============================ -->
         <dependency>
@@ -182,9 +171,9 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.kill-bill.billing</groupId>
-            <artifactId>killbill-platform-test</artifactId>
-            <scope>test</scope>
+            <groupId>org.kill-bill.commons</groupId>
+            <artifactId>killbill-clock</artifactId>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.kill-bill.commons</groupId>
@@ -198,13 +187,28 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-simple</artifactId>
-            <scope>test</scope>
+            <groupId>org.kill-bill.commons</groupId>
+            <artifactId>killbill-metrics-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.kill-bill.commons</groupId>
+            <artifactId>killbill-utils</artifactId>
+            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -228,21 +232,29 @@
                             the KillBill OSGi runtime). Adjust artifactIds to match the SDK's actual transitive deps.
                             The native lib inside the SDK jar rides along; JNA extracts it at runtime.
                         -->
-                        <Embed-Dependency>prism, protobuf-java, okhttp, okio, jna, jffi, kotlin-stdlib, kotlin-stdlib-jdk8, gson;scope=compile|runtime;inline=false</Embed-Dependency>
+                        <!-- Embed every compile/runtime dep (standard KillBill plugin pattern): the container only provides
+                             the `provided`-scope APIs, so killbill-base-plugin, jOOQ, the Prism SDK and its whole
+                             transitive stack must all ride inside the bundle. -->
+                        <Embed-Dependency>*;scope=compile|runtime;inline=false</Embed-Dependency>
                         <Embed-Transitive>true</Embed-Transitive>
                         <!-- Do not try to import the SDK's internal packages or JNA natives from the OSGi container -->
-                        <Import-Package>
-                            !com.hyperswitch.*,
+                        <Import-Package>!com.hyperswitch.*,
                             !payments.*,
                             !types.*,
                             !com.sun.jna.*,
                             !okhttp3.*,
                             !okio.*,
                             !kotlin.*,
+                            !org.killbill.billing.plugin.api.*,
+                            !org.killbill.billing.plugin.core.*,
+                            !org.killbill.billing.plugin.dao.*,
+                            !org.killbill.billing.plugin.util.*,
                             javax.servlet.*;resolution:=optional,
                             org.killbill.*,
-                            *;resolution:=optional
-                        </Import-Package>
+                            org.slf4j.*;version="[1.7,3)",
+                            org.osgi.framework.*,
+                            org.osgi.service.log.*;resolution:=optional,
+                            *;resolution:=optional</Import-Package>
                         <Private-Package>org.killbill.billing.plugin.hyperswitch.*</Private-Package>
                     </instructions>
                 </configuration>
@@ -255,8 +267,26 @@
                         <requireUpperBoundDeps>
                             <excludes>
                                 <exclude>org.jooq:jooq</exclude>
+                                <!-- Pulled transitively by io.hyperswitch:prism (okhttp/kotlin stack); the SDK
+                                     and its deps are embedded wholesale into the bundle, so KillBill's
+                                     upper-bound rule doesn't apply to them. -->
+                                <exclude>org.jetbrains.kotlin:kotlin-stdlib</exclude>
+                                <exclude>org.jetbrains.kotlin:kotlin-stdlib-jdk8</exclude>
+                                <exclude>org.jetbrains.kotlin:kotlin-stdlib-jdk7</exclude>
+                                <exclude>org.jetbrains.kotlin:kotlin-stdlib-common</exclude>
+                                <exclude>com.google.protobuf:protobuf-java</exclude>
+                                <exclude>com.squareup.okhttp3:okhttp</exclude>
+                                <exclude>com.squareup.okio:okio</exclude>
+                                <exclude>net.java.dev.jna:jna</exclude>
+                                <exclude>com.google.errorprone:error_prone_annotations</exclude>
+                                <exclude>com.google.code.gson:gson</exclude>
                             </excludes>
                         </requireUpperBoundDeps>
+                        <!-- The parent pins maxJdkVersion to KillBill's own Java 11 target; this plugin requires a
+                             JDK 17 runtime (io.hyperswitch:prism is compiled to bytecode 61), so raise the cap. -->
+                        <enforceBytecodeVersion>
+                            <maxJdkVersion>17</maxJdkVersion>
+                        </enforceBytecodeVersion>
                     </rules>
                 </configuration>
             </plugin>
@@ -277,13 +307,23 @@
                     <plugin>
                         <groupId>org.jooq</groupId>
                         <artifactId>jooq-codegen-maven</artifactId>
+                        <!-- Must match the parent-managed org.jooq:jooq runtime version, or the generated
+                             sources use newer jOOQ APIs than the compile classpath provides. -->
+                        <version>${jooq.version}</version>
+                        <dependencies>
+                            <dependency>
+                                <groupId>com.mysql</groupId>
+                                <artifactId>mysql-connector-j</artifactId>
+                                <version>8.4.0</version>
+                            </dependency>
+                        </dependencies>
                         <executions>
                             <execution>
                                 <id>jooq-codegen</id>
-                                <phase>generate-sources</phase>
                                 <goals>
                                     <goal>generate</goal>
                                 </goals>
+                                <phase>generate-sources</phase>
                                 <configuration>
                                     <configurationFile>src/main/resources/gen.xml</configurationFile>
                                 </configuration>

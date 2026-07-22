@@ -21,21 +21,23 @@ import org.killbill.billing.plugin.hyperswitch.HyperswitchConfigPropertiesConfig
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// NOTE (P0 verification): SDK client/config classes use the in-repo Gradle package layout — `payments.*` for
-// clients + config wrappers (per examples/stripe/stripe.kt) and `types.Payment.*` for proto messages. Reconcile
-// against the published io.hyperswitch:prism:0.0.6 artifact (README advertises `com.hyperswitch.payments.*`)
-// when first compiling during the P0 spike, and adjust the imports below accordingly.
-import payments.ConnectorConfig;
-import payments.ConnectorSpecificConfig;
-import payments.Environment;
+// Reconciled during the P0 spike: the SDK's `payments.*` config names are Kotlin typealiases (invisible to
+// Java), so the proto outer classes are imported directly — `types.SdkConfig.*` for ConnectorConfig/SdkOptions/
+// Environment/RequestConfig, `types.PaymentMethods.SecretString`, `types.Payment.ConnectorSpecificConfig`.
+// The client classes themselves are real Kotlin classes in `payments.*`.
+import payments.CustomerClient;
 import payments.EventClient;
 import payments.MerchantAuthenticationClient;
 import payments.PaymentClient;
 import payments.PaymentMethodClient;
 import payments.RecurringPaymentClient;
 import payments.RefundClient;
-import payments.SdkOptions;
-import payments.SecretString;
+import types.SdkConfig.ConnectorConfig;
+import types.SdkConfig.Environment;
+import types.SdkConfig.RequestConfig;
+import types.SdkConfig.SdkOptions;
+import types.PaymentMethods.SecretString;
+import types.Payment.ConnectorSpecificConfig;
 import types.Payment.AdyenConfig;
 import types.Payment.BraintreeConfig;
 import types.Payment.CybersourceConfig;
@@ -54,7 +56,7 @@ import types.Payment.PaymentServiceRefundRequest;
 import types.Payment.PaymentServiceSetupRecurringRequest;
 import types.Payment.PaymentServiceSetupRecurringResponse;
 import types.Payment.PaymentServiceTokenAuthorizeRequest;
-import types.Payment.PaymentServiceTokenAuthorizeResponse;
+
 import types.Payment.PaymentServiceVoidRequest;
 import types.Payment.PaymentServiceVoidResponse;
 import types.Payment.PaypalConfig;
@@ -150,6 +152,9 @@ public class SdkPrismClient implements PrismClient {
                         .setApiKey(secret(config.getConnectorProperty("apiKey")))
                         .setMerchantAccount(secret(config.getConnectorProperty("merchantAccount")))
                         .setApiSecret(secret(config.getConnectorProperty("apiSecret")));
+                // Cybersource's transformers require the AVS/CVN connector metadata to be present.
+                cs.setDisableAvs(Boolean.parseBoolean(config.getConnectorProperty("disableAvs")));
+                cs.setDisableCvn(Boolean.parseBoolean(config.getConnectorProperty("disableCvn")));
                 final String baseUrl = config.getConnectorProperty("baseUrl");
                 if (baseUrl != null) {
                     cs.setBaseUrl(baseUrl);
@@ -165,6 +170,11 @@ public class SdkPrismClient implements PrismClient {
                 final String merchantAccountId = config.getConnectorProperty("merchantAccountId");
                 if (merchantAccountId != null) {
                     bt.setMerchantAccountId(secret(merchantAccountId));
+                }
+                // Required by Braintree's MIT charge flow (transaction currency must match the merchant account).
+                final String merchantConfigCurrency = config.getConnectorProperty("merchantConfigCurrency");
+                if (merchantConfigCurrency != null) {
+                    bt.setMerchantConfigCurrency(merchantConfigCurrency);
                 }
                 final String baseUrl = config.getConnectorProperty("baseUrl");
                 if (baseUrl != null) {
@@ -222,7 +232,7 @@ public class SdkPrismClient implements PrismClient {
     @Override
     public PaymentServiceAuthorizeResponse authorize(final UUID t, final PaymentServiceAuthorizeRequest r) throws PrismClientException {
         try {
-            return bundle(t).payment.authorize(r);
+            return bundle(t).payment.authorize(r, null);
         } catch (final PrismClientException e) {
             throw e;
         } catch (final Exception e) {
@@ -233,7 +243,7 @@ public class SdkPrismClient implements PrismClient {
     @Override
     public PaymentServiceCaptureResponse capture(final UUID t, final PaymentServiceCaptureRequest r) throws PrismClientException {
         try {
-            return bundle(t).payment.capture(r);
+            return bundle(t).payment.capture(r, null);
         } catch (final PrismClientException e) {
             throw e;
         } catch (final Exception e) {
@@ -244,18 +254,31 @@ public class SdkPrismClient implements PrismClient {
     @Override
     public PaymentServiceVoidResponse voidPayment(final UUID t, final PaymentServiceVoidRequest r) throws PrismClientException {
         try {
-            return bundle(t).payment.void_(r);
+            // The SDK's Kotlin flow method is literally named `void`, which Java source cannot invoke —
+            // call it through a cached reflective Method instead.
+            return (PaymentServiceVoidResponse) VOID_METHOD.invoke(bundle(t).payment, r, null);
         } catch (final PrismClientException e) {
             throw e;
+        } catch (final java.lang.reflect.InvocationTargetException e) {
+            throw wrap("void", e.getCause() instanceof Exception ? (Exception) e.getCause() : e);
         } catch (final Exception e) {
             throw wrap("void", e);
+        }
+    }
+
+    private static final java.lang.reflect.Method VOID_METHOD;
+    static {
+        try {
+            VOID_METHOD = PaymentClient.class.getMethod("void", PaymentServiceVoidRequest.class, RequestConfig.class);
+        } catch (final NoSuchMethodException e) {
+            throw new ExceptionInInitializerError(e);
         }
     }
 
     @Override
     public PaymentServiceGetResponse get(final UUID t, final PaymentServiceGetRequest r) throws PrismClientException {
         try {
-            return bundle(t).payment.get(r);
+            return bundle(t).payment.get(r, null);
         } catch (final PrismClientException e) {
             throw e;
         } catch (final Exception e) {
@@ -266,7 +289,7 @@ public class SdkPrismClient implements PrismClient {
     @Override
     public RefundResponse refund(final UUID t, final PaymentServiceRefundRequest r) throws PrismClientException {
         try {
-            return bundle(t).payment.refund(r);
+            return bundle(t).payment.refund(r, null);
         } catch (final PrismClientException e) {
             throw e;
         } catch (final Exception e) {
@@ -277,7 +300,7 @@ public class SdkPrismClient implements PrismClient {
     @Override
     public RefundResponse refundGet(final UUID t, final RefundServiceGetRequest r) throws PrismClientException {
         try {
-            return bundle(t).refund.refund_get(r);
+            return bundle(t).refund.refund_get(r, null);
         } catch (final PrismClientException e) {
             throw e;
         } catch (final Exception e) {
@@ -286,9 +309,20 @@ public class SdkPrismClient implements PrismClient {
     }
 
     @Override
+    public types.Payment.CustomerServiceCreateResponse customerCreate(final UUID t, final types.Payment.CustomerServiceCreateRequest r) throws PrismClientException {
+        try {
+            return bundle(t).customer.customer_create(r, null);
+        } catch (final PrismClientException e) {
+            throw e;
+        } catch (final Exception e) {
+            throw wrap("customerCreate", e);
+        }
+    }
+
+    @Override
     public PaymentServiceSetupRecurringResponse setupRecurring(final UUID t, final PaymentServiceSetupRecurringRequest r) throws PrismClientException {
         try {
-            return bundle(t).payment.setup_recurring(r);
+            return bundle(t).payment.setup_recurring(r, null);
         } catch (final PrismClientException e) {
             throw e;
         } catch (final Exception e) {
@@ -299,7 +333,7 @@ public class SdkPrismClient implements PrismClient {
     @Override
     public RecurringPaymentServiceChargeResponse charge(final UUID t, final RecurringPaymentServiceChargeRequest r) throws PrismClientException {
         try {
-            return bundle(t).recurring.charge(r);
+            return bundle(t).recurring.charge(r, null);
         } catch (final PrismClientException e) {
             throw e;
         } catch (final Exception e) {
@@ -308,9 +342,9 @@ public class SdkPrismClient implements PrismClient {
     }
 
     @Override
-    public PaymentServiceTokenAuthorizeResponse tokenAuthorize(final UUID t, final PaymentServiceTokenAuthorizeRequest r) throws PrismClientException {
+    public PaymentServiceAuthorizeResponse tokenAuthorize(final UUID t, final PaymentServiceTokenAuthorizeRequest r) throws PrismClientException {
         try {
-            return bundle(t).payment.token_authorize(r);
+            return bundle(t).payment.token_authorize(r, null);
         } catch (final PrismClientException e) {
             throw e;
         } catch (final Exception e) {
@@ -321,7 +355,7 @@ public class SdkPrismClient implements PrismClient {
     @Override
     public PaymentMethodServiceTokenizeResponse tokenize(final UUID t, final PaymentMethodServiceTokenizeRequest r) throws PrismClientException {
         try {
-            return bundle(t).paymentMethod.tokenize(r);
+            return bundle(t).paymentMethod.tokenize(r, null);
         } catch (final PrismClientException e) {
             throw e;
         } catch (final Exception e) {
@@ -332,7 +366,7 @@ public class SdkPrismClient implements PrismClient {
     @Override
     public EventServiceHandleResponse handleEvent(final UUID t, final EventServiceHandleRequest r) throws PrismClientException {
         try {
-            return bundle(t).event.handle_event(r);
+            return bundle(t).event.handle_event(r, null);
         } catch (final PrismClientException e) {
             throw e;
         } catch (final Exception e) {
@@ -355,14 +389,18 @@ public class SdkPrismClient implements PrismClient {
         final PaymentMethodClient paymentMethod;
         final EventClient event;
         final MerchantAuthenticationClient merchantAuth;
+        final CustomerClient customer;
 
         ClientBundle(final ConnectorConfig config) {
-            this.payment = new PaymentClient(config);
-            this.refund = new RefundClient(config);
-            this.recurring = new RecurringPaymentClient(config);
-            this.paymentMethod = new PaymentMethodClient(config);
-            this.event = new EventClient(config);
-            this.merchantAuth = new MerchantAuthenticationClient(config);
+            // Kotlin default args are not visible from Java — pass the defaults explicitly.
+            final RequestConfig defaults = RequestConfig.getDefaultInstance();
+            this.payment = new PaymentClient(config, defaults, null);
+            this.refund = new RefundClient(config, defaults, null);
+            this.recurring = new RecurringPaymentClient(config, defaults, null);
+            this.paymentMethod = new PaymentMethodClient(config, defaults, null);
+            this.event = new EventClient(config, defaults, null);
+            this.merchantAuth = new MerchantAuthenticationClient(config, defaults, null);
+            this.customer = new CustomerClient(config, defaults, null);
         }
     }
 }

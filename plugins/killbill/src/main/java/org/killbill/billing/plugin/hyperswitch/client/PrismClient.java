@@ -33,7 +33,7 @@ import types.Payment.PaymentServiceRefundRequest;
 import types.Payment.PaymentServiceSetupRecurringRequest;
 import types.Payment.PaymentServiceSetupRecurringResponse;
 import types.Payment.PaymentServiceTokenAuthorizeRequest;
-import types.Payment.PaymentServiceTokenAuthorizeResponse;
+
 import types.Payment.PaymentServiceVoidRequest;
 import types.Payment.PaymentServiceVoidResponse;
 import types.Payment.RecurringPaymentServiceChargeRequest;
@@ -67,6 +67,9 @@ public interface PrismClient {
     /** Refund sync (RSync). */
     RefundResponse refundGet(UUID kbTenantId, RefundServiceGetRequest request) throws PrismClientException;
 
+    /** Create a customer record at the connector (required by e.g. Stripe before a mandate can be reused). */
+    types.Payment.CustomerServiceCreateResponse customerCreate(UUID kbTenantId, types.Payment.CustomerServiceCreateRequest request) throws PrismClientException;
+
     /** Mandate setup (customer present). */
     PaymentServiceSetupRecurringResponse setupRecurring(UUID kbTenantId, PaymentServiceSetupRecurringRequest request) throws PrismClientException;
 
@@ -74,7 +77,7 @@ public interface PrismClient {
     RecurringPaymentServiceChargeResponse charge(UUID kbTenantId, RecurringPaymentServiceChargeRequest request) throws PrismClientException;
 
     /** Payment against a stored connector token (customer NOT present). */
-    PaymentServiceTokenAuthorizeResponse tokenAuthorize(UUID kbTenantId, PaymentServiceTokenAuthorizeRequest request) throws PrismClientException;
+    PaymentServiceAuthorizeResponse tokenAuthorize(UUID kbTenantId, PaymentServiceTokenAuthorizeRequest request) throws PrismClientException;
 
     /** Tokenize a payment method for future reuse. */
     PaymentMethodServiceTokenizeResponse tokenize(UUID kbTenantId, PaymentMethodServiceTokenizeRequest request) throws PrismClientException;

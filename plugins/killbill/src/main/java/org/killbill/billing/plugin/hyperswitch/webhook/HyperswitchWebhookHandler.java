@@ -98,7 +98,11 @@ public class HyperswitchWebhookHandler {
             }
 
             final String eventType = safe(() -> resp.getEventType().name());
-            final String connectorTxnId = safe(() -> resp.getConnectorTransactionId());
+            // The handle response has no top-level transaction id — it rides inside the typed event content
+            // (payments_response / refunds_response mirror PaymentService.Get / RefundService.Get).
+            final String connectorTxnId = safe(() -> resp.getEventContent().hasPaymentsResponse()
+                    ? resp.getEventContent().getPaymentsResponse().getConnectorTransactionId()
+                    : resp.getEventContent().getRefundsResponse().getConnectorTransactionId());
             applyEvent(tenantId, eventType, connectorTxnId, context);
             return HyperswitchGatewayNotification.ack("{\"status\":\"ok\"}");
         } catch (final PrismClientException e) {
