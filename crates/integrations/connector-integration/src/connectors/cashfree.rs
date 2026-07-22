@@ -24,7 +24,8 @@ use domain_types::{
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::{
-        ConnectorInfo, Connectors, FeatureStatus, PaymentMethodDetails, SupportedPaymentMethods,
+        ConnectorInfo, Connectors, FeatureStatus, IntegrationStatus, PaymentMethodDetails,
+        SupportedPaymentMethods,
     },
 };
 use error_stack::ResultExt;
@@ -702,6 +703,7 @@ static CASHFREE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Cashfree",
     description: "Cashfree Payments is an Indian payment gateway and banking technology company.",
     connector_type: domain_types::types::PaymentConnectorCategory::PaymentGateway,
+    integration_status: IntegrationStatus::Beta,
 };
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

@@ -42,7 +42,7 @@ use domain_types::{
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::{
-        self, CardSpecificFeatures, ConnectorInfo, Connectors, FeatureStatus,
+        self, CardSpecificFeatures, ConnectorInfo, Connectors, FeatureStatus, IntegrationStatus,
         PaymentMethodDataType, PaymentMethodDetails, PaymentMethodSpecificFeatures,
         SupportedPaymentMethods,
     },
@@ -1385,9 +1385,10 @@ static ADYEN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
 });
 
 static ADYEN_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-    display_name: "Adyen", 
+    display_name: "Adyen",
     description: "Adyen is a Dutch payment company with the status of an acquiring bank that allows businesses to accept e-commerce, mobile, and point-of-sale payments. It is listed on the stock exchange Euronext Amsterdam.",
-    connector_type: types::PaymentConnectorCategory::PaymentGateway
+    connector_type: types::PaymentConnectorCategory::PaymentGateway,
+    integration_status: IntegrationStatus::Sandbox,
 };
 
 static ADYEN_SUPPORTED_WEBHOOK_FLOWS: &[EventClass] = &[EventClass::Payments, EventClass::Refunds];

@@ -22,8 +22,9 @@ use domain_types::{
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::{
-        CardSpecificFeatures, ConnectorInfo, Connectors, FeatureStatus, PaymentConnectorCategory,
-        PaymentMethodDetails, PaymentMethodSpecificFeatures, SupportedPaymentMethods,
+        CardSpecificFeatures, ConnectorInfo, Connectors, FeatureStatus, IntegrationStatus,
+        PaymentConnectorCategory, PaymentMethodDetails, PaymentMethodSpecificFeatures,
+        SupportedPaymentMethods,
     },
 };
 use error_stack::ResultExt;
@@ -428,9 +429,10 @@ static HYPERPG_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = {
 };
 
 static HYPERPG_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-        display_name: "Hyperpg",
-        description: "Hyperpg is your trusted payment gateway solution. Seamlessly manage transactions, enhance security, and empower your business to thrive in the digital age.",
-        connector_type: PaymentConnectorCategory::PaymentGateway
+    display_name: "Hyperpg",
+    description: "Hyperpg is your trusted payment gateway solution. Seamlessly manage transactions, enhance security, and empower your business to thrive in the digital age.",
+    connector_type: PaymentConnectorCategory::PaymentGateway,
+    integration_status: IntegrationStatus::Beta,
 };
 
 static HYPERPG_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();

@@ -24,8 +24,8 @@ use domain_types::{
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::{
-        ConnectorInfo, Connectors, FeatureStatus, PaymentConnectorCategory, PaymentMethodDetails,
-        SupportedPaymentMethods,
+        ConnectorInfo, Connectors, FeatureStatus, IntegrationStatus, PaymentConnectorCategory,
+        PaymentMethodDetails, SupportedPaymentMethods,
     },
 };
 use error_stack::ResultExt;
@@ -859,6 +859,7 @@ static PAYU_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "PayU",
     description: "PayU is a leading payment gateway for India, supporting UPI, Wallets, Net Banking, and Cards.",
     connector_type: PaymentConnectorCategory::PaymentGateway,
+    integration_status: IntegrationStatus::Beta,
 };
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

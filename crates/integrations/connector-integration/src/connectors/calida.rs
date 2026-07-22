@@ -28,7 +28,7 @@ use domain_types::{
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::{
-        self, ConnectorInfo, Connectors, FeatureStatus, PaymentMethodDetails,
+        self, ConnectorInfo, Connectors, FeatureStatus, IntegrationStatus, PaymentMethodDetails,
         SupportedPaymentMethods,
     },
 };
@@ -409,7 +409,8 @@ static CALIDA_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Laz
 static CALIDA_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Calida",
     description: "Calida Financial is a licensed e-money institution based in Malta and they provide customized financial infrastructure and payment solutions across the EU and EEA. As part of The Payments Group, it focuses on embedded finance, prepaid services, and next-generation digital payment products.",
-    connector_type: types::PaymentConnectorCategory::AlternativePaymentMethod
+    connector_type: types::PaymentConnectorCategory::AlternativePaymentMethod,
+    integration_status: IntegrationStatus::Beta,
 };
 
 static CALIDA_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];

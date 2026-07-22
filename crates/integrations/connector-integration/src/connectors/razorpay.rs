@@ -34,9 +34,9 @@ use domain_types::{
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::{
-        CardSpecificFeatures, ConnectorInfo, Connectors, FeatureStatus, PaymentConnectorCategory,
-        PaymentMethodDataType, PaymentMethodDetails, PaymentMethodSpecificFeatures,
-        SupportedPaymentMethods,
+        CardSpecificFeatures, ConnectorInfo, Connectors, FeatureStatus, IntegrationStatus,
+        PaymentConnectorCategory, PaymentMethodDataType, PaymentMethodDetails,
+        PaymentMethodSpecificFeatures, SupportedPaymentMethods,
     },
 };
 use error_stack::{report, ResultExt};
@@ -1320,7 +1320,8 @@ static RAZORPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
 static RAZORPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Razorpay",
     description: "Razorpay is a payment gateway that allows businesses to accept, process, and disburse payments with its product suite.",
-    connector_type: PaymentConnectorCategory::PaymentGateway
+    connector_type: PaymentConnectorCategory::PaymentGateway,
+    integration_status: IntegrationStatus::Beta,
 };
 
 static RAZORPAY_SUPPORTED_WEBHOOK_FLOWS: &[EventClass] =

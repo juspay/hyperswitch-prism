@@ -23,8 +23,8 @@ use domain_types::{
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::{
-        ConnectorInfo, FeatureStatus, PaymentConnectorCategory, PaymentMethodDetails,
-        SupportedPaymentMethods,
+        ConnectorInfo, FeatureStatus, IntegrationStatus, PaymentConnectorCategory,
+        PaymentMethodDetails, SupportedPaymentMethods,
     },
 };
 use error_stack::ResultExt;
@@ -450,6 +450,7 @@ static PPRO_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Ppro",
     description: "Ppro is a global provider of local payment infrastructure.",
     connector_type: PaymentConnectorCategory::PaymentGateway,
+    integration_status: IntegrationStatus::Beta,
 };
 
 static PPRO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {

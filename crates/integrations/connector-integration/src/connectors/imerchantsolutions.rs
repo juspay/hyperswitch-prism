@@ -29,8 +29,8 @@ use domain_types::{
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::{
-        self, CardSpecificFeatures, ConnectorInfo, Connectors, FeatureStatus, PaymentMethodDetails,
-        PaymentMethodSpecificFeatures, SupportedPaymentMethods,
+        self, CardSpecificFeatures, ConnectorInfo, Connectors, FeatureStatus, IntegrationStatus,
+        PaymentMethodDetails, PaymentMethodSpecificFeatures, SupportedPaymentMethods,
     },
 };
 use error_stack::report;
@@ -538,6 +538,7 @@ static IMERCHANTSOLUTIONS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "iMerchant Solutions",
     description: "iMerchant Solutions is a modern payment processing platform that empowers businesses to accept payments globally with fast and low-friction onboarding.",
     connector_type: types::PaymentConnectorCategory::PaymentGateway,
+    integration_status: IntegrationStatus::Live,
 };
 
 static IMERCHANTSOLUTIONS_SUPPORTED_WEBHOOK_FLOWS: &[EventClass] =

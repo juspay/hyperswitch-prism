@@ -5557,7 +5557,7 @@ message PaymentMethodServiceEligibilityResponse {
 // ============================================================================
 
 message FeatureMatrixRequest {
-  repeated string connectors = 1;
+  repeated Connector connectors = 1;
 }
 
 message FeatureMatrixResponse {
@@ -5566,29 +5566,49 @@ message FeatureMatrixResponse {
   repeated FeatureMatrixConnector connectors = 2;
 }
 
+enum EventClass {
+  EVENT_CLASS_UNSPECIFIED = 0;
+  PAYMENTS = 1;
+  REFUNDS = 2;
+  DISPUTES = 3;
+}
+
 message FeatureMatrixConnector {
-  string connector_name = 1;
+  enum IntegrationStatus {
+    UNSPECIFIED = 0;
+    LIVE = 1;
+    SANDBOX = 2;
+    BETA = 3;
+    ALPHA = 4;
+  }
+
+  Connector connector_name = 1;
   string display_name = 2;
   string description = 3;
   string base_url = 4;
   string category = 5;
-  string integration_status = 6;
+  IntegrationStatus integration_status = 6;
   repeated FeatureMatrixPaymentMethod supported_payment_methods = 7;
-  repeated string supported_webhook_flows = 8;
+  repeated EventClass supported_webhook_flows = 8;
 }
 
 message FeatureMatrixPaymentMethod {
-  string payment_method = 1;
-  string payment_method_type = 2;
-  string payment_method_type_display_name = 3;
-  string mandates = 4;
-  string refunds = 5;
-  repeated string supported_capture_methods = 6;
-  optional string three_ds = 7;
-  optional string no_three_ds = 8;
-  repeated string supported_card_networks = 9;
-  repeated CountryAlpha2 supported_countries = 10;
-  repeated Currency supported_currencies = 11;
+  string payment_method_type = 1;
+  string payment_method_type_display_name = 2;
+  FeatureStatus mandates = 3;
+  FeatureStatus refunds = 4;
+  repeated CaptureMethod supported_capture_methods = 5;
+  optional FeatureStatus three_ds = 6;
+  optional FeatureStatus no_three_ds = 7;
+  repeated CardNetwork supported_card_networks = 8;
+  repeated CountryAlpha2 supported_countries = 9;
+  repeated Currency supported_currencies = 10;
+}
+
+enum FeatureStatus {
+  FEATURE_STATUS_UNSPECIFIED = 0;
+  NOT_SUPPORTED = 1;
+  SUPPORTED = 2;
 }
 
 // ============================================================================

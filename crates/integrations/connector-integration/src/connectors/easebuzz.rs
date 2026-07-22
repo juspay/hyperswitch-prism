@@ -20,8 +20,8 @@ use domain_types::{
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::{
-        ConnectorInfo, Connectors, FeatureStatus, PaymentConnectorCategory, PaymentMethodDetails,
-        SupportedPaymentMethods,
+        ConnectorInfo, Connectors, FeatureStatus, IntegrationStatus, PaymentConnectorCategory,
+        PaymentMethodDetails, SupportedPaymentMethods,
     },
 };
 use error_stack::ResultExt;
@@ -131,6 +131,7 @@ static EASEBUZZ_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Easebuzz",
     description: "Easebuzz is an Indian payment gateway providing UPI, Net Banking, Wallet, and Card payment solutions.",
     connector_type: PaymentConnectorCategory::PaymentGateway,
+    integration_status: IntegrationStatus::Beta,
 };
 
 // ============================================================================

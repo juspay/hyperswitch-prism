@@ -1,13 +1,14 @@
-use common_enums::{CountryAlpha2, Currency, EventClass, PaymentMethodType};
-use grpc_api_types::payments::{CountryAlpha2 as GrpcCountryAlpha2, Currency as GrpcCurrency};
+use common_enums::{
+    CaptureMethod, CardNetwork, CountryAlpha2, Currency, EventClass, PaymentMethodType,
+};
 use serde::{Serialize, Serializer};
 
 use crate::{
     connector_types::ConnectorEnum,
     types::{
-        ConnectorInfo, PaymentMethodDetails, PaymentMethodSpecificFeatures, SupportedPaymentMethods,
+        ConnectorInfo, FeatureStatus, IntegrationStatus, PaymentMethodDetails,
+        PaymentMethodSpecificFeatures, SupportedPaymentMethods,
     },
-    utils::ForeignTryFrom,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -46,14 +47,15 @@ impl FeatureMatrixResponse {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct FeatureMatrixConnector {
-    pub name: String,
+    #[serde(serialize_with = "serialize_connector_name")]
+    pub name: ConnectorEnum,
     pub display_name: String,
     pub description: String,
     pub base_url: String,
     pub category: String,
-    pub integration_status: &'static str,
+    pub integration_status: IntegrationStatus,
     pub supported_payment_methods: Vec<FeatureMatrixPaymentMethod>,
-    pub supported_webhook_flows: Vec<String>,
+    pub supported_webhook_flows: Vec<EventClass>,
 }
 
 impl FeatureMatrixConnector {
@@ -69,45 +71,50 @@ impl FeatureMatrixConnector {
             .unwrap_or_default();
 
         let supported_webhook_flows = supported_webhook_flows
-            .map(|event_classes| {
-                event_classes
-                    .iter()
-                    .map(ToString::to_string)
-                    .collect::<Vec<_>>()
-            })
+            .map(|event_classes| event_classes.to_vec())
             .unwrap_or_default();
 
         Self {
-            name: connector_name.to_string().to_ascii_uppercase(),
+            name: connector_name,
             display_name: connector_info.display_name.to_string(),
             description: connector_info.description.to_string(),
             base_url: base_url.to_string(),
             category: connector_info.connector_type.to_string(),
-            integration_status: "beta",
+            integration_status: connector_info.integration_status,
             supported_payment_methods,
             supported_webhook_flows,
         }
     }
 }
 
+fn serialize_connector_name<S>(
+    connector_name: &ConnectorEnum,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    connector_name
+        .to_string()
+        .to_ascii_uppercase()
+        .serialize(serializer)
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct FeatureMatrixPaymentMethod {
-    pub payment_method: String,
     pub payment_method_type: String,
     pub payment_method_type_display_name: String,
-    pub mandates: String,
-    pub refunds: String,
-    pub supported_capture_methods: Vec<String>,
+    pub mandates: FeatureStatus,
+    pub refunds: FeatureStatus,
+    pub supported_capture_methods: Vec<CaptureMethod>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub three_ds: Option<String>,
+    pub three_ds: Option<FeatureStatus>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub no_three_ds: Option<String>,
+    pub no_three_ds: Option<FeatureStatus>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub supported_card_networks: Option<Vec<String>>,
-    #[serde(serialize_with = "serialize_supported_countries")]
-    pub supported_countries: Option<Vec<GrpcCountryAlpha2>>,
-    #[serde(serialize_with = "serialize_supported_currencies")]
-    pub supported_currencies: Option<Vec<GrpcCurrency>>,
+    pub supported_card_networks: Option<Vec<CardNetwork>>,
+    pub supported_countries: Option<Vec<CountryAlpha2>>,
+    pub supported_currencies: Option<Vec<Currency>>,
 }
 
 impl FeatureMatrixPaymentMethod {
@@ -116,49 +123,38 @@ impl FeatureMatrixPaymentMethod {
     ) -> Vec<Self> {
         let mut payment_methods = supported_payment_methods
             .iter()
-            .flat_map(|(payment_method, payment_method_type_metadata)| {
+            .flat_map(|(_, payment_method_type_metadata)| {
                 payment_method_type_metadata.iter().flat_map(
-                    move |(payment_method_type, payment_method_details)| {
-                        let payment_method_name = payment_method.to_string();
-
-                        match payment_method_type {
-                            PaymentMethodType::Card => vec![
-                                Self::from_payment_method_details(
-                                    payment_method_name.clone(),
-                                    "credit".to_string(),
-                                    "Credit Card".to_string(),
-                                    payment_method_details,
-                                ),
-                                Self::from_payment_method_details(
-                                    payment_method_name,
-                                    "debit".to_string(),
-                                    "Debit Card".to_string(),
-                                    payment_method_details,
-                                ),
-                            ],
-                            payment_method_type => vec![Self::from_payment_method_details(
-                                payment_method_name,
-                                payment_method_type.to_string(),
-                                payment_method_type.to_display_name(),
+                    |(payment_method_type, payment_method_details)| match payment_method_type {
+                        PaymentMethodType::Card => vec![
+                            Self::from_payment_method_details(
+                                "credit".to_string(),
+                                "Credit Card".to_string(),
                                 payment_method_details,
-                            )],
-                        }
+                            ),
+                            Self::from_payment_method_details(
+                                "debit".to_string(),
+                                "Debit Card".to_string(),
+                                payment_method_details,
+                            ),
+                        ],
+                        payment_method_type => vec![Self::from_payment_method_details(
+                            payment_method_type.to_string(),
+                            payment_method_type.to_display_name(),
+                            payment_method_details,
+                        )],
                     },
                 )
             })
             .collect::<Vec<_>>();
 
-        payment_methods.sort_by(|left, right| {
-            left.payment_method
-                .cmp(&right.payment_method)
-                .then_with(|| left.payment_method_type.cmp(&right.payment_method_type))
-        });
+        payment_methods
+            .sort_by(|left, right| left.payment_method_type.cmp(&right.payment_method_type));
 
         payment_methods
     }
 
     fn from_payment_method_details(
-        payment_method: String,
         payment_method_type: String,
         payment_method_type_display_name: String,
         payment_method_details: &PaymentMethodDetails,
@@ -166,96 +162,26 @@ impl FeatureMatrixPaymentMethod {
         let (three_ds, no_three_ds, supported_card_networks) =
             match &payment_method_details.specific_features {
                 Some(PaymentMethodSpecificFeatures::Card(card_features)) => (
-                    Some(card_features.three_ds.to_string()),
-                    Some(card_features.no_three_ds.to_string()),
-                    Some(
-                        card_features
-                            .supported_card_networks
-                            .iter()
-                            .map(ToString::to_string)
-                            .collect(),
-                    ),
+                    Some(card_features.three_ds),
+                    Some(card_features.no_three_ds),
+                    Some(card_features.supported_card_networks.clone()),
                 ),
                 None => (None, None, None),
             };
 
         Self {
-            payment_method,
             payment_method_type,
             payment_method_type_display_name,
-            mandates: payment_method_details.mandates.to_string(),
-            refunds: payment_method_details.refunds.to_string(),
-            supported_capture_methods: payment_method_details
-                .supported_capture_methods
-                .iter()
-                .map(ToString::to_string)
-                .collect(),
+            mandates: payment_method_details.mandates,
+            refunds: payment_method_details.refunds,
+            supported_capture_methods: payment_method_details.supported_capture_methods.clone(),
             three_ds,
             no_three_ds,
             supported_card_networks,
-            supported_countries: supported_countries(&payment_method_details.supported_countries),
-            supported_currencies: supported_currencies(
-                &payment_method_details.supported_currencies,
-            ),
+            supported_countries: (!payment_method_details.supported_countries.is_empty())
+                .then(|| payment_method_details.supported_countries.clone()),
+            supported_currencies: (!payment_method_details.supported_currencies.is_empty())
+                .then(|| payment_method_details.supported_currencies.clone()),
         }
     }
-}
-
-fn supported_countries(countries: &[CountryAlpha2]) -> Option<Vec<GrpcCountryAlpha2>> {
-    (!countries.is_empty()).then(|| {
-        countries
-            .iter()
-            .map(|country| {
-                GrpcCountryAlpha2::foreign_try_from(*country)
-                    .unwrap_or(GrpcCountryAlpha2::Unspecified)
-            })
-            .collect()
-    })
-}
-
-fn supported_currencies(currencies: &[Currency]) -> Option<Vec<GrpcCurrency>> {
-    (!currencies.is_empty()).then(|| {
-        currencies
-            .iter()
-            .map(|currency| {
-                GrpcCurrency::foreign_try_from(*currency).unwrap_or(GrpcCurrency::Unspecified)
-            })
-            .collect()
-    })
-}
-
-fn serialize_supported_countries<S>(
-    countries: &Option<Vec<GrpcCountryAlpha2>>,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    countries
-        .as_ref()
-        .map(|countries| {
-            countries
-                .iter()
-                .map(|country| country.as_str_name())
-                .collect::<Vec<_>>()
-        })
-        .serialize(serializer)
-}
-
-fn serialize_supported_currencies<S>(
-    currencies: &Option<Vec<GrpcCurrency>>,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    currencies
-        .as_ref()
-        .map(|currencies| {
-            currencies
-                .iter()
-                .map(|currency| currency.as_str_name())
-                .collect::<Vec<_>>()
-        })
-        .serialize(serializer)
 }

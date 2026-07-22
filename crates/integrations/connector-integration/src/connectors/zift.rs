@@ -26,8 +26,8 @@ use domain_types::{
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::{
-        self, CardSpecificFeatures, ConnectorInfo, Connectors, FeatureStatus, PaymentMethodDetails,
-        PaymentMethodSpecificFeatures, SupportedPaymentMethods,
+        self, CardSpecificFeatures, ConnectorInfo, Connectors, FeatureStatus, IntegrationStatus,
+        PaymentMethodDetails, PaymentMethodSpecificFeatures, SupportedPaymentMethods,
     },
 };
 use error_stack::ResultExt;
@@ -319,6 +319,7 @@ static ZIFT_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Zift",
     description: "Zift connector",
     connector_type: types::PaymentConnectorCategory::PaymentGateway,
+    integration_status: IntegrationStatus::Beta,
 };
 
 static ZIFT_SUPPORTED_WEBHOOK_FLOWS: [common_enums::EventClass; 0] = [];

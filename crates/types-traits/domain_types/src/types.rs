@@ -11560,6 +11560,20 @@ pub enum FeatureStatus {
 pub type PaymentMethodTypeMetadata = HashMap<PaymentMethodType, PaymentMethodDetails>;
 pub type SupportedPaymentMethods = HashMap<PaymentMethod, PaymentMethodTypeMetadata>;
 
+#[derive(Debug, Clone, Copy, Eq, PartialEq, serde::Serialize, strum::Display)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum IntegrationStatus {
+    /// Connector is integrated and live on production
+    Live,
+    /// Connector is integrated and fully tested on sandbox
+    Sandbox,
+    /// Connector is integrated and partially tested on sandbox
+    Beta,
+    /// Connector is integrated using the online documentation but not tested yet
+    Alpha,
+}
+
 #[derive(Debug, Clone)]
 pub struct ConnectorInfo {
     /// Display name of the Connector
@@ -11568,6 +11582,8 @@ pub struct ConnectorInfo {
     pub description: &'static str,
     /// Connector Type
     pub connector_type: PaymentConnectorCategory,
+    /// Integration maturity for feature matrix consumers.
+    pub integration_status: IntegrationStatus,
 }
 
 /// Required for passing additional details for Recurring payments from initial payments

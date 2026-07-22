@@ -2,7 +2,6 @@
 
 pub mod app;
 pub mod config_overrides;
-pub mod feature_matrix;
 pub mod http;
 pub mod metrics;
 pub mod request;
