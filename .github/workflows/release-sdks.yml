@@ -168,6 +168,10 @@ jobs:
             arch: x86_64
             target: x86_64-unknown-linux-gnu
             runner: ubuntu-latest
+          - os: linux
+            arch: aarch64
+            target: aarch64-unknown-linux-gnu
+            runner: ubuntu-24.04-arm
 
     steps:
       - name: Checkout repository
@@ -746,11 +750,16 @@ jobs:
         with:
           name: generated-java-proto
           path: sdk/java/src/main/java/generated/
-      - name: Download Linux binary
+      - name: Download Linux x86_64 binary
         uses: actions/download-artifact@v4
         with:
           name: binary-x86_64-unknown-linux-gnu
           path: target/x86_64-unknown-linux-gnu/release
+      - name: Download Linux aarch64 binary
+        uses: actions/download-artifact@v4
+        with:
+          name: binary-aarch64-unknown-linux-gnu
+          path: target/aarch64-unknown-linux-gnu/release
       - name: Download macOS binary
         uses: actions/download-artifact@v4
         with:
@@ -818,11 +827,11 @@ jobs:
           echo "Wheel location: artifacts/sdk-python/"
           ls -la artifacts/sdk-python/
           echo ""
-          echo "Wheel metadata:"
-          cd artifacts/sdk-python && unzip -l *.whl | head -30
-          echo ""
-          echo "Package info:"
-          pip show artifacts/sdk-python/*.whl 2>/dev/null || echo "pip show failed"
+          echo "Per-wheel native library (one arch each):"
+          for whl in artifacts/sdk-python/*.whl; do
+            echo "  $whl"
+            unzip -l "$whl" | grep -E '\.(so|dylib)' || echo "    (no native lib!)"
+          done
           echo ""
           if [ "${{ inputs.preview_only }}" == "true" ]; then
             echo "⚠️ PREVIEW ONLY MODE - Skipping actual publish"
