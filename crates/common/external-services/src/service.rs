@@ -67,10 +67,11 @@ pub struct VaultConnectorAuth {
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(untagged)]
 pub enum ExternalVaultProxyMetadata {
+    /// HyperswitchVault data variant — must be first so serde matches vault_endpoint+vault_auth_data
+    /// before falling through to VgsMetadata (which only needs proxy_url+certificate).
+    HyperswitchVaultMetadata(HyperswitchVaultMetadata),
     /// VGS proxy data variant
     VgsMetadata(VgsMetadata),
-    /// HyperswitchVault data variant
-    HyperswitchVaultMetadata(HyperswitchVaultMetadata),
 }
 
 /// Complete external vault proxy configuration to be serialized and sent to UCS
@@ -100,6 +101,13 @@ pub struct HyperswitchVaultMetadata {
     pub vault_endpoint: Url,
     /// Authentication data for the vault connector
     pub vault_auth_data: VaultConnectorAuth,
+    /// Optional egress proxy URL (e.g. Squid). Absent for in-cluster deployments.
+    #[serde(default)]
+    pub proxy_url: Option<Url>,
+    /// Optional CA certificate for TLS verification (needed for MITM proxies like VGS,
+    /// not needed for CONNECT-tunnel proxies like Squid).
+    #[serde(default)]
+    pub certificate: Option<Secret<String>>,
 }
 
 pub trait ConnectorRequestReference {
@@ -1753,6 +1761,10 @@ fn apply_vault_config_to_injector(
                     api_key: hsv.vault_auth_data.api_key,
                     profile_id: hsv.vault_auth_data.profile_id,
                 });
+            // Thread optional proxy egress (e.g. Squid) through to the injector.
+            injector_request.connection_config.proxy_url =
+                hsv.proxy_url.map(|u| Secret::new(u.to_string()));
+            injector_request.connection_config.ca_cert = hsv.certificate;
         }
     }
 }
