@@ -114,17 +114,8 @@
             <artifactId>jooby</artifactId>
         </dependency>
 
-        <!-- jOOQ: local persistence (hyperswitch_responses / hyperswitch_payment_methods) -->
-        <dependency>
-            <groupId>org.jooq</groupId>
-            <artifactId>jooq</artifactId>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.slf4j</groupId>
-                    <artifactId>slf4j-api</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
+        <!-- DB-less: no jOOQ. Connector state is persisted in KillBill's own storage (custom fields + core
+             Payment API) via HyperswitchStateStore. -->
 
         <!-- ============================ KillBill APIs (provided by the runtime) ============================ -->
         <dependency>
@@ -266,7 +257,6 @@
                     <rules>
                         <requireUpperBoundDeps>
                             <excludes>
-                                <exclude>org.jooq:jooq</exclude>
                                 <!-- Pulled transitively by io.hyperswitch:prism (okhttp/kotlin stack); the SDK
                                      and its deps are embedded wholesale into the bundle, so KillBill's
                                      upper-bound rule doesn't apply to them. -->
@@ -292,46 +282,4 @@
             </plugin>
         </plugins>
     </build>
-
-    <profiles>
-        <!--
-            jOOQ codegen for the two plugin tables. Run once against a MySQL/MariaDB with ddl.sql applied:
-              mvn -Pgenerate-jooq generate-sources
-            then commit the generated sources under src/main/java/org/killbill/billing/plugin/hyperswitch/dao/gen.
-            (Mirrors how killbill-stripe-plugin commits its dao/gen output.)
-        -->
-        <profile>
-            <id>generate-jooq</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.jooq</groupId>
-                        <artifactId>jooq-codegen-maven</artifactId>
-                        <!-- Must match the parent-managed org.jooq:jooq runtime version, or the generated
-                             sources use newer jOOQ APIs than the compile classpath provides. -->
-                        <version>${jooq.version}</version>
-                        <dependencies>
-                            <dependency>
-                                <groupId>com.mysql</groupId>
-                                <artifactId>mysql-connector-j</artifactId>
-                                <version>8.4.0</version>
-                            </dependency>
-                        </dependencies>
-                        <executions>
-                            <execution>
-                                <id>jooq-codegen</id>
-                                <goals>
-                                    <goal>generate</goal>
-                                </goals>
-                                <phase>generate-sources</phase>
-                                <configuration>
-                                    <configurationFile>src/main/resources/gen.xml</configurationFile>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-    </profiles>
 </project>

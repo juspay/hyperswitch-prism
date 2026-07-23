@@ -27,7 +27,7 @@ import org.killbill.billing.plugin.core.resources.jooby.PluginApp;
 import org.killbill.billing.plugin.core.resources.jooby.PluginAppBuilder;
 import org.killbill.billing.plugin.hyperswitch.client.PrismClient;
 import org.killbill.billing.plugin.hyperswitch.client.SdkPrismClient;
-import org.killbill.billing.plugin.hyperswitch.dao.HyperswitchDao;
+import org.killbill.billing.plugin.hyperswitch.store.HyperswitchStateStore;
 import org.killbill.billing.plugin.hyperswitch.webhook.HyperswitchServlet;
 import org.osgi.framework.BundleContext;
 
@@ -41,7 +41,8 @@ public class HyperswitchActivator extends KillbillActivatorBase {
     public void start(final BundleContext context) throws Exception {
         super.start(context);
 
-        final HyperswitchDao dao = new HyperswitchDao(dataSource.getDataSource());
+        // DB-less: connector state lives in KillBill's own storage (custom fields + core Payment API).
+        final HyperswitchStateStore store = new HyperswitchStateStore(killbillAPI, clock.getClock());
 
         final String region = PluginEnvironmentConfig.getRegion(configProperties.getProperties());
         configHandler = new HyperswitchConfigPropertiesConfigurationHandler(PLUGIN_NAME, killbillAPI, region);
@@ -55,10 +56,9 @@ public class HyperswitchActivator extends KillbillActivatorBase {
         // Register the payment plugin.
         final HyperswitchPaymentPluginApi pluginApi = new HyperswitchPaymentPluginApi(configHandler,
                                                                                       prismClient,
+                                                                                      store,
                                                                                       killbillAPI,
-                                                                                      configProperties,
-                                                                                      clock.getClock(),
-                                                                                      dao);
+                                                                                      clock.getClock());
         registerPaymentPluginApi(context, pluginApi);
 
         // Register the webhook servlet (connectors POST notifications to /plugins/killbill-hyperswitch).
