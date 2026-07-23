@@ -625,6 +625,69 @@ fn card_on_file_is_none_on_visa_mit() {
 }
 
 #[test]
+fn card_on_file_and_nti_on_discover_family_recurring_installment_mit() {
+    // Cert rows 147/155 (JCB recurring) and 165/172 (Diners installment): the
+    // Discover-family recurring/installment MIT sends cardOnFile=Y AND
+    // cardOnFileTransactionIdentifier.
+    for family in [
+        CardFamily::Jcb,
+        CardFamily::Diners,
+        CardFamily::Discover,
+        CardFamily::UnionPay,
+    ] {
+        for kind in [MitKind::Recurring, MitKind::Installment] {
+            let p = profile(
+                AcceptanceProfile::RecurringMit,
+                family,
+                CofPhase::Mit(kind),
+                CommercialLevel::None,
+                CaptureKind::Auto,
+            );
+            assert!(
+                matches!(cof_mit::card_on_file(&p), Some(TsysTransitCardOnFile::Y)),
+                "cardOnFile=Y expected for {family:?} {kind:?}"
+            );
+            assert!(
+                cof_mit::should_send_card_on_file_transaction_identifier(&p),
+                "NTI expected for {family:?} {kind:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn card_on_file_and_nti_none_on_mastercard_recurring_installment_mit() {
+    // Cert rows 162/169 (MasterCard installment): MasterCard signals the stored
+    // credential via mitStatusIndicator=M10x, NOT cardOnFile / NTI.
+    for kind in [MitKind::Recurring, MitKind::Installment] {
+        let p = profile(
+            AcceptanceProfile::RecurringMit,
+            CardFamily::Mastercard,
+            CofPhase::Mit(kind),
+            CommercialLevel::None,
+            CaptureKind::Auto,
+        );
+        assert!(cof_mit::card_on_file(&p).is_none());
+        assert!(!cof_mit::should_send_card_on_file_transaction_identifier(&p));
+    }
+}
+
+#[test]
+fn card_on_file_none_on_discover_family_unscheduled_mit() {
+    // Discover-family *unscheduled* MIT uses mitStatusIndicator=U (MOTO_V2),
+    // not cardOnFile / NTI — only recurring/installment carry those.
+    let p = profile(
+        AcceptanceProfile::MotoPhone,
+        CardFamily::Jcb,
+        CofPhase::Mit(MitKind::Unscheduled),
+        CommercialLevel::None,
+        CaptureKind::Auto,
+    );
+    assert!(cof_mit::card_on_file(&p).is_none());
+    assert!(!cof_mit::should_send_card_on_file_transaction_identifier(&p));
+}
+
+#[test]
 fn cit_status_indicator_c101_on_mastercard_cit_using_stored() {
     // Cert: "mitStatusIndicator tag must not be sent on the 29.75
     // Mastercard transaction in step 5 as this test case is a Card on
