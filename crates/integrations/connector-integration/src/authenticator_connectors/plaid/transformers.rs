@@ -524,13 +524,12 @@ impl TryFrom<ResponseRouterData<PlaidAuthGetResponse, Self>>
                         account_number: bacs.account.clone(),
                         sort_code: Secret::new(bacs.sort_code.clone()),
                     })
-                } else if let Some(sepa) = sepa_map.get(&acct.account_id) {
+                } else {
+                    let sepa = sepa_map.get(&acct.account_id)?;
                     BankAccountRoutingDetails::Sepa(BankAccountSepaDetails {
                         iban: sepa.iban.clone(),
                         bic: sepa.bic.clone(),
                     })
-                } else {
-                    return None;
                 };
 
                 let bank_type = acct.subtype.as_deref().and_then(plaid_subtype_to_bank_type);
