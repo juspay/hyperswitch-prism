@@ -16,8 +16,8 @@ jobs:
         id: generate_app_token
         uses: actions/create-github-app-token@v2
         with:
-          app-id: ${{ secrets.CONNECTOR_SERVICE_BOT_APP_ID }}
-          private-key: ${{ secrets.CONNECTOR_SERVICE_BOT_APP_PRIVATE_KEY }}
+          app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
+          private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
 
       - name: Check if user is authorized to trigger workflow
         shell: bash
