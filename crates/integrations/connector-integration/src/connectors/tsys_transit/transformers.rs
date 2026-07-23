@@ -954,8 +954,7 @@ struct TsysTransitMerchantMetadata {
 
 impl TsysTransitMerchantMetadata {
     fn into_inner(self) -> TsysTransitMerchantMetadataInner {
-        let mut inner = self.tsys_transit.unwrap_or_default();
-        inner
+        self.tsys_transit.unwrap_or_default()
     }
 }
 
