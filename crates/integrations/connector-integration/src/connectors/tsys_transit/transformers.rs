@@ -1428,8 +1428,8 @@ fn build_tsys_product_details(
             );
 
             if !missing_fields.is_empty() {
-                return Err(missing_fields_error(missing_fields).into());
-            }
+                Err::<(), Report<IntegrationError>>(missing_fields_error(missing_fields).into())?;
+            };
         };
 
         if matches!(card_network, Some(CardNetwork::Mastercard)) {
@@ -1446,8 +1446,8 @@ fn build_tsys_product_details(
             );
 
             if !missing_fields.is_empty() {
-                return Err(missing_fields_error(missing_fields).into());
-            }
+                Err::<(), Report<IntegrationError>>(missing_fields_error(missing_fields).into())?;
+            };
         };
 
         Ok(Some(TsysTransitProductDetails {
