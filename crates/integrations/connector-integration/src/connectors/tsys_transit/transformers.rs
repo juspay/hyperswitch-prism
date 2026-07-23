@@ -1525,21 +1525,18 @@ fn build_merchant_acceptor_info(
         },
     )?;
     let phone_number = customer_service_phone_number.clone();
-    let url = auth_data
-        .merchant_url
-        .clone()
-        .ok_or(
-            IntegrationError::MissingRequiredField {
-                field_name: "connector_metadata.tsys_transit.merchant_url",
-                context: Default::default(),
-            }
-            .into(),
-        )
-        .and_then(|url| {
-            url::Url::parse(&url).change_context(IntegrationError::InvalidDataFormat {
-                field_name: "connector_metadata.tsys_transit.merchant_url",
-                context: Default::default(),
-            })
+    let merchant_url = auth_data.merchant_url.ok_or(
+        IntegrationError::MissingRequiredField {
+            field_name: "connector_metadata.tsys_transit.merchant_url",
+            context: Default::default(),
+        }
+        .into(),
+    )?;
+
+    let url =
+        url::Url::parse(&merchant_url).change_context(IntegrationError::InvalidDataFormat {
+            field_name: "connector_metadata.tsys_transit.merchant_url",
+            context: Default::default(),
         })?;
 
     Ok(Some(MerchantAcceptorInfo {
@@ -1567,16 +1564,19 @@ fn compute_commercial_card_context<
         card_network,
         router_data.request.payment_channel.as_ref(),
     )?;
-    let request_metadata = match router_data.request.metadata.as_ref() {
-        Some(meta) => {
+    let request_metadata = router_data
+        .request
+        .metadata
+        .as_ref()
+        .map(|meta| {
             serde_json::from_value::<TsysTransitPaymentRequestMetadata>(meta.clone().expose())
                 .change_context(IntegrationError::InvalidDataFormat {
                     field_name: "connector_metadata.tsys_transit",
                     context: Default::default(),
-                })?
-        }
-        None => TsysTransitPaymentRequestMetadata::default(),
-    };
+                })
+        })
+        .transpose()?
+        .unwrap_or_default();
 
     let vat_invoice =
         sanitize_optional_alphanumeric_space(request_metadata.vat_invoice_number.clone(), 15);
