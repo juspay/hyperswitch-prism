@@ -60,26 +60,48 @@ jobs:
         run: |
           echo "::add-mask::${GH_TOKEN}"
 
-          function is_user_team_member() {
+          # 200 can also be returned for a pending invitation, so require
+          # state == "active"; 404 means not a member. Anything else is a
+          # credential/API/network problem — fail the workflow as an
+          # infrastructure error instead of reporting it as "not authorized".
+          function is_user_active_team_member() {
             username="${1}"
             team_slug="${2}"
-            org_name="${ORG_NAME}"
+            response_file="$(mktemp)"
 
-            # The API returns 200 if the user is a member of the team and 404
-            # otherwise, so compare on the HTTP status code.
             status_code="$(
               curl \
                 --location \
                 --silent \
-                --output /dev/null \
+                --output "${response_file}" \
                 --write-out '%{http_code}' \
                 --header 'Accept: application/vnd.github+json' \
                 --header 'X-GitHub-Api-Version: 2022-11-28' \
                 --header "Authorization: Bearer ${GH_TOKEN}" \
-                "https://api.github.com/orgs/${org_name}/teams/${team_slug}/memberships/${username}"
+                "https://api.github.com/orgs/${ORG_NAME}/teams/${team_slug}/memberships/${username}" \
+                || true
             )"
 
-            [[ status_code -eq 200 ]]
+            case "${status_code}" in
+              200)
+                state="$(jq --raw-output '.state // "unknown"' "${response_file}")"
+                rm -f "${response_file}"
+                if [[ "${state}" == "active" ]]; then
+                  return 0
+                fi
+                echo "${username} has membership state '${state}' in team ${team_slug}; only active members are authorized."
+                return 1
+                ;;
+              404)
+                rm -f "${response_file}"
+                return 1
+                ;;
+              *)
+                echo "::error::Membership check for team '${team_slug}' failed with HTTP status '${status_code}' — credential, API, or network problem, not an authorization decision. Response: $(head --bytes 300 "${response_file}")"
+                rm -f "${response_file}"
+                exit 1
+                ;;
+            esac
           }
 
           allowed_teams=('connector-service-maintainers')
@@ -87,7 +109,7 @@ jobs:
           username="${TRIGGERING_ACTOR}"
 
           for team in "${allowed_teams[@]}"; do
-            if is_user_team_member "${username}" "${team}"; then
+            if is_user_active_team_member "${username}" "${team}"; then
               is_user_authorized=true
               break
             fi
