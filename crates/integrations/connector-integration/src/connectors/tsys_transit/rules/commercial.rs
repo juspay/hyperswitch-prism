@@ -196,6 +196,24 @@ pub fn amex_l2_extras_required(profile: &TxProfile) -> bool {
         && matches!(profile.commercial_level, CommercialLevel::L2)
 }
 
+/// `chargeDescriptor` — AMEX Level II only; mandatory in that case. Never
+/// sent otherwise (including Visa/Mastercard at Level III).
+pub fn charge_descriptor(
+    profile: &TxProfile,
+    raw: Option<String>,
+) -> Result<Option<String>, Report<IntegrationError>> {
+    if !amex_l2_extras_required(profile) {
+        return Ok(None);
+    }
+
+    let charge_descriptor = raw.ok_or_else(|| IntegrationError::MissingRequiredField {
+        field_name: "chargeDescriptor required for AMEX when commercial_card_level is LEVEL2",
+        context: Default::default(),
+    })?;
+
+    Ok(Some(charge_descriptor))
+}
+
 /// True when L3 Visa/MC required fields are required (purchaseOrder,
 /// orderDate, summaryCommodityCode, vatInvoice, shipFromZip, shipToZip,
 /// destinationCountryCode).

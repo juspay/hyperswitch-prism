@@ -1817,19 +1817,13 @@ fn compute_commercial_card_context<
             acceptor_phone_number,
         })
     } else if is_level2 {
-        let (charge_descriptor, customer_ref_id, supplier_reference_number, ship_to_zip) =
-            match card_network {
-                Some(CardNetwork::AmericanExpress) => (
-                    charge_descriptor,
-                    customer_ref_id,
-                    supplier_reference_number,
-                    ship_to_zip,
-                ),
-                Some(CardNetwork::Visa) | Some(CardNetwork::Mastercard) => {
-                    (None, None, None, None)
-                }
-                _ => (None, None, None, None),
-            };
+        let (customer_ref_id, supplier_reference_number, ship_to_zip) = match card_network {
+            Some(CardNetwork::AmericanExpress) => {
+                (customer_ref_id, supplier_reference_number, ship_to_zip)
+            }
+            Some(CardNetwork::Visa) | Some(CardNetwork::Mastercard) => (None, None, None),
+            _ => (None, None, None),
+        };
         Ok(CommercialCardContext {
             sales_tax,
             tax_type: derived_tax_type.clone(),
@@ -2240,6 +2234,8 @@ fn assemble_authorize_body(
     )?;
     let purchase_order =
         rules::commercial::purchase_order(&profile, commercial_card_context.purchase_order)?;
+    let charge_descriptor =
+        rules::commercial::charge_descriptor(&profile, commercial_card_context.charge_descriptor)?;
 
     Ok(TsysTransitAuthorizeBody {
         device_id: auth.device_id,
@@ -2271,7 +2267,7 @@ fn assemble_authorize_body(
         commercial_card_level: commercial_card_context.commercial_card_level,
         // Per-field commercial gating from rules::commercial.
         purchase_order,
-        charge_descriptor: commercial_card_context.charge_descriptor,
+        charge_descriptor,
         charge_descriptor_2: commercial_card_context.charge_descriptor_2,
         charge_descriptor_3: commercial_card_context.charge_descriptor_3,
         charge_descriptor_4: commercial_card_context.charge_descriptor_4,
