@@ -50,6 +50,14 @@ impl CardFamily {
                 Self::Diners
             }
             Ok(CardIssuer::UnionPay) => Self::UnionPay,
+            // The shared `get_card_issuer` DinersClub regex only matches the
+            // legacy 14-digit format; modern Diners cards (which TSYS routes via
+            // the Discover network) are 16 digits and fall through. Recognise
+            // the Diners Club BIN ranges (300–305, 3095, 36, 38–39) length-
+            // agnostically so the Discover-family recurring/installment tags
+            // still fire. JCB (35xx) is already matched above, so it can't be
+            // mis-caught here.
+            Err(_) if is_diners_bin(card_number) => Self::Diners,
             Err(_) => Self::Unknown,
         }
     }
@@ -92,4 +100,18 @@ impl CardFamily {
     pub fn is_visa_or_mastercard(self) -> bool {
         matches!(self, Self::Visa | Self::Mastercard)
     }
+}
+
+/// Diners Club BIN ranges (300–305, 3095, 36, 38–39), matched length-
+/// agnostically. Used only as a fallback for the modern 16-digit Diners cards
+/// the shared `get_card_issuer` (14-digit-only) does not recognise. JCB (35xx)
+/// is intentionally excluded so it is never mis-classified as Diners.
+fn is_diners_bin(card_number: &str) -> bool {
+    let digits: String = card_number.chars().filter(|c| c.is_ascii_digit()).collect();
+    let starts = |p: &str| digits.starts_with(p);
+    starts("36")
+        || starts("38")
+        || starts("39")
+        || starts("3095")
+        || (0..=5).any(|n| starts(&format!("30{n}")))
 }

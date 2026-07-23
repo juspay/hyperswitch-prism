@@ -625,6 +625,23 @@ fn card_on_file_is_none_on_visa_mit() {
 }
 
 #[test]
+fn card_family_recognises_16_digit_diners_from_pan() {
+    // The cert Diners test card 3055155515160018 is a modern 16-digit Diners
+    // (TSYS routes it via Discover). The shared get_card_issuer only matches
+    // 14-digit Diners, so the connector's PAN fallback must still classify it
+    // as Diners for the Discover-family recurring/installment tags to fire.
+    assert!(matches!(
+        CardFamily::from_card_number("3055155515160018"),
+        CardFamily::Diners
+    ));
+    // JCB (35xx) is not mis-caught as Diners.
+    assert!(matches!(
+        CardFamily::from_card_number("3530142019945859"),
+        CardFamily::Jcb
+    ));
+}
+
+#[test]
 fn card_on_file_and_nti_on_discover_family_recurring_installment_mit() {
     // Cert rows 147/155 (JCB recurring) and 165/172 (Diners installment): the
     // Discover-family recurring/installment MIT sends cardOnFile=Y AND
