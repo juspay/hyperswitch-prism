@@ -1525,13 +1525,14 @@ fn build_merchant_acceptor_info(
         },
     )?;
     let phone_number = customer_service_phone_number.clone();
-    let merchant_url = auth_data.merchant_url.ok_or(
-        IntegrationError::MissingRequiredField {
-            field_name: "connector_metadata.tsys_transit.merchant_url",
-            context: Default::default(),
-        }
-        .into(),
-    )?;
+    let merchant_url =
+        auth_data
+            .merchant_url
+            .clone()
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "connector_metadata.tsys_transit.merchant_url",
+                context: Default::default(),
+            })?;
 
     let url =
         url::Url::parse(&merchant_url).change_context(IntegrationError::InvalidDataFormat {
