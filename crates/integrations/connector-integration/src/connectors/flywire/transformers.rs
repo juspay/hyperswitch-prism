@@ -504,7 +504,7 @@ impl TryFrom<ResponseRouterData<FlywirePayment, Self>>
         let status = response.status.to_attempt_status();
         let raw_response = serde_json::to_string(&response).ok().map(Secret::new);
         let raw_connector_status = Some(RawConnectorStatus {
-            code: Some(flywire_status_to_wire_string(&response.status)),
+            code: flywire_status_to_wire_string(&response.status),
             message: response.status_detail.clone(),
             reason: None,
         });
@@ -709,13 +709,12 @@ impl FlywireRefundStatus {
 }
 
 /// Serializes a Flywire status enum to its lower-cased wire string.
-/// Falls back to `"unknown"` for the `serde(other)` catch-all variant, which
-/// serde cannot round-trip.
-fn flywire_status_to_wire_string<T: Serialize>(status: &T) -> String {
+/// Returns `None` if serialization fails or the value is not a string
+/// (e.g. the `serde(other)` catch-all variant, which serde cannot round-trip).
+fn flywire_status_to_wire_string<T: Serialize>(status: &T) -> Option<String> {
     serde_json::to_value(status)
         .ok()
         .and_then(|value| value.as_str().map(String::from))
-        .unwrap_or_else(|| "unknown".to_owned())
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -767,7 +766,7 @@ impl<F> TryFrom<ResponseRouterData<FlywireRefundResponse, Self>>
             resource_common_data: RefundFlowData {
                 raw_connector_response: raw_response,
                 raw_connector_status: Some(RawConnectorStatus {
-                    code: Some(flywire_status_to_wire_string(&response.status)),
+                    code: flywire_status_to_wire_string(&response.status),
                     message: None,
                     reason: None,
                 }),
@@ -798,7 +797,7 @@ impl<F> TryFrom<ResponseRouterData<FlywireRefundResponse, Self>>
             resource_common_data: RefundFlowData {
                 raw_connector_response: raw_response,
                 raw_connector_status: Some(RawConnectorStatus {
-                    code: Some(flywire_status_to_wire_string(&response.status)),
+                    code: flywire_status_to_wire_string(&response.status),
                     message: None,
                     reason: None,
                 }),
@@ -829,7 +828,7 @@ impl<F> TryFrom<ResponseRouterData<FlywirePayment, Self>>
             resource_common_data: RefundFlowData {
                 raw_connector_response: raw_response,
                 raw_connector_status: Some(RawConnectorStatus {
-                    code: Some(flywire_status_to_wire_string(&response.status)),
+                    code: flywire_status_to_wire_string(&response.status),
                     message: response.status_detail.clone(),
                     reason: None,
                 }),
