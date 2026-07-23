@@ -1,3 +1,4 @@
+use common_enums;
 use connector_integration::types::ConnectorData;
 use domain_types::{
     connector_types::{ConnectorEnum, ConnectorVariant},
@@ -170,25 +171,48 @@ where
     }
 
     /// Exchange a public_token for an access_token (e.g. Plaid Link → access_token) when
-    /// the caller supplies a `payment_method_token` in the composite get request.
+    /// the connector supports payment method tokenization and no token is already supplied.
     async fn create_payment_method_token(
         &self,
+        connector: &ConnectorEnum,
         payload: &CompositePaymentMethodGetRequest,
         metadata: &tonic::metadata::MetadataMap,
         extensions: &tonic::Extensions,
     ) -> Result<Option<grpc_api_types::payments::PaymentMethodServiceTokenizeResponse>, tonic::Status>
     {
+        // Skip if the caller already has a token (e.g. a previously obtained access_token).
         if payload.payment_method_token.is_none() {
-            let tokenize_inner = PaymentMethodServiceTokenizeRequest::foreign_from(payload);
-            let mut tokenize_request = tonic::Request::new(tokenize_inner);
-            *tokenize_request.metadata_mut() = metadata.clone();
-            *tokenize_request.extensions_mut() = extensions.clone();
-            Ok(Some(
-                self.payment_method_service
-                    .tokenize(tokenize_request)
-                    .await?
-                    .into_inner(),
-            ))
+            let should_do_payment_method_token = {
+                let payment_method = payload
+                    .payment_method
+                    .as_ref()
+                    .map(|pm| common_enums::PaymentMethod::foreign_try_from(pm.clone()))
+                    .transpose()
+                    .into_grpc_status()?
+                    .unwrap_or_default();
+                let payment_method_type =
+                    common_enums::PaymentMethodType::foreign_try_from(payload.payment_method_type())
+                        .ok();
+                ConnectorData::<domain_types::payment_method_data::DefaultPCIHolder>::get_connector_by_name(connector)
+                    .connector
+                    .should_do_payment_method_token(payment_method, payment_method_type)
+            };
+
+            match should_do_payment_method_token {
+                true => {
+                    let tokenize_inner = PaymentMethodServiceTokenizeRequest::foreign_from(payload);
+                    let mut tokenize_request = tonic::Request::new(tokenize_inner);
+                    *tokenize_request.metadata_mut() = metadata.clone();
+                    *tokenize_request.extensions_mut() = extensions.clone();
+                    Ok(Some(
+                        self.payment_method_service
+                            .tokenize(tokenize_request)
+                            .await?
+                            .into_inner(),
+                    ))
+                }
+                false => Ok(None),
+            }
         } else {
             Ok(None)
         }
@@ -263,19 +287,16 @@ where
         request: tonic::Request<CompositePaymentMethodGetRequest>,
     ) -> Result<tonic::Response<CompositePaymentMethodGetResponse>, tonic::Status> {
         let (metadata, extensions, payload) = request.into_parts();
+        let connector =
+            connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
+        let access_token_response = self
+            .create_server_authentication_token(&connector, &payload, &metadata, &extensions)
+            .await?;
 
-        let access_token_response = if let Ok(connector) =
-            connector_from_composite_authorize_metadata(&metadata)
-        {
-            self.create_server_authentication_token(&connector, &payload, &metadata, &extensions)
-                .await?
-        } else {
-            None
-        };
-
-        // Exchange the public_token for an access_token when the caller supplies one.
+        // Exchange the public_token for an access_token when the connector supports it
+        // and no token is already present in the request.
         let tokenize_response = self
-            .create_payment_method_token(&payload, &metadata, &extensions)
+            .create_payment_method_token(&connector, &payload, &metadata, &extensions)
             .await?;
 
         let inner = PaymentMethodServiceGetRequest::foreign_from((

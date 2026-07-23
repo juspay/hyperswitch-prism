@@ -161,6 +161,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Plaid<T>
 {
+    fn should_do_payment_method_token(
+        &self,
+        _payment_method: common_enums::PaymentMethod,
+        _payment_method_type: Option<common_enums::PaymentMethodType>,
+    ) -> bool {
+        true
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
