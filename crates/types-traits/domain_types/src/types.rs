@@ -258,10 +258,10 @@ impl ForeignTryFrom<(Secret<String>, &'static str)> for SecretSerdeValue {
 use crate::{
     connector_flow::{
         Accept, Authenticate, Authorize, Capture, ClientAuthenticationToken,
-        CreateConnectorCustomer, CreateOrder, DefendDispute, IncrementalAuthorization, PSync,
-        PaymentMethodToken, PostAuthenticate, PreAuthenticate, RSync, Refund, RepeatPayment,
-        ServerAuthenticationToken, ServerSessionAuthenticationToken, SetupMandate, SubmitEvidence,
-        Void, VoidPC, VoidPostRefund,
+        CreateConnectorCustomer, CreateOrder, DefendDispute, GetConnectorCustomer,
+        IncrementalAuthorization, PSync, PaymentMethodToken, PostAuthenticate, PreAuthenticate,
+        RSync, Refund, RepeatPayment, ServerAuthenticationToken, ServerSessionAuthenticationToken,
+        SetupMandate, SubmitEvidence, Void, VoidPC, VoidPostRefund,
     },
     connector_types::{
         AcceptDisputeData, ApplePayPaymentRequest, ApplePaySessionResponse, BillingDescriptor,
@@ -411,6 +411,7 @@ pub struct Connectors {
     pub twoc_twop_paco: ConnectorParams,
     pub interpayments: ConnectorParams,
     pub juspay: ConnectorParams,
+    pub glomopay: ConnectorParams,
     pub payconex: ConnectorParams,
     pub tamara: ConnectorParams,
     pub hyperswitch: ConnectorParams,
@@ -418,6 +419,7 @@ pub struct Connectors {
     pub flywire: ConnectorParams,
     pub affirm: ConnectorParams,
     pub kount: ConnectorParams,
+    pub givepayments: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -735,6 +737,12 @@ impl Connectors {
             ConnectorEnum::Affirm => {
                 patched.affirm.apply(params_patch);
             }
+            ConnectorEnum::Glomopay => {
+                patched.glomopay.apply(params_patch);
+            }
+            ConnectorEnum::Givepayments => {
+                patched.givepayments.apply(params_patch);
+            }
             _ => {
                 // Connector not supported for URL patching - return error
                 return Err(IntegrationError::InvalidDataFormat {
@@ -742,7 +750,7 @@ impl Connectors {
                     context: IntegrationErrorContext {
                         additional_context: Some(format!(
                             "Connector '{}' is not supported for dynamic URL patching from superposition. \
-                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, multisafepay, nexixpay, payload, payme, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat",
+                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, multisafepay, nexixpay, payload, payme, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat, givepayments",
                             connector
                         )),
                         ..Default::default()
@@ -1222,7 +1230,8 @@ impl<
                 // CARD METHODS
                 // ============================================================================
                 grpc_api_types::payments::payment_method::PaymentMethod::Card(_) |
-                grpc_api_types::payments::payment_method::PaymentMethod::CardProxy(_) => {
+                grpc_api_types::payments::payment_method::PaymentMethod::CardProxy(_) |
+                grpc_api_types::payments::payment_method::PaymentMethod::CardWithNoCvc(_) => {
                     Err(report!(IntegrationError::NotImplemented(("UNSUPPORTED_PAYMENT_METHOD: This flow should never be hit for card or cardproxy types. Please check payment method dispatch/branching logic.").into(), Default::default())))
                 }
                 grpc_api_types::payments::payment_method::PaymentMethod::CardRedirect(
@@ -2533,6 +2542,9 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 grpc_api_types::payments::payment_method::PaymentMethod::CardProxy(_) => {
                     Ok(Some(PaymentMethodType::Card))
                 }
+                grpc_api_types::payments::payment_method::PaymentMethod::CardWithNoCvc(_) => {
+                    Ok(Some(PaymentMethodType::Card))
+                }
                 grpc_api_types::payments::payment_method::PaymentMethod::CardRedirect(card_redirect) => {
                 match card_redirect.r#type() {
                         grpc_api_types::payments::card_redirect::CardRedirectType::Knet => {
@@ -2779,6 +2791,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
 pub enum PaymentMethodDataAction {
     Card(grpc_api_types::payments::CardDetails),
     CardProxy(grpc_api_types::payments::ProxyCardDetails),
+    CardWithNoCvc(grpc_api_types::payments::CardDetailsWithNoCvc),
     Default,
 }
 
@@ -2788,6 +2801,9 @@ impl From<grpc_api_types::payments::payment_method::PaymentMethod> for PaymentMe
             grpc_api_types::payments::payment_method::PaymentMethod::Card(card) => Self::Card(card),
             grpc_api_types::payments::payment_method::PaymentMethod::CardProxy(proxy_card) => {
                 Self::CardProxy(proxy_card)
+            }
+            grpc_api_types::payments::payment_method::PaymentMethod::CardWithNoCvc(card) => {
+                Self::CardWithNoCvc(card)
             }
             _ => Self::Default,
         }
@@ -2834,6 +2850,10 @@ impl PaymentMethodDataAction {
                     })
                 })?;
                 payment_method_data::PaymentMethodData::convert_to_domain_model_for_non_card_payment_methods(pm)
+            }
+            PaymentMethodDataAction::CardWithNoCvc(card_details) => {
+                let card = payment_method_data::CardWithNoCvc::foreign_try_from(card_details)?;
+                Ok(payment_method_data::PaymentMethodData::CardWithNoCvc(card))
             }
             PaymentMethodDataAction::CardProxy(_) => {
                 Err(report!(IntegrationError::NotImplemented(
@@ -3031,6 +3051,8 @@ pub struct SetupRecurringRequest {
     pub connector_testing_data: Option<Secret<String>>,
     pub l2_l3_data: Option<grpc_payment_types::L2l3Data>,
     pub mit_category: Option<common_enums::MitCategory>,
+    pub partner_merchant_identifier_details:
+        Option<grpc_payment_types::PartnerMerchantIdentifierDetails>,
 }
 
 /// ============================================================================
@@ -3210,6 +3232,7 @@ impl From<grpc_payment_types::PaymentServiceSetupRecurringRequest> for SetupRecu
             connector_testing_data: req.connector_testing_data,
             l2_l3_data: req.l2_l3_data,
             mit_category,
+            partner_merchant_identifier_details: req.partner_merchant_identifier_details,
         }
     }
 }
@@ -3259,6 +3282,7 @@ impl From<grpc_payment_types::PaymentServiceProxySetupRecurringRequest> for Setu
             connector_testing_data: None,
             l2_l3_data: None,
             mit_category: None,
+            partner_merchant_identifier_details: None,
         }
     }
 }
@@ -3309,6 +3333,57 @@ impl ForeignTryFrom<grpc_api_types::payments::CardDetails>
                     ..Default::default()
                 },
             })?,
+            card_issuer: card.card_issuer,
+            card_network,
+            card_type: card.card_type,
+            card_issuing_country: card.card_issuing_country_alpha2,
+            bank_code: card.bank_code,
+            nick_name: card.nick_name.map(|name| name.into()),
+            card_holder_name: card.card_holder_name,
+            co_badged_card_data: None,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payments::CardDetailsWithNoCvc>
+    for payment_method_data::CardWithNoCvc
+{
+    type Error = IntegrationError;
+    fn foreign_try_from(
+        card: grpc_api_types::payments::CardDetailsWithNoCvc,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let card_network = match card.card_network() {
+            grpc_api_types::payments::CardNetwork::Unspecified => None,
+            _ => Some(CardNetwork::foreign_try_from(card.card_network())?),
+        };
+        Ok(payment_method_data::CardWithNoCvc {
+            card_number: card
+                .card_number
+                .ok_or(IntegrationError::InvalidDataFormat {
+                    field_name: "unknown",
+                    context: IntegrationErrorContext {
+                        additional_context: Some("Missing card number".to_string()),
+                        ..Default::default()
+                    },
+                })?,
+            card_exp_month: card
+                .card_exp_month
+                .ok_or(IntegrationError::InvalidDataFormat {
+                    field_name: "unknown",
+                    context: IntegrationErrorContext {
+                        additional_context: Some("Missing Card Expiry Month".to_string()),
+                        ..Default::default()
+                    },
+                })?,
+            card_exp_year: card
+                .card_exp_year
+                .ok_or(IntegrationError::InvalidDataFormat {
+                    field_name: "unknown",
+                    context: IntegrationErrorContext {
+                        additional_context: Some("Missing Card Expiry Year".to_string()),
+                        ..Default::default()
+                    },
+                })?,
             card_issuer: card.card_issuer,
             card_network,
             card_type: card.card_type,
@@ -4181,6 +4256,15 @@ impl<
             mit_category: value.mit_category,
             connector_testing_data,
             split_payments: None,
+            authentication_data: value
+                .authentication_data
+                .clone()
+                .map(router_request_types::AuthenticationData::try_from)
+                .transpose()?,
+            partner_merchant_identifier_details: value
+                .partner_merchant_identifier_details
+                .map(connector_types::PartnerMerchantIdentifierDetails::foreign_try_from)
+                .transpose()?,
         })
     }
 }
@@ -4733,6 +4817,7 @@ impl ForeignTryFrom<(PaymentServiceAuthorizeRequest, Connectors, &MaskedMetadata
             .transpose()?;
 
         Ok(Self {
+            raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
@@ -4838,6 +4923,7 @@ impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for Pay
             .transpose()?;
 
         Ok(Self {
+            raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
@@ -4925,6 +5011,7 @@ impl ForeignTryFrom<(SetupRecurringRequest, Connectors, &MaskedMetadata)> for Pa
             .transpose()?;
 
         Ok(Self {
+            raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
@@ -5038,6 +5125,7 @@ impl
             })?;
 
         Ok(Self {
+            raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
@@ -5120,6 +5208,7 @@ impl
             .transpose()?;
 
         Ok(Self {
+            raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
@@ -5208,6 +5297,7 @@ impl ForeignTryFrom<(PaymentServiceVoidRequest, Connectors, &MaskedMetadata)> fo
             .transpose()?;
 
         Ok(Self {
+            raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
@@ -5290,6 +5380,7 @@ impl
         let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
 
         Ok(Self {
+            raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
@@ -5379,6 +5470,21 @@ impl ForeignTryFrom<router_request_types::AuthenticationData>
             network_params: value
                 .network_params
                 .map(grpc_api_types::payments::NetworkParams::foreign_from),
+            created_at: value
+                .created_at
+                .map(|created_at| created_at.assume_utc().unix_timestamp()),
+            challenge_code: value.challenge_code,
+            challenge_cancel: value.challenge_cancel,
+            challenge_code_reason: value.challenge_code_reason,
+            message_extension: value
+                .message_extension
+                .map(|message_extension| message_extension.expose().to_string()),
+            authentication_type: value.authentication_type.map(|authentication_type| {
+                grpc_api_types::payments::DecoupledAuthenticationType::foreign_from(
+                    authentication_type,
+                )
+                .into()
+            }),
         })
     }
 }
@@ -5413,6 +5519,33 @@ impl ForeignFrom<grpc_api_types::payments::TransactionStatus> for common_enums::
             grpc_api_types::payments::TransactionStatus::ChallengeRequired => Self::ChallengeRequired,
             grpc_api_types::payments::TransactionStatus::ChallengeRequiredDecoupledAuthentication => Self::ChallengeRequiredDecoupledAuthentication,
             grpc_api_types::payments::TransactionStatus::InformationOnly => Self::InformationOnly,
+        }
+    }
+}
+
+impl ForeignFrom<common_enums::DecoupledAuthenticationType>
+    for grpc_api_types::payments::DecoupledAuthenticationType
+{
+    fn foreign_from(value: common_enums::DecoupledAuthenticationType) -> Self {
+        match value {
+            common_enums::DecoupledAuthenticationType::Challenge => Self::Challenge,
+            common_enums::DecoupledAuthenticationType::Frictionless => Self::Frictionless,
+        }
+    }
+}
+
+impl ForeignFrom<grpc_api_types::payments::DecoupledAuthenticationType>
+    for Option<common_enums::DecoupledAuthenticationType>
+{
+    fn foreign_from(value: grpc_api_types::payments::DecoupledAuthenticationType) -> Self {
+        match value {
+            grpc_api_types::payments::DecoupledAuthenticationType::Challenge => {
+                Some(common_enums::DecoupledAuthenticationType::Challenge)
+            }
+            grpc_api_types::payments::DecoupledAuthenticationType::Frictionless => {
+                Some(common_enums::DecoupledAuthenticationType::Frictionless)
+            }
+            grpc_api_types::payments::DecoupledAuthenticationType::Unspecified => None,
         }
     }
 }
@@ -5652,19 +5785,20 @@ pub fn generate_create_order_response(
             connector_order_id: None,
             status: err
                 .attempt_status
+                .clone()
                 .map(grpc_api_types::payments::PaymentStatus::foreign_from)
                 .unwrap_or_default()
                 .into(),
             error: Some(grpc_api_types::payments::ErrorInfo {
                 unified_details: None,
                 connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
-                    code: Some(err.code),
+                    code: Some(err.code.clone()),
                     message: Some(err.message.clone()),
                     reason: None,
                     connector_transaction_id: err.connector_transaction_id.clone(),
                     status: None,
                 }),
-                issuer_details: None,
+                issuer_details: Some(grpc_payment_types::IssuerErrorDetails::from(&err)),
             }),
             status_code: err.status_code.into(),
             response_headers,
@@ -5983,6 +6117,15 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                     .transpose()?;
 
                 PaymentServiceAuthorizeResponse {
+                    raw_connector_status: router_data_v2
+                        .resource_common_data
+                        .raw_connector_status
+                        .clone()
+                        .map(|status| grpc_api_types::payments::RawConnectorStatus {
+                            code: status.code,
+                            message: status.message,
+                            reason: status.reason,
+                        }),
                     connector_transaction_id: Option::foreign_try_from(resource_id)?,
                     redirection_data: redirection_data
                         .map(|form| grpc_api_types::payments::RedirectForm::foreign_try_from(*form))
@@ -6042,6 +6185,15 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
             };
 
             PaymentServiceAuthorizeResponse {
+                raw_connector_status: router_data_v2
+                    .resource_common_data
+                    .raw_connector_status
+                    .clone()
+                    .map(|status| grpc_api_types::payments::RawConnectorStatus {
+                        code: status.code,
+                        message: status.message,
+                        reason: status.reason,
+                    }),
                 connector_transaction_id: err.connector_transaction_id.clone(),
                 redirection_data: None,
                 network_transaction_id: None,
@@ -6059,15 +6211,7 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                         message: Some(err.message.clone()),
                         status: None,
                     }),
-                    issuer_details: Some(grpc_api_types::payments::IssuerErrorDetails {
-                        code: None, // To be filled with card network specific error code if available
-                        message: err.network_error_message.clone(),
-                        network_details: Some(grpc_api_types::payments::NetworkErrorDetails {
-                            advice_code: err.network_advice_code,
-                            decline_code: err.network_decline_code,
-                            error_message: err.network_error_message.clone(),
-                        }),
-                    }),
+                    issuer_details: Some(grpc_payment_types::IssuerErrorDetails::from(&err)),
                 }),
                 status_code: err.status_code as u32,
                 response_headers,
@@ -6102,6 +6246,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::CardProxy(_)),
+            } => Ok(Self::Card),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::CardWithNoCvc(_)),
             } => Ok(Self::Card),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
@@ -6561,15 +6709,12 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
                 field_name: "payment_method",
                 context: IntegrationErrorContext {
                     suggested_action: Some(
-                        "Use a supported payment method: Card, Wallet, UPI, BankRedirect (Netbanking), or PayLater"
+                        "Provide a supported payment method variant (e.g. Card, Wallet, BankRedirect, BankDebit, PayLater)"
                             .to_owned(),
                     ),
-                    doc_url: Some(
-                        "https://razorpay.com/docs/api/payments/#supported-payment-methods"
-                            .to_owned(),
-                    ),
+                    doc_url: None,
                     additional_context: Some(
-                        "The provided payment method variant is not supported by Razorpay"
+                        "The provided payment method variant is empty or not supported by this flow"
                             .to_owned(),
                     ),
                 },
@@ -6894,6 +7039,28 @@ impl ForeignFrom<&router_data::FlowStatus> for grpc_api_types::payments::FlowSta
     }
 }
 
+impl From<&router_data::ErrorResponse> for grpc_payment_types::NetworkErrorDetails {
+    fn from(error_response: &router_data::ErrorResponse) -> Self {
+        Self {
+            advice_code: error_response.network_advice_code.clone(),
+            decline_code: error_response.network_decline_code.clone(),
+            error_message: error_response.network_error_message.clone(),
+        }
+    }
+}
+
+impl From<&router_data::ErrorResponse> for grpc_payment_types::IssuerErrorDetails {
+    fn from(error_response: &router_data::ErrorResponse) -> Self {
+        Self {
+            code: None,
+            message: error_response.network_error_message.clone(),
+            network_details: Some(grpc_payment_types::NetworkErrorDetails::from(
+                error_response,
+            )),
+        }
+    }
+}
+
 #[allow(deprecated)]
 pub fn generate_payment_void_response(
     router_data_v2: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
@@ -6962,6 +7129,15 @@ pub fn generate_payment_void_response(
                 });
 
                 Ok(PaymentServiceVoidResponse {
+                    raw_connector_status: router_data_v2
+                        .resource_common_data
+                        .raw_connector_status
+                        .clone()
+                        .map(|status| grpc_api_types::payments::RawConnectorStatus {
+                            code: status.code,
+                            message: status.message,
+                            reason: status.reason,
+                        }),
                     connector_transaction_id: extract_connector_request_reference_id(
                         &grpc_resource_id,
                     ),
@@ -7010,6 +7186,15 @@ pub fn generate_payment_void_response(
                 None => grpc_api_types::payments::PaymentStatus::Unspecified,
             };
             Ok(PaymentServiceVoidResponse {
+                raw_connector_status: router_data_v2
+                    .resource_common_data
+                    .raw_connector_status
+                    .clone()
+                    .map(|status| grpc_api_types::payments::RawConnectorStatus {
+                        code: status.code,
+                        message: status.message,
+                        reason: status.reason,
+                    }),
                 connector_transaction_id: extract_connector_request_reference_id(
                     &e.connector_transaction_id,
                 ),
@@ -7027,7 +7212,7 @@ pub fn generate_payment_void_response(
                         connector_transaction_id: e.connector_transaction_id.clone(),
                         status: None,
                     }),
-                    issuer_details: None,
+                    issuer_details: Some(grpc_payment_types::IssuerErrorDetails::from(&e)),
                 }),
                 status_code: e.status_code as u32,
                 response_headers: router_data_v2
@@ -7072,6 +7257,14 @@ pub fn generate_payment_void_post_capture_response(
                 .clone(),
         });
 
+    let raw_connector_request = router_data_v2
+        .resource_common_data
+        .get_raw_connector_request();
+
+    let raw_connector_response = router_data_v2
+        .resource_common_data
+        .get_raw_connector_response();
+
     match transaction_response {
         Ok(response) => match response {
             PaymentsResponseData::TransactionResponse {
@@ -7102,6 +7295,8 @@ pub fn generate_payment_void_post_capture_response(
                     response_headers: router_data_v2
                         .resource_common_data
                         .get_connector_response_headers_as_map(),
+                    raw_connector_request,
+                    raw_connector_response,
                 })
             }
             PaymentsResponseData::PostCaptureVoidResponse {
@@ -7130,6 +7325,8 @@ pub fn generate_payment_void_post_capture_response(
                     response_headers: router_data_v2
                         .resource_common_data
                         .get_connector_response_headers_as_map(),
+                    raw_connector_request,
+                    raw_connector_response,
                 })
             }
             _ => Err(report!(ConnectorError::UnexpectedResponseError {
@@ -7172,6 +7369,8 @@ pub fn generate_payment_void_post_capture_response(
                 response_headers: router_data_v2
                     .resource_common_data
                     .get_connector_response_headers_as_map(),
+                raw_connector_request,
+                raw_connector_response,
             })
         }
     }
@@ -7257,13 +7456,15 @@ pub fn generate_access_token_response(
                 error: Some(grpc_api_types::payments::ErrorInfo {
                     unified_details: None,
                     connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
-                        message: Some(error_response.message),
-                        code: Some(error_response.code),
-                        reason: error_response.reason,
-                        connector_transaction_id: error_response.connector_transaction_id,
+                        message: Some(error_response.message.clone()),
+                        code: Some(error_response.code.clone()),
+                        reason: error_response.reason.clone(),
+                        connector_transaction_id: error_response.connector_transaction_id.clone(),
                         status: None,
                     }),
-                    issuer_details: None,
+                    issuer_details: Some(grpc_payment_types::IssuerErrorDetails::from(
+                        &error_response,
+                    )),
                 }),
                 status_code: error_response.status_code.into(),
                 merchant_access_token_id: None,
@@ -7368,6 +7569,15 @@ pub fn generate_payment_sync_response(
                     .transpose()?;
 
                 Ok(PaymentServiceGetResponse {
+                    raw_connector_status: router_data_v2
+                        .resource_common_data
+                        .raw_connector_status
+                        .clone()
+                        .map(|status| grpc_api_types::payments::RawConnectorStatus {
+                            code: status.code,
+                            message: status.message,
+                            reason: status.reason,
+                        }),
                     connector_transaction_id: extract_connector_request_reference_id(
                         &grpc_resource_id,
                     ),
@@ -7483,6 +7693,15 @@ pub fn generate_payment_sync_response(
                     .transpose()?;
 
                 Ok(PaymentServiceGetResponse {
+                    raw_connector_status: router_data_v2
+                        .resource_common_data
+                        .raw_connector_status
+                        .clone()
+                        .map(|status| grpc_api_types::payments::RawConnectorStatus {
+                            code: status.code,
+                            message: status.message,
+                            reason: status.reason,
+                        }),
                     connector_transaction_id: resource_id.unwrap_or_default(),
                     merchant_transaction_id: connector_response_reference_id,
                     redirection_data: None,
@@ -7560,6 +7779,15 @@ pub fn generate_payment_sync_response(
                 })
                 .transpose()?;
             Ok(PaymentServiceGetResponse {
+                raw_connector_status: router_data_v2
+                    .resource_common_data
+                    .raw_connector_status
+                    .clone()
+                    .map(|status| grpc_api_types::payments::RawConnectorStatus {
+                        code: status.code,
+                        message: status.message,
+                        reason: status.reason,
+                    }),
                 connector_transaction_id: extract_connector_request_reference_id(
                     &e.connector_transaction_id,
                 ),
@@ -7575,21 +7803,13 @@ pub fn generate_payment_sync_response(
                 error: Some(grpc_api_types::payments::ErrorInfo {
                     unified_details: None,
                     connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
-                        message: Some(e.message),
-                        code: Some(e.code),
-                        reason: e.reason,
+                        message: Some(e.message.clone()),
+                        code: Some(e.code.clone()),
+                        reason: e.reason.clone(),
                         connector_transaction_id: e.connector_transaction_id.clone(),
                         status: None,
                     }),
-                    issuer_details: Some(grpc_payment_types::IssuerErrorDetails {
-                        code: None,
-                        message: e.network_error_message.clone(),
-                        network_details: Some(grpc_api_types::payments::NetworkErrorDetails {
-                            advice_code: e.network_advice_code,
-                            decline_code: e.network_decline_code,
-                            error_message: e.network_error_message,
-                        }),
-                    }),
+                    issuer_details: Some(grpc_payment_types::IssuerErrorDetails::from(&e)),
                 }),
                 network_transaction_id: None,
                 network_txn_link_id: None,
@@ -7715,6 +7935,7 @@ impl
         let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
 
         Ok(Self {
+            raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_refund_id,
@@ -7765,6 +7986,7 @@ impl
 
         let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
         Ok(Self {
+            raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             status: common_enums::RefundStatus::Success,
             refund_id: Some(value.connector_refund_id.clone()),
@@ -7828,6 +8050,7 @@ impl
         let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
         let refund_id = value.merchant_refund_id.clone();
         Ok(Self {
+            raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             connector_request_reference_id: extract_connector_request_reference_id(&refund_id),
             status: common_enums::RefundStatus::Pending,
@@ -8334,6 +8557,15 @@ pub fn generate_refund_sync_response(
                 .resource_common_data
                 .get_connector_response_headers_as_map();
             Ok(RefundResponse {
+                raw_connector_status: router_data_v2
+                    .resource_common_data
+                    .raw_connector_status
+                    .clone()
+                    .map(|status| grpc_api_types::payments::RawConnectorStatus {
+                        code: status.code,
+                        message: status.message,
+                        reason: status.reason,
+                    }),
                 connector_transaction_id: Some(
                     router_data_v2.request.connector_transaction_id.clone(),
                 ),
@@ -8367,6 +8599,7 @@ pub fn generate_refund_sync_response(
         Err(e) => {
             let status = e
                 .attempt_status
+                .clone()
                 .map(grpc_api_types::payments::RefundStatus::foreign_from)
                 .unwrap_or_default();
             let response_headers = router_data_v2
@@ -8374,6 +8607,15 @@ pub fn generate_refund_sync_response(
                 .get_connector_response_headers_as_map();
 
             Ok(RefundResponse {
+                raw_connector_status: router_data_v2
+                    .resource_common_data
+                    .raw_connector_status
+                    .clone()
+                    .map(|status| grpc_api_types::payments::RawConnectorStatus {
+                        code: status.code,
+                        message: status.message,
+                        reason: status.reason,
+                    }),
                 connector_transaction_id: e.connector_transaction_id.clone(),
                 connector_refund_id: String::new(),
                 status: status as i32,
@@ -8382,13 +8624,13 @@ pub fn generate_refund_sync_response(
                 error: Some(grpc_api_types::payments::ErrorInfo {
                     unified_details: None,
                     connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
-                        message: Some(e.message),
-                        code: Some(e.code),
-                        reason: e.reason,
+                        message: Some(e.message.clone()),
+                        code: Some(e.code.clone()),
+                        reason: e.reason.clone(),
                         connector_transaction_id: e.connector_transaction_id.clone(),
                         status: None,
                     }),
-                    issuer_details: None,
+                    issuer_details: Some(grpc_payment_types::IssuerErrorDetails::from(&e)),
                 }),
                 refund_amount: None,
                 payment_amount: None,
@@ -8466,6 +8708,7 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
             }
         });
         Ok(Self {
+            raw_connector_status: None,
             connector_transaction_id: extract_connector_request_reference_id(
                 &value
                     .resource_id
@@ -8480,7 +8723,7 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
             error: Some(grpc_api_types::payments::ErrorInfo {
                 unified_details: None,
                 connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
-                    message: value.error_message.clone(),
+                    message: value.error_message,
                     code: value.error_code,
                     reason: None,
                     connector_transaction_id: None,
@@ -8725,6 +8968,15 @@ pub fn generate_void_post_refund_response(
             })?;
 
             Ok(RefundResponse {
+                raw_connector_status: router_data_v2
+                    .resource_common_data
+                    .raw_connector_status
+                    .clone()
+                    .map(|status| grpc_api_types::payments::RawConnectorStatus {
+                        code: status.code,
+                        message: status.message,
+                        reason: status.reason,
+                    }),
                 connector_transaction_id: None,
                 connector_refund_id: response.connector_refund_id,
                 status: grpc_api_types::payments::RefundStatus::RefundSuccess as i32,
@@ -8768,6 +9020,15 @@ pub fn generate_void_post_refund_response(
             })
         }
         Err(e) => Ok(RefundResponse {
+            raw_connector_status: router_data_v2
+                .resource_common_data
+                .raw_connector_status
+                .clone()
+                .map(|status| grpc_api_types::payments::RawConnectorStatus {
+                    code: status.code,
+                    message: status.message,
+                    reason: status.reason,
+                }),
             connector_transaction_id: e.connector_transaction_id.clone(),
             connector_refund_id: router_data_v2.request.connector_refund_id.clone(),
             status: grpc_api_types::payments::RefundStatus::RefundSuccess as i32,
@@ -8786,7 +9047,7 @@ pub fn generate_void_post_refund_response(
                     connector_transaction_id: e.connector_transaction_id.clone(),
                     status: None,
                 }),
-                issuer_details: None,
+                issuer_details: Some(grpc_payment_types::IssuerErrorDetails::from(&e)),
             }),
             refund_amount: None,
             payment_amount: None,
@@ -8882,6 +9143,7 @@ impl
                 });
 
         Ok(Self {
+            raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
@@ -8993,6 +9255,7 @@ impl
         let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
 
         Ok(Self {
+            raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
@@ -9061,6 +9324,7 @@ impl ForeignTryFrom<RefundWebhookDetailsResponse> for RefundResponse {
             .unwrap_or_default();
 
         Ok(Self {
+            raw_connector_status: None,
             connector_transaction_id: None,
             connector_refund_id: value.connector_refund_id.unwrap_or_default(),
             status: status.into(),
@@ -9748,6 +10012,15 @@ pub fn generate_refund_response(
             let grpc_status = grpc_api_types::payments::RefundStatus::foreign_from(status);
 
             Ok(RefundResponse {
+                raw_connector_status: router_data_v2
+                    .resource_common_data
+                    .raw_connector_status
+                    .clone()
+                    .map(|status| grpc_api_types::payments::RawConnectorStatus {
+                        code: status.code,
+                        message: status.message,
+                        reason: status.reason,
+                    }),
                 connector_transaction_id: Some(
                     router_data_v2.request.connector_transaction_id.clone(),
                 ),
@@ -9783,10 +10056,20 @@ pub fn generate_refund_response(
         Err(e) => {
             let status = e
                 .attempt_status
+                .clone()
                 .map(grpc_api_types::payments::RefundStatus::foreign_from)
                 .unwrap_or_default();
 
             Ok(RefundResponse {
+                raw_connector_status: router_data_v2
+                    .resource_common_data
+                    .raw_connector_status
+                    .clone()
+                    .map(|status| grpc_api_types::payments::RawConnectorStatus {
+                        code: status.code,
+                        message: status.message,
+                        reason: status.reason,
+                    }),
                 connector_transaction_id: e.connector_transaction_id.clone(),
                 connector_refund_id: String::new(),
                 status: status as i32,
@@ -9801,7 +10084,7 @@ pub fn generate_refund_response(
                         connector_transaction_id: e.connector_transaction_id.clone(),
                         status: None,
                     }),
-                    issuer_details: None,
+                    issuer_details: Some(grpc_payment_types::IssuerErrorDetails::from(&e)),
                 }),
                 refund_amount: None,
                 payment_amount: None,
@@ -10028,6 +10311,7 @@ impl
             .map(|m| ForeignTryFrom::foreign_try_from((m, "feature data")))
             .transpose()?;
         Ok(Self {
+            raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "PAYMENT_ID".to_string(),
             attempt_id: "ATTEMPT_ID".to_string(),
@@ -10156,6 +10440,14 @@ pub fn generate_payment_incremental_authorization_response(
         None
     };
 
+    let raw_connector_request = router_data_v2
+        .resource_common_data
+        .get_raw_connector_request();
+
+    let raw_connector_response = router_data_v2
+        .resource_common_data
+        .get_raw_connector_response();
+
     match router_data_v2.response {
         Ok(response) => match response {
             PaymentsResponseData::IncrementalAuthorizationResponse {
@@ -10175,6 +10467,8 @@ pub fn generate_payment_incremental_authorization_response(
                         .resource_common_data
                         .get_connector_response_headers_as_map(),
                     state,
+                    raw_connector_request,
+                    raw_connector_response,
                 })
             }
             _ => Err(report!(ConnectorError::UnexpectedResponseError {
@@ -10198,13 +10492,15 @@ pub fn generate_payment_incremental_authorization_response(
                     connector_transaction_id: e.connector_transaction_id.clone(),
                     status: None,
                 }),
-                issuer_details: None,
+                issuer_details: Some(grpc_payment_types::IssuerErrorDetails::from(&e)),
             }),
             status_code: e.status_code as u32,
             response_headers: router_data_v2
                 .resource_common_data
                 .get_connector_response_headers_as_map(),
             state,
+            raw_connector_request,
+            raw_connector_response,
         }),
     }
 }
@@ -10249,6 +10545,10 @@ pub fn generate_payment_capture_response(
     let raw_connector_request = router_data_v2
         .resource_common_data
         .get_raw_connector_request();
+
+    let raw_connector_response = router_data_v2
+        .resource_common_data
+        .get_raw_connector_response();
 
     let connector_response = router_data_v2
         .resource_common_data
@@ -10298,6 +10598,15 @@ pub fn generate_payment_capture_response(
                 });
 
                 Ok(PaymentServiceCaptureResponse {
+                    raw_connector_status: router_data_v2
+                        .resource_common_data
+                        .raw_connector_status
+                        .clone()
+                        .map(|status| grpc_api_types::payments::RawConnectorStatus {
+                            code: status.code,
+                            message: status.message,
+                            reason: status.reason,
+                        }),
                     connector_transaction_id: extract_connector_request_reference_id(
                         &grpc_resource_id,
                     ),
@@ -10310,6 +10619,7 @@ pub fn generate_payment_capture_response(
                         .get_connector_response_headers_as_map(),
                     state,
                     raw_connector_request,
+                    raw_connector_response,
                     incremental_authorization_allowed,
                     mandate_reference: mandate_reference_grpc,
                     mandate_reference_details,
@@ -10345,6 +10655,15 @@ pub fn generate_payment_capture_response(
                 None => grpc_api_types::payments::PaymentStatus::Unspecified,
             };
             Ok(PaymentServiceCaptureResponse {
+                raw_connector_status: router_data_v2
+                    .resource_common_data
+                    .raw_connector_status
+                    .clone()
+                    .map(|status| grpc_api_types::payments::RawConnectorStatus {
+                        code: status.code,
+                        message: status.message,
+                        reason: status.reason,
+                    }),
                 connector_transaction_id: extract_connector_request_reference_id(
                     &e.connector_transaction_id.clone(),
                 ),
@@ -10359,7 +10678,7 @@ pub fn generate_payment_capture_response(
                         connector_transaction_id: e.connector_transaction_id.clone(),
                         status: None,
                     }),
-                    issuer_details: None,
+                    issuer_details: Some(grpc_payment_types::IssuerErrorDetails::from(&e)),
                 }),
                 status_code: e.status_code as u32,
                 response_headers: router_data_v2
@@ -10367,6 +10686,7 @@ pub fn generate_payment_capture_response(
                     .get_connector_response_headers_as_map(),
                 state,
                 raw_connector_request,
+                raw_connector_response,
                 incremental_authorization_allowed: None,
                 mandate_reference: None,
                 mandate_reference_details: None,
@@ -10445,6 +10765,7 @@ impl
             .transpose()?;
 
         Ok(Self {
+            raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
@@ -10545,6 +10866,7 @@ impl
             .transpose()?;
 
         Ok(Self {
+            raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
@@ -10759,6 +11081,15 @@ impl<
             }),
             mit_category,
             split_payments: None,
+            authentication_data: value
+                .authentication_data
+                .clone()
+                .map(router_request_types::AuthenticationData::try_from)
+                .transpose()?,
+            partner_merchant_identifier_details: value
+                .partner_merchant_identifier_details
+                .map(connector_types::PartnerMerchantIdentifierDetails::foreign_try_from)
+                .transpose()?,
         })
     }
 }
@@ -11300,6 +11631,10 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
         .resource_common_data
         .get_raw_connector_request();
 
+    let raw_connector_response = router_data_v2
+        .resource_common_data
+        .get_raw_connector_response();
+
     let connector_response = router_data_v2
         .resource_common_data
         .connector_response
@@ -11341,6 +11676,15 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                 });
 
                 PaymentServiceSetupRecurringResponse {
+                    raw_connector_status: router_data_v2
+                        .resource_common_data
+                        .raw_connector_status
+                        .clone()
+                        .map(|status| grpc_api_types::payments::RawConnectorStatus {
+                            code: status.code,
+                            message: status.message,
+                            reason: status.reason,
+                        }),
                     connector_recurring_payment_id: Option::foreign_try_from(resource_id)?,
                     redirection_data: redirection_data
                         .map(|form| match *form {
@@ -11424,6 +11768,7 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                         .get_connector_response_headers_as_map(),
                     state,
                     raw_connector_request,
+                    raw_connector_response,
                     connector_response,
                     connector_feature_data: convert_connector_metadata_to_secret_string(
                         connector_metadata,
@@ -11458,6 +11803,15 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                 None => grpc_api_types::payments::PaymentStatus::Unspecified,
             };
             PaymentServiceSetupRecurringResponse {
+                raw_connector_status: router_data_v2
+                    .resource_common_data
+                    .raw_connector_status
+                    .clone()
+                    .map(|status| grpc_api_types::payments::RawConnectorStatus {
+                        code: status.code,
+                        message: status.message,
+                        reason: status.reason,
+                    }),
                 connector_recurring_payment_id: None,
                 redirection_data: None,
                 network_transaction_id: None,
@@ -11477,7 +11831,7 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                         connector_transaction_id: err.connector_transaction_id.clone(),
                         status: None,
                     }),
-                    issuer_details: None,
+                    issuer_details: Some(grpc_payment_types::IssuerErrorDetails::from(&err)),
                 }),
                 status_code: err.status_code as u32,
                 response_headers: router_data_v2
@@ -11485,6 +11839,7 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                     .get_connector_response_headers_as_map(),
                 state,
                 raw_connector_request,
+                raw_connector_response,
                 connector_response,
                 connector_feature_data: None,
                 captured_amount: None,
@@ -11646,7 +12001,7 @@ pub fn generate_session_token_response(
                         connector_transaction_id: e.connector_transaction_id.clone(),
                         status: None,
                     }),
-                    issuer_details: None,
+                    issuer_details: Some(grpc_payment_types::IssuerErrorDetails::from(&e)),
                 }),
             },
         ),
@@ -11722,15 +12077,20 @@ impl
             .map(|m| ForeignTryFrom::foreign_try_from((m, "merchant account metadata")))
             .transpose()?;
 
-        // Extract access token from state if present
+        // Extract access token and connector_customer_id from state if present
         let access_token = value
             .state
             .as_ref()
             .and_then(|state| state.access_token.as_ref())
             .map(ServerAuthenticationTokenResponseData::foreign_try_from)
             .transpose()?;
+        let connector_customer = value
+            .state
+            .as_ref()
+            .and_then(|state| state.connector_customer_id.clone());
 
         Ok(Self {
+            raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
@@ -11742,7 +12102,7 @@ impl
                 &value.merchant_order_id,
             ),
             customer_id: None, // PaymentServiceCreateOrderRequest doesn't have customer_id field
-            connector_customer: None,
+            connector_customer,
             description: None,
             return_url: None,
             connector_feature_data,
@@ -12037,6 +12397,7 @@ pub enum PaymentMethodDataType {
     Netbanking,
     QwikcilverWalletDirect,
     Skrill,
+    CardWithNoCvc,
 }
 
 impl ForeignTryFrom<String> for Secret<time::Date> {
@@ -12479,6 +12840,7 @@ impl
             .transpose()?;
 
         Ok(Self {
+            raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
@@ -12565,6 +12927,7 @@ pub fn generate_create_payment_method_token_response<T: PaymentMethodDataTypes>(
                         .get_connector_response_headers_as_map(),
                     merchant_payment_method_id: Some(token_clone),
                     state: None,
+                    connector_payment_method_id: None,
                 },
             )
         }
@@ -12580,7 +12943,7 @@ pub fn generate_create_payment_method_token_response<T: PaymentMethodDataTypes>(
                         connector_transaction_id: e.connector_transaction_id.clone(),
                         status: None,
                     }),
-                    issuer_details: None,
+                    issuer_details: Some(grpc_payment_types::IssuerErrorDetails::from(&e)),
                 }),
                 status_code: e.status_code as u32,
                 response_headers: router_data_v2
@@ -12588,6 +12951,7 @@ pub fn generate_create_payment_method_token_response<T: PaymentMethodDataTypes>(
                     .get_connector_response_headers_as_map(),
                 merchant_payment_method_id: e.connector_transaction_id,
                 state: None,
+                connector_payment_method_id: None,
             },
         ),
     }
@@ -12662,6 +13026,7 @@ impl
             .transpose()?;
 
         Ok(Self {
+            raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
@@ -12778,6 +13143,7 @@ impl
             .map(ServerAuthenticationTokenResponseData::foreign_try_from)
             .transpose()?;
         Ok(Self {
+            raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
@@ -12884,6 +13250,7 @@ impl
             .map(ServerAuthenticationTokenResponseData::foreign_try_from)
             .transpose()?;
         Ok(Self {
+            raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
@@ -12991,6 +13358,7 @@ impl
             .transpose()?;
 
         Ok(Self {
+            raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
@@ -13015,6 +13383,93 @@ impl
             preprocessing_id: None,
             connector_api_version: None,
             test_mode: value.test_mode,
+            connector_http_status_code: None,
+            external_latency: None,
+            connectors,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            connector_response_headers: None,
+            vault_headers: None,
+            connector_response: None,
+            recurring_mandate_payment_data: None,
+            order_details: None,
+            minor_amount_authorized: None,
+            merchant_request_id: None,
+            l2_l3_data: None,
+            sender_payment_instrument_id: None,
+            settlement_status: None,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payments::CustomerServiceGetRequest> for ConnectorCustomerData {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: grpc_api_types::payments::CustomerServiceGetRequest,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        // Get requests carry identity fields flat at the top level. Each
+        // connector's GetConnectorCustomer flow picks which one it uses —
+        // Glomopay uses `email`; other connectors may use connector_customer_id.
+        let email = value
+            .email
+            .and_then(|email_str| Email::try_from(email_str.expose()).ok());
+
+        Ok(Self {
+            customer_id: value.merchant_customer_id.map(Secret::new),
+            email: email.map(Secret::new),
+            name: None,
+            description: None,
+            split_payments: None,
+            phone: value.phone_number,
+            preprocessing_id: None,
+        })
+    }
+}
+
+impl
+    ForeignTryFrom<(
+        grpc_api_types::payments::CustomerServiceGetRequest,
+        Connectors,
+        &MaskedMetadata,
+    )> for PaymentFlowData
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        (value, connectors, metadata): (
+            grpc_api_types::payments::CustomerServiceGetRequest,
+            Connectors,
+            &MaskedMetadata,
+        ),
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
+        Ok(Self {
+            raw_connector_status: None,
+            merchant_id: merchant_id_from_header,
+            payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
+            attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
+            status: common_enums::AttemptStatus::Pending,
+            payment_method: PaymentMethod::Card,
+            address: PaymentAddress::default(),
+            auth_type: common_enums::AuthenticationType::default(),
+            connector_request_reference_id: value.merchant_customer_id.unwrap_or_default(),
+            customer_id: None,
+            connector_customer: value.connector_customer_id.clone(),
+            description: None,
+            return_url: None,
+            connector_feature_data: None,
+            amount_captured: None,
+            minor_amount_captured: None,
+            minor_amount_capturable: None,
+            amount: None,
+            access_token: None,
+            session_token: None,
+            reference_id: None,
+            connector_order_id: None,
+            preprocessing_id: None,
+            connector_api_version: None,
+            test_mode: None,
             connector_http_status_code: None,
             external_latency: None,
             connectors,
@@ -13069,6 +13524,53 @@ pub fn generate_create_connector_customer_response(
                     code: Some(e.code.clone()),
                     reason: e.reason.clone(),
                     connector_transaction_id: e.connector_transaction_id.clone(),
+                    status: e.attempt_status.as_ref().map(ForeignFrom::foreign_from),
+                }),
+                issuer_details: Some(grpc_payment_types::IssuerErrorDetails::from(&e)),
+            }),
+        }),
+    }
+}
+
+pub fn generate_get_connector_customer_response(
+    router_data_v2: RouterDataV2<
+        GetConnectorCustomer,
+        PaymentFlowData,
+        ConnectorCustomerData,
+        crate::connector_types::ConnectorCustomerResponse,
+    >,
+) -> Result<grpc_payment_types::CustomerServiceGetResponse, error_stack::Report<ConnectorError>> {
+    let customer_response = router_data_v2.response;
+
+    match customer_response {
+        Ok(response) => Ok(grpc_payment_types::CustomerServiceGetResponse {
+            customer: Some(grpc_payment_types::Customer {
+                connector_customer_id: Some(response.connector_customer_id.clone()),
+                ..Default::default()
+            }),
+            error: None,
+            status_code: response.status_code as u32,
+            response_headers: router_data_v2
+                .resource_common_data
+                .get_connector_response_headers_as_map(),
+            merchant_customer_id: Some(response.connector_customer_id.clone()),
+            lookup_status: grpc_payment_types::CustomerLookupStatus::Found as i32,
+        }),
+        Err(e) => Ok(grpc_payment_types::CustomerServiceGetResponse {
+            customer: None,
+            status_code: e.status_code as u32,
+            response_headers: router_data_v2
+                .resource_common_data
+                .get_connector_response_headers_as_map(),
+            merchant_customer_id: e.connector_transaction_id.clone(),
+            lookup_status: grpc_payment_types::CustomerLookupStatus::NotFound as i32,
+            error: Some(grpc_api_types::payments::ErrorInfo {
+                unified_details: None,
+                connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
+                    message: Some(e.message.clone()),
+                    code: Some(e.code.clone()),
+                    reason: e.reason.clone(),
+                    connector_transaction_id: e.connector_transaction_id.clone(),
                     status: None,
                 }),
                 issuer_details: None,
@@ -13112,6 +13614,12 @@ impl<
             grpc_payment_types::MitCategory::Unspecified => None,
             other => Some(common_enums::MitCategory::foreign_from(other)),
         };
+        let payment_channel = value
+            .payment_channel
+            .and_then(|channel| grpc_payment_types::PaymentChannel::try_from(channel).ok())
+            .filter(|channel| !matches!(channel, grpc_payment_types::PaymentChannel::Unspecified))
+            .map(common_enums::PaymentChannel::foreign_try_from)
+            .transpose()?;
         let payment_method_type =
             <Option<PaymentMethodType>>::foreign_try_from(value.payment_method_type())?;
         let capture_method = value.capture_method();
@@ -13200,6 +13708,7 @@ impl<
                 .transpose()?,
             webhook_url,
             router_return_url: value.return_url,
+            complete_authorize_url: value.complete_authorize_url,
             integrity_object: None,
             capture_method: Some(CaptureMethod::foreign_try_from(capture_method)?),
             email,
@@ -13230,6 +13739,7 @@ impl<
                 None => None,
             },
             shipping_cost: value.shipping_cost.map(common_utils::types::MinorUnit::new),
+            payment_channel,
             mit_category,
             billing_descriptor,
             enable_partial_authorization: value.enable_partial_authorization,
@@ -13322,6 +13832,7 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
         Ok(response) => match response {
             PaymentsResponseData::TransactionResponse {
                 resource_id,
+                redirection_data,
                 network_txn_id,
                 network_txn_link_id: _,
                 connector_response_reference_id,
@@ -13346,7 +13857,25 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
 
                 Ok(
                     grpc_api_types::payments::RecurringPaymentServiceChargeResponse {
+                        raw_connector_status: router_data_v2
+                            .resource_common_data
+                            .raw_connector_status
+                            .clone()
+                            .map(|status| grpc_api_types::payments::RawConnectorStatus {
+                                code: status.code,
+                                message: status.message,
+                                reason: status.reason,
+                            }),
                         connector_transaction_id: Option::foreign_try_from(resource_id)?,
+                        redirection_data: redirection_data.and_then(|form| {
+                            match grpc_api_types::payments::RedirectForm::foreign_try_from(*form) {
+                                Ok(form) => Some(form),
+                                Err(err) => {
+                                    tracing::error!("Failed to convert RedirectForm: {err:?}");
+                                    None
+                                }
+                            }
+                        }),
                         status: grpc_status as i32,
                         error: None,
                         network_transaction_id: network_txn_id,
@@ -13395,7 +13924,17 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
             };
             Ok(
                 grpc_api_types::payments::RecurringPaymentServiceChargeResponse {
+                    raw_connector_status: router_data_v2
+                        .resource_common_data
+                        .raw_connector_status
+                        .clone()
+                        .map(|status| grpc_api_types::payments::RawConnectorStatus {
+                            code: status.code,
+                            message: status.message,
+                            reason: status.reason,
+                        }),
                     connector_transaction_id: err.connector_transaction_id.clone(),
+                    redirection_data: None,
                     status: status as i32,
                     error: Some(grpc_api_types::payments::ErrorInfo {
                         unified_details: None,
@@ -13406,15 +13945,7 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                             connector_transaction_id: err.connector_transaction_id.clone(),
                             status: None,
                         }),
-                        issuer_details: Some(grpc_payment_types::IssuerErrorDetails {
-                            code: None,
-                            message: err.network_error_message.clone(),
-                            network_details: Some(grpc_payment_types::NetworkErrorDetails {
-                                decline_code: err.network_decline_code.clone(),
-                                advice_code: err.network_advice_code.clone(),
-                                error_message: err.network_error_message.clone(),
-                            }),
-                        }),
+                        issuer_details: Some(grpc_payment_types::IssuerErrorDetails::from(&err)),
                     }),
                     network_transaction_id: None,
                     merchant_charge_id: err.connector_transaction_id,
@@ -13889,7 +14420,7 @@ pub fn generate_payment_sdk_session_token_response(
                         connector_transaction_id: e.connector_transaction_id.clone(),
                         status: None,
                     }),
-                    issuer_details: None,
+                    issuer_details: Some(grpc_payment_types::IssuerErrorDetails::from(&e)),
                 }),
                 raw_connector_response,
                 status_code: e.status_code as u32,
@@ -14505,9 +15036,14 @@ impl<
             amount: amount.amount,
             currency: Some(amount.currency),
             email,
-            payment_method_type: <Option<PaymentMethodType>>::foreign_try_from(
-                payment_method_clone.unwrap_or_default(),
-            )?,
+            // Post-redirect auth legs (Paysafe's handle re-fetch) carry no card: an absent or
+            // proto-default (empty oneof) payment_method yields `None`, while a populated but
+            // invalid value still fails the conversion.
+            payment_method_type: payment_method_clone
+                .filter(|pm| pm.payment_method.is_some())
+                .map(<Option<PaymentMethodType>>::foreign_try_from)
+                .transpose()?
+                .flatten(),
             continue_redirection_url: value
                 .continue_redirection_url
                 .map(|url_str| {
@@ -14621,9 +15157,14 @@ impl<
             amount: amount.amount,
             email,
             currency: Some(amount.currency),
-            payment_method_type: <Option<PaymentMethodType>>::foreign_try_from(
-                payment_method_clone.unwrap_or_default(),
-            )?,
+            // Post-redirect auth legs (Paysafe's handle re-fetch) carry no card: an absent or
+            // proto-default (empty oneof) payment_method yields `None`, while a populated but
+            // invalid value still fails the conversion.
+            payment_method_type: payment_method_clone
+                .filter(|pm| pm.payment_method.is_some())
+                .map(<Option<PaymentMethodType>>::foreign_try_from)
+                .transpose()?
+                .flatten(),
             router_return_url: return_url
                 .map(|url_str| {
                     url::Url::parse(&url_str).change_context(IntegrationError::InvalidDataFormat {
@@ -14664,8 +15205,24 @@ impl<
                 .domain_data
                 .map(connector_types::DomainData::foreign_try_from)
                 .transpose()?,
+            sdk_information: value
+                .metadata
+                .as_ref()
+                .and_then(|m| serde_json::from_str::<AuthenticateSdkMetadata>(m.peek()).ok())
+                .and_then(|m| m.sdk_information),
+            device_channel: value
+                .metadata
+                .as_ref()
+                .and_then(|m| serde_json::from_str::<AuthenticateSdkMetadata>(m.peek()).ok())
+                .and_then(|m| m.device_channel),
         })
     }
+}
+
+#[derive(serde::Deserialize)]
+struct AuthenticateSdkMetadata {
+    device_channel: Option<connector_types::DeviceChannel>,
+    sdk_information: Option<connector_types::SdkInformation>,
 }
 
 impl<
@@ -14827,6 +15384,7 @@ impl
             .transpose()?;
 
         Ok(Self {
+            raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
@@ -14928,13 +15486,22 @@ impl
             .transpose()?;
 
         Ok(Self {
+            raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
             status: common_enums::AttemptStatus::Pending,
-            payment_method: PaymentMethod::foreign_try_from(
-                value.payment_method.unwrap_or_default(),
-            )?,
+            // The Authenticate re-fetch carries no payment method, and `PaymentFlowData` has no
+            // way to express that (non-optional field), so an absent or proto-default (empty
+            // oneof) value falls back to `Card`; a populated but invalid value still fails the
+            // conversion. Making this field `Option<PaymentMethod>` is the real fix but touches
+            // every connector, so it is left for a follow-up.
+            payment_method: value
+                .payment_method
+                .filter(|pm| pm.payment_method.is_some())
+                .map(PaymentMethod::foreign_try_from)
+                .transpose()?
+                .unwrap_or(PaymentMethod::Card),
             address,
             auth_type: common_enums::AuthenticationType::ThreeDs, // Auth step uses 3DS
             connector_request_reference_id: extract_connector_request_reference_id(
@@ -15029,6 +15596,7 @@ impl
             .map(|s| s.to_string());
 
         Ok(Self {
+            raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
@@ -15113,6 +15681,7 @@ impl
         let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
 
         Ok(Self {
+            raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "MANDATE_REVOKE_ID".to_string(),
             attempt_id: "MANDATE_REVOKE_ATTEMPT_ID".to_string(),
@@ -15398,6 +15967,7 @@ pub fn generate_payment_pre_authenticate_response<T: PaymentMethodDataTypes>(
         Err(err) => {
             let status = err
                 .attempt_status
+                .clone()
                 .map(grpc_api_types::payments::PaymentStatus::foreign_from)
                 .unwrap_or_default();
             PaymentMethodAuthenticationServicePreAuthenticateResponse {
@@ -15409,21 +15979,13 @@ pub fn generate_payment_pre_authenticate_response<T: PaymentMethodDataTypes>(
                 error: Some(grpc_api_types::payments::ErrorInfo {
                     unified_details: None,
                     connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
-                        code: Some(err.code),
+                        code: Some(err.code.clone()),
                         message: Some(err.message.clone()),
                         reason: err.reason.clone(),
                         connector_transaction_id: err.connector_transaction_id.clone(),
                         status: None,
                     }),
-                    issuer_details: Some(grpc_api_types::payments::IssuerErrorDetails {
-                        code: None,
-                        message: err.network_error_message.clone(),
-                        network_details: Some(grpc_api_types::payments::NetworkErrorDetails {
-                            advice_code: err.network_advice_code,
-                            decline_code: err.network_decline_code,
-                            error_message: err.network_error_message.clone(),
-                        }),
-                    }),
+                    issuer_details: Some(grpc_payment_types::IssuerErrorDetails::from(&err)),
                 }),
                 status_code: err.status_code.into(),
                 response_headers,
@@ -15600,6 +16162,7 @@ pub fn generate_payment_authenticate_response<T: PaymentMethodDataTypes>(
         Err(err) => {
             let status = err
                 .attempt_status
+                .clone()
                 .map(grpc_api_types::payments::PaymentStatus::foreign_from)
                 .unwrap_or_default();
             PaymentMethodAuthenticationServiceAuthenticateResponse {
@@ -15612,21 +16175,13 @@ pub fn generate_payment_authenticate_response<T: PaymentMethodDataTypes>(
                 error: Some(grpc_api_types::payments::ErrorInfo {
                     unified_details: None,
                     connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
-                        code: Some(err.code),
+                        code: Some(err.code.clone()),
                         message: Some(err.message.clone()),
                         reason: err.reason.clone(),
                         connector_transaction_id: err.connector_transaction_id.clone(),
                         status: None,
                     }),
-                    issuer_details: Some(grpc_api_types::payments::IssuerErrorDetails {
-                        code: None,
-                        message: err.network_error_message.clone(),
-                        network_details: Some(grpc_api_types::payments::NetworkErrorDetails {
-                            advice_code: err.network_advice_code,
-                            decline_code: err.network_decline_code,
-                            error_message: err.network_error_message.clone(),
-                        }),
-                    }),
+                    issuer_details: Some(grpc_payment_types::IssuerErrorDetails::from(&err)),
                 }),
                 status_code: err.status_code.into(),
                 raw_connector_response,
@@ -15702,6 +16257,7 @@ pub fn generate_payment_post_authenticate_response<T: PaymentMethodDataTypes>(
         Err(err) => {
             let status = err
                 .attempt_status
+                .clone()
                 .map(grpc_api_types::payments::PaymentStatus::foreign_from)
                 .unwrap_or_default();
             PaymentMethodAuthenticationServicePostAuthenticateResponse {
@@ -15715,21 +16271,13 @@ pub fn generate_payment_post_authenticate_response<T: PaymentMethodDataTypes>(
                 error: Some(grpc_api_types::payments::ErrorInfo {
                     unified_details: None,
                     connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
-                        code: Some(err.code),
+                        code: Some(err.code.clone()),
                         message: Some(err.message.clone()),
                         reason: err.reason.clone(),
                         connector_transaction_id: err.connector_transaction_id.clone(),
                         status: None,
                     }),
-                    issuer_details: Some(grpc_api_types::payments::IssuerErrorDetails {
-                        code: None,
-                        message: err.network_error_message.clone(),
-                        network_details: Some(grpc_api_types::payments::NetworkErrorDetails {
-                            advice_code: err.network_advice_code,
-                            decline_code: err.network_decline_code,
-                            error_message: err.network_error_message.clone(),
-                        }),
-                    }),
+                    issuer_details: Some(grpc_payment_types::IssuerErrorDetails::from(&err)),
                 }),
                 status_code: err.status_code.into(),
                 response_headers,
@@ -15896,6 +16444,7 @@ pub fn tokenized_setup_recurring_to_base(
         session_token: None,
         shipping_cost: None,
         mit_category: None,
+        partner_merchant_identifier_details: None,
     }
 }
 
@@ -16110,6 +16659,7 @@ pub fn proxied_setup_recurring_to_base(
         session_token: None,
         shipping_cost: None,
         mit_category: None,
+        partner_merchant_identifier_details: None,
     })
 }
 

@@ -543,6 +543,7 @@ macros::macro_connector_flow_status_impls!(
     not_implemented: [
         Accept,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         DefendDispute,
         MandateRevoke,
         ServerAuthenticationToken,

@@ -4,6 +4,8 @@
 use grpc_api_types::payments::{
     CustomerServiceCreateRequest,
     CustomerServiceCreateResponse,
+    CustomerServiceGetRequest,
+    CustomerServiceGetResponse,
     DisputeServiceAcceptRequest,
     DisputeServiceAcceptResponse,
     DisputeServiceDefendRequest,
@@ -94,6 +96,7 @@ use crate::services::payments::{
     create_server_authentication_token_req_transformer, create_server_authentication_token_res_transformer,
     create_server_session_authentication_token_req_transformer, create_server_session_authentication_token_res_transformer,
     customer_create_req_transformer, customer_create_res_transformer,
+    customer_get_req_transformer, customer_get_res_transformer,
     defend_req_transformer, defend_res_transformer,
     eligibility_req_transformer, eligibility_res_transformer,
     get_req_transformer, get_res_transformer,
@@ -151,6 +154,8 @@ impl_flow_handlers!(create_server_authentication_token, MerchantAuthenticationSe
 impl_flow_handlers!(create_server_session_authentication_token, MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest, MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse, create_server_session_authentication_token_req_transformer, create_server_session_authentication_token_res_transformer, domain_types::connector_types::ConnectorEnum);
 // customer_create: CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information.
 impl_flow_handlers!(customer_create, CustomerServiceCreateRequest, CustomerServiceCreateResponse, customer_create_req_transformer, customer_create_res_transformer, domain_types::connector_types::ConnectorEnum);
+// customer_get: CustomerService.Get — Retrieves customer details from the payment processor. Callers typically use this before Create to implement get-or-create semantics for connectors that reject duplicates (e.g. Glomopay).
+impl_flow_handlers!(customer_get, CustomerServiceGetRequest, CustomerServiceGetResponse, customer_get_req_transformer, customer_get_res_transformer, domain_types::connector_types::ConnectorEnum);
 // defend: DisputeService.Defend — Submit defense with reason code for dispute. Presents formal argument against customer's chargeback claim with supporting documentation.
 impl_flow_handlers!(defend, DisputeServiceDefendRequest, DisputeServiceDefendResponse, defend_req_transformer, defend_res_transformer, domain_types::connector_types::ConnectorEnum);
 // eligibility: PaymentMethodService.Eligibility — Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check)

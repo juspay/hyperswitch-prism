@@ -25,6 +25,7 @@ bypass_urls = ["localhost", "local"]
 [connectors]
 kount.base_url = "https://api-sandbox.kount.com"
 kount.secondary_base_url = "https://login.kount.com"
+glomopay.base_url = "https://api.glomopay.com/api/v1/"
 hyperswitch.base_url = "https://sandbox.hyperswitch.io"
 payconex.base_url = "https://cert.payconex.net"
 affirm.base_url = "https://sandbox.affirm.com"
@@ -139,6 +140,7 @@ tsys_transit.base_url = "https://stagegw.transnox.com/servlets/TransNox_API_Serv
 # the TODO(netcetera) in connectors/netcetera.rs base_url for prefix resolution.
 netcetera.base_url = "https://{{merchant_endpoint_prefix}}.3ds-server.prev.netcetera-cloud-payment.ch"
 flywire.base_url = "https://api-platform-sandbox.flywire.com"
+givepayments.base_url = "https://api-sandbox.givepayments.com"
 
 # Generic Events Configuration
 [events]
