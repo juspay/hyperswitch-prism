@@ -109,19 +109,29 @@ pub fn supplier_reference_number(
     Ok(Some(supplier_reference_number))
 }
 
-/// `shipToZip` — AMEX (any commercial L2/L3) OR Visa/MC Level III.
+/// `shipToZip` — mandatory for AMEX at Level II, or Visa/Mastercard at Level
+/// III. Never sent (and not required) for Visa/Mastercard at Level II, or
+/// for any other level/family combination.
 /// Source of truth: TSYS_MOTO_V3 row 127 (AMEX Level II) carries
 /// `<shipToZip>85284</shipToZip>` (V3 primary); TSYS_MOTO_V2 shows Mastercard
 /// L2 (row 126) does NOT carry it. So on L2 it is AMEX-only; Visa/MC only send
 /// it at L3. (`destinationCountryCode` stays L3-only.)
-pub fn ship_to_zip(profile: &TxProfile, raw: Option<String>) -> Option<String> {
-    let amex_commercial = profile.card_family.is_amex() && profile.commercial_level.is_l2_or_l3();
+pub fn ship_to_zip(
+    profile: &TxProfile,
+    raw: Option<String>,
+) -> Result<Option<String>, Report<IntegrationError>> {
+    let amex_l2 = profile.card_family.is_amex() && profile.commercial_level.is_l2();
     let vmc_l3 = profile.commercial_level.is_l3() && profile.card_family.is_visa_or_mastercard();
-    if amex_commercial || vmc_l3 {
-        raw
-    } else {
-        None
+    if !(amex_l2 || vmc_l3) {
+        return Ok(None);
     }
+
+    let ship_to_zip = raw.ok_or_else(|| IntegrationError::MissingRequiredField {
+        field_name: "shipToZip required for AMEX at LEVEL2 or Visa/Mastercard at LEVEL3",
+        context: Default::default(),
+    })?;
+
+    Ok(Some(ship_to_zip))
 }
 
 /// `destinationCountryCode` — Visa / Mastercard L3 only; mandatory in that

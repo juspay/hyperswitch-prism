@@ -1817,11 +1817,6 @@ fn compute_commercial_card_context<
             acceptor_phone_number,
         })
     } else if is_level2 {
-        let ship_to_zip = match card_network {
-            Some(CardNetwork::AmericanExpress) => ship_to_zip,
-            Some(CardNetwork::Visa) | Some(CardNetwork::Mastercard) => None,
-            _ => None,
-        };
         Ok(CommercialCardContext {
             sales_tax,
             tax_type: derived_tax_type.clone(),
@@ -2240,6 +2235,8 @@ fn assemble_authorize_body(
         &profile,
         commercial_card_context.supplier_reference_number,
     )?;
+    let ship_to_zip =
+        rules::commercial::ship_to_zip(&profile, commercial_card_context.ship_to_zip)?;
 
     Ok(TsysTransitAuthorizeBody {
         device_id: auth.device_id,
@@ -2282,7 +2279,7 @@ fn assemble_authorize_body(
         summary_commodity_code,
         vat_invoice,
         ship_from_zip,
-        ship_to_zip: rules::commercial::ship_to_zip(&profile, commercial_card_context.ship_to_zip),
+        ship_to_zip,
         destination_country_code,
         card_on_file: card_on_file_from_rule,
         partial_auth_support,
