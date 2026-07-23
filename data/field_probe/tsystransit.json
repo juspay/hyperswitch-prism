@@ -593,8 +593,8 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: billing.address.line1 — Missing required field: billing.address.line1"
+        "status": "not_supported",
+        "error": "off-session e-commerce payments are not supported is not supported by tsysTransit"
       }
     },
     "recurring_charge": {
@@ -672,8 +672,8 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: billing.address.line1 — Missing required field: billing.address.line1"
+        "status": "not_supported",
+        "error": "off-session e-commerce payments are not supported is not supported by tsysTransit"
       }
     },
     "token_authorize": {
@@ -685,7 +685,7 @@
     "token_setup_recurring": {
       "default": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by tsysTransit"
+        "error": "off-session e-commerce payments are not supported is not supported by tsysTransit"
       }
     },
     "tokenize": {

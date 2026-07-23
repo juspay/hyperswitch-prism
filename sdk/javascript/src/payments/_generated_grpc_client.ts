@@ -291,7 +291,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   PinelabsOnlineConfig: ["clientId", "clientSecret"],
   ImerchantsolutionsConfig: ["apiKey", "merchantId"],
   AxisbankConfig: ["merchantKid", "juspayKid", "merchantPrivateKey", "juspayPublicKey"],
-  TsysTransitConfig: ["deviceId", "transactionKey", "developerId"],
+  TsysTransitConfig: ["deviceId", "transactionKey", "developerId", "merchantStreetAddress", "customerServicePhoneNumber"],
   FlywireConfig: ["apiKey", "sharedSecret"],
   AffirmConfig: ["publicKey", "privateKey"],
   TwocTwopPacoConfig: ["accessToken", "officeId", "pacoKid", "merchantSigningPrivateKey", "merchantEncryptionPrivateKey", "pacoSigningPublicKey", "pacoEncryptionPublicKey", "responseAudience"],
