@@ -197,7 +197,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   PaymentMethodServiceGetRequest: ["connectorFeatureData", "metadata"],
   PaymentMethodServiceGetResponse: ["rawConnectorResponse", "rawConnectorRequest"],
   WalletDetails: ["walletPin"],
-  BankAccount: ["accountId"],
+  BankAccount: ["accountName", "accountId"],
   BankAccountDetailsAch: ["accountNumber", "routingNumber"],
   BankAccountDetailsBacs: ["accountNumber", "sortCode"],
   BankAccountDetailsSepa: ["iban", "bic"],
