@@ -406,10 +406,10 @@ fn purchase_order_strips_on_amex() {
         CommercialLevel::L2,
         CaptureKind::Auto,
     );
-    assert_eq!(
+    assert!(matches!(
         commercial::purchase_order(&p, Some("PO123".to_string())),
-        None
-    );
+        Ok(None)
+    ));
 }
 
 #[test]
@@ -421,10 +421,10 @@ fn purchase_order_passes_through_on_visa_l2() {
         CommercialLevel::L2,
         CaptureKind::Auto,
     );
-    assert_eq!(
+    assert!(matches!(
         commercial::purchase_order(&p, Some("PO123".to_string())),
-        Some("PO123".to_string())
-    );
+        Ok(Some(ref po)) if po == "PO123"
+    ));
 }
 
 #[test]
@@ -438,10 +438,10 @@ fn customer_ref_id_strips_on_mastercard() {
         CommercialLevel::L2,
         CaptureKind::Auto,
     );
-    assert_eq!(
+    assert!(matches!(
         commercial::customer_ref_id(&p, Some("REF123".to_string())),
-        None
-    );
+        Ok(None)
+    ));
 }
 
 #[test]
@@ -453,10 +453,10 @@ fn customer_ref_id_passes_through_on_amex() {
         CommercialLevel::L2,
         CaptureKind::Auto,
     );
-    assert_eq!(
+    assert!(matches!(
         commercial::customer_ref_id(&p, Some("REF123".to_string())),
-        Some("REF123".to_string())
-    );
+        Ok(Some(ref id)) if id == "REF123"
+    ));
 }
 
 #[test]
@@ -468,10 +468,10 @@ fn supplier_reference_number_strips_on_mastercard() {
         CommercialLevel::L2,
         CaptureKind::Auto,
     );
-    assert_eq!(
+    assert!(matches!(
         commercial::supplier_reference_number(&p, Some("SUP123".to_string())),
-        None
-    );
+        Ok(None)
+    ));
 }
 
 #[test]
@@ -485,7 +485,10 @@ fn ship_to_zip_stripped_on_mastercard_l2() {
         CommercialLevel::L2,
         CaptureKind::Auto,
     );
-    assert_eq!(commercial::ship_to_zip(&p, Some("12345".to_string())), None);
+    assert!(matches!(
+        commercial::ship_to_zip(&p, Some("12345".to_string())),
+        Ok(None)
+    ));
 }
 
 #[test]
@@ -498,10 +501,10 @@ fn ship_to_zip_sent_on_amex_l2() {
         CommercialLevel::L2,
         CaptureKind::Auto,
     );
-    assert_eq!(
+    assert!(matches!(
         commercial::ship_to_zip(&p, Some("85284".to_string())),
-        Some("85284".to_string())
-    );
+        Ok(Some(ref zip)) if zip == "85284"
+    ));
 }
 
 #[test]
@@ -514,7 +517,10 @@ fn ship_to_zip_stripped_when_not_commercial() {
         CommercialLevel::None,
         CaptureKind::Auto,
     );
-    assert_eq!(commercial::ship_to_zip(&p, Some("12345".to_string())), None);
+    assert!(matches!(
+        commercial::ship_to_zip(&p, Some("12345".to_string())),
+        Ok(None)
+    ));
 }
 
 #[test]
@@ -526,10 +532,10 @@ fn ship_to_zip_passes_through_on_visa_l3() {
         CommercialLevel::L3,
         CaptureKind::Auto,
     );
-    assert_eq!(
+    assert!(matches!(
         commercial::ship_to_zip(&p, Some("12345".to_string())),
-        Some("12345".to_string())
-    );
+        Ok(Some(ref zip)) if zip == "12345"
+    ));
 }
 
 #[test]
@@ -541,10 +547,10 @@ fn destination_country_code_strips_on_mastercard_l2() {
         CommercialLevel::L2,
         CaptureKind::Auto,
     );
-    assert_eq!(
+    assert!(matches!(
         commercial::destination_country_code(&p, Some("840".to_string())),
-        None
-    );
+        Ok(None)
+    ));
 }
 
 // ============================================================================
@@ -934,9 +940,6 @@ mod golden {
             commercial_card_level: Some(TsysTransitCommercialCardLevel::Level2),
             purchase_order: Some("PO125".to_string()),
             charge_descriptor: None,
-            charge_descriptor_2: None,
-            charge_descriptor_3: None,
-            charge_descriptor_4: None,
             customer_vat_number: None,
             customer_ref_id: None,
             supplier_reference_number: None,
@@ -976,6 +979,10 @@ mod golden {
             last_registered_change_date: None,
             authorization_indicator: None,
             mit: None,
+            acceptor_customer_service_phone_number: None,
+            acceptor_phone_number: None,
+            acceptor_street_address: None,
+            acceptor_u_r_l_address: None,
         };
 
         let req = TsysTransitAuthorizeRequest::Sale(body);
@@ -1070,7 +1077,11 @@ mod golden {
             cardholder_authentication_entity:
                 TsysTransitCardholderAuthenticationEntity::NotAuthenticated,
             card_data_output_capability: TsysTransitCardDataOutputCapability::None,
-            m_pos_acceptance_device_type: "0".to_string(),
+            m_pos_acceptance_device_type: Some("0".to_string()),
+            acceptor_customer_service_phone_number: None,
+            acceptor_phone_number: None,
+            acceptor_u_r_l_address: None,
+            acceptor_street_address: None,
         };
 
         let xml = generate_xml(&req).expect("serialize");

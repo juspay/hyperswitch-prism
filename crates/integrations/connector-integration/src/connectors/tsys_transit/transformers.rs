@@ -1300,10 +1300,7 @@ fn format_country_alpha3(country: common_enums::CountryAlpha2) -> String {
 fn resolve_order_date(
     l2_l3_data: Option<&domain_types::connector_types::L2L3Data>,
 ) -> Result<Option<String>, Report<IntegrationError>> {
-    let order_date = match l2_l3_data.and_then(|data| data.get_order_date()) {
-        Some(date) => Some(date),
-        None => None,
-    };
+    let order_date = l2_l3_data.and_then(|data| data.get_order_date());
 
     order_date
         .map(|date| {
@@ -1394,7 +1391,7 @@ fn build_tsys_product_details(
             .discount_name
             .clone()
             .map(|discount_type| sanitize_alphanumeric_space(&discount_type, 50));
-        let product_discount_percentage = detail.discount_percentage.clone();
+        let product_discount_percentage = detail.discount_percentage;
         let product_discount_type = detail
             .discount_type
             .clone()
