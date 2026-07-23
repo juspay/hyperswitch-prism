@@ -23,7 +23,12 @@
 //!      transaction in step 1 as this is a Visa and Mastercard level III
 //!      only tag." (reinforces V/MC-only L3 gating)
 
+use common_utils::types::StringMajorUnit;
+use domain_types::errors::IntegrationError;
+use error_stack::Report;
+
 use super::super::profile::{CardFamily, CommercialLevel, TxProfile};
+use super::super::transformers::{TsysTransitAdditionalTaxDetails, TsysTransitTaxCategory};
 
 /// `purchaseOrder` — Visa / Mastercard only. Strip on AMEX.
 pub fn purchase_order(profile: &TxProfile, raw: Option<String>) -> Option<String> {
@@ -111,4 +116,44 @@ pub fn amex_l2_extras_required(profile: &TxProfile) -> bool {
 /// destinationCountryCode).
 pub fn l3_visa_mc_required(profile: &TxProfile) -> bool {
     profile.commercial_level.is_l3() && profile.card_family.is_visa_or_mastercard()
+}
+
+/// `additionalTaxDetails` — Level III only. Not sent (empty) on any other
+/// commercial level; when the profile IS Level III, `taxType`, `taxAmount`,
+/// `taxRate` and `taxCategory` are all mandatory and the transaction fails
+/// fast if any of them is missing rather than silently omitting the block.
+pub fn additional_tax_details(
+    profile: &TxProfile,
+    tax_type: Option<String>,
+    tax_amount: Option<StringMajorUnit>,
+    tax_rate: Option<String>,
+    tax_category: Option<TsysTransitTaxCategory>,
+) -> Result<Vec<TsysTransitAdditionalTaxDetails>, Report<IntegrationError>> {
+    if !profile.commercial_level.is_l3() {
+        return Ok(Vec::new());
+    }
+
+    let tax_type = tax_type.ok_or_else(|| IntegrationError::MissingRequiredField {
+        field_name: "taxType required for additionalTaxDetails (order_details[0].product_tax_code missing)",
+        context: Default::default(),
+    })?;
+    let tax_amount = tax_amount.ok_or_else(|| IntegrationError::MissingRequiredField {
+        field_name: "taxAmount required for additionalTaxDetails when commercial_card_level is LEVEL3",
+        context: Default::default(),
+    })?;
+    let tax_rate = tax_rate.ok_or_else(|| IntegrationError::MissingRequiredField {
+        field_name: "taxRate required for additionalTaxDetails when commercial_card_level is LEVEL3",
+        context: Default::default(),
+    })?;
+    let tax_category = tax_category.ok_or_else(|| IntegrationError::MissingRequiredField {
+        field_name: "taxCategory required for additionalTaxDetails when commercial_card_level is LEVEL3",
+        context: Default::default(),
+    })?;
+
+    Ok(vec![TsysTransitAdditionalTaxDetails {
+        tax_type,
+        tax_amount,
+        tax_rate: Some(tax_rate),
+        tax_category: Some(tax_category),
+    }])
 }

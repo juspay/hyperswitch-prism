@@ -1030,7 +1030,10 @@ struct RecurringContext {
 #[derive(Debug, Default, Clone)]
 struct CommercialCardContext {
     sales_tax: Option<StringMajorUnit>,
-    additional_tax_details: Vec<TsysTransitAdditionalTaxDetails>,
+    tax_type: Option<String>,
+    tax_amount: Option<StringMajorUnit>,
+    tax_rate: Option<String>,
+    tax_category: Option<TsysTransitTaxCategory>,
     shipping_charges: Option<StringMajorUnit>,
     duty_charges: Option<StringMajorUnit>,
     product_details: Vec<TsysTransitProductDetails>,
@@ -1784,22 +1787,6 @@ fn compute_commercial_card_context<
     };
 
     if is_level3 {
-        let additional_tax_details = vec![TsysTransitAdditionalTaxDetails {
-            tax_type: derived_tax_type.clone().ok_or_else(|| {
-            IntegrationError::MissingRequiredField {
-                field_name:
-                    "taxType required for additionalTaxDetails (order_details[0].product_tax_code missing)",
-                context: Default::default(),
-            }
-        })?,
-            tax_amount: tax_amount.ok_or_else(|| IntegrationError::MissingRequiredField {
-                    field_name: "salesTax required for commercial_card_level LEVEL3",
-                    context: Default::default(),
-                })? ,
-            tax_rate: derived_tax_rate.clone(),
-            tax_category,
-        }];
-
         let (customer_vat_number, sales_tax) = match card_network {
             Some(CardNetwork::Visa) => (customer_vat_number, sales_tax),
             Some(CardNetwork::Mastercard) => (None, sales_tax),
@@ -1808,7 +1795,10 @@ fn compute_commercial_card_context<
 
         Ok(CommercialCardContext {
             sales_tax,
-            additional_tax_details,
+            tax_type: derived_tax_type.clone(),
+            tax_amount,
+            tax_rate: derived_tax_rate.clone(),
+            tax_category,
             shipping_charges,
             duty_charges,
             product_details: product_details.unwrap_or(Vec::new()),
@@ -1854,7 +1844,10 @@ fn compute_commercial_card_context<
         };
         Ok(CommercialCardContext {
             sales_tax,
-            additional_tax_details: Vec::new(),
+            tax_type: derived_tax_type.clone(),
+            tax_amount,
+            tax_rate: derived_tax_rate.clone(),
+            tax_category,
             shipping_charges: None,
             duty_charges: None,
             product_details: Vec::new(),
@@ -1917,7 +1910,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let assembly = extract_for_authorize(&item)?;
         let is_manual_capture = assembly.profile.capture.is_manual();
-        let body = assemble_authorize_body(assembly);
+        let body = assemble_authorize_body(assembly)?;
         Ok(if is_manual_capture {
             Self::Auth(body)
         } else {
@@ -2138,7 +2131,9 @@ fn extract_for_authorize<T: PaymentMethodDataTypes + Debug + Sync + Send + 'stat
     })
 }
 
-fn assemble_authorize_body(assembly: AuthorizeAssembly) -> TsysTransitAuthorizeBody {
+fn assemble_authorize_body(
+    assembly: AuthorizeAssembly,
+) -> Result<TsysTransitAuthorizeBody, Report<IntegrationError>> {
     let AuthorizeAssembly {
         profile,
         auth,
@@ -2224,14 +2219,22 @@ fn assemble_authorize_body(assembly: AuthorizeAssembly) -> TsysTransitAuthorizeB
 
     let partial_auth_support = rules::network_indicators::partial_auth_support(&profile);
 
-    TsysTransitAuthorizeBody {
+    let additional_tax_details = rules::commercial::additional_tax_details(
+        &profile,
+        commercial_card_context.tax_type,
+        commercial_card_context.tax_amount,
+        commercial_card_context.tax_rate,
+        commercial_card_context.tax_category,
+    )?;
+
+    Ok(TsysTransitAuthorizeBody {
         device_id: auth.device_id,
         transaction_key: auth.transaction_key,
         card_data_source,
         transaction_amount,
         sales_tax: commercial_card_context.sales_tax,
         surcharge,
-        additional_tax_details: commercial_card_context.additional_tax_details,
+        additional_tax_details,
         shipping_charges: commercial_card_context.shipping_charges,
         duty_charges: commercial_card_context.duty_charges,
         card_number,
@@ -2308,7 +2311,7 @@ fn assemble_authorize_body(assembly: AuthorizeAssembly) -> TsysTransitAuthorizeB
             .acceptor_customer_service_phone_number,
         acceptor_phone_number: commercial_card_context.acceptor_phone_number,
         acceptor_u_r_l_address: commercial_card_context.acceptor_url,
-    }
+    })
 }
 #[derive(Debug, Clone)]
 pub enum MandateDispatch {
