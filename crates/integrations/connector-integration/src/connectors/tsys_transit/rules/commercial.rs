@@ -71,13 +71,23 @@ pub fn purchase_order(
     Ok(Some(purchase_order))
 }
 
-/// `customerRefID` — AMEX only.
-pub fn customer_ref_id(profile: &TxProfile, raw: Option<String>) -> Option<String> {
-    if profile.card_family.is_amex() {
-        raw
-    } else {
-        None
+/// `customerRefID` — AMEX Level II only; mandatory in that case. Never sent
+/// otherwise (Visa/Mastercard at any level, AMEX outside L2, or no
+/// commercial level at all).
+pub fn customer_ref_id(
+    profile: &TxProfile,
+    raw: Option<String>,
+) -> Result<Option<String>, Report<IntegrationError>> {
+    if !amex_l2_extras_required(profile) {
+        return Ok(None);
     }
+
+    let customer_ref_id = raw.ok_or_else(|| IntegrationError::MissingRequiredField {
+        field_name: "customerRefID required for AMEX when commercial_card_level is LEVEL2",
+        context: Default::default(),
+    })?;
+
+    Ok(Some(customer_ref_id))
 }
 
 /// `supplierReferenceNumber` — AMEX only.
