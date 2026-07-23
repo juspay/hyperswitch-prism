@@ -1001,8 +1001,6 @@ struct TsysTransitPaymentRequestMetadata {
     vat_invoice_number: Option<String>,
     ship_from_zip: Option<String>,
     customer_vat_number: Option<String>,
-    shipping_charges: Option<StringMajorUnit>,
-    duty_charges: Option<StringMajorUnit>,
     summary_commodity_code: Option<String>,
 }
 #[derive(Debug, Default, Deserialize, Clone)]
@@ -1356,6 +1354,8 @@ fn build_tsys_product_details(
         return Ok(None);
     };
 
+    let is_visa_card = matches!(card_network, Some(CardNetwork::Visa));
+
     let product_code = detail
         .product_id
         .clone()
@@ -1387,7 +1387,7 @@ fn build_tsys_product_details(
         .clone()
         .map(|tax_code| truncate_chars(&tax_code, 4));
 
-    let product_commodity_code = detail
+    let commodity_code = detail
         .commodity_code
         .clone()
         .or_else(|| detail.upc.clone())
@@ -1409,7 +1409,7 @@ fn build_tsys_product_details(
 
     if matches!(card_network, Some(CardNetwork::Visa)) {
         let missing_fields = collect_missing_value_keys!(
-            ("order_details.commodity_code", product_commodity_code),
+            ("order_details.commodity_code", commodity_code),
             ("order_details.unit_of_measure", measurement_unit),
             ("order_details.unit_discount_amount", unit_discount_amount),
             ("order_details.product_tax_name", product_tax_name),
@@ -1492,7 +1492,14 @@ fn build_tsys_product_details(
             product_tax_percentage,
             product_tax_type,
         }),
-        product_commodity_code,
+        product_commodity_code: is_visa_card
+            .then_some(
+                commodity_code.ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "order_details.commodity_code",
+                    context: Default::default(),
+                }),
+            )
+            .transpose()?,
     }))
 }
 
@@ -1601,8 +1608,6 @@ fn compute_commercial_card_context<
         sanitize_optional_alphanumeric_space(request_metadata.vat_invoice_number.clone(), 15);
     let customer_vat_number = request_metadata.customer_vat_number.clone();
     let ship_from_zip = request_metadata.ship_from_zip.clone();
-    let shipping_charges = request_metadata.shipping_charges.clone();
-    let duty_charges = request_metadata.duty_charges.clone();
     let l2_l3_data = router_data.resource_common_data.l2_l3_data.as_deref();
     let order_date = resolve_order_date(l2_l3_data)?;
     let summary_commodity_code =
@@ -1629,7 +1634,19 @@ fn compute_commercial_card_context<
         .collect::<Result<Vec<Option<TsysTransitProductDetails>>, Report<IntegrationError>>>()
         .ok()
         .and_then(|items| items.into_iter().collect());
-
+    let shipping_charges = l2_l3_data
+        .and_then(|data| data.get_shipping_cost())
+        .or(router_data.request.shipping_cost)
+        .map(|amount| {
+            super::TsysTransitAmountConvertor::convert(amount, router_data.request.currency)
+        })
+        .transpose()?;
+    let duty_charges = l2_l3_data
+        .and_then(|data| data.get_duty_amount())
+        .map(|amount| {
+            super::TsysTransitAmountConvertor::convert(amount, router_data.request.currency)
+        })
+        .transpose()?;
     let derived_tax_rate = order_details
         .iter()
         .find_map(|detail| detail.tax_rate.map(format_decimal));
@@ -1785,6 +1802,7 @@ fn compute_commercial_card_context<
 
         let (customer_vat_number, sales_tax) = match card_network {
             Some(CardNetwork::Visa) => (customer_vat_number, sales_tax),
+            Some(CardNetwork::Mastercard) => (None, sales_tax),
             _ => (None, None),
         };
 
