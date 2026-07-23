@@ -154,17 +154,22 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 })
             })?;
 
-        let customer = req
-            .customer
-            .as_ref()
-            .ok_or_else(|| report!(IntegrationError::MissingRequiredField {
+        let customer = req.customer.as_ref().ok_or_else(|| {
+            report!(IntegrationError::MissingRequiredField {
                 field_name: "customer",
                 context: IntegrationErrorContext {
-                    additional_context: Some("customer is required for Plaid Link token creation".to_owned()),
-                    suggested_action: Some("Provide customer details including customer_id in the request".to_owned()),
-                    doc_url: Some("https://plaid.com/docs/api/tokens/#linktokencreate-user".to_owned()),
+                    additional_context: Some(
+                        "customer is required for Plaid Link token creation".to_owned()
+                    ),
+                    suggested_action: Some(
+                        "Provide customer details including customer_id in the request".to_owned()
+                    ),
+                    doc_url: Some(
+                        "https://plaid.com/docs/api/tokens/#linktokencreate-user".to_owned()
+                    ),
                 },
-            }))?;
+            })
+        })?;
 
         let user = PlaidUser {
             client_user_id: customer.get_customer_id()?.get_string_repr().to_owned(),

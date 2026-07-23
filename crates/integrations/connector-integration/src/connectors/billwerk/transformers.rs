@@ -778,31 +778,27 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .clone()
             .unwrap_or_else(|| "https://hyperswitch.io".to_string());
 
-        let customer_info = router_data
-            .request
-            .customer
-            .as_ref()
-            .ok_or_else(|| {
-                error_stack::report!(IntegrationError::MissingRequiredField {
-                    field_name: "customer",
-                    context: IntegrationErrorContext {
-                        suggested_action: Some(
-                            "Provide a `customer` when creating the client authentication \
+        let customer_info = router_data.request.customer.as_ref().ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "customer",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Provide a `customer` when creating the client authentication \
                              token. Billwerk uses it as the customer handle for the checkout \
                              session."
-                                .to_owned(),
-                        ),
-                        doc_url: Some(
-                            "https://optimize.billwerk.com/reference/create-session".to_owned(),
-                        ),
-                        additional_context: Some(
-                            "Billwerk checkout sessions require a customer handle to associate \
+                            .to_owned(),
+                    ),
+                    doc_url: Some(
+                        "https://optimize.billwerk.com/reference/create-session".to_owned(),
+                    ),
+                    additional_context: Some(
+                        "Billwerk checkout sessions require a customer handle to associate \
                              the session with a customer record."
-                                .to_owned(),
-                        ),
-                    },
-                })
-            })?;
+                            .to_owned(),
+                    ),
+                },
+            })
+        })?;
 
         let customer_handle = customer_info
             .get_customer_id()
