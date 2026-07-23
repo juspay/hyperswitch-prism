@@ -214,6 +214,7 @@ impl From<&KountDecision> for FrmDecision {
 /// and the notify flows. PII/card fields are `Secret`-wrapped so they mask in the
 /// event log; risk analytics stay in plaintext.
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KountOrderResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub version: Option<String>,
@@ -223,20 +224,19 @@ pub struct KountOrderResponse {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KountOrder {
     /// Kount-assigned order id.
-    #[serde(rename = "orderId")]
     pub order_id: Option<String>,
-    #[serde(rename = "riskInquiry")]
     pub risk_inquiry: Option<KountRiskInquiry>,
-    #[serde(rename = "merchantOrderId", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub merchant_order_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub channel: Option<String>,
     /// Device/session identifier — PII, masked.
-    #[serde(rename = "deviceSessionId", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub device_session_id: Option<Secret<String>>,
-    #[serde(rename = "creationDateTime", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub creation_date_time: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub transactions: Option<Vec<KountRespTransaction>>,
@@ -245,6 +245,7 @@ pub struct KountOrder {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KountRiskInquiry {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub decision: Option<KountDecision>,
@@ -258,13 +259,13 @@ pub struct KountRiskInquiry {
     pub persona: Option<KountPersona>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub device: Option<KountRespDevice>,
-    #[serde(rename = "segmentExecuted", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub segment_executed: Option<KountSegmentExecuted>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub email: Option<KountEmailSignals>,
-    #[serde(rename = "policyManagement", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub policy_management: Option<KountPolicyManagement>,
-    #[serde(rename = "reasonCode", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub reason_code: Option<String>,
 }
 
@@ -305,65 +306,61 @@ where
 /// numbers but the live API returns JSON numbers, so they parse leniently via
 /// [`de_stringy`]. Not PII — kept in plaintext for risk analytics.
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KountPersona {
     #[serde(
         default,
         deserialize_with = "de_stringy",
-        rename = "uniqueCards",
         skip_serializing_if = "Option::is_none"
     )]
     pub unique_cards: Option<String>,
     #[serde(
         default,
         deserialize_with = "de_stringy",
-        rename = "uniqueDevices",
         skip_serializing_if = "Option::is_none"
     )]
     pub unique_devices: Option<String>,
     #[serde(
         default,
         deserialize_with = "de_stringy",
-        rename = "uniqueEmails",
         skip_serializing_if = "Option::is_none"
     )]
     pub unique_emails: Option<String>,
-    #[serde(rename = "riskiestCountry", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub riskiest_country: Option<String>,
     #[serde(
         default,
         deserialize_with = "de_stringy",
-        rename = "totalBankApprovedOrders",
         skip_serializing_if = "Option::is_none"
     )]
     pub total_bank_approved_orders: Option<String>,
     #[serde(
         default,
         deserialize_with = "de_stringy",
-        rename = "totalBankDeclinedOrders",
         skip_serializing_if = "Option::is_none"
     )]
     pub total_bank_declined_orders: Option<String>,
     #[serde(
         default,
         deserialize_with = "de_stringy",
-        rename = "maxVelocity",
         skip_serializing_if = "Option::is_none"
     )]
     pub max_velocity: Option<String>,
-    #[serde(rename = "riskiestRegion", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub riskiest_region: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KountRespDevice {
     /// Device fingerprint id — PII, masked.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<Secret<String>>,
-    #[serde(rename = "collectionDateTime", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub collection_date_time: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub browser: Option<String>,
-    #[serde(rename = "deviceAttributes", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub device_attributes: Option<KountDeviceAttributes>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub location: Option<KountDeviceLocation>,
@@ -372,61 +369,61 @@ pub struct KountRespDevice {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KountDeviceAttributes {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub os: Option<String>,
-    #[serde(rename = "firstSeenDateTime", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub first_seen_date_time: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub language: Option<String>,
     #[serde(
         default,
         deserialize_with = "de_stringy",
-        rename = "timezoneOffset",
         skip_serializing_if = "Option::is_none"
     )]
     pub timezone_offset: Option<String>,
-    #[serde(rename = "mobileSdkType", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub mobile_sdk_type: Option<String>,
-    #[serde(rename = "cookiesEnabled", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cookies_enabled: Option<bool>,
-    #[serde(rename = "screenResolution", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub screen_resolution: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ip: Option<Vec<KountDeviceIp>>,
-    #[serde(rename = "localTime", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub local_time: Option<String>,
-    #[serde(rename = "userAgent", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub user_agent: Option<String>,
 }
 
 /// Device IP details — all addresses are PII, masked.
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KountDeviceIp {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub address: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub organization: Option<String>,
-    #[serde(rename = "piercedAddress", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub pierced_address: Option<Secret<String>>,
-    #[serde(
-        rename = "piercedOrganization",
-        skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub pierced_organization: Option<String>,
 }
 
-/// Geolocation of the device. Precise coordinates and postal code are PII
-/// (masked); coarse city/region/country are kept in plaintext.
+/// Geolocation of the device. Everything that pinpoints the end user — precise
+/// coordinates, postal code, area code, city and region — is PII and masked;
+/// only country-level fields stay in plaintext.
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KountDeviceLocation {
-    #[serde(rename = "areaCode", skip_serializing_if = "Option::is_none")]
-    pub area_code: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub city: Option<String>,
+    pub area_code: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub city: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub country: Option<String>,
-    #[serde(rename = "countryCode", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub country_code: Option<String>,
     #[serde(
         default,
@@ -440,27 +437,29 @@ pub struct KountDeviceLocation {
         skip_serializing_if = "Option::is_none"
     )]
     pub longitude: Option<Secret<String>>,
-    #[serde(rename = "postalCode", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub postal_code: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub region: Option<String>,
-    #[serde(rename = "regionCode", skip_serializing_if = "Option::is_none")]
-    pub region_code: Option<String>,
-    #[serde(rename = "localeCountryCode", skip_serializing_if = "Option::is_none")]
+    pub region: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub region_code: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub locale_country_code: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KountSegmentExecuted {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub segment: Option<KountSegment>,
-    #[serde(rename = "policiesExecuted", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub policies_executed: Option<Vec<KountPolicyExecuted>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tags: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KountSegment {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
@@ -471,6 +470,7 @@ pub struct KountSegment {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KountPolicyExecuted {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
@@ -481,6 +481,7 @@ pub struct KountPolicyExecuted {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KountPolicyOutcome {
     #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
     pub outcome_type: Option<String>,
@@ -490,28 +491,30 @@ pub struct KountPolicyOutcome {
 
 /// Email reputation signals (metadata about the email, not the address itself).
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KountEmailSignals {
-    #[serde(rename = "isVerifiedDomain", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub is_verified_domain: Option<bool>,
-    #[serde(rename = "firstSeen", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub first_seen: Option<String>,
-    #[serde(rename = "mostRecent", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub most_recent: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KountPolicyManagement {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub decision: Option<KountDecision>,
-    #[serde(rename = "setExecuted", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub set_executed: Option<KountNameVersion>,
-    #[serde(rename = "segmentExecuted", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub segment_executed: Option<KountSegment>,
-    #[serde(rename = "policiesExecuted", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub policies_executed: Option<Vec<KountPolicyExecuted>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tags: Option<Vec<String>>,
-    #[serde(rename = "tagWeights", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub tag_weights: Option<Vec<KountTagWeight>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub set: Option<KountNameVersion>,
@@ -522,6 +525,7 @@ pub struct KountPolicyManagement {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KountNameVersion {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -530,6 +534,7 @@ pub struct KountNameVersion {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KountTagWeight {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -540,6 +545,7 @@ pub struct KountTagWeight {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KountAction {
     #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
     pub action_type: Option<String>,
@@ -547,78 +553,70 @@ pub struct KountAction {
     pub values: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
-    #[serde(rename = "addToListValues", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub add_to_list_values: Option<Vec<KountAddToListValue>>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KountAddToListValue {
-    #[serde(rename = "listIds", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub list_ids: Option<Vec<String>>,
-    #[serde(rename = "fieldTypes", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub field_types: Option<Vec<serde_json::Value>>,
 }
 
 /// A transaction on the Orders response. `payment` carries card data — masked.
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KountRespTransaction {
-    #[serde(rename = "transactionId", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub transaction_id: Option<String>,
-    #[serde(
-        rename = "merchantTransactionId",
-        skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub merchant_transaction_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub payment: Option<Vec<KountRespPayment>>,
-    #[serde(
-        rename = "processorMerchantId",
-        skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub processor_merchant_id: Option<String>,
 }
 
 /// Payment instrument on the Orders response. Every card-identifying field is
 /// PII/card data — masked.
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KountRespPayment {
-    #[serde(rename = "cardBrand", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub card_brand: Option<Secret<String>>,
     #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
     pub payment_type: Option<String>,
-    #[serde(rename = "paymentToken", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_token: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub bin: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last4: Option<Secret<String>>,
-    #[serde(
-        rename = "issuingOrganization",
-        skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub issuing_organization: Option<Secret<String>>,
-    #[serde(rename = "expirationMonth", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub expiration_month: Option<Secret<i64>>,
-    #[serde(rename = "expirationYear", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub expiration_year: Option<Secret<i64>>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KountRespFulfillment {
-    #[serde(rename = "fulfillmentId", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub fulfillment_id: Option<String>,
-    #[serde(
-        rename = "merchantFulfillmentId",
-        skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub merchant_fulfillment_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub shipping: Option<KountRespShipping>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<String>,
-    #[serde(rename = "accessUrl", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub access_url: Option<String>,
-    #[serde(rename = "digitalDownloaded", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub digital_downloaded: Option<bool>,
     /// Download device IP — PII, masked. (Kount's field name carries a typo,
     /// `downnloadDeviceIp`, preserved here so it deserializes.)
@@ -627,16 +625,17 @@ pub struct KountRespFulfillment {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KountRespShipping {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub provider: Option<String>,
-    #[serde(rename = "trackingNumber", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub tracking_number: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub method: Option<String>,
-    #[serde(rename = "shippedDateTime", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub shipped_date_time: Option<String>,
-    #[serde(rename = "deliveredDateTime", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub delivered_date_time: Option<String>,
 }
 
