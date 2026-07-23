@@ -1,6 +1,7 @@
 use super::frm_types::{
     FrmChargebackReceivedRequest, FrmFlowData, FrmPaymentOutcomeRequest, FrmRefundProcessedRequest,
-    PostRiskCheckRequest, PostRiskCheckResponse, PreRiskCheckRequest, PreRiskCheckResponse,
+    MerchantDetails, PostRiskCheckRequest, PostRiskCheckResponse, PreRiskCheckRequest,
+    PreRiskCheckResponse,
 };
 use crate::{
     connector_types::{
@@ -8,19 +9,30 @@ use crate::{
         ServerAuthenticationTokenResponseData,
     },
     errors::IntegrationError,
+    mandates::MandateAmountData,
     payment_address::{Address, OrderDetailsWithAmount, PaymentAddress},
-    payment_method_data::{Card, DefaultPCIHolder, PaymentMethodData},
     router_request_types::BrowserInformation,
-    types::Connectors,
+    types::{Connectors, PaymentMethodDataAction},
     utils::{extract_merchant_id_from_metadata, ForeignFrom, ForeignTryFrom},
 };
-use common_enums::{AttemptStatus, FrmDecision};
+use common_enums::{AttemptStatus, FrmDecision, PaymentMethodType};
 use common_utils::{
     pii::Email,
     types::{MinorUnit, Money},
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::ExposeInterface;
+
+// ── MerchantDetails conversion ────────────────────────────────────────────────
+
+impl ForeignFrom<grpc_api_types::payments::MerchantDetails> for MerchantDetails {
+    fn foreign_from(value: grpc_api_types::payments::MerchantDetails) -> Self {
+        Self {
+            merchant_id: value.merchant_id,
+            merchant_category_code: value.merchant_category_code,
+        }
+    }
+}
 
 // ── FrmDecision conversions ───────────────────────────────────────────────────
 
@@ -203,19 +215,45 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePreRiskCheckRequest> for PreR
                 },
             })?;
 
+        let payment_method_type = value
+            .payment_method
+            .clone()
+            .and_then(|pm| Option::<PaymentMethodType>::foreign_try_from(pm).ok())
+            .flatten();
+
         let payment_method = value
             .payment_method
-            .map(PaymentMethodData::<DefaultPCIHolder>::foreign_try_from)
-            .transpose()
-            .change_context(IntegrationError::InvalidDataFormat {
-                field_name: "payment_method",
-                context: crate::errors::IntegrationErrorContext {
-                    additional_context: Some(
-                        "Failed to parse payment method in pre-risk check".to_owned(),
-                    ),
-                    ..Default::default()
-                },
-            })?;
+            .map(|pm| {
+                // grpc_api_types::frm re-exports the same proto types as
+                // grpc_api_types::payments, so we can reuse the shared
+                // PaymentMethodDataAction pipeline directly.
+                let payments_pm = grpc_api_types::payments::PaymentMethod {
+                    payment_method: pm.payment_method,
+                };
+                let action =
+                    PaymentMethodDataAction::get_payment_method_data_action(payments_pm.clone())
+                        .change_context(IntegrationError::InvalidDataFormat {
+                            field_name: "payment_method",
+                            context: crate::errors::IntegrationErrorContext {
+                                additional_context: Some(
+                                    "Failed to parse payment method in pre-risk check".to_owned(),
+                                ),
+                                ..Default::default()
+                            },
+                        })?;
+                action
+                    .into_default_pci_payment_method_data(Some(payments_pm))
+                    .change_context(IntegrationError::InvalidDataFormat {
+                        field_name: "payment_method",
+                        context: crate::errors::IntegrationErrorContext {
+                            additional_context: Some(
+                                "Failed to parse payment method in pre-risk check".to_owned(),
+                            ),
+                            ..Default::default()
+                        },
+                    })
+            })
+            .transpose()?;
 
         let browser_info = value
             .browser_info
@@ -268,6 +306,11 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePreRiskCheckRequest> for PreR
                 },
             })?;
 
+        let mandate_details = value
+            .mandate_details
+            .map(MandateAmountData::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
             amount: Money {
                 amount: MinorUnit::new(amount.minor_amount),
@@ -282,6 +325,9 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePreRiskCheckRequest> for PreR
             metadata: value.metadata,
             connector_feature_data: value.connector_feature_data,
             test_mode: value.test_mode,
+            mandate_details,
+            merchant_details: value.merchant_details.map(MerchantDetails::foreign_from),
+            payment_method_type,
         })
     }
 }
@@ -342,17 +388,34 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePostRiskCheckRequest> for Pos
 
         let payment_method = value
             .payment_method
-            .map(PaymentMethodData::<DefaultPCIHolder>::foreign_try_from)
-            .transpose()
-            .change_context(IntegrationError::InvalidDataFormat {
-                field_name: "payment_method",
-                context: crate::errors::IntegrationErrorContext {
-                    additional_context: Some(
-                        "Failed to parse payment method in post-risk check".to_owned(),
-                    ),
-                    ..Default::default()
-                },
-            })?;
+            .map(|pm| {
+                let payments_pm = grpc_api_types::payments::PaymentMethod {
+                    payment_method: pm.payment_method,
+                };
+                let action =
+                    PaymentMethodDataAction::get_payment_method_data_action(payments_pm.clone())
+                        .change_context(IntegrationError::InvalidDataFormat {
+                            field_name: "payment_method",
+                            context: crate::errors::IntegrationErrorContext {
+                                additional_context: Some(
+                                    "Failed to parse payment method in post-risk check".to_owned(),
+                                ),
+                                ..Default::default()
+                            },
+                        })?;
+                action
+                    .into_default_pci_payment_method_data(Some(payments_pm))
+                    .change_context(IntegrationError::InvalidDataFormat {
+                        field_name: "payment_method",
+                        context: crate::errors::IntegrationErrorContext {
+                            additional_context: Some(
+                                "Failed to parse payment method in post-risk check".to_owned(),
+                            ),
+                            ..Default::default()
+                        },
+                    })
+            })
+            .transpose()?;
 
         let order_details = (!value.order_details.is_empty())
             .then(|| {
@@ -443,24 +506,6 @@ impl ForeignTryFrom<grpc_api_types::frm::Customer> for CustomerInfo {
     }
 }
 
-impl ForeignTryFrom<grpc_api_types::frm::PaymentMethod> for PaymentMethodData<DefaultPCIHolder> {
-    type Error = IntegrationError;
-
-    fn foreign_try_from(
-        value: grpc_api_types::frm::PaymentMethod,
-    ) -> Result<Self, error_stack::Report<Self::Error>> {
-        match value.payment_method {
-            Some(grpc_api_types::frm::payment_method::PaymentMethod::Card(card)) => Ok(
-                PaymentMethodData::Card(Card::<DefaultPCIHolder>::foreign_try_from(card)?),
-            ),
-            _ => Err(error_stack::report!(IntegrationError::NotImplemented(
-                "Non-card payment method conversion for FRM".to_owned(),
-                Default::default()
-            ))),
-        }
-    }
-}
-
 // ── FRM Notification ForeignTryFrom ──────────────────────────────────────────
 
 impl ForeignTryFrom<grpc_api_types::payments::FrmNotificationContent> for FrmPaymentOutcomeRequest {
@@ -528,6 +573,7 @@ impl ForeignTryFrom<grpc_api_types::payments::FrmNotificationContent> for FrmPay
             payment_status,
             merchant_transaction_id: payment_details.merchant_transaction_id,
             frm_decision,
+            merchant_details: value.merchant_details.map(MerchantDetails::foreign_from),
         })
     }
 }
@@ -600,6 +646,7 @@ impl ForeignTryFrom<grpc_api_types::payments::FrmNotificationContent>
             merchant_refund_id: refund.merchant_refund_id,
             refund_reason: refund.refund_reason,
             frm_decision,
+            merchant_details: value.merchant_details.map(MerchantDetails::foreign_from),
         })
     }
 }

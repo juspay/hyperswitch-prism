@@ -43,6 +43,7 @@ mod tests {
             > = RouterDataV2 {
                 flow: PhantomData::<Authorize>,
                 resource_common_data: PaymentFlowData {
+                    raw_connector_status: None,
                     vault_headers: None,
                     merchant_id: common_utils::id_type::MerchantId::default(),
                     customer_id: None,
@@ -107,6 +108,7 @@ mod tests {
                     l2_l3_data: None,
                     merchant_request_id: None,
                     sender_payment_instrument_id: None,
+                    settlement_status: None,
                 },
                 connector_config: ConnectorSpecificConfig::Calida {
                     api_key: Secret::new(api_key),
@@ -227,6 +229,7 @@ mod tests {
             > = RouterDataV2 {
                 flow: PhantomData::<Authorize>,
                 resource_common_data: PaymentFlowData {
+                    raw_connector_status: None,
                     vault_headers: None,
                     merchant_id: common_utils::id_type::MerchantId::default(),
                     customer_id: None,
@@ -274,6 +277,7 @@ mod tests {
                     l2_l3_data: None,
                     merchant_request_id: None,
                     sender_payment_instrument_id: None,
+                    settlement_status: None,
                 },
                 connector_config: ConnectorSpecificConfig::Calida {
                     api_key: Secret::new(api_key),

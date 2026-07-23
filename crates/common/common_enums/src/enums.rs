@@ -1006,6 +1006,7 @@ pub enum PaymentMethodType {
     AliPay,
     AliPayHk,
     Alma,
+    Tamara,
     AmazonPay,
     ApplePay,
     Atome,
@@ -1770,7 +1771,8 @@ pub enum CountryAlpha3 {
     VEN, VNM, VGB, VIR, WLF, ESH, YEM, ZMB, ZWE
 }
 
-#[derive(Debug, thiserror::Error, PartialEq, Clone)]
+#[derive(Debug, thiserror::Error, PartialEq, Clone, strum::AsRefStr)]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum KafkaClientError {
     /// Invalid configuration provided
     #[error("Invalid configuration: {message}")]

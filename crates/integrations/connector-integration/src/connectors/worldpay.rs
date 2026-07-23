@@ -695,5 +695,6 @@ macros::macro_connector_flow_status_impls!(
         Accept,
         MandateRevoke,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
     ],
 );

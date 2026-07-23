@@ -36,7 +36,7 @@ use transformers::{
 use super::macros;
 use crate::{types::ResponseRouterData, with_error_response_body};
 use domain_types::errors::ConnectorError;
-use domain_types::errors::IntegrationError;
+use domain_types::errors::{IntegrationError, IntegrationErrorContext};
 
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
@@ -265,7 +265,7 @@ macros::create_all_prerequisites!(
                     .ok_or_else(|| {
                         error_stack::report!(IntegrationError::MissingRequiredField {
                             field_name: "connector_mandate_id",
-                context: Default::default()
+                            context: Default::default()
                         })
                     }),
                 MandateReferenceId::NetworkMandateId(_) => {
@@ -273,14 +273,32 @@ macros::create_all_prerequisites!(
                         message: "Network mandate ID not supported for repeat payments in aci"
                             .to_string(),
                         connector: "Aci",
-                        context: Default::default(),
+                        context: IntegrationErrorContext {
+                            suggested_action: Some(
+                                "Use ConnectorMandateId with the ACI registration id for RepeatPayment, or add a separate raw-card NTI mapper before sending NetworkMandateId."
+                                    .to_string(),
+                            ),
+                            doc_url: None,
+                            additional_context: Some(
+                                "ACI RepeatPayment received a NetworkMandateId mandate reference. This request builder extracts the ACI registration id from connector_mandate_id and sends it as the repeated-payment reference; NetworkMandateId only provides an NTI and does not provide the required ACI registration reference".to_string(),
+                            ),
+                        },
                     }))
                 }
                 MandateReferenceId::NetworkTokenWithNTI(_) => {
                     Err(error_stack::report!(IntegrationError::NotSupported {
                         message: "Network token with NTI not supported for aci".to_string(),
                         connector: "Aci",
-                        context: Default::default(),
+                        context: IntegrationErrorContext {
+                            suggested_action: Some(
+                                "Use ConnectorMandateId with the ACI registration id for RepeatPayment, or implement a dedicated ACI network-token MIT request before sending NetworkTokenWithNTI."
+                                    .to_string(),
+                            ),
+                            doc_url: None,
+                            additional_context: Some(
+                                "ACI RepeatPayment received a NetworkTokenWithNTI mandate reference. This request builder extracts the ACI registration id from connector_mandate_id; it does not extract or map network token credentials, cryptogram data, or the NTI into an ACI repeat-payment request".to_string(),
+                            ),
+                        },
                     }))
                 }
             }
@@ -535,5 +553,6 @@ macros::macro_connector_flow_status_impls!(
         Authenticate,
         PostAuthenticate,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
     ],
 );

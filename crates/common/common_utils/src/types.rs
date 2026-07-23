@@ -489,4 +489,12 @@ impl ExecutionMode {
             Self::Primary
         }
     }
+
+    /// Stable string form for log/span fields; matches the serde representation used in events.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Primary => "primary",
+            Self::Shadow => "shadow",
+        }
+    }
 }

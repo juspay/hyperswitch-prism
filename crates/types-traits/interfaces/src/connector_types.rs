@@ -97,6 +97,7 @@ pub trait ConnectorServiceTrait<T: PaymentMethodDataTypes>:
     + ServerSessionAuthentication
     + ServerAuthentication
     + CreateConnectorCustomer
+    + GetConnectorCustomer
     + PaymentTokenV2<T>
     + RechargeV2
     + CreatePaymentMethodV2
@@ -137,6 +138,7 @@ pub trait SurchargeServiceTrait:
 pub trait FrmServiceTrait:
     ConnectorCommon
     + ValidationTrait
+    + ServerAuthentication
     + PreRiskCheckV2
     + PostRiskCheckV2
     + FrmPaymentOutcomeV2
@@ -147,6 +149,7 @@ pub trait FrmServiceTrait:
 
 pub trait PayoutServiceTrait:
     ConnectorCommon
+    + ServerAuthentication
     + PayoutCreateV2
     + PayoutTransferV2
     + PayoutGetV2
@@ -205,6 +208,10 @@ pub trait ValidationTrait: ConnectorCommon {
     }
 
     fn should_create_connector_customer(&self) -> bool {
+        false
+    }
+
+    fn should_get_connector_customer(&self) -> bool {
         false
     }
 
@@ -294,6 +301,16 @@ pub trait ServerAuthentication:
 pub trait CreateConnectorCustomer:
     ConnectorIntegrationV2<
     connector_flow::CreateConnectorCustomer,
+    PaymentFlowData,
+    ConnectorCustomerData,
+    ConnectorCustomerResponse,
+>
+{
+}
+
+pub trait GetConnectorCustomer:
+    ConnectorIntegrationV2<
+    connector_flow::GetConnectorCustomer,
     PaymentFlowData,
     ConnectorCustomerData,
     ConnectorCustomerResponse,

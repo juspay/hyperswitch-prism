@@ -474,7 +474,7 @@ where
                         "Cancel Redeem reads the original Redeem's `TransactionId` from \
                          `connector_transaction_id`; expected a numeric `i64`, got \
                          `{}`.",
-                        &req.connector_transaction_id
+                        req.connector_transaction_id
                     ),
                     "Pass the `connector_transaction_id` from the original Redeem response \
                      verbatim (it's just the Pine Labs txn id as a numeric string).",

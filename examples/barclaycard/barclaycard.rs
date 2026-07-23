@@ -18,6 +18,7 @@ pub const SUPPORTED_FLOWS: &[&str] = &[
     "authorize",
     "capture",
     "get",
+    "pre_authenticate",
     "proxy_authorize",
     "proxy_setup_recurring",
     "recurring_charge",
@@ -125,6 +126,39 @@ pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetReq
             minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
             currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
         }),
+        ..Default::default()
+    }
+}
+
+pub fn build_pre_authenticate_request() -> PaymentMethodAuthenticationServicePreAuthenticateRequest
+{
+    PaymentMethodAuthenticationServicePreAuthenticateRequest {
+        amount: Some(Money {
+            // Amount Information.
+            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
+            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+        }),
+        payment_method: Some(PaymentMethod {
+            // Payment Method.
+            payment_method: Some(payment_method::PaymentMethod::Card(CardDetails {
+                card_number: Some(CardNumber::from_str("4111111111111111").unwrap()), // Card Identification.
+                card_exp_month: Some(Secret::new("03".to_string())),
+                card_exp_year: Some(Secret::new("2030".to_string())),
+                card_cvc: Some(Secret::new("737".to_string())),
+                card_holder_name: Some(Secret::new("John Doe".to_string())), // Cardholder Information.
+                ..Default::default()
+            })),
+            ..Default::default()
+        }),
+        address: Some(PaymentAddress {
+            // Address Information.
+            billing_address: Some(Address {
+                ..Default::default()
+            }),
+            ..Default::default()
+        }),
+        enrolled_for_3ds: false, // Authentication Details.
+        return_url: Some("https://example.com/3ds-return".to_string()), // URLs for Redirection.
         ..Default::default()
     }
 }
@@ -578,6 +612,18 @@ pub async fn process_get(
     Ok(format!("status: {:?}", response.status()))
 }
 
+// Flow: PaymentMethodAuthenticationService.PreAuthenticate
+#[allow(dead_code)]
+pub async fn process_pre_authenticate(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .pre_authenticate(build_pre_authenticate_request(), &HashMap::new(), None)
+        .await?;
+    Ok(format!("status: {:?}", response.status()))
+}
+
 // Flow: PaymentService.ProxyAuthorize
 #[allow(dead_code)]
 pub async fn process_proxy_authorize(
@@ -679,6 +725,7 @@ async fn main() {
         "process_authorize" => process_authorize(&client, "txn_001").await,
         "process_capture" => process_capture(&client, "txn_001").await,
         "process_get" => process_get(&client, "txn_001").await,
+        "process_pre_authenticate" => process_pre_authenticate(&client, "txn_001").await,
         "process_proxy_authorize" => process_proxy_authorize(&client, "txn_001").await,
         "process_proxy_setup_recurring" => process_proxy_setup_recurring(&client, "txn_001").await,
         "process_recurring_charge" => process_recurring_charge(&client, "txn_001").await,
@@ -686,7 +733,7 @@ async fn main() {
         "process_setup_recurring" => process_setup_recurring(&client, "txn_001").await,
         "process_void" => process_void(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, process_authorize, process_capture, process_get, process_proxy_authorize, process_proxy_setup_recurring, process_recurring_charge, process_refund_get, process_setup_recurring, process_void", flow);
+            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, process_authorize, process_capture, process_get, process_pre_authenticate, process_proxy_authorize, process_proxy_setup_recurring, process_recurring_charge, process_refund_get, process_setup_recurring, process_void", flow);
             return;
         }
     };
