@@ -515,3 +515,121 @@ pub enum ChallengeWindowSizeEnum {
     #[serde(rename = "05")]
     FullScreen,
 }
+
+// ---------------------------------------------------------------------------
+// App-channel (device_channel = 01 / APP) SDK data
+// ---------------------------------------------------------------------------
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+#[serde_with::skip_serializing_none]
+pub struct Sdk {
+    #[serde(rename = "sdkAppID")]
+    sdk_app_id: Option<String>,
+    sdk_enc_data: Option<String>,
+    sdk_ephem_pub_key: Option<std::collections::HashMap<String, String>>,
+    sdk_max_timeout: Option<u8>,
+    sdk_reference_number: Option<String>,
+    #[serde(rename = "sdkTransID")]
+    sdk_trans_id: Option<String>,
+    sdk_server_signed_content: Option<String>,
+    sdk_type: Option<SdkType>,
+    default_sdk_type: Option<DefaultSdkType>,
+    split_sdk_type: Option<SplitSdkType>,
+}
+
+impl From<domain_types::connector_types::SdkInformation> for Sdk {
+    fn from(sdk_info: domain_types::connector_types::SdkInformation) -> Self {
+        Self {
+            sdk_app_id: Some(sdk_info.sdk_app_id),
+            sdk_enc_data: Some(sdk_info.sdk_enc_data),
+            sdk_ephem_pub_key: Some(sdk_info.sdk_ephem_pub_key),
+            sdk_max_timeout: Some(sdk_info.sdk_max_timeout),
+            sdk_reference_number: Some(sdk_info.sdk_reference_number),
+            sdk_trans_id: Some(sdk_info.sdk_trans_id),
+            sdk_server_signed_content: None,
+            sdk_type: sdk_info
+                .sdk_type
+                .map(SdkType::from)
+                .or(Some(SdkType::DefaultSdk)),
+            default_sdk_type: Some(DefaultSdkType {
+                sdk_variant: "01".to_string(),
+                wrapped_ind: None,
+            }),
+            split_sdk_type: None,
+        }
+    }
+}
+
+impl From<domain_types::connector_types::SdkType> for SdkType {
+    fn from(sdk_type: domain_types::connector_types::SdkType) -> Self {
+        match sdk_type {
+            domain_types::connector_types::SdkType::DefaultSdk => Self::DefaultSdk,
+            domain_types::connector_types::SdkType::SplitSdk => Self::SplitSdk,
+            domain_types::connector_types::SdkType::LimitedSdk => Self::LimitedSdk,
+            domain_types::connector_types::SdkType::BrowserSdk => Self::BrowserSdk,
+            domain_types::connector_types::SdkType::ShellSdk => Self::ShellSdk,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum SdkType {
+    #[serde(rename = "01")]
+    DefaultSdk,
+    #[serde(rename = "02")]
+    SplitSdk,
+    #[serde(rename = "03")]
+    LimitedSdk,
+    #[serde(rename = "04")]
+    BrowserSdk,
+    #[serde(rename = "05")]
+    ShellSdk,
+    #[serde(untagged)]
+    PsSpecific(String),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct DefaultSdkType {
+    sdk_variant: String,
+    wrapped_ind: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct SplitSdkType {
+    sdk_variant: String,
+    limited_ind: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct DeviceRenderingOptionsSupported {
+    pub sdk_interface: SdkInterface,
+    pub sdk_ui_type: Vec<SdkUiType>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum SdkInterface {
+    #[serde(rename = "01")]
+    Native,
+    #[serde(rename = "02")]
+    Html,
+    #[serde(rename = "03")]
+    Both,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum SdkUiType {
+    #[serde(rename = "01")]
+    Text,
+    #[serde(rename = "02")]
+    SingleSelect,
+    #[serde(rename = "03")]
+    MultiSelect,
+    #[serde(rename = "04")]
+    Oob,
+    #[serde(rename = "05")]
+    HtmlOther,
+}

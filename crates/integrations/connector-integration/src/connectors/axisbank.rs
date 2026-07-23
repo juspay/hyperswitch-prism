@@ -435,6 +435,7 @@ macros::macro_connector_flow_status_impls!(
         PostAuthenticate,
         RepeatPayment,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         CreateOrder,
         PaymentMethodToken,
         Accept,

@@ -775,6 +775,7 @@ macros::macro_connector_flow_status_impls!(
         RepeatPayment,
         MandateRevoke,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
     ],
     not_supported: [
         VoidPostRefund,

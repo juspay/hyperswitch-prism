@@ -20,6 +20,8 @@ use grpc_api_types::payments::{
     // request / response types (all unique types across all services)
     CustomerServiceCreateRequest,
     CustomerServiceCreateResponse,
+    CustomerServiceGetRequest,
+    CustomerServiceGetResponse,
     DisputeResponse,
     DisputeServiceAcceptRequest,
     DisputeServiceAcceptResponse,
@@ -174,6 +176,12 @@ impl_grpc_client!(
         create,
         CustomerServiceCreateRequest,
         CustomerServiceCreateResponse
+    ),
+    (
+        customer_get,
+        get,
+        CustomerServiceGetRequest,
+        CustomerServiceGetResponse
     ),
 );
 

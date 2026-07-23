@@ -719,6 +719,10 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             merchant_id: m(),
             base_url: None,
         },
+        ConnectorEnum::Glomopay => ConnectorSpecificConfig::Glomopay {
+            api_key: k(),
+            base_url: None,
+        },
         ConnectorEnum::Payconex => ConnectorSpecificConfig::Payconex {
             api_key: k(),
             account_id: m(),
@@ -754,6 +758,10 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
         ConnectorEnum::Kount => ConnectorSpecificConfig::Kount {
             api_key: k(),
             auth_server_id: None,
+            base_url: None,
+        },
+        ConnectorEnum::Givepayments => ConnectorSpecificConfig::Givepayments {
+            api_key: k(),
             base_url: None,
         },
     }
