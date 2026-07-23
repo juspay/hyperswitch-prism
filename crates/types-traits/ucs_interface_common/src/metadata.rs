@@ -213,15 +213,13 @@ pub fn connector_variant_from_metadata(
             Report::new(IntegrationError::InvalidDataFormat {
                 field_name: "x-auth-connector",
                 context: IntegrationErrorContext {
-                    additional_context: Some(format!(
-                        "Invalid x-auth-connector header value: {e}"
-                    )),
+                    additional_context: Some(format!("Invalid x-auth-connector header value: {e}")),
                     ..Default::default()
                 },
             })
         })?;
-        let connector =
-            connector_types::AuthenticatorConnectorEnum::from_str(connector_str).map_err(|e| {
+        let connector = connector_types::AuthenticatorConnectorEnum::from_str(connector_str)
+            .map_err(|e| {
                 Report::new(IntegrationError::InvalidDataFormat {
                     field_name: "x-auth-connector",
                     context: IntegrationErrorContext {

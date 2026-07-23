@@ -812,6 +812,10 @@ impl PaymentFlowData {
         self.status = status;
     }
 
+    pub fn get_currency(&self) -> Option<common_enums::Currency> {
+        self.amount.as_ref().map(|money| money.currency)
+    }
+
     pub fn get_merchant_request_id(&self) -> Result<String, Error> {
         self.merchant_request_id
             .clone()
@@ -2272,6 +2276,7 @@ pub struct ClientAuthenticationTokenRequestData {
     pub email: Option<Email>,
     pub customer_name: Option<Secret<String>>,
     pub customer_id: Option<CustomerId>,
+    pub phone_number: Option<Secret<String>>,
     pub order_tax_amount: Option<MinorUnit>,
     pub shipping_cost: Option<MinorUnit>,
     /// The specific payment method type for which the session token is being generated

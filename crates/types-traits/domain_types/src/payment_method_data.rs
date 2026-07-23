@@ -1962,7 +1962,7 @@ pub enum BankAccountRoutingDetails {
 /// A single bank account with identity and routing details
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BankAccount {
-    pub account_name: String,
+    pub account_name: Secret<String>,
     pub account_id: Secret<String>,
     pub bank_type: Option<common_enums::BankType>,
     pub bank_holder_type: Option<common_enums::BankHolderType>,

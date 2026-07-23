@@ -10139,7 +10139,7 @@ impl ForeignTryFrom<MerchantAuthenticationServiceCreateClientAuthenticationToken
                     })
                     .collect();
 
-                let (customer_id, email, customer_name) = if let Some(customer) =
+                let (customer_id, email, customer_name, phone_number) = if let Some(customer) =
                     auth_ctx.customer.as_ref()
                 {
                     let customer_id = customer
@@ -10173,10 +10173,14 @@ impl ForeignTryFrom<MerchantAuthenticationServiceCreateClientAuthenticationToken
                     };
 
                     let customer_name = customer.name.clone().map(Secret::new);
+                    let phone_number = customer
+                        .phone_number
+                        .clone()
+                        .map(|p| Secret::new(p.expose()));
 
-                    (customer_id, email, customer_name)
+                    (customer_id, email, customer_name, phone_number)
                 } else {
-                    (None, None, None)
+                    (None, None, None, None)
                 };
 
                 Ok(Self {
@@ -10190,6 +10194,7 @@ impl ForeignTryFrom<MerchantAuthenticationServiceCreateClientAuthenticationToken
                     email,
                     customer_name,
                     customer_id,
+                    phone_number,
                     webhook_url: auth_ctx.webhook_url,
                     country_codes,
                     locale: auth_ctx.locale,
@@ -10272,6 +10277,7 @@ impl ForeignTryFrom<MerchantAuthenticationServiceCreateClientAuthenticationToken
                     order_details: None,
                     email,
                     customer_name: payment_ctx.customer.and_then(|c| c.name).map(Secret::new),
+                    phone_number: None,
                     order_tax_amount: payment_ctx
                         .order_tax_amount
                         .map(common_utils::types::MinorUnit::new),
@@ -10297,6 +10303,7 @@ impl ForeignTryFrom<MerchantAuthenticationServiceCreateClientAuthenticationToken
                 email: None,
                 customer_name: None,
                 customer_id: None,
+                phone_number: None,
                 webhook_url: None,
                 country_codes: vec![],
                 locale: None,
@@ -17025,7 +17032,7 @@ impl ForeignFrom<payment_method_data::PaymentMethodDetails>
                                 .accounts
                                 .into_iter()
                                 .map(|acct| grpc_api_types::payments::BankAccount {
-                                    account_name: acct.account_name,
+                                    account_name: Some(acct.account_name),
                                     account_id: Some(acct.account_id),
                                     bank_type: acct.bank_type.map(|t| {
                                         grpc_api_types::payments::BankType::foreign_from(t).into()

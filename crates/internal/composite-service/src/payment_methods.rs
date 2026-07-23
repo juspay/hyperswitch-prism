@@ -1,9 +1,6 @@
 use common_enums;
 use connector_integration::types::{AuthenticatorConnectorData, ConnectorData};
-use domain_types::{
-    connector_types::ConnectorVariant,
-    utils::ForeignTryFrom as _,
-};
+use domain_types::{connector_types::ConnectorVariant, utils::ForeignTryFrom as _};
 use grpc_api_types::payments::{
     composite_payment_method_service_server::CompositePaymentMethodService,
     merchant_authentication_service_server::MerchantAuthenticationService,
@@ -136,11 +133,11 @@ where
                 .transpose()
                 .into_grpc_status()?;
             match connector {
-                ConnectorVariant::Payment(c) => {
-                    ConnectorData::<domain_types::payment_method_data::DefaultPCIHolder>::get_connector_by_name(c)
-                        .connector
-                        .should_do_access_token(payment_method)
-                }
+                ConnectorVariant::Payment(c) => ConnectorData::<
+                    domain_types::payment_method_data::DefaultPCIHolder,
+                >::get_connector_by_name(c)
+                .connector
+                .should_do_access_token(payment_method),
                 ConnectorVariant::Authenticator(c) => {
                     AuthenticatorConnectorData::get_connector_by_name(c)
                         .connector
@@ -201,15 +198,16 @@ where
                     .transpose()
                     .into_grpc_status()?
                     .unwrap_or_default();
-                let payment_method_type =
-                    common_enums::PaymentMethodType::foreign_try_from(payload.payment_method_type())
-                        .ok();
+                let payment_method_type = common_enums::PaymentMethodType::foreign_try_from(
+                    payload.payment_method_type(),
+                )
+                .ok();
                 match connector {
-                    ConnectorVariant::Payment(c) => {
-                        ConnectorData::<domain_types::payment_method_data::DefaultPCIHolder>::get_connector_by_name(c)
-                            .connector
-                            .should_do_payment_method_token(payment_method, payment_method_type)
-                    }
+                    ConnectorVariant::Payment(c) => ConnectorData::<
+                        domain_types::payment_method_data::DefaultPCIHolder,
+                    >::get_connector_by_name(c)
+                    .connector
+                    .should_do_payment_method_token(payment_method, payment_method_type),
                     ConnectorVariant::Authenticator(c) => {
                         AuthenticatorConnectorData::get_connector_by_name(c)
                             .connector
@@ -310,8 +308,7 @@ where
         request: tonic::Request<CompositePaymentMethodGetRequest>,
     ) -> Result<tonic::Response<CompositePaymentMethodGetResponse>, tonic::Status> {
         let (metadata, extensions, payload) = request.into_parts();
-        let connector =
-            connector_variant_from_composite_metadata(&metadata).map_err(|err| *err)?;
+        let connector = connector_variant_from_composite_metadata(&metadata).map_err(|err| *err)?;
         let access_token_response = self
             .create_server_authentication_token(&connector, &payload, &metadata, &extensions)
             .await?;

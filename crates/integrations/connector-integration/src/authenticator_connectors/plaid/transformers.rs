@@ -1,5 +1,5 @@
-use common_enums::BankType;
-use common_utils::types::FloatMajorUnit;
+use common_enums::{BankHolderType, BankType};
+use common_utils::{pii::Email, types::FloatMajorUnit};
 
 use domain_types::{
     connector_types::{
@@ -28,6 +28,9 @@ use super::PlaidRouterData;
 
 const PLAID_SUBTYPE_CHECKING: &str = "checking";
 const PLAID_SUBTYPE_SAVINGS: &str = "savings";
+const PLAID_SUBTYPE_BUSINESS: &str = "business";
+const PLAID_SUBTYPE_COMMERCIAL: &str = "commercial";
+const PLAID_SUBTYPE_CONSUMER: &str = "consumer";
 // =============================================================================
 // AUTH TYPE
 // =============================================================================
@@ -87,11 +90,11 @@ pub struct PlaidLinkTokenRequest {
 pub struct PlaidUser {
     pub client_user_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub legal_name: Option<String>,
+    pub legal_name: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub email_address: Option<String>,
+    pub email_address: Option<Email>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub phone_number: Option<String>,
+    pub phone_number: Option<Secret<String>>,
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -123,7 +126,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let auth = PlaidAuthType::try_from(&item.router_data.connector_config)?;
         let req = &item.router_data.request;
 
-        // client_name comes from connector_feature_data["client_name"] or a default
         let client_name = item
             .router_data
             .resource_common_data
@@ -137,7 +139,23 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .and_then(|val| val.as_str())
                     .map(|client_name_str| client_name_str.to_owned())
             })
-            .unwrap_or_else(|| "Hyperswitch".to_owned());
+            .ok_or_else(|| {
+                report!(IntegrationError::MissingRequiredField {
+                    field_name: "client_name",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "connector_feature_data must contain \"client_name\"".to_owned(),
+                        ),
+                        suggested_action: Some(
+                            "Set \"client_name\" in connector_feature_data to the application name displayed to users in the Plaid Link flow".to_owned(),
+                        ),
+                        doc_url: Some(
+                            "https://plaid.com/docs/api/tokens/#linktokencreate-client_name"
+                                .to_owned(),
+                        ),
+                    },
+                })
+            })?;
 
         let user = PlaidUser {
             client_user_id: req
@@ -150,12 +168,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .connector_request_reference_id
                         .clone()
                 }),
-            legal_name: req
-                .customer_name
-                .as_ref()
-                .map(|name| name.peek().to_owned()),
-            email_address: req.email.as_ref().map(|email| email.peek().to_owned()),
-            phone_number: None,
+            legal_name: req.customer_name.clone(),
+            email_address: req.email.clone(),
+            phone_number: req.phone_number.clone(),
         };
 
         let country_codes = req
@@ -425,8 +440,8 @@ pub struct PlaidItem {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PlaidAccount {
-    pub account_id: String,
-    pub name: String,
+    pub account_id: Secret<String>,
+    pub name: Secret<String>,
     pub subtype: Option<String>,
     pub balances: PlaidBalances,
 }
@@ -450,21 +465,21 @@ pub struct PlaidNumbers {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PlaidAchNumbers {
-    pub account_id: String,
+    pub account_id: Secret<String>,
     pub account: Secret<String>,
-    pub routing: String,
+    pub routing: Secret<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PlaidBacsNumbers {
-    pub account_id: String,
+    pub account_id: Secret<String>,
     pub account: Secret<String>,
-    pub sort_code: String,
+    pub sort_code: Secret<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PlaidSepaNumbers {
-    pub account_id: String,
+    pub account_id: Secret<String>,
     pub iban: Secret<String>,
     pub bic: Option<Secret<String>>,
 }
@@ -481,31 +496,26 @@ impl TryFrom<ResponseRouterData<PlaidAuthGetResponse, Self>>
 
     fn try_from(item: ResponseRouterData<PlaidAuthGetResponse, Self>) -> Result<Self, Self::Error> {
         let res = item.response;
-        let request_currency = item
-            .router_data
-            .resource_common_data
-            .amount
-            .as_ref()
-            .map(|money| money.currency);
+        let request_currency = item.router_data.resource_common_data.get_currency();
 
         // Build lookup maps from account_id → routing details
         let ach_map: std::collections::HashMap<_, _> = res
             .numbers
             .ach
             .into_iter()
-            .map(|ach| (ach.account_id.clone(), ach))
+            .map(|ach| (ach.account_id.peek().to_owned(), ach))
             .collect();
         let bacs_map: std::collections::HashMap<_, _> = res
             .numbers
             .bacs
             .into_iter()
-            .map(|bacs| (bacs.account_id.clone(), bacs))
+            .map(|bacs| (bacs.account_id.peek().to_owned(), bacs))
             .collect();
         let sepa_map: std::collections::HashMap<_, _> = res
             .numbers
             .international
             .into_iter()
-            .map(|sepa| (sepa.account_id.clone(), sepa))
+            .map(|sepa| (sepa.account_id.peek().to_owned(), sepa))
             .collect();
 
         // Only include accounts that have at least one routing scheme (ACH / BACS / SEPA).
@@ -513,27 +523,36 @@ impl TryFrom<ResponseRouterData<PlaidAuthGetResponse, Self>>
             .accounts
             .into_iter()
             .filter_map(|acct| {
-                // Prefer ACH → BACS → SEPA in that order; skip accounts with none.
-                let account_details = if let Some(ach) = ach_map.get(&acct.account_id) {
-                    BankAccountRoutingDetails::Ach(BankAccountAchDetails {
-                        account_number: ach.account.clone(),
-                        routing_number: Secret::new(ach.routing.clone()),
-                    })
-                } else if let Some(bacs) = bacs_map.get(&acct.account_id) {
-                    BankAccountRoutingDetails::Bacs(BankAccountBacsDetails {
-                        account_number: bacs.account.clone(),
-                        sort_code: Secret::new(bacs.sort_code.clone()),
-                    })
-                } else {
-                    let sepa = sepa_map.get(&acct.account_id)?;
-                    BankAccountRoutingDetails::Sepa(BankAccountSepaDetails {
-                        iban: sepa.iban.clone(),
-                        bic: sepa.bic.clone(),
-                    })
+                let id = acct.account_id.peek();
+                let currency = acct.balances.iso_currency_code.or(request_currency);
+                let account_details = match currency {
+                    Some(common_enums::Currency::USD) => ach_map.get(id).map(|ach| {
+                        BankAccountRoutingDetails::Ach(BankAccountAchDetails {
+                            account_number: ach.account.clone(),
+                            routing_number: ach.routing.clone(),
+                        })
+                    })?,
+                    Some(common_enums::Currency::GBP) => bacs_map.get(id).map(|bacs| {
+                        BankAccountRoutingDetails::Bacs(BankAccountBacsDetails {
+                            account_number: bacs.account.clone(),
+                            sort_code: bacs.sort_code.clone(),
+                        })
+                    })?,
+                    Some(common_enums::Currency::EUR) => sepa_map.get(id).map(|sepa| {
+                        BankAccountRoutingDetails::Sepa(BankAccountSepaDetails {
+                            iban: sepa.iban.clone(),
+                            bic: sepa.bic.clone(),
+                        })
+                    })?,
+                    // Unsupported currency — skip this account
+                    _ => return None,
                 };
 
                 let bank_type = acct.subtype.as_deref().and_then(plaid_subtype_to_bank_type);
-                let currency = acct.balances.iso_currency_code.or(request_currency);
+                let bank_holder_type = acct
+                    .subtype
+                    .as_deref()
+                    .and_then(plaid_subtype_to_bank_holder_type);
                 let balance = acct
                     .balances
                     .current
@@ -555,9 +574,9 @@ impl TryFrom<ResponseRouterData<PlaidAuthGetResponse, Self>>
 
                 Some(BankAccount {
                     account_name: acct.name,
-                    account_id: Secret::new(acct.account_id),
+                    account_id: acct.account_id,
                     bank_type,
-                    bank_holder_type: None,
+                    bank_holder_type,
                     balance,
                     available_balance,
                     account_details: Some(account_details),
@@ -585,6 +604,15 @@ fn plaid_subtype_to_bank_type(subtype: &str) -> Option<BankType> {
     match subtype {
         PLAID_SUBTYPE_CHECKING => Some(BankType::Checking),
         PLAID_SUBTYPE_SAVINGS => Some(BankType::Savings),
+        _ => None,
+    }
+}
+
+/// Map Plaid account subtype strings to the domain `BankHolderType` enum.
+fn plaid_subtype_to_bank_holder_type(subtype: &str) -> Option<BankHolderType> {
+    match subtype {
+        PLAID_SUBTYPE_BUSINESS | PLAID_SUBTYPE_COMMERCIAL => Some(BankHolderType::Business),
+        PLAID_SUBTYPE_CONSUMER => Some(BankHolderType::Personal),
         _ => None,
     }
 }
