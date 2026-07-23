@@ -1817,10 +1817,10 @@ fn compute_commercial_card_context<
             acceptor_phone_number,
         })
     } else if is_level2 {
-        let (supplier_reference_number, ship_to_zip) = match card_network {
-            Some(CardNetwork::AmericanExpress) => (supplier_reference_number, ship_to_zip),
-            Some(CardNetwork::Visa) | Some(CardNetwork::Mastercard) => (None, None),
-            _ => (None, None),
+        let ship_to_zip = match card_network {
+            Some(CardNetwork::AmericanExpress) => ship_to_zip,
+            Some(CardNetwork::Visa) | Some(CardNetwork::Mastercard) => None,
+            _ => None,
         };
         Ok(CommercialCardContext {
             sales_tax,
@@ -2236,6 +2236,10 @@ fn assemble_authorize_body(
         rules::commercial::charge_descriptor(&profile, commercial_card_context.charge_descriptor)?;
     let customer_ref_id =
         rules::commercial::customer_ref_id(&profile, commercial_card_context.customer_ref_id)?;
+    let supplier_reference_number = rules::commercial::supplier_reference_number(
+        &profile,
+        commercial_card_context.supplier_reference_number,
+    )?;
 
     Ok(TsysTransitAuthorizeBody {
         device_id: auth.device_id,
@@ -2273,10 +2277,7 @@ fn assemble_authorize_body(
         charge_descriptor_4: commercial_card_context.charge_descriptor_4,
         customer_vat_number,
         customer_ref_id,
-        supplier_reference_number: rules::commercial::supplier_reference_number(
-            &profile,
-            commercial_card_context.supplier_reference_number,
-        ),
+        supplier_reference_number,
         order_date,
         summary_commodity_code,
         vat_invoice,

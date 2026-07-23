@@ -90,13 +90,23 @@ pub fn customer_ref_id(
     Ok(Some(customer_ref_id))
 }
 
-/// `supplierReferenceNumber` — AMEX only.
-pub fn supplier_reference_number(profile: &TxProfile, raw: Option<String>) -> Option<String> {
-    if profile.card_family.is_amex() {
-        raw
-    } else {
-        None
+/// `supplierReferenceNumber` — AMEX Level II only; mandatory in that case.
+/// Never sent otherwise (Visa/Mastercard at any level, AMEX outside L2, or
+/// no commercial level at all).
+pub fn supplier_reference_number(
+    profile: &TxProfile,
+    raw: Option<String>,
+) -> Result<Option<String>, Report<IntegrationError>> {
+    if !amex_l2_extras_required(profile) {
+        return Ok(None);
     }
+
+    let supplier_reference_number = raw.ok_or_else(|| IntegrationError::MissingRequiredField {
+        field_name: "supplierReferenceNumber required for AMEX when commercial_card_level is LEVEL2",
+        context: Default::default(),
+    })?;
+
+    Ok(Some(supplier_reference_number))
 }
 
 /// `shipToZip` — AMEX (any commercial L2/L3) OR Visa/MC Level III.
