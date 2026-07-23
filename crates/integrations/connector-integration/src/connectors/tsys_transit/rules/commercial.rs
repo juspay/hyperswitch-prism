@@ -103,6 +103,49 @@ pub fn sales_tax_required(profile: &TxProfile) -> bool {
     profile.commercial_level.is_l2_or_l3()
 }
 
+/// True when `customerVATNumber` is required — Level III Visa only.
+/// Mastercard Level III carries only `salesTax`, no VAT number.
+pub fn customer_vat_number_required(profile: &TxProfile) -> bool {
+    profile.commercial_level.is_l3() && profile.card_family.is_visa()
+}
+
+/// `salesTax` — mandatory on any Level II or Level III transaction
+/// (both card families); not sent otherwise.
+pub fn sales_tax(
+    profile: &TxProfile,
+    raw: Option<StringMajorUnit>,
+) -> Result<Option<StringMajorUnit>, Report<IntegrationError>> {
+    if !sales_tax_required(profile) {
+        return Ok(None);
+    }
+
+    let sales_tax = raw.ok_or_else(|| IntegrationError::MissingRequiredField {
+        field_name: "salesTax required when commercial_card_level is LEVEL2 or LEVEL3",
+        context: Default::default(),
+    })?;
+
+    Ok(Some(sales_tax))
+}
+
+/// `customerVATNumber` — Level III Visa only; mandatory in that case
+/// (TSYS requires it alongside `salesTax` for Visa L3). Never sent on
+/// Mastercard or below Level III.
+pub fn customer_vat_number(
+    profile: &TxProfile,
+    raw: Option<String>,
+) -> Result<Option<String>, Report<IntegrationError>> {
+    if !customer_vat_number_required(profile) {
+        return Ok(None);
+    }
+
+    let customer_vat_number = raw.ok_or_else(|| IntegrationError::MissingRequiredField {
+        field_name: "customerVATNumber required for Visa commercial_card_level LEVEL3",
+        context: Default::default(),
+    })?;
+
+    Ok(Some(customer_vat_number))
+}
+
 /// True when the AMEX-L2-required quartet (supplierReferenceNumber,
 /// customerRefID, chargeDescriptor) is required. shipToZip is NOT in
 /// the required set because the cert explicitly excludes it from AMEX L2.

@@ -1787,12 +1787,6 @@ fn compute_commercial_card_context<
     };
 
     if is_level3 {
-        let (customer_vat_number, sales_tax) = match card_network {
-            Some(CardNetwork::Visa) => (customer_vat_number, sales_tax),
-            Some(CardNetwork::Mastercard) => (None, sales_tax),
-            _ => (None, None),
-        };
-
         Ok(CommercialCardContext {
             sales_tax,
             tax_type: derived_tax_type.clone(),
@@ -1857,7 +1851,7 @@ fn compute_commercial_card_context<
             charge_descriptor_2: commercial_meta.charge_descriptor_2.clone(),
             charge_descriptor_3: commercial_meta.charge_descriptor_3.clone(),
             charge_descriptor_4: commercial_meta.charge_descriptor_4.clone(),
-            customer_vat_number: None,
+            customer_vat_number,
             customer_ref_id,
             supplier_reference_number,
             order_date: None,
@@ -2226,13 +2220,18 @@ fn assemble_authorize_body(
         commercial_card_context.tax_rate,
         commercial_card_context.tax_category,
     )?;
+    let sales_tax = rules::commercial::sales_tax(&profile, commercial_card_context.sales_tax)?;
+    let customer_vat_number = rules::commercial::customer_vat_number(
+        &profile,
+        commercial_card_context.customer_vat_number,
+    )?;
 
     Ok(TsysTransitAuthorizeBody {
         device_id: auth.device_id,
         transaction_key: auth.transaction_key,
         card_data_source,
         transaction_amount,
-        sales_tax: commercial_card_context.sales_tax,
+        sales_tax,
         surcharge,
         additional_tax_details,
         shipping_charges: commercial_card_context.shipping_charges,
@@ -2264,7 +2263,7 @@ fn assemble_authorize_body(
         charge_descriptor_2: commercial_card_context.charge_descriptor_2,
         charge_descriptor_3: commercial_card_context.charge_descriptor_3,
         charge_descriptor_4: commercial_card_context.charge_descriptor_4,
-        customer_vat_number: commercial_card_context.customer_vat_number,
+        customer_vat_number,
         customer_ref_id: rules::commercial::customer_ref_id(
             &profile,
             commercial_card_context.customer_ref_id,
