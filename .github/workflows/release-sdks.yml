@@ -844,6 +844,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: [setup, preview-publish, pre-publish-check]
     if: always() && needs.setup.outputs.publish_javascript == 'true' && needs.setup.outputs.preview_only == 'false' && needs.pre-publish-check.result == 'success'
+    # Must match the Environment of the npm trusted publisher: the OIDC token
+    # only carries the `production` environment claim when the job runs in this
+    # environment, and npm requires it to match the registered trusted publisher.
+    environment: production
     permissions:
       contents: read
       id-token: write
@@ -851,9 +855,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref }}
+      # Node 24 ships npm >= 11.x; OIDC trusted publishing requires npm >= 11.5.1.
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           registry-url: 'https://registry.npmjs.org'
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
@@ -896,11 +901,13 @@ jobs:
           else
             echo "✅ Will publish to npm"
           fi
+      # Trusted publishing (OIDC): with id-token:write, the `production`
+      # environment, and a matching trusted publisher on npmjs.com, npm mints
+      # its own short-lived credential — no NODE_AUTH_TOKEN. Provenance is
+      # attached automatically. Requires npm >= 11.5.1 (Node 24 ships 11.x).
       - name: Publish to npm
         if: ${{ needs.setup.outputs.preview_only == 'false' }}
         working-directory: sdk/javascript
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           npm ci
           npm publish ../../artifacts/sdk-javascript/*.tgz --access public
