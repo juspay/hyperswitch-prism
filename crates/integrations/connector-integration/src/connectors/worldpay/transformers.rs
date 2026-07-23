@@ -117,7 +117,8 @@ fn fetch_payment_instrument<
                 },
                 cvc: card.card_cvc,
                 card_holder_name: billing_address
-                    .and_then(|address| address.get_optional_full_name()),
+                    .and_then(|address| address.get_optional_full_name())
+                    .map(crate::utils::normalize_cardholder_name),
                 billing_address: billing_address
                     .and_then(|addr| addr.address.clone())
                     .and_then(|address| {
@@ -440,6 +441,59 @@ fn get_token_and_agreement<
     }
 }
 
+// Dangling helper: strip a phone number down to ASCII digits (Worldpay rejects
+// `+`, spaces and separators in instruction.customer.phone)
+fn normalize_phone_number(phone: Secret<String>) -> Option<Secret<String>> {
+    let digits: String = phone
+        .expose()
+        .chars()
+        .filter(|c| c.is_ascii_digit())
+        .collect();
+    (!digits.is_empty()).then(|| Secret::new(digits))
+}
+
+// Dangling helper: additional Mastercard authentication data; omitted entirely
+// when no field is available
+fn create_instruction_customer(
+    email: Option<pii::Email>,
+    phone: Option<Secret<String>>,
+    ip_address: Option<Secret<String, pii::IpAddress>>,
+) -> Option<InstructionCustomer> {
+    (email.is_some() || phone.is_some() || ip_address.is_some()).then_some(InstructionCustomer {
+        email,
+        phone,
+        ip_address,
+    })
+}
+
+// Dangling helper: shipping details require line1 + city + zip + country to be
+// meaningful to Worldpay; omitted entirely otherwise
+fn create_shipping(shipping: Option<&domain_types::payment_address::Address>) -> Option<Shipping> {
+    let shipping = shipping?;
+    let details = shipping.address.as_ref()?;
+    match (
+        details.line1.clone(),
+        details.city.clone(),
+        details.zip.clone(),
+        details.country,
+    ) {
+        (Some(address1), Some(city), Some(postal_code), Some(country_code)) => Some(Shipping {
+            first_name: details.first_name.clone(),
+            last_name: details.last_name.clone(),
+            address: ShippingAddress {
+                address1,
+                address2: details.line2.clone(),
+                address3: details.line3.clone(),
+                city,
+                state: details.state.clone(),
+                postal_code,
+                country_code,
+            },
+        }),
+        _ => None,
+    }
+}
+
 // Implementation for WorldpayAuthorizeRequest using abstracted request
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
@@ -485,6 +539,29 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             item.router_data.request.mandate_id.clone(),
         );
 
+        let instruction_customer = create_instruction_customer(
+            item.router_data.request.email.clone().or_else(|| {
+                item.router_data
+                    .resource_common_data
+                    .get_optional_billing_email()
+            }),
+            item.router_data
+                .resource_common_data
+                .get_optional_billing_phone_number()
+                .or_else(|| {
+                    item.router_data
+                        .resource_common_data
+                        .get_optional_shipping_phone_number()
+                })
+                .and_then(normalize_phone_number),
+            item.router_data.request.get_ip_address_as_optional(),
+        );
+        let shipping = create_shipping(
+            item.router_data
+                .resource_common_data
+                .get_optional_shipping(),
+        );
+
         Ok(Self {
             instruction: Instruction {
                 settlement: get_settlement_info(
@@ -510,6 +587,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 three_ds,
                 token_creation,
                 customer_agreement,
+                customer: instruction_customer,
+                shipping,
             },
             merchant: Merchant {
                 entity: WorldpayAuthType::try_from(&item.router_data.connector_config)?.entity_id,
@@ -623,6 +702,29 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             _ => None,
         };
 
+        let instruction_customer = create_instruction_customer(
+            item.router_data.request.email.clone().or_else(|| {
+                item.router_data
+                    .resource_common_data
+                    .get_optional_billing_email()
+            }),
+            item.router_data
+                .resource_common_data
+                .get_optional_billing_phone_number()
+                .or_else(|| {
+                    item.router_data
+                        .resource_common_data
+                        .get_optional_shipping_phone_number()
+                })
+                .and_then(normalize_phone_number),
+            item.router_data.request.get_ip_address_as_optional(),
+        );
+        let shipping = create_shipping(
+            item.router_data
+                .resource_common_data
+                .get_optional_shipping(),
+        );
+
         Ok(Self {
             instruction: Instruction {
                 settlement,
@@ -643,6 +745,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     stored_card_usage: Some(StoredCardUsageType::Subsequent), // CRITICAL: MIT indicator
                     scheme_reference: None,
                 }),
+                customer: instruction_customer,
+                shipping,
             },
             merchant: Merchant {
                 entity: WorldpayAuthType::try_from(&item.router_data.connector_config)?.entity_id,
@@ -1740,5 +1844,90 @@ impl TryFrom<ResponseRouterData<WorldpayIncrementalAuthResponse, Self>>
             response,
             ..item.router_data
         })
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+#[allow(clippy::expect_used)]
+#[allow(clippy::panic)]
+#[allow(clippy::indexing_slicing)]
+mod tests {
+    use std::str::FromStr;
+
+    use super::*;
+
+    #[test]
+    fn test_normalize_phone_number_keeps_ascii_digits_only() {
+        let normalized = normalize_phone_number(Secret::new("+44 7911-123456".to_string()));
+        assert_eq!(normalized.unwrap().expose(), "447911123456");
+    }
+
+    #[test]
+    fn test_normalize_phone_number_empty_is_none() {
+        assert!(normalize_phone_number(Secret::new("+- ".to_string())).is_none());
+    }
+
+    #[test]
+    fn test_normalize_cardholder_name_transliterates_to_ascii() {
+        let normalized =
+            crate::utils::normalize_cardholder_name(Secret::new("José Müller".to_string()));
+        assert_eq!(normalized.expose(), "Jose Muller");
+    }
+
+    #[test]
+    fn test_create_instruction_customer_none_when_all_empty() {
+        assert!(create_instruction_customer(None, None, None).is_none());
+    }
+
+    #[test]
+    fn test_instruction_customer_serializes_camel_case() {
+        let customer = create_instruction_customer(
+            Some(pii::Email::from_str("shopper@example.com").unwrap()),
+            Some(Secret::new("447911123456".to_string())),
+            Some(Secret::new("127.0.0.1".to_string())),
+        )
+        .unwrap();
+        let value = serde_json::to_value(&customer).unwrap();
+        assert_eq!(value["email"], "shopper@example.com");
+        assert_eq!(value["phone"], "447911123456");
+        assert_eq!(value["ipAddress"], "127.0.0.1");
+    }
+
+    #[test]
+    fn test_create_shipping_requires_line1_city_zip_country() {
+        let full = domain_types::payment_address::Address {
+            address: Some(domain_types::payment_address::AddressDetails {
+                line1: Some(Secret::new("42 Test Street".to_string())),
+                city: Some(Secret::new("London".to_string())),
+                zip: Some(Secret::new("EC1A 1AA".to_string())),
+                country: Some(common_enums::CountryAlpha2::GB),
+                first_name: Some(Secret::new("Jane".to_string())),
+                last_name: Some(Secret::new("Doe".to_string())),
+                ..Default::default()
+            }),
+            phone: None,
+            email: None,
+        };
+        let shipping = create_shipping(Some(&full)).unwrap();
+        let value = serde_json::to_value(&shipping).unwrap();
+        assert_eq!(value["firstName"], "Jane");
+        assert_eq!(value["address"]["address1"], "42 Test Street");
+        assert_eq!(value["address"]["postalCode"], "EC1A 1AA");
+        assert_eq!(value["address"]["countryCode"], "GB");
+        assert!(value["address"].get("address2").is_none());
+
+        let missing_city = domain_types::payment_address::Address {
+            address: Some(domain_types::payment_address::AddressDetails {
+                line1: Some(Secret::new("42 Test Street".to_string())),
+                zip: Some(Secret::new("EC1A 1AA".to_string())),
+                country: Some(common_enums::CountryAlpha2::GB),
+                ..Default::default()
+            }),
+            phone: None,
+            email: None,
+        };
+        assert!(create_shipping(Some(&missing_city)).is_none());
+        assert!(create_shipping(None).is_none());
     }
 }

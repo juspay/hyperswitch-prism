@@ -636,6 +636,13 @@ pub fn build_card_holder_name(
     })
 }
 
+/// Card networks (notably Mastercard) require the cardholder name to contain only
+/// English (ASCII) characters; accented characters are transliterated to the
+/// closest ASCII equivalent.
+pub fn normalize_cardholder_name(name: Secret<String>) -> Secret<String> {
+    Secret::new(unidecode::unidecode(&name.expose()))
+}
+
 pub fn pad_expiry_year_to_four_digits(year: &Secret<String>) -> Secret<String> {
     domain_types::utils::expand_expiry_year_to_four_digits(year)
 }
