@@ -19,7 +19,9 @@ use domain_types::{
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
-    router_data::ConnectorSpecificConfig,
+    router_data::{
+        ConnectorResponseData, ConnectorSpecificConfig, ExtendedAuthorizationResponseData,
+    },
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
     utils::split_full_name,
@@ -215,6 +217,14 @@ pub struct AirwallexPaymentOptions {
 #[derive(Debug, Serialize)]
 pub struct AirwallexCardOptions {
     pub auto_capture: Option<bool>,
+    pub authorization_type: Option<AirwallexCardAuthorizationType>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum AirwallexCardAuthorizationType {
+    PreAuth,
+    FinalAuth,
 }
 
 // Confirm request structure for 2-step flow (only payment method data)
@@ -394,9 +404,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             Some(common_enums::CaptureMethod::Automatic)
         );
 
+        // Extended authorization (pre-auth hold) applies to card payments only;
+        // card options are built unconditionally for every PM, hence the gate
+        let authorization_type = (matches!(
+            item.router_data.request.payment_method_data,
+            domain_types::payment_method_data::PaymentMethodData::Card(_)
+        ) && matches!(
+            item.router_data.request.request_extended_authorization,
+            Some(true)
+        ))
+        .then_some(AirwallexCardAuthorizationType::PreAuth);
+
         let payment_method_options = Some(AirwallexPaymentOptions {
             card: Some(AirwallexCardOptions {
                 auto_capture: Some(auto_capture),
+                authorization_type,
             }),
         });
 
@@ -573,6 +595,33 @@ fn get_payment_status(
     }
 }
 
+// Extended-authorization result for the authorize response: applied only when it
+// was requested AND the payment method is card (mirrors hyperswitch airwallex)
+fn build_airwallex_connector_response_data(
+    extended_authorization_requested: bool,
+    payment_method: common_enums::PaymentMethod,
+) -> Option<ConnectorResponseData> {
+    let extended_authentication_applicable =
+        matches!(payment_method, common_enums::PaymentMethod::Card);
+    let extended_authentication_applied =
+        if extended_authorization_requested && extended_authentication_applicable {
+            Some(true)
+        } else if extended_authorization_requested {
+            Some(false)
+        } else {
+            None
+        };
+    Some(ConnectorResponseData::new(
+        None,
+        None,
+        Some(ExtendedAuthorizationResponseData {
+            extended_authentication_applied,
+            extended_authorization_last_applied_at: None,
+            capture_before: None,
+        }),
+    ))
+}
+
 // New response transformer that addresses PR #240 critical issues
 impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AirwallexPaymentsResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
@@ -606,6 +655,19 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AirwallexPaymentsResp
         // Following hyperswitch pattern - no connector_metadata
         let connector_metadata = None;
 
+        // Report whether the requested extended authorization was applied;
+        // absent entirely when the flag was never sent
+        let connector_response = item
+            .router_data
+            .request
+            .request_extended_authorization
+            .and_then(|requested| {
+                build_airwallex_connector_response_data(
+                    requested,
+                    item.router_data.resource_common_data.payment_method,
+                )
+            });
+
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id),
@@ -621,6 +683,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AirwallexPaymentsResp
             }),
             resource_common_data: PaymentFlowData {
                 status,
+                connector_response,
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
@@ -1156,9 +1219,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             Some(common_enums::CaptureMethod::Automatic)
         );
 
+        // Extended authorization (pre-auth hold) applies to card payments only;
+        // card options are built unconditionally for every PM, hence the gate
+        let authorization_type = (matches!(
+            item.router_data.request.payment_method_data,
+            domain_types::payment_method_data::PaymentMethodData::Card(_)
+        ) && matches!(
+            item.router_data.request.request_extended_authorization,
+            Some(true)
+        ))
+        .then_some(AirwallexCardAuthorizationType::PreAuth);
+
         let payment_method_options = Some(AirwallexPaymentOptions {
             card: Some(AirwallexCardOptions {
                 auto_capture: Some(auto_capture),
+                authorization_type,
             }),
         });
 
@@ -1520,6 +1595,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let payment_method_options = Some(AirwallexPaymentOptions {
             card: Some(AirwallexCardOptions {
                 auto_capture: Some(false),
+                authorization_type: None,
             }),
         });
 
@@ -1890,5 +1966,73 @@ impl TryFrom<ResponseRouterData<AirwallexCustomerResponse, Self>>
         });
         router_data.resource_common_data.connector_http_status_code = Some(item.http_code);
         Ok(router_data)
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+#[allow(clippy::expect_used)]
+#[allow(clippy::panic)]
+#[allow(clippy::indexing_slicing)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_card_options_serialize_authorization_type() {
+        let options = AirwallexCardOptions {
+            auto_capture: Some(true),
+            authorization_type: Some(AirwallexCardAuthorizationType::PreAuth),
+        };
+        let value = serde_json::to_value(&options).unwrap();
+        assert_eq!(value["auto_capture"], true);
+        assert_eq!(value["authorization_type"], "pre_auth");
+
+        // Mirrors hyperswitch: no skip_serializing_if, so an unset flag
+        // serializes as an explicit null
+        let unset = AirwallexCardOptions {
+            auto_capture: Some(true),
+            authorization_type: None,
+        };
+        let value = serde_json::to_value(&unset).unwrap();
+        assert_eq!(value["authorization_type"], serde_json::Value::Null);
+    }
+
+    #[test]
+    fn test_extended_authorization_response_applied_matrix() {
+        // requested + card => applied
+        let applied =
+            build_airwallex_connector_response_data(true, common_enums::PaymentMethod::Card)
+                .unwrap();
+        assert_eq!(
+            applied
+                .get_extended_authorization_response_data()
+                .unwrap()
+                .extended_authentication_applied,
+            Some(true)
+        );
+
+        // requested + non-card => explicitly not applied
+        let not_applicable =
+            build_airwallex_connector_response_data(true, common_enums::PaymentMethod::Wallet)
+                .unwrap();
+        assert_eq!(
+            not_applicable
+                .get_extended_authorization_response_data()
+                .unwrap()
+                .extended_authentication_applied,
+            Some(false)
+        );
+
+        // not requested => no applied verdict
+        let not_requested =
+            build_airwallex_connector_response_data(false, common_enums::PaymentMethod::Card)
+                .unwrap();
+        assert_eq!(
+            not_requested
+                .get_extended_authorization_response_data()
+                .unwrap()
+                .extended_authentication_applied,
+            None
+        );
     }
 }
