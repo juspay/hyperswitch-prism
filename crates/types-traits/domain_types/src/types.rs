@@ -12936,9 +12936,11 @@ impl
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
             status: common_enums::AttemptStatus::Pending,
-            payment_method: PaymentMethod::foreign_try_from(
-                value.payment_method.unwrap_or_default(),
-            )?,
+            payment_method: value
+                .payment_method
+                .map(PaymentMethod::foreign_try_from)
+                .transpose()?
+                .unwrap_or_default(),
             address,
             auth_type: common_enums::AuthenticationType::default(),
             connector_request_reference_id: extract_connector_request_reference_id(
