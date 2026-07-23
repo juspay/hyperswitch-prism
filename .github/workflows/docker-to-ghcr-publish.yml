@@ -3,12 +3,15 @@ name: Docker Build and Push to GHCR
 on:
   workflow_dispatch:
   
-  # Automatically run when nightly (CalVer) or stable (SemVer) tags are created.
-  # Accepts formats like: 2025.12.03.0, 2025.01.09.12, or v1.2.3
+  # Automatically run when nightly (CalVer), hotfix, or stable (SemVer) tags
+  # are created, e.g. 2025.12.03.0, 2025.12.03.0-hotfix1, v1.2.3. In GitHub
+  # filter patterns `+` means "one or more of the preceding character", so
+  # these admit digits and dots only.
   push:
     tags:
-      - "20[0-9][0-9].[0-1][0-9].[0-3][0-9].*"
-      - "v[0-9]*.[0-9]*.[0-9]*"
+      - "20[0-9][0-9].[0-1][0-9].[0-3][0-9].[0-9]+"
+      - "20[0-9][0-9].[0-1][0-9].[0-3][0-9].[0-9]+-hotfix[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+"
 
 jobs:
   # Tag pushes fire this workflow directly, so nothing upstream guarantees the
@@ -23,37 +26,59 @@ jobs:
       checks: read
       contents: read
     steps:
+      # Tag names are attacker-controllable text that later becomes the image
+      # version, so reject anything that isn't a strict CalVer/SemVer tag
+      # before the build jobs (which hold packages:write) start.
+      - name: Validate ref format
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          REF_TYPE: ${{ github.ref_type }}
+        run: |
+          if [[ "${REF_TYPE}" != "tag" ]]; then
+            echo "Branch dispatch — tag format validation not applicable."
+            exit 0
+          fi
+
+          if [[ "${REF_NAME}" =~ ^(v[0-9]+\.[0-9]+\.[0-9]+|20[0-9]{2}\.[0-9]{2}\.[0-9]{2}\.[0-9]+(-hotfix[0-9]+)?)$ ]]; then
+            echo "Tag '${REF_NAME}' matches the expected CalVer/SemVer format."
+          else
+            echo "::error::Tag '${REF_NAME}' is not a valid CalVer (YYYY.MM.DD.N[-hotfixN]) or SemVer (vX.Y.Z) tag. Refusing to build."
+            exit 1
+          fi
+
       - name: Wait for CI Result check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REF_TYPE: ${{ github.ref_type }}
+          COMMIT_SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
         run: |
-          if [[ "${{ github.ref_type }}" != "tag" ]]; then
+          if [[ "${REF_TYPE}" != "tag" ]]; then
             echo "Not a tag push — skipping CI verification for manual branch build."
             exit 0
           fi
 
-          SHA="${{ github.sha }}"
           DEADLINE=$((SECONDS + 5400)) # 90 minutes
 
           while true; do
             CONCLUSION="$(gh api \
-              "/repos/${{ github.repository }}/commits/${SHA}/check-runs?check_name=CI%20Result&filter=latest" \
+              "/repos/${REPO}/commits/${COMMIT_SHA}/check-runs?check_name=CI%20Result&filter=latest" \
               --jq '[.check_runs[] | select(.status == "completed")][0].conclusion // empty')"
 
             if [[ "${CONCLUSION}" == "success" ]]; then
-              echo "CI Result check passed on ${SHA}."
+              echo "CI Result check passed on ${COMMIT_SHA}."
               break
             elif [[ -n "${CONCLUSION}" ]]; then
-              echo "::error::CI Result check concluded '${CONCLUSION}' on ${SHA}. Refusing to publish an image from a commit that did not pass CI."
+              echo "::error::CI Result check concluded '${CONCLUSION}' on ${COMMIT_SHA}. Refusing to publish an image from a commit that did not pass CI."
               exit 1
             fi
 
             if (( SECONDS >= DEADLINE )); then
-              echo "::error::Timed out waiting for the CI Result check on ${SHA}. Re-run this workflow once CI has completed."
+              echo "::error::Timed out waiting for the CI Result check on ${COMMIT_SHA}. Re-run this workflow once CI has completed."
               exit 1
             fi
 
-            echo "CI Result check not completed yet on ${SHA}; retrying in 60s..."
+            echo "CI Result check not completed yet on ${COMMIT_SHA}; retrying in 60s..."
             sleep 60
           done
 
@@ -89,18 +114,21 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set version
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          REF_TYPE: ${{ github.ref_type }}
+          COMMIT_SHA: ${{ github.sha }}
         run: |
-          COMMIT_SHA=${{ github.sha }}
           SHORT_SHA=${COMMIT_SHA::7}
-          
-          # Sanitize the branch name by replacing slashes with hyphens for Docker compatibility.
-          SANITIZED_REF_NAME=$(echo "${{ github.ref_name }}" | sed 's/\//-/g')
+
+          # Restrict the ref name to the Docker tag charset for branch builds.
+          SANITIZED_REF_NAME=$(echo "${REF_NAME}" | sed 's/[^A-Za-z0-9._-]/-/g')
 
           # Check if triggered by tag push
-          if [[ "${{ github.ref_type }}" == "tag" ]]; then
-            # Use the tag name directly
-            VERSION="${{ github.ref_name }}"
-          elif [[ "${{ github.ref_type }}" == "branch" ]] && [[ -n "${{ github.ref_name }}" ]]; then
+          if [[ "${REF_TYPE}" == "tag" ]]; then
+            # Use the tag name directly (format-validated by the verify-ci job)
+            VERSION="${REF_NAME}"
+          elif [[ "${REF_TYPE}" == "branch" ]] && [[ -n "${REF_NAME}" ]]; then
             # Use the branch name with short SHA
             VERSION="${SANITIZED_REF_NAME}-${SHORT_SHA}"
           else
@@ -109,8 +137,8 @@ jobs:
           fi
 
           echo "Using version: $VERSION"
-          
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
 
       - name: Extract metadata for Docker
         id: meta
@@ -140,7 +168,7 @@ jobs:
       
       - name: Set job outputs
         id: set-outputs
-        run: echo "version=${{ env.VERSION }}" >> $GITHUB_OUTPUT
+        run: echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
   create-manifest:
     needs: [build-and-push-dockerfile]
@@ -152,6 +180,7 @@ jobs:
       attestations: write
     env:
       VERSION: ${{ needs.build-and-push-dockerfile.outputs.version }}
+      REPO: ${{ github.repository }}
     steps:
 
       - name: Login to GitHub Container Registry
@@ -163,16 +192,16 @@ jobs:
 
       - name: Create manifest
         run: |
-          echo "Creating multi-platform manifest for version: ${{ env.VERSION }}"
-          docker buildx imagetools create --tag ghcr.io/${{ github.repository }}:${{ env.VERSION }} \
-            ghcr.io/${{ github.repository }}:${{ env.VERSION }}-linux-amd64 \
-            ghcr.io/${{ github.repository }}:${{ env.VERSION }}-linux-arm64
-          echo "Successfully created manifest: ghcr.io/${{ github.repository }}:${{ env.VERSION }}"
+          echo "Creating multi-platform manifest for version: ${VERSION}"
+          docker buildx imagetools create --tag "ghcr.io/${REPO}:${VERSION}" \
+            "ghcr.io/${REPO}:${VERSION}-linux-amd64" \
+            "ghcr.io/${REPO}:${VERSION}-linux-arm64"
+          echo "Successfully created manifest: ghcr.io/${REPO}:${VERSION}"
 
       - name: Get manifest digest
         id: digest
         run: |
-          DIGEST="$(docker buildx imagetools inspect "ghcr.io/${{ github.repository }}:${{ env.VERSION }}" \
+          DIGEST="$(docker buildx imagetools inspect "ghcr.io/${REPO}:${VERSION}" \
             --format '{{json .Manifest.Digest}}' | tr -d '"')"
           echo "Manifest digest: ${DIGEST}"
           echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
