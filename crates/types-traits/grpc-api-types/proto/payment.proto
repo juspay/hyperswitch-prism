@@ -5640,8 +5640,8 @@ message ConnectorSpecificConfig {
     FlywireConfig flywire = 136;
     // GLOMOPAY = 130
     GlomopayConfig glomopay = 137;
-    // GOTYME_SANLAM = 137
-    GotymeSanlamConfig gotyme_sanlam = 137;
+    // GOTYME_SANLAM = 138
+    GotymeSanlamConfig gotyme_sanlam = 138;
   }
 }
 
