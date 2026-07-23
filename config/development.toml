@@ -58,6 +58,7 @@ psync = "GW_TXN_SYNC"
 connectors_with_webhook_source_verification_call = "paypal, truelayer"
 
 [connectors]
+maya.base_url = "https://pg-sandbox.paymaya.com"
 kount.base_url = "https://api-sandbox.kount.com"
 kount.secondary_base_url = "https://login.kount.com"
 hyperswitch.base_url = "https://sandbox.hyperswitch.io"

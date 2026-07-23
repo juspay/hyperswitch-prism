@@ -407,6 +407,7 @@ pub struct Connectors {
     pub easebuzz: ConnectorParams,
     pub imerchantsolutions: ConnectorParams,
     pub axisbank: ConnectorParams,
+    pub maya: ConnectorParams,
     pub tsys_transit: ConnectorParams,
     pub twoc_twop_paco: ConnectorParams,
     pub interpayments: ConnectorParams,

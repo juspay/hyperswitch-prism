@@ -879,5 +879,6 @@ default_impl_payment_method_eligibility_v2!(
         Truelayer,
         Hyperswitch,
         Affirm,
+        Maya
     ],
 );

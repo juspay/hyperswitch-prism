@@ -23,6 +23,7 @@ connector_request_timeout = 30
 bypass_urls = ["localhost", "local"]
 
 [connectors]
+maya.base_url = "https://pg-sandbox.paymaya.com"
 kount.base_url = "https://api-sandbox.kount.com"
 kount.secondary_base_url = "https://login.kount.com"
 glomopay.base_url = "https://api.glomopay.com/api/v1/"

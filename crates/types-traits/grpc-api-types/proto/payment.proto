@@ -824,6 +824,7 @@ enum Connector {
   FLYWIRE = 129;
   GLOMOPAY = 130;
   GIVEPAYMENTS = 131;
+  MAYA = 132;
 }
 
 // Payment method types
@@ -5290,6 +5291,12 @@ message AxisbankConfig {
   optional string base_url = 50;
 }
 
+message MayaConfig {
+  SecretString public_key = 1;
+  SecretString secret_key = 2;
+  optional string base_url = 50;
+}
+
 message TsysTransitConfig {
   SecretString device_id = 1;
   SecretString transaction_key = 2;
@@ -5692,9 +5699,12 @@ message ConnectorSpecificConfig {
     FlywireConfig flywire = 136;
     // GLOMOPAY = 130
     GlomopayConfig glomopay = 137;
-
+    
     // GIVEPAYMENTS = 131
     GivepaymentsConfig givepayments = 138;
+
+    // MAYA = 132
+    MayaConfig maya = 139;
   }
 }
 
