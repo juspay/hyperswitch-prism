@@ -11,7 +11,8 @@ use domain_types::connector_types::{
 use grpc_api_types::payments::{
     AccessToken, CustomerServiceCreateResponse,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
-    MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse, PaymentStatus,
+    MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse,
+    PaymentMethodServiceTokenizeResponse, PaymentStatus,
 };
 
 pub fn connector_from_composite_authorize_metadata(
@@ -179,6 +180,17 @@ pub fn get_access_token(
 ) -> Option<AccessToken> {
     access_token_from_request.or_else(|| {
         access_token_from_create_server_authentication_token_response(access_token_response)
+    })
+}
+
+pub fn get_payment_method_token(
+    payment_method_token_from_request: Option<String>,
+    payment_method_tokenize_response: Option<&PaymentMethodServiceTokenizeResponse>,
+) -> Option<String> {
+    payment_method_token_from_request.or_else(|| {
+        payment_method_tokenize_response
+            .map(|resp| resp.payment_method_token.clone())
+            .filter(|token| !token.is_empty())
     })
 }
 

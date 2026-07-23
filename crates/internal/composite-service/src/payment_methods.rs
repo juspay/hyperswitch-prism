@@ -12,7 +12,7 @@ use grpc_api_types::payments::{
     CompositePaymentMethodRechargeResponse,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
     PaymentMethodServiceCreateRequest, PaymentMethodServiceGetRequest,
-    PaymentMethodServiceRechargeRequest,
+    PaymentMethodServiceRechargeRequest, PaymentMethodServiceTokenizeRequest,
 };
 use ucs_env::error::ResultExtGrpc;
 
@@ -169,6 +169,31 @@ where
         Ok(access_token_response)
     }
 
+    /// Exchange a public_token for an access_token (e.g. Plaid Link → access_token) when
+    /// the caller supplies a `payment_method_token` in the composite get request.
+    async fn create_payment_method_token(
+        &self,
+        payload: &CompositePaymentMethodGetRequest,
+        metadata: &tonic::metadata::MetadataMap,
+        extensions: &tonic::Extensions,
+    ) -> Result<Option<grpc_api_types::payments::PaymentMethodServiceTokenizeResponse>, tonic::Status>
+    {
+        if payload.payment_method_token.is_none() {
+            let tokenize_inner = PaymentMethodServiceTokenizeRequest::foreign_from(payload);
+            let mut tokenize_request = tonic::Request::new(tokenize_inner);
+            *tokenize_request.metadata_mut() = metadata.clone();
+            *tokenize_request.extensions_mut() = extensions.clone();
+            Ok(Some(
+                self.payment_method_service
+                    .tokenize(tokenize_request)
+                    .await?
+                    .into_inner(),
+            ))
+        } else {
+            Ok(None)
+        }
+    }
+
     async fn process_recharge(
         &self,
         request: tonic::Request<CompositePaymentMethodRechargeRequest>,
@@ -248,9 +273,15 @@ where
             None
         };
 
+        // Exchange the public_token for an access_token when the caller supplies one.
+        let tokenize_response = self
+            .create_payment_method_token(&payload, &metadata, &extensions)
+            .await?;
+
         let inner = PaymentMethodServiceGetRequest::foreign_from((
             &payload,
             access_token_response.as_ref(),
+            tokenize_response.as_ref(),
         ));
         let mut inner_request = tonic::Request::new(inner);
         *inner_request.metadata_mut() = metadata;
@@ -265,6 +296,7 @@ where
         Ok(tonic::Response::new(CompositePaymentMethodGetResponse {
             access_token_response,
             get_response: Some(get_response),
+            tokenize_response,
         }))
     }
 }
