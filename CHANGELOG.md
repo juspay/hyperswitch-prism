@@ -19,6 +19,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.07.23.0
+
+### Features
+
+- **connector:** [Givepayments] Implement Cards One-Off and Mandates Flow ([#1873](https://github.com/juspay/connector-service/pull/1873)) ([`9be74ed`](https://github.com/juspay/connector-service/commit/9be74ed6176683a9804bcf64d66da324497b95c2))
+- **paysafe:** Apple Pay / Google Pay recurring + encrypted GPay passthrough ([#1986](https://github.com/juspay/connector-service/pull/1986)) ([`3792ff4`](https://github.com/juspay/connector-service/commit/3792ff47dcb323b189355c66787b1950fc5d908e))
+
+### Bug Fixes
+
+- **redsys:** Populate Err.reason in (pre)authenticate to match hyperswitch ([#17018](https://github.com/juspay/connector-service/pull/17018)) ([#1671](https://github.com/juspay/connector-service/pull/1671)) ([`611813c`](https://github.com/juspay/connector-service/commit/611813c201bfcaf2f3fb171a6f25ab39bf342cc0))
+
+**Full Changelog:** [`2026.07.22.1...2026.07.23.0`](https://github.com/juspay/connector-service/compare/2026.07.22.1...2026.07.23.0)
+
+- - -
+
 ## 2026.07.22.1
 
 ### Miscellaneous Tasks
