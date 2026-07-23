@@ -4853,8 +4853,6 @@ impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for Pay
             .map(ServerAuthenticationTokenResponseData::foreign_try_from)
             .transpose()?;
 
-        print!("sss l2 l3: {:?}", l2_l3_data);
-
         Ok(Self {
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
