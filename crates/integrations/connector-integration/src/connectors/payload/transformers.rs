@@ -12,8 +12,9 @@ use domain_types::{
         SetupMandate, Void,
     },
     connector_types::{
-        ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
-        ConnectorCustomerResponse, ConnectorSpecificClientAuthenticationResponse, MandateReference,
+        BillingDescriptor, ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
+        ConnectorCustomerData, ConnectorCustomerResponse,
+        ConnectorSpecificClientAuthenticationResponse, MandateReference,
         PayloadClientAuthenticationResponse as PayloadClientAuthenticationResponseDomain,
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
         PaymentsResponseData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
@@ -154,6 +155,23 @@ fn get_filtered_metadata(metadata: Option<&serde_json::Value>) -> Option<serde_j
     })
 }
 
+/// Map the statement descriptor to Payload's `descriptor`, capped at 32 chars
+/// (card-brand limit). Mirrors hyperswitch, including its bytes-length check /
+/// chars-truncation quirk.
+fn get_description_from_billing_descriptor(
+    billing_descriptor: Option<&BillingDescriptor>,
+) -> Option<String> {
+    billing_descriptor
+        .and_then(|descriptor| descriptor.statement_descriptor.as_ref())
+        .map(|desc| {
+            if desc.len() > 32 {
+                desc.chars().take(32).collect()
+            } else {
+                desc.clone()
+            }
+        })
+}
+
 #[allow(clippy::too_many_arguments)]
 fn build_payload_card_request_data<T: PaymentMethodDataTypes>(
     payment_method_data: &PaymentMethodData<T>,
@@ -164,6 +182,7 @@ fn build_payload_card_request_data<T: PaymentMethodDataTypes>(
     capture_method: Option<enums::CaptureMethod>,
     is_mandate: bool,
     metadata: Option<&serde_json::Value>,
+    billing_descriptor: Option<&BillingDescriptor>,
 ) -> Result<PayloadCardsRequestData<T>, Error> {
     if let PaymentMethodData::Card(req_card) = payment_method_data {
         let payload_auth = PayloadAuth::try_from((connector_config, currency))?;
@@ -216,7 +235,8 @@ fn build_payload_card_request_data<T: PaymentMethodDataTypes>(
                 .or(payload_auth.processing_account_id),
             customer_id: resource_common_data.connector_customer.clone(),
             description: resource_common_data.description.clone(),
-            attrs: None,
+            descriptor: get_description_from_billing_descriptor(billing_descriptor),
+            attrs: get_filtered_metadata(metadata),
         })
     } else {
         Err(IntegrationError::NotSupported {
@@ -228,6 +248,7 @@ fn build_payload_card_request_data<T: PaymentMethodDataTypes>(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn build_payload_bank_account_request_data<T: PaymentMethodDataTypes>(
     bank_debit_data: &BankDebitData,
     connector_config: &ConnectorSpecificConfig,
@@ -236,6 +257,7 @@ fn build_payload_bank_account_request_data<T: PaymentMethodDataTypes>(
     capture_method: Option<enums::CaptureMethod>,
     resource_common_data: &PaymentFlowData,
     metadata: Option<&serde_json::Value>,
+    billing_descriptor: Option<&BillingDescriptor>,
 ) -> Result<PayloadCardsRequestData<T>, Error> {
     match bank_debit_data {
         BankDebitData::AchBankDebit {
@@ -349,6 +371,7 @@ fn build_payload_bank_account_request_data<T: PaymentMethodDataTypes>(
                     .or(payload_auth.processing_account_id),
                 customer_id: resource_common_data.connector_customer.clone(),
                 description: resource_common_data.description.clone(),
+                descriptor: get_description_from_billing_descriptor(billing_descriptor),
                 attrs: get_filtered_metadata(metadata),
             })
         }
@@ -403,6 +426,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 context: Default::default(),
             }
             .into()),
+            // NOTE: prism's SetupMandate is card-only today. If an ACH (bank
+            // account) setup-mandate flow is ever added, its /payment_methods
+            // request must NOT carry description/descriptor/attrs (HS PR #12710).
             _ => build_payload_card_request_data(
                 &router_data.request.payment_method_data,
                 &router_data.connector_config,
@@ -412,6 +438,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 None,
                 true,
                 metadata.as_ref(),
+                router_data.request.billing_descriptor.as_ref(),
             ),
         }
     }
@@ -466,6 +493,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     router_data.request.capture_method,
                     is_mandate,
                     metadata.as_ref(),
+                    router_data.request.billing_descriptor.as_ref(),
                 )?;
 
                 Ok(Self::PayloadPaymentRequest(Box::new(payment_data)))
@@ -479,6 +507,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     router_data.request.capture_method,
                     &router_data.resource_common_data,
                     metadata.as_ref(),
+                    router_data.request.billing_descriptor.as_ref(),
                 )?;
 
                 Ok(Self::PayloadPaymentRequest(Box::new(payment_data)))
@@ -649,6 +678,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 payment_method_id: Secret::new(mandate_id),
                 status,
                 processing_id,
+                description: router_data.resource_common_data.description.clone(),
+                descriptor: get_description_from_billing_descriptor(
+                    router_data.request.billing_descriptor.as_ref(),
+                ),
+                attrs: get_filtered_metadata(metadata.as_ref()),
             },
         )))
     }
@@ -1228,5 +1262,89 @@ impl TryFrom<ResponseRouterData<PayloadCustomerResponse, Self>>
             }),
             ..item.router_data
         })
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+#[allow(clippy::expect_used)]
+#[allow(clippy::panic)]
+#[allow(clippy::indexing_slicing)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_descriptor_truncated_to_32_chars() {
+        let descriptor = BillingDescriptor {
+            name: None,
+            city: None,
+            phone: None,
+            statement_descriptor: Some("A".repeat(40)),
+            statement_descriptor_suffix: None,
+            reference: None,
+        };
+        let result = get_description_from_billing_descriptor(Some(&descriptor)).unwrap();
+        assert_eq!(result.len(), 32);
+
+        let short = BillingDescriptor {
+            statement_descriptor: Some("LEASE-1234".to_string()),
+            name: None,
+            city: None,
+            phone: None,
+            statement_descriptor_suffix: None,
+            reference: None,
+        };
+        assert_eq!(
+            get_description_from_billing_descriptor(Some(&short)).unwrap(),
+            "LEASE-1234"
+        );
+        assert!(get_description_from_billing_descriptor(None).is_none());
+    }
+
+    #[test]
+    fn test_filtered_metadata_strips_processing_account_id() {
+        let metadata = serde_json::json!({
+            "processing_account_id": "acct_123",
+            "order_ref": "ord_789"
+        });
+        let filtered = get_filtered_metadata(Some(&metadata)).unwrap();
+        assert!(filtered.get("processing_account_id").is_none());
+        assert_eq!(filtered["order_ref"], "ord_789");
+
+        let only_internal = serde_json::json!({ "processing_account_id": "acct_123" });
+        assert!(get_filtered_metadata(Some(&only_internal)).is_none());
+    }
+
+    #[test]
+    fn test_mandate_request_serializes_new_fields_and_omits_when_none() {
+        let with_fields = requests::PayloadMandateRequestData {
+            amount: StringMajorUnit::zero(),
+            transaction_types: requests::TransactionTypes::Payment,
+            payment_method_id: Secret::new("pm_123".to_string()),
+            status: None,
+            processing_id: None,
+            description: Some("Monthly rent".to_string()),
+            descriptor: Some("LEASE-1234".to_string()),
+            attrs: Some(serde_json::json!({"order_ref": "ord_789"})),
+        };
+        let value = serde_json::to_value(&with_fields).unwrap();
+        assert_eq!(value["description"], "Monthly rent");
+        assert_eq!(value["descriptor"], "LEASE-1234");
+        assert_eq!(value["attrs"]["order_ref"], "ord_789");
+
+        let without_fields = requests::PayloadMandateRequestData {
+            amount: StringMajorUnit::zero(),
+            transaction_types: requests::TransactionTypes::Payment,
+            payment_method_id: Secret::new("pm_123".to_string()),
+            status: None,
+            processing_id: None,
+            description: None,
+            descriptor: None,
+            attrs: None,
+        };
+        let value = serde_json::to_value(&without_fields).unwrap();
+        assert!(value.get("description").is_none());
+        assert!(value.get("descriptor").is_none());
+        assert!(value.get("attrs").is_none());
     }
 }
