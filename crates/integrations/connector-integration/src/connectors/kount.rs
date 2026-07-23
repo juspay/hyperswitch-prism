@@ -172,37 +172,6 @@ fn access_token_is_sandbox(access_token: &str) -> bool {
         .unwrap_or(true)
 }
 
-/// Resolve the Kount order id for an Update Order (`PATCH .../orders/{id}`) call.
-/// Prefers the Kount-assigned `frm_transaction_id` (the `order.orderId` returned
-/// by Evaluate Order); falls back to the connector transaction id.
-fn kount_order_id(
-    frm_transaction_id: Option<&str>,
-    connector_transaction_id: Option<&str>,
-) -> CustomResult<String, IntegrationError> {
-    frm_transaction_id
-        .or(connector_transaction_id)
-        .map(|s| s.to_string())
-        .ok_or(
-            IntegrationError::MissingRequiredField {
-                field_name: "frm_transaction_id",
-                context: IntegrationErrorContext {
-                    additional_context: Some(
-                        "Kount Update Order requires the Kount order id \
-                         (frm_transaction_id from Evaluate Order) or a connector_transaction_id"
-                            .to_owned(),
-                    ),
-                    suggested_action: Some(
-                        "Send the Kount order id as frm_transaction_id (from the Pre Risk Check \
-                         response), or a connector_transaction_id, on the notify request"
-                            .to_owned(),
-                    ),
-                    doc_url: Some(kount::KOUNT_DOC_URL.to_owned()),
-                },
-            }
-            .into(),
-        )
-}
-
 // Kount Orders amounts are sent as strings in the smallest currency unit.
 macros::create_amount_converter_wrapper!(connector_name: Kount, amount_type: StringMinorUnit);
 
@@ -692,8 +661,8 @@ macros::macro_connector_implementation!(
 );
 
 // =============================================================================
-// REAL FLOW: FrmPaymentOutcome (Notify: payment succeeded) = Update Order
-//            PATCH /commerce/v2/orders/{orderId}
+// REAL FLOW: FrmPaymentOutcome (Notify: payment outcome) = Evaluate Order
+//            POST /commerce/v2/orders?riskInquiry=true
 // =============================================================================
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::FrmPaymentOutcomeV2 for Kount<T>
@@ -709,7 +678,7 @@ macros::macro_connector_implementation!(
     resource_common_data: FrmFlowData,
     flow_request: FrmPaymentOutcomeRequest,
     flow_response: FrmPaymentOutcomeResponse,
-    http_method: Patch,
+    http_method: Post,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     other_functions: {
@@ -728,19 +697,18 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<FrmPaymentOutcome, FrmFlowData, FrmPaymentOutcomeRequest, FrmPaymentOutcomeResponse>,
         ) -> CustomResult<String, IntegrationError> {
+            // `?riskInquiry=true` makes Kount return the risk decision (same as PreRiskCheck).
             Ok(format!(
-                "{}{}/{}",
-                req.resource_common_data.connectors.kount.base_url,
-                KOUNT_ORDERS_PATH,
-                kount_order_id(req.request.frm_transaction_id.as_deref(), req.request.connector_transaction_id.as_deref())?
+                "{}{}?riskInquiry=true",
+                req.resource_common_data.connectors.kount.base_url, KOUNT_ORDERS_PATH
             ))
         }
     }
 );
 
 // =============================================================================
-// REAL FLOW: FrmRefundProcessed (Notify: refund) = Update Order
-//            PATCH /commerce/v2/orders/{orderId}
+// REAL FLOW: FrmRefundProcessed (Notify: refund) = Evaluate Order
+//            POST /commerce/v2/orders?riskInquiry=true
 // =============================================================================
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::FrmRefundProcessedV2 for Kount<T>
@@ -756,7 +724,7 @@ macros::macro_connector_implementation!(
     resource_common_data: FrmFlowData,
     flow_request: FrmRefundProcessedRequest,
     flow_response: FrmRefundProcessedResponse,
-    http_method: Patch,
+    http_method: Post,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     other_functions: {
@@ -776,10 +744,8 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<FrmRefundProcessed, FrmFlowData, FrmRefundProcessedRequest, FrmRefundProcessedResponse>,
         ) -> CustomResult<String, IntegrationError> {
             Ok(format!(
-                "{}{}/{}",
-                req.resource_common_data.connectors.kount.base_url,
-                KOUNT_ORDERS_PATH,
-                kount_order_id(req.request.frm_transaction_id.as_deref(), req.request.connector_transaction_id.as_deref())?
+                "{}{}?riskInquiry=true",
+                req.resource_common_data.connectors.kount.base_url, KOUNT_ORDERS_PATH
             ))
         }
     }

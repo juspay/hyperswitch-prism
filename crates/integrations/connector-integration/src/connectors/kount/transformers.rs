@@ -1,4 +1,4 @@
-use common_enums::{AttemptStatus, FrmDecision, PaymentMethodType};
+use common_enums::{FrmDecision, PaymentMethodType};
 use common_utils::types::StringMinorUnit;
 use domain_types::{
     connector_flow::{
@@ -210,11 +210,16 @@ impl From<&KountDecision> for FrmDecision {
     }
 }
 
-/// Response from Evaluate Order (`POST /commerce/v2/orders`). Kount nests the
-/// order under an `order` object, with the risk decision under `riskInquiry`.
+/// Evaluate Order response (`POST /commerce/v2/orders`), shared by PreRiskCheck
+/// and the notify flows. PII/card fields are `Secret`-wrapped so they mask in the
+/// event log; risk analytics stay in plaintext.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct KountOrderResponse {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version: Option<String>,
     pub order: Option<KountOrder>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub warnings: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -224,27 +229,415 @@ pub struct KountOrder {
     pub order_id: Option<String>,
     #[serde(rename = "riskInquiry")]
     pub risk_inquiry: Option<KountRiskInquiry>,
+    #[serde(rename = "merchantOrderId", skip_serializing_if = "Option::is_none")]
+    pub merchant_order_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub channel: Option<String>,
+    /// Device/session identifier — PII, masked.
+    #[serde(rename = "deviceSessionId", skip_serializing_if = "Option::is_none")]
+    pub device_session_id: Option<Secret<String>>,
+    #[serde(rename = "creationDateTime", skip_serializing_if = "Option::is_none")]
+    pub creation_date_time: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transactions: Option<Vec<KountRespTransaction>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fulfillment: Option<Vec<KountRespFulfillment>>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct KountRiskInquiry {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub decision: Option<KountDecision>,
-    #[serde(alias = "omniscore", alias = "score")]
+    // Kept as `f64` (the live Kount response returns a JSON number, e.g. `61.4`);
+    // the PreRiskCheck mapping reads this to derive the integer risk score.
+    #[serde(alias = "score", skip_serializing_if = "Option::is_none")]
     pub omniscore: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub persona: Option<KountPersona>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub device: Option<KountRespDevice>,
+    #[serde(rename = "segmentExecuted", skip_serializing_if = "Option::is_none")]
+    pub segment_executed: Option<KountSegmentExecuted>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<KountEmailSignals>,
+    #[serde(rename = "policyManagement", skip_serializing_if = "Option::is_none")]
+    pub policy_management: Option<KountPolicyManagement>,
+    #[serde(rename = "reasonCode", skip_serializing_if = "Option::is_none")]
+    pub reason_code: Option<String>,
 }
 
-/// Response from the Kount Orders API update (`PATCH /commerce/v2/orders/{id}`).
-/// Distinct type from [`KountOrderResponse`] so the connector macros generate a
-/// unique templating type per flow.
+/// Accept a JSON scalar that Kount may send as either a string or a number
+/// (the Orders guide documents several count fields as stringified numbers —
+/// e.g. `"uniqueCards": "3"` — while the live sandbox returns JSON numbers).
+/// Normalises both into an `Option<String>` so the field always parses.
+fn de_stringy<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum StringOrNumber {
+        S(String),
+        N(serde_json::Number),
+        B(bool),
+    }
+    Ok(
+        Option::<StringOrNumber>::deserialize(deserializer)?.map(|value| match value {
+            StringOrNumber::S(s) => s,
+            StringOrNumber::N(n) => n.to_string(),
+            StringOrNumber::B(b) => b.to_string(),
+        }),
+    )
+}
+
+/// Like [`de_stringy`] but yields a masked `Secret` — for PII scalars (e.g.
+/// geo-coordinates) that Kount may send as a string or a number.
+fn de_stringy_secret<'de, D>(deserializer: D) -> Result<Option<Secret<String>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    Ok(de_stringy(deserializer)?.map(Secret::new))
+}
+
+/// Persona velocity/aggregate counts. Kount documents these as stringified
+/// numbers but the live API returns JSON numbers, so they parse leniently via
+/// [`de_stringy`]. Not PII — kept in plaintext for risk analytics.
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct KountUpdateOrderResponse {
-    #[serde(alias = "orderId")]
-    pub order_id: Option<String>,
+pub struct KountPersona {
+    #[serde(
+        default,
+        deserialize_with = "de_stringy",
+        rename = "uniqueCards",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub unique_cards: Option<String>,
+    #[serde(
+        default,
+        deserialize_with = "de_stringy",
+        rename = "uniqueDevices",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub unique_devices: Option<String>,
+    #[serde(
+        default,
+        deserialize_with = "de_stringy",
+        rename = "uniqueEmails",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub unique_emails: Option<String>,
+    #[serde(rename = "riskiestCountry", skip_serializing_if = "Option::is_none")]
+    pub riskiest_country: Option<String>,
+    #[serde(
+        default,
+        deserialize_with = "de_stringy",
+        rename = "totalBankApprovedOrders",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub total_bank_approved_orders: Option<String>,
+    #[serde(
+        default,
+        deserialize_with = "de_stringy",
+        rename = "totalBankDeclinedOrders",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub total_bank_declined_orders: Option<String>,
+    #[serde(
+        default,
+        deserialize_with = "de_stringy",
+        rename = "maxVelocity",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub max_velocity: Option<String>,
+    #[serde(rename = "riskiestRegion", skip_serializing_if = "Option::is_none")]
+    pub riskiest_region: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct KountRespDevice {
+    /// Device fingerprint id — PII, masked.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<Secret<String>>,
+    #[serde(rename = "collectionDateTime", skip_serializing_if = "Option::is_none")]
+    pub collection_date_time: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub browser: Option<String>,
+    #[serde(rename = "deviceAttributes", skip_serializing_if = "Option::is_none")]
+    pub device_attributes: Option<KountDeviceAttributes>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub location: Option<KountDeviceLocation>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tor: Option<bool>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct KountDeviceAttributes {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub os: Option<String>,
+    #[serde(rename = "firstSeenDateTime", skip_serializing_if = "Option::is_none")]
+    pub first_seen_date_time: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub language: Option<String>,
+    #[serde(
+        default,
+        deserialize_with = "de_stringy",
+        rename = "timezoneOffset",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub timezone_offset: Option<String>,
+    #[serde(rename = "mobileSdkType", skip_serializing_if = "Option::is_none")]
+    pub mobile_sdk_type: Option<String>,
+    #[serde(rename = "cookiesEnabled", skip_serializing_if = "Option::is_none")]
+    pub cookies_enabled: Option<bool>,
+    #[serde(rename = "screenResolution", skip_serializing_if = "Option::is_none")]
+    pub screen_resolution: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ip: Option<Vec<KountDeviceIp>>,
+    #[serde(rename = "localTime", skip_serializing_if = "Option::is_none")]
+    pub local_time: Option<String>,
+    #[serde(rename = "userAgent", skip_serializing_if = "Option::is_none")]
+    pub user_agent: Option<String>,
+}
+
+/// Device IP details — all addresses are PII, masked.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct KountDeviceIp {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub address: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub organization: Option<String>,
+    #[serde(rename = "piercedAddress", skip_serializing_if = "Option::is_none")]
+    pub pierced_address: Option<Secret<String>>,
+    #[serde(
+        rename = "piercedOrganization",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub pierced_organization: Option<String>,
+}
+
+/// Geolocation of the device. Precise coordinates and postal code are PII
+/// (masked); coarse city/region/country are kept in plaintext.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct KountDeviceLocation {
+    #[serde(rename = "areaCode", skip_serializing_if = "Option::is_none")]
+    pub area_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub city: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub country: Option<String>,
+    #[serde(rename = "countryCode", skip_serializing_if = "Option::is_none")]
+    pub country_code: Option<String>,
+    #[serde(
+        default,
+        deserialize_with = "de_stringy_secret",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub latitude: Option<Secret<String>>,
+    #[serde(
+        default,
+        deserialize_with = "de_stringy_secret",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub longitude: Option<Secret<String>>,
+    #[serde(rename = "postalCode", skip_serializing_if = "Option::is_none")]
+    pub postal_code: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub region: Option<String>,
+    #[serde(rename = "regionCode", skip_serializing_if = "Option::is_none")]
+    pub region_code: Option<String>,
+    #[serde(rename = "localeCountryCode", skip_serializing_if = "Option::is_none")]
+    pub locale_country_code: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct KountSegmentExecuted {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub segment: Option<KountSegment>,
+    #[serde(rename = "policiesExecuted", skip_serializing_if = "Option::is_none")]
+    pub policies_executed: Option<Vec<KountPolicyExecuted>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tags: Option<Vec<String>>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct KountSegment {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub priority: Option<i64>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct KountPolicyExecuted {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub outcome: Option<KountPolicyOutcome>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct KountPolicyOutcome {
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
+    pub outcome_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value: Option<String>,
+}
+
+/// Email reputation signals (metadata about the email, not the address itself).
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct KountEmailSignals {
+    #[serde(rename = "isVerifiedDomain", skip_serializing_if = "Option::is_none")]
+    pub is_verified_domain: Option<bool>,
+    #[serde(rename = "firstSeen", skip_serializing_if = "Option::is_none")]
+    pub first_seen: Option<String>,
+    #[serde(rename = "mostRecent", skip_serializing_if = "Option::is_none")]
+    pub most_recent: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct KountPolicyManagement {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub decision: Option<KountDecision>,
-    #[serde(alias = "omniscore", alias = "riskScore")]
-    pub score: Option<f64>,
-    pub reason: Option<String>,
+    #[serde(rename = "setExecuted", skip_serializing_if = "Option::is_none")]
+    pub set_executed: Option<KountNameVersion>,
+    #[serde(rename = "segmentExecuted", skip_serializing_if = "Option::is_none")]
+    pub segment_executed: Option<KountSegment>,
+    #[serde(rename = "policiesExecuted", skip_serializing_if = "Option::is_none")]
+    pub policies_executed: Option<Vec<KountPolicyExecuted>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tags: Option<Vec<String>>,
+    #[serde(rename = "tagWeights", skip_serializing_if = "Option::is_none")]
+    pub tag_weights: Option<Vec<KountTagWeight>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub set: Option<KountNameVersion>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub segment: Option<KountSegment>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub actions: Option<Vec<KountAction>>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct KountNameVersion {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct KountTagWeight {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub weight: Option<f64>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct KountAction {
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
+    pub action_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub values: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+    #[serde(rename = "addToListValues", skip_serializing_if = "Option::is_none")]
+    pub add_to_list_values: Option<Vec<KountAddToListValue>>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct KountAddToListValue {
+    #[serde(rename = "listIds", skip_serializing_if = "Option::is_none")]
+    pub list_ids: Option<Vec<String>>,
+    #[serde(rename = "fieldTypes", skip_serializing_if = "Option::is_none")]
+    pub field_types: Option<Vec<serde_json::Value>>,
+}
+
+/// A transaction on the Orders response. `payment` carries card data — masked.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct KountRespTransaction {
+    #[serde(rename = "transactionId", skip_serializing_if = "Option::is_none")]
+    pub transaction_id: Option<String>,
+    #[serde(
+        rename = "merchantTransactionId",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub merchant_transaction_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payment: Option<Vec<KountRespPayment>>,
+    #[serde(
+        rename = "processorMerchantId",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub processor_merchant_id: Option<String>,
+}
+
+/// Payment instrument on the Orders response. Every card-identifying field is
+/// PII/card data — masked.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct KountRespPayment {
+    #[serde(rename = "cardBrand", skip_serializing_if = "Option::is_none")]
+    pub card_brand: Option<Secret<String>>,
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
+    pub payment_type: Option<String>,
+    #[serde(rename = "paymentToken", skip_serializing_if = "Option::is_none")]
+    pub payment_token: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bin: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last4: Option<Secret<String>>,
+    #[serde(
+        rename = "issuingOrganization",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub issuing_organization: Option<Secret<String>>,
+    #[serde(rename = "expirationMonth", skip_serializing_if = "Option::is_none")]
+    pub expiration_month: Option<Secret<i64>>,
+    #[serde(rename = "expirationYear", skip_serializing_if = "Option::is_none")]
+    pub expiration_year: Option<Secret<i64>>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct KountRespFulfillment {
+    #[serde(rename = "fulfillmentId", skip_serializing_if = "Option::is_none")]
+    pub fulfillment_id: Option<String>,
+    #[serde(
+        rename = "merchantFulfillmentId",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub merchant_fulfillment_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shipping: Option<KountRespShipping>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<String>,
+    #[serde(rename = "accessUrl", skip_serializing_if = "Option::is_none")]
+    pub access_url: Option<String>,
+    #[serde(rename = "digitalDownloaded", skip_serializing_if = "Option::is_none")]
+    pub digital_downloaded: Option<bool>,
+    /// Download device IP — PII, masked. (Kount's field name carries a typo,
+    /// `downnloadDeviceIp`, preserved here so it deserializes.)
+    #[serde(rename = "downnloadDeviceIp", skip_serializing_if = "Option::is_none")]
+    pub download_device_ip: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct KountRespShipping {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub provider: Option<String>,
+    #[serde(rename = "trackingNumber", skip_serializing_if = "Option::is_none")]
+    pub tracking_number: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub method: Option<String>,
+    #[serde(rename = "shippedDateTime", skip_serializing_if = "Option::is_none")]
+    pub shipped_date_time: Option<String>,
+    #[serde(rename = "deliveredDateTime", skip_serializing_if = "Option::is_none")]
+    pub delivered_date_time: Option<String>,
 }
 
 /// Truncate a merchant-supplied id into a valid Kount `sessionId` (≤32 chars,
@@ -1107,97 +1500,72 @@ impl TryFrom<ResponseRouterData<KountOrderResponse, Self>>
     }
 }
 
-/// Kount Update Order disposition tokens. Serialized in uppercase to match the
-/// Kount Orders schema.
-#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "UPPERCASE")]
-pub enum KountDisposition {
-    Approve,
-    Decline,
-    Review,
-}
-
-impl KountDisposition {
-    /// Map the FRM decision to a Kount disposition. `Error` has no Kount
-    /// disposition, so it is omitted rather than sent as a guessed value.
-    fn from_decision(decision: FrmDecision) -> Option<Self> {
-        match decision {
-            FrmDecision::Approve => Some(Self::Approve),
-            FrmDecision::Reject => Some(Self::Decline),
-            FrmDecision::Review => Some(Self::Review),
-            FrmDecision::Error => None,
-        }
+// ──────────────────────────────────────────────────────────────────────────
+// Notify flows (FrmPaymentOutcome / FrmRefundProcessed) = Evaluate Order
+// POST /commerce/v2/orders?riskInquiry=true
+fn build_notify_evaluate_order(
+    order_id: String,
+    order_total: StringMinorUnit,
+    currency: String,
+    merchant_details: Option<&MerchantDetails>,
+) -> KountEvaluateOrderRequest {
+    let transactions = vec![KountTransaction {
+        subtotal: order_total.clone(),
+        order_total,
+        currency,
+        payment: None,
+        billed_person: None,
+    }];
+    let creation_date_time = OffsetDateTime::now_utc()
+        .format(&time::format_description::well_known::Rfc3339)
+        .unwrap_or_default();
+    let (merchant, merchant_category_code) = kount_merchant(merchant_details);
+    KountEvaluateOrderRequest {
+        session_id: hash_session_id(&order_id),
+        order_id,
+        channel: KountChannel::Web,
+        creation_date_time,
+        user_ip: None,
+        account: None,
+        items: Vec::new(),
+        fulfillment: Vec::new(),
+        transactions,
+        device: None,
+        merchant_category_code,
+        merchant,
     }
 }
 
-/// Kount Update Order payment-status tokens. Serialized in uppercase to match
-/// the Kount Orders schema.
-#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "UPPERCASE")]
-pub enum KountPaymentStatus {
-    Charged,
-    Authorized,
-    Voided,
-    Refunded,
-    Declined,
+/// Require an order reference from a notify request; it is the Kount
+/// `merchantOrderId` and the basis for the correlating `deviceSessionId`.
+fn notify_order_id(primary: Option<&String>, fallback: Option<&String>) -> Result<String, Error> {
+    primary.or(fallback).cloned().ok_or_else(|| {
+        error_stack::report!(errors::IntegrationError::MissingRequiredField {
+            field_name: "merchant_transaction_id",
+            context: errors::IntegrationErrorContext {
+                additional_context: Some(
+                    "Kount notify (Evaluate Order POST) needs a merchant/connector transaction \
+                     id; it is the order reference and the basis for the deviceSessionId that \
+                     correlates to the pre-auth order"
+                        .to_owned(),
+                ),
+                suggested_action: Some(
+                    "Set merchant_transaction_id (or connector_transaction_id) on the notify request"
+                        .to_owned(),
+                ),
+                doc_url: Some(KOUNT_DOC_URL.to_owned()),
+            },
+        })
+    })
 }
 
-impl KountPaymentStatus {
-    /// Map the internal attempt status to a Kount payment status. Unmapped
-    /// statuses are omitted rather than sent as an unrecognized value.
-    fn from_attempt_status(status: AttemptStatus) -> Option<Self> {
-        match status {
-            AttemptStatus::Charged
-            | AttemptStatus::PartialCharged
-            | AttemptStatus::PartialChargedAndChargeable => Some(Self::Charged),
-            AttemptStatus::Authorized | AttemptStatus::PartiallyAuthorized => {
-                Some(Self::Authorized)
-            }
-            AttemptStatus::Voided | AttemptStatus::VoidedPostCapture => Some(Self::Voided),
-            AttemptStatus::AutoRefunded => Some(Self::Refunded),
-            AttemptStatus::Failure
-            | AttemptStatus::AuthorizationFailed
-            | AttemptStatus::CaptureFailed
-            | AttemptStatus::RouterDeclined => Some(Self::Declined),
-            _ => None,
-        }
-    }
-}
+// ── FrmPaymentOutcome (payment notify) ────────────────────────────────────
 
-// ──────────────────────────────────────────────────────────────────────────
-// FrmPaymentOutcome (Notify: payment succeeded) = Update Order
-// PATCH /commerce/v2/orders/{orderId}
-// ──────────────────────────────────────────────────────────────────────────
-
+/// Notify request: a thin Evaluate-Order body. Distinct newtype per flow so the
+/// macros generate a unique templating companion.
 #[derive(Debug, Clone, Serialize)]
-pub struct KountUpdateOrderRequest {
-    /// Connector (gateway) transaction id, attached after authorization.
-    #[serde(
-        rename = "merchantTransactionId",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub merchant_transaction_id: Option<String>,
-    /// Final payment status.
-    #[serde(rename = "paymentStatus", skip_serializing_if = "Option::is_none")]
-    pub payment_status: Option<KountPaymentStatus>,
-    /// Order total in the smallest currency unit (string per Kount schema).
-    #[serde(rename = "orderTotal")]
-    pub order_total: StringMinorUnit,
-    /// ISO 4217 currency code.
-    pub currency: String,
-    /// FRM decision being notified (APPROVE / DECLINE / REVIEW).
-    #[serde(rename = "frmDisposition", skip_serializing_if = "Option::is_none")]
-    pub frm_disposition: Option<KountDisposition>,
-    /// Merchant Category Code (ISO 18245), when provided.
-    #[serde(
-        rename = "merchantCategoryCode",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub merchant_category_code: Option<u32>,
-    /// Merchant details (id), when provided.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub merchant: Option<KountMerchant>,
-}
+#[serde(transparent)]
+pub struct KountUpdateOrderRequest(pub KountEvaluateOrderRequest);
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
@@ -1226,25 +1594,31 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let req = &item.router_data.request;
-        let (merchant, merchant_category_code) = kount_merchant(req.merchant_details.as_ref());
-        Ok(Self {
-            merchant_transaction_id: req
-                .merchant_transaction_id
-                .clone()
-                .or_else(|| req.connector_transaction_id.clone()),
-            payment_status: req
-                .payment_status
-                .and_then(KountPaymentStatus::from_attempt_status),
-            order_total: super::KountAmountConvertor::convert(
-                req.amount.amount,
-                req.amount.currency,
-            )?,
-            currency: req.amount.currency.to_string(),
-            frm_disposition: req.frm_decision.and_then(KountDisposition::from_decision),
-            merchant_category_code,
-            merchant,
-        })
+        // Prefer the merchant order id (matches the pre-auth Evaluate Order, so
+        // the deviceSessionId correlates); fall back to the connector txn id.
+        let order_id = notify_order_id(
+            req.merchant_transaction_id.as_ref(),
+            req.connector_transaction_id.as_ref(),
+        )?;
+        let order_total =
+            super::KountAmountConvertor::convert(req.amount.amount, req.amount.currency)?;
+        Ok(Self(build_notify_evaluate_order(
+            order_id,
+            order_total,
+            req.amount.currency.to_string(),
+            req.merchant_details.as_ref(),
+        )))
     }
+}
+
+/// Notify response: the Evaluate-Order body. Distinct type per flow (macro templating).
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct KountUpdateOrderResponse {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version: Option<String>,
+    pub order: Option<KountOrder>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub warnings: Option<Vec<String>>,
 }
 
 impl TryFrom<ResponseRouterData<KountUpdateOrderResponse, Self>>
@@ -1260,61 +1634,27 @@ impl TryFrom<ResponseRouterData<KountUpdateOrderResponse, Self>>
     fn try_from(
         item: ResponseRouterData<KountUpdateOrderResponse, Self>,
     ) -> Result<Self, Self::Error> {
+        // Surface the raw Kount response for audit parity with PreRiskCheck.
+        let raw_connector_response = serde_json::to_string(&item.response).ok().map(Secret::new);
         Ok(Self {
             response: Ok(FrmPaymentOutcomeResponse {
                 status_code: item.http_code,
             }),
+            resource_common_data: FrmFlowData {
+                raw_connector_response,
+                ..item.router_data.resource_common_data
+            },
             ..item.router_data
         })
     }
 }
 
-// ──────────────────────────────────────────────────────────────────────────
-// FrmRefundProcessed (Notify: refund) = Update Order
-// PATCH /commerce/v2/orders/{orderId}
-// ──────────────────────────────────────────────────────────────────────────
+// ── FrmRefundProcessed (refund notify) ────────────────────────────────────
 
+/// Notify request: thin Evaluate-Order body (refund). Distinct templating type.
 #[derive(Debug, Clone, Serialize)]
-pub struct KountRefundUpdateRequest {
-    /// Connector (gateway) transaction id the refund belongs to.
-    #[serde(
-        rename = "merchantTransactionId",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub merchant_transaction_id: Option<String>,
-    /// Connector refund id.
-    #[serde(rename = "refundId", skip_serializing_if = "Option::is_none")]
-    pub refund_id: Option<String>,
-    /// Reason supplied for the refund.
-    #[serde(rename = "refundReason", skip_serializing_if = "Option::is_none")]
-    pub refund_reason: Option<String>,
-    /// Refund amount in the smallest currency unit (string per Kount schema).
-    #[serde(rename = "refundAmount")]
-    pub refund_amount: StringMinorUnit,
-    /// ISO 4217 currency code.
-    pub currency: String,
-    /// FRM decision being notified (APPROVE / DECLINE / REVIEW).
-    #[serde(rename = "frmDisposition", skip_serializing_if = "Option::is_none")]
-    pub frm_disposition: Option<KountDisposition>,
-    /// Merchant Category Code (ISO 18245), when provided.
-    #[serde(
-        rename = "merchantCategoryCode",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub merchant_category_code: Option<u32>,
-    /// Merchant details (id), when provided.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub merchant: Option<KountMerchant>,
-}
-
-/// Response from the refund Update Order PATCH. Distinct type from
-/// [`KountUpdateOrderResponse`] so the connector macros generate a unique
-/// templating type per flow.
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct KountRefundUpdateResponse {
-    #[serde(alias = "orderId")]
-    pub order_id: Option<String>,
-}
+#[serde(transparent)]
+pub struct KountRefundUpdateRequest(pub KountEvaluateOrderRequest);
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
@@ -1343,24 +1683,33 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let req = &item.router_data.request;
-        let (merchant, merchant_category_code) = kount_merchant(req.merchant_details.as_ref());
-        Ok(Self {
-            merchant_transaction_id: req.connector_transaction_id.clone(),
-            refund_id: req
-                .connector_refund_id
-                .clone()
-                .or_else(|| req.merchant_refund_id.clone()),
-            refund_reason: req.refund_reason.clone(),
-            refund_amount: super::KountAmountConvertor::convert(
-                req.amount.amount,
-                req.amount.currency,
-            )?,
-            currency: req.amount.currency.to_string(),
-            frm_disposition: req.frm_decision.and_then(KountDisposition::from_decision),
-            merchant_category_code,
-            merchant,
-        })
+        // Refund requests carry no merchant_transaction_id; use the connector txn
+        // id (payment reference), falling back to the refund ids.
+        let order_id = notify_order_id(
+            req.connector_transaction_id.as_ref(),
+            req.merchant_refund_id
+                .as_ref()
+                .or(req.connector_refund_id.as_ref()),
+        )?;
+        let order_total =
+            super::KountAmountConvertor::convert(req.amount.amount, req.amount.currency)?;
+        Ok(Self(build_notify_evaluate_order(
+            order_id,
+            order_total,
+            req.amount.currency.to_string(),
+            req.merchant_details.as_ref(),
+        )))
     }
+}
+
+/// Notify response (refund). Distinct templating type.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct KountRefundUpdateResponse {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version: Option<String>,
+    pub order: Option<KountOrder>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub warnings: Option<Vec<String>>,
 }
 
 impl TryFrom<ResponseRouterData<KountRefundUpdateResponse, Self>>
@@ -1376,11 +1725,115 @@ impl TryFrom<ResponseRouterData<KountRefundUpdateResponse, Self>>
     fn try_from(
         item: ResponseRouterData<KountRefundUpdateResponse, Self>,
     ) -> Result<Self, Self::Error> {
+        let raw_connector_response = serde_json::to_string(&item.response).ok().map(Secret::new);
         Ok(Self {
             response: Ok(FrmRefundProcessedResponse {
                 status_code: item.http_code,
             }),
+            resource_common_data: FrmFlowData {
+                raw_connector_response,
+                ..item.router_data.resource_common_data
+            },
             ..item.router_data
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // A representative Kount Evaluate Order (`POST /commerce/v2/orders?riskInquiry=true`)
+    // response, enriched with card + device PII to exercise masking. `omniscore`
+    // and persona counts are JSON numbers (live form); lat/long are numbers too.
+    const EVAL_RESPONSE: &str = r#"{
+      "version": "v2.132.0",
+      "order": {
+        "orderId": "TESTORDER0001",
+        "merchantOrderId": "merch-order-1",
+        "channel": "WEB",
+        "deviceSessionId": "sesshash0000000000000000000000aa",
+        "creationDateTime": "2026-07-23T13:26:46Z",
+        "riskInquiry": {
+          "decision": "APPROVE",
+          "omniscore": 61.4,
+          "persona": { "uniqueCards": 7, "uniqueDevices": 2, "riskiestCountry": "US" },
+          "device": {
+            "id": "devfp0001",
+            "browser": "Chrome 106",
+            "deviceAttributes": { "ip": [{ "address": "192.0.2.1", "piercedAddress": "10.0.0.1" }], "userAgent": "Mozilla/5.0" },
+            "location": { "city": "Boise", "latitude": 44.87, "longitude": -120.34, "postalCode": "90210" }
+          },
+          "reasonCode": "FraudATO"
+        },
+        "transactions": [{ "transactionId": "TESTORDER0001#0", "payment": [{ "cardBrand": "visa", "bin": "411111", "last4": "1111", "paymentToken": "tok_abc" }] }],
+        "fulfillment": []
+      },
+      "warnings": []
+    }"#;
+
+    #[test]
+    fn notify_response_parses_and_masks_pii_and_card() {
+        let notify: KountUpdateOrderResponse = serde_json::from_str(EVAL_RESPONSE).unwrap();
+        let ri = notify
+            .order
+            .as_ref()
+            .unwrap()
+            .risk_inquiry
+            .as_ref()
+            .unwrap();
+        assert_eq!(ri.decision, Some(KountDecision::Approve));
+        assert_eq!(ri.omniscore, Some(61.4));
+        assert_eq!(ri.reason_code.as_deref(), Some("FraudATO"));
+
+        let masked = hyperswitch_masking::masked_serialize(&notify)
+            .unwrap()
+            .to_string();
+        for secret in [
+            "sesshash0000000000000000000000aa",
+            "192.0.2.1",
+            "10.0.0.1",
+            "44.87",
+            "-120.34",
+            "90210",
+            "visa",
+            "411111",
+            "1111",
+            "tok_abc",
+            "devfp0001",
+        ] {
+            assert!(!masked.contains(secret), "PII/card leaked in log: {secret}");
+        }
+        for plain in ["APPROVE", "61.4", "FraudATO", "Boise", "WEB"] {
+            assert!(
+                masked.contains(plain),
+                "expected plaintext missing: {plain}"
+            );
+        }
+    }
+
+    #[test]
+    fn prerisk_response_reads_preserved() {
+        // The same body parses via KountOrderResponse and the PreRiskCheck mapping
+        // still reads decision / omniscore / order_id (backward compatible).
+        let prerisk: KountOrderResponse = serde_json::from_str(EVAL_RESPONSE).unwrap();
+        let order = prerisk.order.as_ref().unwrap();
+        let ri = order.risk_inquiry.as_ref().unwrap();
+        assert_eq!(
+            FrmDecision::from(ri.decision.as_ref().unwrap()),
+            FrmDecision::Approve
+        );
+        assert_eq!(ri.omniscore.map(omniscore_to_risk_score), Some(61));
+        assert_eq!(order.order_id.as_deref(), Some("TESTORDER0001"));
+    }
+
+    #[test]
+    fn de_stringy_accepts_number_and_string() {
+        // Persona counts come back as JSON numbers on the live API but are documented
+        // as strings; both must parse.
+        let as_num: KountPersona = serde_json::from_str(r#"{"uniqueCards": 7}"#).unwrap();
+        let as_str: KountPersona = serde_json::from_str(r#"{"uniqueCards": "7"}"#).unwrap();
+        assert_eq!(as_num.unique_cards.as_deref(), Some("7"));
+        assert_eq!(as_str.unique_cards.as_deref(), Some("7"));
     }
 }
