@@ -2376,31 +2376,26 @@ fn raw_connector_status_from_paco(
 ) -> Option<RawConnectorStatus> {
     let code = prior
         .as_ref()
-        .and_then(|p| p.response_code.clone())
-        .or_else(|| api_response.as_ref().and_then(|a| a.response_code.clone()));
-    let message = prior
-        .as_ref()
-        .and_then(|p| p.response_description.clone())
+        .and_then(|prior_details| prior_details.response_code.clone())
         .or_else(|| {
             api_response
                 .as_ref()
-                .and_then(|a| a.response_description.clone())
+                .and_then(|api| api.response_code.clone())
+        });
+    let message = prior
+        .as_ref()
+        .and_then(|prior_details| prior_details.response_description.clone())
+        .or_else(|| {
+            api_response
+                .as_ref()
+                .and_then(|api| api.response_description.clone())
         });
 
-    let status = (code.is_some() || message.is_some()).then_some(RawConnectorStatus {
-        code: code.clone(),
-        message: message.clone(),
+    (code.is_some() || message.is_some()).then_some(RawConnectorStatus {
+        code,
+        message,
         reason: None,
-    });
-    tracing::debug!(
-        connector = "twoc_twop_paco",
-        raw_code = ?code,
-        raw_message = ?message,
-        raw_reason = ?None::<String>,
-        status_present = status.is_some(),
-        "populating raw_connector_status"
-    );
-    status
+    })
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

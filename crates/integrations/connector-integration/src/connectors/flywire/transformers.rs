@@ -426,7 +426,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 status: AttemptStatus::Pending,
                 connector_order_id: Some(session_id),
                 raw_connector_response: raw_response,
-                raw_connector_status: raw_connector_status(item.http_code, None, None),
+                raw_connector_status: raw_connector_status(None, None, None),
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
@@ -504,7 +504,7 @@ impl TryFrom<ResponseRouterData<FlywirePayment, Self>>
         let status = response.status.to_attempt_status();
         let raw_response = serde_json::to_string(&response).ok().map(Secret::new);
         let raw_connector_status = raw_connector_status(
-            flywire_status_to_wire_string(&response.status),
+            Some(flywire_status_to_wire_string(&response.status)),
             response.status_detail.clone(),
             None,
         );
@@ -640,7 +640,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 // report success on a payment that could still fail.
                 status: AttemptStatus::Pending,
                 raw_connector_response: raw_response,
-                raw_connector_status: raw_connector_status(item.http_code, None, None),
+                raw_connector_status: raw_connector_status(None, None, None),
                 ..item.router_data.resource_common_data
             },
             request: PaymentsAuthorizeData {
@@ -721,18 +721,10 @@ fn flywire_status_to_wire_string<T: Serialize>(status: &T) -> String {
 /// Builds a `RawConnectorStatus` from the connector's raw status code, message
 /// and reason.
 fn raw_connector_status(
-    code: impl ToString,
+    code: Option<String>,
     message: Option<String>,
     reason: Option<String>,
 ) -> Option<RawConnectorStatus> {
-    let code = Some(code.to_string());
-    tracing::debug!(
-        connector = "flywire",
-        raw_code = ?code,
-        raw_message = ?message,
-        raw_reason = ?reason,
-        "populating raw_connector_status"
-    );
     Some(RawConnectorStatus {
         code,
         message,
@@ -789,7 +781,7 @@ impl<F> TryFrom<ResponseRouterData<FlywireRefundResponse, Self>>
             resource_common_data: RefundFlowData {
                 raw_connector_response: raw_response,
                 raw_connector_status: raw_connector_status(
-                    flywire_status_to_wire_string(&response.status),
+                    Some(flywire_status_to_wire_string(&response.status)),
                     None,
                     None,
                 ),
@@ -820,7 +812,7 @@ impl<F> TryFrom<ResponseRouterData<FlywireRefundResponse, Self>>
             resource_common_data: RefundFlowData {
                 raw_connector_response: raw_response,
                 raw_connector_status: raw_connector_status(
-                    flywire_status_to_wire_string(&response.status),
+                    Some(flywire_status_to_wire_string(&response.status)),
                     None,
                     None,
                 ),
@@ -851,7 +843,7 @@ impl<F> TryFrom<ResponseRouterData<FlywirePayment, Self>>
             resource_common_data: RefundFlowData {
                 raw_connector_response: raw_response,
                 raw_connector_status: raw_connector_status(
-                    flywire_status_to_wire_string(&response.status),
+                    Some(flywire_status_to_wire_string(&response.status)),
                     response.status_detail.clone(),
                     None,
                 ),
