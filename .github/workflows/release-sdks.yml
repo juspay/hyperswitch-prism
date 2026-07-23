@@ -73,8 +73,6 @@ on:
         required: true
       PYPI_TOKEN:
         required: true
-      NPM_TOKEN:
-        required: true
 
 # Literal group, not ${{ github.workflow }}: when called via `uses:` that resolves
 # to the caller's name and collides with the caller's group, deadlocking the run.
@@ -168,6 +166,10 @@ jobs:
             arch: x86_64
             target: x86_64-unknown-linux-gnu
             runner: ubuntu-latest
+          - os: linux
+            arch: aarch64
+            target: aarch64-unknown-linux-gnu
+            runner: ubuntu-24.04-arm
 
     steps:
       - name: Checkout repository
@@ -481,6 +483,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: [setup, collect-sdks]
     if: always() && needs.collect-sdks.result == 'success' && (needs.setup.outputs.preview_only == 'true' || needs.setup.outputs.publish_java == 'true' || needs.setup.outputs.publish_python == 'true' || needs.setup.outputs.publish_javascript == 'true')
+    # id-token so the npm auth check can verify OIDC issuance pre-flight.
+    permissions:
+      contents: read
+      id-token: write
     env:
       VERSION: ${{ needs.setup.outputs.version }}
     steps:
@@ -491,9 +497,10 @@ jobs:
         with:
           python-version: '3.11'
 
+      # Kept in step with the publish job so the dry-run exercises the same npm.
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           registry-url: 'https://registry.npmjs.org'
 
       - uses: actions/setup-java@v4
@@ -570,20 +577,29 @@ jobs:
           TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
         run: make -C sdk/python publish-check-auth
 
-      - name: Check JavaScript auth
+      # There is no stored npm token to check `npm whoami` against any more.
+      # The publish credential is minted from the GitHub OIDC token at publish
+      # time, so the pre-flight equivalent is confirming this run can actually
+      # mint one. It cannot verify the trusted-publisher config on npmjs.com —
+      # only that the OIDC half works.
+      - name: Check JavaScript auth (OIDC)
         id: check-js-auth
         if: ${{ needs.setup.outputs.preview_only == 'true' || needs.setup.outputs.publish_javascript == 'true' }}
         continue-on-error: true
-        working-directory: sdk/javascript
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          if npm whoami >/dev/null 2>&1; then
-            echo "npm authenticated as: $(npm whoami)"
-          else
-            echo "Error: npm authentication failed"
+          if [ -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ]; then
+            echo "Error: no OIDC token endpoint — job is missing 'id-token: write'"
             exit 1
           fi
+          token="$(curl -sf \
+            -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=npm:registry.npmjs.org" \
+            | jq -r '.value // empty')"
+          if [ -z "$token" ]; then
+            echo "Error: failed to mint an OIDC token for npm"
+            exit 1
+          fi
+          echo "OIDC token minted for npm (workflow_ref must match the trusted publisher on npmjs.com)"
 
       # --- Version checks ---
       - name: Check Java version
@@ -635,6 +651,13 @@ jobs:
           cp artifacts/sdk-java/*.jar sdk/java/build/libs/
           make -C sdk/java publish-check-dry-run
 
+      - name: Download Python SDK artifact for dry-run
+        if: ${{ needs.setup.outputs.preview_only == 'true' || needs.setup.outputs.publish_python == 'true' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: sdk-python
+          path: artifacts/sdk-python
+
       - name: Python dry-run (twine check)
         id: check-python-dryrun
         if: ${{ needs.setup.outputs.preview_only == 'true' || needs.setup.outputs.publish_python == 'true' }}
@@ -653,8 +676,6 @@ jobs:
         if: ${{ needs.setup.outputs.preview_only == 'true' || needs.setup.outputs.publish_javascript == 'true' }}
         continue-on-error: true
         working-directory: sdk/javascript
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           npm ci
           npm publish ../../artifacts/sdk-javascript/*.tgz --dry-run --access public
@@ -739,11 +760,16 @@ jobs:
         with:
           name: generated-java-proto
           path: sdk/java/src/main/java/generated/
-      - name: Download Linux binary
+      - name: Download Linux x86_64 binary
         uses: actions/download-artifact@v4
         with:
           name: binary-x86_64-unknown-linux-gnu
           path: target/x86_64-unknown-linux-gnu/release
+      - name: Download Linux aarch64 binary
+        uses: actions/download-artifact@v4
+        with:
+          name: binary-aarch64-unknown-linux-gnu
+          path: target/aarch64-unknown-linux-gnu/release
       - name: Download macOS binary
         uses: actions/download-artifact@v4
         with:
@@ -795,37 +821,27 @@ jobs:
           python-version: '3.11'
       - name: Install twine
         run: pip install twine
+      # Publish the wheel exactly as built by the `package-sdk-python` job
+      # (`make dist`, which bundles both the Linux .so and macOS .dylib).
+      # `make publish` uploads this artifact as-is — it does not rebuild — so
+      # the generated sources and native binaries are intentionally NOT
+      # re-downloaded here. The Makefile is the source of truth for what ships.
       - name: Download SDK artifacts
         uses: actions/download-artifact@v4
         with:
           name: sdk-python
           path: artifacts/sdk-python
-      - name: Download generated Python files
-        uses: actions/download-artifact@v4
-        with:
-          name: generated-python
-          path: sdk/python/src/payments/generated/
-      - name: Download Linux binary
-        uses: actions/download-artifact@v4
-        with:
-          name: binary-x86_64-unknown-linux-gnu
-          path: target/x86_64-unknown-linux-gnu/release
-      - name: Download macOS binary
-        uses: actions/download-artifact@v4
-        with:
-          name: binary-aarch64-apple-darwin
-          path: target/aarch64-apple-darwin/release
       - name: Check what will be published (Python)
         run: |
           echo "=== Python SDK Publication Preview ==="
           echo "Wheel location: artifacts/sdk-python/"
           ls -la artifacts/sdk-python/
           echo ""
-          echo "Wheel metadata:"
-          cd artifacts/sdk-python && unzip -l *.whl | head -30
-          echo ""
-          echo "Package info:"
-          pip show artifacts/sdk-python/*.whl 2>/dev/null || echo "pip show failed"
+          echo "Per-wheel native library (one arch each):"
+          for whl in artifacts/sdk-python/*.whl; do
+            echo "  $whl"
+            unzip -l "$whl" | grep -E '\.(so|dylib)' || echo "    (no native lib!)"
+          done
           echo ""
           if [ "${{ inputs.preview_only }}" == "true" ]; then
             echo "⚠️ PREVIEW ONLY MODE - Skipping actual publish"
@@ -860,6 +876,11 @@ jobs:
         with:
           node-version: '24'
           registry-url: 'https://registry.npmjs.org'
+      - name: Verify npm supports trusted publishing
+        run: |
+          echo "npm $(npm --version) / node $(node --version)"
+          npx --yes semver -r '>=11.5.1' "$(npm --version)" >/dev/null \
+            || { echo "npm >= 11.5.1 required for OIDC trusted publishing"; exit 1; }
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
         with:

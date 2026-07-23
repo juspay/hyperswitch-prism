@@ -977,7 +977,11 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResp
                         .error_code_description
                         .clone()
                         .unwrap_or_else(|| err.error_code.clone()),
-                    reason: err.error_code_description.clone(),
+                    reason: Some(
+                        err.error_code_description
+                            .clone()
+                            .unwrap_or_else(|| err.error_code.clone()),
+                    ),
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
@@ -1169,7 +1173,11 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResp
                         .error_code_description
                         .clone()
                         .unwrap_or_else(|| err.error_code.clone()),
-                    reason: err.error_code_description.clone(),
+                    reason: Some(
+                        err.error_code_description
+                            .clone()
+                            .unwrap_or_else(|| err.error_code.clone()),
+                    ),
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
