@@ -14,10 +14,10 @@
 package org.killbill.billing.plugin.hyperswitch;
 
 import java.math.BigDecimal;
-import java.sql.SQLException;
-import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -25,44 +25,49 @@ import java.util.function.Supplier;
 import org.killbill.billing.account.api.Account;
 import org.killbill.billing.account.api.AccountApiException;
 import org.killbill.billing.catalog.api.Currency;
-import org.killbill.billing.osgi.libs.killbill.OSGIConfigPropertiesService;
 import org.killbill.billing.osgi.libs.killbill.OSGIKillbillAPI;
+import org.killbill.billing.payment.api.Payment;
+import org.killbill.billing.payment.api.PaymentApiException;
+import org.killbill.billing.payment.api.PaymentMethod;
+import org.killbill.billing.payment.api.PaymentMethodPlugin;
+import org.killbill.billing.payment.api.PaymentTransaction;
 import org.killbill.billing.payment.api.PluginProperty;
+import org.killbill.billing.payment.api.TransactionStatus;
 import org.killbill.billing.payment.api.TransactionType;
 import org.killbill.billing.payment.plugin.api.GatewayNotification;
 import org.killbill.billing.payment.plugin.api.HostedPaymentPageFormDescriptor;
 import org.killbill.billing.payment.plugin.api.PaymentMethodInfoPlugin;
-import org.killbill.billing.payment.api.PaymentMethodPlugin;
+import org.killbill.billing.payment.plugin.api.PaymentPluginApi;
 import org.killbill.billing.payment.plugin.api.PaymentPluginApiException;
 import org.killbill.billing.payment.plugin.api.PaymentPluginStatus;
 import org.killbill.billing.payment.plugin.api.PaymentTransactionInfoPlugin;
 import org.killbill.billing.plugin.api.PluginProperties;
 import org.killbill.billing.plugin.api.payment.PluginHostedPaymentPageFormDescriptor;
 import org.killbill.billing.plugin.api.payment.PluginPaymentMethodInfoPlugin;
-import org.killbill.billing.plugin.api.payment.PluginPaymentPluginApi;
 import org.killbill.billing.plugin.hyperswitch.client.PrismClient;
 import org.killbill.billing.plugin.hyperswitch.client.PrismClientException;
 import org.killbill.billing.plugin.hyperswitch.core.AmountConverter;
 import org.killbill.billing.plugin.hyperswitch.core.HyperswitchPluginProperties;
 import org.killbill.billing.plugin.hyperswitch.core.PrismRequestBuilder;
 import org.killbill.billing.plugin.hyperswitch.core.PrismStatusMapper;
-import org.killbill.billing.plugin.hyperswitch.dao.HyperswitchDao;
-import org.killbill.billing.plugin.hyperswitch.dao.gen.tables.HyperswitchPaymentMethods;
-import org.killbill.billing.plugin.hyperswitch.dao.gen.tables.HyperswitchResponses;
-import org.killbill.billing.plugin.hyperswitch.dao.gen.tables.records.HyperswitchPaymentMethodsRecord;
-import org.killbill.billing.plugin.hyperswitch.dao.gen.tables.records.HyperswitchResponsesRecord;
 import org.killbill.billing.plugin.hyperswitch.model.HyperswitchGatewayNotification;
 import org.killbill.billing.plugin.hyperswitch.model.HyperswitchPaymentMethodPlugin;
 import org.killbill.billing.plugin.hyperswitch.model.HyperswitchPaymentTransactionInfoPlugin;
+import org.killbill.billing.plugin.hyperswitch.store.HyperswitchStateStore;
+import org.killbill.billing.plugin.hyperswitch.store.HyperswitchStateStore.AuthInfo;
+import org.killbill.billing.plugin.hyperswitch.store.HyperswitchStateStore.StoredCredential;
 import org.killbill.billing.plugin.hyperswitch.webhook.HyperswitchWebhookHandler;
 import org.killbill.billing.util.callcontext.CallContext;
+import org.killbill.billing.util.callcontext.TenantContext;
+import org.killbill.billing.util.entity.Pagination;
 import org.killbill.clock.Clock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// NOTE (P0 verification): SDK response getters (getStatus().name(), getConnectorTransactionId(),
-// getError().getUnifiedDetails().getMessage(), getConnectorRecurringPaymentId(), getPaymentMethodToken())
-// follow examples/stripe/stripe.kt. Verify against io.hyperswitch:prism:0.0.6 at first compile.
+import com.google.common.collect.ImmutableList;
+
+// NOTE (P0 verification): SDK getters/request signatures preserved from the E2E-verified DB-based version.
+import types.Payment.CustomerServiceCreateResponse;
 import types.Payment.PaymentServiceAuthorizeRequest;
 import types.Payment.PaymentServiceAuthorizeResponse;
 import types.Payment.PaymentServiceCaptureRequest;
@@ -73,7 +78,6 @@ import types.Payment.PaymentServiceRefundRequest;
 import types.Payment.PaymentServiceSetupRecurringRequest;
 import types.Payment.PaymentServiceSetupRecurringResponse;
 import types.Payment.PaymentServiceTokenAuthorizeRequest;
-
 import types.Payment.PaymentServiceVoidRequest;
 import types.Payment.PaymentServiceVoidResponse;
 import types.Payment.RecurringPaymentServiceChargeRequest;
@@ -82,65 +86,43 @@ import types.Payment.RefundResponse;
 import types.Payment.RefundServiceGetRequest;
 
 /**
- * KillBill payment plugin backed by Hyperswitch Prism (embedded SDK, in-process — same model as Medusa).
- * Thin host adapter: the framework base handles DAO-backed reads; the flow methods build Prism requests
- * (see {@link PrismRequestBuilder}), call the embedded SDK via {@link PrismClient}, map the returned status
- * ({@link PrismStatusMapper}) and persist to {@link HyperswitchDao}.
+ * KillBill payment plugin backed by Hyperswitch Prism — DB-less variant. Implements {@link PaymentPluginApi}
+ * directly (no DAO/jOOQ) and persists connector state in KillBill's own storage via {@link HyperswitchStateStore}
+ * (custom fields + the core Payment API). All connector flow logic (customer leg, mandate reference extraction,
+ * metadata/bill-to, MIT charge) is preserved from the DB-based version; only the persistence layer changed.
  */
-public class HyperswitchPaymentPluginApi extends PluginPaymentPluginApi<HyperswitchResponsesRecord, HyperswitchResponses, HyperswitchPaymentMethodsRecord, HyperswitchPaymentMethods> {
+public class HyperswitchPaymentPluginApi implements PaymentPluginApi {
 
     private static final Logger logger = LoggerFactory.getLogger(HyperswitchPaymentPluginApi.class);
+    private static final Iterable<PluginProperty> NO_PROPS = ImmutableList.of();
 
     private final HyperswitchConfigPropertiesConfigurationHandler configHandler;
     private final PrismClient prismClient;
-    private final HyperswitchDao dao;
+    private final HyperswitchStateStore store;
+    private final OSGIKillbillAPI killbillAPI;
+    private final Clock clock;
     private final HyperswitchWebhookHandler webhookHandler;
 
     public HyperswitchPaymentPluginApi(final HyperswitchConfigPropertiesConfigurationHandler configHandler,
                                        final PrismClient prismClient,
+                                       final HyperswitchStateStore store,
                                        final OSGIKillbillAPI killbillAPI,
-                                       final OSGIConfigPropertiesService configProperties,
-                                       final Clock clock,
-                                       final HyperswitchDao dao) {
-        super(killbillAPI, configProperties, clock, dao);
+                                       final Clock clock) {
         this.configHandler = configHandler;
         this.prismClient = prismClient;
-        this.dao = dao;
-        this.webhookHandler = new HyperswitchWebhookHandler(configHandler, prismClient, dao, killbillAPI, clock);
+        this.store = store;
+        this.killbillAPI = killbillAPI;
+        this.clock = clock;
+        this.webhookHandler = new HyperswitchWebhookHandler(configHandler, prismClient, store, killbillAPI, clock);
     }
 
-    // ------------------------------------------------------------------ record → model builders
-
-    @Override
-    protected PaymentTransactionInfoPlugin buildPaymentTransactionInfoPlugin(final HyperswitchResponsesRecord record) {
-        return HyperswitchPaymentTransactionInfoPlugin.build(record);
-    }
-
-    @Override
-    protected PaymentMethodPlugin buildPaymentMethodPlugin(final HyperswitchPaymentMethodsRecord record) {
-        return HyperswitchPaymentMethodPlugin.build(record);
-    }
-
-    @Override
-    protected PaymentMethodInfoPlugin buildPaymentMethodInfoPlugin(final HyperswitchPaymentMethodsRecord record) {
-        return new PluginPaymentMethodInfoPlugin(UUID.fromString(record.getKbAccountId()),
-                                                 UUID.fromString(record.getKbPaymentMethodId()),
-                                                 record.getIsDefault() != null && record.getIsDefault() == HyperswitchDao.DB_TRUE,
-                                                 record.getHyperswitchId());
-    }
-
-    @Override
-    protected String getPaymentMethodId(final HyperswitchPaymentMethodsRecord record) {
-        return record.getKbPaymentMethodId();
-    }
-
-    // ------------------------------------------------------------------ payment flows (P1 / P4)
+    // ------------------------------------------------------------------ payment flows
 
     @Override
     public PaymentTransactionInfoPlugin authorizePayment(final UUID kbAccountId, final UUID kbPaymentId, final UUID kbTransactionId,
                                                          final UUID kbPaymentMethodId, final BigDecimal amount, final Currency currency,
                                                          final Iterable<PluginProperty> properties, final CallContext context) throws PaymentPluginApiException {
-        return pay(kbAccountId, kbPaymentId, kbTransactionId, kbPaymentMethodId, amount, currency, properties, context, TransactionType.AUTHORIZE, "MANUAL");
+        return pay(kbPaymentId, kbTransactionId, kbPaymentMethodId, amount, currency, properties, context, TransactionType.AUTHORIZE, "MANUAL");
     }
 
     @Override
@@ -149,18 +131,12 @@ public class HyperswitchPaymentPluginApi extends PluginPaymentPluginApi<Hyperswi
                                                         final Iterable<PluginProperty> properties, final CallContext context) throws PaymentPluginApiException {
         final HyperswitchConfigProperties config = configHandler.getConfigurable(context.getTenantId());
         final String captureMethod = "MANUAL".equalsIgnoreCase(config.getCaptureMethod()) ? "MANUAL" : "AUTOMATIC";
-        return pay(kbAccountId, kbPaymentId, kbTransactionId, kbPaymentMethodId, amount, currency, properties, context, TransactionType.PURCHASE, captureMethod);
+        return pay(kbPaymentId, kbTransactionId, kbPaymentMethodId, amount, currency, properties, context, TransactionType.PURCHASE, captureMethod);
     }
 
-    /**
-     * Card-present → {@code authorize}. Card-not-present (recurring invoice, customer not present) → a
-     * merchant-initiated {@code charge} against the stored mandate, else {@code token_authorize} against the
-     * stored token (Phase B of the recurring flow).
-     */
-    private PaymentTransactionInfoPlugin pay(final UUID kbAccountId, final UUID kbPaymentId, final UUID kbTransactionId,
-                                             final UUID kbPaymentMethodId, final BigDecimal amount, final Currency currency,
-                                             final Iterable<PluginProperty> properties, final CallContext context,
-                                             final TransactionType txnType, final String captureMethod) throws PaymentPluginApiException {
+    private PaymentTransactionInfoPlugin pay(final UUID kbPaymentId, final UUID kbTransactionId, final UUID kbPaymentMethodId,
+                                             final BigDecimal amount, final Currency currency, final Iterable<PluginProperty> properties,
+                                             final CallContext context, final TransactionType txnType, final String captureMethod) throws PaymentPluginApiException {
         final UUID tenantId = context.getTenantId();
         final HyperswitchConfigProperties config = configHandler.getConfigurable(tenantId);
         final long minor = AmountConverter.toMinor(amount, currency);
@@ -178,11 +154,10 @@ public class HyperswitchPaymentPluginApi extends PluginPaymentPluginApi<Hyperswi
                 connectorTxnId = safe(() -> resp.getConnectorTransactionId());
                 gatewayError = safe(() -> resp.getError().getUnifiedDetails().getMessage());
             } else {
-                final StoredCredential cred = loadStoredCredential(kbPaymentMethodId, tenantId);
-                if (cred == null || (cred.mandateId == null && cred.token == null)) {
-                    return persistFailure(kbAccountId, kbPaymentId, kbTransactionId, txnType, amount, currency,
-                                          PaymentPluginStatus.CANCELED, "No stored mandate/token for payment method " + kbPaymentMethodId,
-                                          "NO_REUSABLE_CREDENTIAL", tenantId);
+                final StoredCredential cred = store.getStoredCredential(kbPaymentMethodId, context);
+                if (cred.mandateId == null && cred.token == null) {
+                    return fail(kbPaymentId, kbTransactionId, txnType, amount, currency, PaymentPluginStatus.CANCELED,
+                                "No stored mandate/token for payment method " + kbPaymentMethodId, "NO_REUSABLE_CREDENTIAL");
                 }
                 final boolean autoCapture = "AUTOMATIC".equalsIgnoreCase(captureMethod);
                 if (cred.token != null && (!autoCapture || cred.mandateId == null)) {
@@ -193,8 +168,7 @@ public class HyperswitchPaymentPluginApi extends PluginPaymentPluginApi<Hyperswi
                     connectorTxnId = safe(() -> resp.getConnectorTransactionId());
                     gatewayError = safe(() -> resp.getError().getUnifiedDetails().getMessage());
                 } else {
-                    // MIT charge against the stored mandate. NB: charge captures immediately, so this is the
-                    // path for AUTOMATIC/PURCHASE (and, unavoidably, for a MANUAL auth backed only by a mandate).
+                    // MIT charge against the stored mandate (captures immediately) — passes the connector customer id.
                     final RecurringPaymentServiceChargeRequest req = PrismRequestBuilder.charge(kbTransactionId.toString(), cred.mandateId, minor, cc, cred.customerId, connectorMetadata(config), config.getReturnUrl());
                     final RecurringPaymentServiceChargeResponse resp = prismClient.charge(tenantId, req);
                     statusName = safe(() -> resp.getStatus().name());
@@ -203,28 +177,26 @@ public class HyperswitchPaymentPluginApi extends PluginPaymentPluginApi<Hyperswi
                 }
             }
         } catch (final PrismClientException e) {
-            return recordException(kbAccountId, kbPaymentId, kbTransactionId, txnType, amount, currency, e, tenantId);
+            return recordException(kbPaymentId, kbTransactionId, txnType, amount, currency, e);
         }
-        return record(kbAccountId, kbPaymentId, kbTransactionId, txnType, amount, currency, connectorTxnId, statusName, gatewayError, tenantId);
+        return record(kbPaymentId, kbTransactionId, txnType, amount, currency, connectorTxnId, statusName, gatewayError, context);
     }
 
     @Override
     public PaymentTransactionInfoPlugin capturePayment(final UUID kbAccountId, final UUID kbPaymentId, final UUID kbTransactionId,
                                                        final UUID kbPaymentMethodId, final BigDecimal amount, final Currency currency,
                                                        final Iterable<PluginProperty> properties, final CallContext context) throws PaymentPluginApiException {
-        final UUID tenantId = context.getTenantId();
-        final String connectorTxnId = connectorTransactionIdForPayment(kbPaymentId, tenantId);
-        if (connectorTxnId == null) {
-            return persistFailure(kbAccountId, kbPaymentId, kbTransactionId, TransactionType.CAPTURE, amount, currency,
-                                  PaymentPluginStatus.CANCELED, "No prior authorization to capture", "NO_AUTHORIZATION", tenantId);
+        final AuthInfo auth = store.findAuthorization(kbPaymentId, context);
+        if (auth == null) {
+            return fail(kbPaymentId, kbTransactionId, TransactionType.CAPTURE, amount, currency, PaymentPluginStatus.CANCELED, "No prior authorization to capture", "NO_AUTHORIZATION");
         }
         try {
-            final PaymentServiceCaptureRequest req = PrismRequestBuilder.capture(kbTransactionId.toString(), connectorTxnId, AmountConverter.toMinor(amount, currency), currency.name());
-            final PaymentServiceCaptureResponse resp = prismClient.capture(tenantId, req);
-            return record(kbAccountId, kbPaymentId, kbTransactionId, TransactionType.CAPTURE, amount, currency,
-                          connectorTxnId, safe(() -> resp.getStatus().name()), safe(() -> resp.getError().getUnifiedDetails().getMessage()), tenantId);
+            final PaymentServiceCaptureRequest req = PrismRequestBuilder.capture(kbTransactionId.toString(), auth.connectorTransactionId, AmountConverter.toMinor(amount, currency), currency.name());
+            final PaymentServiceCaptureResponse resp = prismClient.capture(context.getTenantId(), req);
+            return record(kbPaymentId, kbTransactionId, TransactionType.CAPTURE, amount, currency, auth.connectorTransactionId,
+                          safe(() -> resp.getStatus().name()), safe(() -> resp.getError().getUnifiedDetails().getMessage()), context);
         } catch (final PrismClientException e) {
-            return recordException(kbAccountId, kbPaymentId, kbTransactionId, TransactionType.CAPTURE, amount, currency, e, tenantId);
+            return recordException(kbPaymentId, kbTransactionId, TransactionType.CAPTURE, amount, currency, e);
         }
     }
 
@@ -232,19 +204,17 @@ public class HyperswitchPaymentPluginApi extends PluginPaymentPluginApi<Hyperswi
     public PaymentTransactionInfoPlugin voidPayment(final UUID kbAccountId, final UUID kbPaymentId, final UUID kbTransactionId,
                                                     final UUID kbPaymentMethodId, final Iterable<PluginProperty> properties,
                                                     final CallContext context) throws PaymentPluginApiException {
-        final UUID tenantId = context.getTenantId();
-        final String connectorTxnId = connectorTransactionIdForPayment(kbPaymentId, tenantId);
-        if (connectorTxnId == null) {
-            return persistFailure(kbAccountId, kbPaymentId, kbTransactionId, TransactionType.VOID, null, null,
-                                  PaymentPluginStatus.CANCELED, "No prior authorization to void", "NO_AUTHORIZATION", tenantId);
+        final AuthInfo auth = store.findAuthorization(kbPaymentId, context);
+        if (auth == null) {
+            return fail(kbPaymentId, kbTransactionId, TransactionType.VOID, null, null, PaymentPluginStatus.CANCELED, "No prior authorization to void", "NO_AUTHORIZATION");
         }
         try {
-            final PaymentServiceVoidRequest req = PrismRequestBuilder.voidPayment(kbTransactionId.toString(), connectorTxnId);
-            final PaymentServiceVoidResponse resp = prismClient.voidPayment(tenantId, req);
-            return record(kbAccountId, kbPaymentId, kbTransactionId, TransactionType.VOID, null, null,
-                          connectorTxnId, safe(() -> resp.getStatus().name()), safe(() -> resp.getError().getUnifiedDetails().getMessage()), tenantId);
+            final PaymentServiceVoidRequest req = PrismRequestBuilder.voidPayment(kbTransactionId.toString(), auth.connectorTransactionId);
+            final PaymentServiceVoidResponse resp = prismClient.voidPayment(context.getTenantId(), req);
+            return record(kbPaymentId, kbTransactionId, TransactionType.VOID, null, null, auth.connectorTransactionId,
+                          safe(() -> resp.getStatus().name()), safe(() -> resp.getError().getUnifiedDetails().getMessage()), context);
         } catch (final PrismClientException e) {
-            return recordException(kbAccountId, kbPaymentId, kbTransactionId, TransactionType.VOID, null, null, e, tenantId);
+            return recordException(kbPaymentId, kbTransactionId, TransactionType.VOID, null, null, e);
         }
     }
 
@@ -252,23 +222,19 @@ public class HyperswitchPaymentPluginApi extends PluginPaymentPluginApi<Hyperswi
     public PaymentTransactionInfoPlugin refundPayment(final UUID kbAccountId, final UUID kbPaymentId, final UUID kbTransactionId,
                                                       final UUID kbPaymentMethodId, final BigDecimal amount, final Currency currency,
                                                       final Iterable<PluginProperty> properties, final CallContext context) throws PaymentPluginApiException {
-        final UUID tenantId = context.getTenantId();
-        final HyperswitchResponsesRecord charged = safeGetAuthorization(kbPaymentId, tenantId);
-        final String connectorTxnId = charged == null ? null : charged.getHyperswitchId();
-        if (connectorTxnId == null) {
-            return persistFailure(kbAccountId, kbPaymentId, kbTransactionId, TransactionType.REFUND, amount, currency,
-                                  PaymentPluginStatus.CANCELED, "No captured payment to refund", "NO_CAPTURE", tenantId);
+        final AuthInfo auth = store.findAuthorization(kbPaymentId, context);
+        if (auth == null) {
+            return fail(kbPaymentId, kbTransactionId, TransactionType.REFUND, amount, currency, PaymentPluginStatus.CANCELED, "No captured payment to refund", "NO_CAPTURE");
         }
-        final long paymentMinor = charged.getAmount() != null ? AmountConverter.toMinor(charged.getAmount(), currency) : AmountConverter.toMinor(amount, currency);
+        final long paymentMinor = auth.amount != null ? AmountConverter.toMinor(auth.amount, currency) : AmountConverter.toMinor(amount, currency);
         try {
-            // No refund reason: the field is optional and reason vocabularies are connector-specific
-            // (e.g. Adyen only accepts OTHER/RETURN/DUPLICATE/FRAUD/CUSTOMER REQUEST).
-            final PaymentServiceRefundRequest req = PrismRequestBuilder.refund(kbTransactionId.toString(), connectorTxnId, paymentMinor, AmountConverter.toMinor(amount, currency), currency.name(), null);
-            final RefundResponse resp = prismClient.refund(tenantId, req);
-            return record(kbAccountId, kbPaymentId, kbTransactionId, TransactionType.REFUND, amount, currency,
-                          connectorTxnId, safe(() -> resp.getStatus().name()), safe(() -> resp.getError().getUnifiedDetails().getMessage()), tenantId);
+            // No refund reason: the field is optional and reason vocabularies are connector-specific (e.g. Adyen).
+            final PaymentServiceRefundRequest req = PrismRequestBuilder.refund(kbTransactionId.toString(), auth.connectorTransactionId, paymentMinor, AmountConverter.toMinor(amount, currency), currency.name(), null);
+            final RefundResponse resp = prismClient.refund(context.getTenantId(), req);
+            return record(kbPaymentId, kbTransactionId, TransactionType.REFUND, amount, currency, auth.connectorTransactionId,
+                          safe(() -> resp.getStatus().name()), safe(() -> resp.getError().getUnifiedDetails().getMessage()), context);
         } catch (final PrismClientException e) {
-            return recordException(kbAccountId, kbPaymentId, kbTransactionId, TransactionType.REFUND, amount, currency, e, tenantId);
+            return recordException(kbPaymentId, kbTransactionId, TransactionType.REFUND, amount, currency, e);
         }
     }
 
@@ -276,69 +242,66 @@ public class HyperswitchPaymentPluginApi extends PluginPaymentPluginApi<Hyperswi
     public PaymentTransactionInfoPlugin creditPayment(final UUID kbAccountId, final UUID kbPaymentId, final UUID kbTransactionId,
                                                       final UUID kbPaymentMethodId, final BigDecimal amount, final Currency currency,
                                                       final Iterable<PluginProperty> properties, final CallContext context) throws PaymentPluginApiException {
-        // Prism's default client set has no standalone money-out; unsupported in v1 (see plan risks / PayoutService).
         throw new PaymentPluginApiException("UNSUPPORTED", "creditPayment is not supported by the Hyperswitch Prism plugin");
     }
 
+    // ------------------------------------------------------------------ reads (rebuilt from core + custom fields)
+
     @Override
     public List<PaymentTransactionInfoPlugin> getPaymentInfo(final UUID kbAccountId, final UUID kbPaymentId,
-                                                             final Iterable<PluginProperty> properties, final org.killbill.billing.util.callcontext.TenantContext context) throws PaymentPluginApiException {
-        // Best-effort: PSync any non-terminal payment row before the framework rebuilds the list from the DAO.
-        final UUID tenantId = context.getTenantId();
+                                                             final Iterable<PluginProperty> properties, final TenantContext context) throws PaymentPluginApiException {
+        final List<PaymentTransactionInfoPlugin> result = new ArrayList<>();
         try {
-            for (final HyperswitchResponsesRecord r : dao.getResponses(kbPaymentId, tenantId)) {
-                if (r.getHyperswitchId() == null) {
-                    continue;
+            final Payment payment = killbillAPI.getPaymentApi().getPayment(kbPaymentId, false, false, NO_PROPS, context);
+            final UUID tenantId = context.getTenantId();
+            for (final PaymentTransaction t : payment.getTransactions()) {
+                final String connectorTxnId = store.getConnectorTransactionId(t.getId(), context);
+                final TransactionType txnType = t.getTransactionType();
+                PaymentPluginStatus status = fromCoreStatus(t.getTransactionStatus());
+                if (status == PaymentPluginStatus.PENDING && connectorTxnId != null) {
+                    final PaymentPluginStatus refreshed = trySync(tenantId, connectorTxnId, t, txnType);
+                    if (refreshed != null) {
+                        status = refreshed;
+                    }
                 }
-                final Object status = HyperswitchDao.fromAdditionalData(r.getAdditionalData()).get(HyperswitchPaymentTransactionInfoPlugin.PROPERTY_PLUGIN_STATUS);
-                if (status == null || !PaymentPluginStatus.PENDING.name().equals(status.toString())) {
-                    continue;
-                }
-                final TransactionType txnType = TransactionType.valueOf(r.getTransactionType());
-                if (txnType == TransactionType.REFUND) {
-                    rsync(r, tenantId);
-                } else if (txnType != TransactionType.CREDIT && r.getCurrency() != null) {
-                    psync(r, txnType, tenantId);
-                }
+                result.add(HyperswitchPaymentTransactionInfoPlugin.build(kbPaymentId, t.getId(), txnType, t.getAmount(), t.getCurrency(),
+                                                                         status, connectorTxnId, t.getGatewayErrorMsg(), t.getGatewayErrorCode(),
+                                                                         t.getEffectiveDate() != null ? t.getEffectiveDate() : clock.getUTCNow()));
             }
-        } catch (final SQLException e) {
-            logger.warn("Sync refresh failed for payment {}: {}", kbPaymentId, e.getMessage());
+        } catch (final PaymentApiException e) {
+            throw new PaymentPluginApiException("Unable to load payment " + kbPaymentId, e);
         }
-        return super.getPaymentInfo(kbAccountId, kbPaymentId, properties, context);
+        return result;
     }
 
-    private void rsync(final HyperswitchResponsesRecord r, final UUID tenantId) {
+    private PaymentPluginStatus trySync(final UUID tenantId, final String connectorTxnId, final PaymentTransaction t, final TransactionType txnType) {
         try {
-            final RefundServiceGetRequest req = PrismRequestBuilder.refundGet(r.getKbPaymentTransactionId(), r.getHyperswitchId());
-            final RefundResponse resp = prismClient.refundGet(tenantId, req);
-            final String statusName = safe(() -> resp.getStatus().name());
-            final PaymentPluginStatus mapped = PrismStatusMapper.map(statusName, TransactionType.REFUND);
-            final Map<String, Object> extra = new HashMap<>();
-            extra.put(HyperswitchPaymentTransactionInfoPlugin.PROPERTY_PLUGIN_STATUS, mapped.name());
-            extra.put(HyperswitchPluginProperties.DATA_PRISM_STATUS, statusName);
-            dao.updateResponseAdditionalData(r, extra);
-        } catch (final Exception e) {
-            logger.warn("RSync for transaction {} failed: {}", r.getKbPaymentTransactionId(), e.getMessage());
-        }
-    }
-
-    private void psync(final HyperswitchResponsesRecord r, final TransactionType txnType, final UUID tenantId) {
-        try {
-            final long minor = r.getAmount() == null ? 0L : AmountConverter.toMinor(r.getAmount(), Currency.valueOf(r.getCurrency()));
-            final PaymentServiceGetRequest req = PrismRequestBuilder.get(r.getKbPaymentTransactionId(), r.getHyperswitchId(), minor, r.getCurrency());
+            if (txnType == TransactionType.REFUND || txnType == TransactionType.CREDIT) {
+                final RefundServiceGetRequest req = PrismRequestBuilder.refundGet(t.getId().toString(), connectorTxnId);
+                final RefundResponse resp = prismClient.refundGet(tenantId, req);
+                return PrismStatusMapper.map(safe(() -> resp.getStatus().name()), TransactionType.REFUND);
+            }
+            if (t.getCurrency() == null) {
+                return null;
+            }
+            final long minor = t.getAmount() != null ? AmountConverter.toMinor(t.getAmount(), t.getCurrency()) : 0L;
+            final PaymentServiceGetRequest req = PrismRequestBuilder.get(t.getId().toString(), connectorTxnId, minor, t.getCurrency().name());
             final PaymentServiceGetResponse resp = prismClient.get(tenantId, req);
-            final String statusName = safe(() -> resp.getStatus().name());
-            final PaymentPluginStatus mapped = PrismStatusMapper.map(statusName, txnType);
-            final Map<String, Object> extra = new HashMap<>();
-            extra.put(HyperswitchPaymentTransactionInfoPlugin.PROPERTY_PLUGIN_STATUS, mapped.name());
-            extra.put(HyperswitchPluginProperties.DATA_PRISM_STATUS, statusName);
-            dao.updateResponseAdditionalData(r, extra);
+            return PrismStatusMapper.map(safe(() -> resp.getStatus().name()), txnType);
         } catch (final Exception e) {
-            logger.warn("PSync for transaction {} failed: {}", r.getKbPaymentTransactionId(), e.getMessage());
+            logger.warn("Sync for transaction {} failed: {}", t.getId(), e.getMessage());
+            return null;
         }
     }
 
-    // ------------------------------------------------------------------ payment methods (P2 / P4 Phase A)
+    @Override
+    public Pagination<PaymentTransactionInfoPlugin> searchPayments(final String searchKey, final Long offset, final Long limit,
+                                                                   final Iterable<PluginProperty> properties, final TenantContext context) throws PaymentPluginApiException {
+        logger.info("searchPayments is not supported by the DB-less Hyperswitch plugin (searchKey={})", searchKey);
+        return emptyPagination(offset, limit);
+    }
+
+    // ------------------------------------------------------------------ payment methods (custom-field backed)
 
     @Override
     public void addPaymentMethod(final UUID kbAccountId, final UUID kbPaymentMethodId, final PaymentMethodPlugin paymentMethodProps,
@@ -348,21 +311,20 @@ public class HyperswitchPaymentPluginApi extends PluginPaymentPluginApi<Hyperswi
         final Iterable<PluginProperty> allProps = PluginProperties.merge(paymentMethodProps.getProperties(), properties);
         final HyperswitchPluginProperties.Card card = HyperswitchPluginProperties.extractCard(allProps);
 
-        String hyperswitchId = paymentMethodProps.getExternalPaymentMethodId();
-        final Map<String, Object> data = new LinkedHashMap<>();
+        String token = paymentMethodProps.getExternalPaymentMethodId();
+        String mandateId = null;
+        String connectorCustomerId = null;
 
         if (card != null) {
-            // Phase A: set up a reusable mandate (customer present) so recurring invoices can charge off-session.
             try {
                 final String cc = accountCurrency(kbAccountId, context);
                 // Create the connector-side customer first: Stripe (and others) only allow reusing a stored
                 // payment method off-session when it is attached to a customer.
-                String connectorCustomerId = null;
                 HyperswitchPluginProperties.Billing billing = null;
                 try {
                     final Account account = killbillAPI.getAccountUserApi().getAccountById(kbAccountId, context);
                     billing = toBilling(account);
-                    final types.Payment.CustomerServiceCreateResponse custResp = prismClient.customerCreate(tenantId,
+                    final CustomerServiceCreateResponse custResp = prismClient.customerCreate(tenantId,
                             PrismRequestBuilder.customerCreate(kbAccountId.toString(), account.getName(), account.getEmail()));
                     connectorCustomerId = safe(custResp::getConnectorCustomerId);
                 } catch (final AccountApiException | PrismClientException e) {
@@ -370,43 +332,88 @@ public class HyperswitchPaymentPluginApi extends PluginPaymentPluginApi<Hyperswi
                 }
                 if (connectorCustomerId == null && "adyen".equalsIgnoreCase(config.getConnector())) {
                     // Adyen has no customer-create API; Prism derives the shopperReference at mandate setup as
-                    // "{merchantId}_{customer.id}" (merchant id defaults to DefaultMerchantId in SDK context).
-                    // The MIT charge must present the same reference as connector_customer_id.
+                    // "{merchantId}_{customer.id}". The MIT charge must present the same reference.
                     connectorCustomerId = "DefaultMerchantId_" + kbAccountId;
-                }
-                if (connectorCustomerId != null) {
-                    data.put(HyperswitchPluginProperties.DATA_CUSTOMER_ID, connectorCustomerId);
                 }
                 final PaymentServiceSetupRecurringRequest req = PrismRequestBuilder.setupRecurring(kbPaymentMethodId.toString(), cc, card, billing, kbAccountId.toString(), connectorCustomerId, connectorMetadata(config), config.getReturnUrl());
                 final PaymentServiceSetupRecurringResponse resp = prismClient.setupRecurring(tenantId, req);
                 // Prefer mandate_reference_details.connector_mandate_id — the connector's REUSABLE reference
-                // (Stripe: the pm_… payment method). connector_recurring_payment_id is the registration id
-                // (Stripe: the seti_… SetupIntent), which cannot be charged.
-                final String mandateId = safe(() -> {
+                // (Stripe: the pm_… payment method). connector_recurring_payment_id is the seti_… registration id.
+                mandateId = safe(() -> {
                     if (resp.hasMandateReferenceDetails() && resp.getMandateReferenceDetails().hasConnectorMandateId()) {
                         return resp.getMandateReferenceDetails().getConnectorMandateId();
                     }
                     return resp.hasConnectorRecurringPaymentId() ? resp.getConnectorRecurringPaymentId() : null;
                 });
-                if (mandateId != null) {
-                    data.put(HyperswitchPluginProperties.DATA_MANDATE_ID, mandateId);
-                    if (hyperswitchId == null) {
-                        hyperswitchId = mandateId;
-                    }
+                if (mandateId != null && token == null) {
+                    token = mandateId;
                 }
             } catch (final PrismClientException e) {
                 throw new PaymentPluginApiException("Unable to set up mandate for payment method", e);
             }
         }
 
-        try {
-            dao.addPaymentMethod(kbAccountId, kbPaymentMethodId, hyperswitchId, setDefault, data, clock.getUTCNow(), tenantId);
-        } catch (final SQLException e) {
-            throw new PaymentPluginApiException("Unable to persist payment method", e);
-        }
+        store.savePaymentMethodCredential(kbPaymentMethodId, mandateId, token, connectorCustomerId, context);
     }
 
-    // ------------------------------------------------------------------ webhooks (P3)
+    @Override
+    public void deletePaymentMethod(final UUID kbAccountId, final UUID kbPaymentMethodId, final Iterable<PluginProperty> properties,
+                                    final CallContext context) throws PaymentPluginApiException {
+        store.deletePaymentMethodCredential(kbPaymentMethodId, context);
+    }
+
+    @Override
+    public PaymentMethodPlugin getPaymentMethodDetail(final UUID kbAccountId, final UUID kbPaymentMethodId,
+                                                      final Iterable<PluginProperty> properties, final TenantContext context) throws PaymentPluginApiException {
+        final StoredCredential cred = store.getStoredCredential(kbPaymentMethodId, context);
+        final List<PluginProperty> props = new ArrayList<>();
+        if (cred.mandateId != null) {
+            props.add(new PluginProperty(HyperswitchStateStore.CF_MANDATE_ID, cred.mandateId, false));
+        }
+        if (cred.customerId != null) {
+            props.add(new PluginProperty(HyperswitchStateStore.CF_CUSTOMER_ID, cred.customerId, false));
+        }
+        return new HyperswitchPaymentMethodPlugin(kbPaymentMethodId, cred.token, isDefault(kbAccountId, kbPaymentMethodId, context), props);
+    }
+
+    @Override
+    public void setDefaultPaymentMethod(final UUID kbAccountId, final UUID kbPaymentMethodId, final Iterable<PluginProperty> properties,
+                                        final CallContext context) throws PaymentPluginApiException {
+        // KillBill core manages the default payment method; the plugin stores nothing about it.
+    }
+
+    @Override
+    public List<PaymentMethodInfoPlugin> getPaymentMethods(final UUID kbAccountId, final boolean refreshFromGateway,
+                                                           final Iterable<PluginProperty> properties, final CallContext context) throws PaymentPluginApiException {
+        final List<PaymentMethodInfoPlugin> result = new ArrayList<>();
+        try {
+            final UUID defaultPm = defaultPaymentMethodId(kbAccountId, context);
+            for (final PaymentMethod pm : killbillAPI.getPaymentApi().getAccountPaymentMethods(kbAccountId, false, false, NO_PROPS, context)) {
+                if (!HyperswitchActivator.PLUGIN_NAME.equals(pm.getPluginName())) {
+                    continue;
+                }
+                result.add(new PluginPaymentMethodInfoPlugin(kbAccountId, pm.getId(), pm.getId().equals(defaultPm), pm.getExternalKey()));
+            }
+        } catch (final PaymentApiException e) {
+            throw new PaymentPluginApiException("Unable to list payment methods for account " + kbAccountId, e);
+        }
+        return result;
+    }
+
+    @Override
+    public Pagination<PaymentMethodPlugin> searchPaymentMethods(final String searchKey, final Long offset, final Long limit,
+                                                                final Iterable<PluginProperty> properties, final TenantContext context) throws PaymentPluginApiException {
+        logger.info("searchPaymentMethods is not supported by the DB-less Hyperswitch plugin (searchKey={})", searchKey);
+        return emptyPagination(offset, limit);
+    }
+
+    @Override
+    public void resetPaymentMethods(final UUID kbAccountId, final List<PaymentMethodInfoPlugin> paymentMethods,
+                                    final Iterable<PluginProperty> properties, final CallContext context) throws PaymentPluginApiException {
+        // No plugin-side payment-method table to rewrite on account migration; nothing to do.
+    }
+
+    // ------------------------------------------------------------------ webhooks + HPP
 
     @Override
     public GatewayNotification processNotification(final String notification, final Iterable<PluginProperty> properties,
@@ -414,97 +421,41 @@ public class HyperswitchPaymentPluginApi extends PluginPaymentPluginApi<Hyperswi
         return webhookHandler.processNotification(notification, context);
     }
 
-    /** Servlet entrypoint — full HTTP context. Delegates to the same handler as {@link #processNotification}. */
+    /** Servlet entrypoint — full HTTP context. */
     public HyperswitchGatewayNotification handleWebhook(final UUID tenantId, final String uri, final Map<String, String> headers,
                                                         final byte[] body, final CallContext context) {
         return webhookHandler.handle(tenantId, uri, headers, body, context);
     }
 
-    // ------------------------------------------------------------------ HPP (unused by server-to-server flow)
-
     @Override
     public HostedPaymentPageFormDescriptor buildFormDescriptor(final UUID kbAccountId, final Iterable<PluginProperty> customFields,
                                                                final Iterable<PluginProperty> properties, final CallContext context) throws PaymentPluginApiException {
-        // The server-to-server flow does not use a hosted payment page; return an empty descriptor.
         return new PluginHostedPaymentPageFormDescriptor(kbAccountId, "");
     }
 
     // ------------------------------------------------------------------ helpers
 
-    private PaymentTransactionInfoPlugin record(final UUID kbAccountId, final UUID kbPaymentId, final UUID kbTransactionId,
-                                                final TransactionType txnType, final BigDecimal amount, final Currency currency,
-                                                final String connectorTxnId, final String statusName, final String gatewayError,
-                                                final UUID tenantId) throws PaymentPluginApiException {
-        final PaymentPluginStatus pluginStatus = PrismStatusMapper.map(statusName, txnType);
-        final Map<String, Object> data = HyperswitchPluginProperties.responseData(pluginStatus.name(), statusName, connectorTxnId, gatewayError, null);
-        return persist(kbAccountId, kbPaymentId, kbTransactionId, txnType, amount, currency, connectorTxnId, data, tenantId);
+    private PaymentTransactionInfoPlugin record(final UUID kbPaymentId, final UUID kbTransactionId, final TransactionType txnType,
+                                                final BigDecimal amount, final Currency currency, final String connectorTxnId,
+                                                final String statusName, final String gatewayError, final CallContext context) {
+        store.saveConnectorTransactionId(kbTransactionId, connectorTxnId, statusName, context);
+        final PaymentPluginStatus status = PrismStatusMapper.map(statusName, txnType);
+        return HyperswitchPaymentTransactionInfoPlugin.build(kbPaymentId, kbTransactionId, txnType, amount, currency, status, connectorTxnId, gatewayError, null, clock.getUTCNow());
     }
 
-    private PaymentTransactionInfoPlugin recordException(final UUID kbAccountId, final UUID kbPaymentId, final UUID kbTransactionId,
-                                                         final TransactionType txnType, final BigDecimal amount, final Currency currency,
-                                                         final PrismClientException e, final UUID tenantId) throws PaymentPluginApiException {
-        final PaymentPluginStatus st = e.isRetryable() ? PaymentPluginStatus.ERROR : PaymentPluginStatus.CANCELED;
-        return persistFailure(kbAccountId, kbPaymentId, kbTransactionId, txnType, amount, currency, st, e.getMessage(), e.getErrorCode(), tenantId);
+    private PaymentTransactionInfoPlugin recordException(final UUID kbPaymentId, final UUID kbTransactionId, final TransactionType txnType,
+                                                         final BigDecimal amount, final Currency currency, final PrismClientException e) {
+        final PaymentPluginStatus status = e.isRetryable() ? PaymentPluginStatus.ERROR : PaymentPluginStatus.CANCELED;
+        return fail(kbPaymentId, kbTransactionId, txnType, amount, currency, status, e.getMessage(), e.getErrorCode());
     }
 
-    private PaymentTransactionInfoPlugin persistFailure(final UUID kbAccountId, final UUID kbPaymentId, final UUID kbTransactionId,
-                                                        final TransactionType txnType, final BigDecimal amount, final Currency currency,
-                                                        final PaymentPluginStatus status, final String message, final String code,
-                                                        final UUID tenantId) throws PaymentPluginApiException {
-        final Map<String, Object> data = HyperswitchPluginProperties.responseData(status.name(), null, null, message, code);
-        return persist(kbAccountId, kbPaymentId, kbTransactionId, txnType, amount, currency, null, data, tenantId);
+    private PaymentTransactionInfoPlugin fail(final UUID kbPaymentId, final UUID kbTransactionId, final TransactionType txnType,
+                                              final BigDecimal amount, final Currency currency, final PaymentPluginStatus status,
+                                              final String message, final String code) {
+        return HyperswitchPaymentTransactionInfoPlugin.build(kbPaymentId, kbTransactionId, txnType, amount, currency, status, null, message, code, clock.getUTCNow());
     }
 
-    private PaymentTransactionInfoPlugin persist(final UUID kbAccountId, final UUID kbPaymentId, final UUID kbTransactionId,
-                                                 final TransactionType txnType, final BigDecimal amount, final Currency currency,
-                                                 final String connectorTxnId, final Map<String, Object> data, final UUID tenantId) throws PaymentPluginApiException {
-        try {
-            final HyperswitchResponsesRecord r = dao.addResponse(kbAccountId, kbPaymentId, kbTransactionId, txnType, amount, currency, connectorTxnId, data, clock.getUTCNow(), tenantId);
-            return HyperswitchPaymentTransactionInfoPlugin.build(r);
-        } catch (final SQLException e) {
-            throw new PaymentPluginApiException("Unable to persist Hyperswitch response for " + txnType, e);
-        }
-    }
-
-    private String connectorTransactionIdForPayment(final UUID kbPaymentId, final UUID tenantId) {
-        final HyperswitchResponsesRecord auth = safeGetAuthorization(kbPaymentId, tenantId);
-        return auth == null ? null : auth.getHyperswitchId();
-    }
-
-    private HyperswitchResponsesRecord safeGetAuthorization(final UUID kbPaymentId, final UUID tenantId) {
-        try {
-            return dao.getSuccessfulAuthorizationResponse(kbPaymentId, tenantId);
-        } catch (final SQLException e) {
-            logger.warn("Failed to load authorization for payment {}: {}", kbPaymentId, e.getMessage());
-            return null;
-        }
-    }
-
-    private StoredCredential loadStoredCredential(final UUID kbPaymentMethodId, final UUID tenantId) {
-        if (kbPaymentMethodId == null) {
-            return null;
-        }
-        try {
-            final HyperswitchPaymentMethodsRecord pm = dao.getPaymentMethod(kbPaymentMethodId, tenantId);
-            if (pm == null) {
-                return null;
-            }
-            final Map<String, Object> pmData = HyperswitchDao.fromAdditionalData(pm.getAdditionalData());
-            final Object mandate = pmData.get(HyperswitchPluginProperties.DATA_MANDATE_ID);
-            final Object customer = pmData.get(HyperswitchPluginProperties.DATA_CUSTOMER_ID);
-            return new StoredCredential(mandate == null ? null : mandate.toString(),
-                                        pm.getHyperswitchId(),
-                                        customer == null ? null : customer.toString());
-        } catch (final SQLException e) {
-            logger.warn("Failed to load payment method {}: {}", kbPaymentMethodId, e.getMessage());
-            return null;
-        }
-    }
-
-    /**
-     * Connector-specific request metadata JSON (config key {@code <connector>.metadata}); defaults to "{}"
-     * because some transformers (Cybersource) refuse requests with no metadata at all.
-     */
+    /** Connector-specific request metadata JSON (config key {@code <connector>.metadata}); defaults to "{}". */
     private static String connectorMetadata(final HyperswitchConfigProperties config) {
         final String configured = config.getConnectorProperty("metadata");
         return configured != null ? configured : "{}";
@@ -534,6 +485,35 @@ public class HyperswitchPaymentPluginApi extends PluginPaymentPluginApi<Hyperswi
         }
     }
 
+    private boolean isDefault(final UUID kbAccountId, final UUID kbPaymentMethodId, final TenantContext context) {
+        return kbPaymentMethodId.equals(defaultPaymentMethodId(kbAccountId, context));
+    }
+
+    private UUID defaultPaymentMethodId(final UUID kbAccountId, final TenantContext context) {
+        try {
+            return killbillAPI.getAccountUserApi().getAccountById(kbAccountId, context).getPaymentMethodId();
+        } catch (final AccountApiException e) {
+            return null;
+        }
+    }
+
+    private static PaymentPluginStatus fromCoreStatus(final TransactionStatus status) {
+        if (status == null) {
+            return PaymentPluginStatus.UNDEFINED;
+        }
+        switch (status) {
+            case SUCCESS:
+                return PaymentPluginStatus.PROCESSED;
+            case PENDING:
+                return PaymentPluginStatus.PENDING;
+            case PAYMENT_FAILURE:
+            case PLUGIN_FAILURE:
+                return PaymentPluginStatus.ERROR;
+            default:
+                return PaymentPluginStatus.UNDEFINED;
+        }
+    }
+
     private static String safe(final Supplier<String> supplier) {
         try {
             final String value = supplier.get();
@@ -543,16 +523,32 @@ public class HyperswitchPaymentPluginApi extends PluginPaymentPluginApi<Hyperswi
         }
     }
 
-    /** A reusable off-session credential for merchant-initiated charges. */
-    private static final class StoredCredential {
-        final String mandateId;
-        final String token;
-        final String customerId;
+    private static <T> Pagination<T> emptyPagination(final Long offset, final Long limit) {
+        return new Pagination<T>() {
+            @Override
+            public Long getCurrentOffset() {
+                return offset == null ? 0L : offset;
+            }
 
-        StoredCredential(final String mandateId, final String token, final String customerId) {
-            this.mandateId = mandateId;
-            this.token = token;
-            this.customerId = customerId;
-        }
+            @Override
+            public Long getNextOffset() {
+                return null;
+            }
+
+            @Override
+            public Long getMaxNbRecords() {
+                return 0L;
+            }
+
+            @Override
+            public Long getTotalNbRecords() {
+                return 0L;
+            }
+
+            @Override
+            public Iterator<T> iterator() {
+                return Collections.<T>emptyIterator();
+            }
+        };
     }
 }
