@@ -1036,7 +1036,7 @@ struct CommercialCardContext {
     tax_category: Option<TsysTransitTaxCategory>,
     shipping_charges: Option<StringMajorUnit>,
     duty_charges: Option<StringMajorUnit>,
-    product_details: Vec<TsysTransitProductDetails>,
+    product_details: Option<Vec<TsysTransitProductDetails>>,
     commercial_card_level: Option<TsysTransitCommercialCardLevel>,
     purchase_order: Option<String>,
     charge_descriptor: Option<String>,
@@ -1795,7 +1795,7 @@ fn compute_commercial_card_context<
             tax_category,
             shipping_charges,
             duty_charges,
-            product_details: product_details.unwrap_or(Vec::new()),
+            product_details,
             commercial_card_level: Some(TsysTransitCommercialCardLevel::Level3),
             purchase_order: purchase_order.clone(),
             charge_descriptor,
@@ -1842,9 +1842,9 @@ fn compute_commercial_card_context<
             tax_amount,
             tax_rate: derived_tax_rate.clone(),
             tax_category,
-            shipping_charges: None,
-            duty_charges: None,
-            product_details: Vec::new(),
+            shipping_charges,
+            duty_charges,
+            product_details,
             commercial_card_level: Some(TsysTransitCommercialCardLevel::Level2),
             purchase_order: purchase_order.clone(),
             charge_descriptor,
@@ -1854,12 +1854,12 @@ fn compute_commercial_card_context<
             customer_vat_number,
             customer_ref_id,
             supplier_reference_number,
-            order_date: None,
-            summary_commodity_code: None,
-            vat_invoice: None,
-            ship_from_zip: None,
+            order_date,
+            summary_commodity_code,
+            vat_invoice,
+            ship_from_zip,
             ship_to_zip,
-            destination_country_code: None,
+            destination_country_code,
             acceptor_customer_service_phone_number,
             acceptor_street_address,
             acceptor_url,
@@ -2225,6 +2225,25 @@ fn assemble_authorize_body(
         &profile,
         commercial_card_context.customer_vat_number,
     )?;
+    let shipping_charges =
+        rules::commercial::shipping_charges(&profile, commercial_card_context.shipping_charges)?;
+    let duty_charges =
+        rules::commercial::duty_charges(&profile, commercial_card_context.duty_charges)?;
+    let product_details =
+        rules::commercial::product_details(&profile, commercial_card_context.product_details)?;
+    let order_date = rules::commercial::order_date(&profile, commercial_card_context.order_date)?;
+    let summary_commodity_code = rules::commercial::summary_commodity_code(
+        &profile,
+        commercial_card_context.summary_commodity_code,
+    )?;
+    let vat_invoice =
+        rules::commercial::vat_invoice(&profile, commercial_card_context.vat_invoice)?;
+    let ship_from_zip =
+        rules::commercial::ship_from_zip(&profile, commercial_card_context.ship_from_zip)?;
+    let destination_country_code = rules::commercial::destination_country_code(
+        &profile,
+        commercial_card_context.destination_country_code,
+    )?;
 
     Ok(TsysTransitAuthorizeBody {
         device_id: auth.device_id,
@@ -2234,8 +2253,8 @@ fn assemble_authorize_body(
         sales_tax,
         surcharge,
         additional_tax_details,
-        shipping_charges: commercial_card_context.shipping_charges,
-        duty_charges: commercial_card_context.duty_charges,
+        shipping_charges,
+        duty_charges,
         card_number,
         expiration_date,
         cvv2,
@@ -2252,7 +2271,7 @@ fn assemble_authorize_body(
         address_line1,
         zip,
         external_reference_id,
-        product_details: commercial_card_context.product_details,
+        product_details,
         commercial_card_level: commercial_card_context.commercial_card_level,
         // Per-field commercial gating from rules::commercial.
         purchase_order: rules::commercial::purchase_order(
@@ -2272,15 +2291,12 @@ fn assemble_authorize_body(
             &profile,
             commercial_card_context.supplier_reference_number,
         ),
-        order_date: commercial_card_context.order_date,
-        summary_commodity_code: commercial_card_context.summary_commodity_code,
-        vat_invoice: commercial_card_context.vat_invoice,
-        ship_from_zip: commercial_card_context.ship_from_zip,
+        order_date,
+        summary_commodity_code,
+        vat_invoice,
+        ship_from_zip,
         ship_to_zip: rules::commercial::ship_to_zip(&profile, commercial_card_context.ship_to_zip),
-        destination_country_code: rules::commercial::destination_country_code(
-            &profile,
-            commercial_card_context.destination_country_code,
-        ),
+        destination_country_code,
         card_on_file: card_on_file_from_rule,
         partial_auth_support,
         terminal_capability,

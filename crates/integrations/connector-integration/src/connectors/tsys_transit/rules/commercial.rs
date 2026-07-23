@@ -28,7 +28,28 @@ use domain_types::errors::IntegrationError;
 use error_stack::Report;
 
 use super::super::profile::{CardFamily, CommercialLevel, TxProfile};
-use super::super::transformers::{TsysTransitAdditionalTaxDetails, TsysTransitTaxCategory};
+use super::super::transformers::{
+    TsysTransitAdditionalTaxDetails, TsysTransitProductDetails, TsysTransitTaxCategory,
+};
+
+/// Shared shape for the batch of Level-III-only fields below: not sent (and
+/// not required) below Level III; mandatory once the profile IS Level III.
+fn require_for_l3<T>(
+    profile: &TxProfile,
+    raw: Option<T>,
+    field_name: &'static str,
+) -> Result<Option<T>, Report<IntegrationError>> {
+    if !profile.commercial_level.is_l3() {
+        return Ok(None);
+    }
+
+    let value = raw.ok_or_else(|| IntegrationError::MissingRequiredField {
+        field_name,
+        context: Default::default(),
+    })?;
+
+    Ok(Some(value))
+}
 
 /// `purchaseOrder` — Visa / Mastercard only. Strip on AMEX.
 pub fn purchase_order(profile: &TxProfile, raw: Option<String>) -> Option<String> {
@@ -71,13 +92,22 @@ pub fn ship_to_zip(profile: &TxProfile, raw: Option<String>) -> Option<String> {
     }
 }
 
-/// `destinationCountryCode` — Visa / Mastercard L3 only.
-pub fn destination_country_code(profile: &TxProfile, raw: Option<String>) -> Option<String> {
-    if profile.commercial_level.is_l3() && profile.card_family.is_visa_or_mastercard() {
-        raw
-    } else {
-        None
+/// `destinationCountryCode` — Visa / Mastercard L3 only; mandatory in that
+/// case, not sent (and not required) otherwise.
+pub fn destination_country_code(
+    profile: &TxProfile,
+    raw: Option<String>,
+) -> Result<Option<String>, Report<IntegrationError>> {
+    if !(profile.commercial_level.is_l3() && profile.card_family.is_visa_or_mastercard()) {
+        return Ok(None);
     }
+
+    let destination_country_code = raw.ok_or_else(|| IntegrationError::MissingRequiredField {
+        field_name: "destinationCountryCode required when commercial_card_level is LEVEL3",
+        context: Default::default(),
+    })?;
+
+    Ok(Some(destination_country_code))
 }
 
 /// `commercialCardLevel` — sent only when L2 or L3.
@@ -159,6 +189,92 @@ pub fn amex_l2_extras_required(profile: &TxProfile) -> bool {
 /// destinationCountryCode).
 pub fn l3_visa_mc_required(profile: &TxProfile) -> bool {
     profile.commercial_level.is_l3() && profile.card_family.is_visa_or_mastercard()
+}
+
+/// `shippingCharges` — Level III only; mandatory in that case.
+pub fn shipping_charges(
+    profile: &TxProfile,
+    raw: Option<StringMajorUnit>,
+) -> Result<Option<StringMajorUnit>, Report<IntegrationError>> {
+    require_for_l3(
+        profile,
+        raw,
+        "shippingCharges required when commercial_card_level is LEVEL3",
+    )
+}
+
+/// `dutyCharges` — Level III only; mandatory in that case.
+pub fn duty_charges(
+    profile: &TxProfile,
+    raw: Option<StringMajorUnit>,
+) -> Result<Option<StringMajorUnit>, Report<IntegrationError>> {
+    require_for_l3(
+        profile,
+        raw,
+        "dutyCharges required when commercial_card_level is LEVEL3",
+    )
+}
+
+/// `productDetails` — Level III only (order line items); mandatory in that
+/// case, empty otherwise.
+pub fn product_details(
+    profile: &TxProfile,
+    raw: Option<Vec<TsysTransitProductDetails>>,
+) -> Result<Vec<TsysTransitProductDetails>, Report<IntegrationError>> {
+    Ok(require_for_l3(
+        profile,
+        raw,
+        "productDetails required when commercial_card_level is LEVEL3",
+    )?
+    .unwrap_or_default())
+}
+
+/// `orderDate` — Level III only; mandatory in that case.
+pub fn order_date(
+    profile: &TxProfile,
+    raw: Option<String>,
+) -> Result<Option<String>, Report<IntegrationError>> {
+    require_for_l3(
+        profile,
+        raw,
+        "orderDate required when commercial_card_level is LEVEL3",
+    )
+}
+
+/// `summaryCommodityCode` — Level III only; mandatory in that case.
+pub fn summary_commodity_code(
+    profile: &TxProfile,
+    raw: Option<String>,
+) -> Result<Option<String>, Report<IntegrationError>> {
+    require_for_l3(
+        profile,
+        raw,
+        "summaryCommodityCode required when commercial_card_level is LEVEL3",
+    )
+}
+
+/// `vatInvoice` — Level III only; mandatory in that case.
+pub fn vat_invoice(
+    profile: &TxProfile,
+    raw: Option<String>,
+) -> Result<Option<String>, Report<IntegrationError>> {
+    require_for_l3(
+        profile,
+        raw,
+        "vatInvoice required when commercial_card_level is LEVEL3",
+    )
+}
+
+/// `shipFromZip` — Level III only; mandatory in that case.
+pub fn ship_from_zip(
+    profile: &TxProfile,
+    raw: Option<String>,
+) -> Result<Option<String>, Report<IntegrationError>> {
+    require_for_l3(
+        profile,
+        raw,
+        "shipFromZip required when commercial_card_level is LEVEL3",
+    )
 }
 
 /// `additionalTaxDetails` — Level III only. Not sent (empty) on any other
