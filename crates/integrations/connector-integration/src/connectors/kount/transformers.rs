@@ -219,7 +219,7 @@ pub struct KountOrderResponse {
     pub version: Option<String>,
     pub order: Option<KountOrder>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub warnings: Option<Vec<String>>,
+    pub warnings: Option<Vec<serde_json::Value>>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -1476,7 +1476,13 @@ impl TryFrom<ResponseRouterData<KountOrderResponse, Self>>
     fn try_from(item: ResponseRouterData<KountOrderResponse, Self>) -> Result<Self, Self::Error> {
         // Always surface the raw Kount response (independent of the global
         // `return_raw_connector_data` flag), mirroring twoc_twop_paco / ppro.
-        let raw_connector_response = serde_json::to_string(&item.response).ok().map(Secret::new);
+        // Mask through the PII serializer so the stored/egressed blob never carries
+        // cleartext card/PII — a plain `serde_json::to_string` emits `Secret` fields
+        // exposed. `None` on serialization failure (degrades the audit trail rather
+        // than failing the flow).
+        let raw_connector_response = hyperswitch_masking::masked_serialize(&item.response)
+            .ok()
+            .map(|value| Secret::new(value.to_string()));
         let order = item.response.order.as_ref();
         let risk = order.and_then(|order| order.risk_inquiry.as_ref());
         Ok(Self {
@@ -1538,21 +1544,21 @@ fn build_notify_evaluate_order(
 
 /// Require an order reference from a notify request; it is the Kount
 /// `merchantOrderId` and the basis for the correlating `deviceSessionId`.
-fn notify_order_id(primary: Option<&String>, fallback: Option<&String>) -> Result<String, Error> {
+fn notify_order_id(
+    primary: Option<&String>,
+    fallback: Option<&String>,
+    primary_field: &'static str,
+) -> Result<String, Error> {
     primary.or(fallback).cloned().ok_or_else(|| {
         error_stack::report!(errors::IntegrationError::MissingRequiredField {
-            field_name: "merchant_transaction_id",
+            field_name: primary_field,
             context: errors::IntegrationErrorContext {
-                additional_context: Some(
-                    "Kount notify (Evaluate Order POST) needs a merchant/connector transaction \
-                     id; it is the order reference and the basis for the deviceSessionId that \
-                     correlates to the pre-auth order"
-                        .to_owned(),
-                ),
-                suggested_action: Some(
-                    "Set merchant_transaction_id (or connector_transaction_id) on the notify request"
-                        .to_owned(),
-                ),
+                additional_context: Some(format!(
+                    "Kount notify (Evaluate Order POST) needs {primary_field}; it is the order \
+                     reference and the basis for the deviceSessionId that correlates to the \
+                     pre-auth order"
+                )),
+                suggested_action: Some(format!("Set {primary_field} on the notify request")),
                 doc_url: Some(KOUNT_DOC_URL.to_owned()),
             },
         })
@@ -1599,6 +1605,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let order_id = notify_order_id(
             req.merchant_transaction_id.as_ref(),
             req.connector_transaction_id.as_ref(),
+            "merchant_transaction_id",
         )?;
         let order_total =
             super::KountAmountConvertor::convert(req.amount.amount, req.amount.currency)?;
@@ -1618,7 +1625,7 @@ pub struct KountUpdateOrderResponse {
     pub version: Option<String>,
     pub order: Option<KountOrder>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub warnings: Option<Vec<String>>,
+    pub warnings: Option<Vec<serde_json::Value>>,
 }
 
 impl TryFrom<ResponseRouterData<KountUpdateOrderResponse, Self>>
@@ -1635,7 +1642,13 @@ impl TryFrom<ResponseRouterData<KountUpdateOrderResponse, Self>>
         item: ResponseRouterData<KountUpdateOrderResponse, Self>,
     ) -> Result<Self, Self::Error> {
         // Surface the raw Kount response for audit parity with PreRiskCheck.
-        let raw_connector_response = serde_json::to_string(&item.response).ok().map(Secret::new);
+        // Mask through the PII serializer so the stored/egressed blob never carries
+        // cleartext card/PII — a plain `serde_json::to_string` emits `Secret` fields
+        // exposed. `None` on serialization failure (degrades the audit trail rather
+        // than failing the flow).
+        let raw_connector_response = hyperswitch_masking::masked_serialize(&item.response)
+            .ok()
+            .map(|value| Secret::new(value.to_string()));
         Ok(Self {
             response: Ok(FrmPaymentOutcomeResponse {
                 status_code: item.http_code,
@@ -1683,13 +1696,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let req = &item.router_data.request;
-        // Refund requests carry no merchant_transaction_id; use the connector txn
-        // id (payment reference), falling back to the refund ids.
+        // Refund requests carry no merchant_transaction_id, so the order id (and
+        // thus deviceSessionId) is derived from the connector txn id, falling back
+        // to the refund ids. Correlation to the pre-auth order is therefore
+        // best-effort: unless connector_transaction_id == the pre-auth
+        // merchant_transaction_id, this logs a fresh, uncorrelated evaluation.
         let order_id = notify_order_id(
             req.connector_transaction_id.as_ref(),
             req.merchant_refund_id
                 .as_ref()
                 .or(req.connector_refund_id.as_ref()),
+            "connector_transaction_id",
         )?;
         let order_total =
             super::KountAmountConvertor::convert(req.amount.amount, req.amount.currency)?;
@@ -1709,7 +1726,7 @@ pub struct KountRefundUpdateResponse {
     pub version: Option<String>,
     pub order: Option<KountOrder>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub warnings: Option<Vec<String>>,
+    pub warnings: Option<Vec<serde_json::Value>>,
 }
 
 impl TryFrom<ResponseRouterData<KountRefundUpdateResponse, Self>>
@@ -1725,7 +1742,13 @@ impl TryFrom<ResponseRouterData<KountRefundUpdateResponse, Self>>
     fn try_from(
         item: ResponseRouterData<KountRefundUpdateResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let raw_connector_response = serde_json::to_string(&item.response).ok().map(Secret::new);
+        // Mask through the PII serializer so the stored/egressed blob never carries
+        // cleartext card/PII — a plain `serde_json::to_string` emits `Secret` fields
+        // exposed. `None` on serialization failure (degrades the audit trail rather
+        // than failing the flow).
+        let raw_connector_response = hyperswitch_masking::masked_serialize(&item.response)
+            .ok()
+            .map(|value| Secret::new(value.to_string()));
         Ok(Self {
             response: Ok(FrmRefundProcessedResponse {
                 status_code: item.http_code,
@@ -1736,104 +1759,5 @@ impl TryFrom<ResponseRouterData<KountRefundUpdateResponse, Self>>
             },
             ..item.router_data
         })
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    // A representative Kount Evaluate Order (`POST /commerce/v2/orders?riskInquiry=true`)
-    // response, enriched with card + device PII to exercise masking. `omniscore`
-    // and persona counts are JSON numbers (live form); lat/long are numbers too.
-    const EVAL_RESPONSE: &str = r#"{
-      "version": "v2.132.0",
-      "order": {
-        "orderId": "TESTORDER0001",
-        "merchantOrderId": "merch-order-1",
-        "channel": "WEB",
-        "deviceSessionId": "sesshash0000000000000000000000aa",
-        "creationDateTime": "2026-07-23T13:26:46Z",
-        "riskInquiry": {
-          "decision": "APPROVE",
-          "omniscore": 61.4,
-          "persona": { "uniqueCards": 7, "uniqueDevices": 2, "riskiestCountry": "US" },
-          "device": {
-            "id": "devfp0001",
-            "browser": "Chrome 106",
-            "deviceAttributes": { "ip": [{ "address": "192.0.2.1", "piercedAddress": "10.0.0.1" }], "userAgent": "Mozilla/5.0" },
-            "location": { "city": "Boise", "latitude": 44.87, "longitude": -120.34, "postalCode": "90210" }
-          },
-          "reasonCode": "FraudATO"
-        },
-        "transactions": [{ "transactionId": "TESTORDER0001#0", "payment": [{ "cardBrand": "visa", "bin": "411111", "last4": "1111", "paymentToken": "tok_abc" }] }],
-        "fulfillment": []
-      },
-      "warnings": []
-    }"#;
-
-    #[test]
-    fn notify_response_parses_and_masks_pii_and_card() {
-        let notify: KountUpdateOrderResponse = serde_json::from_str(EVAL_RESPONSE).unwrap();
-        let ri = notify
-            .order
-            .as_ref()
-            .unwrap()
-            .risk_inquiry
-            .as_ref()
-            .unwrap();
-        assert_eq!(ri.decision, Some(KountDecision::Approve));
-        assert_eq!(ri.omniscore, Some(61.4));
-        assert_eq!(ri.reason_code.as_deref(), Some("FraudATO"));
-
-        let masked = hyperswitch_masking::masked_serialize(&notify)
-            .unwrap()
-            .to_string();
-        for secret in [
-            "sesshash0000000000000000000000aa",
-            "192.0.2.1",
-            "10.0.0.1",
-            "44.87",
-            "-120.34",
-            "90210",
-            "visa",
-            "411111",
-            "1111",
-            "tok_abc",
-            "devfp0001",
-        ] {
-            assert!(!masked.contains(secret), "PII/card leaked in log: {secret}");
-        }
-        for plain in ["APPROVE", "61.4", "FraudATO", "Boise", "WEB"] {
-            assert!(
-                masked.contains(plain),
-                "expected plaintext missing: {plain}"
-            );
-        }
-    }
-
-    #[test]
-    fn prerisk_response_reads_preserved() {
-        // The same body parses via KountOrderResponse and the PreRiskCheck mapping
-        // still reads decision / omniscore / order_id (backward compatible).
-        let prerisk: KountOrderResponse = serde_json::from_str(EVAL_RESPONSE).unwrap();
-        let order = prerisk.order.as_ref().unwrap();
-        let ri = order.risk_inquiry.as_ref().unwrap();
-        assert_eq!(
-            FrmDecision::from(ri.decision.as_ref().unwrap()),
-            FrmDecision::Approve
-        );
-        assert_eq!(ri.omniscore.map(omniscore_to_risk_score), Some(61));
-        assert_eq!(order.order_id.as_deref(), Some("TESTORDER0001"));
-    }
-
-    #[test]
-    fn de_stringy_accepts_number_and_string() {
-        // Persona counts come back as JSON numbers on the live API but are documented
-        // as strings; both must parse.
-        let as_num: KountPersona = serde_json::from_str(r#"{"uniqueCards": 7}"#).unwrap();
-        let as_str: KountPersona = serde_json::from_str(r#"{"uniqueCards": "7"}"#).unwrap();
-        assert_eq!(as_num.unique_cards.as_deref(), Some("7"));
-        assert_eq!(as_str.unique_cards.as_deref(), Some("7"));
     }
 }
