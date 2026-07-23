@@ -154,20 +154,23 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 })
             })?;
 
+        let customer = req
+            .customer
+            .as_ref()
+            .ok_or_else(|| report!(IntegrationError::MissingRequiredField {
+                field_name: "customer",
+                context: IntegrationErrorContext {
+                    additional_context: Some("customer is required for Plaid Link token creation".to_owned()),
+                    suggested_action: Some("Provide customer details including customer_id in the request".to_owned()),
+                    doc_url: Some("https://plaid.com/docs/api/tokens/#linktokencreate-user".to_owned()),
+                },
+            }))?;
+
         let user = PlaidUser {
-            client_user_id: req
-                .customer_id
-                .as_ref()
-                .map(|id| id.get_string_repr().to_owned())
-                .unwrap_or_else(|| {
-                    item.router_data
-                        .resource_common_data
-                        .connector_request_reference_id
-                        .clone()
-                }),
-            legal_name: req.customer_name.clone(),
-            email_address: req.email.clone(),
-            phone_number: req.phone_number.clone(),
+            client_user_id: customer.get_customer_id()?.get_string_repr().to_owned(),
+            legal_name: customer.customer_name.clone(),
+            email_address: customer.customer_email.clone(),
+            phone_number: customer.customer_phone_number.clone(),
         };
 
         let country_codes = req

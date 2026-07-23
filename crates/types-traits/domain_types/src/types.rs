@@ -10139,49 +10139,10 @@ impl ForeignTryFrom<MerchantAuthenticationServiceCreateClientAuthenticationToken
                     })
                     .collect();
 
-                let (customer_id, email, customer_name, phone_number) = if let Some(customer) =
-                    auth_ctx.customer.as_ref()
-                {
-                    let customer_id = customer
-                        .id
-                        .as_ref()
-                        .map(|id| common_utils::id_type::CustomerId::from_str(id))
-                        .transpose()
-                        .change_context(IntegrationError::InvalidDataFormat {
-                            field_name: "authenticator_context.customer.id",
-                            context: IntegrationErrorContext {
-                                additional_context: Some("Failed to parse customer id".to_string()),
-                                ..Default::default()
-                            },
-                        })?;
-
-                    let email: Option<Email> = match customer.email.as_ref() {
-                        Some(email_str) => {
-                            Some(Email::try_from(email_str.clone().expose()).map_err(|_| {
-                                error_stack::Report::new(IntegrationError::InvalidDataFormat {
-                                    field_name: "authenticator_context.customer.email",
-                                    context: IntegrationErrorContext {
-                                        additional_context: Some(
-                                            "Invalid email format".to_string(),
-                                        ),
-                                        ..Default::default()
-                                    },
-                                })
-                            })?)
-                        }
-                        None => None,
-                    };
-
-                    let customer_name = customer.name.clone().map(Secret::new);
-                    let phone_number = customer
-                        .phone_number
-                        .clone()
-                        .map(|p| Secret::new(p.expose()));
-
-                    (customer_id, email, customer_name, phone_number)
-                } else {
-                    (None, None, None, None)
-                };
+                let customer = auth_ctx
+                    .customer
+                    .map(CustomerInfo::foreign_try_from)
+                    .transpose()?;
 
                 Ok(Self {
                     amount: common_utils::types::MinorUnit::new(0),
@@ -10191,10 +10152,7 @@ impl ForeignTryFrom<MerchantAuthenticationServiceCreateClientAuthenticationToken
                     order_tax_amount: None,
                     shipping_cost: None,
                     payment_method_type: None,
-                    email,
-                    customer_name,
-                    customer_id,
-                    phone_number,
+                    customer,
                     webhook_url: auth_ctx.webhook_url,
                     country_codes,
                     locale: auth_ctx.locale,
@@ -10218,46 +10176,6 @@ impl ForeignTryFrom<MerchantAuthenticationServiceCreateClientAuthenticationToken
                     payment_ctx.payment_method_type(),
                 )?;
 
-                let customer_id = payment_ctx
-                    .customer
-                    .as_ref()
-                    .and_then(|c| c.id.as_ref())
-                    .map(|id| common_utils::id_type::CustomerId::from_str(id))
-                    .transpose()
-                    .change_context(IntegrationError::InvalidDataFormat {
-                        field_name: "customer.id",
-                        context: IntegrationErrorContext {
-                            additional_context: Some("Failed to parse customer id".to_string()),
-                            ..Default::default()
-                        },
-                    })?;
-
-                let email: Option<Email> = match payment_ctx
-                    .customer
-                    .as_ref()
-                    .and_then(|c| c.email.as_ref())
-                {
-                    Some(email_str) => {
-                        Some(Email::try_from(email_str.clone().expose()).map_err(|_| {
-                            error_stack::Report::new(IntegrationError::InvalidDataFormat {
-                                field_name: "payment_context.customer.email",
-                                context: IntegrationErrorContext {
-                                    additional_context: Some(
-                                        "Invalid email format in payment context customer"
-                                            .to_string(),
-                                    ),
-                                    suggested_action: Some(
-                                        "Provide a valid email address in payment_context.customer.email"
-                                            .to_string(),
-                                    ),
-                                    doc_url: None,
-                                },
-                            })
-                        })?)
-                    }
-                    None => None,
-                };
-
                 let country = {
                     let country_code = payment_ctx.country_alpha2_code();
                     if matches!(
@@ -10270,14 +10188,17 @@ impl ForeignTryFrom<MerchantAuthenticationServiceCreateClientAuthenticationToken
                     }
                 };
 
+                let customer = payment_ctx
+                    .customer
+                    .map(CustomerInfo::foreign_try_from)
+                    .transpose()?;
+
                 Ok(Self {
                     amount: money.amount,
                     currency: money.currency,
                     country,
                     order_details: None,
-                    email,
-                    customer_name: payment_ctx.customer.and_then(|c| c.name).map(Secret::new),
-                    phone_number: None,
+                    customer,
                     order_tax_amount: payment_ctx
                         .order_tax_amount
                         .map(common_utils::types::MinorUnit::new),
@@ -10286,7 +10207,6 @@ impl ForeignTryFrom<MerchantAuthenticationServiceCreateClientAuthenticationToken
                         .map(common_utils::types::MinorUnit::new),
                     payment_method_type,
                     permissions,
-                    customer_id,
                     webhook_url: None,
                     country_codes: vec![],
                     locale: None,
@@ -10300,10 +10220,7 @@ impl ForeignTryFrom<MerchantAuthenticationServiceCreateClientAuthenticationToken
                 order_tax_amount: None,
                 shipping_cost: None,
                 payment_method_type: None,
-                email: None,
-                customer_name: None,
-                customer_id: None,
-                phone_number: None,
+                customer: None,
                 webhook_url: None,
                 country_codes: vec![],
                 locale: None,

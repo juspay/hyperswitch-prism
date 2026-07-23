@@ -2273,10 +2273,7 @@ pub struct ClientAuthenticationTokenRequestData {
     pub currency: Currency,
     pub country: Option<common_enums::CountryAlpha2>,
     pub order_details: Option<Vec<payment_address::OrderDetailsWithAmount>>,
-    pub email: Option<Email>,
-    pub customer_name: Option<Secret<String>>,
-    pub customer_id: Option<CustomerId>,
-    pub phone_number: Option<Secret<String>>,
+    pub customer: Option<CustomerInfo>,
     pub order_tax_amount: Option<MinorUnit>,
     pub shipping_cost: Option<MinorUnit>,
     /// The specific payment method type for which the session token is being generated
@@ -4435,6 +4432,12 @@ pub struct CustomerInfo {
 }
 
 impl CustomerInfo {
+    pub fn get_customer_id(&self) -> Result<&CustomerId, Error> {
+        self.customer_id
+            .as_ref()
+            .ok_or_else(missing_field_err("customer.customer_id"))
+    }
+
     pub fn get_phone_number(&self) -> Result<Secret<String>, Error> {
         self.customer_phone_number
             .clone()

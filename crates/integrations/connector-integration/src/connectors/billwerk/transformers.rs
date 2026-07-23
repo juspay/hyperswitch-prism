@@ -778,17 +778,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .clone()
             .unwrap_or_else(|| "https://hyperswitch.io".to_string());
 
-        let customer_handle = router_data
+        let customer_info = router_data
             .request
-            .customer_id
+            .customer
             .as_ref()
-            .map(|id| id.get_string_repr().to_owned())
             .ok_or_else(|| {
                 error_stack::report!(IntegrationError::MissingRequiredField {
-                    field_name: "customer_id",
+                    field_name: "customer",
                     context: IntegrationErrorContext {
                         suggested_action: Some(
-                            "Provide a `customer_id` when creating the client authentication \
+                            "Provide a `customer` when creating the client authentication \
                              token. Billwerk uses it as the customer handle for the checkout \
                              session."
                                 .to_owned(),
@@ -805,15 +804,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 })
             })?;
 
+        let customer_handle = customer_info
+            .get_customer_id()
+            .map(|id| id.get_string_repr().to_owned())?;
+
         let customer = BillwerkSessionCustomer {
             handle: customer_handle,
-            email: router_data
-                .request
-                .email
+            email: customer_info
+                .customer_email
                 .as_ref()
                 .map(|e| e.peek().to_string()),
-            first_name: router_data
-                .request
+            first_name: customer_info
                 .customer_name
                 .as_ref()
                 .map(|n| n.peek().to_string()),
