@@ -434,10 +434,33 @@ macros::macro_connector_implementation!(
                         None => format!("{base}v1/paymenthandles"),
                     })
                 }
-                // Wallets use the standard paymenthandles endpoint (singleusepaymenthandles 5270s).
-                PaymentMethodData::Wallet(
-                    WalletData::Skrill(_) | WalletData::ApplePay(_) | WalletData::GooglePay(_),
-                ) => Ok(format!("{base}v1/paymenthandles")),
+                // Apple Pay / Google Pay: the vault endpoint rejects raw wallet
+                // payloads (5068 "CARD object must be present"), so wallet recurring
+                // is two Tokenize legs — leg 1 mints a SINGLE_USE handle on the
+                // standard endpoint; leg 2 (single-use handle echoed back via
+                // connector_feature_data + a connector customer present) converts it
+                // into a customer-vaulted MULTI_USE handle via paymentHandleTokenFrom.
+                PaymentMethodData::Wallet(WalletData::ApplePay(_) | WalletData::GooglePay(_)) => {
+                    Ok(
+                        match (
+                            req.resource_common_data.connector_customer.as_ref(),
+                            transformers::paysafe_parse_feature_data_handle_token(
+                                req.request.connector_feature_data.as_ref(),
+                            )
+                            .is_some(),
+                        ) {
+                            (Some(customer_id), true) => {
+                                format!("{base}v1/customers/{customer_id}/paymenthandles")
+                            }
+                            _ => format!("{base}v1/paymenthandles"),
+                        },
+                    )
+                }
+                // Redirect wallets stay on the standard paymenthandles endpoint
+                // (singleusepaymenthandles 5270s; no MIT replay for redirect rails).
+                PaymentMethodData::Wallet(WalletData::Skrill(_)) => {
+                    Ok(format!("{base}v1/paymenthandles"))
+                }
                 _ => Ok(format!("{base}v1/paymenthandles")),
             }
         }

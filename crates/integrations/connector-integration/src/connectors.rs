@@ -288,3 +288,6 @@ pub use self::affirm::Affirm;
 
 pub mod kount;
 pub use self::kount::Kount;
+
+pub mod givepayments;
+pub use self::givepayments::Givepayments;

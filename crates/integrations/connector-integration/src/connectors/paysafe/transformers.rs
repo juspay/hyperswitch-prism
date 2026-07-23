@@ -13,8 +13,8 @@ use domain_types::{
         RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
     },
     payment_method_data::{
-        ApplePayPaymentData, BankDebitData, BankRedirectData, GiftCardData, GpayTokenizationData,
-        PaymentMethodData, PaymentMethodDataTypes, WalletData,
+        ApplePayPaymentData, BankDebitData, BankRedirectData, GiftCardData, GooglePayDecryptedData,
+        GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes, WalletData,
     },
     router_data::{
         ConnectorSpecificConfig, PaysafeAccountKind, PaysafeApplePayFlow,
@@ -107,8 +107,159 @@ pub struct PaysafeMandateMetadata {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct PaysafeMandateReference {
+    /// Serialized as `t` (was `payment_handle_token`): hyperswitch's legacy
+    /// `mandate` table stores this whole JSON in a VARCHAR(128)
+    /// `connector_mandate_id` column, so every byte counts. `alias` keeps
+    /// mandates minted with the long key decodable.
+    #[serde(rename = "t", alias = "payment_handle_token")]
     pub payment_handle_token: String,
+    /// Serialized as `i` (was `initial_transaction_id`); same byte-budget +
+    /// backward-compat rationale as `payment_handle_token`.
+    #[serde(rename = "i", alias = "initial_transaction_id")]
     pub initial_transaction_id: String,
+    /// Which payment method (and, for Apple Pay, which encrypt/decrypt account
+    /// slot) minted the vaulted handle. Drives the MIT `accountId` resolution —
+    /// the MIT must replay the exact account the CIT settled under, or Paysafe
+    /// rejects it with 3061. Absent on mandates issued before this field
+    /// existed, and omitted for cards — both treated as Card no_three_ds.
+    ///
+    /// Serialized as `pm` for the same VARCHAR(128) budget reason; `alias`
+    /// keeps mandates minted with the long key decodable.
+    #[serde(
+        default,
+        rename = "pm",
+        alias = "payment_method",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub payment_method: Option<PaysafeMandatePaymentMethod>,
+}
+
+/// Discriminator for the account slot a wallet mandate was minted under. Apple
+/// Pay is split by encrypt/decrypt flow because those are distinct Paysafe
+/// processing accounts and the MIT must replay the CIT's exact one (3061
+/// otherwise). `ApplePay` (flow unknown) is stamped when the CIT settled a
+/// token-only handle, where the encrypt/decrypt distinction is lost and both
+/// legs fall back to the same decrypt-first chain. Values are kept short to fit
+/// the VARCHAR(128) `connector_mandate_id` budget.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum PaysafeMandatePaymentMethod {
+    #[serde(rename = "card")]
+    Card,
+    #[serde(rename = "ap")]
+    ApplePay,
+    #[serde(rename = "ap_e")]
+    ApplePayEncrypt,
+    #[serde(rename = "ap_d")]
+    ApplePayDecrypt,
+    #[serde(rename = "gp")]
+    GooglePay,
+}
+
+/// Resolve the processing account for a wallet stored-credential payment: the
+/// CIT settle of a converted (customer-vaulted, paymentType CARD) wallet handle
+/// and the MIT replay. Unlike a raw single-use wallet handle, a converted
+/// handle carries no account binding, so Paysafe requires an explicit accountId
+/// (5068 without one) — and the MIT must replay the SAME account that processed
+/// the initial transaction (3061 "Invalid initial transaction reference"
+/// otherwise). Mirrors the Tokenize minting resolution so all three legs agree:
+/// Apple Pay → encrypt/decrypt slot by payload variant (decrypt-first chain
+/// when the variant is unknown), fallback card no_three_ds; Google Pay → card
+/// no_three_ds.
+fn resolve_wallet_mandate_account(
+    account_map: &PaysafePaymentMethodDetails,
+    apple_pay_flow_hint: Option<PaysafeApplePayFlow>,
+    currency: enums::Currency,
+) -> Result<Secret<String>, IntegrationError> {
+    match apple_pay_flow_hint {
+        Some(flow) => account_map
+            .get_account_id(PaysafeAccountKind::ApplePay(flow), currency)
+            .or_else(|_| account_map.get_account_id(PaysafeAccountKind::CardNoThreeDs, currency)),
+        None => account_map
+            .get_account_id(
+                PaysafeAccountKind::ApplePay(PaysafeApplePayFlow::Decrypt),
+                currency,
+            )
+            .or_else(|_| {
+                account_map.get_account_id(
+                    PaysafeAccountKind::ApplePay(PaysafeApplePayFlow::Encrypt),
+                    currency,
+                )
+            })
+            .or_else(|_| account_map.get_account_id(PaysafeAccountKind::CardNoThreeDs, currency)),
+    }
+}
+
+/// Builds the `decryptedToken` tokenizationData block Paysafe expects for a
+/// pre-decrypted Google Pay token.
+fn build_gpay_decrypted_tokenization_data(
+    decrypted_data: &GooglePayDecryptedData,
+) -> Result<PaysafeGooglePayTokenizationData, error_stack::Report<IntegrationError>> {
+    // Take the masked expiry straight from the shared decrypted-data utils
+    // (MM month, YYYY year) instead of un-secreting and re-parsing to plain
+    // integers — mirrors how cybersource/bankofamerica build predecrypted
+    // wallet tokens and keeps the PAN expiry a `Secret`.
+    let expiration_month = decrypted_data.get_expiry_month().change_context(
+        IntegrationError::MissingRequiredField {
+            field_name: "google_pay_decrypted_data.card_exp_month",
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "Paysafe Google Pay decrypted tokens must carry the PAN expiration month."
+                        .to_string(),
+                ),
+                ..Default::default()
+            },
+        },
+    )?;
+
+    let expiration_year = decrypted_data.get_four_digit_expiry_year().change_context(
+        IntegrationError::MissingRequiredField {
+            field_name: "google_pay_decrypted_data.card_exp_year",
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "Paysafe Google Pay decrypted tokens must carry the PAN expiration year."
+                        .to_string(),
+                ),
+                ..Default::default()
+            },
+        },
+    )?;
+
+    let pan = Secret::new(
+        decrypted_data
+            .application_primary_account_number
+            .get_card_no(),
+    );
+
+    let auth_method = if decrypted_data.cryptogram.is_some() {
+        PaysafeGooglePayAuthMethod::Cryptogram3Ds
+    } else {
+        PaysafeGooglePayAuthMethod::PanOnly
+    };
+
+    let payment_method_details = PaysafeGooglePayPaymentMethodDetails {
+        auth_method,
+        pan,
+        expiration_month,
+        expiration_year,
+        cryptogram: decrypted_data.cryptogram.clone(),
+    };
+
+    // TODO(https://github.com/juspay/hyperswitch/issues/11684): HS parses
+    // message_id and message_expiration from the decrypted GPay payload
+    // internally but drops them before forwarding to UCS via GPayPredecryptData.
+    // Until HS propagates these fields, we fall back to a random UUID for
+    // message_id (losing Paysafe's replay-detection guarantee) and a far-future
+    // placeholder for message_expiration.
+    let decrypted_token = PaysafeGooglePayDecryptedToken {
+        message_id: uuid::Uuid::new_v4().to_string(),
+        message_expiration: GOOGLE_PAY_MESSAGE_EXPIRATION_MS.to_string(),
+        payment_method_details,
+    };
+
+    Ok(PaysafeGooglePayTokenizationData::Decrypted {
+        token_type: GOOGLE_PAY_TOKEN_TYPE.to_string(),
+        decrypted_token,
+    })
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -171,9 +322,17 @@ pub(crate) fn is_paysafe_redirect_apm<T: PaymentMethodDataTypes>(
 pub(crate) fn paysafe_feature_data_handle_token(
     resource_common_data: &PaymentFlowData,
 ) -> Option<Secret<String>> {
-    resource_common_data
-        .connector_feature_data
-        .as_ref()
+    paysafe_parse_feature_data_handle_token(resource_common_data.connector_feature_data.as_ref())
+}
+
+/// Same extraction from a raw `connector_feature_data` value. The Tokenize
+/// proto conversion carries the feature data on the request
+/// (`PaymentMethodTokenizationData`), not on `PaymentFlowData`, so the wallet
+/// vault-conversion leg reads it from there.
+pub(crate) fn paysafe_parse_feature_data_handle_token(
+    feature_data: Option<&common_utils::pii::SecretSerdeValue>,
+) -> Option<Secret<String>> {
+    feature_data
         .and_then(|metadata_value| {
             metadata_value
                 .clone()
@@ -871,6 +1030,33 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
 
+        // Wallet recurring leg 2: the caller echoes the single-use wallet handle
+        // back via connector_feature_data; with a Paysafe customer present,
+        // convert it into a customer-vaulted MULTI_USE handle
+        // (paymentHandleTokenFrom) that the CIT settle and the MIT replay can
+        // spend. Paysafe's vault endpoint rejects raw applePay/googlePay
+        // payloads (5068), so wallet vaulting is only possible via conversion.
+        if matches!(
+            &router_data.request.payment_method_data,
+            PaymentMethodData::Wallet(WalletData::ApplePay(_) | WalletData::GooglePay(_))
+        ) && router_data
+            .resource_common_data
+            .connector_customer
+            .is_some()
+        {
+            if let Some(handle_token) = paysafe_parse_feature_data_handle_token(
+                router_data.request.connector_feature_data.as_ref(),
+            ) {
+                return Ok(Self::VaultFromHandle(PaysafeVaultFromHandleRequest {
+                    merchant_ref_num: router_data
+                        .resource_common_data
+                        .connector_request_reference_id
+                        .clone(),
+                    payment_handle_token_from: handle_token,
+                }));
+            }
+        }
+
         let auth = PaysafeAuthType::try_from(&item.router_data.connector_config)?;
         let account_id = auth
             .account_id
@@ -967,107 +1153,20 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     )
                 }
                 PaymentMethodData::Wallet(WalletData::GooglePay(google_pay_data)) => {
-                    let decrypted_data = match &google_pay_data.tokenization_data {
-                        GpayTokenizationData::Decrypted(d) => d,
-                        GpayTokenizationData::Encrypted(_) => {
-                            return Err(IntegrationError::MissingRequiredField {
-                                field_name: "google_pay.tokenization_data (decrypted)",
-                                context: IntegrationErrorContext {
-                                    additional_context: Some(
-                                        "Paysafe Google Pay expects a pre-decrypted token (GpayTokenizationData::Decrypted); encrypted Google Pay tokens are not forwarded."
-                                            .to_string(),
-                                    ),
-                                    ..Default::default()
-                                },
+                    let tokenization_data = match &google_pay_data.tokenization_data {
+                        // Raw encrypted Google Pay token passthrough — Paysafe decrypts
+                        // it gateway-side (needs the merchant's Google Pay
+                        // gatewayMerchantId provisioned with Paysafe). Mirrors the
+                        // Adyen encrypted-token passthrough.
+                        GpayTokenizationData::Encrypted(encrypted) => {
+                            PaysafeGooglePayTokenizationData::Encrypted {
+                                token_type: encrypted.token_type.clone(),
+                                token: Secret::new(encrypted.token.clone()),
                             }
-                            .into())
                         }
-                    };
-
-                    let expiration_month = decrypted_data
-                        .get_expiry_month()
-                        .change_context(IntegrationError::MissingRequiredField {
-                            field_name: "google_pay_decrypted_data.card_exp_month",
-                            context: IntegrationErrorContext {
-                                additional_context: Some(
-                                    "Paysafe Google Pay decrypted tokens must carry the PAN expiration month."
-                                        .to_string(),
-                                ),
-                                ..Default::default()
-                            },
-                        })?
-                        .peek()
-                        .parse::<u8>()
-                        .map_err(|_| {
-                            IntegrationError::InvalidDataFormat {
-                                field_name: "google_pay_decrypted_data.card_exp_month",
-                                context: IntegrationErrorContext {
-                                    additional_context: Some(
-                                        "Google Pay PAN expiration month must be a numeric MM value."
-                                            .to_string(),
-                                    ),
-                                    ..Default::default()
-                                },
-                            }
-                        })?;
-
-                    let expiration_year = decrypted_data
-                        .get_four_digit_expiry_year()
-                        .change_context(IntegrationError::MissingRequiredField {
-                            field_name: "google_pay_decrypted_data.card_exp_year",
-                            context: IntegrationErrorContext {
-                                additional_context: Some(
-                                    "Paysafe Google Pay decrypted tokens must carry the PAN expiration year."
-                                        .to_string(),
-                                ),
-                                ..Default::default()
-                            },
-                        })?
-                        .peek()
-                        .parse::<u16>()
-                        .map_err(|_| {
-                            IntegrationError::InvalidDataFormat {
-                                field_name: "google_pay_decrypted_data.card_exp_year",
-                                context: IntegrationErrorContext {
-                                    additional_context: Some(
-                                        "Google Pay PAN expiration year must be a numeric YYYY value."
-                                            .to_string(),
-                                    ),
-                                    ..Default::default()
-                                },
-                            }
-                        })?;
-
-                    let pan = Secret::new(
-                        decrypted_data
-                            .application_primary_account_number
-                            .get_card_no(),
-                    );
-
-                    let auth_method = if decrypted_data.cryptogram.is_some() {
-                        PaysafeGooglePayAuthMethod::Cryptogram3Ds
-                    } else {
-                        PaysafeGooglePayAuthMethod::PanOnly
-                    };
-
-                    let payment_method_details = PaysafeGooglePayPaymentMethodDetails {
-                        auth_method,
-                        pan,
-                        expiration_month,
-                        expiration_year,
-                        cryptogram: decrypted_data.cryptogram.clone(),
-                    };
-
-                    // TODO(https://github.com/juspay/hyperswitch/issues/11684): HS parses
-                    // message_id and message_expiration from the decrypted GPay payload
-                    // internally but drops them before forwarding to UCS via GPayPredecryptData.
-                    // Until HS propagates these fields, we fall back to a random UUID for
-                    // message_id (losing Paysafe's replay-detection guarantee) and a far-future
-                    // placeholder for message_expiration.
-                    let decrypted_token = PaysafeGooglePayDecryptedToken {
-                        message_id: uuid::Uuid::new_v4().to_string(),
-                        message_expiration: GOOGLE_PAY_MESSAGE_EXPIRATION_MS.to_string(),
-                        payment_method_details,
+                        GpayTokenizationData::Decrypted(decrypted_data) => {
+                            build_gpay_decrypted_tokenization_data(decrypted_data)?
+                        }
                     };
 
                     let google_pay_payment_token = PaysafeGooglePayPaymentToken {
@@ -1080,10 +1179,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 card_network: google_pay_data.info.card_network.clone(),
                                 card_details: google_pay_data.info.card_details.clone(),
                             },
-                            tokenization_data: PaysafeGooglePayTokenizationData {
-                                token_type: GOOGLE_PAY_TOKEN_TYPE.to_string(),
-                                decrypted_token,
-                            },
+                            tokenization_data,
                         },
                     };
 
@@ -1421,7 +1517,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             },
         ]);
 
-        Ok(Self {
+        Ok(Self::Handle(Box::new(PaysafeSetupMandateRequest {
             merchant_ref_num: router_data
                 .resource_common_data
                 .connector_request_reference_id
@@ -1437,7 +1533,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             three_ds: None, // No 3DS for PaymentMethodToken
             profile: None,
             billing_details,
-        })
+        })))
     }
 }
 
@@ -1566,6 +1662,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // the payment handle already carries its account binding, and re-specifying an
         // account (e.g. for an INTERAC_ETRANSFER handle) is rejected by Paysafe with
         // error 5068.
+        // Exception (sandbox-verified): a wallet CIT (stored-credential setup) settles
+        // the customer-vaulted CONVERTED handle, which has no account binding — Paysafe
+        // then requires an explicit accountId, resolved to mirror the Tokenize minting
+        // account so the later MIT (same account, error 3061 otherwise) lines up.
         // Match on the payment-method enum (not payment_method_data) because the settle
         // leg carries PaymentMethodData::PaymentMethodToken for cards too.
         let account_id = match router_data.resource_common_data.payment_method {
@@ -1580,6 +1680,51 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         PaysafeAccountKind::CardNoThreeDs,
                         router_data.request.currency,
                     )?)
+                }
+            }
+            enums::PaymentMethod::Wallet
+                if router_data.request.is_customer_initiated_mandate_payment() =>
+            {
+                match &router_data.request.payment_method_data {
+                    PaymentMethodData::Wallet(WalletData::GooglePay(_)) => {
+                        Some(account_id.get_account_id(
+                            PaysafeAccountKind::CardNoThreeDs,
+                            router_data.request.currency,
+                        )?)
+                    }
+                    PaymentMethodData::Wallet(WalletData::ApplePay(apple_pay_data)) => {
+                        let flow = match &apple_pay_data.payment_data {
+                            ApplePayPaymentData::Encrypted(_) => PaysafeApplePayFlow::Encrypt,
+                            _ => PaysafeApplePayFlow::Decrypt,
+                        };
+                        Some(resolve_wallet_mandate_account(
+                            &account_id,
+                            Some(flow),
+                            router_data.request.currency,
+                        )?)
+                    }
+                    // Token-only settle (payment_method_data is a handle, not the
+                    // raw wallet payload). The encrypt/decrypt distinction is lost,
+                    // so identify the wallet via payment_method_type and mirror the
+                    // raw-payload arms above — scoped to Apple Pay / Google Pay so a
+                    // different wallet (e.g. Skrill) doing a CIT is NOT forced onto a
+                    // Paysafe apple_pay/card account.
+                    _ => match router_data.request.payment_method_type {
+                        Some(enums::PaymentMethodType::ApplePay) => {
+                            Some(resolve_wallet_mandate_account(
+                                &account_id,
+                                None,
+                                router_data.request.currency,
+                            )?)
+                        }
+                        Some(enums::PaymentMethodType::GooglePay) => {
+                            Some(account_id.get_account_id(
+                                PaysafeAccountKind::CardNoThreeDs,
+                                router_data.request.currency,
+                            )?)
+                        }
+                        _ => None,
+                    },
                 }
             }
             _ => None,
@@ -1677,10 +1822,43 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaysafeAuthorizeRespo
                 // payment `id`) into connector_mandate_id, because the gRPC recurring path
                 // cannot carry mandate_metadata. The MIT RepeatPayment request decodes both
                 // back out.
+                // Record which account slot the CIT settled under so the MIT can
+                // replay the SAME one (3061 otherwise). For Apple Pay the slot is
+                // the encrypt/decrypt flow — derived from the payload exactly as the
+                // settle arm above resolves the account. Cards get `None` (omitted):
+                // it saves bytes in the VARCHAR(128) mandate blob and the MIT already
+                // defaults an absent `pm` to card no_three_ds.
+                let mandate_payment_method = match &router_data.request.payment_method_data {
+                    PaymentMethodData::Wallet(WalletData::ApplePay(apple_pay_data)) => {
+                        Some(match &apple_pay_data.payment_data {
+                            ApplePayPaymentData::Encrypted(_) => {
+                                PaysafeMandatePaymentMethod::ApplePayEncrypt
+                            }
+                            _ => PaysafeMandatePaymentMethod::ApplePayDecrypt,
+                        })
+                    }
+                    PaymentMethodData::Wallet(WalletData::GooglePay(_)) => {
+                        Some(PaysafeMandatePaymentMethod::GooglePay)
+                    }
+                    // Token-only settle: the raw wallet payload (and thus the Apple
+                    // Pay flow) isn't present — fall back on payment_method_type. The
+                    // token-only settle used the decrypt-first chain, which the bare
+                    // `ApplePay` variant re-derives at MIT.
+                    _ => match router_data.request.payment_method_type {
+                        Some(enums::PaymentMethodType::ApplePay) => {
+                            Some(PaysafeMandatePaymentMethod::ApplePay)
+                        }
+                        Some(enums::PaymentMethodType::GooglePay) => {
+                            Some(PaysafeMandatePaymentMethod::GooglePay)
+                        }
+                        _ => None,
+                    },
+                };
                 let mandate_reference = response.payment_handle_token.as_ref().map(|token| {
                     let connector_mandate_id = serde_json::to_string(&PaysafeMandateReference {
                         payment_handle_token: token.peek().to_string(),
                         initial_transaction_id: response.id.clone(),
+                        payment_method: mandate_payment_method,
                     })
                     .unwrap_or_else(|_| token.peek().to_string());
                     MandateReference {
@@ -2043,14 +2221,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // the gRPC recurring path cannot carry mandate_metadata). For backward
         // compatibility, a bare (non-JSON) value is treated as the payment-handle token
         // and the initial transaction id is sourced from mandate_metadata instead.
-        let (payment_handle_token, initial_transaction_id): (Secret<String>, String) =
-            match serde_json::from_str::<PaysafeMandateReference>(&raw_connector_mandate_id) {
-                Ok(decoded) => (
-                    Secret::new(decoded.payment_handle_token),
-                    decoded.initial_transaction_id,
-                ),
-                Err(_) => {
-                    let mandate_metadata: PaysafeMandateMetadata = mandate_data
+        let (payment_handle_token, initial_transaction_id, mandate_payment_method): (
+            Secret<String>,
+            String,
+            Option<PaysafeMandatePaymentMethod>,
+        ) = match serde_json::from_str::<PaysafeMandateReference>(&raw_connector_mandate_id) {
+            Ok(decoded) => (
+                Secret::new(decoded.payment_handle_token),
+                decoded.initial_transaction_id,
+                decoded.payment_method,
+            ),
+            Err(_) => {
+                let mandate_metadata: PaysafeMandateMetadata = mandate_data
                         .get_mandate_metadata()
                         .ok_or(IntegrationError::MissingRequiredField {
                             field_name: "mandate_metadata",
@@ -2072,12 +2254,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 ..Default::default()
                             },
                         })?;
-                    (
-                        Secret::new(raw_connector_mandate_id),
-                        mandate_metadata.initial_transaction_id,
-                    )
-                }
-            };
+                (
+                    Secret::new(raw_connector_mandate_id),
+                    mandate_metadata.initial_transaction_id,
+                    None,
+                )
+            }
+        };
 
         let customer_ip = router_data
             .request
@@ -2098,25 +2281,62 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             initial_transaction_id: Some(initial_transaction_id),
         });
 
-        // Paysafe requires the processing accountId on the MIT settlement, just as
-        // on the CIT. The reusable handle was vaulted under the card account, so the
-        // MIT replays against the card no_three_ds account (MITs are never 3DS).
-        // Mirrors hyperswitch, which sends the no_three_ds card account for
-        // PaymentMethodData::MandatePayment.
+        // Resolve the processing accountId for the MIT settlement from the
+        // payment-method discriminator stamped into the mandate reference at CIT
+        // time (legacy mandates without it fall back to the caller-supplied
+        // payment_method_type hint, else Card). Paysafe requires an accountId on
+        // the MIT (5068 without one), and it must be the SAME account that
+        // processed the initial transaction (3061 otherwise):
+        // - Card / Google Pay: handles are vaulted under the card no_three_ds
+        //   account (MITs are never 3DS) — mirrors hyperswitch, which sends the
+        //   no_three_ds card account for PaymentMethodData::MandatePayment.
+        // - Apple Pay: the converted vault handle was minted under a specific
+        //   apple_pay slot — replay the CIT's exact encrypt/decrypt account
+        //   (ap_e/ap_d); a flow-unknown `ap` (or a legacy hint) falls back to the
+        //   decrypt-first chain, mirroring the token-only Tokenize resolution.
+        let effective_payment_method =
+            mandate_payment_method.or(match router_data.request.payment_method_type {
+                Some(enums::PaymentMethodType::ApplePay) => {
+                    Some(PaysafeMandatePaymentMethod::ApplePay)
+                }
+                Some(enums::PaymentMethodType::GooglePay) => {
+                    Some(PaysafeMandatePaymentMethod::GooglePay)
+                }
+                _ => None,
+            });
         let auth = PaysafeAuthType::try_from(&router_data.connector_config)?;
-        let account_id = auth
+        let account_map = auth
             .account_id
             .ok_or(IntegrationError::InvalidConnectorConfig {
                 config: "account_id",
                 context: IntegrationErrorContext {
                     additional_context: Some(
-                        "Paysafe MIT needs the account_id map to resolve the card no_three_ds account the reusable handle was vaulted under."
+                        "Paysafe MIT needs the account_id map to resolve the account the reusable handle was vaulted under (card no_three_ds, or the apple_pay slot for Apple Pay mandates)."
                             .to_string(),
                     ),
                     ..Default::default()
                 },
-            })?
-            .get_account_id(PaysafeAccountKind::CardNoThreeDs, router_data.request.currency)?;
+            })?;
+        let account_id = Some(match effective_payment_method {
+            Some(PaysafeMandatePaymentMethod::ApplePayEncrypt) => resolve_wallet_mandate_account(
+                &account_map,
+                Some(PaysafeApplePayFlow::Encrypt),
+                router_data.request.currency,
+            )?,
+            Some(PaysafeMandatePaymentMethod::ApplePayDecrypt) => resolve_wallet_mandate_account(
+                &account_map,
+                Some(PaysafeApplePayFlow::Decrypt),
+                router_data.request.currency,
+            )?,
+            Some(PaysafeMandatePaymentMethod::ApplePay) => {
+                resolve_wallet_mandate_account(&account_map, None, router_data.request.currency)?
+            }
+            Some(PaysafeMandatePaymentMethod::Card | PaysafeMandatePaymentMethod::GooglePay)
+            | None => account_map.get_account_id(
+                PaysafeAccountKind::CardNoThreeDs,
+                router_data.request.currency,
+            )?,
+        });
 
         Ok(Self {
             merchant_ref_num: router_data
@@ -2129,7 +2349,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             currency_code: router_data.request.currency,
             customer_ip,
             stored_credential,
-            account_id: Some(account_id),
+            account_id,
         })
     }
 }
