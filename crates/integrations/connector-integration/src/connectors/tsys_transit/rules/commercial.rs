@@ -51,12 +51,24 @@ fn require_for_l3<T>(
     Ok(Some(value))
 }
 
-/// `purchaseOrder` — Visa / Mastercard only. Strip on AMEX.
-pub fn purchase_order(profile: &TxProfile, raw: Option<String>) -> Option<String> {
-    if profile.card_family.is_amex() {
-        return None;
+/// `purchaseOrder` — Visa / Mastercard only, mandatory at both Level II and
+/// Level III (see `purchase_order_required`); never sent (and not required)
+/// on AMEX or below Level II.
+pub fn purchase_order(
+    profile: &TxProfile,
+    raw: Option<String>,
+) -> Result<Option<String>, Report<IntegrationError>> {
+    if !purchase_order_required(profile) {
+        return Ok(None);
     }
-    raw
+
+    let purchase_order = raw.ok_or_else(|| IntegrationError::MissingRequiredField {
+        field_name:
+            "purchaseOrder required for Visa/Mastercard when commercial_card_level is LEVEL2 or LEVEL3",
+        context: Default::default(),
+    })?;
+
+    Ok(Some(purchase_order))
 }
 
 /// `customerRefID` — AMEX only.
