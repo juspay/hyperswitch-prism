@@ -2417,6 +2417,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             }
             grpc_api_types::payments::PaymentMethodType::Credit => Ok(PaymentMethodType::Card),
             grpc_api_types::payments::PaymentMethodType::Debit => Ok(PaymentMethodType::Card),
+            grpc_api_types::payments::PaymentMethodType::Card => Ok(PaymentMethodType::Card),
             grpc_api_types::payments::PaymentMethodType::UpiCollect => {
                 Ok(PaymentMethodType::UpiCollect)
             }
@@ -8079,6 +8080,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
         match value {
             grpc_api_types::payments::PaymentMethodType::Credit => Ok(Self::Card),
             grpc_api_types::payments::PaymentMethodType::Debit => Ok(Self::Card),
+            grpc_api_types::payments::PaymentMethodType::Card => Ok(Self::Card),
 
             grpc_api_types::payments::PaymentMethodType::ApplePay => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::GooglePay => Ok(Self::Wallet),
