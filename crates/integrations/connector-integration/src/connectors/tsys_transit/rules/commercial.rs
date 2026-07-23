@@ -102,7 +102,8 @@ pub fn supplier_reference_number(
     }
 
     let supplier_reference_number = raw.ok_or_else(|| IntegrationError::MissingRequiredField {
-        field_name: "supplierReferenceNumber required for AMEX when commercial_card_level is LEVEL2",
+        field_name:
+            "supplierReferenceNumber required for AMEX when commercial_card_level is LEVEL2",
         context: Default::default(),
     })?;
 
@@ -353,19 +354,23 @@ pub fn additional_tax_details(
     }
 
     let tax_type = tax_type.ok_or_else(|| IntegrationError::MissingRequiredField {
-        field_name: "taxType required for additionalTaxDetails (order_details[0].product_tax_code missing)",
+        field_name:
+            "taxType required for additionalTaxDetails (order_details[0].product_tax_code missing)",
         context: Default::default(),
     })?;
     let tax_amount = tax_amount.ok_or_else(|| IntegrationError::MissingRequiredField {
-        field_name: "taxAmount required for additionalTaxDetails when commercial_card_level is LEVEL3",
+        field_name:
+            "taxAmount required for additionalTaxDetails when commercial_card_level is LEVEL3",
         context: Default::default(),
     })?;
     let tax_rate = tax_rate.ok_or_else(|| IntegrationError::MissingRequiredField {
-        field_name: "taxRate required for additionalTaxDetails when commercial_card_level is LEVEL3",
+        field_name:
+            "taxRate required for additionalTaxDetails when commercial_card_level is LEVEL3",
         context: Default::default(),
     })?;
     let tax_category = tax_category.ok_or_else(|| IntegrationError::MissingRequiredField {
-        field_name: "taxCategory required for additionalTaxDetails when commercial_card_level is LEVEL3",
+        field_name:
+            "taxCategory required for additionalTaxDetails when commercial_card_level is LEVEL3",
         context: Default::default(),
     })?;
 

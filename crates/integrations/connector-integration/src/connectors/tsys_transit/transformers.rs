@@ -467,12 +467,6 @@ pub struct TsysTransitAuthorizeBody {
     pub purchase_order: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub charge_descriptor: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub charge_descriptor_2: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub charge_descriptor_3: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub charge_descriptor_4: Option<String>,
     #[serde(rename = "customerVATNumber", skip_serializing_if = "Option::is_none")]
     pub customer_vat_number: Option<String>,
     #[serde(rename = "customerRefID", skip_serializing_if = "Option::is_none")]
@@ -956,26 +950,17 @@ pub struct TsysTransitTransactionInquiryResponse {
 struct TsysTransitMerchantMetadata {
     #[serde(default)]
     tsys_transit: Option<TsysTransitMerchantMetadataInner>,
-    #[serde(default)]
-    commercial_card: Option<TsysTransitCommercialCardMetadata>,
 }
 
 impl TsysTransitMerchantMetadata {
     fn into_inner(self) -> TsysTransitMerchantMetadataInner {
         let mut inner = self.tsys_transit.unwrap_or_default();
-
-        if self.commercial_card.is_some() {
-            inner.commercial_card = self.commercial_card;
-        }
-
         inner
     }
 }
 
 #[derive(Debug, Default, Deserialize, Clone)]
 struct TsysTransitMerchantMetadataInner {
-    #[serde(default)]
-    commercial_card: Option<TsysTransitCommercialCardMetadata>,
     /// Channel override for the RepeatPayment / MIT-via-NTID flow only.
     /// The `RecurringPaymentServiceChargeRequest` proto does NOT carry
     /// `payment_channel`, so HS' MIT execution loses the MOTO-vs-Ecom
@@ -987,13 +972,6 @@ struct TsysTransitMerchantMetadataInner {
     /// is derived entirely from the profile/rules layer.
     #[serde(default)]
     payment_channel: Option<String>,
-}
-
-#[derive(Debug, Default, Clone, Deserialize)]
-struct TsysTransitCommercialCardMetadata {
-    charge_descriptor_2: Option<String>,
-    charge_descriptor_3: Option<String>,
-    charge_descriptor_4: Option<String>,
 }
 
 #[derive(Debug, Default, Clone, Deserialize)]
@@ -1040,9 +1018,6 @@ struct CommercialCardContext {
     commercial_card_level: Option<TsysTransitCommercialCardLevel>,
     purchase_order: Option<String>,
     charge_descriptor: Option<String>,
-    charge_descriptor_2: Option<String>,
-    charge_descriptor_3: Option<String>,
-    charge_descriptor_4: Option<String>,
     customer_vat_number: Option<String>,
     customer_ref_id: Option<String>,
     supplier_reference_number: Option<String>,
@@ -1585,12 +1560,9 @@ fn compute_commercial_card_context<
         PaymentsAuthorizeData<T>,
         PaymentsResponseData,
     >,
-    commercial_meta: Option<&TsysTransitCommercialCardMetadata>,
     card_network: Option<&CardNetwork>,
     auth_data: &TsysTransitAuthType,
 ) -> Result<CommercialCardContext, Report<IntegrationError>> {
-    let empty_commercial_meta = TsysTransitCommercialCardMetadata::default();
-    let commercial_meta = commercial_meta.unwrap_or(&empty_commercial_meta);
     let merchant_acceptor_info = build_merchant_acceptor_info(
         auth_data,
         card_network,
@@ -1747,7 +1719,7 @@ fn compute_commercial_card_context<
         )
     });
 
-    let is_visa_and_mastercard_common_field_present = tax_amount.is_some()
+    let is_visa_and_mastercard_level3_common_field_present = tax_amount.is_some()
         && tax_category.is_some()
         && derived_tax_type.is_some()
         && derived_tax_rate.is_some()
@@ -1763,12 +1735,12 @@ fn compute_commercial_card_context<
 
     let is_level3 = match card_network {
         Some(CardNetwork::Visa) => {
-            is_visa_and_mastercard_common_field_present
+            is_visa_and_mastercard_level3_common_field_present
                 && product_details.is_some()
                 && customer_vat_number.is_some()
                 && sales_tax.is_some()
         }
-        Some(CardNetwork::Mastercard) => is_visa_and_mastercard_common_field_present,
+        Some(CardNetwork::Mastercard) => is_visa_and_mastercard_level3_common_field_present,
         _ => false,
     };
 
@@ -1786,75 +1758,40 @@ fn compute_commercial_card_context<
         _ => false,
     };
 
-    if is_level3 {
-        Ok(CommercialCardContext {
-            sales_tax,
-            tax_type: derived_tax_type.clone(),
-            tax_amount,
-            tax_rate: derived_tax_rate.clone(),
-            tax_category,
-            shipping_charges,
-            duty_charges,
-            product_details,
-            commercial_card_level: Some(TsysTransitCommercialCardLevel::Level3),
-            purchase_order: purchase_order.clone(),
-            charge_descriptor,
-            charge_descriptor_2: commercial_meta.charge_descriptor_2.clone(),
-            charge_descriptor_3: commercial_meta.charge_descriptor_3.clone(),
-            charge_descriptor_4: commercial_meta.charge_descriptor_4.clone(),
-            customer_vat_number,
-            customer_ref_id,
-            supplier_reference_number,
-            order_date,
-            summary_commodity_code,
-            vat_invoice,
-            ship_from_zip,
-            ship_to_zip,
-            destination_country_code,
-            acceptor_customer_service_phone_number,
-            acceptor_street_address,
-            acceptor_url,
-            acceptor_phone_number,
-        })
+    let commercial_card_level = if is_level3 {
+        Some(TsysTransitCommercialCardLevel::Level3)
     } else if is_level2 {
-        Ok(CommercialCardContext {
-            sales_tax,
-            tax_type: derived_tax_type.clone(),
-            tax_amount,
-            tax_rate: derived_tax_rate.clone(),
-            tax_category,
-            shipping_charges,
-            duty_charges,
-            product_details,
-            commercial_card_level: Some(TsysTransitCommercialCardLevel::Level2),
-            purchase_order: purchase_order.clone(),
-            charge_descriptor,
-            charge_descriptor_2: commercial_meta.charge_descriptor_2.clone(),
-            charge_descriptor_3: commercial_meta.charge_descriptor_3.clone(),
-            charge_descriptor_4: commercial_meta.charge_descriptor_4.clone(),
-            customer_vat_number,
-            customer_ref_id,
-            supplier_reference_number,
-            order_date,
-            summary_commodity_code,
-            vat_invoice,
-            ship_from_zip,
-            ship_to_zip,
-            destination_country_code,
-            acceptor_customer_service_phone_number,
-            acceptor_street_address,
-            acceptor_url,
-            acceptor_phone_number,
-        })
+        Some(TsysTransitCommercialCardLevel::Level2)
     } else {
-        Ok(CommercialCardContext {
-            acceptor_customer_service_phone_number,
-            acceptor_street_address,
-            acceptor_url,
-            acceptor_phone_number,
-            ..Default::default()
-        })
-    }
+        None
+    };
+
+    Ok(CommercialCardContext {
+        sales_tax,
+        tax_type: derived_tax_type,
+        tax_amount,
+        tax_rate: derived_tax_rate,
+        tax_category,
+        shipping_charges,
+        duty_charges,
+        product_details,
+        commercial_card_level,
+        purchase_order,
+        charge_descriptor,
+        customer_vat_number,
+        customer_ref_id,
+        supplier_reference_number,
+        order_date,
+        summary_commodity_code,
+        vat_invoice,
+        ship_from_zip,
+        ship_to_zip,
+        destination_country_code,
+        acceptor_customer_service_phone_number,
+        acceptor_street_address,
+        acceptor_url,
+        acceptor_phone_number,
+    })
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -1977,16 +1914,6 @@ fn extract_for_authorize<T: PaymentMethodDataTypes + Debug + Sync + Send + 'stat
     let card_network = card
         .and_then(|c| c.card_network.clone())
         .or_else(|| nti_card_opt.and_then(|n| n.card_network.clone()));
-    let merchant_metadata_early = match router_data.request.metadata.as_ref() {
-        Some(meta) => serde_json::from_value::<TsysTransitMerchantMetadata>(meta.clone().expose())
-            .change_context(IntegrationError::InvalidDataFormat {
-                field_name: "connector_metadata.tsys_transit",
-                context: Default::default(),
-            })?,
-        None => TsysTransitMerchantMetadata::default(),
-    };
-    let merchant_inner_early = merchant_metadata_early.into_inner();
-    let commercial_meta = merchant_inner_early.commercial_card.clone();
     let recurring_context = compute_recurring_context(
         router_data.request.mit_category.clone(),
         router_data
@@ -1995,12 +1922,8 @@ fn extract_for_authorize<T: PaymentMethodDataTypes + Debug + Sync + Send + 'stat
             .as_ref(),
         card_network.as_ref(),
     )?;
-    let commercial_card_context = compute_commercial_card_context(
-        router_data,
-        commercial_meta.as_ref(),
-        card_network.as_ref(),
-        &auth,
-    )?;
+    let commercial_card_context =
+        compute_commercial_card_context(router_data, card_network.as_ref(), &auth)?;
     let three_ds_context = compute_three_ds_context(router_data, card_network.as_ref());
 
     let profile =
@@ -2269,9 +2192,6 @@ fn assemble_authorize_body(
         // Per-field commercial gating from rules::commercial.
         purchase_order,
         charge_descriptor,
-        charge_descriptor_2: commercial_card_context.charge_descriptor_2,
-        charge_descriptor_3: commercial_card_context.charge_descriptor_3,
-        charge_descriptor_4: commercial_card_context.charge_descriptor_4,
         customer_vat_number,
         customer_ref_id,
         supplier_reference_number,
