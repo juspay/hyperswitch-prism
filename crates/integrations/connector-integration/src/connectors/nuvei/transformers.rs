@@ -15,7 +15,7 @@ use domain_types::{
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{
-        BankDebitData, BankRedirectData, BankTransferData, PaymentMethodData,
+        BankDebitData, BankRedirectData, BankTransferData, NetworkTokenData, PaymentMethodData,
         PaymentMethodDataTypes, RawCardNumber,
     },
     router_data::{ConnectorSpecificConfig, FlowStatus},
@@ -153,11 +153,22 @@ pub struct NuveiPaymentOption<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 > {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub card: Option<NuveiCard<T>>,
+    pub card: Option<NuveiCardPaymentOption<T>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub alternative_payment_method: Option<NuveiAlternativePaymentMethod>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub user_payment_option_id: Option<Secret<String>>,
+}
+
+// Serialize-only: untagged is wire-invisible, so raw-card requests keep their
+// exact previous shape while network-token requests emit the externalToken form
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum NuveiCardPaymentOption<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+> {
+    Raw(NuveiCard<T>),
+    NetworkToken(NuveiNetworkTokenCard),
 }
 
 #[derive(Debug, Serialize)]
@@ -171,6 +182,114 @@ pub struct NuveiCard<
     pub expiration_year: Secret<String>,
     #[serde(rename = "CVV")]
     pub cvv: Secret<String>,
+}
+
+/// card object used when paying with a network token: no PAN/CVV/holder name,
+/// only expiry + externalToken (mirrors hyperswitch get_network_token_info)
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NuveiNetworkTokenCard {
+    pub expiration_month: Secret<String>,
+    pub expiration_year: Secret<String>,
+    pub external_token: NuveiNetworkTokenExternalToken,
+}
+
+/// Nuvei externalToken payload for network-token payments.
+/// tokenAssuranceLevel / tokenRequestorId mirror hyperswitch PR #13093, which
+/// always sends None for them today; skip_serializing_none keeps them off the wire.
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NuveiNetworkTokenExternalToken {
+    pub network_token_number: cards::NetworkToken,
+    pub network_token_cryptogram: Option<Secret<String>>,
+    pub token_assurance_level: Option<String>,
+    pub token_requestor_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum NuveiCardType {
+    Visa,
+    MasterCard,
+    Amex,
+    Discover,
+    Diners,
+}
+
+impl TryFrom<common_enums::CardNetwork> for NuveiCardType {
+    type Error = Report<IntegrationError>;
+
+    fn try_from(network: common_enums::CardNetwork) -> Result<Self, Self::Error> {
+        match network {
+            common_enums::CardNetwork::Visa => Ok(Self::Visa),
+            common_enums::CardNetwork::Mastercard => Ok(Self::MasterCard),
+            common_enums::CardNetwork::AmericanExpress => Ok(Self::Amex),
+            common_enums::CardNetwork::Discover => Ok(Self::Discover),
+            common_enums::CardNetwork::DinersClub => Ok(Self::Diners),
+            _ => Err(IntegrationError::NotSupported {
+                message: format!("Card network {network:?}"),
+                connector: "nuvei",
+                context: Default::default(),
+            }
+            .into()),
+        }
+    }
+}
+
+impl TryFrom<&domain_types::utils::CardIssuer> for NuveiCardType {
+    type Error = Report<IntegrationError>;
+
+    fn try_from(issuer: &domain_types::utils::CardIssuer) -> Result<Self, Self::Error> {
+        match issuer {
+            domain_types::utils::CardIssuer::Visa => Ok(Self::Visa),
+            domain_types::utils::CardIssuer::Master => Ok(Self::MasterCard),
+            domain_types::utils::CardIssuer::AmericanExpress => Ok(Self::Amex),
+            domain_types::utils::CardIssuer::Discover => Ok(Self::Discover),
+            domain_types::utils::CardIssuer::DinersClub => Ok(Self::Diners),
+            _ => Err(IntegrationError::NotSupported {
+                message: format!("Card issuer {issuer:?}"),
+                connector: "nuvei",
+                context: Default::default(),
+            }
+            .into()),
+        }
+    }
+}
+
+/// externalSchemeDetails: carries the original network transaction id (NTID)
+/// and card brand for MIT network-token payments
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NuveiExternalSchemeDetails {
+    pub transaction_id: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub brand: Option<NuveiCardType>,
+}
+
+/// Shared card mapping for network-token CIT and MIT requests
+fn build_nuvei_network_token_card(token_data: &NetworkTokenData) -> NuveiNetworkTokenCard {
+    NuveiNetworkTokenCard {
+        expiration_month: token_data.get_network_token_expiry_month(),
+        expiration_year: token_data.get_network_token_expiry_year(),
+        external_token: NuveiNetworkTokenExternalToken {
+            network_token_number: token_data.get_network_token(),
+            network_token_cryptogram: token_data.get_cryptogram(),
+            token_assurance_level: None,
+            token_requestor_id: None,
+        },
+    }
+}
+
+/// Brand for externalSchemeDetails: prefer the explicit card_network, fall back
+/// to BIN-derived issuer
+fn get_nuvei_card_brand(
+    token_data: &NetworkTokenData,
+) -> Result<NuveiCardType, Report<IntegrationError>> {
+    match token_data.card_network.clone() {
+        Some(network) => NuveiCardType::try_from(network),
+        None => NuveiCardType::try_from(&token_data.get_card_issuer()?),
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -792,17 +911,26 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     })?;
 
                 NuveiPaymentOption {
-                    card: Some(NuveiCard {
+                    card: Some(NuveiCardPaymentOption::Raw(NuveiCard {
                         card_number: card_data.card_number.clone(),
                         card_holder_name,
                         expiration_month: card_data.card_exp_month.clone(),
                         expiration_year: card_data.card_exp_year.clone(),
                         cvv: card_data.card_cvc.clone(),
-                    }),
+                    })),
                     alternative_payment_method: None,
                     user_payment_option_id: None,
                 }
             }
+            // Network-token CIT: expiry + externalToken only, no PAN/CVV/holder
+            // name (a token payment must not fail on missing billing name)
+            PaymentMethodData::NetworkToken(token_data) => NuveiPaymentOption {
+                card: Some(NuveiCardPaymentOption::NetworkToken(
+                    build_nuvei_network_token_card(token_data),
+                )),
+                alternative_payment_method: None,
+                user_payment_option_id: None,
+            },
             PaymentMethodData::BankDebit(bank_debit_data) => {
                 match bank_debit_data {
                     BankDebitData::AchBankDebit {
@@ -2464,13 +2592,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     })?;
 
                 NuveiPaymentOption {
-                    card: Some(NuveiCard {
+                    card: Some(NuveiCardPaymentOption::Raw(NuveiCard {
                         card_number: card_data.card_number.clone(),
                         card_holder_name,
                         expiration_month: card_data.card_exp_month.clone(),
                         expiration_year: card_data.card_exp_year.clone(),
                         cvv: card_data.card_cvc.clone(),
-                    }),
+                    })),
                     alternative_payment_method: None,
                     user_payment_option_id: None,
                 }
@@ -2767,11 +2895,15 @@ pub struct NuveiRepeatPaymentRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub client_unique_id: Option<String>,
     /// userTokenId must match the value used on the initial SetupMandate so
-    /// Nuvei resolves the stored payment option correctly.
-    pub user_token_id: String,
-    pub payment_option: NuveiRepeatPaymentOption,
-    /// "1" marks a merchant-initiated rebilling transaction.
-    pub is_rebilling: String,
+    /// Nuvei resolves the stored payment option correctly. Not sent for
+    /// network-token (NTID) MITs, which carry the token itself.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_token_id: Option<String>,
+    pub payment_option: NuveiRepeatPaymentOptionTypes,
+    /// "1" marks a merchant-initiated rebilling transaction (stored-credential
+    /// MIT only; the NTID itself marks a network-token MIT).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_rebilling: Option<String>,
     pub transaction_type: TransactionType,
     pub device_details: NuveiDeviceDetails,
     /// Optional on MIT since the stored userPaymentOptionId already carries
@@ -2779,16 +2911,35 @@ pub struct NuveiRepeatPaymentRequest {
     /// it so Nuvei can run AVS / risk checks if the address has changed.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub billing_address: Option<NuveiBillingAddress>,
+    /// Original-transaction reference (NTID + brand) for network-token MITs.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub external_scheme_details: Option<NuveiExternalSchemeDetails>,
     pub time_stamp: common_utils::date_time::DateTime<common_utils::date_time::YYYYMMDDHHmmss>,
     pub checksum: String,
 }
 
-/// paymentOption payload for MIT - only userPaymentOptionId is required; Nuvei
-/// reuses the stored card bound to this id.
+// Serialize-only untagged enum: stored-credential MIT keeps its exact previous
+// wire shape; network-token MIT emits paymentOption.card with externalToken
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum NuveiRepeatPaymentOptionTypes {
+    StoredCredential(NuveiRepeatPaymentOption),
+    NetworkToken(NuveiRepeatPaymentCardOption),
+}
+
+/// paymentOption payload for stored-credential MIT - only userPaymentOptionId
+/// is required; Nuvei reuses the stored card bound to this id.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NuveiRepeatPaymentOption {
     pub user_payment_option_id: String,
+}
+
+/// paymentOption payload for network-token MIT.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NuveiRepeatPaymentCardOption {
+    pub card: NuveiNetworkTokenCard,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -2843,37 +2994,79 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let auth = NuveiAuthType::try_from(&router_data.connector_config)?;
 
-        // Nuvei only supports its own ConnectorMandateId for MIT - the
-        // userPaymentOptionId returned by SetupMandate.
-        let user_payment_option_id = match &router_data.request.mandate_reference {
-            MandateReferenceId::ConnectorMandateId(c) => {
-                c.get_connector_mandate_id()
-                    .ok_or(IntegrationError::MissingRequiredField {
-                        field_name: "mandate_reference.connector_mandate_id",
-                        context: Default::default(),
-                    })?
-            }
-            MandateReferenceId::NetworkMandateId(_)
-            | MandateReferenceId::NetworkTokenWithNTI(_) => {
-                return Err(IntegrationError::NotSupported {
-                    message: "Nuvei RepeatPayment only supports connector_mandate_id".to_string(),
-                    connector: "nuvei",
-                    context: Default::default(),
-                }
-                .into())
-            }
-        };
+        // Stored-credential MIT uses Nuvei's own ConnectorMandateId (the
+        // userPaymentOptionId returned by SetupMandate); network-token MIT
+        // uses the token from payment_method plus the NTID from the mandate
+        // reference (mirrors hyperswitch PR #13093).
+        let (payment_option, external_scheme_details, user_token_id, is_rebilling) =
+            match &router_data.request.mandate_reference {
+                MandateReferenceId::ConnectorMandateId(c) => {
+                    let user_payment_option_id = c.get_connector_mandate_id().ok_or(
+                        IntegrationError::MissingRequiredField {
+                            field_name: "mandate_reference.connector_mandate_id",
+                            context: Default::default(),
+                        },
+                    )?;
 
-        // userTokenId must match the initial SetupMandate - caller passes the
-        // same value via connector_customer_id on the Charge request.
-        let user_token_id = router_data
-            .resource_common_data
-            .connector_customer
-            .clone()
-            .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "connector_customer_id (maps to Nuvei userTokenId)",
-                context: Default::default(),
-            })?;
+                    // userTokenId must match the initial SetupMandate - caller
+                    // passes the same value via connector_customer_id on the
+                    // Charge request.
+                    let user_token_id = router_data
+                        .resource_common_data
+                        .connector_customer
+                        .clone()
+                        .ok_or(IntegrationError::MissingRequiredField {
+                            field_name: "connector_customer_id (maps to Nuvei userTokenId)",
+                            context: Default::default(),
+                        })?;
+
+                    (
+                        NuveiRepeatPaymentOptionTypes::StoredCredential(NuveiRepeatPaymentOption {
+                            user_payment_option_id,
+                        }),
+                        None,
+                        Some(user_token_id),
+                        Some("1".to_string()),
+                    )
+                }
+                MandateReferenceId::NetworkTokenWithNTI(nti_ref) => {
+                    let token_data = match &router_data.request.payment_method_data {
+                        PaymentMethodData::NetworkToken(token_data) => token_data,
+                        _ => {
+                            return Err(IntegrationError::NotSupported {
+                                message:
+                                    "Nuvei network-token MIT requires payment_method.network_token on the Charge request"
+                                        .to_string(),
+                                connector: "nuvei",
+                                context: Default::default(),
+                            }
+                            .into())
+                        }
+                    };
+
+                    (
+                        NuveiRepeatPaymentOptionTypes::NetworkToken(NuveiRepeatPaymentCardOption {
+                            card: build_nuvei_network_token_card(token_data),
+                        }),
+                        Some(NuveiExternalSchemeDetails {
+                            transaction_id: Secret::new(nti_ref.network_transaction_id.clone()),
+                            brand: Some(get_nuvei_card_brand(token_data)?),
+                        }),
+                        None,
+                        None,
+                    )
+                }
+                MandateReferenceId::NetworkMandateId(_) => {
+                    return Err(IntegrationError::NotSupported {
+                        message:
+                            "Nuvei RepeatPayment supports connector_mandate_id or a network token with NTID"
+                                .to_string(),
+                        connector: "nuvei",
+                        context: Default::default(),
+                    }
+                    .into())
+                }
+            };
 
         let ip_address = router_data
             .request
@@ -2953,13 +3146,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             currency,
             client_unique_id: Some(client_request_id),
             user_token_id,
-            payment_option: NuveiRepeatPaymentOption {
-                user_payment_option_id,
-            },
-            is_rebilling: "1".to_string(),
+            payment_option,
+            is_rebilling,
             transaction_type,
             device_details,
             billing_address,
+            external_scheme_details,
             time_stamp,
             checksum,
         })
@@ -3062,5 +3254,101 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             response: Ok(payments_response_data),
             ..router_data.clone()
         })
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+#[allow(clippy::expect_used)]
+#[allow(clippy::panic)]
+#[allow(clippy::indexing_slicing)]
+mod tests {
+    use std::str::FromStr;
+
+    use domain_types::payment_method_data::DefaultPCIHolder;
+
+    use super::*;
+
+    fn sample_token_data() -> NetworkTokenData {
+        NetworkTokenData {
+            token_number: cards::NetworkToken::from_str("4111111111111111").unwrap(),
+            token_exp_month: Secret::new("12".to_string()),
+            token_exp_year: Secret::new("2030".to_string()),
+            token_cryptogram: Some(Secret::new("AgAAAAAAosVKVV7FplLgQRYAAAA=".to_string())),
+            card_issuer: None,
+            card_network: Some(common_enums::CardNetwork::Visa),
+            card_type: None,
+            card_issuing_country: None,
+            bank_code: None,
+            nick_name: None,
+            eci: None,
+        }
+    }
+
+    #[test]
+    fn test_network_token_card_serializes_external_token_shape() {
+        let card = build_nuvei_network_token_card(&sample_token_data());
+        let value = serde_json::to_value(&card).unwrap();
+        assert_eq!(value["expirationMonth"], "12");
+        assert_eq!(value["expirationYear"], "2030");
+        assert_eq!(
+            value["externalToken"]["networkTokenNumber"],
+            "4111111111111111"
+        );
+        assert_eq!(
+            value["externalToken"]["networkTokenCryptogram"],
+            "AgAAAAAAosVKVV7FplLgQRYAAAA="
+        );
+        // Always-None fields must stay off the wire
+        assert!(value["externalToken"].get("tokenAssuranceLevel").is_none());
+        assert!(value["externalToken"].get("tokenRequestorId").is_none());
+        // No PAN / CVV / holder name on a token card
+        assert!(value.get("cardNumber").is_none());
+        assert!(value.get("CVV").is_none());
+        assert!(value.get("cardHolderName").is_none());
+    }
+
+    #[test]
+    fn test_external_scheme_details_serialization() {
+        let details = NuveiExternalSchemeDetails {
+            transaction_id: Secret::new("1234567890123456789".to_string()),
+            brand: Some(get_nuvei_card_brand(&sample_token_data()).unwrap()),
+        };
+        let value = serde_json::to_value(&details).unwrap();
+        assert_eq!(value["transactionId"], "1234567890123456789");
+        assert_eq!(value["brand"], "VISA");
+    }
+
+    #[test]
+    fn test_raw_card_wrapper_is_wire_invisible() {
+        let card: NuveiCard<DefaultPCIHolder> = NuveiCard {
+            card_number: RawCardNumber(cards::CardNumber::from_str("4444333322221111").unwrap()),
+            card_holder_name: Secret::new("John Doe".to_string()),
+            expiration_month: Secret::new("10".to_string()),
+            expiration_year: Secret::new("2027".to_string()),
+            cvv: Secret::new("123".to_string()),
+        };
+        let direct = serde_json::to_value(&card).unwrap();
+        let wrapped =
+            serde_json::to_value(NuveiCardPaymentOption::<DefaultPCIHolder>::Raw(card)).unwrap();
+        assert_eq!(direct, wrapped);
+    }
+
+    #[test]
+    fn test_repeat_payment_option_variants_serialize_distinctly() {
+        let stored = NuveiRepeatPaymentOptionTypes::StoredCredential(NuveiRepeatPaymentOption {
+            user_payment_option_id: "upo_123".to_string(),
+        });
+        let value = serde_json::to_value(&stored).unwrap();
+        assert_eq!(value["userPaymentOptionId"], "upo_123");
+
+        let network = NuveiRepeatPaymentOptionTypes::NetworkToken(NuveiRepeatPaymentCardOption {
+            card: build_nuvei_network_token_card(&sample_token_data()),
+        });
+        let value = serde_json::to_value(&network).unwrap();
+        assert_eq!(
+            value["card"]["externalToken"]["networkTokenNumber"],
+            "4111111111111111"
+        );
     }
 }
