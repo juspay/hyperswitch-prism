@@ -28,9 +28,6 @@ use super::PlaidRouterData;
 
 const PLAID_SUBTYPE_CHECKING: &str = "checking";
 const PLAID_SUBTYPE_SAVINGS: &str = "savings";
-const PLAID_SUBTYPE_BUSINESS: &str = "business";
-const PLAID_SUBTYPE_COMMERCIAL: &str = "commercial";
-const PLAID_SUBTYPE_CONSUMER: &str = "consumer";
 // =============================================================================
 // AUTH TYPE
 // =============================================================================
@@ -439,10 +436,18 @@ pub struct PlaidItem {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PlaidHolderCategory {
+    Personal,
+    Business,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 pub struct PlaidAccount {
     pub account_id: Secret<String>,
     pub name: Secret<String>,
     pub subtype: Option<String>,
+    pub holder_category: Option<PlaidHolderCategory>,
     pub balances: PlaidBalances,
 }
 
@@ -549,10 +554,10 @@ impl TryFrom<ResponseRouterData<PlaidAuthGetResponse, Self>>
                 };
 
                 let bank_type = acct.subtype.as_deref().and_then(plaid_subtype_to_bank_type);
-                let bank_holder_type = acct
-                    .subtype
-                    .as_deref()
-                    .and_then(plaid_subtype_to_bank_holder_type);
+                let bank_holder_type = acct.holder_category.as_ref().map(|hc| match hc {
+                    PlaidHolderCategory::Personal => BankHolderType::Personal,
+                    PlaidHolderCategory::Business => BankHolderType::Business,
+                });
                 let balance = acct
                     .balances
                     .current
@@ -604,15 +609,6 @@ fn plaid_subtype_to_bank_type(subtype: &str) -> Option<BankType> {
     match subtype {
         PLAID_SUBTYPE_CHECKING => Some(BankType::Checking),
         PLAID_SUBTYPE_SAVINGS => Some(BankType::Savings),
-        _ => None,
-    }
-}
-
-/// Map Plaid account subtype strings to the domain `BankHolderType` enum.
-fn plaid_subtype_to_bank_holder_type(subtype: &str) -> Option<BankHolderType> {
-    match subtype {
-        PLAID_SUBTYPE_BUSINESS | PLAID_SUBTYPE_COMMERCIAL => Some(BankHolderType::Business),
-        PLAID_SUBTYPE_CONSUMER => Some(BankHolderType::Personal),
         _ => None,
     }
 }
