@@ -153,16 +153,6 @@ message PayshapBankTransferPayout {
 }
 
 message PayshapProxyBankTransferPayout {
-  /// Proxy type used for the payout. It can be an email, cellphone number, or Shap ID.
-  enum PayshapProxyType {
-    PROXY_TYPE_UNSPECIFIED = 0;
-    CELLPHONE = 2;
-    SHAP_ID = 3;
-  }
-
-  /// Proxy type used for the payout.
-  PayshapProxyType proxy_type = 1;
-
   /// Cellphone number.
   optional SecretString cellphone = 2;
 

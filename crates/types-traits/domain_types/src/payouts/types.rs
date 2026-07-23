@@ -684,31 +684,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayshapProxyBankTransferPayout>
     fn foreign_try_from(
         payshap_proxy: grpc_api_types::payouts::PayshapProxyBankTransferPayout,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
-        let proxy_type = match payshap_proxy.proxy_type() {
-            grpc_api_types::payouts::payshap_proxy_bank_transfer_payout::PayshapProxyType::Cellphone => {
-                payouts::payout_method_data::PayshapProxyType::Cellphone
-            }
-            grpc_api_types::payouts::payshap_proxy_bank_transfer_payout::PayshapProxyType::ShapId => {
-                payouts::payout_method_data::PayshapProxyType::ShapId
-            }
-            grpc_api_types::payouts::payshap_proxy_bank_transfer_payout::PayshapProxyType::ProxyTypeUnspecified => {
-                Err(error_stack::report!(IntegrationError::InvalidDataFormat {
-                    field_name: "proxy_type",
-                    context: IntegrationErrorContext {
-                        additional_context: Some(
-                            "PayShap proxy type must be either Cellphone or ShapId".to_owned(),
-                        ),
-                        suggested_action: Some(
-                            "Provide a supported `proxy_type` for the PayShap proxy payout method data".to_owned(),
-                        ),
-                        doc_url: None,
-                    },
-                }))?
-            }
-        };
-
         Ok(payouts::payout_method_data::PayshapProxyBankTransfer {
-            proxy_type,
             cellphone: payshap_proxy.cellphone,
             shap_id: payshap_proxy.shap_id,
         })

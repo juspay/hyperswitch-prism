@@ -182,10 +182,7 @@ pub struct PayshapBankTransfer {
 
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub struct PayshapProxyBankTransfer {
-    /// Proxy type used for the payout.
-    pub proxy_type: PayshapProxyType,
-
-    /// Cellphone number.
+/// Cellphone number.
     pub cellphone: Option<Secret<String>>,
 
     /// Shap ID.
