@@ -773,7 +773,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"source\":\"pm_1AbcXyzStripeTestToken\",\"merchant\":\"probe_merchant\",\"idempotency_id\":\"probe_tokenized_txn_001\"}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"source\":\"pm_1AbcXyzStripeTestToken\",\"merchant\":\"probe_merchant\",\"tags\":null,\"fraud_session_id\":null,\"3d_secure_authentication\":null,\"idempotency_id\":\"probe_tokenized_txn_001\",\"statement_descriptor\":null}"
         }
       }
     },
