@@ -44,6 +44,9 @@
 //   │ EventService                         │ Process asynchronous webhook events from payment processors. Receive        │
 //   │                                      │ real-time updates about payment state changes without polling APIs.         │
 //   ├──────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────┤
+//   │ ConnectorCapabilityService           │ Get connector feature matrix data. Compare supported payment methods,       │
+//   │                                      │ webhook flows, integration status, and other connector capabilities.        │
+//   ├──────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────┤
 //   │ PaymentMethodService                 │ Tokenize and retrieve payment methods. Vault sensitive card data to enable  │
 //   │                                      │ one-click payments and recurring billing without PCI exposure.              │
 //   ├──────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────┤

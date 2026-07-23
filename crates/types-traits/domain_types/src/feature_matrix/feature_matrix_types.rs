@@ -102,7 +102,7 @@ where
 
 #[derive(Debug, Clone, Serialize)]
 pub struct FeatureMatrixPaymentMethod {
-    pub payment_method_type: String,
+    pub payment_method_type: PaymentMethodType,
     pub payment_method_type_display_name: String,
     pub mandates: FeatureStatus,
     pub refunds: FeatureStatus,
@@ -124,38 +124,26 @@ impl FeatureMatrixPaymentMethod {
         let mut payment_methods = supported_payment_methods
             .values()
             .flat_map(|payment_method_type_metadata| {
-                payment_method_type_metadata.iter().flat_map(
-                    |(payment_method_type, payment_method_details)| match payment_method_type {
-                        PaymentMethodType::Card => vec![
-                            Self::from_payment_method_details(
-                                "credit".to_string(),
-                                "Credit Card".to_string(),
-                                payment_method_details,
-                            ),
-                            Self::from_payment_method_details(
-                                "debit".to_string(),
-                                "Debit Card".to_string(),
-                                payment_method_details,
-                            ),
-                        ],
-                        payment_method_type => vec![Self::from_payment_method_details(
-                            payment_method_type.to_string(),
+                payment_method_type_metadata.iter().map(
+                    |(payment_method_type, payment_method_details)| {
+                        Self::from_payment_method_details(
+                            *payment_method_type,
                             payment_method_type.to_display_name(),
                             payment_method_details,
-                        )],
+                        )
                     },
                 )
             })
             .collect::<Vec<_>>();
 
         payment_methods
-            .sort_by(|left, right| left.payment_method_type.cmp(&right.payment_method_type));
+            .sort_by_key(|payment_method| payment_method.payment_method_type.to_string());
 
         payment_methods
     }
 
     fn from_payment_method_details(
-        payment_method_type: String,
+        payment_method_type: PaymentMethodType,
         payment_method_type_display_name: String,
         payment_method_details: &PaymentMethodDetails,
     ) -> Self {

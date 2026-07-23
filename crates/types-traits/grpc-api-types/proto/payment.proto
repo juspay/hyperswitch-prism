@@ -852,12 +852,12 @@ enum PaymentMethodType {
   CARD_REDIRECT = 21;
   CIMB_VA = 22;
   CLASSIC_REWARD = 23;
-  CREDIT = 24;
+  CREDIT = 24 [deprecated = true]; // Use CARD instead (will be removed in a future release)
   CRYPTO_CURRENCY = 25;
   CASHAPP = 26;
   DANA = 27;
   DANAMON_VA = 28;
-  DEBIT = 29;
+  DEBIT = 29 [deprecated = true]; // Use CARD instead (will be removed in a future release)
   DUIT_NOW = 30;
   EFECTY = 31;
   EFT = 32;
@@ -943,6 +943,14 @@ enum PaymentMethodType {
   OPEN_BANKING = 112;
   QWIKCILVER_WALLET = 113;
   SKRILL = 114;
+  CARD = 115;
+  BLUECODE = 116;
+  KLARNA_PAY_LATER = 117;
+  TAMARA_PAY_LATER = 118;
+  MIFINITY_WALLET = 119;
+  SEPA_GUARANTEED_DEBIT = 120;
+  INDONESIAN_BANK_TRANSFER = 121;
+  PAYSERA = 122;
 }
 
 // Product type enumeration
@@ -5976,7 +5984,7 @@ message FeatureMatrixConnector {
 }
 
 message FeatureMatrixPaymentMethod {
-  string payment_method_type = 1;
+  PaymentMethodType payment_method_type = 1;
   string payment_method_type_display_name = 2;
   FeatureStatus mandates = 3;
   FeatureStatus refunds = 4;
