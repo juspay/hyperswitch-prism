@@ -665,9 +665,14 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayshapBankTransferPayout>
             },
             account_holder_name: payshap.account_holder_name,
             bank_account_number: payshap.bank_account_number.ok_or(
-                IntegrationError::InvalidDataFormat { field_name: "bank_account_number", context: IntegrationErrorContext { additional_context: Some("Bank account number is required for Payshap Bank Transfer".to_string()), ..Default::default() } },
+                IntegrationError::InvalidDataFormat { 
+                    field_name: "bank_account_number", 
+                    context: IntegrationErrorContext { 
+                        additional_context: Some("Bank account number is required for Payshap Bank Transfer".to_string()), 
+                        ..Default::default() 
+                    } 
+                },
             )?,
-            branch_code: payshap.branch_code,
         })
     }
 }

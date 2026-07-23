@@ -172,10 +172,7 @@ pub struct PixEmvBankTransfer {
 pub struct PayshapBankTransfer {
     /// Bank account number is a unique identifier assigned by a bank to a customer.
     pub bank_account_number: Secret<String>,
-
-    /// Branch code used to identify the bank branch.
-    pub branch_code: Option<Secret<String>>,
-
+    
     /// Bank account holder name.
     pub account_holder_name: Option<Secret<String>>,
 
