@@ -24,7 +24,7 @@
 //!      only tag." (reinforces V/MC-only L3 gating)
 
 use common_utils::types::StringMajorUnit;
-use domain_types::errors::IntegrationError;
+use domain_types::errors::{IntegrationError, IntegrationErrorContext};
 use error_stack::Report;
 
 use super::super::profile::{CardFamily, CommercialLevel, TxProfile};
@@ -39,16 +39,24 @@ fn require_for_l3<T>(
     raw: Option<T>,
     field_name: &'static str,
 ) -> Result<Option<T>, Report<IntegrationError>> {
-    if !profile.commercial_level.is_l3() {
-        return Ok(None);
+    if profile.commercial_level.is_l3() {
+        let value = raw.ok_or_else(|| IntegrationError::MissingRequiredField {
+            field_name,
+            context: IntegrationErrorContext {
+                suggested_action: Some(format!("Provide {field_name} in the request")),
+                doc_url: None,
+                additional_context: Some(format!(
+                    "{field_name} is required because commercial_level is LEVEL3 \
+                     (card_family={:?})",
+                    profile.card_family
+                )),
+            },
+        })?;
+
+        Ok(Some(value))
+    } else {
+        Ok(None)
     }
-
-    let value = raw.ok_or_else(|| IntegrationError::MissingRequiredField {
-        field_name,
-        context: Default::default(),
-    })?;
-
-    Ok(Some(value))
 }
 
 /// `purchaseOrder` — Visa / Mastercard only, mandatory at both Level II and
@@ -58,17 +66,24 @@ pub fn purchase_order(
     profile: &TxProfile,
     raw: Option<String>,
 ) -> Result<Option<String>, Report<IntegrationError>> {
-    if !purchase_order_required(profile) {
-        return Ok(None);
+    if purchase_order_required(profile) {
+        let field_name = "purchaseOrder";
+        let purchase_order = raw.ok_or_else(|| IntegrationError::MissingRequiredField {
+            field_name,
+            context: IntegrationErrorContext {
+                suggested_action: Some(format!("Provide {field_name} in the request")),
+                doc_url: None,
+                additional_context: Some(format!(
+                    "{field_name} is required because card_family={:?} and commercial_level={:?}",
+                    profile.card_family, profile.commercial_level
+                )),
+            },
+        })?;
+
+        Ok(Some(purchase_order))
+    } else {
+        Ok(None)
     }
-
-    let purchase_order = raw.ok_or_else(|| IntegrationError::MissingRequiredField {
-        field_name:
-            "purchaseOrder required for Visa/Mastercard when commercial_card_level is LEVEL2 or LEVEL3",
-        context: Default::default(),
-    })?;
-
-    Ok(Some(purchase_order))
 }
 
 /// `customerRefID` — AMEX Level II only; mandatory in that case. Never sent
@@ -78,16 +93,24 @@ pub fn customer_ref_id(
     profile: &TxProfile,
     raw: Option<String>,
 ) -> Result<Option<String>, Report<IntegrationError>> {
-    if !amex_l2_extras_required(profile) {
-        return Ok(None);
+    if amex_l2_extras_required(profile) {
+        let field_name = "customerRefID";
+        let customer_ref_id = raw.ok_or_else(|| IntegrationError::MissingRequiredField {
+            field_name,
+            context: IntegrationErrorContext {
+                suggested_action: Some(format!("Provide {field_name} in the request")),
+                doc_url: None,
+                additional_context: Some(format!(
+                    "{field_name} is required because card_family={:?} and commercial_level={:?}",
+                    profile.card_family, profile.commercial_level
+                )),
+            },
+        })?;
+
+        Ok(Some(customer_ref_id))
+    } else {
+        Ok(None)
     }
-
-    let customer_ref_id = raw.ok_or_else(|| IntegrationError::MissingRequiredField {
-        field_name: "customerRefID required for AMEX when commercial_card_level is LEVEL2",
-        context: Default::default(),
-    })?;
-
-    Ok(Some(customer_ref_id))
 }
 
 /// `supplierReferenceNumber` — AMEX Level II only; mandatory in that case.
@@ -97,17 +120,25 @@ pub fn supplier_reference_number(
     profile: &TxProfile,
     raw: Option<String>,
 ) -> Result<Option<String>, Report<IntegrationError>> {
-    if !amex_l2_extras_required(profile) {
-        return Ok(None);
+    if amex_l2_extras_required(profile) {
+        let field_name = "supplierReferenceNumber";
+        let supplier_reference_number =
+            raw.ok_or_else(|| IntegrationError::MissingRequiredField {
+                field_name,
+                context: IntegrationErrorContext {
+                    suggested_action: Some(format!("Provide {field_name} in the request")),
+                    doc_url: None,
+                    additional_context: Some(format!(
+                    "{field_name} is required because card_family={:?} and commercial_level={:?}",
+                    profile.card_family, profile.commercial_level
+                )),
+                },
+            })?;
+
+        Ok(Some(supplier_reference_number))
+    } else {
+        Ok(None)
     }
-
-    let supplier_reference_number = raw.ok_or_else(|| IntegrationError::MissingRequiredField {
-        field_name:
-            "supplierReferenceNumber required for AMEX when commercial_card_level is LEVEL2",
-        context: Default::default(),
-    })?;
-
-    Ok(Some(supplier_reference_number))
 }
 
 /// `shipToZip` — mandatory for AMEX at Level II, or Visa/Mastercard at Level
@@ -123,16 +154,24 @@ pub fn ship_to_zip(
 ) -> Result<Option<String>, Report<IntegrationError>> {
     let amex_l2 = profile.card_family.is_amex() && profile.commercial_level.is_l2();
     let vmc_l3 = profile.commercial_level.is_l3() && profile.card_family.is_visa_or_mastercard();
-    if !(amex_l2 || vmc_l3) {
-        return Ok(None);
+    if amex_l2 || vmc_l3 {
+        let field_name = "shipToZip";
+        let ship_to_zip = raw.ok_or_else(|| IntegrationError::MissingRequiredField {
+            field_name,
+            context: IntegrationErrorContext {
+                suggested_action: Some(format!("Provide {field_name} in the request")),
+                doc_url: None,
+                additional_context: Some(format!(
+                    "{field_name} is required because card_family={:?} and commercial_level={:?}",
+                    profile.card_family, profile.commercial_level
+                )),
+            },
+        })?;
+
+        Ok(Some(ship_to_zip))
+    } else {
+        Ok(None)
     }
-
-    let ship_to_zip = raw.ok_or_else(|| IntegrationError::MissingRequiredField {
-        field_name: "shipToZip required for AMEX at LEVEL2 or Visa/Mastercard at LEVEL3",
-        context: Default::default(),
-    })?;
-
-    Ok(Some(ship_to_zip))
 }
 
 /// `destinationCountryCode` — Visa / Mastercard L3 only; mandatory in that
@@ -141,16 +180,25 @@ pub fn destination_country_code(
     profile: &TxProfile,
     raw: Option<String>,
 ) -> Result<Option<String>, Report<IntegrationError>> {
-    if !(profile.commercial_level.is_l3() && profile.card_family.is_visa_or_mastercard()) {
-        return Ok(None);
+    if profile.commercial_level.is_l3() && profile.card_family.is_visa_or_mastercard() {
+        let field_name = "destinationCountryCode";
+        let destination_country_code =
+            raw.ok_or_else(|| IntegrationError::MissingRequiredField {
+                field_name,
+                context: IntegrationErrorContext {
+                    suggested_action: Some(format!("Provide {field_name} in the request")),
+                    doc_url: None,
+                    additional_context: Some(format!(
+                    "{field_name} is required because card_family={:?} and commercial_level={:?}",
+                    profile.card_family, profile.commercial_level
+                )),
+                },
+            })?;
+
+        Ok(Some(destination_country_code))
+    } else {
+        Ok(None)
     }
-
-    let destination_country_code = raw.ok_or_else(|| IntegrationError::MissingRequiredField {
-        field_name: "destinationCountryCode required when commercial_card_level is LEVEL3",
-        context: Default::default(),
-    })?;
-
-    Ok(Some(destination_country_code))
 }
 
 /// `commercialCardLevel` — sent only when L2 or L3.
@@ -188,16 +236,24 @@ pub fn sales_tax(
     profile: &TxProfile,
     raw: Option<StringMajorUnit>,
 ) -> Result<Option<StringMajorUnit>, Report<IntegrationError>> {
-    if !sales_tax_required(profile) {
-        return Ok(None);
+    if sales_tax_required(profile) {
+        let field_name = "salesTax";
+        let sales_tax = raw.ok_or_else(|| IntegrationError::MissingRequiredField {
+            field_name,
+            context: IntegrationErrorContext {
+                suggested_action: Some(format!("Provide {field_name} in the request")),
+                doc_url: None,
+                additional_context: Some(format!(
+                    "{field_name} is required because card_family={:?} and commercial_level={:?}",
+                    profile.card_family, profile.commercial_level
+                )),
+            },
+        })?;
+
+        Ok(Some(sales_tax))
+    } else {
+        Ok(None)
     }
-
-    let sales_tax = raw.ok_or_else(|| IntegrationError::MissingRequiredField {
-        field_name: "salesTax required when commercial_card_level is LEVEL2 or LEVEL3",
-        context: Default::default(),
-    })?;
-
-    Ok(Some(sales_tax))
 }
 
 /// `customerVATNumber` — Level III Visa only; mandatory in that case
@@ -207,16 +263,24 @@ pub fn customer_vat_number(
     profile: &TxProfile,
     raw: Option<String>,
 ) -> Result<Option<String>, Report<IntegrationError>> {
-    if !customer_vat_number_required(profile) {
-        return Ok(None);
+    if customer_vat_number_required(profile) {
+        let field_name = "customerVATNumber";
+        let customer_vat_number = raw.ok_or_else(|| IntegrationError::MissingRequiredField {
+            field_name,
+            context: IntegrationErrorContext {
+                suggested_action: Some(format!("Provide {field_name} in the request")),
+                doc_url: None,
+                additional_context: Some(format!(
+                    "{field_name} is required because card_family={:?} and commercial_level={:?}",
+                    profile.card_family, profile.commercial_level
+                )),
+            },
+        })?;
+
+        Ok(Some(customer_vat_number))
+    } else {
+        Ok(None)
     }
-
-    let customer_vat_number = raw.ok_or_else(|| IntegrationError::MissingRequiredField {
-        field_name: "customerVATNumber required for Visa commercial_card_level LEVEL3",
-        context: Default::default(),
-    })?;
-
-    Ok(Some(customer_vat_number))
 }
 
 /// True when the AMEX-L2-required quartet (supplierReferenceNumber,
@@ -233,16 +297,24 @@ pub fn charge_descriptor(
     profile: &TxProfile,
     raw: Option<String>,
 ) -> Result<Option<String>, Report<IntegrationError>> {
-    if !amex_l2_extras_required(profile) {
-        return Ok(None);
+    if amex_l2_extras_required(profile) {
+        let field_name = "chargeDescriptor";
+        let charge_descriptor = raw.ok_or_else(|| IntegrationError::MissingRequiredField {
+            field_name,
+            context: IntegrationErrorContext {
+                suggested_action: Some(format!("Provide {field_name} in the request")),
+                doc_url: None,
+                additional_context: Some(format!(
+                    "{field_name} is required because card_family={:?} and commercial_level={:?}",
+                    profile.card_family, profile.commercial_level
+                )),
+            },
+        })?;
+
+        Ok(Some(charge_descriptor))
+    } else {
+        Ok(None)
     }
-
-    let charge_descriptor = raw.ok_or_else(|| IntegrationError::MissingRequiredField {
-        field_name: "chargeDescriptor required for AMEX when commercial_card_level is LEVEL2",
-        context: Default::default(),
-    })?;
-
-    Ok(Some(charge_descriptor))
 }
 
 /// True when L3 Visa/MC required fields are required (purchaseOrder,
@@ -349,35 +421,31 @@ pub fn additional_tax_details(
     tax_rate: Option<String>,
     tax_category: Option<TsysTransitTaxCategory>,
 ) -> Result<Vec<TsysTransitAdditionalTaxDetails>, Report<IntegrationError>> {
-    if !profile.commercial_level.is_l3() {
-        return Ok(Vec::new());
+    if profile.commercial_level.is_l3() {
+        let missing_field = |field_name: &'static str| IntegrationError::MissingRequiredField {
+            field_name,
+            context: IntegrationErrorContext {
+                suggested_action: Some(format!("Provide {field_name} in the request")),
+                doc_url: None,
+                additional_context: Some(format!(
+                    "{field_name} is required because card_family={:?} and commercial_level={:?}",
+                    profile.card_family, profile.commercial_level
+                )),
+            },
+        };
+
+        let tax_type = tax_type.ok_or_else(|| missing_field("taxType"))?;
+        let tax_amount = tax_amount.ok_or_else(|| missing_field("taxAmount"))?;
+        let tax_rate = tax_rate.ok_or_else(|| missing_field("taxRate"))?;
+        let tax_category = tax_category.ok_or_else(|| missing_field("taxCategory"))?;
+
+        Ok(vec![TsysTransitAdditionalTaxDetails {
+            tax_type,
+            tax_amount,
+            tax_rate: Some(tax_rate),
+            tax_category: Some(tax_category),
+        }])
+    } else {
+        Ok(Vec::new())
     }
-
-    let tax_type = tax_type.ok_or_else(|| IntegrationError::MissingRequiredField {
-        field_name:
-            "taxType required for additionalTaxDetails (order_details[0].product_tax_code missing)",
-        context: Default::default(),
-    })?;
-    let tax_amount = tax_amount.ok_or_else(|| IntegrationError::MissingRequiredField {
-        field_name:
-            "taxAmount required for additionalTaxDetails when commercial_card_level is LEVEL3",
-        context: Default::default(),
-    })?;
-    let tax_rate = tax_rate.ok_or_else(|| IntegrationError::MissingRequiredField {
-        field_name:
-            "taxRate required for additionalTaxDetails when commercial_card_level is LEVEL3",
-        context: Default::default(),
-    })?;
-    let tax_category = tax_category.ok_or_else(|| IntegrationError::MissingRequiredField {
-        field_name:
-            "taxCategory required for additionalTaxDetails when commercial_card_level is LEVEL3",
-        context: Default::default(),
-    })?;
-
-    Ok(vec![TsysTransitAdditionalTaxDetails {
-        tax_type,
-        tax_amount,
-        tax_rate: Some(tax_rate),
-        tax_category: Some(tax_category),
-    }])
 }

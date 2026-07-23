@@ -1313,7 +1313,15 @@ fn resolve_order_date(
             )
             .change_context(IntegrationError::InvalidDataFormat {
                 field_name: "order_date",
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Ensure order_details.order_date is a valid date".to_string(),
+                    ),
+                    doc_url: None,
+                    additional_context: Some(format!(
+                        "failed to format order_date {date:?} as MMDDYYYY"
+                    )),
+                },
             })
         })
         .transpose()
@@ -1324,160 +1332,159 @@ fn build_tsys_product_details(
     currency: common_enums::Currency,
     card_network: Option<&CardNetwork>,
 ) -> Result<Option<TsysTransitProductDetails>, Report<IntegrationError>> {
-    if !matches!(
+    if matches!(
         card_network,
         Some(CardNetwork::Visa) | Some(CardNetwork::Mastercard)
     ) {
-        return Ok(None);
-    };
+        let is_visa_card = matches!(card_network, Some(CardNetwork::Visa));
 
-    let is_visa_card = matches!(card_network, Some(CardNetwork::Visa));
+        let missing_field = |field_name: &'static str| {
+            IntegrationError::MissingRequiredField {
+        field_name,
+        context: IntegrationErrorContext {
+            suggested_action: Some(format!("Provide {field_name} in the request")),
+            doc_url: None,
+            additional_context: Some(format!(
+                "{field_name} is required for Level III order_details on card_network={card_network:?}"
+            )),
+        },
+    }
+        };
 
-    let product_code = detail
-        .product_id
-        .clone()
-        .or_else(|| detail.sku.clone())
-        .or_else(|| detail.upc.clone())
-        .map(|code| sanitize_alphanumeric_space(&code, 20))
-        .filter(|code| !code.is_empty())
-        .unwrap_or_else(|| sanitize_alphanumeric_space(&detail.product_name, 20));
+        let product_code = detail
+            .product_id
+            .clone()
+            .or_else(|| detail.sku.clone())
+            .or_else(|| detail.upc.clone())
+            .map(|code| sanitize_alphanumeric_space(&code, 20))
+            .filter(|code| !code.is_empty())
+            .unwrap_or_else(|| sanitize_alphanumeric_space(&detail.product_name, 20));
 
-    let product_name = truncate_chars(&detail.product_name, 50);
-    let price = super::TsysTransitAmountConvertor::convert(detail.amount, currency)?;
-    let quantity = u32::from(detail.quantity);
-    let measurement_unit = detail.unit_of_measure.clone();
-    let unit_discount_amount = detail
-        .unit_discount_amount
-        .map(|amount| super::TsysTransitAmountConvertor::convert(amount, currency))
-        .transpose()?;
-    let product_tax_name = detail.product_tax_code.clone();
+        let product_name = truncate_chars(&detail.product_name, 50);
+        let price = super::TsysTransitAmountConvertor::convert(detail.amount, currency)?;
+        let quantity = u32::from(detail.quantity);
+        let measurement_unit = detail.unit_of_measure.clone();
+        let unit_discount_amount = detail
+            .unit_discount_amount
+            .map(|amount| super::TsysTransitAmountConvertor::convert(amount, currency))
+            .transpose()?;
+        let product_tax_name = detail.product_tax_code.clone();
 
-    let product_tax_amount = detail
-        .total_tax_amount
-        .map(|amount| super::TsysTransitAmountConvertor::convert(amount, currency))
-        .transpose()?;
+        let product_tax_amount = detail
+            .total_tax_amount
+            .map(|amount| super::TsysTransitAmountConvertor::convert(amount, currency))
+            .transpose()?;
 
-    let product_tax_percentage = detail.tax_rate.map(format_decimal);
+        let product_tax_percentage = detail.tax_rate.map(format_decimal);
 
-    let product_tax_type = detail
-        .product_tax_code
-        .clone()
-        .map(|tax_code| truncate_chars(&tax_code, 4));
+        let product_tax_type = detail
+            .product_tax_code
+            .clone()
+            .map(|tax_code| truncate_chars(&tax_code, 4));
 
-    let commodity_code = detail
-        .commodity_code
-        .clone()
-        .or_else(|| detail.upc.clone())
-        .or_else(|| detail.product_id.clone())
-        .or_else(|| detail.sku.clone())
-        .map(|code| sanitize_alphanumeric_space(&code, 12));
+        let commodity_code = detail
+            .commodity_code
+            .clone()
+            .or_else(|| detail.upc.clone())
+            .or_else(|| detail.product_id.clone())
+            .or_else(|| detail.sku.clone())
+            .map(|code| sanitize_alphanumeric_space(&code, 12));
 
-    let product_discount_name = detail
-        .discount_name
-        .clone()
-        .map(|discount_type| sanitize_alphanumeric_space(&discount_type, 50));
-    let product_discount_percentage = detail.discount_percentage.clone();
-    let product_discount_type = detail
-        .discount_type
-        .clone()
-        .map(|discount_type| sanitize_alphanumeric_space(&discount_type, 20));
-    let priority = 1;
-    let stackable = TsysTransitYesNo::No;
+        let product_discount_name = detail
+            .discount_name
+            .clone()
+            .map(|discount_type| sanitize_alphanumeric_space(&discount_type, 50));
+        let product_discount_percentage = detail.discount_percentage.clone();
+        let product_discount_type = detail
+            .discount_type
+            .clone()
+            .map(|discount_type| sanitize_alphanumeric_space(&discount_type, 20));
+        let priority = 1;
+        let stackable = TsysTransitYesNo::No;
 
-    if matches!(card_network, Some(CardNetwork::Visa)) {
-        let missing_fields = collect_missing_value_keys!(
-            ("order_details.commodity_code", commodity_code),
-            ("order_details.unit_of_measure", measurement_unit),
-            ("order_details.unit_discount_amount", unit_discount_amount),
-            ("order_details.product_tax_name", product_tax_name),
-            ("order_details.product_tax_amount", product_tax_amount),
-            (
-                "order_details.product_tax_percentage",
-                product_tax_percentage
-            ),
-            ("order_details.unit_discount_amount", unit_discount_amount)
-        );
-
-        if !missing_fields.is_empty() {
-            return Err(IntegrationError::MissingRequiredFields {
-                field_names: missing_fields,
-                context: Default::default(),
-            }
-            .into());
+        let missing_fields_error = |missing_fields: Vec<&'static str>| {
+            IntegrationError::MissingRequiredFields {
+            context: IntegrationErrorContext {
+                suggested_action: Some(format!(
+                    "Provide the following order_details fields: {missing_fields:?}"
+                )),
+                doc_url: None,
+                additional_context: Some(format!(
+                    "these fields are required for Level III order_details on card_network={card_network:?}"
+                )),
+            },
+            field_names: missing_fields,
         }
-    };
+        };
 
-    if matches!(card_network, Some(CardNetwork::Mastercard)) {
-        let missing_fields = collect_missing_value_keys!(
-            ("order_details.unit_of_measure", measurement_unit),
-            ("order_details.unit_discount_amount", unit_discount_amount),
-            ("order_details.product_tax_name", product_tax_name),
-            ("order_details.product_tax_amount", product_tax_amount),
-            (
-                "order_details.product_tax_percentage",
-                product_tax_percentage
-            ),
-            ("order_details.unit_discount_amount", unit_discount_amount)
-        );
+        if matches!(card_network, Some(CardNetwork::Visa)) {
+            let missing_fields = collect_missing_value_keys!(
+                ("order_details.commodity_code", commodity_code),
+                ("order_details.unit_of_measure", measurement_unit),
+                ("order_details.unit_discount_amount", unit_discount_amount),
+                ("order_details.product_tax_name", product_tax_name),
+                ("order_details.product_tax_amount", product_tax_amount),
+                (
+                    "order_details.product_tax_percentage",
+                    product_tax_percentage
+                ),
+                ("order_details.unit_discount_amount", unit_discount_amount)
+            );
 
-        if !missing_fields.is_empty() {
-            return Err(IntegrationError::MissingRequiredFields {
-                field_names: missing_fields,
-                context: Default::default(),
+            if !missing_fields.is_empty() {
+                return Err(missing_fields_error(missing_fields).into());
             }
-            .into());
-        }
-    };
+        };
 
-    Ok(Some(TsysTransitProductDetails {
-        product_code,
-        product_name,
-        price,
-        quantity,
-        measurement_unit,
-        product_discount_details: Some(TsysTransitProductDiscountDetails {
-            product_discount_name: product_discount_name.ok_or(
-                IntegrationError::MissingRequiredField {
-                    field_name: "order_details.discount_name",
-                    context: Default::default(),
-                },
-            )?,
-            product_discount_amount: unit_discount_amount.ok_or(
-                IntegrationError::MissingRequiredField {
-                    field_name: "order_details.unit_discount_amount",
-                    context: Default::default(),
-                },
-            )?,
-            product_discount_percentage: product_discount_percentage.ok_or(
-                IntegrationError::MissingRequiredField {
-                    field_name: "order_details.discount_percentage",
-                    context: Default::default(),
-                },
-            )?,
-            product_discount_type: product_discount_type.ok_or(
-                IntegrationError::MissingRequiredField {
-                    field_name: "order_details.discount_type",
-                    context: Default::default(),
-                },
-            )?,
-            priority,
-            stackable,
-        }),
-        product_tax_details: Some(TsysTransitProductTaxDetails {
-            product_tax_name,
-            product_tax_amount,
-            product_tax_percentage,
-            product_tax_type,
-        }),
-        product_commodity_code: is_visa_card
-            .then_some(
-                commodity_code.ok_or(IntegrationError::MissingRequiredField {
-                    field_name: "order_details.commodity_code",
-                    context: Default::default(),
-                }),
-            )
-            .transpose()?,
-    }))
+        if matches!(card_network, Some(CardNetwork::Mastercard)) {
+            let missing_fields = collect_missing_value_keys!(
+                ("order_details.unit_of_measure", measurement_unit),
+                ("order_details.unit_discount_amount", unit_discount_amount),
+                ("order_details.product_tax_name", product_tax_name),
+                ("order_details.product_tax_amount", product_tax_amount),
+                (
+                    "order_details.product_tax_percentage",
+                    product_tax_percentage
+                ),
+                ("order_details.unit_discount_amount", unit_discount_amount)
+            );
+
+            if !missing_fields.is_empty() {
+                return Err(missing_fields_error(missing_fields).into());
+            }
+        };
+
+        Ok(Some(TsysTransitProductDetails {
+            product_code,
+            product_name,
+            price,
+            quantity,
+            measurement_unit,
+            product_discount_details: Some(TsysTransitProductDiscountDetails {
+                product_discount_name: product_discount_name
+                    .ok_or(missing_field("order_details.discount_name"))?,
+                product_discount_amount: unit_discount_amount
+                    .ok_or(missing_field("order_details.unit_discount_amount"))?,
+                product_discount_percentage: product_discount_percentage
+                    .ok_or(missing_field("order_details.discount_percentage"))?,
+                product_discount_type: product_discount_type
+                    .ok_or(missing_field("order_details.discount_type"))?,
+                priority,
+                stackable,
+            }),
+            product_tax_details: Some(TsysTransitProductTaxDetails {
+                product_tax_name,
+                product_tax_amount,
+                product_tax_percentage,
+                product_tax_type,
+            }),
+            product_commodity_code: is_visa_card
+                .then_some(commodity_code.ok_or(missing_field("order_details.commodity_code")))
+                .transpose()?,
+        }))
+    } else {
+        Ok(None)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -1506,46 +1513,62 @@ fn build_merchant_acceptor_info(
     card_network: Option<&CardNetwork>,
     payment_channel: Option<&PaymentChannel>,
 ) -> Result<Option<MerchantAcceptorInfo>, Report<IntegrationError>> {
-    if !matches!(card_network, Some(CardNetwork::Mastercard))
-        || !matches!(payment_channel, Some(PaymentChannel::Ecommerce) | None)
+    if matches!(card_network, Some(CardNetwork::Mastercard))
+        && matches!(payment_channel, Some(PaymentChannel::Ecommerce) | None)
     {
-        return Ok(None);
-    }
+        let missing_field = |field_name: &'static str| IntegrationError::MissingRequiredField {
+            field_name,
+            context: IntegrationErrorContext {
+                suggested_action: Some(format!("Provide {field_name} in connector_metadata")),
+                doc_url: None,
+                additional_context: Some(format!(
+                    "{field_name} is required for Mastercard on payment_channel={payment_channel:?}"
+                )),
+            },
+        };
 
-    let street_address = auth_data.merchant_street_address.clone().ok_or(
-        IntegrationError::MissingRequiredField {
-            field_name: "connector_metadata.tsys_transit.merchant_street_address",
-            context: Default::default(),
-        },
-    )?;
-    let customer_service_phone_number = auth_data.customer_service_phone_number.clone().ok_or(
-        IntegrationError::MissingRequiredField {
-            field_name: "connector_metadata.tsys_transit.customer_service_phone_number",
-            context: Default::default(),
-        },
-    )?;
-    let phone_number = customer_service_phone_number.clone();
-    let merchant_url =
-        auth_data
-            .merchant_url
+        let street_address = auth_data
+            .merchant_street_address
             .clone()
-            .ok_or(IntegrationError::MissingRequiredField {
+            .ok_or(missing_field(
+                "connector_metadata.tsys_transit.merchant_street_address",
+            ))?;
+        let customer_service_phone_number =
+            auth_data
+                .customer_service_phone_number
+                .clone()
+                .ok_or(missing_field(
+                    "connector_metadata.tsys_transit.customer_service_phone_number",
+                ))?;
+        let phone_number = customer_service_phone_number.clone();
+        let merchant_url = auth_data.merchant_url.clone().ok_or(missing_field(
+            "connector_metadata.tsys_transit.merchant_url",
+        ))?;
+
+        let url =
+            url::Url::parse(&merchant_url).change_context(IntegrationError::InvalidDataFormat {
                 field_name: "connector_metadata.tsys_transit.merchant_url",
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Ensure connector_metadata.tsys_transit.merchant_url is a valid URL"
+                            .to_string(),
+                    ),
+                    doc_url: None,
+                    additional_context: Some(format!(
+                        "failed to parse merchant_url {merchant_url:?} as a URL"
+                    )),
+                },
             })?;
 
-    let url =
-        url::Url::parse(&merchant_url).change_context(IntegrationError::InvalidDataFormat {
-            field_name: "connector_metadata.tsys_transit.merchant_url",
-            context: Default::default(),
-        })?;
-
-    Ok(Some(MerchantAcceptorInfo {
-        street_address,
-        customer_service_phone_number,
-        phone_number,
-        url,
-    }))
+        Ok(Some(MerchantAcceptorInfo {
+            street_address,
+            customer_service_phone_number,
+            phone_number,
+            url,
+        }))
+    } else {
+        Ok(None)
+    }
 }
 
 fn compute_commercial_card_context<
@@ -1573,7 +1596,17 @@ fn compute_commercial_card_context<
             serde_json::from_value::<TsysTransitPaymentRequestMetadata>(meta.clone().expose())
                 .change_context(IntegrationError::InvalidDataFormat {
                     field_name: "connector_metadata.tsys_transit",
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Ensure connector_metadata.tsys_transit matches the expected schema"
+                                .to_string(),
+                        ),
+                        doc_url: None,
+                        additional_context: Some(
+                            "failed to deserialize TsysTransitPaymentRequestMetadata from connector_metadata"
+                                .to_string(),
+                        ),
+                    },
                 })
         })
         .transpose()?
@@ -1643,7 +1676,10 @@ fn compute_commercial_card_context<
             field_name: "order_details.product_tax_code",
             context: IntegrationErrorContext {
                 suggested_action: Some("Ensure that the product_tax_code is one of the valid TSYS TransIT tax categories: SERVICE, DUTY, VAT, ALTERNATE, NATIONAL, TAXEXEMPT".to_string()),
-                ..Default::default()
+                doc_url: None,
+                additional_context: Some(format!(
+                    "failed to parse product_tax_code {derived_tax_type:?} as a TsysTransitTaxCategory"
+                )),
             },
         },
     )?;
