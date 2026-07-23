@@ -35,6 +35,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ".types.FlowStatus.status",
         "#[serde(rename_all = \"snake_case\")]",
     );
+    config.type_attribute(
+        ".types.PaymentMethodServiceRefreshRequest.payment_method",
+        "#[serde(rename_all = \"snake_case\")]",
+    );
+    config.type_attribute(
+        ".types.RefreshResult.result",
+        "#[serde(rename_all = \"snake_case\")]",
+    );
 
     // PaysafePaymentMethodDetails carries several optional per-currency account
     // maps (card, ach, apple_pay, interac, skrill, pay_safe_card). The

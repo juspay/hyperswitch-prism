@@ -863,6 +863,10 @@ pub enum ConnectorSpecificConfig {
     Juspay {
         api_key: Secret<String>,
         merchant_id: Secret<String>,
+        juspay_encryption_public_key: Option<Secret<String>>,
+        response_decryption_private_key: Option<Secret<String>>,
+        card_sync_key_id: Option<Secret<String>>,
+        card_sync_feature_id: Option<Secret<String>>,
         base_url: Option<String>,
     },
     Glomopay {
@@ -2246,6 +2250,10 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             AuthType::Juspay(juspay) => Ok(Self::Juspay {
                 api_key: juspay.api_key.ok_or_else(err)?,
                 merchant_id: juspay.merchant_id.ok_or_else(err)?,
+                juspay_encryption_public_key: juspay.juspay_encryption_public_key,
+                response_decryption_private_key: juspay.response_decryption_private_key,
+                card_sync_key_id: juspay.card_sync_key_id,
+                card_sync_feature_id: juspay.card_sync_feature_id,
                 base_url: juspay.base_url,
             }),
             AuthType::Payconex(payconex) => Ok(Self::Payconex {
@@ -3433,6 +3441,10 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Juspay {
                         api_key: api_key.clone(),
                         merchant_id: key1.clone(),
+                        juspay_encryption_public_key: None,
+                        response_decryption_private_key: None,
+                        card_sync_key_id: None,
+                        card_sync_feature_id: None,
                         base_url: None,
                     }),
                     _ => Err(err().into()),

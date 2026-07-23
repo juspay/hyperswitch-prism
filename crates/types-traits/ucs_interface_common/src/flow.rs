@@ -4,8 +4,8 @@ use domain_types::connector_flow::{
     CreateOrder, DefendDispute, GetConnectorCustomer, IncrementalAuthorization, MandateRevoke,
     PSync, PaymentMethodEligibility, PaymentMethodToken, PayoutCreate, PayoutCreateLink,
     PayoutCreateRecipient, PayoutEnrollDisburseAccount, PayoutGet, PayoutStage, PayoutTransfer,
-    PayoutVoid, PostAuthenticate, PreAuthenticate, RSync, Refund, RepeatPayment,
-    ServerSessionAuthenticationToken, SetupMandate, SubmitEvidence, Void, VoidPC,
+    PayoutVoid, PostAuthenticate, PreAuthenticate, RSync, Refund, RefreshPaymentMethod,
+    RepeatPayment, ServerSessionAuthenticationToken, SetupMandate, SubmitEvidence, Void, VoidPC,
 };
 use ucs_env::configs;
 
@@ -87,6 +87,8 @@ where
         FlowName::GetConnectorCustomer
     } else if type_id == std::any::TypeId::of::<CreateConnectorCustomer>() {
         FlowName::CreateConnectorCustomer
+    } else if type_id == std::any::TypeId::of::<RefreshPaymentMethod>() {
+        FlowName::RefreshPaymentMethod
     } else {
         tracing::warn!("Unknown flow marker type: {}", std::any::type_name::<F>());
         FlowName::Unknown

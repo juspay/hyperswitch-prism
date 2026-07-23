@@ -15,6 +15,7 @@ use domain_types::{
     connector_flow::{
         Authenticate, Authorize, Capture, ClientAuthenticationToken, CreateConnectorCustomer,
         CreateOrder, CreatePaymentMethod, GetConnectorCustomer, GetPaymentMethod,
+        RefreshPaymentMethod,
         IncrementalAuthorization, MandateRevoke, PSync, PaymentMethodEligibility,
         PaymentMethodToken, PostAuthenticate, PreAuthenticate, Recharge, Refund, RepeatPayment,
         ServerAuthenticationToken, ServerSessionAuthenticationToken, SetupMandate, Void, VoidPC,
@@ -23,6 +24,7 @@ use domain_types::{
         ClientAuthenticationTokenRequestData, ConnectorCustomerData, ConnectorCustomerResponse,
         ConnectorResponseHeaders, ConnectorVariant, CreatePaymentMethodData,
         CreatePaymentMethodResponseData, GetPaymentMethodData, GetPaymentMethodResponseData,
+        RefreshPaymentMethodData, RefreshPaymentMethodFlowData, RefreshPaymentMethodResponseData,
         MandateRevokeRequestData, MandateRevokeResponseData, PaymentCreateOrderData,
         PaymentCreateOrderResponse, PaymentFlowData, PaymentMethodEligibilityData,
         PaymentMethodEligibilityResponse, PaymentMethodTokenResponse,
@@ -44,6 +46,7 @@ use domain_types::{
         generate_create_connector_customer_response, generate_create_order_response,
         generate_create_payment_method_response, generate_get_connector_customer_response,
         generate_get_payment_method_response, generate_payment_authenticate_response,
+        generate_refresh_payment_method_response,
         generate_payment_capture_response, generate_payment_incremental_authorization_response,
         generate_payment_method_eligibility_response, generate_payment_post_authenticate_response,
         generate_payment_pre_authenticate_response, generate_payment_sdk_session_token_response,
@@ -77,6 +80,7 @@ use grpc_api_types::payments::{
     PaymentMethodServiceCreateResponse, PaymentMethodServiceEligibilityRequest,
     PaymentMethodServiceEligibilityResponse, PaymentMethodServiceGetRequest,
     PaymentMethodServiceGetResponse, PaymentMethodServiceRechargeRequest,
+    PaymentMethodServiceRefreshRequest, PaymentMethodServiceRefreshResponse,
     PaymentMethodServiceRechargeResponse, PaymentMethodServiceTokenizeRequest,
     PaymentMethodServiceTokenizeResponse, PaymentServiceAuthorizeRequest,
     PaymentServiceAuthorizeResponse, PaymentServiceCaptureRequest, PaymentServiceCaptureResponse,
@@ -1973,6 +1977,49 @@ impl PaymentService for Payments {
 #[tonic::async_trait]
 impl PaymentMethodService for PaymentMethod {
     #[tracing::instrument(
+        name = "refresh",
+        fields(
+            name = common_utils::consts::NAME,
+            service_name = common_utils::consts::PAYMENT_METHOD_SERVICE_NAME,
+            service_method = "Refresh",
+            request_body = tracing::field::Empty,
+            response_body = tracing::field::Empty,
+            error_message = tracing::field::Empty,
+            merchant_id = tracing::field::Empty,
+            gateway = tracing::field::Empty,
+            request_id = tracing::field::Empty,
+            status_code = tracing::field::Empty,
+            message_ = "Golden Log Line (incoming)",
+            response_time = tracing::field::Empty,
+            tenant_id = tracing::field::Empty,
+            flow = FlowName::RefreshPaymentMethod.as_str(),
+            flow_specific_fields.status = tracing::field::Empty,
+        ),
+        skip(self, request)
+    )]
+    async fn refresh(
+        &self,
+        request: tonic::Request<PaymentMethodServiceRefreshRequest>,
+    ) -> Result<tonic::Response<PaymentMethodServiceRefreshResponse>, tonic::Status> {
+        info!("REFRESH_PAYMENT_METHOD_FLOW: initiated");
+        let service_name = request
+            .extensions()
+            .get::<String>()
+            .cloned()
+            .unwrap_or_else(|| "PaymentMethodService".to_string());
+        let config = get_config_from_request(&request).into_grpc_status()?;
+
+        grpc_logging_wrapper(
+            request,
+            &service_name,
+            config.clone(),
+            FlowName::RefreshPaymentMethod,
+            |request_data| Box::pin(self.internal_refresh_payment_method(request_data)),
+        )
+        .await
+    }
+
+    #[tracing::instrument(
         name = "tokenize",
         fields(
             name = common_utils::consts::NAME,
@@ -2342,6 +2389,23 @@ impl PaymentMethod {
         generate_response_fn: generate_get_payment_method_response,
         connector_data_type: ConnectorData<DefaultPCIHolder>,
         all_keys_required: None
+    );
+
+    implement_connector_operation!(
+        fn_name: internal_refresh_payment_method,
+        log_prefix: "REFRESH_PAYMENT_METHOD",
+        request_type: PaymentMethodServiceRefreshRequest,
+        response_type: PaymentMethodServiceRefreshResponse,
+        flow_marker: RefreshPaymentMethod,
+        resource_common_data_type: RefreshPaymentMethodFlowData,
+        request_data_type: RefreshPaymentMethodData,
+        response_data_type: RefreshPaymentMethodResponseData,
+        request_data_constructor: RefreshPaymentMethodData::foreign_try_from,
+        common_flow_data_constructor: RefreshPaymentMethodFlowData::foreign_try_from,
+        generate_response_fn: generate_refresh_payment_method_response,
+        connector_data: ConnectorData,
+        all_keys_required: None,
+        has_payment_method_data: option
     );
 
     implement_connector_operation!(
