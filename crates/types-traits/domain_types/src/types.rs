@@ -888,6 +888,18 @@ impl ForeignTryFrom<grpc_api_types::payments::CaptureMethod> for CaptureMethod {
     }
 }
 
+impl ForeignFrom<CaptureMethod> for grpc_api_types::payments::CaptureMethod {
+    fn foreign_from(capture_method: CaptureMethod) -> Self {
+        match capture_method {
+            CaptureMethod::Automatic => Self::Automatic,
+            CaptureMethod::Manual => Self::Manual,
+            CaptureMethod::ManualMultiple => Self::ManualMultiple,
+            CaptureMethod::Scheduled => Self::Scheduled,
+            CaptureMethod::SequentialAutomatic => Self::SequentialAutomatic,
+        }
+    }
+}
+
 impl ForeignTryFrom<grpc_api_types::payments::ThreeDsCompletionIndicator>
     for connector_types::ThreeDsCompletionIndicator
 {

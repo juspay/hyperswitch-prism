@@ -6,14 +6,12 @@ use crate::{
     types::{FeatureStatus, IntegrationStatus},
     utils::{ForeignFrom, ForeignTryFrom},
 };
-use common_enums::{
-    CaptureMethod, CardNetwork, EventClass, PaymentMethodType as DomainPaymentMethodType,
-};
+use common_enums::{EventClass, PaymentMethodType as DomainPaymentMethodType};
 use grpc_api_types::payments::{
     feature_matrix_connector::IntegrationStatus as GrpcIntegrationStatus,
-    CaptureMethod as GrpcCaptureMethod, CardNetwork as GrpcCardNetwork, Connector as GrpcConnector,
-    CountryAlpha2 as GrpcCountryAlpha2, Currency as GrpcCurrency, EventClass as GrpcEventClass,
-    FeatureStatus as GrpcFeatureStatus, PaymentMethodType as GrpcPaymentMethodType,
+    CardNetwork as GrpcCardNetwork, Connector as GrpcConnector, CountryAlpha2 as GrpcCountryAlpha2,
+    Currency as GrpcCurrency, EventClass as GrpcEventClass, FeatureStatus as GrpcFeatureStatus,
+    PaymentMethodType as GrpcPaymentMethodType,
 };
 use tonic::Status;
 
@@ -87,36 +85,6 @@ fn grpc_feature_status(feature_status: FeatureStatus) -> GrpcFeatureStatus {
     match feature_status {
         FeatureStatus::NotSupported => GrpcFeatureStatus::NotSupported,
         FeatureStatus::Supported => GrpcFeatureStatus::Supported,
-    }
-}
-
-fn grpc_capture_method(capture_method: CaptureMethod) -> GrpcCaptureMethod {
-    match capture_method {
-        CaptureMethod::Automatic => GrpcCaptureMethod::Automatic,
-        CaptureMethod::Manual => GrpcCaptureMethod::Manual,
-        CaptureMethod::ManualMultiple => GrpcCaptureMethod::ManualMultiple,
-        CaptureMethod::Scheduled => GrpcCaptureMethod::Scheduled,
-        CaptureMethod::SequentialAutomatic => GrpcCaptureMethod::SequentialAutomatic,
-    }
-}
-
-fn grpc_card_network(card_network: CardNetwork) -> GrpcCardNetwork {
-    match card_network {
-        CardNetwork::Visa => GrpcCardNetwork::Visa,
-        CardNetwork::Mastercard => GrpcCardNetwork::Mastercard,
-        CardNetwork::AmericanExpress => GrpcCardNetwork::Amex,
-        CardNetwork::JCB => GrpcCardNetwork::Jcb,
-        CardNetwork::DinersClub => GrpcCardNetwork::Diners,
-        CardNetwork::Discover => GrpcCardNetwork::Discover,
-        CardNetwork::CartesBancaires => GrpcCardNetwork::CartesBancaires,
-        CardNetwork::UnionPay => GrpcCardNetwork::Unionpay,
-        CardNetwork::Interac => GrpcCardNetwork::InteracCard,
-        CardNetwork::RuPay => GrpcCardNetwork::Rupay,
-        CardNetwork::Maestro => GrpcCardNetwork::Maestro,
-        CardNetwork::Star => GrpcCardNetwork::Star,
-        CardNetwork::Pulse => GrpcCardNetwork::Pulse,
-        CardNetwork::Accel => GrpcCardNetwork::Accel,
-        CardNetwork::Nyce => GrpcCardNetwork::Nyce,
     }
 }
 
@@ -260,7 +228,7 @@ impl From<FeatureMatrixPaymentMethod> for grpc_api_types::payments::FeatureMatri
             supported_capture_methods: payment_method
                 .supported_capture_methods
                 .into_iter()
-                .map(grpc_capture_method)
+                .map(grpc_api_types::payments::CaptureMethod::foreign_from)
                 .map(Into::into)
                 .collect(),
             three_ds: payment_method
@@ -275,7 +243,7 @@ impl From<FeatureMatrixPaymentMethod> for grpc_api_types::payments::FeatureMatri
                 .supported_card_networks
                 .unwrap_or_default()
                 .into_iter()
-                .map(grpc_card_network)
+                .map(GrpcCardNetwork::foreign_from)
                 .map(Into::into)
                 .collect(),
             supported_countries: payment_method
