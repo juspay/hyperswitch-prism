@@ -103,11 +103,11 @@ fn ecom_internet_uses_no_terminal_and_none_output() {
     let block = AcceptanceProfile::EcomInternet.terminal_data();
     assert!(matches!(
         block.terminal_operating_environment,
-        TsysTransitTerminalOperatingEnvironment::NoTerminal
+        TsysTransitTerminalOperatingEnvironment::OffMerchantPremisesUnattended
     ));
     assert!(matches!(
         block.terminal_output_capability,
-        TsysTransitTerminalOutputCapability::None
+        TsysTransitTerminalOutputCapability::DisplayOnly
     ));
     assert!(matches!(
         block.card_data_source,

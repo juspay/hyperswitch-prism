@@ -1425,7 +1425,7 @@ fn build_tsys_product_details(
             })
             .flatten();
         let product_modifier_details = (!is_ecommerce_payment)
-            .then_some( {
+            .then_some({
                 detail
                     .brand
                     .clone()
@@ -1442,7 +1442,7 @@ fn build_tsys_product_details(
             })
             .flatten();
         let product_notes = (!is_ecommerce_payment)
-            .then_some( {
+            .then_some({
                 detail
                     .description
                     .clone()
@@ -1451,10 +1451,10 @@ fn build_tsys_product_details(
             .flatten();
 
         let product_discount_indicator = (!is_ecommerce_payment).then_some({
-             if has_discount {
+            if has_discount {
                 TsysTransitProductDiscountIndicator::Y
-             } else {
-                 TsysTransitProductDiscountIndicator::N
+            } else {
+                TsysTransitProductDiscountIndicator::N
             }
         });
 
@@ -1920,6 +1920,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             T,
         >,
     ) -> Result<Self, Self::Error> {
+        validate_authorize_request(&item.router_data)?;
+
         let assembly = extract_for_authorize(&item)?;
         let is_manual_capture = assembly.profile.capture.is_manual();
         let body = assemble_authorize_body(assembly)?;
@@ -1929,6 +1931,43 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             Self::Sale(body)
         })
     }
+}
+
+fn validate_off_session_ecommerce_support(
+    setup_future_usage: Option<FutureUsage>,
+    payment_channel: Option<&PaymentChannel>,
+) -> Result<(), Report<IntegrationError>> {
+    let is_off_session = setup_future_usage == Some(FutureUsage::OffSession);
+
+    let is_ecommerce_payment = matches!(payment_channel, Some(PaymentChannel::Ecommerce) | None);
+
+    if is_off_session && is_ecommerce_payment {
+        Err(IntegrationError::NotSupported {
+            message: "Off-session e-commerce payments are not supported".to_string(),
+            connector: "tsysTransit",
+            context: IntegrationErrorContext {
+                suggested_action: None,
+                doc_url: None,
+                additional_context: Some(
+                    "Off-session e-commerce payments are not supported by TSYS TransIT".to_string(),
+                ),
+            },
+        }
+        .into())
+    } else {
+        Ok(())
+    }
+}
+
+fn validate_authorize_request<
+    T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
+>(
+    item: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+) -> Result<(), Report<IntegrationError>> {
+    validate_off_session_ecommerce_support(
+        item.request.setup_future_usage,
+        item.request.payment_channel.as_ref(),
+    )
 }
 
 struct AuthorizeAssembly {
@@ -3468,23 +3507,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let auth = TsysTransitAuthType::try_from(&router_data.connector_config)?;
+        validate_off_session_ecommerce_support(
+            router_data.request.setup_future_usage,
+            router_data.request.payment_channel.as_ref(),
+        )?;
         let is_ecommerce_payment = matches!(
             router_data.request.payment_channel,
-            Some(PaymentChannel::Ecommerce) | None
+            Some(PaymentChannel::Ecommerce)
         );
-
-        if matches!(
-            router_data.request.setup_future_usage,
-            Some(FutureUsage::OffSession)
-        ) && is_ecommerce_payment
-        {
-            return Err(IntegrationError::NotSupported {
-                message: "off-session e-commerce payments are not supported".to_string(),
-                connector: "tsysTransit",
-                context: Default::default(),
-            }
-            .into());
-        };
 
         let card = match &router_data.request.payment_method_data {
             PaymentMethodData::Card(card) => card,
