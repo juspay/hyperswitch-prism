@@ -124,6 +124,30 @@ mod tests {
     }
 
     #[test]
+    fn server_ca_bundle_absent_or_blank_is_none() {
+        use super::super::server_ca_pem;
+
+        assert!(server_ca_pem(None).unwrap().is_none());
+        assert!(server_ca_pem(Some("")).unwrap().is_none());
+        assert!(server_ca_pem(Some(" \n\t ")).unwrap().is_none());
+    }
+
+    #[test]
+    fn server_ca_bundle_pem_round_trips_through_base64() {
+        use base64::Engine as _;
+        use hyperswitch_masking::ExposeInterface;
+
+        use super::super::server_ca_pem;
+
+        let encoded = server_ca_pem(Some(CERT_A))
+            .unwrap()
+            .expect("non-blank bundle should produce a CA cert")
+            .expose();
+        let decoded = common_utils::consts::BASE64_ENGINE.decode(encoded).unwrap();
+        assert_eq!(decoded, format!("{CERT_A}\n").into_bytes());
+    }
+
+    #[test]
     fn connector_payout_id_round_trips() {
         use super::super::transformers::{decode_connector_payout_id, encode_connector_payout_id};
         use hyperswitch_masking::{PeekInterface, Secret};

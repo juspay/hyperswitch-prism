@@ -435,7 +435,10 @@ fn b64_pem(mut pem: String) -> String {
 /// rather than the merchant's MCA, since the CA is environment-level
 /// infrastructure shared by every merchant pointing at the same DB endpoint.
 fn server_ca_pem(bundle: Option<&str>) -> CustomResult<Option<Secret<String>>, IntegrationError> {
-    Ok(bundle.map(|pem| Secret::new(b64_pem(pem.to_string()))))
+    Ok(bundle
+        .map(str::trim)
+        .filter(|pem| !pem.is_empty())
+        .map(|pem| Secret::new(b64_pem(pem.to_string()))))
 }
 
 // ===== PAYOUT ELIGIBILITY — VoP Check =====

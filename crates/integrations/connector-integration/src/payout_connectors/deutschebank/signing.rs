@@ -24,13 +24,7 @@ pub fn build_cseal_headers(
 ) -> Result<CsealHeaders, error_stack::Report<IntegrationError>> {
     let date = format_http_date(OffsetDateTime::now_utc())?;
 
-    let method_lower = match method {
-        Method::Get => "get",
-        Method::Post => "post",
-        Method::Put => "put",
-        Method::Delete => "delete",
-        Method::Patch => "patch",
-    };
+    let method_lower = method.to_string().to_lowercase();
 
     let (digest, signing_string, headers_covered) = match method {
         Method::Get => {
