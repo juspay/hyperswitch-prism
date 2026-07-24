@@ -269,6 +269,19 @@ pub struct KountRiskInquiry {
     pub reason_code: Option<String>,
 }
 
+/// Response from the Kount Orders API update (`PATCH /commerce/v2/orders/{id}`).
+/// Distinct type from [`KountOrderResponse`] so the connector macros generate a
+/// unique templating type per flow.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct KountUpdateOrderResponse {
+    #[serde(alias = "orderId")]
+    pub order_id: Option<String>,
+    pub decision: Option<KountDecision>,
+    #[serde(alias = "omniscore", alias = "riskScore")]
+    pub score: Option<f64>,
+    pub reason: Option<String>,
+}
+
 /// Accept a JSON scalar that Kount may send as either a string or a number
 /// (the Orders guide documents several count fields as stringified numbers —
 /// e.g. `"uniqueCards": "3"` — while the live sandbox returns JSON numbers).
@@ -1503,24 +1516,6 @@ impl TryFrom<ResponseRouterData<KountOrderResponse, Self>>
             ..item.router_data
         })
     }
-}
-
-// ──────────────────────────────────────────────────────────────────────────
-// Notify flows (FrmPaymentOutcome / FrmRefundProcessed) = Update Order
-// PATCH /commerce/v2/orders/{orderId}
-// ──────────────────────────────────────────────────────────────────────────
-
-/// Response from the Kount Orders API update (`PATCH /commerce/v2/orders/{id}`).
-/// Distinct type from [`KountOrderResponse`] so the connector macros generate a
-/// unique templating type per flow.
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct KountUpdateOrderResponse {
-    #[serde(alias = "orderId")]
-    pub order_id: Option<String>,
-    pub decision: Option<KountDecision>,
-    #[serde(alias = "omniscore", alias = "riskScore")]
-    pub score: Option<f64>,
-    pub reason: Option<String>,
 }
 
 /// Kount Update Order disposition tokens. Serialized in uppercase to match the
