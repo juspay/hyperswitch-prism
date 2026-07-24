@@ -20,13 +20,14 @@ use domain_types::{
         RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
-    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
+    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData},
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
     types::{AdditionalCardInfo, AdditionalPaymentData},
 };
-use hyperswitch_masking::{PeekInterface, Secret};
+use error_stack::ResultExt;
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 // Error message constants
@@ -35,7 +36,8 @@ const DEFAULT_ERROR_MESSAGE: &str = "Unknown error occurred";
 /// Code used when Datatrans returns a non-JSON error body (e.g. an HTML gateway error page)
 /// that carries no structured error code. Mirrors HS Direct's HTML fallback.
 const NO_ERROR_CODE: &str = "NO_ERROR_CODE";
-const UNSUPPORTED_PAYMENT_METHOD_ERROR: &str = "Only card payments are supported for Datatrans";
+const UNSUPPORTED_PAYMENT_METHOD_ERROR: &str =
+    "Only card, Google Pay and Apple Pay payments are supported for Datatrans";
 
 /// Datatrans hosted redirect/challenge host — sandbox environment
 /// (paired with the `api.sandbox.datatrans.com` API base_url).
@@ -247,7 +249,8 @@ pub struct DatatransPaymentsRequest<
     /// alias creation, where no amount is captured; always present for Authorize.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub amount: Option<MinorUnit>,
-    pub card: DatatransCard<T>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card: Option<DatatransCard<T>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub auto_settle: Option<bool>,
     /// Present only for native 3DS: the cardholder is redirected here after the
@@ -256,6 +259,43 @@ pub struct DatatransPaymentsRequest<
     pub redirect: Option<RedirectUrls>,
     // Don't skip serializing - we want "option": null to appear in JSON
     pub option: Option<DatatransPaymentOptions>,
+    #[serde(rename = "PAY", skip_serializing_if = "Option::is_none")]
+    pub pay: Option<DatatransGooglePayRequest>,
+    #[serde(rename = "APL", skip_serializing_if = "Option::is_none")]
+    pub apl: Option<DatatransApplePayRequest>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DatatransGooglePayRequest {
+    signature: Secret<String>,
+    protocol_version: Secret<String>,
+    signed_message: Secret<String>,
+    intermediate_signing_key: DatatransGooglePayIntermediateSigningKey,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DatatransGooglePayIntermediateSigningKey {
+    signed_key: Secret<String>,
+    signatures: Vec<Secret<String>>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DatatransApplePayRequest {
+    data: Secret<String>,
+    header: DatatransApplePayHeader,
+    signature: Secret<String>,
+    version: Secret<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DatatransApplePayHeader {
+    public_key_hash: Secret<String>,
+    ephemeral_public_key: Secret<String>,
+    transaction_id: Secret<String>,
 }
 
 /// SetupMandate (zero-auth CIT alias creation) reuses the Authorize request and
@@ -317,7 +357,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let is_mandate_payment = router_data.request.is_mandate_payment();
 
         // Extract card data or token
-        let (card, redirect) = match &router_data.request.payment_method_data {
+        let (card, redirect, pay, apl) = match &router_data.request.payment_method_data {
             PaymentMethodData::Card(card_data) => {
                 // Direct card flow - use raw card details
                 let card = DatatransCard {
@@ -336,7 +376,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     cancel_url: router_data.request.router_return_url.clone(),
                     error_url: router_data.request.router_return_url.clone(),
                 });
-                (card, redirect)
+                (Some(card), redirect, None, None)
             }
             // TODO: CardToken flow for Datatrans Secure Fields SDK.
             // When the client SDK collects card data via Secure Fields, the transactionId
@@ -356,12 +396,89 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     card_type: None,
                     three_ds: None,
                 };
-                (card, None)
+                (Some(card), None, None, None)
+            }
+            PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                WalletData::GooglePay(google_pay_data) => {
+                    let token = google_pay_data
+                        .tokenization_data
+                        .get_encrypted_google_pay_token()
+                        .change_context(IntegrationError::MissingRequiredField {
+                            field_name: "google_pay.tokenization_data.token",
+                            context: datatrans_context(
+                                "Datatrans Google Pay Authorize requires the encrypted Google Pay tokenization_data.token",
+                            ),
+                        })?;
+                    let pay = serde_json::from_str::<DatatransGooglePayRequest>(&token)
+                        .change_context(IntegrationError::InvalidWalletToken {
+                            wallet_name: "Google Pay".to_string(),
+                            context: datatrans_context(
+                                "Datatrans Google Pay Authorize requires tokenization_data.token to be a JSON string containing signature, protocolVersion, signedMessage, and intermediateSigningKey",
+                            ),
+                        })?;
+                    (None, None, Some(pay), None)
+                }
+                WalletData::ApplePay(wallet_data) => {
+                    let token = wallet_data.get_applepay_decoded_payment_data()?;
+                    let apl = serde_json::from_str::<DatatransApplePayRequest>(&token.expose())
+                        .change_context(IntegrationError::InvalidWalletToken {
+                            wallet_name: "Apple Pay".to_string(),
+                            context: datatrans_context(
+                                "Datatrans Apple Pay Authorize requires tokenization_data.token to be a JSON string containing signature, protocolVersion, signedMessage, and intermediateSigningKey",
+                            ),
+                        })?;
+                    (None, None, None, Some(apl))
+                }
+                WalletData::AliPayQr(_)
+                | WalletData::AliPayRedirect(_)
+                | WalletData::AliPayHkRedirect(_)
+                | WalletData::BluecodeRedirect {}
+                | WalletData::AmazonPayRedirect(_)
+                | WalletData::MomoRedirect(_)
+                | WalletData::KakaoPayRedirect(_)
+                | WalletData::GoPayRedirect(_)
+                | WalletData::GcashRedirect(_)
+                | WalletData::ApplePayRedirect(_)
+                | WalletData::ApplePayThirdPartySdk(_)
+                | WalletData::DanaRedirect {}
+                | WalletData::GooglePayRedirect(_)
+                | WalletData::GooglePayThirdPartySdk(_)
+                | WalletData::MbWayRedirect(_)
+                | WalletData::MobilePayRedirect(_)
+                | WalletData::PaypalRedirect(_)
+                | WalletData::PaypalSdk(_)
+                | WalletData::Paze(_)
+                | WalletData::SamsungPay(_)
+                | WalletData::TwintRedirect {}
+                | WalletData::VippsRedirect {}
+                | WalletData::TouchNGoRedirect(_)
+                | WalletData::WeChatPayRedirect(_)
+                | WalletData::WeChatPayQr(_)
+                | WalletData::CashappQr(_)
+                | WalletData::SwishQr(_)
+                | WalletData::Mifinity(_)
+                | WalletData::RevolutPay(_)
+                | WalletData::MbWay(_)
+                | WalletData::Satispay(_)
+                | WalletData::Wero(_)
+                | WalletData::LazyPayRedirect(_)
+                | WalletData::PhonePeRedirect(_)
+                | WalletData::BillDeskRedirect(_)
+                | WalletData::CashfreeRedirect(_)
+                | WalletData::PayURedirect(_)
+                | WalletData::EaseBuzzRedirect(_)
+                | WalletData::QwikcilverWalletDirect(_)
+                | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
+                    domain_types::utils::get_unimplemented_payment_method_error_message(
+                        "Datatrans",
+                    ),
+                    datatrans_context("Datatrans Authorize supports Google Pay and Apple Pay only"),
+                ))?,
             }
             _ => Err(IntegrationError::NotImplemented(
                 UNSUPPORTED_PAYMENT_METHOD_ERROR.to_string(),
                 datatrans_context(
-                    "Datatrans Authorize supports raw card or Secure Fields token payment methods only",
+                    "Datatrans Authorize supports raw card, Secure Fields token, Google Pay and Apple Pay payment methods only",
                 ),
             ))?,
         };
@@ -384,9 +501,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             // CIT mandate registration asks Datatrans to persist a reusable alias
             // (surfaced later via PSync as `connector_mandate_id`); non-mandate Authorize
             // sends `option: null`.
-            option: is_mandate_payment.then_some(DatatransPaymentOptions {
-                create_alias: Some(true),
-            }),
+            option: (is_mandate_payment && router_data.request.is_card()).then_some(
+                DatatransPaymentOptions {
+                    create_alias: Some(true),
+                },
+            ),
+            pay,
+            apl,
         })
     }
 }
@@ -524,6 +645,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let payments_response_data = match &item.response {
             DatatransPaymentsResponse::TransactionResponse(response) => {
+                let mandate_reference = response
+                    .card
+                    .as_ref()
+                    .and_then(|card| card.alias.as_ref())
+                    .map(|alias| MandateReference {
+                        connector_mandate_id: Some(alias.peek().clone()),
+                        payment_method_id: None,
+                        connector_mandate_request_reference_id: None,
+                        mandate_metadata: None,
+                    });
+
                 // Non-3DS / passthrough external 3DS: no redirect. The alias (for mandates)
                 // is surfaced later via PSync, not on this response.
                 PaymentsResponseData::TransactionResponse {
@@ -531,7 +663,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         response.transaction_id.clone(),
                     ),
                     redirection_data: None,
-                    mandate_reference: None,
+                    mandate_reference: mandate_reference.map(Box::new),
                     connector_metadata: None,
                     network_txn_id: None,
                     network_txn_link_id: None,
@@ -673,7 +805,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .clone(),
             // Zero-auth: no amount is charged; the field is omitted from the request.
             amount: None,
-            card,
+            card: Some(card),
             // Zero-auth alias creation cannot be manually captured.
             auto_settle: Some(true),
             redirect: Some(RedirectUrls {
@@ -682,9 +814,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 error_url: router_data.request.router_return_url.clone(),
             }),
             // Ask Datatrans to persist a reusable alias for later MIT/RepeatPayment.
-            option: Some(DatatransPaymentOptions {
-                create_alias: Some(true),
-            }),
+            option: router_data
+                .request
+                .is_card()
+                .then_some(DatatransPaymentOptions {
+                    create_alias: Some(true),
+                }),
+            pay: None,
+            apl: None,
         })
     }
 }
@@ -863,31 +1000,42 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
 
         // Card expiry for the alias charge comes from the stored card's additional data
-        // (there is no PAN in a MIT request). Mirrors the HS Direct `create_mandate_details`
-        // path that reads `additional_payment_method_data.Card`.
-        let additional_card = match &router_data.request.additional_payment_data {
-            Some(AdditionalPaymentData::Card(card)) => card,
-            None => Err(IntegrationError::MissingRequiredField {
-                field_name: "additional_payment_data",
-                context: datatrans_context(
-                    "Datatrans MIT requires stored card additional data (expiry) for the alias charge",
-                ),
-            })?,
+        // (there is no PAN in a MIT request). MIT requests may carry
+        // `PaymentMethodData::MandatePayment`, so use the retained payment_method_type to
+        // identify Google Pay wallet aliases.
+        let (expiry_month, expiry_year) = match router_data.request.payment_method_type {
+            Some(common_enums::PaymentMethodType::GooglePay) => (None, None),
+            _ => {
+                let additional_card = match &router_data.request.additional_payment_data {
+                    Some(AdditionalPaymentData::Card(card)) => card,
+                    None => Err(error_stack::report!(
+                        IntegrationError::MissingRequiredField {
+                            field_name: "additional_payment_data.card",
+                            context: datatrans_context(
+                                "Datatrans MIT requires the stored card details (additional_payment_data.card) for the alias charge",
+                            ),
+                        }
+                    ))?,
+                };
+
+                let expiry_month = additional_card.card_exp_month.clone().ok_or_else(|| {
+                    error_stack::report!(IntegrationError::MissingRequiredField {
+                        field_name: "additional_payment_data.card.card_exp_month",
+                        context: datatrans_context(
+                            "Datatrans MIT requires the stored card expiry month for the alias charge",
+                        ),
+                    })
+                })?;
+                let expiry_year = additional_card_expiry_year_2_digit(additional_card)?;
+
+                (Some(expiry_month), Some(expiry_year))
+            }
         };
-        let expiry_month = additional_card.card_exp_month.clone().ok_or_else(|| {
-            error_stack::report!(IntegrationError::MissingRequiredField {
-                field_name: "additional_payment_data.card.card_exp_month",
-                context: datatrans_context(
-                    "Datatrans MIT requires the stored card expiry month for the alias charge",
-                ),
-            })
-        })?;
-        let expiry_year = additional_card_expiry_year_2_digit(additional_card)?;
 
         let card = DatatransCard {
             alias: Some(Secret::new(alias)),
-            expiry_month: Some(expiry_month),
-            expiry_year: Some(expiry_year),
+            expiry_month,
+            expiry_year,
             number: None,
             cvv: None,
             card_type: Some(CARD_TYPE_ALIAS.to_string()),
@@ -902,13 +1050,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .connector_request_reference_id
                 .clone(),
             amount: Some(router_data.request.minor_amount),
-            card,
+            card: Some(card),
             // auto_settle mirrors is_auto_capture(): Automatic/SequentialAutomatic/None -> true,
             // Manual/ManualMultiple/Scheduled -> false.
             auto_settle: Some(router_data.request.is_auto_capture()),
             // MIT never redirects and never re-creates an alias.
             redirect: None,
             option: None,
+            pay: None,
+            apl: None,
         })
     }
 }
