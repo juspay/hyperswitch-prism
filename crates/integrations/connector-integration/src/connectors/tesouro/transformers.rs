@@ -744,7 +744,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // Card / wallet expiry (optional): taken from the stored payment details carried in
         // the request. Wallets additionally tag the acquirer token with their wallet type.
-        let (expiration_month, expiration_year, wallet_type) =
+        let (mut expiration_month, mut expiration_year, wallet_type) =
             match &router_data.request.payment_method_data {
                 PaymentMethodData::Card(card) => (
                     Some(
@@ -789,6 +789,22 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 }
                 _ => (None, None, None),
             };
+
+        // Mandate-based MITs arrive as PaymentMethodData::MandatePayment and therefore do not
+        // carry the raw card. Recover the stored card expiry from additional_payment_data so
+        // Tesouro's authorizeRecurring receives the required expirationMonth/expirationYear.
+        if expiration_month.is_none() || expiration_year.is_none() {
+            if let Some(domain_types::types::AdditionalPaymentData::Card(card_info)) =
+                &router_data.request.additional_payment_data
+            {
+                if expiration_month.is_none() {
+                    expiration_month = card_info.card_exp_month.clone();
+                }
+                if expiration_year.is_none() {
+                    expiration_year = card_info.card_exp_year.clone();
+                }
+            }
+        }
 
         let cit_reference = connector_mandate_ref
             .get_connector_mandate_request_reference_id()
