@@ -19,6 +19,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.07.24.1
+
+### Features
+
+- **connector:** Add raw connector status to payment responses ([#1993](https://github.com/juspay/connector-service/pull/1993)) ([`04a4f52`](https://github.com/juspay/connector-service/commit/04a4f52ca0d96f54bc4eaa5dd7ea0820b48fb511))
+
+### Bug Fixes
+
+- **authorizedotnet:** Sort userField metadata keys alphabetically ([#1843](https://github.com/juspay/connector-service/pull/1843)) ([`3f9b52d`](https://github.com/juspay/connector-service/commit/3f9b52dba564cded2ac91a0478c087118704dcd2))
+- **connector:** Pass resource id field in Redsys Pre Authenticate response ([#2000](https://github.com/juspay/connector-service/pull/2000)) ([`0ffead4`](https://github.com/juspay/connector-service/commit/0ffead43c8d27ea4257e3740eaee9e6e82507461))
+- **twoc_twop_paco:** Correct refund status mapping against 2c2p docs ([#2005](https://github.com/juspay/connector-service/pull/2005)) ([`ccb772b`](https://github.com/juspay/connector-service/commit/ccb772bc21e65b4fb76ca7138f5bc4a63b0d4ec2))
+
+**Full Changelog:** [`2026.07.24.0...2026.07.24.1`](https://github.com/juspay/connector-service/compare/2026.07.24.0...2026.07.24.1)
+
+- - -
+
 ## 2026.07.24.0
 
 ### Features
