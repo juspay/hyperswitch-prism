@@ -600,7 +600,7 @@
     "proxy_setup_recurring": {
       "default": {
         "status": "not_supported",
-        "error": "Off-session e-commerce payments is not supported by tsysTransit. Off-session e-commerce payments are not supported by TSYS TransIT"
+        "error": "Off-session e-commerce payments is not supported by tsysTransit"
       }
     },
     "recurring_charge": {
@@ -679,7 +679,7 @@
     "setup_recurring": {
       "default": {
         "status": "not_supported",
-        "error": "Off-session e-commerce payments is not supported by tsysTransit. Off-session e-commerce payments are not supported by TSYS TransIT"
+        "error": "Off-session e-commerce payments is not supported by tsysTransit"
       }
     },
     "token_authorize": {
@@ -691,7 +691,7 @@
     "token_setup_recurring": {
       "default": {
         "status": "not_supported",
-        "error": "Off-session e-commerce payments is not supported by tsysTransit. Off-session e-commerce payments are not supported by TSYS TransIT"
+        "error": "Off-session e-commerce payments is not supported by tsysTransit"
       }
     },
     "tokenize": {
