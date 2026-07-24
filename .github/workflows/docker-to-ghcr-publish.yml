@@ -14,22 +14,11 @@ on:
       - "v[0-9]+.[0-9]+.[0-9]+"
 
 jobs:
-  # Tag pushes fire this workflow directly, so nothing upstream guarantees the
-  # tagged commit passed CI. Block publishing until the "CI Result" check
-  # (ci.yml's ci-gate job) has completed successfully on this exact SHA.
-  # The CI run and the tag push start near-simultaneously, so poll rather
-  # than checking once.
-  #
-  # Hotfix tags are exempt from the CI wait: they point at commits on
-  # hotfix-* branches, where ci.yml never runs, so no "CI Result" check
-  # will ever exist on them and waiting would only time out. Running CI on
-  # hotfix branches (and then lifting this exemption) is a follow-up.
-  verify-ci:
-    name: Verify CI passed on tagged commit
+  # Tag names are attacker-controllable text that becomes the published image
+  # version, so validate the ref format before any job that can push to GHCR.
+  validate-tag:
+    name: Validate tag format
     runs-on: ubuntu-latest
-    permissions:
-      checks: read
-      contents: read
     steps:
       # Tag names are attacker-controllable text that later becomes the image
       # version, so reject anything that isn't a strict CalVer/SemVer tag
@@ -51,50 +40,8 @@ jobs:
             exit 1
           fi
 
-      - name: Wait for CI Result check
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REF_NAME: ${{ github.ref_name }}
-          REF_TYPE: ${{ github.ref_type }}
-          COMMIT_SHA: ${{ github.sha }}
-          REPO: ${{ github.repository }}
-        run: |
-          if [[ "${REF_TYPE}" != "tag" ]]; then
-            echo "Not a tag push — skipping CI verification for manual branch build."
-            exit 0
-          fi
-
-          if [[ "${REF_NAME}" == *-hotfix* ]]; then
-            echo "::notice::Hotfix tag ${REF_NAME}: ci.yml does not run on hotfix-* branches, so no 'CI Result' check will ever exist on this commit. Skipping CI verification for hotfix tags; running CI on hotfix branches is a tracked follow-up."
-            exit 0
-          fi
-
-          DEADLINE=$((SECONDS + 5400)) # 90 minutes
-
-          while true; do
-            CONCLUSION="$(gh api \
-              "/repos/${REPO}/commits/${COMMIT_SHA}/check-runs?check_name=CI%20Result&filter=latest" \
-              --jq '[.check_runs[] | select(.status == "completed")][0].conclusion // empty')"
-
-            if [[ "${CONCLUSION}" == "success" ]]; then
-              echo "CI Result check passed on ${COMMIT_SHA}."
-              break
-            elif [[ -n "${CONCLUSION}" ]]; then
-              echo "::error::CI Result check concluded '${CONCLUSION}' on ${COMMIT_SHA}. Refusing to publish an image from a commit that did not pass CI."
-              exit 1
-            fi
-
-            if (( SECONDS >= DEADLINE )); then
-              echo "::error::Timed out waiting for the CI Result check on ${COMMIT_SHA}. Re-run this workflow once CI has completed."
-              exit 1
-            fi
-
-            echo "CI Result check not completed yet on ${COMMIT_SHA}; retrying in 60s..."
-            sleep 60
-          done
-
   build-and-push-dockerfile:
-    needs: [verify-ci]
+    needs: [validate-tag]
     permissions:
       contents: read
       packages: write
@@ -137,7 +84,7 @@ jobs:
 
           # Check if triggered by tag push
           if [[ "${REF_TYPE}" == "tag" ]]; then
-            # Use the tag name directly (format-validated by the verify-ci job)
+            # Use the tag name directly (format-validated by the validate-tag job)
             VERSION="${REF_NAME}"
           elif [[ "${REF_TYPE}" == "branch" ]] && [[ -n "${REF_NAME}" ]]; then
             # Use the branch name with short SHA

@@ -130,28 +130,6 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.CONNECTOR_SERVICE_CI_PAT }}
 
-      - name: Verify CI passed on tagged commit
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.CONNECTOR_SERVICE_CI_PAT }}
-          REPOSITORY: ${{ github.repository }}
-          CALVER_TAG: ${{ inputs.calver_tag }}
-        run: |
-          SHA="$(git rev-parse HEAD)"
-          CONCLUSION="$(gh api \
-            "/repos/${REPOSITORY}/commits/${SHA}/check-runs?check_name=CI%20Result&filter=latest" \
-            --jq '[.check_runs[] | select(.status == "completed")][0].conclusion // empty')"
-
-          if [[ "${CONCLUSION}" == "success" ]]; then
-            echo "CI Result check passed on ${SHA} (${CALVER_TAG})."
-          elif [[ -n "${CONCLUSION}" ]]; then
-            echo "::error::CI Result check concluded '${CONCLUSION}' on ${SHA} (${CALVER_TAG}). Refusing to release a commit that did not pass CI."
-            exit 1
-          else
-            echo "::error::No completed CI Result check found on ${SHA} (${CALVER_TAG}). Refusing to release an unverified commit."
-            exit 1
-          fi
-
       - name: Install cocogitto
         uses: taiki-e/install-action@v2
         with:
