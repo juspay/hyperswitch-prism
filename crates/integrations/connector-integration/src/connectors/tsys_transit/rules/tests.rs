@@ -641,8 +641,6 @@ fn additional_tax_details_errors_when_l3_missing_tax_category() {
     ));
 }
 
-
-
 #[test]
 fn additional_tax_details_empty_when_not_commercial() {
     let p = profile(
