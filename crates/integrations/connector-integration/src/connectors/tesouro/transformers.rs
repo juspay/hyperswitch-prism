@@ -583,9 +583,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .clone(),
         )?;
         let auto_capture = is_auto_capture(router_data.request.capture_method);
-        let is_mandate = router_data.request.setup_future_usage
-            == Some(common_enums::FutureUsage::OffSession)
-            || router_data.request.customer_acceptance.is_some();
+        let is_mandate = router_data.request.is_mandate_payment();
 
         let payment_method_details = match &router_data.request.payment_method_data {
             PaymentMethodData::Card(card) => {
@@ -801,7 +799,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     expiration_month = card_info.card_exp_month.clone();
                 }
                 if expiration_year.is_none() {
-                    expiration_year = card_info.card_exp_year.clone();
+                    expiration_year = card_info
+                        .card_exp_year
+                        .as_ref()
+                        .map(domain_types::utils::expand_expiry_year_to_four_digits);
                 }
             }
         }
