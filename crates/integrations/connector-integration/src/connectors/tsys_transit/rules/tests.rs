@@ -11,14 +11,11 @@ use super::super::profile::{
 use super::super::transformers::{
     TsysTransitCardDataInputMode, TsysTransitCardDataSource, TsysTransitCardOnFile,
     TsysTransitCardholderPresentDetail, TsysTransitMcCitStatusIndicator, TsysTransitMitIndicator,
-    TsysTransitRegisteredUserIndicator, TsysTransitTaxCategory,
+    TsysTransitRegisteredUserIndicator,
     TsysTransitTerminalOperatingEnvironment, TsysTransitTerminalOutputCapability,
 };
 use super::{card_input_mode, cof_mit, commercial, network_indicators, terminal_data};
 
-fn smu(value: &str) -> common_utils::types::StringMajorUnit {
-    serde_json::from_str(&format!("\"{value}\"")).expect("StringMajorUnit")
-}
 
 fn profile(
     acceptance: AcceptanceProfile,
@@ -558,6 +555,7 @@ fn destination_country_code_strips_on_mastercard_l2() {
 }
 
 // ============================================================================
+<<<<<<< Updated upstream
 // rules::commercial::additional_tax_details — Level III branch
 // ============================================================================
 
@@ -656,6 +654,8 @@ fn additional_tax_details_empty_when_not_commercial() {
 }
 
 // ============================================================================
+=======
+>>>>>>> Stashed changes
 // rules::cof_mit — bucket 5
 // ============================================================================
 
