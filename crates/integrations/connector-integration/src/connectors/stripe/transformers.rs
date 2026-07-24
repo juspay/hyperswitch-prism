@@ -99,6 +99,35 @@ impl<T: PaymentMethodDataTypes> GetRequestIncrementalAuthorization for RepeatPay
     }
 }
 
+fn get_stripe_moto_flag<T: PaymentMethodDataTypes>(
+    payment_method_data: &PaymentMethodData<T>,
+    payment_channel: &Option<common_enums::PaymentChannel>,
+) -> Option<bool> {
+    if matches!(payment_method_data, PaymentMethodData::Card(_))
+        && matches!(
+            payment_channel,
+            Some(
+                common_enums::PaymentChannel::MailOrder
+                    | common_enums::PaymentChannel::TelephoneOrder
+            )
+        )
+    {
+        Some(true)
+    } else {
+        None
+    }
+}
+
+fn get_setup_future_usage_for_moto(
+    setup_future_usage: Option<common_enums::FutureUsage>,
+    is_moto: Option<bool>,
+) -> Option<common_enums::FutureUsage> {
+    match setup_future_usage {
+        Some(common_enums::FutureUsage::OnSession) if is_moto == Some(true) => None,
+        usage => usage,
+    }
+}
+
 pub struct StripeAuthType {
     pub(super) api_key: Secret<String>,
 }
@@ -230,6 +259,11 @@ pub struct PaymentIntentRequest<
     pub browser_info: Option<StripeBrowserInformation>,
     #[serde(flatten)]
     pub charges: Option<IntentCharges>,
+    #[serde(rename = "payment_method_options[card][moto]")]
+    pub moto: Option<bool>,
+    /// The Stripe account ID that these funds are intended for
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub on_behalf_of: Option<String>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -277,6 +311,11 @@ pub struct SetupMandateRequest<
     pub expand: Option<ExpandableObjects>,
     #[serde(flatten)]
     pub browser_info: Option<StripeBrowserInformation>,
+    #[serde(rename = "payment_method_options[card][moto]")]
+    pub moto: Option<bool>,
+    /// The Stripe account ID that these funds are intended for
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub on_behalf_of: Option<String>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -1246,7 +1285,8 @@ fn get_stripe_payment_method_type_from_wallet_data(
         | WalletData::CashfreeRedirect(_)
         | WalletData::PayURedirect(_)
         | WalletData::EaseBuzzRedirect(_)
-        | WalletData::QwikcilverWalletDirect(_) => Err(IntegrationError::NotImplemented(
+        | WalletData::QwikcilverWalletDirect(_)
+        | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
             get_unimplemented_payment_method_error_message("stripe"),
             Default::default(),
         )),
@@ -1555,6 +1595,7 @@ fn create_stripe_payment_method<
 
         PaymentMethodData::Upi(_)
         | PaymentMethodData::RealTimePayment(_)
+        | PaymentMethodData::CardWithNoCvc(_)
         | PaymentMethodData::MobilePayment(_)
         | PaymentMethodData::MandatePayment
         | PaymentMethodData::OpenBanking(_)
@@ -1734,7 +1775,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> TryF
             | WalletData::CashfreeRedirect(_)
             | WalletData::PayURedirect(_)
             | WalletData::EaseBuzzRedirect(_)
-            | WalletData::QwikcilverWalletDirect(_) => Err(IntegrationError::NotImplemented(
+            | WalletData::QwikcilverWalletDirect(_)
+            | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),
                 Default::default(),
             )
@@ -2137,6 +2179,33 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             (None, None) => None,
         };
 
+        let is_moto = get_stripe_moto_flag(
+            &item.request.payment_method_data,
+            &item.request.payment_channel,
+        );
+
+        let setup_future_usage = if item.request.split_payments.is_some()
+            && item.request.customer_acceptance.is_some()
+        {
+            item.request.setup_future_usage
+        } else {
+            setup_future_usage
+        };
+        let setup_future_usage = get_setup_future_usage_for_moto(setup_future_usage, is_moto);
+
+        // on_behalf_of is only supported for destination charges, not direct charges
+        let on_behalf_of = match &item.request.split_payments {
+            Some(SplitPaymentsDetails::StripeSplitPayment(stripe_split_payment)) => {
+                match &stripe_split_payment.charge_type {
+                    common_enums::PaymentChargeType::Stripe(
+                        common_enums::StripeChargeType::Destination,
+                    ) => stripe_split_payment.on_behalf_of.clone(),
+                    _ => None,
+                }
+            }
+            _ => None,
+        };
+
         Ok(Self {
             amount,                                      //hopefully we don't loose some cents here
             currency: item.request.currency.to_string(), //we need to copy the value and not transfer ownership
@@ -2171,19 +2240,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .map(Secret::new),
             setup_mandate_details,
             off_session: item.request.off_session,
-            setup_future_usage: match (
-                item.request.split_payments.as_ref(),
-                item.request.setup_future_usage,
-                item.request.customer_acceptance.as_ref(),
-            ) {
-                (Some(_), Some(usage), Some(_)) => Some(usage),
-                _ => setup_future_usage,
-            },
+            setup_future_usage,
 
             payment_method_types,
             expand: Some(ExpandableObjects::LatestCharge),
             browser_info,
             charges: charges_in,
+            moto: is_moto,
+            on_behalf_of,
         })
     }
 }
@@ -2206,11 +2270,12 @@ impl From<BrowserInformation> for StripeBrowserInformation {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct StripeSplitPaymentRequest {
     pub charge_type: Option<common_enums::PaymentChargeType>,
     pub application_fees: Option<MinorUnit>,
     pub transfer_account_id: Option<Secret<String>>,
+    pub on_behalf_of: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -2715,7 +2780,8 @@ where
                         Some(Secret::new(serde_json::json!({
                             "transfer_account_id": stripe_split_data.transfer_account_id,
                             "charge_type": stripe_split_data.charge_type,
-                            "application_fees": stripe_split_data.application_fees
+                            "application_fees": stripe_split_data.application_fees,
+                            "on_behalf_of": stripe_split_data.on_behalf_of,
                         })))
                     }
                     _ => None,
@@ -4434,18 +4500,26 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
-        _item: &RouterDataV2<
+        item: &RouterDataV2<
             Authorize,
             PaymentFlowData,
             PaymentsAuthorizeData<T>,
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            charge_type: None,
-            transfer_account_id: None,
-            application_fees: None,
-        })
+        let split_payment_request = match item.request.split_payments.as_ref() {
+            Some(SplitPaymentsDetails::StripeSplitPayment(stripe_split_payment)) => Self {
+                charge_type: Some(stripe_split_payment.charge_type.clone()),
+                transfer_account_id: Some(Secret::new(
+                    stripe_split_payment.transfer_account_id.clone(),
+                )),
+                application_fees: stripe_split_payment.application_fees,
+                on_behalf_of: stripe_split_payment.on_behalf_of.clone(),
+            },
+            Some(SplitPaymentsDetails::AdyenSplitPayment(_)) | None => Self::default(),
+        };
+
+        Ok(split_payment_request)
     }
 }
 
@@ -4942,12 +5016,32 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .clone()
             .map(StripeBrowserInformation::from);
 
+        let is_moto = get_stripe_moto_flag(
+            &item.router_data.request.payment_method_data,
+            &item.router_data.request.payment_channel,
+        );
+
+        let setup_future_usage =
+            get_setup_future_usage_for_moto(item.router_data.request.setup_future_usage, is_moto);
+
+        let on_behalf_of = match &item.router_data.request.split_payments {
+            Some(SplitPaymentsDetails::StripeSplitPayment(stripe_split_payment)) => {
+                match &stripe_split_payment.charge_type {
+                    common_enums::PaymentChargeType::Stripe(
+                        common_enums::StripeChargeType::Destination,
+                    ) => stripe_split_payment.on_behalf_of.clone(),
+                    _ => None,
+                }
+            }
+            _ => None,
+        };
+
         Ok(Self {
             confirm: true,
             payment_data,
             return_url: item.router_data.request.router_return_url.clone(),
             off_session: item.router_data.request.off_session,
-            usage: item.router_data.request.setup_future_usage,
+            usage: setup_future_usage,
             payment_method_options: None,
             customer: item
                 .router_data
@@ -4959,6 +5053,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             payment_method_types: Some(pm_type),
             expand: Some(ExpandableObjects::LatestAttempt),
             browser_info,
+            moto: is_moto,
+            on_behalf_of,
         })
     }
 }
@@ -5093,6 +5189,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | PaymentMethodData::Crypto(_)
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::Upi(_)
@@ -5249,12 +5346,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize + Ser
             let mut mit_charge_type = None;
             let mut mit_application_fees = None;
             let mut mit_transfer_account_id = None;
+            let mut mit_on_behalf_of = None;
             if let Some(SplitPaymentsDetails::StripeSplitPayment(stripe_split_payment)) =
                 item.request.split_payments.as_ref()
             {
                 mit_charge_type = Some(stripe_split_payment.charge_type.clone());
                 mit_application_fees = stripe_split_payment.application_fees;
                 mit_transfer_account_id = Some(stripe_split_payment.transfer_account_id.clone());
+                mit_on_behalf_of = stripe_split_payment.on_behalf_of.clone();
             }
 
             if mit_charge_type != from_metadata.as_ref().and_then(|m| m.charge_type.clone())
@@ -5263,8 +5362,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize + Ser
                     != from_metadata
                         .as_ref()
                         .and_then(|m| m.transfer_account_id.clone().map(|s| s.expose()))
+                || mit_on_behalf_of != from_metadata.as_ref().and_then(|m| m.on_behalf_of.clone())
             {
-                let mismatched_fields = ["transfer_account_id", "application_fees", "charge_type"];
+                let mismatched_fields = [
+                    "transfer_account_id",
+                    "application_fees",
+                    "charge_type",
+                    "on_behalf_of",
+                ];
 
                 let field_str = mismatched_fields.join(", ");
                 Err(IntegrationError::MandatePaymentDataMismatch {
@@ -5275,15 +5380,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize + Ser
         }
 
         // If Mandate Metadata from CIT call has something, populate it
-        let (charge_type, mut transfer_account_id, application_fees) =
+        let (charge_type, mut transfer_account_id, application_fees, on_behalf_of) =
             if let Some(ref metadata) = from_metadata {
                 (
                     metadata.charge_type.clone(),
                     metadata.transfer_account_id.clone(),
                     metadata.application_fees,
+                    metadata.on_behalf_of.clone(),
                 )
             } else {
-                (None, None, None)
+                (None, None, None, None)
             };
 
         // If Charge Type is Destination, transfer_account_id need not be appended in headers
@@ -5298,6 +5404,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize + Ser
             charge_type,
             transfer_account_id,
             application_fees,
+            on_behalf_of,
         })
     }
 }
@@ -5352,7 +5459,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             _ => None,
         };
 
-        let (transfer_account_id, charge_type, application_fees) =
+        let (transfer_account_id, charge_type, application_fees, mandate_on_behalf_of) =
             match mandate_metadata.as_ref().and_then(|s| s.as_ref()) {
                 Some(secret_value) => {
                     let json_value = secret_value.clone().expose();
@@ -5365,11 +5472,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             data.transfer_account_id,
                             data.charge_type,
                             data.application_fees,
+                            data.on_behalf_of,
                         ),
-                        Err(_) => (None, None, None),
+                        Err(_) => (None, None, None, None),
                     }
                 }
-                None => (None, None, None),
+                None => (None, None, None, None),
             };
 
         let payment_method_token = match &item.request.payment_method_data {
@@ -5483,6 +5591,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         | PaymentMethodData::MandatePayment
                         | PaymentMethodData::Reward
                         | PaymentMethodData::RealTimePayment(_)
+                        | PaymentMethodData::CardWithNoCvc(_)
                         | PaymentMethodData::MobilePayment(_)
                         | PaymentMethodData::Upi(_)
                         | PaymentMethodData::Voucher(_)
@@ -5601,6 +5710,29 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             (None, None) => None,
         };
 
+        let is_moto = get_stripe_moto_flag(
+            &item.request.payment_method_data,
+            &item.request.payment_channel,
+        );
+
+        // on_behalf_of is only supported for destination charges, not direct charges
+        let on_behalf_of = match &item.request.split_payments {
+            Some(SplitPaymentsDetails::StripeSplitPayment(stripe_split_payment)) => {
+                match &stripe_split_payment.charge_type {
+                    common_enums::PaymentChargeType::Stripe(
+                        common_enums::StripeChargeType::Destination,
+                    ) => stripe_split_payment.on_behalf_of.clone(),
+                    _ => None,
+                }
+            }
+            _ => match charge_type {
+                Some(common_enums::PaymentChargeType::Stripe(
+                    common_enums::StripeChargeType::Destination,
+                )) => mandate_on_behalf_of,
+                _ => None,
+            },
+        };
+
         Ok(Self {
             amount,                                      //hopefully we don't loose some cents here
             currency: item.request.currency.to_string(), //we need to copy the value and not transfer ownership
@@ -5632,6 +5764,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             expand: Some(ExpandableObjects::LatestCharge),
             browser_info,
             charges: charges_in,
+            moto: is_moto,
+            on_behalf_of,
         })
     }
 }

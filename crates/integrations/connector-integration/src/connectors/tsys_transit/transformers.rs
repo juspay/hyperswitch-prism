@@ -10,11 +10,10 @@ use domain_types::{
         VoidPostRefund,
     },
     connector_types::{
-        MandateIds, MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
-        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RecurringMandatePaymentData, RefundFlowData,
-        RefundSyncData, RefundVoidPostRefundData, RefundsData, RefundsResponseData,
-        RepeatPaymentData, ResponseId, SetupMandateRequestData,
+        MandateIds, MandateReferenceId, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
+        RecurringMandatePaymentData, RefundFlowData, RefundSyncData, RefundVoidPostRefundData,
+        RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{
@@ -2270,13 +2269,10 @@ fn decode_mandate_id_string(raw: &str) -> MandateDispatch {
             _ => {}
         }
     }
-    if let Some(ntid) = raw.strip_prefix("ntid:") {
-        if !ntid.is_empty() {
-            return MandateDispatch::Ntid {
-                ntid: ntid.to_string(),
-            };
-        }
-    }
+    // Network transaction id is never stored as a connector_mandate_id (PSP
+    // token) for tsys_transit — it arrives via `NetworkMandateId` and is
+    // decoded in `decode_mandate_dispatch`. Nothing writes an `ntid:` prefixed
+    // connector_mandate_id, so there is nothing to strip here.
     MandateDispatch::None
 }
 fn map_authorize_status(response: &TsysTransitAuthorizeResponse) -> AttemptStatus {
@@ -2365,18 +2361,27 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             )
         })?;
 
-        // On A0002 (partial approval) TSYS returns the actually approved
-        // value in <processedAmount>. Forward it as MinorUnit so the core
-        // can reconcile the partial capture/authorization against the
-        // requested amount; for the fully-approved A0000 case this is also
-        // harmless to populate.
-        let minor_amount_captured = body.processed_amount.as_ref().and_then(|amount| {
-            crate::connectors::tsys_transit::TsysTransitAmountConvertor::convert_back(
-                amount.clone(),
-                router_data.request.currency,
-            )
-            .ok()
-        });
+        // <processedAmount> reflects settled funds, so amount_captured must be
+        // populated ONLY when the transaction actually captured: a Sale (Charged)
+        // or a partial approval (PartialCharged). For an auth-only (Authorized)
+        // manual-capture flow nothing is captured yet — populating it there made
+        // HS record amount_received == amount at authorization, pushing later
+        // voids/captures into a wrong partially-captured state.
+        let is_settled = matches!(
+            status,
+            AttemptStatus::Charged | AttemptStatus::PartialCharged
+        );
+        let minor_amount_captured = is_settled
+            .then(|| {
+                body.processed_amount.as_ref().and_then(|amount| {
+                    crate::connectors::tsys_transit::TsysTransitAmountConvertor::convert_back(
+                        amount.clone(),
+                        router_data.request.currency,
+                    )
+                    .ok()
+                })
+            })
+            .flatten();
         let amount_captured = minor_amount_captured.map(|m| m.get_amount_as_i64());
 
         let payments_response_data = PaymentsResponseData::TransactionResponse {
@@ -2967,18 +2972,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 super::TsysTransitAmountConvertor::convert(amount.amount, amount.currency)
             })
             .transpose()?;
-        let void_reason = {
-            let raw = router_data
-                .request
-                .cancellation_reason
-                .clone()
-                .unwrap_or_else(|| "RETURN_REVERSAL".to_string());
-            if raw.len() > 80 {
-                raw.chars().take(80).collect()
-            } else {
-                raw
-            }
-        };
+        // TSYS <voidReason> only accepts a fixed set of enum values, so an
+        // arbitrary caller-supplied cancellation_reason (free text) is rejected
+        // with "The value of element 'voidReason' is not valid." Ignore the
+        // request value and always send a valid connector default.
+        let void_reason = "RETURN_REVERSAL".to_string();
 
         Ok(Self {
             device_id: auth.device_id,
@@ -3085,18 +3083,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             )?),
             _ => None,
         };
-        let void_reason = {
-            let raw = router_data
-                .request
-                .cancellation_reason
-                .clone()
-                .unwrap_or_else(|| "POST_AUTH_USER_DECLINE".to_string());
-            if raw.len() > 80 {
-                raw.chars().take(80).collect()
-            } else {
-                raw
-            }
-        };
+        // TSYS <voidReason> only accepts a fixed set of enum values, so an
+        // arbitrary caller-supplied cancellation_reason (free text) is rejected
+        // with "The value of element 'voidReason' is not valid." Ignore the
+        // request value and always send a valid connector default.
+        let void_reason = "POST_AUTH_USER_DECLINE".to_string();
 
         Ok(Self {
             device_id: auth.device_id,
@@ -3499,25 +3490,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 )
             })?;
 
-        let path_a_mandate_id = format!("ntid:{ntid_source}");
-        let mandate_reference = Box::new(MandateReference {
-            connector_mandate_id: Some(path_a_mandate_id),
-            payment_method_id: None,
-            connector_mandate_request_reference_id: None,
-            mandate_metadata: None,
-        });
-
         let connector_txn_id = response
             .transaction_id
             .clone()
             .unwrap_or_else(|| ntid_source.clone());
 
+        // Do NOT fake the network transaction id as a connector_mandate_id (PSP
+        // token). The NTI is stored as network_txn_id; a connector-agnostic MIT
+        // replays it from the payment method's network_transaction_id together with
+        // the locker card, so no connector mandate / PSP token is needed.
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(connector_txn_id.clone()),
             redirection_data: None,
-            mandate_reference: Some(mandate_reference),
+            mandate_reference: None,
             connector_metadata: None,
-            network_txn_id: response.auth_code.clone(),
+            network_txn_id: Some(ntid_source.clone()),
             network_txn_link_id: None,
             connector_response_reference_id: Some(connector_txn_id),
             incremental_authorization_allowed: None,

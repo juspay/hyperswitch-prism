@@ -612,6 +612,7 @@ macros::macro_connector_flow_status_impls!(
         MandateRevoke,
         CreateOrder,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         PaymentMethodToken,
         Accept,
         SubmitEvidence,

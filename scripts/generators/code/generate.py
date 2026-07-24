@@ -402,6 +402,7 @@ def grpc_method_path(service: str, rpc_name: str) -> str:
 # Used for SDK method names and gRPC examples.
 _FLOW_NAME_OVERRIDES: dict[tuple[str, str], str] = {
     ("CustomerService", "Create"): "create_customer",
+    ("CustomerService", "Get"): "customer_get",
     ("RecurringPaymentService", "Charge"): "recurring_charge",
     ("RecurringPaymentService", "Revoke"): "recurring_revoke",
     ("RefundService", "Get"): "refund_get",

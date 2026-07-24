@@ -21,11 +21,12 @@ use grpc_api_types::frm::{
 use grpc_api_types::payments::NetworkErrorCode;
 use grpc_api_types::payments::{ConnectorConfig, FfiOptions, RequestConfig};
 use grpc_api_types::payments::{
-    CustomerServiceCreateRequest, CustomerServiceCreateResponse, DisputeServiceAcceptRequest,
-    DisputeServiceAcceptResponse, DisputeServiceDefendRequest, DisputeServiceDefendResponse,
-    DisputeServiceSubmitEvidenceRequest, DisputeServiceSubmitEvidenceResponse,
-    EventServiceHandleRequest, EventServiceHandleResponse, EventServiceParseRequest,
-    EventServiceParseResponse, MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
+    CustomerServiceCreateRequest, CustomerServiceCreateResponse, CustomerServiceGetRequest,
+    CustomerServiceGetResponse, DisputeServiceAcceptRequest, DisputeServiceAcceptResponse,
+    DisputeServiceDefendRequest, DisputeServiceDefendResponse, DisputeServiceSubmitEvidenceRequest,
+    DisputeServiceSubmitEvidenceResponse, EventServiceHandleRequest, EventServiceHandleResponse,
+    EventServiceParseRequest, EventServiceParseResponse,
+    MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
@@ -283,6 +284,13 @@ impl ConnectorClient {
         CustomerServiceCreateResponse,
         customer_create_req_handler,
         customer_create_res_handler
+    );
+    impl_flow_method!(
+        customer_get,
+        CustomerServiceGetRequest,
+        CustomerServiceGetResponse,
+        customer_get_req_handler,
+        customer_get_res_handler
     );
     // ── DisputeService flows ───────────────────────────────────────────────────
     impl_flow_method!(

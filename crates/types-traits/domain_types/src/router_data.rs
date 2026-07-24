@@ -6,7 +6,7 @@ use common_utils::{
     types::Money,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
 use crate::{
     connector_types, errors, payment_method_data,
@@ -146,6 +146,14 @@ impl ConnectorAuthType {
 pub struct PaysafePaymentMethodDetails {
     pub card: Option<HashMap<common_enums::enums::Currency, PaysafeCardAccountId>>,
     pub ach: Option<HashMap<common_enums::enums::Currency, PaysafeAchAccountId>>,
+    pub interac: Option<HashMap<common_enums::enums::Currency, PaysafeInteracAccountId>>,
+    /// Dedicated Apple Pay processing accounts (encrypt/decrypt per currency),
+    /// mirroring hyperswitch's `PaysafePaymentMethodDetails.apple_pay`.
+    pub apple_pay: Option<HashMap<common_enums::enums::Currency, PaysafeApplePayAccountId>>,
+    /// Skrill wallet processing accounts, keyed by currency.
+    pub skrill: Option<HashMap<common_enums::enums::Currency, PaysafeRedirectAccountId>>,
+    /// paysafecard processing accounts, keyed by currency.
+    pub pay_safe_card: Option<HashMap<common_enums::enums::Currency, PaysafeRedirectAccountId>>,
 }
 
 #[derive(Debug, Default, Clone, serde::Deserialize, serde::Serialize)]
@@ -159,46 +167,132 @@ pub struct PaysafeAchAccountId {
     pub account_id: Option<Secret<String>>,
 }
 
+#[derive(Debug, Default, Clone, serde::Deserialize, serde::Serialize)]
+pub struct PaysafeInteracAccountId {
+    // Native metadata key `three_ds` (mirrors hyperswitch `RedirectAccountId`).
+    pub three_ds: Option<Secret<String>>,
+}
+
+/// Dedicated Apple Pay processing account, split by token flow. Mirrors
+/// hyperswitch's `ApplePayAccountDetails`: `encrypt` is used for the encrypted
+/// PKPaymentToken flow, `decrypt` for the decrypted-token flow.
+#[derive(Debug, Default, Clone, serde::Deserialize, serde::Serialize)]
+pub struct PaysafeApplePayAccountId {
+    pub encrypt: Option<Secret<String>>,
+    pub decrypt: Option<Secret<String>>,
+}
+
+/// Redirect-APM processing account (Skrill, paysafecard). Native metadata key
+/// `three_ds` (mirrors hyperswitch `RedirectAccountId`).
+#[derive(Debug, Default, Clone, serde::Deserialize, serde::Serialize)]
+pub struct PaysafeRedirectAccountId {
+    pub three_ds: Option<Secret<String>>,
+}
+
+/// Selects the dedicated Apple Pay processing account by token flow. `Encrypt`
+/// uses the encrypted PKPaymentToken account; `Decrypt` uses the decrypted-token
+/// account. Mirrors hyperswitch's `get_applepay_encrypt_account_id` /
+/// `get_applepay_decrypt_account_id`.
+#[derive(Debug, Clone, Copy)]
+pub enum PaysafeApplePayFlow {
+    Encrypt,
+    Decrypt,
+}
+
+/// Selects which per-currency processing account to resolve from a
+/// [`PaysafePaymentMethodDetails`] map. Each variant maps to one payment-method
+/// slot; `ApplePay` additionally picks the encrypt vs. decrypt token flow.
+#[derive(Debug, Clone, Copy)]
+pub enum PaysafeAccountKind {
+    CardNoThreeDs,
+    CardThreeDs,
+    Ach,
+    Interac,
+    ApplePay(PaysafeApplePayFlow),
+    Skrill,
+    PaysafeGiftCard,
+}
+
 impl PaysafePaymentMethodDetails {
-    pub fn get_no_three_ds_account_id(
+    /// Resolve the processing account id for `kind` in `currency` from the
+    /// per-method account maps. Replaces the former per-method accessors with a
+    /// single `match` over [`PaysafeAccountKind`].
+    pub fn get_account_id(
         &self,
+        kind: PaysafeAccountKind,
         currency: common_enums::enums::Currency,
     ) -> Result<Secret<String>, errors::IntegrationError> {
-        self.card
-            .as_ref()
-            .and_then(|cards| cards.get(&currency))
-            .and_then(|card| card.no_three_ds.clone())
+        let (value, config) = match kind {
+            PaysafeAccountKind::CardNoThreeDs => (
+                self.card
+                    .as_ref()
+                    .and_then(|cards| cards.get(&currency))
+                    .and_then(|card| card.no_three_ds.clone()),
+                "Missing no_3ds account_id",
+            ),
+            PaysafeAccountKind::CardThreeDs => (
+                self.card
+                    .as_ref()
+                    .and_then(|cards| cards.get(&currency))
+                    .and_then(|card| card.three_ds.clone()),
+                "Missing 3ds account_id",
+            ),
+            PaysafeAccountKind::Ach => (
+                self.ach
+                    .as_ref()
+                    .and_then(|ach| ach.get(&currency))
+                    .and_then(|ach| ach.account_id.clone()),
+                "Missing ach account_id",
+            ),
+            PaysafeAccountKind::Interac => (
+                self.interac
+                    .as_ref()
+                    .and_then(|interac| interac.get(&currency))
+                    .and_then(|interac| interac.three_ds.clone()),
+                "Missing interac account_id",
+            ),
+            PaysafeAccountKind::ApplePay(flow) => (
+                self.apple_pay
+                    .as_ref()
+                    .and_then(|apple_pay| apple_pay.get(&currency))
+                    .and_then(|account| match flow {
+                        PaysafeApplePayFlow::Encrypt => account.encrypt.clone(),
+                        PaysafeApplePayFlow::Decrypt => account.decrypt.clone(),
+                    }),
+                match flow {
+                    PaysafeApplePayFlow::Encrypt => "Missing ApplePay encrypt account_id",
+                    PaysafeApplePayFlow::Decrypt => "Missing ApplePay decrypt account_id",
+                },
+            ),
+            PaysafeAccountKind::Skrill => (
+                self.skrill
+                    .as_ref()
+                    .and_then(|skrill| skrill.get(&currency))
+                    .and_then(|skrill| skrill.three_ds.clone()),
+                "Missing skrill account_id",
+            ),
+            PaysafeAccountKind::PaysafeGiftCard => (
+                self.pay_safe_card
+                    .as_ref()
+                    .and_then(|pay_safe_card| pay_safe_card.get(&currency))
+                    .and_then(|pay_safe_card| pay_safe_card.three_ds.clone()),
+                "Missing paysafe gift card account_id",
+            ),
+        };
+        value
+            // A provisioned-but-blank account id must not silently reach Paysafe as
+            // `accountId: ""`. `#[serde(default)]` on the proto config lets a partial
+            // config through (missing maps -> empty), and an explicit `""` value would
+            // otherwise resolve as `Some(Secret(""))`; treat empty/whitespace as missing.
+            .filter(|account_id| !account_id.peek().trim().is_empty())
             .ok_or(errors::IntegrationError::InvalidConnectorConfig {
-                config: "Missing no_3ds account_id",
-                context: Default::default(),
-            })
-    }
-
-    pub fn get_three_ds_account_id(
-        &self,
-        currency: common_enums::enums::Currency,
-    ) -> Result<Secret<String>, errors::IntegrationError> {
-        self.card
-            .as_ref()
-            .and_then(|cards| cards.get(&currency))
-            .and_then(|card| card.three_ds.clone())
-            .ok_or(errors::IntegrationError::InvalidConnectorConfig {
-                config: "Missing 3ds account_id",
-                context: Default::default(),
-            })
-    }
-
-    pub fn get_ach_account_id(
-        &self,
-        currency: common_enums::enums::Currency,
-    ) -> Result<Secret<String>, errors::IntegrationError> {
-        self.ach
-            .as_ref()
-            .and_then(|ach| ach.get(&currency))
-            .and_then(|ach| ach.account_id.clone())
-            .ok_or(errors::IntegrationError::InvalidConnectorConfig {
-                config: "Missing ach account_id",
-                context: Default::default(),
+                config,
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "Paysafe has no non-empty processing account for {currency:?} in the required account_id slot; check the connector config's account_id map."
+                    )),
+                    ..Default::default()
+                },
             })
     }
 }
@@ -286,6 +380,10 @@ pub enum ConnectorSpecificConfig {
         api_salt: Secret<String>,
         base_url: Option<String>,
         secondary_base_url: Option<String>,
+    },
+    Givepayments {
+        api_key: Secret<String>,
+        base_url: Option<String>,
     },
 
     // --- Two-field connectors ---
@@ -778,6 +876,10 @@ pub enum ConnectorSpecificConfig {
         merchant_id: Secret<String>,
         base_url: Option<String>,
     },
+    Glomopay {
+        api_key: Secret<String>,
+        base_url: Option<String>,
+    },
     Payconex {
         api_key: Secret<String>,
         account_id: Secret<String>,
@@ -1141,6 +1243,7 @@ impl ConnectorSpecificConfig {
                 api_key,
                 merchant_id
             },
+            Glomopay { api_key },
             Payconex {
                 api_key,
                 account_id
@@ -1172,6 +1275,7 @@ impl ConnectorSpecificConfig {
                 public_key,
                 private_key
             },
+            Givepayments { api_key },
         )
     }
 
@@ -1586,6 +1690,7 @@ impl ConnectorSpecificConfig {
                     api_key,
                     merchant_id
                 },
+                Glomopay { api_key },
                 Payconex {
                     api_key,
                     account_id
@@ -1618,6 +1723,7 @@ impl ConnectorSpecificConfig {
                     public_key,
                     private_key
                 },
+                Givepayments { api_key },
             ),
             serde_json::Value::Object(connector_patch),
         );
@@ -2257,6 +2363,14 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 private_key: affirm.private_key.ok_or_else(err)?,
                 base_url: affirm.base_url,
             }),
+            AuthType::Glomopay(glomopay) => Ok(Self::Glomopay {
+                api_key: glomopay.api_key.ok_or_else(err)?,
+                base_url: glomopay.base_url,
+            }),
+            AuthType::Givepayments(givepayments) => Ok(Self::Givepayments {
+                api_key: givepayments.api_key.ok_or_else(err)?,
+                base_url: givepayments.base_url,
+            }),
         }
     }
 }
@@ -2355,6 +2469,13 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                 },
                 ConnectorEnum::Xendit => match auth {
                     ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Xendit {
+                        api_key: api_key.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Givepayments => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Givepayments {
                         api_key: api_key.clone(),
                         base_url: None,
                     }),
@@ -3356,6 +3477,13 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
+                ConnectorEnum::Glomopay => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Glomopay {
+                        api_key: api_key.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
                 ConnectorEnum::TsysTransit => match auth {
                     ConnectorAuthType::SignatureKey {
                         api_key,
@@ -3392,6 +3520,13 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                 // is not used for Qwikcilver — configure via the proto
                 // QwikcilverConfig path instead.
                 ConnectorEnum::Qwikcilver => Err(err().into()),
+                // Netcetera is an authentication-only (3DS) no-key connector (mTLS is
+                // handled on the VGS outbound route, merchant fields ride
+                // `connector_feature_data`). Its `connector_config` is set to
+                // `ConnectorSpecificConfig::NoKey` via the `X_AUTH = "NoKey"` shortcut in
+                // `request.rs`, so it never flows through this deprecated auth-credentials
+                // -> config conversion (same opt-out as Qwikcilver above).
+                ConnectorEnum::Netcetera => Err(err().into()),
                 // Flywire requires `recipient_id` (drives currency, payout target
                 // and required institutional fields), which the legacy BodyKey
                 // creds path cannot supply. Configure Flywire via the proto

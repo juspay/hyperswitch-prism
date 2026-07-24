@@ -11,6 +11,10 @@ class CustomerClient(_ConnectorClientBase):
         """CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information."""
         return self._execute_flow("customer_create", request, _pb2.CustomerServiceCreateResponse, options)
 
+    def customer_get(self, request, options=None):
+        """CustomerService.Get — Retrieves customer details from the payment processor. Callers typically use this before Create to implement get-or-create semantics for connectors that reject duplicates (e.g. Glomopay)."""
+        return self._execute_flow("customer_get", request, _pb2.CustomerServiceGetResponse, options)
+
 class DisputeClient(_ConnectorClientBase):
     """DisputeService flows"""
 

@@ -836,6 +836,7 @@ pub enum PaymentMethod<
     AdyenMandatePaymentMethod(Box<AdyenMandate>),
 }
 
+#[serde_with::skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenMandate {
@@ -1570,7 +1571,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | WalletData::CashfreeRedirect(_)
             | WalletData::PayURedirect(_)
             | WalletData::EaseBuzzRedirect(_)
-            | WalletData::QwikcilverWalletDirect(_) => Err(IntegrationError::NotImplemented(
+            | WalletData::QwikcilverWalletDirect(_)
+            | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
                 ("payment_method").into(),
                 Default::default(),
             )
@@ -3897,6 +3899,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | PaymentMethodData::OpenBanking(_)
                 | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
                 | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+                | PaymentMethodData::CardWithNoCvc(_)
                 | PaymentMethodData::MobilePayment(_) => Err(IntegrationError::NotImplemented(
                     ("payment method").into(),
                     Default::default(),
@@ -5731,7 +5734,7 @@ fn get_additional_data_for_repeat_payment<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 >(
     item: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
-) -> Option<AdditionalData> {
+) -> Result<Option<AdditionalData>, Error> {
     let (authorisation_type, manual_capture) = match item.request.capture_method {
         Some(common_enums::CaptureMethod::Manual)
         | Some(common_enums::CaptureMethod::ManualMultiple) => {
@@ -5761,10 +5764,14 @@ fn get_additional_data_for_repeat_payment<
         MandateReferenceId::ConnectorMandateId(_) => None,
     };
 
-    Some(AdditionalData {
+    let capture_delay_hours =
+        get_capture_delay_hours(&item.request.metadata, item.request.capture_method)?;
+
+    Ok(Some(AdditionalData {
         authorisation_type,
         manual_capture,
         execute_three_d,
+        capture_delay_hours,
         network_tx_reference: None,
         recurring_detail_reference: None,
         recurring_shopper_reference: None,
@@ -5777,7 +5784,7 @@ fn get_additional_data_for_repeat_payment<
         }),
         transaction_link_id,
         ..AdditionalData::default()
-    })
+    }))
 }
 
 type RecurringDetails = (Option<AdyenRecurringModel>, Option<bool>, Option<String>);
@@ -5917,68 +5924,8 @@ fn get_additional_data<
         Some("false".to_string())
     };
 
-    // Mirror hyperswitch: metadata.capture_delay_hours -> additionalData.captureDelayHours.
-    let capture_delay_hours = {
-        let metadata_capture_delay =
-            get_adyen_metadata(item.request.metadata.clone().map(|m| m.expose()))
-                .capture_delay_hours;
-
-        let capture_method = item.request.capture_method.unwrap_or_default();
-        match capture_method {
-            common_enums::CaptureMethod::Manual | common_enums::CaptureMethod::ManualMultiple => {
-                // For manual capture, capture_delay_hours should be None
-                if let Some(hours) = metadata_capture_delay {
-                    return Err(IntegrationError::InvalidDataFormat {
-                        field_name: "metadata.capture_delay_hours",
-                        context: IntegrationErrorContext {
-                            additional_context: Some(format!(
-                                "Adyen does not accept capture_delay_hours for manual capture \
-                                 (capture_method = {capture_method:?}), but metadata supplied {hours}"
-                            )),
-                            suggested_action: Some(
-                                "Remove capture_delay_hours from metadata when capture_method is \
-                                 Manual/ManualMultiple, or switch to automatic capture"
-                                    .to_string(),
-                            ),
-                            doc_url: Some(
-                                "https://docs.adyen.com/online-payments/capture/".to_string(),
-                            ),
-                        },
-                    }
-                    .into());
-                }
-                None
-            }
-            // For automatic capture, only 0 (or None) is valid
-            common_enums::CaptureMethod::Automatic
-            | common_enums::CaptureMethod::Scheduled
-            | common_enums::CaptureMethod::SequentialAutomatic => match metadata_capture_delay {
-                None => None,
-                Some(0) => Some(0),
-                Some(hours) => {
-                    return Err(IntegrationError::InvalidDataFormat {
-                        field_name: "metadata.capture_delay_hours",
-                        context: IntegrationErrorContext {
-                            additional_context: Some(format!(
-                                "Adyen only accepts capture_delay_hours of 0 (or unset) for \
-                                 automatic capture (capture_method = {capture_method:?}), but \
-                                 metadata supplied {hours}"
-                            )),
-                            suggested_action: Some(
-                                "Set metadata.capture_delay_hours to 0 (or omit it) for automatic \
-                                 capture"
-                                    .to_string(),
-                            ),
-                            doc_url: Some(
-                                "https://docs.adyen.com/online-payments/capture/".to_string(),
-                            ),
-                        },
-                    }
-                    .into());
-                }
-            },
-        }
-    };
+    let capture_delay_hours =
+        get_capture_delay_hours(&item.request.metadata, item.request.capture_method)?;
 
     Ok(Some(AdditionalData {
         authorisation_type,
@@ -6415,7 +6362,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .get_optional_billing_full_name()
         });
 
-        let additional_data = get_additional_data_for_setup_mandate(&item.router_data);
+        let additional_data = get_additional_data_for_setup_mandate(&item.router_data)?;
 
         let adyen_metadata =
             get_adyen_metadata(item.router_data.request.metadata.clone().expose_option());
@@ -6546,6 +6493,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
                 | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                 | PaymentMethodData::NetworkToken(_)
+                | PaymentMethodData::CardWithNoCvc(_)
                 | PaymentMethodData::MobilePayment(_)
                 | PaymentMethodData::PaymentMethodToken(_) => Err(
                     IntegrationError::NotImplemented(("payment method").into(), Default::default())
@@ -6722,7 +6670,7 @@ fn get_additional_data_for_setup_mandate<
         SetupMandateRequestData<T>,
         PaymentsResponseData,
     >,
-) -> Option<AdditionalData> {
+) -> Result<Option<AdditionalData>, Error> {
     let (authorisation_type, manual_capture) = match item.request.capture_method {
         Some(common_enums::CaptureMethod::Manual)
         | Some(common_enums::CaptureMethod::ManualMultiple) => {
@@ -6746,10 +6694,14 @@ fn get_additional_data_for_setup_mandate<
         Some("false".to_string())
     };
 
-    Some(AdditionalData {
+    let capture_delay_hours =
+        get_capture_delay_hours(&item.request.metadata, item.request.capture_method)?;
+
+    Ok(Some(AdditionalData {
         authorisation_type,
         manual_capture,
         execute_three_d,
+        capture_delay_hours,
         network_tx_reference: None,
         recurring_detail_reference: None,
         recurring_shopper_reference: None,
@@ -6757,7 +6709,7 @@ fn get_additional_data_for_setup_mandate<
         riskdata,
         sca_exemption: None,
         ..AdditionalData::default()
-    })
+    }))
 }
 
 fn is_mandate_payment_for_setup_mandate<
@@ -6814,7 +6766,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let (recurring_processing_model, store_payment_method, shopper_reference) =
             get_recurring_processing_model_for_repeat_payment(&item.router_data)?;
         let browser_info = None;
-        let additional_data = get_additional_data_for_repeat_payment(&item.router_data);
+        let additional_data = get_additional_data_for_repeat_payment(&item.router_data)?;
         let return_url = item.router_data.request.router_return_url.clone().ok_or(
             IntegrationError::MissingRequiredField {
                 field_name: "return_url",
@@ -6940,7 +6892,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .map(|m| m.expose()),
         );
 
-        let (store, splits) = (adyen_metadata.store.clone(), None);
+        let (store, splits) = match item.router_data.request.split_payments.as_ref() {
+            Some(SplitPaymentsDetails::AdyenSplitPayment(adyen_split_payment)) => {
+                get_adyen_split_request(adyen_split_payment, item.router_data.request.currency)
+            }
+            _ => (adyen_metadata.store.clone(), None),
+        };
         let device_fingerprint = adyen_metadata.device_fingerprint.clone();
         let platform_chargeback_logic = adyen_metadata.platform_chargeback_logic.clone();
 
@@ -8244,4 +8201,64 @@ fn construct_charge_response(
         store,
         split_items: splits,
     })
+}
+
+fn get_capture_delay_hours(
+    metadata: &Option<SecretSerdeValue>,
+    capture_method: Option<common_enums::CaptureMethod>,
+) -> Result<Option<u64>, Error> {
+    let metadata_capture_delay =
+        get_adyen_metadata(metadata.clone().map(|m| m.expose())).capture_delay_hours;
+
+    // Mirror hyperswitch: metadata.capture_delay_hours -> additionalData.captureDelayHours.
+    let capture_method = capture_method.unwrap_or_default();
+    match capture_method {
+        common_enums::CaptureMethod::Manual | common_enums::CaptureMethod::ManualMultiple => {
+            // For manual capture, capture_delay_hours should be None.
+            if let Some(hours) = metadata_capture_delay {
+                return Err(IntegrationError::InvalidDataFormat {
+                    field_name: "metadata.capture_delay_hours",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(format!(
+                            "Adyen does not accept capture_delay_hours for manual capture \
+                             (capture_method = {capture_method:?}), but metadata supplied {hours}"
+                        )),
+                        suggested_action: Some(
+                            "Remove capture_delay_hours from metadata when capture_method is \
+                             Manual/ManualMultiple, or switch to automatic capture"
+                                .to_string(),
+                        ),
+                        doc_url: Some(
+                            "https://docs.adyen.com/online-payments/capture/".to_string(),
+                        ),
+                    },
+                }
+                .into());
+            }
+            Ok(None)
+        }
+        // For automatic capture, only 0 (or None) is valid.
+        common_enums::CaptureMethod::Automatic
+        | common_enums::CaptureMethod::Scheduled
+        | common_enums::CaptureMethod::SequentialAutomatic => match metadata_capture_delay {
+            None => Ok(None),
+            Some(0) => Ok(Some(0)),
+            Some(hours) => Err(IntegrationError::InvalidDataFormat {
+                field_name: "metadata.capture_delay_hours",
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "Adyen only accepts capture_delay_hours of 0 (or unset) for \
+                         automatic capture (capture_method = {capture_method:?}), but \
+                         metadata supplied {hours}"
+                    )),
+                    suggested_action: Some(
+                        "Set metadata.capture_delay_hours to 0 (or omit it) for automatic capture"
+                            .to_string(),
+                    ),
+                    doc_url: Some("https://docs.adyen.com/online-payments/capture/".to_string()),
+                },
+            }
+            .into()),
+        },
+    }
 }

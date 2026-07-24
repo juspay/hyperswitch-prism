@@ -226,10 +226,8 @@ where
             router_data.request.payment_method_type,
             Some(common_enums::PaymentMethodType::Trustly)
         ) {
-            let id = router_data
-                .resource_common_data
-                .get_connector_customer_id()?;
-            Some(sanitize_merchant_consumer_reference(&id))
+            let id = router_data.resource_common_data.get_customer_id()?;
+            Some(sanitize_merchant_consumer_reference(id.get_string_repr()))
         } else {
             None
         };
@@ -1199,10 +1197,8 @@ where
             router_data.request.payment_method_type,
             Some(common_enums::PaymentMethodType::Trustly)
         ) {
-            let id = router_data
-                .resource_common_data
-                .get_connector_customer_id()?;
-            Some(sanitize_merchant_consumer_reference(&id))
+            let id = router_data.resource_common_data.get_customer_id()?;
+            Some(sanitize_merchant_consumer_reference(id.get_string_repr()))
         } else {
             None
         };
@@ -1387,8 +1383,8 @@ pub fn get_ppro_bank_code(bank_name: common_enums::BankNames) -> Option<String> 
 }
 
 /// Sanitize the merchantConsumerReference
-fn sanitize_merchant_consumer_reference(connector_customer_id: &str) -> String {
-    connector_customer_id
+fn sanitize_merchant_consumer_reference(customer_id: &str) -> String {
+    customer_id
         .chars()
         .filter(|c| c.is_ascii_alphanumeric() || "@$%&*-+/.,".contains(*c))
         .take(50)

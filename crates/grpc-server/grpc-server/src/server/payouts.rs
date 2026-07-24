@@ -51,7 +51,7 @@ impl Payouts {
     where
         T: serde::Serialize,
     {
-        let config = get_config_from_request(request)?;
+        let config = get_config_from_request(request).into_grpc_status()?;
         let service_name = request
             .extensions()
             .get::<String>()
@@ -204,63 +204,90 @@ pub(crate) trait PayoutOperationsInternal {
         &self,
         request: RequestData<PayoutServiceCreateRequest>,
     ) -> impl std::future::Future<
-        Output = Result<tonic::Response<PayoutServiceCreateResponse>, tonic::Status>,
+        Output = Result<
+            tonic::Response<PayoutServiceCreateResponse>,
+            error_stack::Report<ucs_env::error::GrpcError>,
+        >,
     > + Send;
 
     fn internal_payout_transfer(
         &self,
         request: RequestData<PayoutServiceTransferRequest>,
     ) -> impl std::future::Future<
-        Output = Result<tonic::Response<PayoutServiceTransferResponse>, tonic::Status>,
+        Output = Result<
+            tonic::Response<PayoutServiceTransferResponse>,
+            error_stack::Report<ucs_env::error::GrpcError>,
+        >,
     > + Send;
 
     fn internal_payout_get(
         &self,
         request: RequestData<PayoutServiceGetRequest>,
     ) -> impl std::future::Future<
-        Output = Result<tonic::Response<PayoutServiceGetResponse>, tonic::Status>,
+        Output = Result<
+            tonic::Response<PayoutServiceGetResponse>,
+            error_stack::Report<ucs_env::error::GrpcError>,
+        >,
     > + Send;
 
     fn internal_payout_void(
         &self,
         request: RequestData<PayoutServiceVoidRequest>,
     ) -> impl std::future::Future<
-        Output = Result<tonic::Response<PayoutServiceVoidResponse>, tonic::Status>,
+        Output = Result<
+            tonic::Response<PayoutServiceVoidResponse>,
+            error_stack::Report<ucs_env::error::GrpcError>,
+        >,
     > + Send;
 
     fn internal_payout_stage(
         &self,
         request: RequestData<PayoutServiceStageRequest>,
     ) -> impl std::future::Future<
-        Output = Result<tonic::Response<PayoutServiceStageResponse>, tonic::Status>,
+        Output = Result<
+            tonic::Response<PayoutServiceStageResponse>,
+            error_stack::Report<ucs_env::error::GrpcError>,
+        >,
     > + Send;
 
     fn internal_payout_create_link(
         &self,
         request: RequestData<PayoutServiceCreateLinkRequest>,
     ) -> impl std::future::Future<
-        Output = Result<tonic::Response<PayoutServiceCreateLinkResponse>, tonic::Status>,
+        Output = Result<
+            tonic::Response<PayoutServiceCreateLinkResponse>,
+            error_stack::Report<ucs_env::error::GrpcError>,
+        >,
     > + Send;
 
     fn internal_payout_create_recipient(
         &self,
         request: RequestData<PayoutServiceCreateRecipientRequest>,
     ) -> impl std::future::Future<
-        Output = Result<tonic::Response<PayoutServiceCreateRecipientResponse>, tonic::Status>,
+        Output = Result<
+            tonic::Response<PayoutServiceCreateRecipientResponse>,
+            error_stack::Report<ucs_env::error::GrpcError>,
+        >,
     > + Send;
 
     fn internal_payout_enroll_disburse_account(
         &self,
         request: RequestData<PayoutServiceEnrollDisburseAccountRequest>,
     ) -> impl std::future::Future<
-        Output = Result<tonic::Response<PayoutServiceEnrollDisburseAccountResponse>, tonic::Status>,
+        Output = Result<
+            tonic::Response<PayoutServiceEnrollDisburseAccountResponse>,
+            error_stack::Report<ucs_env::error::GrpcError>,
+        >,
     > + Send;
 
     fn internal_payout_eligibility(
         &self,
         request: RequestData<PayoutMethodEligibilityRequest>,
     ) -> impl std::future::Future<
-        Output = Result<tonic::Response<PayoutMethodEligibilityResponse>, tonic::Status>,
+        Output = Result<
+            tonic::Response<PayoutMethodEligibilityResponse>,
+            error_stack::Report<ucs_env::error::GrpcError>,
+        >,
     > + Send;
 }
 

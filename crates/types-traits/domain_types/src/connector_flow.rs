@@ -47,6 +47,9 @@ pub struct ServerAuthenticationToken;
 pub struct CreateConnectorCustomer;
 
 #[derive(Debug, Clone)]
+pub struct GetConnectorCustomer;
+
+#[derive(Debug, Clone)]
 pub struct PaymentMethodToken;
 
 #[derive(Debug, Clone)]
@@ -158,6 +161,7 @@ pub enum FlowName {
     ServerSessionAuthenticationToken,
     ServerAuthenticationToken,
     CreateConnectorCustomer,
+    GetConnectorCustomer,
     PaymentMethodToken,
     PreAuthenticate,
     Authenticate,

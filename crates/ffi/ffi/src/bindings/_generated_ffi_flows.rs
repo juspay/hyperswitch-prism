@@ -3,6 +3,7 @@
 
 use grpc_api_types::payments::{
     CustomerServiceCreateRequest,
+    CustomerServiceGetRequest,
     DisputeServiceAcceptRequest,
     DisputeServiceDefendRequest,
     DisputeServiceSubmitEvidenceRequest,
@@ -61,6 +62,7 @@ use crate::handlers::payments::{
     create_server_authentication_token_req_handler, create_server_authentication_token_res_handler,
     create_server_session_authentication_token_req_handler, create_server_session_authentication_token_res_handler,
     customer_create_req_handler, customer_create_res_handler,
+    customer_get_req_handler, customer_get_res_handler,
     defend_req_handler, defend_res_handler,
     eligibility_req_handler, eligibility_res_handler,
     get_req_handler, get_res_handler,
@@ -113,6 +115,8 @@ define_ffi_flow!(create_server_authentication_token, MerchantAuthenticationServi
 define_ffi_flow!(create_server_session_authentication_token, MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest, create_server_session_authentication_token_req_handler, create_server_session_authentication_token_res_handler);
 // customer_create: CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information.
 define_ffi_flow!(customer_create, CustomerServiceCreateRequest, customer_create_req_handler, customer_create_res_handler);
+// customer_get: CustomerService.Get — Retrieves customer details from the payment processor. Callers typically use this before Create to implement get-or-create semantics for connectors that reject duplicates (e.g. Glomopay).
+define_ffi_flow!(customer_get, CustomerServiceGetRequest, customer_get_req_handler, customer_get_res_handler);
 // defend: DisputeService.Defend — Submit defense with reason code for dispute. Presents formal argument against customer's chargeback claim with supporting documentation.
 define_ffi_flow!(defend, DisputeServiceDefendRequest, defend_req_handler, defend_res_handler);
 // eligibility: PaymentMethodService.Eligibility — Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check)

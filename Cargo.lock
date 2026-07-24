@@ -1294,6 +1294,7 @@ dependencies = [
 name = "connector_request_kafka"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "domain_types",
  "error-stack 0.4.1",
  "hyperswitch_masking",
@@ -8303,6 +8304,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_path_to_error",
+ "strum 0.26.3",
  "thiserror 1.0.69",
  "time 0.3.47",
  "tokio",
