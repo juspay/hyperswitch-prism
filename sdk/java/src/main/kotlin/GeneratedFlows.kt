@@ -29,6 +29,8 @@ import uniffi.connector_service_ffi.createServerSessionAuthenticationTokenReqTra
 import uniffi.connector_service_ffi.createServerSessionAuthenticationTokenResTransformer
 import uniffi.connector_service_ffi.customerCreateReqTransformer
 import uniffi.connector_service_ffi.customerCreateResTransformer
+import uniffi.connector_service_ffi.customerGetReqTransformer
+import uniffi.connector_service_ffi.customerGetResTransformer
 import uniffi.connector_service_ffi.defendReqTransformer
 import uniffi.connector_service_ffi.defendResTransformer
 import uniffi.connector_service_ffi.eligibilityReqTransformer
@@ -103,6 +105,7 @@ object FlowRegistry {
         "create_server_authentication_token" to ::createServerAuthenticationTokenReqTransformer,
         "create_server_session_authentication_token" to ::createServerSessionAuthenticationTokenReqTransformer,
         "customer_create" to ::customerCreateReqTransformer,
+        "customer_get" to ::customerGetReqTransformer,
         "defend" to ::defendReqTransformer,
         "eligibility" to ::eligibilityReqTransformer,
         "get" to ::getReqTransformer,
@@ -145,6 +148,7 @@ object FlowRegistry {
         "create_server_authentication_token" to ::createServerAuthenticationTokenResTransformer,
         "create_server_session_authentication_token" to ::createServerSessionAuthenticationTokenResTransformer,
         "customer_create" to ::customerCreateResTransformer,
+        "customer_get" to ::customerGetResTransformer,
         "defend" to ::defendResTransformer,
         "eligibility" to ::eligibilityResTransformer,
         "get" to ::getResTransformer,
@@ -193,6 +197,10 @@ class CustomerClient(
     // customer_create: CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information.
     fun customer_create(request: CustomerServiceCreateRequest, options: RequestConfig? = null): CustomerServiceCreateResponse =
         executeFlow("customer_create", request.toByteArray(), CustomerServiceCreateResponse.parser(), options)
+
+    // customer_get: CustomerService.Get — Retrieves customer details from the payment processor. Callers typically use this before Create to implement get-or-create semantics for connectors that reject duplicates (e.g. Glomopay).
+    fun customer_get(request: CustomerServiceGetRequest, options: RequestConfig? = null): CustomerServiceGetResponse =
+        executeFlow("customer_get", request.toByteArray(), CustomerServiceGetResponse.parser(), options)
 
 }
 

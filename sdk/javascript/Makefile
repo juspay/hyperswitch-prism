@@ -54,10 +54,12 @@ install-codegen-deps:
 generate-bindings:
 	@[ -f "$(LIBRARY)" ] || \
 		(echo "Error: FFI library not found at $(LIBRARY). Run 'make build-ffi-lib' first." && exit 1)
-	@echo "Copying FFI library to $(GENERATED_OUT)/..."
-	@mkdir -p $(GENERATED_OUT)
-	@cp -f $(LIBRARY) $(GENERATED_OUT)/
-	@echo "Library copied to $(GENERATED_OUT)/"
+	@# Stage the current platform's lib under generated/<platform>-<arch>/ so
+	@# local dev/test resolves it the same way the packaged multi-arch layout does.
+	@echo "Copying FFI library to $(GENERATED_OUT)/$(NODE_TARGET)/..."
+	@mkdir -p $(GENERATED_OUT)/$(NODE_TARGET)
+	@cp -f $(LIBRARY) $(GENERATED_OUT)/$(NODE_TARGET)/
+	@echo "Library copied to $(GENERATED_OUT)/$(NODE_TARGET)/"
 
 # ---------------------------------------------------------------------------
 # generate-proto
@@ -152,13 +154,52 @@ endif
 # generated/ already contains the proto files from a prior generate-proto step
 # or downloaded CI artifact.
 # ---------------------------------------------------------------------------
+# Supported platforms, one entry per: <cargo-triple>:<node platform-arch dir>.
+# Each native lib is bundled under generated/<platform>-<arch>/ (matching Node's
+# process.platform + process.arch) so the loader picks the correct architecture
+# at runtime. Adding a platform here is a one-line change.
+JS_PLATFORMS := \
+  x86_64-unknown-linux-gnu:linux-x64 \
+  aarch64-unknown-linux-gnu:linux-arm64 \
+  aarch64-apple-darwin:darwin-arm64
+
+# node platform-arch dir for the CURRENT build platform (used by generate-bindings).
+NODE_TARGET := $(strip \
+  $(if $(filter x86_64-unknown-linux-gnu,$(PLATFORM)),linux-x64,\
+  $(if $(filter aarch64-unknown-linux-gnu,$(PLATFORM)),linux-arm64,\
+  $(if $(filter aarch64-apple-darwin,$(PLATFORM)),darwin-arm64,\
+  $(if $(filter x86_64-apple-darwin,$(PLATFORM)),darwin-x64,\
+  unknown-$(PLATFORM))))))
+
 dist:
 	@echo "Building JavaScript SDK distribution package..."
 	@mkdir -p $(GENERATED_OUT)
-	@cp -f $(REPO_ROOT)/target/x86_64-unknown-linux-gnu/release/libconnector_service_ffi.so \
-		$(GENERATED_OUT)/ 2>/dev/null || echo "  Note: Linux x86_64 binary not found (skipping)"
-	@cp -f $(REPO_ROOT)/target/aarch64-apple-darwin/release/libconnector_service_ffi.dylib \
-		$(GENERATED_OUT)/ 2>/dev/null || echo "  Note: macOS aarch64 binary not found (skipping)"
+	@# The published tarball bundles each platform's native lib under
+	@# generated/<platform>-<arch>/ so a single package works on every platform
+	@# and the loader selects by process.arch. Fail closed if a required binary
+	@# is missing unless ALLOW_PARTIAL_DIST=1 (deliberate single-platform build;
+	@# do NOT publish such a partial set).
+	@built=0; missing=0; \
+	for entry in $(JS_PLATFORMS); do \
+		triple=$${entry%%:*}; target=$${entry##*:}; \
+		ext=so; case "$$triple" in *apple-darwin) ext=dylib;; esac; \
+		lib="$(REPO_ROOT)/target/$$triple/release/libconnector_service_ffi.$$ext"; \
+		if [ ! -f "$$lib" ]; then echo "  missing $$triple: $$lib"; missing=1; continue; fi; \
+		mkdir -p "$(GENERATED_OUT)/$$target"; \
+		cp -f "$$lib" "$(GENERATED_OUT)/$$target/"; \
+		echo "  staged $$target/libconnector_service_ffi.$$ext"; \
+		built=$$((built+1)); \
+	done; \
+	if [ "$$missing" = "1" ]; then \
+		if [ "$(ALLOW_PARTIAL_DIST)" = "1" ]; then \
+			echo "  WARNING: ALLOW_PARTIAL_DIST=1 — partial platform set; do NOT publish it."; \
+		else \
+			echo "ERROR: release package needs every platform's native binary (see above)." >&2; \
+			echo "       Build/stage the missing target(s), or set ALLOW_PARTIAL_DIST=1 for a deliberate single-platform build." >&2; \
+			exit 1; \
+		fi; \
+	fi; \
+	[ "$$built" -gt 0 ] || { echo "ERROR: no natives staged." >&2; exit 1; }
 	@$(MAKE) -C $(SDK_ROOT) pack-archive
 	@echo "Distribution package created in $(PACKAGE_DIR)/"
 

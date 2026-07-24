@@ -31,6 +31,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 serde_path_to_error = "0.1.16"
 thiserror = { workspace = true }
+strum = { version = "0.26", features = ["derive"] }
 time = { version = "0.3.36", features = ["parsing", "macros"] }
 tracing = { workspace = true }
 tracing-appender = { version = "0.2.3" }

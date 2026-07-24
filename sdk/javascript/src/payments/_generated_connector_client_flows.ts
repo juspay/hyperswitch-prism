@@ -14,6 +14,14 @@ export class CustomerClient extends _ConnectorClientBase {
     return this._executeFlow('customer_create', requestMsg, options, 'CustomerServiceCreateRequest', 'CustomerServiceCreateResponse') as Promise<types.CustomerServiceCreateResponse>;
   }
 
+  /** CustomerService.Get — Retrieves customer details from the payment processor. Callers typically use this before Create to implement get-or-create semantics for connectors that reject duplicates (e.g. Glomopay). */
+  async customerGet(
+    requestMsg: types.ICustomerServiceGetRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.CustomerServiceGetResponse> {
+    return this._executeFlow('customer_get', requestMsg, options, 'CustomerServiceGetRequest', 'CustomerServiceGetResponse') as Promise<types.CustomerServiceGetResponse>;
+  }
+
 }
 
 export class DisputeClient extends _ConnectorClientBase {

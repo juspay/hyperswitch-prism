@@ -31,8 +31,9 @@ use grpc_api_types::payments::{
     merchant_authentication_service_create_client_authentication_token_request::DomainContext,
     payment_method::PaymentMethod as PmVariant, AcceptanceType, Address, AuthenticationType,
     CaptureMethod, ConnectorMandateReferenceId, CustomerAcceptance, CustomerServiceCreateRequest,
-    DisputeServiceAcceptRequest, DisputeServiceDefendRequest, DisputeServiceSubmitEvidenceRequest,
-    EventServiceHandleRequest, EvidenceDocument, EvidenceType, HttpMethod, MandateReference,
+    CustomerServiceGetRequest, DisputeServiceAcceptRequest, DisputeServiceDefendRequest,
+    DisputeServiceSubmitEvidenceRequest, EventServiceHandleRequest, EvidenceDocument, EvidenceType,
+    HttpMethod, MandateReference,
     MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest, PaymentAddress,
@@ -214,6 +215,16 @@ pub(crate) fn base_customer_create_request() -> CustomerServiceCreateRequest {
         customer_name: Some("John Doe".to_string()),
         email: Some(Secret::new("test@example.com".to_string())),
         phone_number: Some(Secret::new("4155552671".to_string())),
+        ..Default::default()
+    }
+}
+
+pub(crate) fn base_customer_get_request() -> CustomerServiceGetRequest {
+    // customer_get is a lookup — supply the same identifying fields as create so
+    // connectors that key off merchant_customer_id or email can locate a record.
+    CustomerServiceGetRequest {
+        merchant_customer_id: Some("cust_probe_123".to_string()),
+        email: Some(Secret::new("test@example.com".to_string())),
         ..Default::default()
     }
 }

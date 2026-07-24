@@ -440,6 +440,7 @@ macros::macro_connector_flow_status_impls!(
         PostAuthenticate,
         IncrementalAuthorization,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         ClientAuthenticationToken,
         MandateRevoke,
     ],
