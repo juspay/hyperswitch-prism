@@ -1922,11 +1922,12 @@ fn validate_off_session_ecommerce_support(
             message: "Off-session e-commerce payments".to_string(),
             connector: "tsysTransit",
             context: IntegrationErrorContext {
-                suggested_action: None,
-                doc_url: None,
-                additional_context: Some(
-                    "Off-session e-commerce payments are not supported by TSYS TransIT".to_string(),
+                suggested_action: Some(
+                    "Use a different connector or payment channel that supports off-session payments"
+                        .to_string(),
                 ),
+                doc_url: None,
+                additional_context: None
             },
         }
         .into())
