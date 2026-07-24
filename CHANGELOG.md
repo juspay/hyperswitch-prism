@@ -19,6 +19,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.07.23.0
+
+### Features
+
+- **connector:** [Givepayments] Implement Cards One-Off and Mandates Flow ([#1873](https://github.com/juspay/connector-service/pull/1873)) ([`9be74ed`](https://github.com/juspay/connector-service/commit/9be74ed6176683a9804bcf64d66da324497b95c2))
+- **paysafe:** Apple Pay / Google Pay recurring + encrypted GPay passthrough ([#1986](https://github.com/juspay/connector-service/pull/1986)) ([`3792ff4`](https://github.com/juspay/connector-service/commit/3792ff47dcb323b189355c66787b1950fc5d908e))
+
+### Bug Fixes
+
+- **redsys:** Populate Err.reason in (pre)authenticate to match hyperswitch ([#17018](https://github.com/juspay/connector-service/pull/17018)) ([#1671](https://github.com/juspay/connector-service/pull/1671)) ([`611813c`](https://github.com/juspay/connector-service/commit/611813c201bfcaf2f3fb171a6f25ab39bf342cc0))
+
+**Full Changelog:** [`2026.07.22.1...2026.07.23.0`](https://github.com/juspay/connector-service/compare/2026.07.22.1...2026.07.23.0)
+
+- - -
+
+## 2026.07.22.1
+
+### Miscellaneous Tasks
+
+- **twoc_twop_paco:** Log pre-encoding request body at info level ([#1992](https://github.com/juspay/connector-service/pull/1992)) ([`d4e7dd1`](https://github.com/juspay/connector-service/commit/d4e7dd167a9ac44b95a3eafe18b34d7a6ae0a202))
+
+**Full Changelog:** [`2026.07.22.0...2026.07.22.1`](https://github.com/juspay/connector-service/compare/2026.07.22.0...2026.07.22.1)
+
+- - -
+
+## 2026.07.22.0
+
+### Features
+
+- **logs:** Log decrypted request body for raw_bytes connector ([#1987](https://github.com/juspay/connector-service/pull/1987)) ([`102f227`](https://github.com/juspay/connector-service/commit/102f227c1119c8db3c406b575a989db739924aa2))
+
+**Full Changelog:** [`2026.07.21.2...2026.07.22.0`](https://github.com/juspay/connector-service/compare/2026.07.21.2...2026.07.22.0)
+
+- - -
+
 ## 2026.07.21.2
 
 ### Features

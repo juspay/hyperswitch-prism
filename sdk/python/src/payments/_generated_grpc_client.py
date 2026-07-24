@@ -187,6 +187,13 @@ class GrpcEventClient:
             "event/notify_connector",
             req, payment_pb2.NotifyConnectorResponse,
         )
+    def register_webhook(self, req: payment_pb2.ConnectorWebhookRegisterRequest) -> payment_pb2.ConnectorWebhookRegisterResponse:
+        """EventService.RegisterWebhook — Register a Hyperswitch webhook endpoint with a connector."""
+        return _call_grpc(
+            self._ffi, self._config,
+            "event/register_webhook",
+            req, payment_pb2.ConnectorWebhookRegisterResponse,
+        )
 
 class GrpcFraudAndRiskManagementClient:
     """FraudAndRiskManagementService — gRPC sub-client."""

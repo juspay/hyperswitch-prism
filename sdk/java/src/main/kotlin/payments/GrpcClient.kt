@@ -190,6 +190,11 @@ class GrpcEventClient internal constructor(
      */
     suspend fun notify_connector(req: NotifyConnectorRequest): NotifyConnectorResponse =
         callGrpc(config, "event/notify_connector", req, NotifyConnectorResponse.parser())
+    /**
+     * EventService.RegisterWebhook — Register a Hyperswitch webhook endpoint with a connector.
+     */
+    suspend fun register_webhook(req: ConnectorWebhookRegisterRequest): ConnectorWebhookRegisterResponse =
+        callGrpc(config, "event/register_webhook", req, ConnectorWebhookRegisterResponse.parser())
 }
 
 /**
