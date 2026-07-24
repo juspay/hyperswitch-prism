@@ -1304,33 +1304,6 @@ fn format_country_alpha3(country: common_enums::CountryAlpha2) -> String {
     common_enums::CountryAlpha2::from_alpha2_to_alpha3(country).to_string()
 }
 
-fn resolve_order_date(
-    l2_l3_data: Option<&domain_types::connector_types::L2L3Data>,
-) -> Result<Option<String>, Report<IntegrationError>> {
-    let order_date = l2_l3_data.and_then(|data| data.get_order_date());
-
-    order_date
-        .map(|date| {
-            common_utils::date_time::format_date(
-                date,
-                common_utils::date_time::DateFormat::MMDDYYYY,
-            )
-            .change_context(IntegrationError::InvalidDataFormat {
-                field_name: "order_date",
-                context: IntegrationErrorContext {
-                    suggested_action: Some(
-                        "Ensure order_details.order_date is a valid date".to_string(),
-                    ),
-                    doc_url: None,
-                    additional_context: Some(format!(
-                        "failed to format order_date {date:?} as MMDDYYYY"
-                    )),
-                },
-            })
-        })
-        .transpose()
-}
-
 fn build_tsys_product_details(
     detail: &domain_types::payment_address::OrderDetailsWithAmount,
     currency: common_enums::Currency,
@@ -1676,7 +1649,10 @@ fn compute_commercial_card_context<
     let customer_vat_number = request_metadata.customer_vat_number.clone();
     let ship_from_zip = request_metadata.ship_from_zip.clone();
     let l2_l3_data = router_data.resource_common_data.l2_l3_data.as_deref();
-    let order_date = resolve_order_date(l2_l3_data)?;
+    let order_date = l2_l3_data
+        .map(domain_types::connector_types::L2L3Data::get_order_date_mmddyyyy)
+        .transpose()?
+        .flatten();
     let summary_commodity_code =
         sanitize_optional_alphanumeric_space(request_metadata.summary_commodity_code, 25);
     let acceptor_street_address = merchant_acceptor_info

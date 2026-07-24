@@ -11,10 +11,14 @@ use super::super::profile::{
 use super::super::transformers::{
     TsysTransitCardDataInputMode, TsysTransitCardDataSource, TsysTransitCardOnFile,
     TsysTransitCardholderPresentDetail, TsysTransitMcCitStatusIndicator, TsysTransitMitIndicator,
-    TsysTransitRegisteredUserIndicator, TsysTransitTerminalOperatingEnvironment,
-    TsysTransitTerminalOutputCapability,
+    TsysTransitRegisteredUserIndicator, TsysTransitTaxCategory,
+    TsysTransitTerminalOperatingEnvironment, TsysTransitTerminalOutputCapability,
 };
 use super::{card_input_mode, cof_mit, commercial, network_indicators, terminal_data};
+
+fn smu(value: &str) -> common_utils::types::StringMajorUnit {
+    serde_json::from_str(&format!("\"{value}\"")).expect("StringMajorUnit")
+}
 
 fn profile(
     acceptance: AcceptanceProfile,
@@ -551,6 +555,106 @@ fn destination_country_code_strips_on_mastercard_l2() {
         commercial::destination_country_code(&p, Some("840".to_string())),
         Ok(None)
     ));
+}
+
+// ============================================================================
+// rules::commercial::additional_tax_details — Level III branch
+// ============================================================================
+
+#[test]
+fn additional_tax_details_populated_when_l3_and_all_fields_present() {
+    let p = profile(
+        AcceptanceProfile::EcomInternet,
+        CardFamily::Visa,
+        CofPhase::NoCof,
+        CommercialLevel::L3,
+        CaptureKind::Auto,
+    );
+    let details = commercial::additional_tax_details(
+        &p,
+        Some("VAT".to_string()),
+        Some(smu("1.23")),
+        Some("5.00".to_string()),
+        Some(TsysTransitTaxCategory::VAT),
+    )
+    .expect("all L3 tax fields present");
+
+    assert_eq!(details.len(), 1);
+    assert_eq!(details[0].tax_type, "VAT");
+    assert_eq!(details[0].tax_rate.as_deref(), Some("5.00"));
+    assert!(matches!(
+        details[0].tax_category,
+        Some(TsysTransitTaxCategory::VAT)
+    ));
+}
+
+#[test]
+fn additional_tax_details_errors_when_l3_missing_tax_type() {
+    // additionalTaxDetails is an all-or-nothing block once the profile IS
+    // Level III: a merchant that supplies tax_amount/tax_rate/tax_category
+    // but not tax_type must fail fast rather than send a partial block.
+    let p = profile(
+        AcceptanceProfile::EcomInternet,
+        CardFamily::Mastercard,
+        CofPhase::NoCof,
+        CommercialLevel::L3,
+        CaptureKind::Auto,
+    );
+    let result = commercial::additional_tax_details(
+        &p,
+        None,
+        Some(smu("1.23")),
+        Some("5.00".to_string()),
+        Some(TsysTransitTaxCategory::Service),
+    );
+    assert!(matches!(
+        result.unwrap_err().current_context(),
+        domain_types::errors::IntegrationError::MissingRequiredField {
+            field_name: "taxType",
+            ..
+        }
+    ));
+}
+
+#[test]
+fn additional_tax_details_errors_when_l3_missing_tax_category() {
+    let p = profile(
+        AcceptanceProfile::EcomInternet,
+        CardFamily::Visa,
+        CofPhase::NoCof,
+        CommercialLevel::L3,
+        CaptureKind::Auto,
+    );
+    let result = commercial::additional_tax_details(
+        &p,
+        Some("VAT".to_string()),
+        Some(smu("1.23")),
+        Some("5.00".to_string()),
+        None,
+    );
+    assert!(matches!(
+        result.unwrap_err().current_context(),
+        domain_types::errors::IntegrationError::MissingRequiredField {
+            field_name: "taxCategory",
+            ..
+        }
+    ));
+}
+
+
+
+#[test]
+fn additional_tax_details_empty_when_not_commercial() {
+    let p = profile(
+        AcceptanceProfile::MotoPhone,
+        CardFamily::Visa,
+        CofPhase::NoCof,
+        CommercialLevel::None,
+        CaptureKind::Auto,
+    );
+    let details = commercial::additional_tax_details(&p, None, None, None, None)
+        .expect("non-L3 never errors");
+    assert!(details.is_empty());
 }
 
 // ============================================================================

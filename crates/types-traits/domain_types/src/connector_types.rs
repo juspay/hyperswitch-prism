@@ -4460,6 +4460,31 @@ impl L2L3Data {
         self.order_info.as_ref().and_then(|order| order.order_date)
     }
 
+    pub fn get_order_date_mmddyyyy(
+        &self,
+    ) -> Result<Option<String>, error_stack::Report<IntegrationError>> {
+        self.get_order_date()
+            .map(|date| {
+                common_utils::date_time::format_date(
+                    date,
+                    common_utils::date_time::DateFormat::MMDDYYYY,
+                )
+                .change_context(IntegrationError::InvalidDataFormat {
+                    field_name: "order_date",
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Ensure order_details.order_date is a valid date".to_string(),
+                        ),
+                        additional_context: Some(format!(
+                            "failed to format order_date {date:?} as MMDDYYYY"
+                        )),
+                        doc_url: None,
+                    },
+                })
+            })
+            .transpose()
+    }
+
     pub fn get_order_details(&self) -> Option<Vec<payment_address::OrderDetailsWithAmount>> {
         self.order_info
             .as_ref()
