@@ -1423,8 +1423,7 @@ fn build_tsys_product_details(
                 (
                     "order_details.product_tax_percentage",
                     product_tax_percentage
-                ),
-                ("order_details.unit_discount_amount", unit_discount_amount)
+                )
             );
 
             if !missing_fields.is_empty() {
@@ -1671,7 +1670,7 @@ fn compute_commercial_card_context<
         IntegrationError::InvalidDataFormat {
             field_name: "order_details.product_tax_code",
             context: IntegrationErrorContext {
-                suggested_action: Some("Ensure that the product_tax_code is one of the valid TSYS TransIT tax categories: SERVICE, DUTY, VAT, ALTERNATE, NATIONAL, TAXEXEMPT".to_string()),
+                suggested_action: Some("Ensure that the product_tax_code is one of the valid TSYS TransIT tax categories: service, duty, vat, alternate, national and tax_exempt".to_string()),
                 doc_url: None,
                 additional_context: Some(format!(
                     "failed to parse product_tax_code {derived_tax_type:?} as a TsysTransitTaxCategory"
@@ -1757,6 +1756,7 @@ fn compute_commercial_card_context<
         && derived_tax_rate.is_some()
         && shipping_charges.is_some()
         && duty_charges.is_some()
+        && product_details.is_some()
         && purchase_order.is_some()
         && order_date.is_some()
         && summary_commodity_code.is_some()
@@ -1768,7 +1768,6 @@ fn compute_commercial_card_context<
     let is_level3 = match card_network {
         Some(CardNetwork::Visa) => {
             is_visa_and_mastercard_level3_common_field_present
-                && product_details.is_some()
                 && customer_vat_number.is_some()
                 && sales_tax.is_some()
         }
