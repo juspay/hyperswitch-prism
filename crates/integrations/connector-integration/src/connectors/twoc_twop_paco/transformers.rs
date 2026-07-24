@@ -2027,7 +2027,7 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
             .unwrap_or_else(|| router_data.request.refund_id.clone());
 
         if refund_status == RefundStatus::Failure {
-            let (code, message) = error_code_message(
+            let (code, message) = refund_error_code_message(
                 &response.api_response,
                 &result.and_then(|b| b.prior_payment_response_details),
             );
@@ -2380,6 +2380,27 @@ pub fn error_code_message(
         .unwrap_or_else(|| NO_ERROR_CODE.to_string());
     let message = prior_msg
         .or(api_msg)
+        .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string());
+    (code, message)
+}
+
+/// Refund-flow variant of [`error_code_message`] that prefers the refund call's
+/// own `apiResponse` over `priorPaymentResponseDetails`.
+pub fn refund_error_code_message(
+    api_response: &Option<PacoApiResponse>,
+    prior: &Option<PacoPriorPaymentResponseDetails>,
+) -> (String, String) {
+    let api_code = api_response.as_ref().and_then(|a| a.response_code.clone());
+    let api_msg = api_response
+        .as_ref()
+        .and_then(|a| a.response_description.clone());
+    let prior_code = prior.as_ref().and_then(|p| p.response_code.clone());
+    let prior_msg = prior.as_ref().and_then(|p| p.response_description.clone());
+    let code = api_code
+        .or(prior_code)
+        .unwrap_or_else(|| NO_ERROR_CODE.to_string());
+    let message = api_msg
+        .or(prior_msg)
         .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string());
     (code, message)
 }
