@@ -1,4 +1,4 @@
-use common_enums::{FrmDecision, PaymentMethodType};
+use common_enums::{AttemptStatus, FrmDecision, PaymentMethodType};
 use common_utils::types::StringMinorUnit;
 use domain_types::{
     connector_flow::{
@@ -1506,71 +1506,114 @@ impl TryFrom<ResponseRouterData<KountOrderResponse, Self>>
 }
 
 // ──────────────────────────────────────────────────────────────────────────
-// Notify flows (FrmPaymentOutcome / FrmRefundProcessed) = Evaluate Order
-// POST /commerce/v2/orders?riskInquiry=true
-fn build_notify_evaluate_order(
-    order_id: String,
-    order_total: StringMinorUnit,
-    currency: String,
-    merchant_details: Option<&MerchantDetails>,
-) -> KountEvaluateOrderRequest {
-    let transactions = vec![KountTransaction {
-        subtotal: order_total.clone(),
-        order_total,
-        currency,
-        payment: None,
-        billed_person: None,
-    }];
-    let creation_date_time = OffsetDateTime::now_utc()
-        .format(&time::format_description::well_known::Rfc3339)
-        .unwrap_or_default();
-    let (merchant, merchant_category_code) = kount_merchant(merchant_details);
-    KountEvaluateOrderRequest {
-        session_id: hash_session_id(&order_id),
-        order_id,
-        channel: KountChannel::Web,
-        creation_date_time,
-        user_ip: None,
-        account: None,
-        items: Vec::new(),
-        fulfillment: Vec::new(),
-        transactions,
-        device: None,
-        merchant_category_code,
-        merchant,
+// Notify flows (FrmPaymentOutcome / FrmRefundProcessed) = Update Order
+// PATCH /commerce/v2/orders/{orderId}
+// ──────────────────────────────────────────────────────────────────────────
+
+/// Response from the Kount Orders API update (`PATCH /commerce/v2/orders/{id}`).
+/// Distinct type from [`KountOrderResponse`] so the connector macros generate a
+/// unique templating type per flow.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct KountUpdateOrderResponse {
+    #[serde(alias = "orderId")]
+    pub order_id: Option<String>,
+    pub decision: Option<KountDecision>,
+    #[serde(alias = "omniscore", alias = "riskScore")]
+    pub score: Option<f64>,
+    pub reason: Option<String>,
+}
+
+/// Kount Update Order disposition tokens. Serialized in uppercase to match the
+/// Kount Orders schema.
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum KountDisposition {
+    Approve,
+    Decline,
+    Review,
+}
+
+impl KountDisposition {
+    /// Map the FRM decision to a Kount disposition. `Error` has no Kount
+    /// disposition, so it is omitted rather than sent as a guessed value.
+    fn from_decision(decision: FrmDecision) -> Option<Self> {
+        match decision {
+            FrmDecision::Approve => Some(Self::Approve),
+            FrmDecision::Reject => Some(Self::Decline),
+            FrmDecision::Review => Some(Self::Review),
+            FrmDecision::Error => None,
+        }
     }
 }
 
-/// Require an order reference from a notify request; it is the Kount
-/// `merchantOrderId` and the basis for the correlating `deviceSessionId`.
-fn notify_order_id(
-    primary: Option<&String>,
-    fallback: Option<&String>,
-    primary_field: &'static str,
-) -> Result<String, Error> {
-    primary.or(fallback).cloned().ok_or_else(|| {
-        error_stack::report!(errors::IntegrationError::MissingRequiredField {
-            field_name: primary_field,
-            context: errors::IntegrationErrorContext {
-                additional_context: Some(format!(
-                    "Kount notify (Evaluate Order POST) needs {primary_field}; it is the order \
-                     reference and the basis for the deviceSessionId that correlates to the \
-                     pre-auth order"
-                )),
-                suggested_action: Some(format!("Set {primary_field} on the notify request")),
-                doc_url: Some(KOUNT_DOC_URL.to_owned()),
-            },
-        })
-    })
+/// Kount Update Order payment-status tokens. Serialized in uppercase to match
+/// the Kount Orders schema.
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum KountPaymentStatus {
+    Charged,
+    Authorized,
+    Voided,
+    Refunded,
+    Declined,
 }
 
-// ── FrmPaymentOutcome (payment notify) ────────────────────────────────────
+impl KountPaymentStatus {
+    /// Map the internal attempt status to a Kount payment status. Unmapped
+    /// statuses are omitted rather than sent as an unrecognized value.
+    fn from_attempt_status(status: AttemptStatus) -> Option<Self> {
+        match status {
+            AttemptStatus::Charged
+            | AttemptStatus::PartialCharged
+            | AttemptStatus::PartialChargedAndChargeable => Some(Self::Charged),
+            AttemptStatus::Authorized | AttemptStatus::PartiallyAuthorized => {
+                Some(Self::Authorized)
+            }
+            AttemptStatus::Voided | AttemptStatus::VoidedPostCapture => Some(Self::Voided),
+            AttemptStatus::AutoRefunded => Some(Self::Refunded),
+            AttemptStatus::Failure
+            | AttemptStatus::AuthorizationFailed
+            | AttemptStatus::CaptureFailed
+            | AttemptStatus::RouterDeclined => Some(Self::Declined),
+            _ => None,
+        }
+    }
+}
 
-/// Notify request: a thin Evaluate-Order body. Distinct newtype per flow so the
-/// macros generate a unique templating companion.
+// ──────────────────────────────────────────────────────────────────────────
+// FrmPaymentOutcome (Notify: payment succeeded) = Update Order
+// PATCH /commerce/v2/orders/{orderId}
+// ──────────────────────────────────────────────────────────────────────────
+
 #[derive(Debug, Clone, Serialize)]
-#[serde(transparent)]
-pub struct KountUpdateOrderRequest(pub KountEvaluateOrderRequest);
+pub struct KountUpdateOrderRequest {
+    /// Connector (gateway) transaction id, attached after authorization.
+    #[serde(
+        rename = "merchantTransactionId",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub merchant_transaction_id: Option<String>,
+    /// Final payment status.
+    #[serde(rename = "paymentStatus", skip_serializing_if = "Option::is_none")]
+    pub payment_status: Option<KountPaymentStatus>,
+    /// Order total in the smallest currency unit (string per Kount schema).
+    #[serde(rename = "orderTotal")]
+    pub order_total: StringMinorUnit,
+    /// ISO 4217 currency code.
+    pub currency: String,
+    /// FRM decision being notified (APPROVE / DECLINE / REVIEW).
+    #[serde(rename = "frmDisposition", skip_serializing_if = "Option::is_none")]
+    pub frm_disposition: Option<KountDisposition>,
+    /// Merchant Category Code (ISO 18245), when provided.
+    #[serde(
+        rename = "merchantCategoryCode",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub merchant_category_code: Option<u32>,
+    /// Merchant details (id), when provided.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant: Option<KountMerchant>,
+}
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
@@ -1599,32 +1642,25 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let req = &item.router_data.request;
-        // Prefer the merchant order id (matches the pre-auth Evaluate Order, so
-        // the deviceSessionId correlates); fall back to the connector txn id.
-        let order_id = notify_order_id(
-            req.merchant_transaction_id.as_ref(),
-            req.connector_transaction_id.as_ref(),
-            "merchant_transaction_id",
-        )?;
-        let order_total =
-            super::KountAmountConvertor::convert(req.amount.amount, req.amount.currency)?;
-        Ok(Self(build_notify_evaluate_order(
-            order_id,
-            order_total,
-            req.amount.currency.to_string(),
-            req.merchant_details.as_ref(),
-        )))
+        let (merchant, merchant_category_code) = kount_merchant(req.merchant_details.as_ref());
+        Ok(Self {
+            merchant_transaction_id: req
+                .merchant_transaction_id
+                .clone()
+                .or_else(|| req.connector_transaction_id.clone()),
+            payment_status: req
+                .payment_status
+                .and_then(KountPaymentStatus::from_attempt_status),
+            order_total: super::KountAmountConvertor::convert(
+                req.amount.amount,
+                req.amount.currency,
+            )?,
+            currency: req.amount.currency.to_string(),
+            frm_disposition: req.frm_decision.and_then(KountDisposition::from_decision),
+            merchant_category_code,
+            merchant,
+        })
     }
-}
-
-/// Notify response: the Evaluate-Order body. Distinct type per flow (macro templating).
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct KountUpdateOrderResponse {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub version: Option<String>,
-    pub order: Option<KountOrder>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub warnings: Option<Vec<serde_json::Value>>,
 }
 
 impl TryFrom<ResponseRouterData<KountUpdateOrderResponse, Self>>
@@ -1640,33 +1676,61 @@ impl TryFrom<ResponseRouterData<KountUpdateOrderResponse, Self>>
     fn try_from(
         item: ResponseRouterData<KountUpdateOrderResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        // Surface the raw Kount response for audit parity with PreRiskCheck.
-        // Mask through the PII serializer so the stored/egressed blob never carries
-        // cleartext card/PII — a plain `serde_json::to_string` emits `Secret` fields
-        // exposed. `None` on serialization failure (degrades the audit trail rather
-        // than failing the flow).
-        let raw_connector_response = hyperswitch_masking::masked_serialize(&item.response)
-            .ok()
-            .map(|value| Secret::new(value.to_string()));
         Ok(Self {
             response: Ok(FrmPaymentOutcomeResponse {
                 status_code: item.http_code,
             }),
-            resource_common_data: FrmFlowData {
-                raw_connector_response,
-                ..item.router_data.resource_common_data
-            },
             ..item.router_data
         })
     }
 }
 
-// ── FrmRefundProcessed (refund notify) ────────────────────────────────────
+// ──────────────────────────────────────────────────────────────────────────
+// FrmRefundProcessed (Notify: refund) = Update Order
+// PATCH /commerce/v2/orders/{orderId}
+// ──────────────────────────────────────────────────────────────────────────
 
-/// Notify request: thin Evaluate-Order body (refund). Distinct templating type.
 #[derive(Debug, Clone, Serialize)]
-#[serde(transparent)]
-pub struct KountRefundUpdateRequest(pub KountEvaluateOrderRequest);
+pub struct KountRefundUpdateRequest {
+    /// Connector (gateway) transaction id the refund belongs to.
+    #[serde(
+        rename = "merchantTransactionId",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub merchant_transaction_id: Option<String>,
+    /// Connector refund id.
+    #[serde(rename = "refundId", skip_serializing_if = "Option::is_none")]
+    pub refund_id: Option<String>,
+    /// Reason supplied for the refund.
+    #[serde(rename = "refundReason", skip_serializing_if = "Option::is_none")]
+    pub refund_reason: Option<String>,
+    /// Refund amount in the smallest currency unit (string per Kount schema).
+    #[serde(rename = "refundAmount")]
+    pub refund_amount: StringMinorUnit,
+    /// ISO 4217 currency code.
+    pub currency: String,
+    /// FRM decision being notified (APPROVE / DECLINE / REVIEW).
+    #[serde(rename = "frmDisposition", skip_serializing_if = "Option::is_none")]
+    pub frm_disposition: Option<KountDisposition>,
+    /// Merchant Category Code (ISO 18245), when provided.
+    #[serde(
+        rename = "merchantCategoryCode",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub merchant_category_code: Option<u32>,
+    /// Merchant details (id), when provided.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant: Option<KountMerchant>,
+}
+
+/// Response from the refund Update Order PATCH. Distinct type from
+/// [`KountUpdateOrderResponse`] so the connector macros generate a unique
+/// templating type per flow.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct KountRefundUpdateResponse {
+    #[serde(alias = "orderId")]
+    pub order_id: Option<String>,
+}
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
@@ -1695,37 +1759,24 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let req = &item.router_data.request;
-        // Refund requests carry no merchant_transaction_id, so the order id (and
-        // thus deviceSessionId) is derived from the connector txn id, falling back
-        // to the refund ids. Correlation to the pre-auth order is therefore
-        // best-effort: unless connector_transaction_id == the pre-auth
-        // merchant_transaction_id, this logs a fresh, uncorrelated evaluation.
-        let order_id = notify_order_id(
-            req.connector_transaction_id.as_ref(),
-            req.merchant_refund_id
-                .as_ref()
-                .or(req.connector_refund_id.as_ref()),
-            "connector_transaction_id",
-        )?;
-        let order_total =
-            super::KountAmountConvertor::convert(req.amount.amount, req.amount.currency)?;
-        Ok(Self(build_notify_evaluate_order(
-            order_id,
-            order_total,
-            req.amount.currency.to_string(),
-            req.merchant_details.as_ref(),
-        )))
+        let (merchant, merchant_category_code) = kount_merchant(req.merchant_details.as_ref());
+        Ok(Self {
+            merchant_transaction_id: req.connector_transaction_id.clone(),
+            refund_id: req
+                .connector_refund_id
+                .clone()
+                .or_else(|| req.merchant_refund_id.clone()),
+            refund_reason: req.refund_reason.clone(),
+            refund_amount: super::KountAmountConvertor::convert(
+                req.amount.amount,
+                req.amount.currency,
+            )?,
+            currency: req.amount.currency.to_string(),
+            frm_disposition: req.frm_decision.and_then(KountDisposition::from_decision),
+            merchant_category_code,
+            merchant,
+        })
     }
-}
-
-/// Notify response (refund). Distinct templating type.
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct KountRefundUpdateResponse {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub version: Option<String>,
-    pub order: Option<KountOrder>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub warnings: Option<Vec<serde_json::Value>>,
 }
 
 impl TryFrom<ResponseRouterData<KountRefundUpdateResponse, Self>>
@@ -1741,21 +1792,10 @@ impl TryFrom<ResponseRouterData<KountRefundUpdateResponse, Self>>
     fn try_from(
         item: ResponseRouterData<KountRefundUpdateResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        // Mask through the PII serializer so the stored/egressed blob never carries
-        // cleartext card/PII — a plain `serde_json::to_string` emits `Secret` fields
-        // exposed. `None` on serialization failure (degrades the audit trail rather
-        // than failing the flow).
-        let raw_connector_response = hyperswitch_masking::masked_serialize(&item.response)
-            .ok()
-            .map(|value| Secret::new(value.to_string()));
         Ok(Self {
             response: Ok(FrmRefundProcessedResponse {
                 status_code: item.http_code,
             }),
-            resource_common_data: FrmFlowData {
-                raw_connector_response,
-                ..item.router_data.resource_common_data
-            },
             ..item.router_data
         })
     }
