@@ -1242,8 +1242,7 @@ pub enum PacoPaymentStatus {
     /// Refunded.
     R,
     /// Refund Initiated.
-    #[serde(rename = "RI")]
-    Ri,
+    RI,
     /// Incomplete (3DS challenge in flight or pending).
     I,
     /// Pending.
@@ -1273,16 +1272,13 @@ pub enum PacoPaymentStep {
     /// Refund Settled (final, success).
     RS,
     /// Refund Initiated (in flight).
-    #[serde(rename = "RI")]
-    Ri,
+    RI,
     /// Refund Pending for reviewed (in flight).
     RP,
     /// Refund Pending for Third-party Review (in flight).
-    #[serde(rename = "RP2")]
-    Rp2,
+    RP2,
     /// Refund Pending for Bank Approval (in flight).
-    #[serde(rename = "RP3")]
-    Rp3,
+    RP3,
     /// Refund Expired on Approval (terminal failure).
     RE,
     /// Refund Expired (terminal failure).
@@ -1332,10 +1328,10 @@ fn map_refund_status(status: &PacoPaymentStatus, step: &PacoPaymentStep) -> Refu
 
         // In-flight — refund accepted, downstream not yet final. RSync polls
         // to a terminal state; never report these as failed.
-        (St::Ri, Sp::Ri)
+        (St::RI, Sp::RI)
         | (St::R, Sp::RP)
-        | (St::R, Sp::Rp2)
-        | (St::R, Sp::Rp3) => RefundStatus::Pending,
+        | (St::R, Sp::RP2)
+        | (St::R, Sp::RP3) => RefundStatus::Pending,
 
         // Terminal failure. RR = "Refund Rejected", RE/RX = expired.
         (St::R, Sp::RR)
