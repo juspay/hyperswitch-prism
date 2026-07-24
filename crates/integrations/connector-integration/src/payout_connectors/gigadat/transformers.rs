@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use common_enums::{Currency, PayoutStatus};
-use common_utils::{collect_missing_value_keys, id_type, types::FloatMajorUnit};
+use common_utils::{id_type, types::FloatMajorUnit};
 use domain_types::{
     connector_flow::{PayoutCreate, PayoutGet, PayoutStage, PayoutTransfer},
     errors::{ConnectorError, IntegrationError, ResponseTransformationErrorContext},
@@ -220,27 +220,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 context: Default::default(),
             })?;
 
-        let missing_fields = collect_missing_value_keys!(
-            ("customer.id", request.customer_id.as_ref()),
-            ("email", request.email.as_ref()),
-            ("name", request.name.as_ref()),
-            ("mobile", request.mobile.as_ref()),
-            ("user_ip", request.user_ip.as_ref())
-        );
-
-        let (Some(customer_id), Some(email), Some(name), Some(mobile), Some(user_ip)) = (
-            request.customer_id.clone(),
-            request.email.clone(),
-            request.name.clone(),
-            request.mobile.clone(),
-            request.user_ip.clone(),
-        ) else {
-            return Err(IntegrationError::MissingRequiredFields {
-                field_names: missing_fields,
-                context: Default::default(),
-            }
-            .into());
-        };
+        let customer_id = request.get_customer_id()?;
+        let email = request.get_email()?;
+        let name = request.get_name()?;
+        let mobile = request.get_mobile()?;
+        let user_ip = request.get_user_ip()?;
 
         let sandbox = item
             .router_data

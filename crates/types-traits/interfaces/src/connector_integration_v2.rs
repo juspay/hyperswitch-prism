@@ -69,6 +69,12 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
         _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
     ) -> CustomResult<String, IntegrationError>;
 
+    /// returns the url to record in logs; defaults to the real url. Override when the
+    /// url carries a secret (e.g. a token in the query string) that must not be logged.
+    fn get_masked_url(&self, url: &str) -> String {
+        url.to_owned()
+    }
+
     /// returns request body
     fn get_request_body(
         &self,

@@ -118,6 +118,12 @@ fn get_psp_token_from_raw_response(
     }
 }
 
+fn mask_webflow_token(url: &str) -> String {
+    url.split_once("&token=")
+        .map(|(base, _token)| format!("{base}&token=***"))
+        .unwrap_or_else(|| url.to_owned())
+}
+
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
     pub(crate) const AUTHORIZATION: &str = "Authorization";
@@ -362,6 +368,9 @@ macros::macro_connector_implementation!(
                 token.peek()
             ))
         }
+        fn get_masked_url(&self, url: &str) -> String {
+            mask_webflow_token(url)
+        }
     }
 );
 
@@ -406,6 +415,9 @@ macros::macro_connector_implementation!(
                 transfer_id,
                 token.peek()
             ))
+        }
+        fn get_masked_url(&self, url: &str) -> String {
+            mask_webflow_token(url)
         }
     }
 );

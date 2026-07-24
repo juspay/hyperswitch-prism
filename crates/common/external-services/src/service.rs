@@ -473,7 +473,10 @@ where
             Ok(response)
         }
         Err(err) => {
-            tracing::Span::current().record("url", tracing::field::display(url));
+            tracing::Span::current().record(
+                "url",
+                tracing::field::display(connector.get_masked_url(&url)),
+            );
             Err(err)
         }
     }
@@ -680,7 +683,10 @@ where
                         },
                     );
                     let external_service_start_latency = tokio::time::Instant::now();
-                    tracing::Span::current().record("request.url", tracing::field::display(&url));
+                    tracing::Span::current().record(
+                        "request.url",
+                        tracing::field::display(connector.get_masked_url(&url)),
+                    );
                     tracing::Span::current()
                         .record("request.method", tracing::field::display(method));
 
@@ -852,7 +858,7 @@ where
                     // Create single event (response_data will be set by connector)
                     let mut event = create_event(
                         &event_params,
-                        Some(url.clone()),
+                        Some(connector.get_masked_url(&url)),
                         Some(method.to_string()),
                         Some(latency),
                         &masked_headers,

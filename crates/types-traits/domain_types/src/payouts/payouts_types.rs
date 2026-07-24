@@ -324,6 +324,32 @@ pub struct PayoutStageRequest {
     pub user_ip: Option<hyperswitch_masking::Secret<String>>,
 }
 
+impl PayoutStageRequest {
+    pub fn get_customer_id(&self) -> Result<common_utils::id_type::CustomerId, Error> {
+        self.customer_id
+            .clone()
+            .ok_or_else(missing_field_err("customer_id"))
+    }
+
+    pub fn get_email(&self) -> Result<common_utils::pii::Email, Error> {
+        self.email.clone().ok_or_else(missing_field_err("email"))
+    }
+
+    pub fn get_name(&self) -> Result<Secret<String>, Error> {
+        self.name.clone().ok_or_else(missing_field_err("name"))
+    }
+
+    pub fn get_mobile(&self) -> Result<Secret<String>, Error> {
+        self.mobile.clone().ok_or_else(missing_field_err("mobile"))
+    }
+
+    pub fn get_user_ip(&self) -> Result<Secret<String>, Error> {
+        self.user_ip
+            .clone()
+            .ok_or_else(missing_field_err("user_ip"))
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct PayoutStageResponse {
     pub merchant_payout_id: Option<String>,
