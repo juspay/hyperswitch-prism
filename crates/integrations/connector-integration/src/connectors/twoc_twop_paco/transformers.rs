@@ -1329,16 +1329,12 @@ fn map_refund_status(status: &PacoPaymentStatus, step: &PacoPaymentStep) -> Refu
 
         // In-flight — refund accepted, downstream not yet final. RSync polls
         // to a terminal state; never report these as failed.
-        (St::RI, Sp::RI)
-        | (St::R, Sp::RP)
-        | (St::R, Sp::RP2)
-        | (St::R, Sp::RP3) => RefundStatus::Pending,
+        (St::RI, Sp::RI) | (St::R, Sp::RP) | (St::R, Sp::RP2) | (St::R, Sp::RP3) => {
+            RefundStatus::Pending
+        }
 
         // Terminal failure. RR = "Refund Rejected", RE/RX = expired.
-        (St::R, Sp::RR)
-        | (St::R, Sp::RE)
-        | (St::R, Sp::RX)
-        | (St::F, _) => RefundStatus::Failure,
+        (St::R, Sp::RR) | (St::R, Sp::RE) | (St::R, Sp::RX) | (St::F, _) => RefundStatus::Failure,
 
         (s, st) => {
             tracing::warn!(
