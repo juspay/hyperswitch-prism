@@ -1417,7 +1417,7 @@ fn build_tsys_product_details(
             TsysTransitYesNo::No
         };
         let product_variation = (!is_ecommerce_payment)
-            .then(|| {
+            .then_some({
                 detail
                     .sub_category
                     .clone()
@@ -1425,7 +1425,7 @@ fn build_tsys_product_details(
             })
             .flatten();
         let product_modifier_details = (!is_ecommerce_payment)
-            .then(|| {
+            .then_some( {
                 detail
                     .brand
                     .clone()
@@ -1442,7 +1442,7 @@ fn build_tsys_product_details(
             })
             .flatten();
         let product_notes = (!is_ecommerce_payment)
-            .then(|| {
+            .then_some( {
                 detail
                     .description
                     .clone()
@@ -1450,11 +1450,11 @@ fn build_tsys_product_details(
             })
             .flatten();
 
-        let product_discount_indicator = (!is_ecommerce_payment).then(|| {
-            if has_discount {
+        let product_discount_indicator = (!is_ecommerce_payment).then_some({
+             if has_discount {
                 TsysTransitProductDiscountIndicator::Y
-            } else {
-                TsysTransitProductDiscountIndicator::N
+             } else {
+                 TsysTransitProductDiscountIndicator::N
             }
         });
 
