@@ -7829,12 +7829,7 @@ pub fn generate_payment_sync_response(
                     &e.connector_transaction_id,
                 ),
                 connector_reference_id: None,
-                merchant_transaction_id: Some(
-                    router_data_v2
-                        .resource_common_data
-                        .connector_request_reference_id
-                        .clone(),
-                ),
+                merchant_transaction_id: None,
                 mandate_reference: None,
                 mandate_reference_details: None,
                 status: status as i32,
@@ -9064,12 +9059,7 @@ pub fn generate_void_post_refund_response(
             connector_refund_id: router_data_v2.request.connector_refund_id.clone(),
             status: grpc_api_types::payments::RefundStatus::RefundSuccess as i32,
             connector_reference_id: None,
-            merchant_refund_id: Some(
-                router_data_v2
-                    .resource_common_data
-                    .connector_request_reference_id
-                    .clone(),
-            ),
+            merchant_refund_id: None,
             error: Some(grpc_api_types::payments::ErrorInfo {
                 unified_details: None,
                 connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
