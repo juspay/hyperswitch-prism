@@ -2,10 +2,10 @@ use crate::macros::{req_transformer, res_transformer};
 use external_services;
 use grpc_api_types::payments::{ConnectorError, IntegrationError};
 use grpc_api_types::payments::{
-    CustomerServiceCreateRequest, CustomerServiceCreateResponse, DisputeServiceAcceptRequest,
-    DisputeServiceAcceptResponse, DisputeServiceDefendRequest, DisputeServiceDefendResponse,
-    DisputeServiceSubmitEvidenceRequest, DisputeServiceSubmitEvidenceResponse,
-    EventServiceHandleRequest, EventServiceHandleResponse,
+    CustomerServiceCreateRequest, CustomerServiceCreateResponse, CustomerServiceGetRequest,
+    CustomerServiceGetResponse, DisputeServiceAcceptRequest, DisputeServiceAcceptResponse,
+    DisputeServiceDefendRequest, DisputeServiceDefendResponse, DisputeServiceSubmitEvidenceRequest,
+    DisputeServiceSubmitEvidenceResponse, EventServiceHandleRequest, EventServiceHandleResponse,
     MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
@@ -37,10 +37,11 @@ use grpc_api_types::payments::{
 use domain_types::{
     connector_flow::{
         Accept, Authenticate, Authorize, Capture, ClientAuthenticationToken,
-        CreateConnectorCustomer, CreateOrder, DefendDispute, IncrementalAuthorization,
-        MandateRevoke, PSync, PaymentMethodEligibility, PaymentMethodToken, PostAuthenticate,
-        PreAuthenticate, RSync, Refund, RepeatPayment, ServerAuthenticationToken,
-        ServerSessionAuthenticationToken, SetupMandate, SubmitEvidence, Void, VoidPC,
+        CreateConnectorCustomer, CreateOrder, DefendDispute, GetConnectorCustomer,
+        IncrementalAuthorization, MandateRevoke, PSync, PaymentMethodEligibility,
+        PaymentMethodToken, PostAuthenticate, PreAuthenticate, RSync, Refund, RepeatPayment,
+        ServerAuthenticationToken, ServerSessionAuthenticationToken, SetupMandate, SubmitEvidence,
+        Void, VoidPC,
     },
     connector_types::{
         AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
@@ -328,6 +329,36 @@ res_transformer!(
     generate_response_fn: generate_create_connector_customer_response,
     connector_data_type: T,
     request_data_fn: |p: &CustomerServiceCreateRequest| {
+        domain_types::utils::ForeignTryFrom::foreign_try_from(p.clone())
+    },
+);
+
+// get connector customer request transformer
+req_transformer!(
+    fn_name: customer_get_req_transformer,
+    request_type: CustomerServiceGetRequest,
+    flow_marker: GetConnectorCustomer,
+    resource_common_data_type: PaymentFlowData,
+    request_data_type: ConnectorCustomerData,
+    response_data_type: ConnectorCustomerResponse,
+    connector_data_type: T,
+    request_data_fn: |p: &CustomerServiceGetRequest| {
+        domain_types::utils::ForeignTryFrom::foreign_try_from(p.clone())
+    },
+);
+
+// get connector customer response transformer
+res_transformer!(
+    fn_name: customer_get_res_transformer,
+    request_type: CustomerServiceGetRequest,
+    response_type: CustomerServiceGetResponse,
+    flow_marker: GetConnectorCustomer,
+    resource_common_data_type: PaymentFlowData,
+    request_data_type: ConnectorCustomerData,
+    response_data_type: ConnectorCustomerResponse,
+    generate_response_fn: generate_get_connector_customer_response,
+    connector_data_type: T,
+    request_data_fn: |p: &CustomerServiceGetRequest| {
         domain_types::utils::ForeignTryFrom::foreign_try_from(p.clone())
     },
 );

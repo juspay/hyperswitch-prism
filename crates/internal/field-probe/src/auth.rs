@@ -5,8 +5,9 @@ use common_utils::metadata::{HeaderMaskingConfig, MaskedMetadata};
 use domain_types::{
     connector_types::ConnectorEnum,
     router_data::{
-        ConnectorSpecificConfig, PaysafeAchAccountId, PaysafeCardAccountId,
-        PaysafePaymentMethodDetails,
+        ConnectorSpecificConfig, PaysafeAchAccountId, PaysafeApplePayAccountId,
+        PaysafeCardAccountId, PaysafeInteracAccountId, PaysafePaymentMethodDetails,
+        PaysafeRedirectAccountId,
     },
 };
 use hyperswitch_masking::Secret;
@@ -80,6 +81,9 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             api_key: k(),
             base_url: None,
         },
+        // Netcetera is an authentication-only (3DS) connector without a
+        // dedicated auth config variant yet; probe with no credentials.
+        ConnectorEnum::Netcetera => ConnectorSpecificConfig::NoKey,
         ConnectorEnum::Nexixpay => ConnectorSpecificConfig::Nexixpay {
             api_key: k(),
             base_url: None,
@@ -205,6 +209,31 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
                     common_enums::enums::Currency::USD,
                     PaysafeAchAccountId {
                         account_id: Some(Secret::new("probe_ach_acct".to_string())),
+                    },
+                )])),
+                interac: Some(HashMap::from([(
+                    common_enums::enums::Currency::CAD,
+                    PaysafeInteracAccountId {
+                        three_ds: Some(Secret::new("probe_interac_acct".to_string())),
+                    },
+                )])),
+                apple_pay: Some(HashMap::from([(
+                    common_enums::enums::Currency::USD,
+                    PaysafeApplePayAccountId {
+                        encrypt: Some(Secret::new("probe_applepay_encrypt".to_string())),
+                        decrypt: Some(Secret::new("probe_applepay_decrypt".to_string())),
+                    },
+                )])),
+                skrill: Some(HashMap::from([(
+                    common_enums::enums::Currency::EUR,
+                    PaysafeRedirectAccountId {
+                        three_ds: Some(Secret::new("probe_skrill_acct".to_string())),
+                    },
+                )])),
+                pay_safe_card: Some(HashMap::from([(
+                    common_enums::enums::Currency::EUR,
+                    PaysafeRedirectAccountId {
+                        three_ds: Some(Secret::new("probe_paysafecard_acct".to_string())),
                     },
                 )])),
             }),
@@ -687,6 +716,10 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             merchant_id: m(),
             base_url: None,
         },
+        ConnectorEnum::Glomopay => ConnectorSpecificConfig::Glomopay {
+            api_key: k(),
+            base_url: None,
+        },
         ConnectorEnum::Payconex => ConnectorSpecificConfig::Payconex {
             api_key: k(),
             account_id: m(),
@@ -708,9 +741,24 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             password: k(),
             base_url: None,
         },
+        ConnectorEnum::Flywire => ConnectorSpecificConfig::Flywire {
+            api_key: s(),
+            shared_secret: None,
+            recipient_id: "ZENDD".to_string(),
+            base_url: None,
+        },
+        ConnectorEnum::Affirm => ConnectorSpecificConfig::Affirm {
+            public_key: u(),
+            private_key: p(),
+            base_url: None,
+        },
         ConnectorEnum::Kount => ConnectorSpecificConfig::Kount {
             api_key: k(),
             auth_server_id: None,
+            base_url: None,
+        },
+        ConnectorEnum::Givepayments => ConnectorSpecificConfig::Givepayments {
+            api_key: k(),
             base_url: None,
         },
     }

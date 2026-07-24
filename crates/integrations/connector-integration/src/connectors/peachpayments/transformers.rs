@@ -904,6 +904,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         connector_mandate_id: Some(data.transaction_id.clone()),
                         payment_method_id: None,
                         connector_mandate_request_reference_id: None,
+                        mandate_metadata: None,
                     }));
 
                     Ok(PaymentsResponseData::TransactionResponse {

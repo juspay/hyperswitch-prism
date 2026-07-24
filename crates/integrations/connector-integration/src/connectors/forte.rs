@@ -473,6 +473,7 @@ macros::macro_connector_flow_status_impls!(
         RepeatPayment,
         PaymentMethodToken,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         VoidPC,
     ],
     not_supported: [

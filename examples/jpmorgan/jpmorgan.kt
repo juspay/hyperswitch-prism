@@ -276,7 +276,7 @@ fun createClientAuthenticationToken(txnId: String, config: ConnectorConfig = _de
     val client = MerchantAuthenticationClient(config)
     val request = MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest.newBuilder().apply {
         merchantClientSessionId = "probe_sdk_session_001"  // Infrastructure.
-        paymentBuilder.apply {  // FrmClientAuthenticationContext frm = 5; // future: device fingerprinting PayoutClientAuthenticationContext payout = 6; // future: payout verification widget.
+        paymentBuilder.apply {
             amountBuilder.apply {
                 minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
                 currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").

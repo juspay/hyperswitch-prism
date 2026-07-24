@@ -610,13 +610,9 @@ fn create_regular_transaction_request<
     let payment_details = match &item.router_data.request.payment_method_data {
         PaymentMethodData::Card(card) => {
             let expiry_month = card.card_exp_month.peek().clone();
-            let year = card.card_exp_year.peek().clone();
-            let expiry_year = if year.len() == 2 {
-                format!("20{year}")
-            } else {
-                year
-            };
-            let expiration_date = format!("{expiry_year}-{expiry_month}");
+            let expiry_year =
+                domain_types::utils::expand_expiry_year_to_four_digits(&card.card_exp_year);
+            let expiration_date = format!("{}-{expiry_month}", expiry_year.peek());
 
             let credit_card_details = CreditCardDetails {
                 card_number: card.card_number.clone(),
@@ -939,7 +935,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     is_subsequent_auth: true,
                 }),
                 Some(SubsequentAuthInformation {
-                    original_network_trans_id: Secret::new(network_trans_id.clone()),
+                    original_network_trans_id: Secret::new(
+                        network_trans_id.network_transaction_id.clone(),
+                    ),
                     reason: Reason::Resubmission,
                 }),
             ),
@@ -2168,6 +2166,7 @@ impl<
                             )),
                             payment_method_id: None,
                             connector_mandate_request_reference_id: None,
+                            mandate_metadata: None,
                         });
 
                 // Build connector_metadata from account_number
@@ -2709,6 +2708,7 @@ pub fn convert_to_payments_response_data_or_error(
                                 }),
                             payment_method_id: None,
                             connector_mandate_request_reference_id: None,
+                            mandate_metadata: None,
                         }
                     });
 
@@ -3039,13 +3039,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // Create expiry date manually since we can't use the trait method generically
         let expiry_month = ccard.card_exp_month.peek().clone();
-        let year = ccard.card_exp_year.peek().clone();
-        let expiry_year = if year.len() == 2 {
-            format!("20{year}")
-        } else {
-            year
-        };
-        let expiration_date = format!("{expiry_year}-{expiry_month}");
+        let expiry_year =
+            domain_types::utils::expand_expiry_year_to_four_digits(&ccard.card_exp_year);
+        let expiration_date = format!("{}-{expiry_month}", expiry_year.peek());
 
         let payment_profile = PaymentProfile {
             bill_to,
@@ -3155,6 +3151,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     connector_mandate_id: Some(connector_mandate_id),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
                 })),
                 network_txn_id: None,
                 network_txn_link_id: None,

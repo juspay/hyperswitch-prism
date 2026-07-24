@@ -88,7 +88,7 @@ pub struct AbsaSanlamPaymentsRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub statement_descriptor: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub batch_user_reference: Option<String>,
+    pub metadata: Option<SecretSerdeValue>,
 }
 
 #[derive(Debug, Serialize)]
@@ -270,6 +270,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
             | PaymentMethodData::Upi(_)
+            | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
@@ -286,14 +287,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         }?;
 
-        let batch_user_reference = item
-            .router_data
-            .request
-            .metadata
-            .map(AbsaSanlamMetaData::try_from)
-            .transpose()?
-            .and_then(|m| m.batch_user_reference);
-
         Ok(Self {
             amount: item.router_data.request.minor_amount,
             currency: item.router_data.request.currency,
@@ -302,7 +295,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .router_data
                 .resource_common_data
                 .connector_request_reference_id,
-            batch_user_reference,
+            metadata: item.router_data.request.metadata,
             statement_descriptor: item
                 .router_data
                 .request
