@@ -13524,7 +13524,7 @@ pub fn generate_create_connector_customer_response(
                     code: Some(e.code.clone()),
                     reason: e.reason.clone(),
                     connector_transaction_id: e.connector_transaction_id.clone(),
-                    status: None,
+                    status: e.attempt_status.as_ref().map(ForeignFrom::foreign_from),
                 }),
                 issuer_details: Some(grpc_payment_types::IssuerErrorDetails::from(&e)),
             }),
