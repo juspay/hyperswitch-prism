@@ -178,8 +178,6 @@ where
         Ok(access_token_response)
     }
 
-    /// Exchange a public_token for an access_token (e.g. Plaid Link → access_token) when
-    /// the connector supports payment method tokenization and no token is already supplied.
     async fn create_payment_method_token(
         &self,
         connector: &ConnectorVariant,
@@ -312,9 +310,6 @@ where
         let access_token_response = self
             .create_server_authentication_token(&connector, &payload, &metadata, &extensions)
             .await?;
-
-        // Exchange the public_token for an access_token when the connector supports it
-        // and no token is already present in the request.
         let tokenize_response = self
             .create_payment_method_token(&connector, &payload, &metadata, &extensions)
             .await?;

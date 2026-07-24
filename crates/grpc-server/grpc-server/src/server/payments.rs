@@ -2022,8 +2022,6 @@ impl PaymentMethodService for PaymentMethod {
                         &metadata_payload.lineage_ids,
                     );
 
-                    // Authenticator connectors (e.g. Plaid) exchange a token via `metadata`
-                    // and do not carry a `payment_method` field. Route to the dedicated path.
                     if matches!(metadata_payload.connector, ConnectorVariant::Authenticator(_)) {
                         let result = Box::pin(self.handle_tokenize_authenticator_flow(
                             &config,
@@ -2538,8 +2536,6 @@ impl PaymentMethod {
         Ok(payment_method_token_response)
     }
 
-    /// Tokenize flow for authenticator connectors (e.g. Plaid public-token exchange).
-    /// These connectors carry the token in `metadata` rather than `payment_method`.
     async fn handle_tokenize_authenticator_flow(
         &self,
         config: &Arc<Config>,
@@ -2583,8 +2579,7 @@ impl PaymentMethod {
             PaymentFlowData::foreign_try_from((request.clone(), connectors, masked_metadata))
                 .map_err(|e| e.to_grpc_error())?;
 
-        // Authenticator connectors only use `metadata` (the public_token).
-        // Populate a minimal PaymentMethodTokenizationData; `payment_method_data` is unused.
+        // Authenticator connectors use PaymentMethodType instead of PMData
         let dummy_pm_data = payment_method_data::PaymentMethodData::PaymentMethodToken(
             payment_method_data::PaymentMethodToken {
                 token: hyperswitch_masking::Secret::new(String::new()),
