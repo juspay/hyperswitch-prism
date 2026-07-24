@@ -43,6 +43,12 @@ type ResponseError = error_stack::Report<ConnectorError>;
 const MAX_ID_LENGTH: usize = 20;
 const ADDRESS_MAX_LENGTH: usize = 60; // Authorize.Net address field max length
 
+// Authorize.Net transient server-side error codes: returned (HTTP 200) with no
+// transaction record while the underlying payment is unchanged. On a psync poll
+// these are not a payment failure, so we keep the existing state (mirroring HS).
+const TRANSIENT_ERROR_SERVER_BUSY: &str = "E00053"; // "server too busy"
+const TRANSIENT_ERROR_MAINTENANCE: &str = "E00104"; // "server in maintenance"
+
 // Helper function for concatenating address lines with length constraints
 fn get_address_line(
     address_line1: &Option<Secret<String>>,
@@ -2326,17 +2332,13 @@ impl<F> TryFrom<ResponseRouterData<AuthorizedotnetPSyncResponse, Self>>
                 Ok(new_router_data)
             }
             None => {
-                // E00053 indicates "server too busy" and E00104 indicates
-                // "Server in maintenance". These are transient conditions on a
-                // psync poll, not a payment failure, so (mirroring hyperswitch)
-                // we keep the existing router data unchanged instead of flipping
-                // the attempt to an error/failure.
-                if response
-                    .messages
-                    .message
-                    .iter()
-                    .any(|m| m.code == "E00053" || m.code == "E00104")
-                {
+                // Transient server-side conditions (server busy / maintenance) on a
+                // psync poll, not a payment failure, so (mirroring hyperswitch) we keep
+                // the existing router data unchanged instead of flipping the attempt to
+                // an error/failure.
+                if response.messages.message.iter().any(|m| {
+                    m.code == TRANSIENT_ERROR_SERVER_BUSY || m.code == TRANSIENT_ERROR_MAINTENANCE
+                }) {
                     return Ok(router_data);
                 }
 
