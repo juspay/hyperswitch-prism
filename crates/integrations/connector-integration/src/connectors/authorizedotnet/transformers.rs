@@ -2285,6 +2285,28 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetRefundResponse, Self>>
     }
 }
 
+/// Build an `ErrorResponse` from Authorize.Net's `ResponseMessages`, mirroring
+/// hyperswitch's `get_err_response`: use the first message's code/text and leave
+/// `attempt_status: None` so the caller preserves the prior attempt status.
+fn get_err_response(status_code: u16, messages: ResponseMessages) -> ErrorResponse {
+    let first = messages.message.first();
+    ErrorResponse {
+        code: first
+            .map(|m| m.code.clone())
+            .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+        message: first
+            .map(|m| m.text.clone())
+            .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+        reason: first.map(|m| m.text.clone()),
+        status_code,
+        attempt_status: None,
+        connector_transaction_id: None,
+        network_decline_code: None,
+        network_advice_code: None,
+        network_error_message: None,
+    }
+}
+
 // Implementation for PSync flow
 impl<F> TryFrom<ResponseRouterData<AuthorizedotnetPSyncResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
@@ -2332,59 +2354,20 @@ impl<F> TryFrom<ResponseRouterData<AuthorizedotnetPSyncResponse, Self>>
                 Ok(new_router_data)
             }
             None => {
-                // Transient server-side conditions (server busy / maintenance) on a
-                // psync poll, not a payment failure, so (mirroring hyperswitch) we keep
-                // the existing router data unchanged instead of flipping the attempt to
-                // an error/failure.
-                if response.messages.message.iter().any(|m| {
+                // A psync response with no transaction record. Transient server-side
+                // conditions (server busy / maintenance) are not a payment failure, so
+                // mirror hyperswitch and keep the existing router data unchanged;
+                // otherwise surface the connector error while preserving the prior
+                // attempt status (as hyperswitch's `get_err_response` does).
+                match response.messages.message.iter().find(|m| {
                     m.code == TRANSIENT_ERROR_SERVER_BUSY || m.code == TRANSIENT_ERROR_MAINTENANCE
                 }) {
-                    return Ok(router_data);
+                    Some(_) => Ok(router_data),
+                    None => Ok(Self {
+                        response: Err(get_err_response(http_code, response.messages)),
+                        ..router_data
+                    }),
                 }
-
-                // Handle missing transaction response
-                let status = match response.messages.result_code {
-                    ResultCode::Error => AttemptStatus::Failure,
-                    ResultCode::Ok => AttemptStatus::Pending,
-                };
-
-                let error_response = ErrorResponse {
-                    status_code: http_code,
-                    code: response
-                        .messages
-                        .message
-                        .first()
-                        .map(|m| m.code.clone())
-                        .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-                    message: response
-                        .messages
-                        .message
-                        .first()
-                        .map(|m| m.text.clone())
-                        .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-                    reason: Some(
-                        response
-                            .messages
-                            .message
-                            .first()
-                            .map(|m| m.text.clone())
-                            .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-                    ),
-                    attempt_status: Some(FlowStatus::Payment(status)),
-                    connector_transaction_id: None,
-                    network_decline_code: None,
-                    network_advice_code: None,
-                    network_error_message: None,
-                };
-
-                // Update router data with status and error response
-                let mut new_router_data = router_data;
-                let mut resource_common_data = new_router_data.resource_common_data.clone();
-                resource_common_data.status = status;
-                new_router_data.resource_common_data = resource_common_data;
-                new_router_data.response = Err(error_response);
-
-                Ok(new_router_data)
             }
         }
     }
