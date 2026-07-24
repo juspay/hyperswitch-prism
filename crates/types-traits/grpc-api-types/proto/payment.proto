@@ -2849,9 +2849,12 @@ message PaymentServiceReverseResponse {
   optional SecretString raw_connector_request = 7;
   optional SecretString raw_connector_response = 8;
 
+  // The connector's reported status for this response.
+  optional RawConnectorStatus raw_connector_status = 9;
+
   // Another reference for the connector's transaction, returned in the connector's response.
   // Distinct from connector_transaction_id — e.g. Stripe charge ID (ch_xxx), order codes, invoice numbers.
-  optional string connector_reference_id = 9;
+  optional string connector_reference_id = 10;
 }
 
 // Request message for creating an access token
@@ -3110,6 +3113,9 @@ message PaymentServiceCreateOrderResponse {
   // SDK Session Data
   optional ClientAuthenticationTokenData session_data =
       9; // SDK session data for wallets (Apple Pay, Google Pay) and other SDK types
+
+  // The connector's reported status for this response.
+  optional RawConnectorStatus raw_connector_status = 10;
 }
 
 // Request message for processing a refund
@@ -3780,6 +3786,9 @@ message PaymentMethodAuthenticationServiceAuthenticateResponse {
 
   // Raw Response for debugging
   optional SecretString raw_connector_response = 12;
+
+  // The connector's reported status (code/message/reason).
+  optional RawConnectorStatus raw_connector_status = 13;
 }
 
 // Request message for post-authentication step
@@ -3850,6 +3859,9 @@ message PaymentMethodAuthenticationServicePostAuthenticateResponse {
 
   // Raw Response for debugging
   optional SecretString raw_connector_response = 13;
+
+  // The connector's reported status for this response.
+  optional RawConnectorStatus raw_connector_status = 14;
 }
 
 // Request message for incremental authorization
