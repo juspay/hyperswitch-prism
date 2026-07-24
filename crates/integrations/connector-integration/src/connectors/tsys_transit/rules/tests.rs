@@ -11,11 +11,10 @@ use super::super::profile::{
 use super::super::transformers::{
     TsysTransitCardDataInputMode, TsysTransitCardDataSource, TsysTransitCardOnFile,
     TsysTransitCardholderPresentDetail, TsysTransitMcCitStatusIndicator, TsysTransitMitIndicator,
-    TsysTransitRegisteredUserIndicator,
-    TsysTransitTerminalOperatingEnvironment, TsysTransitTerminalOutputCapability,
+    TsysTransitRegisteredUserIndicator, TsysTransitTerminalOperatingEnvironment,
+    TsysTransitTerminalOutputCapability,
 };
 use super::{card_input_mode, cof_mit, commercial, network_indicators, terminal_data};
-
 
 fn profile(
     acceptance: AcceptanceProfile,
