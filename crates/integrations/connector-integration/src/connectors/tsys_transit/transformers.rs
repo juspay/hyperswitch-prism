@@ -340,6 +340,14 @@ pub struct TsysTransitProductDetails {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub product_tax_details: Option<TsysTransitProductTaxDetails>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub product_variation: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub product_modifier_details: Option<TsysTransitProductModifierDetails>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub product_notes: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub product_discount_indicator: Option<TsysTransitProductDiscountIndicator>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub product_commodity_code: Option<String>,
 }
 #[derive(Debug, Clone, Serialize)]
@@ -1327,6 +1335,7 @@ fn build_tsys_product_details(
     detail: &domain_types::payment_address::OrderDetailsWithAmount,
     currency: common_enums::Currency,
     card_network: Option<&CardNetwork>,
+    payment_channel: &Option<PaymentChannel>,
 ) -> Result<Option<TsysTransitProductDetails>, Report<IntegrationError>> {
     if matches!(
         card_network,
@@ -1346,6 +1355,8 @@ fn build_tsys_product_details(
         },
     }
         };
+        let is_ecommerce_payment =
+            matches!(payment_channel, Some(PaymentChannel::Ecommerce) | None);
 
         let product_code = detail
             .product_id
@@ -1396,7 +1407,56 @@ fn build_tsys_product_details(
             .clone()
             .map(|discount_type| sanitize_alphanumeric_space(&discount_type, 20));
         let priority = 1;
-        let stackable = TsysTransitYesNo::No;
+        let has_discount = detail
+            .unit_discount_amount
+            .map(|amount| amount.get_amount_as_i64() > 0)
+            .unwrap_or(false);
+        let stackable = if has_discount {
+            TsysTransitYesNo::Yes
+        } else {
+            TsysTransitYesNo::No
+        };
+        let product_variation = (!is_ecommerce_payment)
+            .then(|| {
+                detail
+                    .sub_category
+                    .clone()
+                    .or_else(|| detail.category.clone())
+            })
+            .flatten();
+        let product_modifier_details = (!is_ecommerce_payment)
+            .then(|| {
+                detail
+                    .brand
+                    .clone()
+                    .or_else(|| detail.category.clone())
+                    .map(|modifier_name| TsysTransitProductModifierDetails {
+                        modifier_name: truncate_chars(&modifier_name, 50),
+                        modifier_value: detail
+                            .sub_category
+                            .clone()
+                            .or_else(|| detail.description.clone())
+                            .map(|value| truncate_chars(&value, 25)),
+                        modifier_price: None,
+                    })
+            })
+            .flatten();
+        let product_notes = (!is_ecommerce_payment)
+            .then(|| {
+                detail
+                    .description
+                    .clone()
+                    .map(|description| truncate_chars(&description, 100))
+            })
+            .flatten();
+
+        let product_discount_indicator = (!is_ecommerce_payment).then(|| {
+            if has_discount {
+                TsysTransitProductDiscountIndicator::Y
+            } else {
+                TsysTransitProductDiscountIndicator::N
+            }
+        });
 
         let missing_fields_error = |missing_fields: Vec<&'static str>| {
             IntegrationError::MissingRequiredFields {
@@ -1473,6 +1533,10 @@ fn build_tsys_product_details(
                 product_tax_percentage,
                 product_tax_type,
             }),
+            product_variation,
+            product_modifier_details,
+            product_notes,
+            product_discount_indicator,
             product_commodity_code: is_visa_card
                 .then_some(commodity_code.ok_or(missing_field("order_details.commodity_code")))
                 .transpose()?,
@@ -1632,7 +1696,12 @@ fn compute_commercial_card_context<
     let product_details: Option<Vec<TsysTransitProductDetails>> = order_details
         .iter()
         .map(|detail| {
-            build_tsys_product_details(detail, router_data.request.currency, card_network)
+            build_tsys_product_details(
+                detail,
+                router_data.request.currency,
+                card_network,
+                &router_data.request.payment_channel,
+            )
         })
         .collect::<Result<Vec<Option<TsysTransitProductDetails>>, Report<IntegrationError>>>()
         .ok()
