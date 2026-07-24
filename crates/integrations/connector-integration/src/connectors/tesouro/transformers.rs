@@ -812,23 +812,27 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 cit_payment_id: cit_payment_id.into(),
             });
 
-        // `originalPurchaseDate` is optional: it carries the CIT's `activityDate` captured in
-        // the mandate metadata during the SetupMandate/Authorize leg. If it is absent we omit
-        // the field rather than fabricating a value (a "today" date would be incorrect and
-        // could mislead the network's stored-credential framework).
-        let original_purchase_date = router_data
-            .request
-            .recurring_mandate_payment_data
-            .as_ref()
-            .and_then(|recurring_data| recurring_data.mandate_metadata.as_ref())
-            .map(|metadata| {
-                serde_json::from_value::<TesouroMandateMetadata>(metadata.clone().expose())
-                    .map(|tesouro_metadata| tesouro_metadata.activity_date)
-                    .change_context(IntegrationError::RequestEncodingFailed {
-                        context: Default::default(),
-                    })
-            })
-            .transpose()?;
+        // Tesouro requires `originalPurchaseDate` (Date!) on a recurring charge. Prefer the CIT's
+        // `activityDate` captured in the mandate metadata during the SetupMandate/Authorize leg;
+        // when it is absent (e.g. a stored-credential MIT that does not thread mandate metadata)
+        // fall back to today's date so the required field is always present (matches hyperswitch).
+        let original_purchase_date = Some(
+            match router_data
+                .request
+                .recurring_mandate_payment_data
+                .as_ref()
+                .and_then(|recurring_data| recurring_data.mandate_metadata.as_ref())
+            {
+                Some(metadata) => {
+                    serde_json::from_value::<TesouroMandateMetadata>(metadata.clone().expose())
+                        .map(|tesouro_metadata| tesouro_metadata.activity_date)
+                        .change_context(IntegrationError::RequestEncodingFailed {
+                            context: Default::default(),
+                        })?
+                }
+                None => common_utils::date_time::now().date().to_string(),
+            },
+        );
 
         let amount = TesouroAmountConvertor::convert(
             router_data.request.minor_amount,
