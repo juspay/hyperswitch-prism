@@ -9,6 +9,8 @@
     "RefundService/Get",
     "PaymentMethodService/Tokenize",
     "PaymentService/Void",
-    "CustomerService/Create"
+    "CustomerService/Create",
+    "PaymentMethodAuthenticationService/PreAuthenticate",
+    "PaymentMethodAuthenticationService/Authenticate"
   ]
 }

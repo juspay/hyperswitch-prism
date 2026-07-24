@@ -703,6 +703,7 @@ macros::macro_connector_flow_status_impls!(
         PaymentMethodToken,
         ServerSessionAuthenticationToken,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         DefendDispute,
         RepeatPayment,
         ClientAuthenticationToken,

@@ -1,5 +1,5 @@
 # Connector Service — LLM Navigation Index
-# Connectors: 98
+# Connectors: 100
 #
 # This file helps AI coding assistants navigate connector-service documentation.
 # Each connector block lists: doc path, scenarios, supported payment methods,
@@ -8,7 +8,7 @@
 # Usage: fetch this file first, then fetch the specific connector doc or example.
 
 overview:
-  total_connectors: 98
+  total_connectors: 100
   docs_root: docs-generated/connectors/
   examples_root: examples/
   all_connectors_matrix: docs-generated/all_connector.md
@@ -302,6 +302,14 @@ payment_methods: Interac
 flows: authorize, get, refund
 examples_python: none
 
+## Givepayments
+connector_id: givepayments
+doc: docs/connectors/givepayments.md
+scenarios: none
+payment_methods: none
+flows: get, handle_event, parse_event, recurring_charge, refund, refund_get
+examples_python: none
+
 ## Globalpay
 connector_id: globalpay
 doc: docs/connectors/globalpay.md
@@ -309,6 +317,14 @@ scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_paymen
 payment_methods: Card, Eps, Ideal
 flows: authorize, capture, create_client_authentication_token, create_server_authentication_token, get, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, token_authorize, void
 examples_python: examples/globalpay/globalpay.py
+
+## Glomopay
+connector_id: glomopay
+doc: docs/connectors/glomopay.md
+scenarios: checkout_autocapture, refund, get_payment
+payment_methods: Card
+flows: authorize, customer_get, get, handle_event, parse_event, proxy_authorize, refund, refund_get
+examples_python: examples/glomopay/glomopay.py
 
 ## Helcim
 connector_id: helcim
@@ -515,7 +531,7 @@ connector_id: paypal
 doc: docs/connectors/paypal.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: ApplePayDecrypted, Card, Eps, Giropay, GooglePayDecrypted, Ideal, PaypalRedirect, PaypalSdk, Sofort
-flows: authorize, capture, create_client_authentication_token, create_order, create_server_authentication_token, get, handle_event, parse_event, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, void
+flows: authorize, capture, create_client_authentication_token, create_order, create_server_authentication_token, get, handle_event, parse_event, proxy_authorize, recurring_charge, refund, refund_get, setup_recurring, void
 examples_python: examples/paypal/paypal.py
 
 ## Paysafe
@@ -523,7 +539,7 @@ connector_id: paysafe
 doc: docs/connectors/paysafe.md
 scenarios: none
 payment_methods: PaySafeCard
-flows: authorize, capture, customer_create, get, refund, refund_get, token_authorize
+flows: authenticate, authorize, capture, customer_create, get, pre_authenticate, refund, refund_get, token_authorize
 examples_python: none
 
 ## Paytm
@@ -586,7 +602,7 @@ examples_python: examples/powertranz/powertranz.py
 connector_id: ppro
 doc: docs/connectors/ppro.md
 scenarios: none
-payment_methods: AliPayRedirect, BancontactCard, Blik, Ideal, MbWay, Satispay, UpiIntent, UpiQr, WeChatPayQr, Wero
+payment_methods: AliPayRedirect, BancontactCard, Blik, Ideal, MbWay, Satispay, Trustly, UpiIntent, UpiQr, WeChatPayQr, Wero
 flows: authorize, capture, get, handle_event, parse_event, recurring_charge, refund, refund_get, verify_redirect, void
 examples_python: none
 

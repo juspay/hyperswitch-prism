@@ -419,6 +419,7 @@ macros::macro_connector_flow_status_impls!(
         Void,
         ServerSessionAuthenticationToken,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         SetupMandate,
         PaymentMethodToken,
         PreAuthenticate,
