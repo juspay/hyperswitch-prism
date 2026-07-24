@@ -1241,6 +1241,9 @@ pub enum PacoPaymentStatus {
     V,
     /// Refunded.
     R,
+    /// Refund Initiated.
+    #[serde(rename = "RI")]
+    Ri,
     /// Incomplete (3DS challenge in flight or pending).
     I,
     /// Pending.
@@ -1262,16 +1265,32 @@ pub enum PacoPaymentStep {
     ST,
     /// Voided.
     VD,
-    /// Refunded (final).
+    /// Refunded (final, success).
     RF,
-    /// Refund Requested (in flight).
+    /// Refund Rejected (terminal failure). NOTE: per PACO docs this is
+    /// *rejected*, not "requested" — https://devzone.2c2p.com/docs/payment-step
     RR,
+    /// Refund Settled (final, success).
+    RS,
+    /// Refund Initiated (in flight).
+    #[serde(rename = "RI")]
+    Ri,
+    /// Refund Pending for reviewed (in flight).
+    RP,
+    /// Refund Pending for Third-party Review (in flight).
+    #[serde(rename = "RP2")]
+    Rp2,
+    /// Refund Pending for Bank Approval (in flight).
+    #[serde(rename = "RP3")]
+    Rp3,
+    /// Refund Expired on Approval (terminal failure).
+    RE,
+    /// Refund Expired (terminal failure).
+    RX,
     /// Awaiting Challenge.
     AC,
     /// Initiated / Pending.
     IN,
-    /// Pending refund.
-    RP,
     /// Hosted page generated.
     GP,
     /// Pending Response from acquirer.
@@ -1305,12 +1324,25 @@ fn map_attempt_status(status: &PacoPaymentStatus, step: &PacoPaymentStep) -> Att
 }
 
 fn map_refund_status(status: &PacoPaymentStatus, step: &PacoPaymentStep) -> RefundStatus {
+    use PacoPaymentStatus as St;
+    use PacoPaymentStep as Sp;
     match (status, step) {
-        (PacoPaymentStatus::R, PacoPaymentStep::RF) => RefundStatus::Success,
-        (PacoPaymentStatus::R, PacoPaymentStep::RR) => RefundStatus::Pending,
-        (PacoPaymentStatus::P, PacoPaymentStep::RP) => RefundStatus::Pending,
-        (PacoPaymentStatus::V, PacoPaymentStep::VD) => RefundStatus::Success,
-        (PacoPaymentStatus::F, _) => RefundStatus::Failure,
+        // Terminal success — refund disbursed.
+        (St::R, Sp::RF) | (St::R, Sp::RS) => RefundStatus::Success,
+
+        // In-flight — refund accepted, downstream not yet final. RSync polls
+        // to a terminal state; never report these as failed.
+        (St::Ri, Sp::Ri)
+        | (St::R, Sp::RP)
+        | (St::R, Sp::Rp2)
+        | (St::R, Sp::Rp3) => RefundStatus::Pending,
+
+        // Terminal failure. RR = "Refund Rejected", RE/RX = expired.
+        (St::R, Sp::RR)
+        | (St::R, Sp::RE)
+        | (St::R, Sp::RX)
+        | (St::F, _) => RefundStatus::Failure,
+
         (s, st) => {
             tracing::warn!(
                 target: "twoc_twop_paco",
@@ -1325,79 +1357,89 @@ fn map_refund_status(status: &PacoPaymentStatus, step: &PacoPaymentStep) -> Refu
 
 /// PACO refund response codes, classified by terminal/in-flight state.
 ///
-/// Source: https://devzone.2c2p.com/docs/api-response-code (sections relevant
-/// to /Refund/refund). Codes outside this enum fall into the `Unknown` arm and
-/// are classified as `Pending` (see `From<PacoRefundResponseCode> for
-/// RefundStatus` for why — duplicate-refund safety).
+/// Every code and its meaning is transcribed verbatim from the official table
+/// at https://devzone.2c2p.com/docs/api-response-code. Codes outside this enum
+/// fall into the `Unknown` arm and are classified as `Pending` (see
+/// `From<PacoRefundResponseCode> for RefundStatus` for why — duplicate-refund
+/// safety).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PacoRefundResponseCode {
     // --- Terminal Success ---
+    /// "Refunded"
     #[serde(rename = "PC-B052407")]
     Refunded,
-    #[serde(rename = "PC-B053501")]
-    RefundDisbursementSuccess,
 
     // --- In-flight / Pending (refund accepted, downstream not yet final) ---
-    #[serde(rename = "PC-B053502")]
-    RefundRequestAccepted,
-    #[serde(rename = "PC-B053557")]
-    RefundPendingReview,
-    #[serde(rename = "PC-B053563")]
-    PendingExternalPartyReview,
+    /// "Refund pending."
     #[serde(rename = "PC-B054042")]
     RefundPending,
-    #[serde(rename = "PC-B054046")]
-    InsufficientFundsForRefund,
-    #[serde(rename = "PC-B054048")]
-    SubMerchantInsufficientFunds,
 
     // --- Terminal Failure (request validation + downstream rejection) ---
+    /// "Refund Rejected"
+    #[serde(rename = "PC-B052408")]
+    RefundRejected,
+    /// "Refund Failed"
+    #[serde(rename = "PC-B052409")]
+    RefundFailed,
+    /// "Invalid refund amount. Refund amount cannot be negative or more than
+    /// refundable amount."
     #[serde(rename = "PC-B050040")]
     InvalidRefundAmount,
+    /// "Invalid refund item. Reference Number should be unique and not-empty in
+    /// refund item."
     #[serde(rename = "PC-B050041")]
     InvalidRefundItemReference,
+    /// "Invalid refund request. Itemized refund request feature is not available
+    /// for this company."
     #[serde(rename = "PC-B050042")]
     ItemizedRefundUnavailable,
-    #[serde(rename = "PC-B050043")]
-    RefundItemsExceedRefundable,
+    /// "Invalid refund items' amount. Refund items' amount cannot be more than
+    /// refundable amount."
+    #[serde(rename = "PC-B050052")]
+    InvalidRefundItemsAmount,
+    /// "Transaction cannot be refunded."
     #[serde(rename = "PC-B050053")]
     TransactionCannotBeRefunded,
-    #[serde(rename = "PC-B050054")]
+    /// "Invalid refund number."
+    #[serde(rename = "PC-B050066")]
     InvalidRefundNumber,
-    #[serde(rename = "PC-B050055")]
+    /// "Invalid refund request. The refund API feature is not available for this
+    /// company."
+    #[serde(rename = "PC-B050096")]
     RefundApiFeatureUnavailable,
-    #[serde(rename = "PC-B050056")]
-    RefundAmountInvalid,
-    #[serde(rename = "PC-B050057")]
-    CannotRefundMoreThanTransaction,
-    #[serde(rename = "PC-B050058")]
-    RefundExceedsTransactionAmount,
-    #[serde(rename = "PC-B050059")]
+    /// "Unable to refund more than transaction amount."
+    #[serde(rename = "PC-B054030")]
+    UnableToRefundMoreThanTransaction,
+    /// "Refund amount is more than transaction amount."
+    #[serde(rename = "PC-B054040")]
+    RefundAmountExceedsTransaction,
+    /// "Refund not allowed."
+    #[serde(rename = "PC-B054041")]
     RefundNotAllowed,
-    #[serde(rename = "PC-B050060")]
-    PartialRefundNotAllowed,
-    #[serde(rename = "PC-B050061")]
-    SubMerchantRefundExceedsTransaction,
-    #[serde(rename = "PC-B050062")]
-    RefundExceededAllowableTimeframe,
-    #[serde(rename = "PC-B053503")]
-    RefundRejected,
-    #[serde(rename = "PC-B053504")]
-    RefundFailed,
-    #[serde(rename = "PC-B053505")]
-    RefundRejectedByBank,
-    #[serde(rename = "PC-B053506")]
-    RefundEmailDeliveryFailed,
-    #[serde(rename = "PC-B053507")]
-    RefundCancelled,
-    #[serde(rename = "PC-B053508")]
-    RefundLinkExpired,
+    /// "Partial refund not allowed."
     #[serde(rename = "PC-B054043")]
-    RefundRejectedByReviewer,
+    PartialRefundNotAllowed,
+    /// "Refund rejected."
     #[serde(rename = "PC-B054044")]
     RefundRejectedGeneric,
+    /// "Refund failed."
     #[serde(rename = "PC-B054045")]
     RefundFailedGeneric,
+    /// "Insufficient funds to perform refund."
+    #[serde(rename = "PC-B054046")]
+    InsufficientFundsForRefund,
+    /// "Sub Merchant refund amount is more than transaction amount."
+    #[serde(rename = "PC-B054047")]
+    SubMerchantRefundExceedsTransaction,
+    /// "Sub merchant has insufficient funds to perform refund."
+    #[serde(rename = "PC-B054048")]
+    SubMerchantInsufficientFunds,
+    /// "Refund exceeded allowable timeframe."
+    #[serde(rename = "PC-B054054")]
+    RefundExceededAllowableTimeframe,
+    /// "Refund items amount does not match the provided refund amount."
+    #[serde(rename = "PC-B054507")]
+    RefundItemsAmountMismatch,
 
     /// Catch-all for unenumerated PC-Bxxxxxx codes. Resolves to Pending so we
     /// don't tell a merchant a refund failed when PACO may actually have
@@ -1410,7 +1452,7 @@ impl From<PacoRefundResponseCode> for RefundStatus {
     fn from(code: PacoRefundResponseCode) -> Self {
         use PacoRefundResponseCode::*;
         match code {
-            Refunded | RefundDisbursementSuccess => Self::Success,
+            Refunded => Self::Success,
 
             // Why Unknown → Pending (not Failure): returning Failure on an
             // unknown code is dangerous for refunds. If PACO actually
@@ -1419,37 +1461,28 @@ impl From<PacoRefundResponseCode> for RefundStatus {
             // refund → real money loss. Pending is recoverable: RSync will
             // poll, return a known code, and reclassify correctly. The raw
             // PC-Bxxxxxx string is still surfaced for ops grep-ability.
-            RefundRequestAccepted
-            | RefundPendingReview
-            | PendingExternalPartyReview
-            | RefundPending
-            | InsufficientFundsForRefund
-            | SubMerchantInsufficientFunds
-            | Unknown => Self::Pending,
+            RefundPending | Unknown => Self::Pending,
 
-            InvalidRefundAmount
+            RefundRejected
+            | RefundFailed
+            | InvalidRefundAmount
             | InvalidRefundItemReference
             | ItemizedRefundUnavailable
-            | RefundItemsExceedRefundable
+            | InvalidRefundItemsAmount
             | TransactionCannotBeRefunded
             | InvalidRefundNumber
             | RefundApiFeatureUnavailable
-            | RefundAmountInvalid
-            | CannotRefundMoreThanTransaction
-            | RefundExceedsTransactionAmount
+            | UnableToRefundMoreThanTransaction
+            | RefundAmountExceedsTransaction
             | RefundNotAllowed
             | PartialRefundNotAllowed
-            | SubMerchantRefundExceedsTransaction
-            | RefundExceededAllowableTimeframe
-            | RefundRejected
-            | RefundFailed
-            | RefundRejectedByBank
-            | RefundEmailDeliveryFailed
-            | RefundCancelled
-            | RefundLinkExpired
-            | RefundRejectedByReviewer
             | RefundRejectedGeneric
-            | RefundFailedGeneric => Self::Failure,
+            | RefundFailedGeneric
+            | InsufficientFundsForRefund
+            | SubMerchantRefundExceedsTransaction
+            | SubMerchantInsufficientFunds
+            | RefundExceededAllowableTimeframe
+            | RefundItemsAmountMismatch => Self::Failure,
         }
     }
 }
