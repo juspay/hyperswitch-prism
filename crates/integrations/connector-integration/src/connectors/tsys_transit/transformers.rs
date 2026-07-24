@@ -1919,7 +1919,7 @@ fn validate_off_session_ecommerce_support(
 
     if is_off_session && is_ecommerce_payment {
         Err(IntegrationError::NotSupported {
-            message: "Off-session e-commerce payments are not supported".to_string(),
+            message: "Off-session e-commerce payments".to_string(),
             connector: "tsysTransit",
             context: IntegrationErrorContext {
                 suggested_action: None,
