@@ -1,9 +1,12 @@
 use common_enums::{self, AttemptStatus, CountryAlpha2, RefundStatus};
 use common_utils::{consts, pii, types::MinorUnit};
 use domain_types::{
-    connector_flow::{Authorize, RSync, Refund, RepeatPayment},
+    connector_flow::{Authorize, ConnectorWebhookRegister, RSync, Refund, RepeatPayment},
     connector_types::{
-        EventType, MandateReference, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData,
+        ConnectorWebhookRegisterData, ConnectorWebhookRegisterFlowData,
+        ConnectorWebhookRegisterResponseData, ConnectorWebhookRegistrationEventType,
+        ConnectorWebhookRegistrationScope, ConnectorWebhookRegistrationStatus, EventType,
+        MandateReference, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData,
         PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
         RepeatPaymentData, ResponseId,
     },
@@ -14,7 +17,7 @@ use domain_types::{
     router_data_v2::RouterDataV2,
     utils::is_payment_failure,
 };
-use hyperswitch_masking::Secret;
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use strum::Display;
 
@@ -22,6 +25,278 @@ use crate::{connectors::givepayments::GivepaymentsRouterData, types::ResponseRou
 
 pub struct GivepaymentsAuthType {
     pub(super) api_key: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct GivepaymentsWebhookRegisterRequest {
+    url: Secret<String>,
+    event_types: Vec<GivepaymentsWebhookRegisterEventType>,
+}
+
+// Some connector-native events do not yet have a corresponding Hyperswitch registration event,
+// but keeping the complete connector enum prevents falling back to the wildcard payload.
+#[allow(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+enum GivepaymentsWebhookRegisterEventType {
+    #[serde(rename = "payment.created")]
+    PaymentCreated,
+    #[serde(rename = "payment.failed")]
+    PaymentFailed,
+    #[serde(rename = "payment.voided")]
+    PaymentVoided,
+    #[serde(rename = "payment.declined")]
+    PaymentDeclined,
+    #[serde(rename = "payment.authorized")]
+    PaymentAuthorized,
+    #[serde(rename = "payment.captured")]
+    PaymentCaptured,
+    #[serde(rename = "payment.settled")]
+    PaymentSettled,
+    #[serde(rename = "refund.created")]
+    RefundCreated,
+    #[serde(rename = "refund.pending")]
+    RefundPending,
+    #[serde(rename = "refund.failed")]
+    RefundFailed,
+    #[serde(rename = "refund.declined")]
+    RefundDeclined,
+    #[serde(rename = "refund.canceled")]
+    RefundCanceled,
+    #[serde(rename = "refund.approved")]
+    RefundApproved,
+    #[serde(rename = "refund.settled")]
+    RefundSettled,
+}
+
+impl GivepaymentsWebhookRegisterEventType {
+    fn from_hyperswitch_event(
+        event_type: ConnectorWebhookRegistrationEventType,
+    ) -> Result<Vec<Self>, error_stack::Report<errors::IntegrationError>> {
+        use ConnectorWebhookRegistrationEventType as Event;
+
+        match event_type {
+            Event::PaymentProcessing => Ok(vec![Self::PaymentCreated, Self::PaymentAuthorized]),
+            Event::PaymentFailed => Ok(vec![Self::PaymentFailed, Self::PaymentDeclined]),
+            Event::PaymentCancelled => Ok(vec![Self::PaymentVoided]),
+            Event::PaymentCaptured => Ok(vec![Self::PaymentCaptured]),
+            Event::PaymentSucceeded => Ok(vec![Self::PaymentSettled]),
+            Event::RefundProcessing => Ok(vec![Self::RefundCreated, Self::RefundPending]),
+            Event::RefundFailed => Ok(vec![
+                Self::RefundFailed,
+                Self::RefundDeclined,
+                Self::RefundCanceled,
+            ]),
+            Event::RefundSucceeded => Ok(vec![Self::RefundApproved, Self::RefundSettled]),
+            _ => Err(errors::IntegrationError::NotSupported {
+                message: format!("webhook registration event type {event_type:?}"),
+                connector: "givepayments",
+                context: Default::default(),
+            }
+            .into()),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct GivepaymentsWebhookRegisterResponse {
+    id: String,
+    secret_key: Secret<String>,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        GivepaymentsRouterData<
+            RouterDataV2<
+                ConnectorWebhookRegister,
+                ConnectorWebhookRegisterFlowData,
+                ConnectorWebhookRegisterData,
+                ConnectorWebhookRegisterResponseData,
+            >,
+            T,
+        >,
+    > for GivepaymentsWebhookRegisterRequest
+{
+    type Error = error_stack::Report<errors::IntegrationError>;
+
+    fn try_from(
+        item: GivepaymentsRouterData<
+            RouterDataV2<
+                ConnectorWebhookRegister,
+                ConnectorWebhookRegisterFlowData,
+                ConnectorWebhookRegisterData,
+                ConnectorWebhookRegisterResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let requested_events = match &item.router_data.request.scope {
+            ConnectorWebhookRegistrationScope::EventTypes(event_types)
+                if !event_types.is_empty() =>
+            {
+                event_types
+            }
+            ConnectorWebhookRegistrationScope::EventTypes(_) => {
+                return Err(errors::IntegrationError::MissingRequiredField {
+                    field_name: "scope.event_types",
+                    context: Default::default(),
+                }
+                .into())
+            }
+            _ => {
+                return Err(errors::IntegrationError::NotSupported {
+                    message: "GivePayments requires an explicit list of webhook event types"
+                        .to_string(),
+                    connector: "givepayments",
+                    context: Default::default(),
+                }
+                .into())
+            }
+        };
+
+        let mut event_types = Vec::new();
+        for event_type in requested_events {
+            for mapped_event in
+                GivepaymentsWebhookRegisterEventType::from_hyperswitch_event(*event_type)?
+            {
+                if !event_types.contains(&mapped_event) {
+                    event_types.push(mapped_event);
+                }
+            }
+        }
+
+        Ok(Self {
+            url: Secret::new(item.router_data.request.webhook_url.peek().to_string()),
+            event_types,
+        })
+    }
+}
+
+impl TryFrom<ResponseRouterData<GivepaymentsWebhookRegisterResponse, Self>>
+    for RouterDataV2<
+        ConnectorWebhookRegister,
+        ConnectorWebhookRegisterFlowData,
+        ConnectorWebhookRegisterData,
+        ConnectorWebhookRegisterResponseData,
+    >
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<GivepaymentsWebhookRegisterResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(ConnectorWebhookRegisterResponseData {
+                scope: item.router_data.request.scope.clone(),
+                status: ConnectorWebhookRegistrationStatus::Success,
+                connector_webhook_id: Some(item.response.id),
+                connector_webhook_secret: Some(item.response.secret_key),
+                metadata: None,
+                status_code: item.http_code,
+            }),
+            ..item.router_data
+        })
+    }
+}
+
+#[cfg(test)]
+mod webhook_register_tests {
+    use super::{
+        GivepaymentsWebhookRegisterEventType, GivepaymentsWebhookRegisterRequest,
+        GivepaymentsWebhookRegisterResponse,
+    };
+    use domain_types::connector_types::ConnectorWebhookRegistrationEventType;
+    use hyperswitch_masking::{PeekInterface, Secret};
+
+    #[test]
+    fn register_request_serializes_individual_events() {
+        let request = GivepaymentsWebhookRegisterRequest {
+            url: Secret::new("https://example.com/webhooks".to_string()),
+            event_types: vec![
+                GivepaymentsWebhookRegisterEventType::PaymentCreated,
+                GivepaymentsWebhookRegisterEventType::PaymentFailed,
+                GivepaymentsWebhookRegisterEventType::PaymentVoided,
+                GivepaymentsWebhookRegisterEventType::PaymentDeclined,
+                GivepaymentsWebhookRegisterEventType::PaymentAuthorized,
+                GivepaymentsWebhookRegisterEventType::PaymentCaptured,
+                GivepaymentsWebhookRegisterEventType::PaymentSettled,
+                GivepaymentsWebhookRegisterEventType::RefundCreated,
+                GivepaymentsWebhookRegisterEventType::RefundPending,
+                GivepaymentsWebhookRegisterEventType::RefundFailed,
+                GivepaymentsWebhookRegisterEventType::RefundDeclined,
+                GivepaymentsWebhookRegisterEventType::RefundCanceled,
+                GivepaymentsWebhookRegisterEventType::RefundApproved,
+                GivepaymentsWebhookRegisterEventType::RefundSettled,
+            ],
+        };
+        let value = serde_json::to_value(request).expect("request must serialize");
+
+        assert_eq!(
+            value,
+            serde_json::json!({
+                "url": "https://example.com/webhooks",
+                "event_types": [
+                    "payment.created",
+                    "payment.failed",
+                    "payment.voided",
+                    "payment.declined",
+                    "payment.authorized",
+                    "payment.captured",
+                    "payment.settled",
+                    "refund.created",
+                    "refund.pending",
+                    "refund.failed",
+                    "refund.declined",
+                    "refund.canceled",
+                    "refund.approved",
+                    "refund.settled"
+                ]
+            })
+        );
+    }
+
+    #[test]
+    fn maps_hyperswitch_failure_events_to_all_matching_givepayments_events() {
+        let payment_events = GivepaymentsWebhookRegisterEventType::from_hyperswitch_event(
+            ConnectorWebhookRegistrationEventType::PaymentFailed,
+        )
+        .expect("payment failure must be supported");
+        let refund_events = GivepaymentsWebhookRegisterEventType::from_hyperswitch_event(
+            ConnectorWebhookRegistrationEventType::RefundFailed,
+        )
+        .expect("refund failure must be supported");
+
+        assert_eq!(
+            payment_events,
+            vec![
+                GivepaymentsWebhookRegisterEventType::PaymentFailed,
+                GivepaymentsWebhookRegisterEventType::PaymentDeclined,
+            ]
+        );
+        assert_eq!(
+            refund_events,
+            vec![
+                GivepaymentsWebhookRegisterEventType::RefundFailed,
+                GivepaymentsWebhookRegisterEventType::RefundDeclined,
+                GivepaymentsWebhookRegisterEventType::RefundCanceled,
+            ]
+        );
+    }
+
+    #[test]
+    fn create_response_captures_webhook_secret() {
+        let response: GivepaymentsWebhookRegisterResponse =
+            serde_json::from_value(serde_json::json!({
+                "id": "GS_WH_2obg2o9PKOI6G9cLrNu6cC",
+                "status": "enabled",
+                "secret_key": "gp_wh_sk_test",
+                "url": "https://example.com/webhooks",
+                "event_types": ["payment.created", "refund.settled"]
+            }))
+            .expect("response must deserialize");
+
+        assert_eq!(response.id, "GS_WH_2obg2o9PKOI6G9cLrNu6cC");
+        assert_eq!(response.secret_key.peek(), "gp_wh_sk_test");
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -865,7 +1140,7 @@ impl TryFrom<ResponseRouterData<GivepaymentsRefundResponseData, Self>>
                 code: consts::NO_ERROR_CODE.to_string(),
                 message: consts::NO_ERROR_MESSAGE.to_string(),
                 reason: None,
-                attempt_status: Some(FlowStatus::Refund(refund_status)),
+                attempt_status: None,
                 connector_transaction_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
@@ -910,7 +1185,7 @@ impl TryFrom<ResponseRouterData<GivepaymentsRefundResponseData, Self>>
                 code: consts::NO_ERROR_CODE.to_string(),
                 message: consts::NO_ERROR_MESSAGE.to_string(),
                 reason: None,
-                attempt_status: Some(FlowStatus::Refund(refund_status)),
+                attempt_status: None,
                 connector_transaction_id: None,
                 network_advice_code: None,
                 network_decline_code: None,

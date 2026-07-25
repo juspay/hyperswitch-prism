@@ -9,14 +9,14 @@ use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 // Domain type imports
 use domain_types::connector_types::{
     AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
-    CreatePaymentMethodData, DisputeDefendData, GetPaymentMethodData, MandateRevokeRequestData,
-    PaymentCreateOrderData, PaymentMethodEligibilityData, PaymentMethodTokenizationData,
-    PaymentVoidData, PaymentsAuthenticateData, PaymentsAuthorizeData,
-    PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-    PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsSyncData,
-    RechargeRequestData, RefundSyncData, RefundVoidPostRefundData, RefundsData, RepeatPaymentData,
-    ServerAuthenticationTokenRequestData, ServerSessionAuthenticationTokenRequestData,
-    SetupMandateRequestData, SubmitEvidenceData,
+    ConnectorWebhookRegisterData, CreatePaymentMethodData, DisputeDefendData, GetPaymentMethodData,
+    MandateRevokeRequestData, PaymentCreateOrderData, PaymentMethodEligibilityData,
+    PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
+    PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
+    PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+    PaymentsPreAuthenticateData, PaymentsSyncData, RechargeRequestData, RefundSyncData,
+    RefundVoidPostRefundData, RefundsData, RepeatPaymentData, ServerAuthenticationTokenRequestData,
+    ServerSessionAuthenticationTokenRequestData, SetupMandateRequestData, SubmitEvidenceData,
 };
 use domain_types::frm::frm_types::{
     FrmChargebackReceivedRequest, FrmPaymentOutcomeRequest, FrmRefundProcessedRequest,
@@ -43,13 +43,14 @@ use domain_types::{
     },
     router_request_types::{
         AcceptDisputeIntegrityObject, AccessTokenIntegrityObject, AuthenticateIntegrityObject,
-        AuthoriseIntegrityObject, CaptureIntegrityObject, CreateConnectorCustomerIntegrityObject,
-        CreateOrderIntegrityObject, CreatePaymentMethodIntegrityObject,
-        DefendDisputeIntegrityObject, FrmChargebackReceivedIntegrityObject,
-        FrmPaymentOutcomeIntegrityObject, FrmRefundProcessedIntegrityObject,
-        GetPaymentMethodIntegrityObject, IncrementalAuthorizationIntegrityObject,
-        MandateRevokeIntegrityObject, PaymentMethodEligibilityIntegrityObject,
-        PaymentMethodTokenIntegrityObject, PaymentSynIntegrityObject, PaymentVoidIntegrityObject,
+        AuthoriseIntegrityObject, CaptureIntegrityObject, ConnectorWebhookRegisterIntegrityObject,
+        CreateConnectorCustomerIntegrityObject, CreateOrderIntegrityObject,
+        CreatePaymentMethodIntegrityObject, DefendDisputeIntegrityObject,
+        FrmChargebackReceivedIntegrityObject, FrmPaymentOutcomeIntegrityObject,
+        FrmRefundProcessedIntegrityObject, GetPaymentMethodIntegrityObject,
+        IncrementalAuthorizationIntegrityObject, MandateRevokeIntegrityObject,
+        PaymentMethodEligibilityIntegrityObject, PaymentMethodTokenIntegrityObject,
+        PaymentSynIntegrityObject, PaymentVoidIntegrityObject,
         PaymentVoidPostCaptureIntegrityObject, PostAuthenticateIntegrityObject,
         PostRiskCheckIntegrityObject, PreAuthenticateIntegrityObject, PreRiskCheckIntegrityObject,
         RechargeIntegrityObject, RefundIntegrityObject, RefundSyncIntegrityObject,
@@ -200,6 +201,7 @@ impl_check_integrity!(ClientAuthenticationTokenRequestData);
 impl_check_integrity!(PaymentsIncrementalAuthorizationData);
 impl_check_integrity!(MandateRevokeRequestData);
 impl_check_integrity!(VerifyWebhookSourceRequestData);
+impl_check_integrity!(ConnectorWebhookRegisterData);
 impl_check_integrity!(PayoutCreateRequest);
 impl_check_integrity!(PayoutTransferRequest);
 impl_check_integrity!(PayoutStageRequest);
@@ -582,6 +584,16 @@ impl GetIntegrityObject<CreateConnectorCustomerIntegrityObject> for ConnectorCus
                 Secret::new(email_inner.expose())
             }),
         }
+    }
+}
+
+impl GetIntegrityObject<ConnectorWebhookRegisterIntegrityObject> for ConnectorWebhookRegisterData {
+    fn get_response_integrity_object(&self) -> Option<ConnectorWebhookRegisterIntegrityObject> {
+        self.integrity_object.clone()
+    }
+
+    fn get_request_integrity_object(&self) -> ConnectorWebhookRegisterIntegrityObject {
+        ConnectorWebhookRegisterIntegrityObject {}
     }
 }
 
@@ -1278,6 +1290,18 @@ impl FlowIntegrity for CreateConnectorCustomerIntegrityObject {
         }
 
         check_integrity_result(mismatched_fields, connector_transaction_id)
+    }
+}
+
+impl FlowIntegrity for ConnectorWebhookRegisterIntegrityObject {
+    type IntegrityObject = Self;
+
+    fn compare(
+        _req_integrity_object: Self,
+        _res_integrity_object: Self,
+        _connector_transaction_id: Option<String>,
+    ) -> Result<(), IntegrityCheckError> {
+        Ok(())
     }
 }
 

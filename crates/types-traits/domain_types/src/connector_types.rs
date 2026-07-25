@@ -27,7 +27,8 @@ use crate::{
     router_data::{self, ConnectorResponseData},
     router_request_types::{
         self, AcceptDisputeIntegrityObject, AuthoriseIntegrityObject, BrowserInformation,
-        CaptureIntegrityObject, CreateOrderIntegrityObject, DefendDisputeIntegrityObject,
+        CaptureIntegrityObject, ConnectorWebhookRegisterIntegrityObject,
+        CreateOrderIntegrityObject, DefendDisputeIntegrityObject,
         PaymentMethodTokenIntegrityObject, PaymentSynIntegrityObject, PaymentVoidIntegrityObject,
         PaymentVoidPostCaptureIntegrityObject, RefundIntegrityObject, RefundSyncIntegrityObject,
         RepeatPaymentIntegrityObject, SetupMandateIntegrityObject, SubmitEvidenceIntegrityObject,
@@ -2791,6 +2792,113 @@ pub struct RequestDetails {
 pub struct ConnectorWebhookSecrets {
     pub secret: Vec<u8>,
     pub additional_secret: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ConnectorWebhookRegistrationScope {
+    NotSpecific,
+    PaymentMethodType(PaymentMethodType),
+    EventType(ConnectorWebhookRegistrationEventType),
+    EventTypes(Vec<ConnectorWebhookRegistrationEventType>),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConnectorWebhookRegistrationEventType {
+    PaymentSucceeded,
+    PaymentFailed,
+    PaymentProcessing,
+    PaymentCancelled,
+    PaymentCancelledPostCapture,
+    PaymentAuthorized,
+    PaymentPartiallyAuthorized,
+    PaymentCaptured,
+    PaymentExpired,
+    ActionRequired,
+    RefundProcessing,
+    RefundSucceeded,
+    RefundFailed,
+    DisputeOpened,
+    DisputeExpired,
+    DisputeAccepted,
+    DisputeCancelled,
+    DisputeChallenged,
+    DisputeWon,
+    DisputeLost,
+    MandateActive,
+    MandateRevoked,
+    PayoutSuccess,
+    PayoutFailed,
+    PayoutInitiated,
+    PayoutProcessing,
+    PayoutCancelled,
+    PayoutExpired,
+    PayoutReversed,
+    InvoicePaid,
+    SurchargePaymentSucceeded,
+    SurchargeRefundSucceeded,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConnectorWebhookRegistrationStatus {
+    Success,
+    Failure,
+}
+
+#[derive(Debug, Clone)]
+pub struct ConnectorWebhookRegisterFlowData {
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub connector_request_reference_id: String,
+    pub connectors: Connectors,
+    pub access_token: Option<ServerAuthenticationTokenResponseData>,
+    pub raw_connector_response: Option<Secret<String>>,
+    pub raw_connector_request: Option<Secret<String>>,
+    pub connector_response_headers: Option<http::HeaderMap>,
+}
+
+impl RawConnectorRequestResponse for ConnectorWebhookRegisterFlowData {
+    fn set_raw_connector_response(&mut self, response: Option<Secret<String>>) {
+        self.raw_connector_response = response;
+    }
+
+    fn get_raw_connector_response(&self) -> Option<Secret<String>> {
+        self.raw_connector_response.clone()
+    }
+
+    fn get_raw_connector_request(&self) -> Option<Secret<String>> {
+        self.raw_connector_request.clone()
+    }
+
+    fn set_raw_connector_request(&mut self, request: Option<Secret<String>>) {
+        self.raw_connector_request = request;
+    }
+}
+
+impl ConnectorResponseHeaders for ConnectorWebhookRegisterFlowData {
+    fn set_connector_response_headers(&mut self, headers: Option<http::HeaderMap>) {
+        self.connector_response_headers = headers;
+    }
+
+    fn get_connector_response_headers(&self) -> Option<&http::HeaderMap> {
+        self.connector_response_headers.as_ref()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ConnectorWebhookRegisterData {
+    pub scope: ConnectorWebhookRegistrationScope,
+    pub webhook_url: Secret<Url>,
+    pub connector_webhook_registration_url: Url,
+    pub integrity_object: Option<ConnectorWebhookRegisterIntegrityObject>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ConnectorWebhookRegisterResponseData {
+    pub scope: ConnectorWebhookRegistrationScope,
+    pub status: ConnectorWebhookRegistrationStatus,
+    pub connector_webhook_id: Option<String>,
+    pub connector_webhook_secret: Option<Secret<String>>,
+    pub metadata: Option<SecretSerdeValue>,
+    pub status_code: u16,
 }
 
 #[derive(Debug, Clone, Default)]

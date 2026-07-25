@@ -98,6 +98,9 @@ service EventService {
 
   // Notify connectors about events (payment succeeded, refund succeeded, refund failed).
   rpc NotifyConnector(NotifyConnectorRequest) returns (NotifyConnectorResponse);
+
+  // Register a Hyperswitch webhook endpoint with a connector.
+  rpc RegisterWebhook(ConnectorWebhookRegisterRequest) returns (ConnectorWebhookRegisterResponse);
 }
 
 // ============================================================================
@@ -378,4 +381,3 @@ service FraudAndRiskManagementService {
   // and post-transaction signals to refine risk models and detect chargeback fraud.
   rpc PostRiskCheck(FrmServicePostRiskCheckRequest) returns (FrmServicePostRiskCheckResponse);
 }
-

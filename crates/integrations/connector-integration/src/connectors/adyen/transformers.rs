@@ -11,19 +11,21 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Accept, Authorize, Capture, ClientAuthenticationToken, CreateOrder, DefendDispute,
-        IncrementalAuthorization, PSync, Refund, RepeatPayment, SetupMandate, SubmitEvidence, Void,
-        VoidPC,
+        Accept, Authorize, Capture, ClientAuthenticationToken, ConnectorWebhookRegister,
+        CreateOrder, DefendDispute, IncrementalAuthorization, PSync, Refund, RepeatPayment,
+        SetupMandate, SubmitEvidence, Void, VoidPC,
     },
     connector_types::{
         self, AcceptDisputeData,
         AdyenClientAuthenticationResponse as AdyenClientAuthenticationResponseDomain,
         AdyenSplitItem, CardDetailUpdate, ClientAuthenticationTokenData,
         ClientAuthenticationTokenRequestData, ConnectorSpecificClientAuthenticationResponse,
-        ConnectorSplitResponseData, DisputeDefendData, DisputeFlowData, DisputeResponseData,
-        EventType, MandateReference, MandateReferenceId, PaymentCreateOrderData,
-        PaymentCreateOrderResponse, PaymentFlowData, PaymentMethodUpdate, PaymentVoidData,
-        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
+        ConnectorSplitResponseData, ConnectorWebhookRegisterData, ConnectorWebhookRegisterFlowData,
+        ConnectorWebhookRegisterResponseData, ConnectorWebhookRegistrationScope,
+        ConnectorWebhookRegistrationStatus, DisputeDefendData, DisputeFlowData,
+        DisputeResponseData, EventType, MandateReference, MandateReferenceId,
+        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentMethodUpdate,
+        PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
         SetupMandateRequestData, SplitPaymentsDetails, SubmitEvidenceData,
@@ -76,6 +78,115 @@ pub struct Amount {
 }
 
 type Error = error_stack::Report<IntegrationError>;
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdyenWebhookRegisterRequest {
+    #[serde(rename = "type")]
+    webhook_type: AdyenWebhookRegisterType,
+    url: Secret<String>,
+    active: bool,
+    communication_format: AdyenWebhookCommunicationFormat,
+}
+
+#[derive(Debug, Serialize)]
+enum AdyenWebhookRegisterType {
+    Standard,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "lowercase")]
+enum AdyenWebhookCommunicationFormat {
+    Json,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdyenWebhookRegisterResponse {
+    id: String,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        AdyenRouterData<
+            RouterDataV2<
+                ConnectorWebhookRegister,
+                ConnectorWebhookRegisterFlowData,
+                ConnectorWebhookRegisterData,
+                ConnectorWebhookRegisterResponseData,
+            >,
+            T,
+        >,
+    > for AdyenWebhookRegisterRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: AdyenRouterData<
+            RouterDataV2<
+                ConnectorWebhookRegister,
+                ConnectorWebhookRegisterFlowData,
+                ConnectorWebhookRegisterData,
+                ConnectorWebhookRegisterResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        if matches!(
+            item.router_data.request.scope,
+            ConnectorWebhookRegistrationScope::EventType(_)
+                | ConnectorWebhookRegistrationScope::EventTypes(_)
+        ) {
+            return Err(IntegrationError::NotSupported {
+                message: "event-specific webhook registration".to_string(),
+                connector: "adyen",
+                context: Default::default(),
+            }
+            .into());
+        }
+
+        Ok(Self {
+            webhook_type: AdyenWebhookRegisterType::Standard,
+            url: Secret::new(
+                item.router_data
+                    .request
+                    .webhook_url
+                    .clone()
+                    .expose()
+                    .to_string(),
+            ),
+            active: true,
+            communication_format: AdyenWebhookCommunicationFormat::Json,
+        })
+    }
+}
+
+impl TryFrom<ResponseRouterData<AdyenWebhookRegisterResponse, Self>>
+    for RouterDataV2<
+        ConnectorWebhookRegister,
+        ConnectorWebhookRegisterFlowData,
+        ConnectorWebhookRegisterData,
+        ConnectorWebhookRegisterResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<AdyenWebhookRegisterResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(ConnectorWebhookRegisterResponseData {
+                scope: item.router_data.request.scope.clone(),
+                status: ConnectorWebhookRegistrationStatus::Success,
+                connector_webhook_id: Some(item.response.id),
+                connector_webhook_secret: None,
+                metadata: None,
+                status_code: item.http_code,
+            }),
+            ..item.router_data
+        })
+    }
+}
 
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize)]

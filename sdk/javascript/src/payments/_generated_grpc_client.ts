@@ -123,6 +123,8 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   StudentDetails: ["studentEmail"],
   AirlinePassenger: ["passportNumber", "ticketNumber"],
   NmiData: ["publicKey"],
+  ConnectorWebhookRegisterRequest: ["webhookUrl"],
+  ConnectorWebhookRegisterResponse: ["metadata", "connectorWebhookSecret"],
   AdditionalCardInfo: ["cardExpMonth", "cardExpYear", "cardHolderName"],
   CustomerInfo: ["customerName", "customerEmail", "customerPhoneNumber", "customerBankId", "customerBankName"],
   AdyenClientAuthenticationResponse: ["sessionData"],
@@ -392,6 +394,9 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   NotifyConnectorContent: { "surchargeContent": "SurchargeContent", "frmNotification": "FrmNotificationContent" },
   FrmNotificationContent: { "amount": "Money", "paymentDetails": "FrmPaymentDetails", "refund": "FrmRefundDetails", "chargeback": "FrmChargebackDetails", "merchantDetails": "MerchantDetails" },
   NotifyConnectorResponse: { "error": "ErrorInfo" },
+  ConnectorWebhookRegistrationScope: { "notSpecific": "Empty", "eventTypes": "ConnectorWebhookRegistrationEventTypes" },
+  ConnectorWebhookRegisterRequest: { "scope": "ConnectorWebhookRegistrationScope", "state": "ConnectorState" },
+  ConnectorWebhookRegisterResponse: { "scope": "ConnectorWebhookRegistrationScope", "error": "ErrorInfo" },
   EventAckResponse: { "headers": "HeadersEntry" },
   EventContent: { "paymentsResponse": "PaymentServiceGetResponse", "refundsResponse": "RefundResponse", "disputesResponse": "DisputeResponse" },
   AdditionalPaymentData: { "card": "AdditionalCardInfo" },
@@ -663,6 +668,11 @@ export class GrpcEventClient {
   async notifyConnector(req: unknown): Promise<unknown> {
     return callGrpc(this.ffi, this.config, "event/notify_connector",
       req, types.NotifyConnectorRequest, types.NotifyConnectorResponse);
+  }
+  /** EventService.RegisterWebhook — Register a Hyperswitch webhook endpoint with a connector. */
+  async registerWebhook(req: unknown): Promise<unknown> {
+    return callGrpc(this.ffi, this.config, "event/register_webhook",
+      req, types.ConnectorWebhookRegisterRequest, types.ConnectorWebhookRegisterResponse);
   }
 }
 

@@ -25,6 +25,29 @@ pub enum TransactionTypes {
     Reversal,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct PayloadWebhookRegisterRequest {
+    pub trigger: PayloadWebhookRegisterEventType,
+    pub url: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sender_secret: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PayloadWebhookRegisterEventType {
+    Payment,
+    Processed,
+    Authorized,
+    Credit,
+    Refund,
+    Reversal,
+    Void,
+    Decline,
+    Deposit,
+    Reject,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct BillingAddress {
     pub city: Secret<String>,

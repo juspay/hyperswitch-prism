@@ -258,16 +258,20 @@ impl ForeignTryFrom<(Secret<String>, &'static str)> for SecretSerdeValue {
 use crate::{
     connector_flow::{
         Accept, Authenticate, Authorize, Capture, ClientAuthenticationToken,
-        CreateConnectorCustomer, CreateOrder, DefendDispute, GetConnectorCustomer,
-        IncrementalAuthorization, PSync, PaymentMethodToken, PostAuthenticate, PreAuthenticate,
-        RSync, Refund, RepeatPayment, ServerAuthenticationToken, ServerSessionAuthenticationToken,
-        SetupMandate, SubmitEvidence, Void, VoidPC, VoidPostRefund,
+        ConnectorWebhookRegister, CreateConnectorCustomer, CreateOrder, DefendDispute,
+        GetConnectorCustomer, IncrementalAuthorization, PSync, PaymentMethodToken,
+        PostAuthenticate, PreAuthenticate, RSync, Refund, RepeatPayment, ServerAuthenticationToken,
+        ServerSessionAuthenticationToken, SetupMandate, SubmitEvidence, Void, VoidPC,
+        VoidPostRefund,
     },
     connector_types::{
         AcceptDisputeData, ApplePayPaymentRequest, ApplePaySessionResponse, BillingDescriptor,
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
         ConnectorMandateReferenceId, ConnectorResponseHeaders,
-        ConnectorSpecificClientAuthenticationResponse, ContinueRedirectionResponse, CustomerInfo,
+        ConnectorSpecificClientAuthenticationResponse, ConnectorWebhookRegisterData,
+        ConnectorWebhookRegisterFlowData, ConnectorWebhookRegisterResponseData,
+        ConnectorWebhookRegistrationEventType, ConnectorWebhookRegistrationScope,
+        ConnectorWebhookRegistrationStatus, ContinueRedirectionResponse, CustomerInfo,
         DisputeDefendData, DisputeFlowData, DisputeResponseData, DisputeWebhookDetailsResponse,
         GpayAllowedPaymentMethods, GpayBillingAddressFormat, GpayClientAuthenticationResponse,
         L2L3Data, MandateReferenceId, MandateRevokeRequestData, MultipleCaptureRequestData,
@@ -17098,5 +17102,403 @@ impl From<connector_types::WebhookResourceReference> for grpc_api_types::payment
                 })),
             },
         }
+    }
+}
+
+impl ForeignTryFrom<grpc_payment_types::ConnectorWebhookRegisterRequest>
+    for ConnectorWebhookRegisterData
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: grpc_payment_types::ConnectorWebhookRegisterRequest,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        use grpc_payment_types::connector_webhook_registration_scope::Identifier;
+
+        let scope = value.scope.and_then(|scope| scope.identifier).ok_or(
+            IntegrationError::MissingRequiredField {
+                field_name: "scope",
+                context: IntegrationErrorContext::default(),
+            },
+        )?;
+
+        let scope = match scope {
+            Identifier::NotSpecific(_) => ConnectorWebhookRegistrationScope::NotSpecific,
+            Identifier::PaymentMethodType(payment_method_type) => {
+                let payment_method_type = grpc_payment_types::PaymentMethodType::try_from(
+                    payment_method_type,
+                )
+                .map_err(|_| IntegrationError::InvalidDataFormat {
+                    field_name: "scope.payment_method_type",
+                    context: IntegrationErrorContext::default(),
+                })?;
+                ConnectorWebhookRegistrationScope::PaymentMethodType(
+                    PaymentMethodType::foreign_try_from(payment_method_type)?,
+                )
+            }
+            Identifier::EventType(event_type) => {
+                let event_type =
+                    grpc_payment_types::ConnectorWebhookRegistrationEventType::try_from(event_type)
+                        .map_err(|_| IntegrationError::InvalidDataFormat {
+                            field_name: "scope.event_type",
+                            context: IntegrationErrorContext::default(),
+                        })?;
+                ConnectorWebhookRegistrationScope::EventType(
+                    ConnectorWebhookRegistrationEventType::foreign_try_from(event_type)?,
+                )
+            }
+            Identifier::EventTypes(event_types) => {
+                let event_types = event_types
+                    .event_types
+                    .into_iter()
+                    .map(|event_type| {
+                        let event_type =
+                            grpc_payment_types::ConnectorWebhookRegistrationEventType::try_from(
+                                event_type,
+                            )
+                            .map_err(|_| {
+                                report!(IntegrationError::InvalidDataFormat {
+                                    field_name: "scope.event_types",
+                                    context: IntegrationErrorContext::default(),
+                                })
+                            })?;
+                        ConnectorWebhookRegistrationEventType::foreign_try_from(event_type)
+                    })
+                    .collect::<Result<Vec<_>, error_stack::Report<IntegrationError>>>()?;
+                ConnectorWebhookRegistrationScope::EventTypes(event_types)
+            }
+        };
+
+        let webhook_url = value
+            .webhook_url
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "webhook_url",
+                context: IntegrationErrorContext::default(),
+            })?
+            .expose()
+            .parse::<url::Url>()
+            .change_context(IntegrationError::InvalidDataFormat {
+                field_name: "webhook_url",
+                context: IntegrationErrorContext::default(),
+            })?;
+
+        let connector_webhook_registration_url = value
+            .connector_webhook_registration_url
+            .parse::<url::Url>()
+            .change_context(IntegrationError::InvalidDataFormat {
+                field_name: "connector_webhook_registration_url",
+                context: IntegrationErrorContext::default(),
+            })?;
+
+        Ok(Self {
+            scope,
+            webhook_url: Secret::new(webhook_url),
+            connector_webhook_registration_url,
+            integrity_object: None,
+        })
+    }
+}
+
+impl
+    ForeignTryFrom<(
+        grpc_payment_types::ConnectorWebhookRegisterRequest,
+        Connectors,
+        &MaskedMetadata,
+    )> for ConnectorWebhookRegisterFlowData
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        (value, connectors, metadata): (
+            grpc_payment_types::ConnectorWebhookRegisterRequest,
+            Connectors,
+            &MaskedMetadata,
+        ),
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let merchant_id = extract_merchant_id_from_metadata(metadata)?;
+        let access_token = value
+            .state
+            .as_ref()
+            .and_then(|state| state.access_token.as_ref())
+            .map(ServerAuthenticationTokenResponseData::foreign_try_from)
+            .transpose()?;
+
+        Ok(Self {
+            merchant_id,
+            connector_request_reference_id: extract_connector_request_reference_id(&None),
+            connectors,
+            access_token,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            connector_response_headers: None,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_payment_types::ConnectorWebhookRegistrationEventType>
+    for ConnectorWebhookRegistrationEventType
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: grpc_payment_types::ConnectorWebhookRegistrationEventType,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        use grpc_payment_types::ConnectorWebhookRegistrationEventType as Proto;
+        match value {
+            Proto::Unspecified => Err(IntegrationError::InvalidDataFormat {
+                field_name: "scope.event_type",
+                context: IntegrationErrorContext::default(),
+            }
+            .into()),
+            Proto::PaymentSucceeded => Ok(Self::PaymentSucceeded),
+            Proto::PaymentFailed => Ok(Self::PaymentFailed),
+            Proto::PaymentProcessing => Ok(Self::PaymentProcessing),
+            Proto::PaymentCancelled => Ok(Self::PaymentCancelled),
+            Proto::PaymentCancelledPostCapture => Ok(Self::PaymentCancelledPostCapture),
+            Proto::PaymentAuthorized => Ok(Self::PaymentAuthorized),
+            Proto::PaymentPartiallyAuthorized => Ok(Self::PaymentPartiallyAuthorized),
+            Proto::PaymentCaptured => Ok(Self::PaymentCaptured),
+            Proto::PaymentExpired => Ok(Self::PaymentExpired),
+            Proto::ActionRequired => Ok(Self::ActionRequired),
+            Proto::RefundProcessing => Ok(Self::RefundProcessing),
+            Proto::RefundSucceeded => Ok(Self::RefundSucceeded),
+            Proto::RefundFailed => Ok(Self::RefundFailed),
+            Proto::DisputeOpened => Ok(Self::DisputeOpened),
+            Proto::DisputeExpired => Ok(Self::DisputeExpired),
+            Proto::DisputeAccepted => Ok(Self::DisputeAccepted),
+            Proto::DisputeCancelled => Ok(Self::DisputeCancelled),
+            Proto::DisputeChallenged => Ok(Self::DisputeChallenged),
+            Proto::DisputeWon => Ok(Self::DisputeWon),
+            Proto::DisputeLost => Ok(Self::DisputeLost),
+            Proto::MandateActive => Ok(Self::MandateActive),
+            Proto::MandateRevoked => Ok(Self::MandateRevoked),
+            Proto::PayoutSuccess => Ok(Self::PayoutSuccess),
+            Proto::PayoutFailed => Ok(Self::PayoutFailed),
+            Proto::PayoutInitiated => Ok(Self::PayoutInitiated),
+            Proto::PayoutProcessing => Ok(Self::PayoutProcessing),
+            Proto::PayoutCancelled => Ok(Self::PayoutCancelled),
+            Proto::PayoutExpired => Ok(Self::PayoutExpired),
+            Proto::PayoutReversed => Ok(Self::PayoutReversed),
+            Proto::InvoicePaid => Ok(Self::InvoicePaid),
+            Proto::SurchargePaymentSucceeded => Ok(Self::SurchargePaymentSucceeded),
+            Proto::SurchargeRefundSucceeded => Ok(Self::SurchargeRefundSucceeded),
+        }
+    }
+}
+
+impl ForeignFrom<ConnectorWebhookRegistrationScope>
+    for grpc_payment_types::ConnectorWebhookRegistrationScope
+{
+    fn foreign_from(value: ConnectorWebhookRegistrationScope) -> Self {
+        use grpc_payment_types::connector_webhook_registration_scope::Identifier;
+        let identifier = match value {
+            ConnectorWebhookRegistrationScope::NotSpecific => Identifier::NotSpecific(()),
+            ConnectorWebhookRegistrationScope::PaymentMethodType(payment_method_type) => {
+                let proto_name = payment_method_type.to_string().to_ascii_uppercase();
+                Identifier::PaymentMethodType(
+                    grpc_payment_types::PaymentMethodType::from_str_name(&proto_name)
+                        .unwrap_or(grpc_payment_types::PaymentMethodType::Unspecified)
+                        as i32,
+                )
+            }
+            ConnectorWebhookRegistrationScope::EventType(event_type) => Identifier::EventType(
+                grpc_payment_types::ConnectorWebhookRegistrationEventType::foreign_from(event_type)
+                    as i32,
+            ),
+            ConnectorWebhookRegistrationScope::EventTypes(event_types) => {
+                Identifier::EventTypes(grpc_payment_types::ConnectorWebhookRegistrationEventTypes {
+                    event_types: event_types
+                        .into_iter()
+                        .map(|event_type| {
+                            grpc_payment_types::ConnectorWebhookRegistrationEventType::foreign_from(
+                                event_type,
+                            ) as i32
+                        })
+                        .collect(),
+                })
+            }
+        };
+        Self {
+            identifier: Some(identifier),
+        }
+    }
+}
+
+impl ForeignFrom<ConnectorWebhookRegistrationEventType>
+    for grpc_payment_types::ConnectorWebhookRegistrationEventType
+{
+    fn foreign_from(value: ConnectorWebhookRegistrationEventType) -> Self {
+        use ConnectorWebhookRegistrationEventType as Domain;
+        match value {
+            Domain::PaymentSucceeded => Self::PaymentSucceeded,
+            Domain::PaymentFailed => Self::PaymentFailed,
+            Domain::PaymentProcessing => Self::PaymentProcessing,
+            Domain::PaymentCancelled => Self::PaymentCancelled,
+            Domain::PaymentCancelledPostCapture => Self::PaymentCancelledPostCapture,
+            Domain::PaymentAuthorized => Self::PaymentAuthorized,
+            Domain::PaymentPartiallyAuthorized => Self::PaymentPartiallyAuthorized,
+            Domain::PaymentCaptured => Self::PaymentCaptured,
+            Domain::PaymentExpired => Self::PaymentExpired,
+            Domain::ActionRequired => Self::ActionRequired,
+            Domain::RefundProcessing => Self::RefundProcessing,
+            Domain::RefundSucceeded => Self::RefundSucceeded,
+            Domain::RefundFailed => Self::RefundFailed,
+            Domain::DisputeOpened => Self::DisputeOpened,
+            Domain::DisputeExpired => Self::DisputeExpired,
+            Domain::DisputeAccepted => Self::DisputeAccepted,
+            Domain::DisputeCancelled => Self::DisputeCancelled,
+            Domain::DisputeChallenged => Self::DisputeChallenged,
+            Domain::DisputeWon => Self::DisputeWon,
+            Domain::DisputeLost => Self::DisputeLost,
+            Domain::MandateActive => Self::MandateActive,
+            Domain::MandateRevoked => Self::MandateRevoked,
+            Domain::PayoutSuccess => Self::PayoutSuccess,
+            Domain::PayoutFailed => Self::PayoutFailed,
+            Domain::PayoutInitiated => Self::PayoutInitiated,
+            Domain::PayoutProcessing => Self::PayoutProcessing,
+            Domain::PayoutCancelled => Self::PayoutCancelled,
+            Domain::PayoutExpired => Self::PayoutExpired,
+            Domain::PayoutReversed => Self::PayoutReversed,
+            Domain::InvoicePaid => Self::InvoicePaid,
+            Domain::SurchargePaymentSucceeded => Self::SurchargePaymentSucceeded,
+            Domain::SurchargeRefundSucceeded => Self::SurchargeRefundSucceeded,
+        }
+    }
+}
+
+pub fn generate_connector_webhook_register_response(
+    router_data: RouterDataV2<
+        ConnectorWebhookRegister,
+        ConnectorWebhookRegisterFlowData,
+        ConnectorWebhookRegisterData,
+        ConnectorWebhookRegisterResponseData,
+    >,
+) -> Result<grpc_payment_types::ConnectorWebhookRegisterResponse, error_stack::Report<ConnectorError>>
+{
+    let response_scope = router_data.request.scope.clone();
+    Ok(match router_data.response {
+        Ok(response) => grpc_payment_types::ConnectorWebhookRegisterResponse {
+            scope: Some(
+                grpc_payment_types::ConnectorWebhookRegistrationScope::foreign_from(response.scope),
+            ),
+            status: match response.status {
+                ConnectorWebhookRegistrationStatus::Success => {
+                    grpc_payment_types::ConnectorWebhookRegistrationStatus::Success as i32
+                }
+                ConnectorWebhookRegistrationStatus::Failure => {
+                    grpc_payment_types::ConnectorWebhookRegistrationStatus::Failure as i32
+                }
+            },
+            connector_webhook_id: response.connector_webhook_id,
+            connector_webhook_secret: response.connector_webhook_secret,
+            error: None,
+            metadata: response
+                .metadata
+                .map(|metadata| Secret::new(metadata.expose().to_string())),
+            status_code: response.status_code.into(),
+        },
+        Err(error) => grpc_payment_types::ConnectorWebhookRegisterResponse {
+            scope: Some(
+                grpc_payment_types::ConnectorWebhookRegistrationScope::foreign_from(response_scope),
+            ),
+            status: grpc_payment_types::ConnectorWebhookRegistrationStatus::Failure as i32,
+            connector_webhook_id: None,
+            connector_webhook_secret: None,
+            error: Some(grpc_payment_types::ErrorInfo {
+                unified_details: None,
+                issuer_details: None,
+                connector_details: Some(grpc_payment_types::ConnectorErrorDetails {
+                    code: Some(error.code),
+                    message: Some(error.message),
+                    reason: error.reason,
+                    connector_transaction_id: error.connector_transaction_id,
+                    status: None,
+                }),
+            }),
+            metadata: None,
+            status_code: error.status_code.into(),
+        },
+    })
+}
+
+#[cfg(test)]
+mod connector_webhook_register_tests {
+    use super::*;
+    use grpc_payment_types::connector_webhook_registration_scope::Identifier;
+
+    fn request_with_scope(
+        identifier: Identifier,
+    ) -> grpc_payment_types::ConnectorWebhookRegisterRequest {
+        grpc_payment_types::ConnectorWebhookRegisterRequest {
+            scope: Some(grpc_payment_types::ConnectorWebhookRegistrationScope {
+                identifier: Some(identifier),
+            }),
+            webhook_url: Some(Secret::new(
+                "https://example.com/webhooks/payload".to_string(),
+            )),
+            connector_webhook_registration_url: "https://api.payload.co/webhooks/".to_string(),
+            state: None,
+        }
+    }
+
+    #[test]
+    fn preserves_post_capture_cancellation_scope() {
+        let request = request_with_scope(Identifier::EventType(
+            grpc_payment_types::ConnectorWebhookRegistrationEventType::PaymentCancelledPostCapture
+                as i32,
+        ));
+
+        let converted =
+            ConnectorWebhookRegisterData::foreign_try_from(request).expect("request must convert");
+
+        assert_eq!(
+            converted.scope,
+            ConnectorWebhookRegistrationScope::EventType(
+                ConnectorWebhookRegistrationEventType::PaymentCancelledPostCapture,
+            )
+        );
+        assert_eq!(
+            converted.connector_webhook_registration_url.as_str(),
+            "https://api.payload.co/webhooks/"
+        );
+    }
+
+    #[test]
+    fn converts_multiple_event_types_in_one_scope() {
+        let request = request_with_scope(Identifier::EventTypes(
+            grpc_payment_types::ConnectorWebhookRegistrationEventTypes {
+                event_types: vec![
+                    grpc_payment_types::ConnectorWebhookRegistrationEventType::PaymentFailed as i32,
+                    grpc_payment_types::ConnectorWebhookRegistrationEventType::RefundSucceeded
+                        as i32,
+                ],
+            },
+        ));
+
+        let converted =
+            ConnectorWebhookRegisterData::foreign_try_from(request).expect("request must convert");
+
+        assert_eq!(
+            converted.scope,
+            ConnectorWebhookRegistrationScope::EventTypes(vec![
+                ConnectorWebhookRegistrationEventType::PaymentFailed,
+                ConnectorWebhookRegistrationEventType::RefundSucceeded,
+            ])
+        );
+    }
+
+    #[test]
+    fn converts_payment_method_type_scope() {
+        let request = request_with_scope(Identifier::PaymentMethodType(
+            grpc_payment_types::PaymentMethodType::ApplePay as i32,
+        ));
+
+        let converted =
+            ConnectorWebhookRegisterData::foreign_try_from(request).expect("request must convert");
+
+        assert_eq!(
+            converted.scope,
+            ConnectorWebhookRegistrationScope::PaymentMethodType(PaymentMethodType::ApplePay)
+        );
     }
 }

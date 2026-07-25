@@ -2,6 +2,13 @@ use common_utils::FloatMajorUnit;
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PayloadWebhookRegisterResponse {
+    pub id: String,
+    pub trigger: String,
+    pub url: String,
+}
+
 // PaymentsResponse
 #[derive(Default, Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
