@@ -957,7 +957,9 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResp
                         ..item.router_data.resource_common_data
                     },
                     response: Ok(PaymentsResponseData::PreAuthenticateResponse {
-                        resource_id: None,
+                        resource_id: response_ref_id
+                            .clone()
+                            .map(ResponseId::ConnectorTransactionId),
                         redirection_data,
                         connector_response_reference_id: response_ref_id,
                         status_code: item.http_code,
@@ -977,7 +979,11 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResp
                         .error_code_description
                         .clone()
                         .unwrap_or_else(|| err.error_code.clone()),
-                    reason: err.error_code_description.clone(),
+                    reason: Some(
+                        err.error_code_description
+                            .clone()
+                            .unwrap_or_else(|| err.error_code.clone()),
+                    ),
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
@@ -1169,7 +1175,11 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResp
                         .error_code_description
                         .clone()
                         .unwrap_or_else(|| err.error_code.clone()),
-                    reason: err.error_code_description.clone(),
+                    reason: Some(
+                        err.error_code_description
+                            .clone()
+                            .unwrap_or_else(|| err.error_code.clone()),
+                    ),
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,

@@ -381,6 +381,10 @@ pub enum ConnectorSpecificConfig {
         base_url: Option<String>,
         secondary_base_url: Option<String>,
     },
+    Givepayments {
+        api_key: Secret<String>,
+        base_url: Option<String>,
+    },
 
     // --- Two-field connectors ---
     Razorpay {
@@ -712,6 +716,9 @@ pub enum ConnectorSpecificConfig {
         transaction_key: Secret<String>,
         developer_id: Secret<String>,
         base_url: Option<String>,
+        merchant_street_address: Option<Secret<String>>,
+        customer_service_phone_number: Option<Secret<String>>,
+        merchant_url: Option<String>,
     },
     Wellsfargo {
         api_key: Secret<String>,
@@ -1261,6 +1268,7 @@ impl ConnectorSpecificConfig {
                 public_key,
                 private_key
             },
+            Givepayments { api_key },
         )
     }
 
@@ -1704,6 +1712,7 @@ impl ConnectorSpecificConfig {
                     public_key,
                     private_key
                 },
+                Givepayments { api_key },
             ),
             serde_json::Value::Object(connector_patch),
         );
@@ -2276,6 +2285,9 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 transaction_key: tsys_transit.transaction_key.ok_or_else(err)?,
                 developer_id: tsys_transit.developer_id.ok_or_else(err)?,
                 base_url: tsys_transit.base_url,
+                merchant_street_address: tsys_transit.merchant_street_address,
+                customer_service_phone_number: tsys_transit.customer_service_phone_number,
+                merchant_url: tsys_transit.merchant_url,
             }),
             AuthType::Interpayments(interpayments) => Ok(Self::Interpayments {
                 api_key: interpayments.api_key.ok_or_else(err)?,
@@ -2337,6 +2349,10 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             AuthType::Glomopay(glomopay) => Ok(Self::Glomopay {
                 api_key: glomopay.api_key.ok_or_else(err)?,
                 base_url: glomopay.base_url,
+            }),
+            AuthType::Givepayments(givepayments) => Ok(Self::Givepayments {
+                api_key: givepayments.api_key.ok_or_else(err)?,
+                base_url: givepayments.base_url,
             }),
         }
     }
@@ -2436,6 +2452,13 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                 },
                 ConnectorEnum::Xendit => match auth {
                     ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Xendit {
+                        api_key: api_key.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Givepayments => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Givepayments {
                         api_key: api_key.clone(),
                         base_url: None,
                     }),
@@ -3454,6 +3477,9 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         transaction_key: api_key.clone(),
                         developer_id: api_secret.clone(),
                         base_url: None,
+                        merchant_street_address: None,
+                        customer_service_phone_number: None,
+                        merchant_url: None,
                     }),
                     _ => Err(err().into()),
                 },
