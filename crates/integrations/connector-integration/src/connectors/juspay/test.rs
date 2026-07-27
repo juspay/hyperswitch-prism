@@ -112,6 +112,37 @@ mod card_sync_tests {
 
     // ---------- request construction ----------
 
+    fn decrypt_card_data(
+        card_data: &Secret<String>,
+        auth: &JuspayCardSyncAuthType,
+    ) -> serde_json::Value {
+        let plaintext =
+            crypto::decrypt_payload(card_data.peek(), &auth.response_decryption_private_key)
+                .expect("decrypt");
+        let inner: String = serde_json::from_str(plaintext.peek()).expect("outer json string");
+        serde_json::from_str(&inner).expect("inner json object")
+    }
+
+    #[test]
+    fn seals_the_plaintext_as_a_json_string() {
+        let auth = auth();
+        let request = build_card_sync_request(&card(VISA), &auth).expect("build");
+
+        let plaintext = crypto::decrypt_payload(
+            request.card_data.peek(),
+            &auth.response_decryption_private_key,
+        )
+        .expect("decrypt");
+
+        let value: serde_json::Value = serde_json::from_str(plaintext.peek()).expect("json");
+        let inner = value
+            .as_str()
+            .expect("the sealed plaintext must be a JSON string, not an object");
+
+        let object: serde_json::Value = serde_json::from_str(inner).expect("inner json");
+        assert_eq!(object["accountNumber"], VISA);
+    }
+
     #[test]
     fn builds_a_request_whose_card_data_decrypts_to_the_submitted_card() {
         let auth = auth();
@@ -121,12 +152,7 @@ mod card_sync_tests {
         assert_eq!(request.key_id.peek(), auth.card_sync_key_id.peek());
 
         // Round-trip through the same key pair to confirm the plaintext shape.
-        let plaintext = crypto::decrypt_payload(
-            request.card_data.peek(),
-            &auth.response_decryption_private_key,
-        )
-        .expect("decrypt");
-        let parsed: serde_json::Value = serde_json::from_str(plaintext.peek()).expect("json");
+        let parsed = decrypt_card_data(&request.card_data, &auth);
 
         assert_eq!(parsed["accountNumber"], VISA);
         assert_eq!(parsed["expiryMonth"], "08");
@@ -180,12 +206,7 @@ mod card_sync_tests {
         details.card_exp_year = Secret::new("29".to_string());
 
         let request = build_card_sync_request(&details, &auth).expect("build");
-        let plaintext = crypto::decrypt_payload(
-            request.card_data.peek(),
-            &auth.response_decryption_private_key,
-        )
-        .expect("decrypt");
-        let parsed: serde_json::Value = serde_json::from_str(plaintext.peek()).expect("json");
+        let parsed = decrypt_card_data(&request.card_data, &auth);
 
         assert_eq!(parsed["expiryYear"], "2029");
     }
@@ -197,12 +218,7 @@ mod card_sync_tests {
         details.card_exp_month = Secret::new("8".to_string());
 
         let request = build_card_sync_request(&details, &auth).expect("build");
-        let plaintext = crypto::decrypt_payload(
-            request.card_data.peek(),
-            &auth.response_decryption_private_key,
-        )
-        .expect("decrypt");
-        let parsed: serde_json::Value = serde_json::from_str(plaintext.peek()).expect("json");
+        let parsed = decrypt_card_data(&request.card_data, &auth);
 
         assert_eq!(parsed["expiryMonth"], "08");
     }

@@ -1547,10 +1547,12 @@ pub fn build_card_sync_request(
     let account_number = card.card_number.get_card_no();
     let min_len = super::JUSPAY_MIN_PAN_LENGTH;
     if account_number.len() < min_len {
-        return Err(error_stack::report!(errors::IntegrationError::InvalidDataFormat {
-            field_name: "card_number",
-            context: Default::default(),
-        }))
+        return Err(error_stack::report!(
+            errors::IntegrationError::InvalidDataFormat {
+                field_name: "card_number",
+                context: Default::default(),
+            }
+        ))
         .attach_printable(format!(
             "card number is shorter than the {min_len} digits Juspay accepts"
         ));
@@ -1570,6 +1572,12 @@ pub fn build_card_sync_request(
             context: Default::default(),
         })
         .attach_printable("failed to serialize the card-sync plaintext")?;
+
+    let serialized = serde_json::to_string(&serialized)
+        .change_context(errors::IntegrationError::RequestEncodingFailed {
+            context: Default::default(),
+        })
+        .attach_printable("failed to re-encode the card-sync plaintext as a JSON string")?;
 
     let card_data = super::crypto::encrypt_card_data(
         &Secret::new(serialized),
@@ -1773,11 +1781,13 @@ pub(crate) fn refreshable_card<T: PaymentMethodDataTypes + std::fmt::Debug>(
     match &request.payment_method_data {
         PaymentMethodData::CardWithNoCvc(card) => Ok(card),
         // Do not Debug-format the instrument — some variants have unmasked fields.
-        _ => Err(error_stack::report!(errors::IntegrationError::NotSupported {
-            message: "account updater accepts card_with_no_cvc only".to_string(),
-            connector: "juspay",
-            context: Default::default(),
-        })),
+        _ => Err(error_stack::report!(
+            errors::IntegrationError::NotSupported {
+                message: "account updater accepts card_with_no_cvc only".to_string(),
+                connector: "juspay",
+                context: Default::default(),
+            }
+        )),
     }
 }
 
