@@ -981,6 +981,7 @@ default_impl_refresh_payment_method_v2!(
     Forte,
     Getnet,
     Gigadat,
+    Givepayments,
     Globalpay,
     Glomopay,
     Helcim,
