@@ -334,6 +334,14 @@ macro_rules! expand_fn_get_request_body {
                     router_data: req.clone()
 };
                 let request = bridge.request_body(input_data)?;
+                if let Ok(masked_body) = hyperswitch_masking::masked_serialize(&request) {
+                    tracing::info!(
+                        connector = stringify!($connector),
+                        flow = stringify!($flow),
+                        request_body = %masked_body,
+                        "connector request body (pre-encoding)"
+                    );
+                }
                 let json_bytes = serde_json::to_vec(&request).change_context(
                     macro_types::IntegrationError::RequestEncodingFailed {
                         context: domain_types::errors::IntegrationErrorContext {

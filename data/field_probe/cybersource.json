@@ -331,7 +331,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Dana": {
         "status": "not_supported",
@@ -343,7 +343,7 @@
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "EVoucher": {
         "status": "not_supported",
@@ -379,7 +379,7 @@
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "GoPay": {
         "status": "not_supported",
@@ -562,7 +562,7 @@
       },
       "MobilePayRedirect": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Momo": {
         "status": "not_supported",
@@ -606,7 +606,7 @@
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "OpenBankingUk": {
         "status": "not_supported",
@@ -642,11 +642,11 @@
       },
       "Paysera": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "PermataBankTransfer": {
         "status": "not_supported",
