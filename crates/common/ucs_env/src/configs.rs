@@ -161,6 +161,8 @@ pub struct ArtRecordingConfig {
     pub record_outgoing_http: bool,
     #[serde(default = "default_true")]
     pub record_effects: bool,
+    #[serde(default = "default_true")]
+    pub require_request_header: bool,
     #[serde(default)]
     pub encrypt_entries: bool,
     pub aes_key: Option<String>,
@@ -186,6 +188,7 @@ impl Default for ArtRecordingConfig {
             record_incoming_api: true,
             record_outgoing_http: true,
             record_effects: true,
+            require_request_header: true,
             encrypt_entries: false,
             aes_key: None,
             aes_iv: None,
@@ -201,7 +204,7 @@ impl Default for ArtRecordingConfig {
 
 impl ArtRecordingConfig {
     pub fn should_publish(&self, recording_requested: bool) -> bool {
-        self.enabled && recording_requested
+        self.enabled && (!self.require_request_header || recording_requested)
     }
 }
 
@@ -336,6 +339,18 @@ mod test_config_tests {
         assert!(!disabled_config.should_publish(false));
         assert!(!disabled_config.should_publish(true));
         assert!(!enabled_config.should_publish(false));
+        assert!(enabled_config.should_publish(true));
+    }
+
+    #[test]
+    fn art_recording_publish_can_bypass_request_header_for_testing() {
+        let enabled_config = ArtRecordingConfig {
+            enabled: true,
+            require_request_header: false,
+            ..Default::default()
+        };
+
+        assert!(enabled_config.should_publish(false));
         assert!(enabled_config.should_publish(true));
     }
 
