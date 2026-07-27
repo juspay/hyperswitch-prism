@@ -642,7 +642,10 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, IntegrationError> {
             // Zero-auth CIT alias creation uses the redirect-capable `/v1/transactions`
             // endpoint (createAlias + native 3DS), never the split authorize endpoint.
-            Ok(format!("{}/v1/transactions", self.connector_base_url_payments(req)))
+            if req.request.is_card() {
+                return Ok(format!("{}/v1/transactions", self.connector_base_url_payments(req)));
+            }
+            Ok(format!("{}/v1/transactions/authorize", self.connector_base_url_payments(req)))
         }
     }
 );

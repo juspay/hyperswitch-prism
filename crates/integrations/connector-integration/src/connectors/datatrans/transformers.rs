@@ -424,7 +424,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .change_context(IntegrationError::InvalidWalletToken {
                             wallet_name: "Apple Pay".to_string(),
                             context: datatrans_context(
-                                "Datatrans Apple Pay Authorize requires tokenization_data.token to be a JSON string containing signature, protocolVersion, signedMessage, and intermediateSigningKey",
+                                "Datatrans Apple Pay Authorize requires tokenization_data.token to be a JSON string containing data, header, signature, and version",
                             ),
                         })?;
                     (None, None, None, Some(apl))
@@ -645,6 +645,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let payments_response_data = match &item.response {
             DatatransPaymentsResponse::TransactionResponse(response) => {
+                let mandate_reference = response
+                    .card
+                    .as_ref()
+                    .and_then(|card| card.alias.as_ref())
+                    .map(|alias| MandateReference {
+                        connector_mandate_id: Some(alias.peek().clone()),
+                        payment_method_id: None,
+                        connector_mandate_request_reference_id: None,
+                        mandate_metadata: None,
+                    });
+
                 // Non-3DS / passthrough external 3DS: no redirect. The alias (for mandates)
                 // is surfaced later via PSync, not on this response.
                 PaymentsResponseData::TransactionResponse {
@@ -652,7 +663,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         response.transaction_id.clone(),
                     ),
                     redirection_data: None,
-                    mandate_reference: None,
+                    mandate_reference: mandate_reference.map(Box::new),
                     connector_metadata: None,
                     network_txn_id: None,
                     network_txn_link_id: None,
@@ -738,27 +749,106 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
 
-        let card = match &router_data.request.payment_method_data {
-            PaymentMethodData::Card(card_data) => DatatransCard {
-                alias: None,
-                number: Some(card_data.card_number.clone()),
-                expiry_month: Some(card_data.card_exp_month.clone()),
-                expiry_year: Some(card_data.get_card_expiry_year_2_digit()?),
-                cvv: Some(card_data.card_cvc.clone()),
-                card_type: Some(CARD_TYPE_PLAIN.to_string()),
-                // Zero-auth alias creation always runs Datatrans-native 3DS: send the
-                // cardholder details so Datatrans can drive the ACS challenge.
-                three_ds: Some(ThreeDSecureData::Cardholder(ThreedsInfo {
-                    cardholder: CardHolder {
-                        cardholder_name: router_data
-                            .resource_common_data
-                            .get_billing_full_name()?,
-                        email: router_data.resource_common_data.get_billing_email()?,
-                    },
-                })),
+        let (card, pay, apl ) = match &router_data.request.payment_method_data {
+            PaymentMethodData::Card(card_data) => {
+                let card = DatatransCard {
+                    alias: None,
+                    number: Some(card_data.card_number.clone()),
+                    expiry_month: Some(card_data.card_exp_month.clone()),
+                    expiry_year: Some(card_data.get_card_expiry_year_2_digit()?),
+                    cvv: Some(card_data.card_cvc.clone()),
+                    card_type: Some(CARD_TYPE_PLAIN.to_string()),
+                    // Zero-auth alias creation always runs Datatrans-native 3DS: send the
+                    // cardholder details so Datatrans can drive the ACS challenge.
+                    three_ds: Some(ThreeDSecureData::Cardholder(ThreedsInfo {
+                        cardholder: CardHolder {
+                            cardholder_name: router_data
+                                .resource_common_data
+                                .get_billing_full_name()?,
+                            email: router_data.resource_common_data.get_billing_email()?,
+                        },
+                    })),
+                };
+                (Some(card), None, None)
             },
+            PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                WalletData::GooglePay(google_pay_data) => {
+                    let token = google_pay_data
+                        .tokenization_data
+                        .get_encrypted_google_pay_token()
+                        .change_context(IntegrationError::MissingRequiredField {
+                            field_name: "google_pay.tokenization_data.token",
+                            context: datatrans_context(
+                                "Datatrans Google Pay Authorize requires the encrypted Google Pay tokenization_data.token",
+                            ),
+                        })?;
+                    let pay = serde_json::from_str::<DatatransGooglePayRequest>(&token)
+                        .change_context(IntegrationError::InvalidWalletToken {
+                            wallet_name: "Google Pay".to_string(),
+                            context: datatrans_context(
+                                "Datatrans Google Pay Authorize requires tokenization_data.token to be a JSON string containing signature, protocolVersion, signedMessage, and intermediateSigningKey",
+                            ),
+                        })?;
+                    (None, Some(pay), None)
+                }
+                WalletData::ApplePay(wallet_data) => {
+                    let token = wallet_data.get_applepay_decoded_payment_data()?;
+                    let apl = serde_json::from_str::<DatatransApplePayRequest>(&token.expose())
+                        .change_context(IntegrationError::InvalidWalletToken {
+                            wallet_name: "Apple Pay".to_string(),
+                            context: datatrans_context(
+                                "Datatrans Apple Pay Authorize requires tokenization_data.token to be a JSON string containing data, header, signature, and version",
+                            ),
+                        })?;
+                    (None, None, Some(apl))
+                }
+                WalletData::AliPayQr(_)
+                | WalletData::AliPayRedirect(_)
+                | WalletData::AliPayHkRedirect(_)
+                | WalletData::BluecodeRedirect {}
+                | WalletData::AmazonPayRedirect(_)
+                | WalletData::MomoRedirect(_)
+                | WalletData::KakaoPayRedirect(_)
+                | WalletData::GoPayRedirect(_)
+                | WalletData::GcashRedirect(_)
+                | WalletData::ApplePayRedirect(_)
+                | WalletData::ApplePayThirdPartySdk(_)
+                | WalletData::DanaRedirect {}
+                | WalletData::GooglePayRedirect(_)
+                | WalletData::GooglePayThirdPartySdk(_)
+                | WalletData::MbWayRedirect(_)
+                | WalletData::MobilePayRedirect(_)
+                | WalletData::PaypalRedirect(_)
+                | WalletData::PaypalSdk(_)
+                | WalletData::Paze(_)
+                | WalletData::SamsungPay(_)
+                | WalletData::TwintRedirect {}
+                | WalletData::VippsRedirect {}
+                | WalletData::TouchNGoRedirect(_)
+                | WalletData::WeChatPayRedirect(_)
+                | WalletData::WeChatPayQr(_)
+                | WalletData::CashappQr(_)
+                | WalletData::SwishQr(_)
+                | WalletData::Mifinity(_)
+                | WalletData::RevolutPay(_)
+                | WalletData::MbWay(_)
+                | WalletData::Satispay(_)
+                | WalletData::Wero(_)
+                | WalletData::LazyPayRedirect(_)
+                | WalletData::PhonePeRedirect(_)
+                | WalletData::BillDeskRedirect(_)
+                | WalletData::CashfreeRedirect(_)
+                | WalletData::PayURedirect(_)
+                | WalletData::EaseBuzzRedirect(_)
+                | WalletData::QwikcilverWalletDirect(_)
+                | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
+                    domain_types::utils::get_unimplemented_payment_method_error_message(
+                        "Datatrans",
+                    ),
+                    datatrans_context("Datatrans Authorize supports Google Pay and Apple Pay only"),
+                ))?,
+            }
             PaymentMethodData::CardRedirect(_)
-            | PaymentMethodData::Wallet(_)
             | PaymentMethodData::PayLater(_)
             | PaymentMethodData::BankRedirect(_)
             | PaymentMethodData::BankDebit(_)
@@ -794,10 +884,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .clone(),
             // Zero-auth: no amount is charged; the field is omitted from the request.
             amount: None,
-            card: Some(card),
+            card,
             // Zero-auth alias creation cannot be manually captured.
             auto_settle: Some(true),
-            redirect: Some(RedirectUrls {
+            redirect: router_data.request.is_card().then_some(RedirectUrls {
                 success_url: router_data.request.router_return_url.clone(),
                 cancel_url: router_data.request.router_return_url.clone(),
                 error_url: router_data.request.router_return_url.clone(),
@@ -809,8 +899,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .then_some(DatatransPaymentOptions {
                     create_alias: Some(true),
                 }),
-            pay: None,
-            apl: None,
+            pay,
+            apl,
         })
     }
 }
@@ -989,31 +1079,43 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
 
         // Card expiry for the alias charge comes from the stored card's additional data
-        // (there is no PAN in a MIT request). Mirrors the HS Direct `create_mandate_details`
-        // path that reads `additional_payment_method_data.Card`.
-        let additional_card = match &router_data.request.additional_payment_data {
-            Some(AdditionalPaymentData::Card(card)) => card,
-            None => Err(IntegrationError::MissingRequiredField {
-                field_name: "additional_payment_data",
-                context: datatrans_context(
-                    "Datatrans MIT requires stored card additional data (expiry) for the alias charge",
-                ),
-            })?,
+        // (there is no PAN in a MIT request). MIT requests may carry
+        // `PaymentMethodData::MandatePayment`, so use the retained payment_method_type to
+        // identify Google Pay wallet aliases.
+        let (expiry_month, expiry_year) = match router_data.request.payment_method_type {
+            Some(common_enums::PaymentMethodType::GooglePay)
+            | Some(common_enums::PaymentMethodType::ApplePay) => (None, None),
+            _ => {
+                let additional_card = match &router_data.request.additional_payment_data {
+                    Some(AdditionalPaymentData::Card(card)) => card,
+                    None => Err(error_stack::report!(
+                        IntegrationError::MissingRequiredField {
+                            field_name: "additional_payment_data.card",
+                            context: datatrans_context(
+                                "Datatrans MIT requires the stored card details (additional_payment_data.card) for the alias charge",
+                            ),
+                        }
+                    ))?,
+                };
+
+                let expiry_month = additional_card.card_exp_month.clone().ok_or_else(|| {
+                    error_stack::report!(IntegrationError::MissingRequiredField {
+                        field_name: "additional_payment_data.card.card_exp_month",
+                        context: datatrans_context(
+                            "Datatrans MIT requires the stored card expiry month for the alias charge",
+                        ),
+                    })
+                })?;
+                let expiry_year = additional_card_expiry_year_2_digit(additional_card)?;
+
+                (Some(expiry_month), Some(expiry_year))
+            }
         };
-        let expiry_month = additional_card.card_exp_month.clone().ok_or_else(|| {
-            error_stack::report!(IntegrationError::MissingRequiredField {
-                field_name: "additional_payment_data.card.card_exp_month",
-                context: datatrans_context(
-                    "Datatrans MIT requires the stored card expiry month for the alias charge",
-                ),
-            })
-        })?;
-        let expiry_year = additional_card_expiry_year_2_digit(additional_card)?;
 
         let card = DatatransCard {
             alias: Some(Secret::new(alias)),
-            expiry_month: Some(expiry_month),
-            expiry_year: Some(expiry_year),
+            expiry_month,
+            expiry_year,
             number: None,
             cvv: None,
             card_type: Some(CARD_TYPE_ALIAS.to_string()),
