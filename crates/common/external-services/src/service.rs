@@ -1173,17 +1173,16 @@ fn derive_pod_identity(hostname: &str) -> (Option<String>, Option<String>, Optio
         return (None, None, None);
     }
     let segments: Vec<&str> = hostname.split('-').collect();
-    if segments.len() >= 3 {
-        let deployment_id = segments[segments.len() - 2].to_string();
-        let application_name = segments[..segments.len() - 2].join("-");
-        (
-            Some(application_name),
-            Some(deployment_id),
+    // Bind the last two segments (replicaset hash + pod suffix) and keep the non-empty remainder as
+    // the application name. A slice pattern avoids panic-capable indexing (clippy::indexing_slicing).
+    match segments.as_slice() {
+        [application_name @ .., deployment_id, _pod_suffix] if !application_name.is_empty() => (
+            Some(application_name.join("-")),
+            Some(deployment_id.to_string()),
             Some(hostname.to_string()),
-        )
-    } else {
+        ),
         // Not a standard k8s pod name; keep the pod name only.
-        (None, None, Some(hostname.to_string()))
+        _ => (None, None, Some(hostname.to_string())),
     }
 }
 
