@@ -1010,15 +1010,15 @@ pub struct KountTransaction {
 pub struct KountPayment {
     #[serde(rename = "type")]
     pub payment_type: KountPaymentType,
-    /// Card BIN (first 6 digits) — no full PAN is sent.
+    /// Card BIN (first 6 digits) — no full PAN is sent. Card data, masked.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub bin: Option<String>,
+    pub bin: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub last4: Option<String>,
+    pub last4: Option<Secret<String>>,
     /// Stable, salted hash of the payment instrument (never the raw PAN). Lets
     /// Kount link/score the instrument across orders. See [`payment_token_hash`].
     #[serde(rename = "paymentToken", skip_serializing_if = "Option::is_none")]
-    pub payment_token: Option<String>,
+    pub payment_token: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1026,9 +1026,9 @@ pub struct KountPerson {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<KountName>,
     #[serde(rename = "emailAddress", skip_serializing_if = "Option::is_none")]
-    pub email_address: Option<String>,
+    pub email_address: Option<Secret<String>>,
     #[serde(rename = "phoneNumber", skip_serializing_if = "Option::is_none")]
-    pub phone_number: Option<String>,
+    pub phone_number: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub address: Option<KountAddress>,
 }
@@ -1036,33 +1036,36 @@ pub struct KountPerson {
 #[derive(Debug, Clone, Serialize)]
 pub struct KountName {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub first: Option<String>,
+    pub first: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub last: Option<String>,
+    pub last: Option<Secret<String>>,
 }
 
 impl KountName {
     /// Build a name only when at least one part is present, so we never emit an
     /// empty `{}` name object.
     fn from_parts(first: Option<String>, last: Option<String>) -> Option<Self> {
-        (first.is_some() || last.is_some()).then_some(Self { first, last })
+        (first.is_some() || last.is_some()).then_some(Self {
+            first: first.map(Secret::new),
+            last: last.map(Secret::new),
+        })
     }
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct KountAddress {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub line1: Option<String>,
+    pub line1: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub line2: Option<String>,
+    pub line2: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub city: Option<String>,
+    pub city: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub region: Option<String>,
+    pub region: Option<Secret<String>>,
     #[serde(rename = "countryCode", skip_serializing_if = "Option::is_none")]
     pub country_code: Option<String>,
     #[serde(rename = "postalCode", skip_serializing_if = "Option::is_none")]
-    pub postal_code: Option<String>,
+    pub postal_code: Option<Secret<String>>,
 }
 
 /// Build a Kount person block (name / email / phone / address) from a domain
@@ -1081,18 +1084,38 @@ fn kount_person_from_address(addr: &Address) -> Option<KountPerson> {
         KountName::from_parts(first, last)
     });
     let kount_address = details.map(|details| KountAddress {
-        line1: details.line1.as_ref().map(|line| line.peek().to_string()),
-        line2: details.line2.as_ref().map(|line| line.peek().to_string()),
-        city: details.city.as_ref().map(|city| city.peek().to_string()),
-        region: details.state.as_ref().map(|state| state.peek().to_string()),
+        line1: details
+            .line1
+            .as_ref()
+            .map(|line| Secret::new(line.peek().to_string())),
+        line2: details
+            .line2
+            .as_ref()
+            .map(|line| Secret::new(line.peek().to_string())),
+        city: details
+            .city
+            .as_ref()
+            .map(|city| Secret::new(city.peek().to_string())),
+        region: details
+            .state
+            .as_ref()
+            .map(|state| Secret::new(state.peek().to_string())),
         country_code: details.country.map(|country| country.to_string()),
-        postal_code: details.zip.as_ref().map(|zip| zip.peek().to_string()),
+        postal_code: details
+            .zip
+            .as_ref()
+            .map(|zip| Secret::new(zip.peek().to_string())),
     });
-    let email_address = addr.email.as_ref().map(|email| email.peek().to_string());
-    let phone_number = addr
-        .phone
+    let email_address = addr
+        .email
         .as_ref()
-        .and_then(|phone| phone.number.as_ref().map(|num| num.peek().to_string()));
+        .map(|email| Secret::new(email.peek().to_string()));
+    let phone_number = addr.phone.as_ref().and_then(|phone| {
+        phone
+            .number
+            .as_ref()
+            .map(|num| Secret::new(num.peek().to_string()))
+    });
     if name.is_none()
         && kount_address.is_none()
         && email_address.is_none()
@@ -1122,11 +1145,11 @@ fn kount_person_from_customer(customer: &CustomerInfo) -> Option<KountPerson> {
     let email_address = customer
         .customer_email
         .as_ref()
-        .map(|email| email.peek().to_string());
+        .map(|email| Secret::new(email.peek().to_string()));
     let phone_number = customer
         .customer_phone_number
         .as_ref()
-        .map(|phone| phone.peek().to_string());
+        .map(|phone| Secret::new(phone.peek().to_string()));
     if first.is_none() && last.is_none() && email_address.is_none() && phone_number.is_none() {
         return None;
     }
@@ -1441,9 +1464,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 };
                 KountPayment {
                     payment_type: instrument.payment_type,
-                    bin,
-                    last4,
-                    payment_token,
+                    bin: bin.map(Secret::new),
+                    last4: last4.map(Secret::new),
+                    payment_token: payment_token.map(Secret::new),
                 }
             })
         });
