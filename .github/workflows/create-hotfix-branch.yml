@@ -8,89 +8,17 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  authorize:
+    uses: ./.github/workflows/authorize-release.yml
+    secrets:
+      HYPERSWITCH_BOT_APP_ID: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
+      HYPERSWITCH_BOT_APP_PRIVATE_KEY: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
+
   create_branch:
     runs-on: ubuntu-latest
+    needs: [authorize]
 
     steps:
-      - name: Generate GitHub app token
-        id: generate_app_token
-        uses: actions/create-github-app-token@v2
-        with:
-          app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
-          private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
-
-      - name: Check if user is authorized to trigger workflow
-        shell: bash
-        env:
-          GH_TOKEN: ${{ steps.generate_app_token.outputs.token }}
-          ORG_NAME: ${{ github.repository_owner }}
-          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
-        run: |
-          echo "::add-mask::${GH_TOKEN}"
-
-          # 200 can also be returned for a pending invitation, so require
-          # state == "active"; 404 means not a member. Anything else is a
-          # credential/API/network problem — fail the workflow as an
-          # infrastructure error instead of reporting it as "not authorized".
-          function is_user_active_team_member() {
-            username="${1}"
-            team_slug="${2}"
-            response_file="$(mktemp)"
-
-            status_code="$(
-              curl \
-                --location \
-                --silent \
-                --output "${response_file}" \
-                --write-out '%{http_code}' \
-                --header 'Accept: application/vnd.github+json' \
-                --header 'X-GitHub-Api-Version: 2022-11-28' \
-                --header "Authorization: Bearer ${GH_TOKEN}" \
-                "https://api.github.com/orgs/${ORG_NAME}/teams/${team_slug}/memberships/${username}" \
-                || true
-            )"
-
-            case "${status_code}" in
-              200)
-                state="$(jq --raw-output '.state // "unknown"' "${response_file}")"
-                rm -f "${response_file}"
-                if [[ "${state}" == "active" ]]; then
-                  return 0
-                fi
-                echo "${username} has membership state '${state}' in team ${team_slug}; only active members are authorized."
-                return 1
-                ;;
-              404)
-                rm -f "${response_file}"
-                return 1
-                ;;
-              *)
-                echo "::error::Membership check for team '${team_slug}' failed with HTTP status '${status_code}' — credential, API, or network problem, not an authorization decision. Response: $(head --bytes 300 "${response_file}")"
-                rm -f "${response_file}"
-                exit 1
-                ;;
-            esac
-          }
-
-          allowed_teams=('connector-service-maintainers')
-          is_user_authorized=false
-          username="${TRIGGERING_ACTOR}"
-
-          for team in "${allowed_teams[@]}"; do
-            if is_user_active_team_member "${username}" "${team}"; then
-              is_user_authorized=true
-              break
-            fi
-          done
-
-          if ${is_user_authorized}; then
-            echo "${username} is authorized to trigger workflow"
-          else
-            printf -v allowed_teams_comma_separated '%s, ' "${allowed_teams[@]}"
-            echo "::error::${username} is not authorized to trigger workflow; must be a member of one of these teams: ${allowed_teams_comma_separated%, }"
-            exit 1
-          fi
-
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
