@@ -686,6 +686,15 @@ pub struct TesouroRepeatPaymentRequest {
 #[serde(rename_all = "camelCase")]
 pub struct TesouroMandateMetadata {
     pub activity_date: String,
+    /// Expiry of the credential backing the acquirer token, captured at CIT/SetupMandate time.
+    /// Tesouro's `authorizeRecurring` requires `expirationMonth`/`expirationYear`, and a
+    /// wallet-backed MIT cannot recover them from `additional_payment_data` (card-only), so the
+    /// mandate metadata is the only carrier. Optional so metadata stored before this field
+    /// existed still deserializes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expiration_month: Option<Secret<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expiration_year: Option<Secret<String>>,
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -788,9 +797,34 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 _ => (None, None, None),
             };
 
+        // A mandate MIT arrives as PaymentMethodData::MandatePayment, which also hides which
+        // wallet (if any) backs the stored token. Recover the wallet tag from the payment method
+        // type carried on the recurring request so Tesouro treats the acquirer token correctly.
+        let wallet_type = wallet_type.or(match router_data.request.payment_method_type {
+            Some(common_enums::PaymentMethodType::GooglePay) => Some(TesouroWalletType::GooglePay),
+            Some(common_enums::PaymentMethodType::ApplePay) => Some(TesouroWalletType::ApplePay),
+            _ => None,
+        });
+
+        // The mandate metadata captured at CIT/SetupMandate time is threaded back on the
+        // ConnectorMandateId reference (not on recurring_mandate_payment_data, which is absent for
+        // connector-mandate MITs). It carries the CIT `activityDate` and the credential expiry.
+        let mandate_metadata = connector_mandate_ref
+            .get_mandate_metadata()
+            .map(|metadata| {
+                serde_json::from_value::<TesouroMandateMetadata>(metadata.expose()).change_context(
+                    IntegrationError::RequestEncodingFailed {
+                        context: Default::default(),
+                    },
+                )
+            })
+            .transpose()?;
+
         // Mandate-based MITs arrive as PaymentMethodData::MandatePayment and therefore do not
-        // carry the raw card. Recover the stored card expiry from additional_payment_data so
-        // Tesouro's authorizeRecurring receives the required expirationMonth/expirationYear.
+        // carry the raw card. Recover the stored expiry from additional_payment_data (card
+        // mandates) or from the mandate metadata captured at CIT time (wallet mandates, where
+        // additional_payment_data carries no card fields) so Tesouro's authorizeRecurring
+        // receives the required expirationMonth/expirationYear.
         if expiration_month.is_none() || expiration_year.is_none() {
             if let Some(domain_types::types::AdditionalPaymentData::Card(card_info)) =
                 &router_data.request.additional_payment_data
@@ -806,6 +840,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 }
             }
         }
+        if expiration_month.is_none() {
+            expiration_month = mandate_metadata
+                .as_ref()
+                .and_then(|metadata| metadata.expiration_month.clone());
+        }
+        if expiration_year.is_none() {
+            expiration_year = mandate_metadata
+                .as_ref()
+                .and_then(|metadata| metadata.expiration_year.clone());
+        }
 
         let cit_reference = connector_mandate_ref
             .get_connector_mandate_request_reference_id()
@@ -818,21 +862,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // when it is absent (e.g. a stored-credential MIT that does not thread mandate metadata)
         // fall back to today's date so the required field is always present (matches hyperswitch).
         let original_purchase_date = Some(
-            match router_data
-                .request
-                .recurring_mandate_payment_data
-                .as_ref()
-                .and_then(|recurring_data| recurring_data.mandate_metadata.as_ref())
-            {
-                Some(metadata) => {
-                    serde_json::from_value::<TesouroMandateMetadata>(metadata.clone().expose())
-                        .map(|tesouro_metadata| tesouro_metadata.activity_date)
-                        .change_context(IntegrationError::RequestEncodingFailed {
-                            context: Default::default(),
-                        })?
-                }
-                None => common_utils::date_time::now().date().to_string(),
-            },
+            mandate_metadata
+                .map(|tesouro_metadata| tesouro_metadata.activity_date)
+                .unwrap_or_else(|| common_utils::date_time::now().date().to_string()),
         );
 
         let amount = TesouroAmountConvertor::convert(
@@ -994,10 +1026,44 @@ pub struct TesouroGraphQlErrorExtensions {
 
 // ---- helpers to build responses ----
 
+/// Expiry of the card/wallet credential in the request, when the flow carries one in the clear.
+/// Persisted into the mandate metadata so a later MIT can populate Tesouro's required
+/// `expirationMonth`/`expirationYear` even when the MIT request itself has no credential data.
+fn get_credential_expiry<T: PaymentMethodDataTypes>(
+    payment_method_data: &PaymentMethodData<T>,
+) -> (Option<Secret<String>>, Option<Secret<String>>) {
+    match payment_method_data {
+        PaymentMethodData::Card(card) => (
+            card.get_card_expiry_month_2_digit().ok(),
+            Some(card.get_expiry_year_4_digit()),
+        ),
+        PaymentMethodData::Wallet(WalletData::ApplePay(apple_pay)) => {
+            match &apple_pay.payment_data {
+                ApplePayPaymentData::Decrypted(decrypted) => (
+                    Some(decrypted.get_expiry_month()),
+                    Some(decrypted.get_four_digit_expiry_year()),
+                ),
+                ApplePayPaymentData::Encrypted(_) => (None, None),
+            }
+        }
+        PaymentMethodData::Wallet(WalletData::GooglePay(google_pay)) => {
+            match &google_pay.tokenization_data {
+                GpayTokenizationData::Decrypted(decrypted) => (
+                    Some(decrypted.card_exp_month.clone()),
+                    decrypted.get_four_digit_expiry_year().ok(),
+                ),
+                GpayTokenizationData::Encrypted(_) => (None, None),
+            }
+        }
+        _ => (None, None),
+    }
+}
+
 fn build_mandate_reference(
     token_details: Option<TesouroTokenDetails>,
     payment_id: Option<String>,
     activity_date: Option<String>,
+    credential_expiry: (Option<Secret<String>>, Option<Secret<String>>),
 ) -> Option<MandateReference> {
     // Only surface a mandate when the connector actually returned a token to store; a
     // MandateReference with a `None` connector_mandate_id is unusable for later MITs.
@@ -1005,9 +1071,12 @@ fn build_mandate_reference(
         .and_then(|token_details| token_details.token)
         .map(|token| token.expose());
     connector_mandate_id.map(|connector_mandate_id| {
+        let (expiration_month, expiration_year) = credential_expiry;
         let mandate_metadata = activity_date.map(|activity_date| {
             common_utils::pii::SecretSerdeValue::new(serde_json::json!(TesouroMandateMetadata {
-                activity_date
+                activity_date,
+                expiration_month,
+                expiration_year,
             }))
         });
         MandateReference {
@@ -1146,6 +1215,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<TesouroSetupMandateRe
                         Some(verify_response.token_details),
                         Some(verify_response.payment_id.clone()),
                         Some(verify_response.activity_date),
+                        get_credential_expiry(&item.router_data.request.payment_method_data),
                     );
                     (
                         AttemptStatus::Charged,
@@ -1260,6 +1330,7 @@ fn map_authorization_response(
     inner: AuthorizationInnerResponse,
     auto_capture: bool,
     http_code: u16,
+    credential_expiry: (Option<Secret<String>>, Option<Secret<String>>),
 ) -> Result<(AttemptStatus, Result<PaymentsResponseData, ErrorResponse>), ResponseError> {
     if let Some(auth_response) = inner.authorization_response {
         let transaction_id = auth_response.transaction_id.clone();
@@ -1273,6 +1344,7 @@ fn map_authorization_response(
                     auth_response.token_details,
                     auth_response.payment_id.clone(),
                     auth_response.activity_date,
+                    credential_expiry,
                 );
                 Ok((
                     status,
@@ -1344,6 +1416,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<TesouroAuthorizeRespo
                 success.data.authorize_customer_initiated_transaction,
                 auto_capture,
                 item.http_code,
+                get_credential_expiry(&item.router_data.request.payment_method_data),
             )?,
             TesouroApiResponse::Error(error_response) => {
                 let status = AttemptStatus::from(AuthOutcome(
@@ -1380,6 +1453,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<TesouroAuthorizeRespo
                 success.data.authorize_customer_initiated_transaction,
                 auto_capture,
                 item.http_code,
+                get_credential_expiry(&item.router_data.request.payment_method_data),
             )?,
             TesouroApiResponse::Error(error_response) => {
                 let status = AttemptStatus::from(AuthOutcome(
