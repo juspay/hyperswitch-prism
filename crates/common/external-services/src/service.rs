@@ -1139,18 +1139,8 @@ fn version_metadata() -> &'static VersionMetadata {
 
         // k8s sets HOSTNAME to the pod name: `<application_name>-<replicaset_hash>-<pod_suffix>`.
         let (application_name, deployment_id, pod_name) = match std::env::var("HOSTNAME") {
-            Ok(hostname) if !hostname.is_empty() => {
-                let segments: Vec<&str> = hostname.split('-').collect();
-                if segments.len() >= 3 {
-                    let deployment_id = segments[segments.len() - 2].to_string();
-                    let application_name = segments[..segments.len() - 2].join("-");
-                    (Some(application_name), Some(deployment_id), Some(hostname))
-                } else {
-                    // Not a standard k8s pod name; keep the pod name only.
-                    (None, None, Some(hostname))
-                }
-            }
-            _ => (None, None, None),
+            Ok(hostname) => derive_pod_identity(&hostname),
+            Err(_) => (None, None, None),
         };
 
         VersionMetadata {
@@ -1160,6 +1150,81 @@ fn version_metadata() -> &'static VersionMetadata {
             pod_name,
         }
     })
+}
+
+/// Derive `(application_name, deployment_id, pod_name)` from a k8s pod name of the form
+/// `<application_name>-<replicaset_hash>-<pod_suffix>`:
+/// - `deployment_id` = the replicaset-hash segment (second from last),
+/// - `application_name` = everything before it,
+/// - `pod_name` = the full hostname.
+///
+/// A non-standard name (fewer than 3 `-`-separated segments) keeps only `pod_name`; an empty
+/// hostname yields all-`None`. Pure (input passed in, no env read) so the parsing is unit-testable.
+fn derive_pod_identity(hostname: &str) -> (Option<String>, Option<String>, Option<String>) {
+    if hostname.is_empty() {
+        return (None, None, None);
+    }
+    let segments: Vec<&str> = hostname.split('-').collect();
+    if segments.len() >= 3 {
+        let deployment_id = segments[segments.len() - 2].to_string();
+        let application_name = segments[..segments.len() - 2].join("-");
+        (
+            Some(application_name),
+            Some(deployment_id),
+            Some(hostname.to_string()),
+        )
+    } else {
+        // Not a standard k8s pod name; keep the pod name only.
+        (None, None, Some(hostname.to_string()))
+    }
+}
+
+#[cfg(test)]
+mod derive_pod_identity_tests {
+    use super::derive_pod_identity;
+
+    #[test]
+    fn standard_pod_name_splits_app_and_replicaset() {
+        let (app, dep, pod) = derive_pod_identity("connector-service-http-79f5d6b8c4-x2n7q");
+        assert_eq!(app.as_deref(), Some("connector-service-http"));
+        assert_eq!(dep.as_deref(), Some("79f5d6b8c4"));
+        assert_eq!(pod.as_deref(), Some("connector-service-http-79f5d6b8c4-x2n7q"));
+    }
+
+    #[test]
+    fn deployment_name_with_build_token_absorbed_into_app() {
+        // Live sbx pod: the deployment name itself embeds a build token (`d02a2bac0e`), so it is
+        // absorbed into `application_name` and the replicaset hash remains the deployment_id.
+        let (app, dep, pod) =
+            derive_pod_identity("connector-service-http-d02a2bac0e-c9d9c4945-h6r4g");
+        assert_eq!(app.as_deref(), Some("connector-service-http-d02a2bac0e"));
+        assert_eq!(dep.as_deref(), Some("c9d9c4945"));
+        assert_eq!(
+            pod.as_deref(),
+            Some("connector-service-http-d02a2bac0e-c9d9c4945-h6r4g")
+        );
+    }
+
+    #[test]
+    fn exactly_three_segments() {
+        let (app, dep, pod) = derive_pod_identity("app-rs123-suffix");
+        assert_eq!(app.as_deref(), Some("app"));
+        assert_eq!(dep.as_deref(), Some("rs123"));
+        assert_eq!(pod.as_deref(), Some("app-rs123-suffix"));
+    }
+
+    #[test]
+    fn short_name_keeps_pod_only() {
+        let (app, dep, pod) = derive_pod_identity("connector-service");
+        assert_eq!(app, None);
+        assert_eq!(dep, None);
+        assert_eq!(pod.as_deref(), Some("connector-service"));
+    }
+
+    #[test]
+    fn empty_hostname_is_all_none() {
+        assert_eq!(derive_pod_identity(""), (None, None, None));
+    }
 }
 
 pub enum ApplicationResponse<R> {
