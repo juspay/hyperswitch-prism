@@ -1188,7 +1188,10 @@ mod derive_pod_identity_tests {
         let (app, dep, pod) = derive_pod_identity("connector-service-http-79f5d6b8c4-x2n7q");
         assert_eq!(app.as_deref(), Some("connector-service-http"));
         assert_eq!(dep.as_deref(), Some("79f5d6b8c4"));
-        assert_eq!(pod.as_deref(), Some("connector-service-http-79f5d6b8c4-x2n7q"));
+        assert_eq!(
+            pod.as_deref(),
+            Some("connector-service-http-79f5d6b8c4-x2n7q")
+        );
     }
 
     #[test]
