@@ -19,6 +19,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.07.27.0
+
+### Features
+
+- **connector:** [Datatrans] Add support for Applepay and Googlepay ([#2007](https://github.com/juspay/connector-service/pull/2007)) ([`8e097d5`](https://github.com/juspay/connector-service/commit/8e097d500295eb5d278955f54e1136e384175ada))
+- [interpayments] add surcharge wave flag to calculate surcharge request ([#2006](https://github.com/juspay/connector-service/pull/2006)) ([`300da76`](https://github.com/juspay/connector-service/commit/300da769ba2ddd03b3522dd3b36a4d7e83025b2e))
+- [tsystransit] add support for ecommerce ([#1942](https://github.com/juspay/connector-service/pull/1942)) ([`f065deb`](https://github.com/juspay/connector-service/commit/f065deb064f4b14bde664e3eea439497b5e569db))
+
+**Full Changelog:** [`2026.07.24.1...2026.07.27.0`](https://github.com/juspay/connector-service/compare/2026.07.24.1...2026.07.27.0)
+
+- - -
+
 ## 2026.07.24.1
 
 ### Features
