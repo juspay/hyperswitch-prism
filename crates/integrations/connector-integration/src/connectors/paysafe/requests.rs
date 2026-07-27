@@ -322,13 +322,27 @@ pub struct PaysafeGooglePayCardInfo {
 }
 
 #[derive(Debug, Serialize, Clone, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct PaysafeGooglePayTokenizationData {
-    /// Always "PAYMENT_GATEWAY"
-    #[serde(rename = "type")]
-    pub token_type: String,
-    /// The decrypted Google Pay token data
-    pub decrypted_token: PaysafeGooglePayDecryptedToken,
+#[serde(untagged)]
+pub enum PaysafeGooglePayTokenizationData {
+    /// Pre-decrypted token forwarded as `decryptedToken` (upstream decrypted).
+    Decrypted {
+        /// Always "PAYMENT_GATEWAY"
+        #[serde(rename = "type")]
+        token_type: String,
+        /// The decrypted Google Pay token data
+        #[serde(rename = "decryptedToken")]
+        decrypted_token: PaysafeGooglePayDecryptedToken,
+    },
+    /// Raw encrypted Google Pay SDK token passed through for Paysafe to
+    /// decrypt gateway-side (requires the merchant's Google Pay
+    /// gatewayMerchantId to be provisioned with Paysafe).
+    Encrypted {
+        /// Always "PAYMENT_GATEWAY"
+        #[serde(rename = "type")]
+        token_type: String,
+        /// The raw `tokenizationData.token` string from the Google Pay SDK
+        token: Secret<String>,
+    },
 }
 
 #[derive(Debug, Serialize, Clone, PartialEq)]
@@ -344,8 +358,8 @@ pub struct PaysafeGooglePayDecryptedToken {
 pub struct PaysafeGooglePayPaymentMethodDetails {
     pub auth_method: PaysafeGooglePayAuthMethod,
     pub pan: Secret<String>,
-    pub expiration_month: u8,
-    pub expiration_year: u16,
+    pub expiration_month: Secret<String>,
+    pub expiration_year: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cryptogram: Option<Secret<String>>,
 }
@@ -501,6 +515,30 @@ pub enum PaysafeAuthorizeRequest<T: PaymentMethodDataTypes> {
     PaymentHandle(Box<PaysafeSetupMandateRequest<T>>),
 }
 
+/// Tokenize request body — one of two Paysafe calls:
+///
+/// `Handle`: mint a new payment handle (card/wallet payload). With a Paysafe
+/// customer, cards go straight to the customer vault (MULTI_USE); wallets can
+/// only mint SINGLE_USE handles this way (the vault endpoint rejects raw
+/// applePay/googlePay objects with 5068 "CARD object must be present").
+///
+/// `VaultFromHandle`: wallet recurring leg 2 — convert an existing single-use
+/// wallet handle into a customer-vaulted MULTI_USE (paymentType CARD) handle
+/// via `POST v1/customers/{id}/paymenthandles {paymentHandleTokenFrom}`,
+/// mirroring Paysafe's documented Apple Pay / Google Pay recurring flow.
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum PaysafePaymentMethodTokenRequest<T: PaymentMethodDataTypes> {
+    VaultFromHandle(PaysafeVaultFromHandleRequest),
+    Handle(Box<PaysafeSetupMandateRequest<T>>),
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeVaultFromHandleRequest {
+    pub merchant_ref_num: String,
+    pub payment_handle_token_from: Secret<String>,
+}
+
 // Type aliases for flows
-pub type PaysafePaymentMethodTokenRequest<T> = PaysafeSetupMandateRequest<T>;
 pub type PaysafeRepeatPaymentRequest = PaysafePaymentsRequest;

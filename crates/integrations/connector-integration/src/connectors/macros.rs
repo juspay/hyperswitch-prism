@@ -335,7 +335,7 @@ macro_rules! expand_fn_get_request_body {
 };
                 let request = bridge.request_body(input_data)?;
                 if let Ok(masked_body) = hyperswitch_masking::masked_serialize(&request) {
-                    tracing::debug!(
+                    tracing::info!(
                         connector = stringify!($connector),
                         flow = stringify!($flow),
                         request_body = %masked_body,
