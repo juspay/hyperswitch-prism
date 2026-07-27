@@ -1752,7 +1752,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             payment_method,
             first_name: common_data.get_optional_billing_first_name(),
             last_name: common_data.get_optional_billing_last_name(),
-            email: router_data.request.email.clone(),
+            email: common_data.get_optional_billing_email(),
             address1: common_data.get_optional_billing_line1(),
             address2: common_data.get_optional_billing_line2(),
             city: common_data.get_optional_billing_city(),
