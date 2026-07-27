@@ -457,13 +457,14 @@ fn get_finix_three_d_secure(
 }
 
 fn get_finix_fraud_session_id(connector_feature_data: Option<&SecretSerdeValue>) -> Option<String> {
-    let feature_data = connector_feature_data?.peek();
-
-    feature_data
-        .get("finix_additional_details")
-        .and_then(|details| details.get("fraud_session_id"))
-        .and_then(|value| value.as_str())
-        .map(ToOwned::to_owned)
+    connector_feature_data.and_then(|feature_data| {
+        feature_data
+            .peek()
+            .get("finix_additional_details")
+            .and_then(|details| details.get("fraud_session_id"))
+            .and_then(|value| value.as_str())
+            .map(ToOwned::to_owned)
+    })
 }
 
 // TRYFROM IMPLEMENTATIONS - AUTHORIZE REQUEST
