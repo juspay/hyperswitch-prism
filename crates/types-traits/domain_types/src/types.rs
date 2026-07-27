@@ -4949,7 +4949,11 @@ impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for Pay
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
             status: common_enums::AttemptStatus::Pending,
-            payment_method: PaymentMethod::Card,
+            payment_method: value
+                .payment_method
+                .map(PaymentMethod::foreign_try_from)
+                .transpose()?
+                .unwrap_or(PaymentMethod::Card),
             address,
             auth_type: common_enums::AuthenticationType::foreign_try_from(value.auth_type)?,
             connector_request_reference_id: extract_connector_request_reference_id(
@@ -5037,7 +5041,11 @@ impl ForeignTryFrom<(SetupRecurringRequest, Connectors, &MaskedMetadata)> for Pa
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
             status: common_enums::AttemptStatus::Pending,
-            payment_method: PaymentMethod::Card,
+            payment_method: value
+                .payment_method
+                .map(PaymentMethod::foreign_try_from)
+                .transpose()?
+                .unwrap_or(PaymentMethod::Card),
             address,
             auth_type: common_enums::AuthenticationType::foreign_try_from(value.auth_type)?,
             connector_request_reference_id: extract_connector_request_reference_id(&Some(
@@ -5151,7 +5159,11 @@ impl
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
             status: common_enums::AttemptStatus::Pending,
-            payment_method: PaymentMethod::Card, //TODO
+            payment_method: value
+                .payment_method
+                .map(PaymentMethod::foreign_try_from)
+                .transpose()?
+                .unwrap_or(PaymentMethod::Card),
             address,
             auth_type: common_enums::AuthenticationType::foreign_try_from(value.auth_type())?,
             connector_request_reference_id: extract_connector_request_reference_id(
@@ -10747,7 +10759,11 @@ impl
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
             status: common_enums::AttemptStatus::Pending,
-            payment_method: PaymentMethod::Card, //TODO
+            payment_method: value
+                .payment_method
+                .map(PaymentMethod::foreign_try_from)
+                .transpose()?
+                .unwrap_or(PaymentMethod::Card),
             address,
             auth_type: common_enums::AuthenticationType::foreign_try_from(
                 grpc_api_types::payments::AuthenticationType::try_from(value.auth_type)
@@ -10848,7 +10864,11 @@ impl
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
             status: common_enums::AttemptStatus::Pending,
-            payment_method: PaymentMethod::Card,
+            payment_method: value
+                .payment_method
+                .map(PaymentMethod::foreign_try_from)
+                .transpose()?
+                .unwrap_or(PaymentMethod::Card),
             address,
             auth_type: common_enums::AuthenticationType::default(),
             connector_request_reference_id: value.merchant_recurring_payment_id,
