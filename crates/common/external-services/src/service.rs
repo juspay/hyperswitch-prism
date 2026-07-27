@@ -1122,6 +1122,10 @@ pub fn set_build_version(version: String) {
 /// - `application_name` / `deployment_id` / `pod_name`: derived from the pod name in `HOSTNAME`,
 ///   which k8s sets to `<application_name>-<replicaset_hash>-<pod_suffix>` — so no plain env var or
 ///   downward-API `fieldRef` is required from the deployment pipeline.
+///
+/// Only compiled with `injector-client`, since its sole consumer (`create_event`) is gated on it;
+/// the FFI build (no `injector-client`) does not create events.
+#[cfg(feature = "injector-client")]
 struct VersionMetadata {
     application_name: Option<String>,
     version: Option<String>,
@@ -1129,6 +1133,7 @@ struct VersionMetadata {
     pod_name: Option<String>,
 }
 
+#[cfg(feature = "injector-client")]
 fn version_metadata() -> &'static VersionMetadata {
     static VERSION_METADATA: std::sync::OnceLock<VersionMetadata> = std::sync::OnceLock::new();
     VERSION_METADATA.get_or_init(|| {
@@ -1160,6 +1165,9 @@ fn version_metadata() -> &'static VersionMetadata {
 ///
 /// A non-standard name (fewer than 3 `-`-separated segments) keeps only `pod_name`; an empty
 /// hostname yields all-`None`. Pure (input passed in, no env read) so the parsing is unit-testable.
+///
+/// Gated on `injector-client` alongside its only caller, `version_metadata`.
+#[cfg(feature = "injector-client")]
 fn derive_pod_identity(hostname: &str) -> (Option<String>, Option<String>, Option<String>) {
     if hostname.is_empty() {
         return (None, None, None);
@@ -1179,7 +1187,7 @@ fn derive_pod_identity(hostname: &str) -> (Option<String>, Option<String>, Optio
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "injector-client"))]
 mod derive_pod_identity_tests {
     use super::derive_pod_identity;
 

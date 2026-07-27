@@ -296,26 +296,26 @@ impl Event {
     /// The application / microservice name (e.g. `connector-service-http`). Sourced from the
     /// `APPLICATION_NAME` env, not the internal gRPC `service_name`.
     pub fn add_application_name(&mut self, application_name: &str) {
-        self.push_version_field("application_name", application_name);
+        self.push_additional_field("application_name", application_name);
     }
 
     /// The deployed build version (e.g. `2026.07.08.0`). A/B groups on this field directly.
     pub fn add_version(&mut self, version: &str) {
-        self.push_version_field("version", version);
+        self.push_additional_field("version", version);
     }
 
     /// The rollout / replicaset id (k8s downward API).
     pub fn add_deployment_id(&mut self, deployment_id: &str) {
-        self.push_version_field("deployment_id", deployment_id);
+        self.push_additional_field("deployment_id", deployment_id);
     }
 
     /// The pod name (k8s downward API `metadata.name`).
     pub fn add_pod_name(&mut self, pod_name: &str) {
-        self.push_version_field("pod_name", pod_name);
+        self.push_additional_field("pod_name", pod_name);
     }
 
-    /// Insert a masked top-level version-metadata field into `additional_fields`.
-    fn push_version_field(&mut self, key: &str, value: &str) {
+    /// Insert a single masked top-level field into `additional_fields`.
+    fn push_additional_field(&mut self, key: &str, value: &str) {
         MaskedSerdeValue::from_masked_optional(&value.to_string(), key).map(|masked| {
             self.additional_fields.insert(key.to_string(), masked);
         });
