@@ -70,15 +70,18 @@ fn encrypt_card_data<T: PaymentMethodDataTypes>(
         })?;
     let expiration_month = card.card_exp_month.peek().to_string();
     let expiration_year = card.get_expiry_year_4_digit().peek().to_string();
+    let security_code = card.card_cvc.peek().to_string();
 
-    let plain_block = format!("{card_data}{name_on_card}{expiration_month}{expiration_year}");
+    let plain_block =
+        format!("{card_data}{name_on_card}{expiration_month}{expiration_year}{security_code}");
 
     let card_data_len = card_data.len();
     let name_on_card_len = name_on_card.len();
     let expiration_month_len = expiration_month.len();
     let expiration_year_len = expiration_year.len();
+    let security_code_len = security_code.len();
     let encryption_block_fields = format!(
-        "card.cardData:{card_data_len},card.nameOnCard:{name_on_card_len},card.expirationMonth:{expiration_month_len},card.expirationYear:{expiration_year_len}"
+        "card.cardData:{card_data_len},card.nameOnCard:{name_on_card_len},card.expirationMonth:{expiration_month_len},card.expirationYear:{expiration_year_len},card.securityCode:{security_code_len}"
     );
 
     let encrypted_bytes = RsaOaepSha256::encrypt(public_key_der, plain_block.as_bytes())
