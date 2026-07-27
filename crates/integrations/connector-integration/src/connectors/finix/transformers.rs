@@ -1711,8 +1711,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 },
                 response: Err(ErrorResponse {
                     code,
-                    message: failure_message.clone(),
-                    reason: Some(failure_message),
+                    message: failure_message,
+                    reason: None,
                     status_code: item.http_code,
                     attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: Some(response.id.clone()),
