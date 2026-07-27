@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.07.17.0-hotfix1
+
+### Bug Fixes
+
+- **fiservcommercehub:** Include card CVC in RSA encryption block for card payments ([#2011](https://github.com/juspay/connector-service/pull/2011)) ([`3938cb0`](https://github.com/juspay/connector-service/commit/3938cb0da6310617434cfb4cf3b9ca1d00b08829))
+
+**Full Changelog:** [`2026.07.17.0...2026.07.17.0-hotfix1`](https://github.com/juspay/connector-service/compare/2026.07.17.0...2026.07.17.0-hotfix1)
+
+- - -
+
 ## 2026.07.17.0
 
 ### Features
