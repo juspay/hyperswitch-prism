@@ -89,7 +89,11 @@ mod card_sync_tests {
 
     /// Every outcome returns a full card, so "the network changed nothing" is
     /// asserted as "the result is the submitted card", not as an absent field.
-    fn assert_unchanged(parsed: &RefreshPaymentMethodResponseData, submitted: &CardWithNoCvc, ctx: &str) {
+    fn assert_unchanged(
+        parsed: &RefreshPaymentMethodResponseData,
+        submitted: &CardWithNoCvc,
+        ctx: &str,
+    ) {
         let returned = card_of(parsed);
         assert_eq!(
             returned.card_number, submitted.card_number,
@@ -196,7 +200,10 @@ mod card_sync_tests {
         let message = format!("{:?}", err.current_context());
 
         assert!(message.contains("AmericanExpress"), "{message}");
-        assert!(message.contains("Visa") && message.contains("Mastercard"), "{message}");
+        assert!(
+            message.contains("Visa") && message.contains("Mastercard"),
+            "{message}"
+        );
     }
 
     #[test]
@@ -259,10 +266,12 @@ mod card_sync_tests {
 
     #[test]
     fn a_non_card_instrument_is_rejected_by_the_connector() {
-        let request = refresh_data(PaymentMethodData::Upi(UpiData::UpiCollect(UpiCollectData {
-            vpa_id: None,
-            upi_source: None,
-        })));
+        let request = refresh_data(PaymentMethodData::Upi(UpiData::UpiCollect(
+            UpiCollectData {
+                vpa_id: None,
+                upi_source: None,
+            },
+        )));
 
         let err = refreshable_card(&request).expect_err("Juspay refreshes cards only");
         let message = format!("{:?}", err.current_context());
@@ -394,8 +403,16 @@ mod card_sync_tests {
     fn parses_the_terminal_outcomes_with_explicit_nulls() {
         let auth = auth();
         let cases = [
-            (JuspayCardSyncResponseCode::NoChange, CardRefreshOutcome::NoChange, "NO_CHANGE"),
-            (JuspayCardSyncResponseCode::CardClosed, CardRefreshOutcome::Closed, "CARD_CLOSED"),
+            (
+                JuspayCardSyncResponseCode::NoChange,
+                CardRefreshOutcome::NoChange,
+                "NO_CHANGE",
+            ),
+            (
+                JuspayCardSyncResponseCode::CardClosed,
+                CardRefreshOutcome::Closed,
+                "CARD_CLOSED",
+            ),
             (
                 JuspayCardSyncResponseCode::CardNotFound,
                 CardRefreshOutcome::NotFound,
@@ -414,8 +431,9 @@ mod card_sync_tests {
                 r#"{"updatedAccountNumber":null,"isAccountUpdated":false,"updatedExpiryDate":null}"#,
             );
 
-            let parsed = parse_card_sync_response(&response(code, Some(payload)), &auth, 200, &card(VISA))
-                .expect("parse");
+            let parsed =
+                parse_card_sync_response(&response(code, Some(payload)), &auth, 200, &card(VISA))
+                    .expect("parse");
 
             assert_eq!(outcome_of(&parsed), expected);
             assert_unchanged(&parsed, &card(VISA), raw);
@@ -432,8 +450,8 @@ mod card_sync_tests {
             JuspayCardSyncResponseCode::CardNotFound,
             JuspayCardSyncResponseCode::ContactIssuer,
         ] {
-            let parsed =
-                parse_card_sync_response(&response(code, None), &auth, 200, &card(VISA)).expect("parse");
+            let parsed = parse_card_sync_response(&response(code, None), &auth, 200, &card(VISA))
+                .expect("parse");
             assert_unchanged(&parsed, &card(VISA), "an absent payload");
         }
     }
@@ -495,14 +513,19 @@ mod card_sync_tests {
 
         assert_eq!(
             parsed.response_code,
-            Some(JuspayCardSyncResponseCode::Unknown("SOMETHING_NEW".to_string()))
+            Some(JuspayCardSyncResponseCode::Unknown(
+                "SOMETHING_NEW".to_string()
+            ))
         );
     }
 
     #[test]
     fn deserializes_the_documented_codes() {
         for (raw, expected) in [
-            ("ACCOUNT_UPDATED", JuspayCardSyncResponseCode::AccountUpdated),
+            (
+                "ACCOUNT_UPDATED",
+                JuspayCardSyncResponseCode::AccountUpdated,
+            ),
             ("EXPIRY_UPDATED", JuspayCardSyncResponseCode::ExpiryUpdated),
             ("NO_CHANGE", JuspayCardSyncResponseCode::NoChange),
             ("CARD_CLOSED", JuspayCardSyncResponseCode::CardClosed),
@@ -512,8 +535,7 @@ mod card_sync_tests {
             let body = format!(
                 r#"{{"status":"SUCCESS","responseCode":"{raw}","responseMessage":"x","payload":null}}"#
             );
-            let parsed: JuspayCardSyncResponse =
-                serde_json::from_str(&body).expect("deserialize");
+            let parsed: JuspayCardSyncResponse = serde_json::from_str(&body).expect("deserialize");
             assert_eq!(parsed.response_code, Some(expected), "{raw}");
         }
     }
@@ -755,8 +777,8 @@ mod card_sync_tests {
                 base_url: None,
             };
 
-            let err = JuspayCardSyncAuthType::try_from(&config)
-                .expect_err("{missing} must be reported");
+            let err =
+                JuspayCardSyncAuthType::try_from(&config).expect_err("{missing} must be reported");
 
             assert_eq!(
                 err.current_context(),
@@ -805,7 +827,10 @@ mod card_sync_tests {
             info.user_message.as_deref(),
             Some("Invalid request params. Please verify your input.")
         );
-        assert_eq!(info.developer_message.as_deref(), Some("Ltr Entry Not Found"));
+        assert_eq!(
+            info.developer_message.as_deref(),
+            Some("Ltr Entry Not Found")
+        );
     }
 
     #[test]
@@ -913,8 +938,7 @@ mod card_sync_failure_tests {
         // `responseCode` is optional per the provider spec, so its absence must
         // not fail deserialization — it is rejected later, as a bad response.
         let parsed: JuspayCardSyncResponse =
-            serde_json::from_str(r#"{"status":"SUCCESS","payload":null}"#)
-                .expect("deserialize");
+            serde_json::from_str(r#"{"status":"SUCCESS","payload":null}"#).expect("deserialize");
 
         assert!(parsed.response_code.is_none());
     }
@@ -1022,7 +1046,10 @@ mod card_sync_length_tests {
         assert_eq!(short.len(), 12);
 
         let err = build_card_sync_request(&card(short), &auth()).expect_err("must reject");
-        assert!(format!("{err:?}").contains("13"), "error should name the limit");
+        assert!(
+            format!("{err:?}").contains("13"),
+            "error should name the limit"
+        );
     }
 
     #[test]

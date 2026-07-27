@@ -4,7 +4,7 @@ use domain_types::connector_flow::{
     CreateOrder, DefendDispute, GetConnectorCustomer, IncrementalAuthorization, MandateRevoke,
     PSync, PaymentMethodEligibility, PaymentMethodToken, PayoutCreate, PayoutCreateLink,
     PayoutCreateRecipient, PayoutEnrollDisburseAccount, PayoutGet, PayoutStage, PayoutTransfer,
-    PayoutVoid, PostAuthenticate, PreAuthenticate, RSync, Refund, RefreshPaymentMethod,
+    PayoutVoid, PostAuthenticate, PreAuthenticate, RSync, RefreshPaymentMethod, Refund,
     RepeatPayment, ServerSessionAuthenticationToken, SetupMandate, SubmitEvidence, Void, VoidPC,
 };
 use ucs_env::configs;

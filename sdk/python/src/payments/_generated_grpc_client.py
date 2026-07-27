@@ -296,6 +296,13 @@ class GrpcPaymentMethodClient:
             "payment_method/payment_method_get",
             req, payment_pb2.PaymentMethodServiceGetResponse,
         )
+    def refresh(self, req: payment_pb2.PaymentMethodServiceRefreshRequest) -> payment_pb2.PaymentMethodServiceRefreshResponse:
+        """PaymentMethodService.Refresh — Refresh a stored payment method against the provider and return what changed."""
+        return _call_grpc(
+            self._ffi, self._config,
+            "payment_method/refresh",
+            req, payment_pb2.PaymentMethodServiceRefreshResponse,
+        )
     def recharge(self, req: payment_pb2.PaymentMethodServiceRechargeRequest) -> payment_pb2.PaymentMethodServiceRechargeResponse:
         """PaymentMethodService.Recharge — Recharge a payment method (wallet, gift card, prepaid card) with funds."""
         return _call_grpc(

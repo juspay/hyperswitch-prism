@@ -306,7 +306,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   TwocTwopPacoConfig: ["accessToken", "officeId", "pacoKid", "merchantSigningPrivateKey", "merchantEncryptionPrivateKey", "pacoSigningPublicKey", "pacoEncryptionPublicKey", "responseAudience"],
   TamaraConfig: ["apiKey"],
   InterpaymentsConfig: ["apiKey"],
-  JuspayConfig: ["apiKey", "merchantId"],
+  JuspayConfig: ["apiKey", "merchantId", "juspayEncryptionPublicKey", "responseDecryptionPrivateKey", "cardSyncKeyId"],
   QwikcilverConfig: ["bootstrapBearerToken", "terminalId", "username", "password"],
   PayconexConfig: ["apiKey", "accountId"],
   KountConfig: ["apiKey"],
@@ -471,6 +471,10 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   PaymentMethodServiceCreateResponse: { "paymentMethodDetails": "PaymentMethodDetails", "customer": "Customer", "address": "Address", "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
   PaymentMethodServiceGetRequest: { "customer": "Customer", "state": "ConnectorState" },
   PaymentMethodServiceGetResponse: { "paymentMethodDetails": "PaymentMethodDetails", "customer": "Customer", "address": "Address", "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
+  PaymentMethodServiceRefreshRequest: { "paymentMethod": "PaymentMethod" },
+  PaymentMethodServiceRefreshResponse: { "result": "RefreshResult", "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
+  RefreshResult: { "card": "CardRefreshResult" },
+  CardRefreshResult: { "card": "CardDetailsWithNoCvc" },
   PaymentMethodDetails: { "wallet": "WalletDetails", "bankAccount": "BankAccountDetails" },
   WalletDetails: { "items": "WalletItem" },
   WalletItem: { "availableBalance": "Money" },
@@ -742,6 +746,11 @@ export class GrpcPaymentMethodClient {
   async paymentMethodGet(req: unknown): Promise<unknown> {
     return callGrpc(this.ffi, this.config, "payment_method/payment_method_get",
       req, types.PaymentMethodServiceGetRequest, types.PaymentMethodServiceGetResponse);
+  }
+  /** PaymentMethodService.Refresh — Refresh a stored payment method against the provider and return what changed. */
+  async refresh(req: unknown): Promise<unknown> {
+    return callGrpc(this.ffi, this.config, "payment_method/refresh",
+      req, types.PaymentMethodServiceRefreshRequest, types.PaymentMethodServiceRefreshResponse);
   }
   /** PaymentMethodService.Recharge — Recharge a payment method (wallet, gift card, prepaid card) with funds. */
   async recharge(req: unknown): Promise<unknown> {
