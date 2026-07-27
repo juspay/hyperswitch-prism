@@ -10,6 +10,9 @@ concurrency:
 jobs:
   authorize:
     uses: ./.github/workflows/authorize-release.yml
+    # The membership check authenticates with a GitHub app token minted
+    # from the secrets below and never uses GITHUB_TOKEN.
+    permissions: {}
     secrets:
       HYPERSWITCH_BOT_APP_ID: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
       HYPERSWITCH_BOT_APP_PRIVATE_KEY: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
