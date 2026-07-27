@@ -989,6 +989,7 @@ impl
             connector_feature_data: item.connector_feature_data.clone(),
             metadata: item.metadata.clone(),
             test_mode: item.test_mode,
+            payment_method_token: item.payment_method_token.clone(),
         }
     }
 }

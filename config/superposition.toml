@@ -884,7 +884,7 @@ connector_base_url = "https://api.trustly.com/v1/"
 # 2C2P PACO Production
 [[overrides]]
 _context_ = { connector = "twoc_twop_paco", environment = "production" }
-connector_base_url = "https://core.paco.2c2p.com/"
+connector_base_url = "https://core.paco.2c2p.com"
 
 # Kount (FRM) Production
 [[overrides]]

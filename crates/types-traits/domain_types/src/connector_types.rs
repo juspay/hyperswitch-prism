@@ -157,6 +157,7 @@ pub enum ConnectorEnum {
     Flywire,
     Affirm,
     Kount,
+    Givepayments,
 }
 
 // snake case for enum variants
@@ -456,6 +457,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Flywire => Ok(Self::Flywire),
             grpc_api_types::payments::Connector::Kount => Ok(Self::Kount),
             grpc_api_types::payments::Connector::Glomopay => Ok(Self::Glomopay),
+            grpc_api_types::payments::Connector::Givepayments => Ok(Self::Givepayments),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -3521,6 +3523,7 @@ pub struct RepeatPaymentData<T: PaymentMethodDataTypes> {
     pub split_payments: Option<SplitPaymentsDetails>,
     pub recurring_mandate_payment_data: Option<router_data::RecurringMandatePaymentData>,
     pub shipping_cost: Option<MinorUnit>,
+    pub payment_channel: Option<PaymentChannel>,
     pub mit_category: Option<common_enums::MitCategory>,
     pub enable_partial_authorization: Option<bool>,
     pub billing_descriptor: Option<BillingDescriptor>,
@@ -4534,6 +4537,31 @@ impl L2L3Data {
         self.order_info.as_ref().and_then(|order| order.order_date)
     }
 
+    pub fn get_order_date_mmddyyyy(
+        &self,
+    ) -> Result<Option<String>, error_stack::Report<IntegrationError>> {
+        self.get_order_date()
+            .map(|date| {
+                common_utils::date_time::format_date(
+                    date,
+                    common_utils::date_time::DateFormat::MMDDYYYY,
+                )
+                .change_context(IntegrationError::InvalidDataFormat {
+                    field_name: "order_date",
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Ensure order_details.order_date is a valid date".to_string(),
+                        ),
+                        additional_context: Some(format!(
+                            "failed to format order_date {date:?} as MMDDYYYY"
+                        )),
+                        doc_url: None,
+                    },
+                })
+            })
+            .transpose()
+    }
+
     pub fn get_order_details(&self) -> Option<Vec<payment_address::OrderDetailsWithAmount>> {
         self.order_info
             .as_ref()
@@ -5408,6 +5436,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Tamara(_) => Ok(Self::Payment(ConnectorEnum::Tamara)),
             AuthType::Flywire(_) => Ok(Self::Payment(ConnectorEnum::Flywire)),
             AuthType::Affirm(_) => Ok(Self::Payment(ConnectorEnum::Affirm)),
+            AuthType::Givepayments(_) => Ok(Self::Payment(ConnectorEnum::Givepayments)),
         }
     }
 }

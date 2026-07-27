@@ -1,9 +1,10 @@
-use std::fmt::Debug;
-
 use common_enums::{
     AttemptStatus, CardNetwork, FutureUsage, MitCategory, PaymentChannel, RefundStatus,
 };
-use common_utils::types::{MinorUnit, StringMajorUnit};
+use common_utils::{
+    collect_missing_value_keys,
+    types::{MinorUnit, StringMajorUnit},
+};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void, VoidPC,
@@ -15,7 +16,7 @@ use domain_types::{
         RecurringMandatePaymentData, RefundFlowData, RefundSyncData, RefundVoidPostRefundData,
         RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
-    errors::{ConnectorError, IntegrationError},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{
         Card, CardDetailsForNetworkTransactionId, PaymentMethodData, PaymentMethodDataTypes,
     },
@@ -26,9 +27,12 @@ use domain_types::{
 use error_stack::{Report, ResultExt};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
+use std::fmt::Debug;
 
 use super::{super::macros::GetSoapXml, profile::TxProfile, rules, TsysTransitRouterData};
 use crate::types::ResponseRouterData;
+
+const POS_ACCEPTANCE_DEVICE_TYPE: &str = "0";
 
 #[derive(Debug, Serialize, Clone, Copy)]
 #[serde(rename_all = "UPPERCASE")]
@@ -276,7 +280,7 @@ pub struct TsysTransitAdditionalTaxDetails {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tax_rate: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub tax_category: Option<String>,
+    pub tax_category: Option<TsysTransitTaxCategory>,
 }
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -295,8 +299,7 @@ pub struct TsysTransitProductTaxDetails {
 pub struct TsysTransitProductDiscountDetails {
     pub product_discount_name: String,
     pub product_discount_amount: StringMajorUnit,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub product_discount_percentage: Option<String>,
+    pub product_discount_percentage: f64,
     pub product_discount_type: String,
     pub priority: u16,
     pub stackable: TsysTransitYesNo,
@@ -471,12 +474,6 @@ pub struct TsysTransitAuthorizeBody {
     pub purchase_order: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub charge_descriptor: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub charge_descriptor_2: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub charge_descriptor_3: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub charge_descriptor_4: Option<String>,
     #[serde(rename = "customerVATNumber", skip_serializing_if = "Option::is_none")]
     pub customer_vat_number: Option<String>,
     #[serde(rename = "customerRefID", skip_serializing_if = "Option::is_none")]
@@ -531,7 +528,16 @@ pub struct TsysTransitAuthorizeBody {
     pub authorization_indicator: Option<TsysTransitAuthorizationIndicator>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mit: Option<TsysTransitMit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub acceptor_street_address: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub acceptor_customer_service_phone_number: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub acceptor_phone_number: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub acceptor_u_r_l_address: Option<url::Url>,
 }
+
 #[derive(Debug, Serialize)]
 #[serde(rename = "TransactionInquiry")]
 pub struct TsysTransitTransactionInquiryRequest {
@@ -750,8 +756,28 @@ pub struct TsysTransitCardAuthenticationRequest {
     // (F9901). Keep "0" as a placeholder; downstream fields
     // (cardOnFile, citStatusIndicator, authorizationIndicator) all
     // moved earlier in the body to match Sale's schema order.
-    #[serde(rename = "mPosAcceptanceDeviceType")]
-    pub m_pos_acceptance_device_type: String,
+    #[serde(
+        rename = "mPosAcceptanceDeviceType",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub m_pos_acceptance_device_type: Option<String>,
+    #[serde(
+        rename = "acceptorStreetAddress",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub acceptor_street_address: Option<Secret<String>>,
+    #[serde(
+        rename = "acceptorCustomerServicePhoneNumber",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub acceptor_customer_service_phone_number: Option<Secret<String>>,
+    #[serde(
+        rename = "acceptorPhoneNumber",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub acceptor_phone_number: Option<Secret<String>>,
+    #[serde(rename = "acceptorURLAddress", skip_serializing_if = "Option::is_none")]
+    pub acceptor_u_r_l_address: Option<url::Url>,
 }
 
 impl GetSoapXml for TsysTransitCardAuthenticationRequest {
@@ -931,26 +957,16 @@ pub struct TsysTransitTransactionInquiryResponse {
 struct TsysTransitMerchantMetadata {
     #[serde(default)]
     tsys_transit: Option<TsysTransitMerchantMetadataInner>,
-    #[serde(default)]
-    commercial_card: Option<TsysTransitCommercialCardMetadata>,
 }
 
 impl TsysTransitMerchantMetadata {
     fn into_inner(self) -> TsysTransitMerchantMetadataInner {
-        let mut inner = self.tsys_transit.unwrap_or_default();
-
-        if self.commercial_card.is_some() {
-            inner.commercial_card = self.commercial_card;
-        }
-
-        inner
+        self.tsys_transit.unwrap_or_default()
     }
 }
 
 #[derive(Debug, Default, Deserialize, Clone)]
 struct TsysTransitMerchantMetadataInner {
-    #[serde(default)]
-    commercial_card: Option<TsysTransitCommercialCardMetadata>,
     /// Channel override for the RepeatPayment / MIT-via-NTID flow only.
     /// The `RecurringPaymentServiceChargeRequest` proto does NOT carry
     /// `payment_channel`, so HS' MIT execution loses the MOTO-vs-Ecom
@@ -965,11 +981,11 @@ struct TsysTransitMerchantMetadataInner {
 }
 
 #[derive(Debug, Default, Clone, Deserialize)]
-struct TsysTransitCommercialCardMetadata {
-    // vat_invoice / ship_from_zip removed: Level III is out of scope.
-    charge_descriptor_2: Option<String>,
-    charge_descriptor_3: Option<String>,
-    charge_descriptor_4: Option<String>,
+struct TsysTransitPaymentRequestMetadata {
+    vat_invoice_number: Option<String>,
+    ship_from_zip: Option<String>,
+    customer_vat_number: Option<String>,
+    summary_commodity_code: Option<String>,
 }
 #[derive(Debug, Default, Deserialize, Clone)]
 struct TsysTransitMandateMetadata {
@@ -998,16 +1014,16 @@ struct RecurringContext {
 #[derive(Debug, Default, Clone)]
 struct CommercialCardContext {
     sales_tax: Option<StringMajorUnit>,
-    additional_tax_details: Vec<TsysTransitAdditionalTaxDetails>,
+    tax_type: Option<String>,
+    tax_amount: Option<StringMajorUnit>,
+    tax_rate: Option<String>,
+    tax_category: Option<TsysTransitTaxCategory>,
     shipping_charges: Option<StringMajorUnit>,
     duty_charges: Option<StringMajorUnit>,
-    product_details: Vec<TsysTransitProductDetails>,
+    product_details: Option<Vec<TsysTransitProductDetails>>,
     commercial_card_level: Option<TsysTransitCommercialCardLevel>,
     purchase_order: Option<String>,
     charge_descriptor: Option<String>,
-    charge_descriptor_2: Option<String>,
-    charge_descriptor_3: Option<String>,
-    charge_descriptor_4: Option<String>,
     customer_vat_number: Option<String>,
     customer_ref_id: Option<String>,
     supplier_reference_number: Option<String>,
@@ -1017,6 +1033,10 @@ struct CommercialCardContext {
     ship_from_zip: Option<String>,
     ship_to_zip: Option<String>,
     destination_country_code: Option<String>,
+    acceptor_street_address: Option<Secret<String>>,
+    acceptor_customer_service_phone_number: Option<Secret<String>>,
+    acceptor_phone_number: Option<Secret<String>>,
+    acceptor_url: Option<url::Url>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -1178,6 +1198,9 @@ pub struct TsysTransitAuthType {
     pub device_id: Secret<String>,
     pub transaction_key: Secret<String>,
     pub developer_id: Secret<String>,
+    pub merchant_street_address: Option<Secret<String>>,
+    pub customer_service_phone_number: Option<Secret<String>>,
+    pub merchant_url: Option<String>,
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for TsysTransitAuthType {
@@ -1189,11 +1212,17 @@ impl TryFrom<&ConnectorSpecificConfig> for TsysTransitAuthType {
                 device_id,
                 transaction_key,
                 developer_id,
+                merchant_street_address,
+                customer_service_phone_number,
+                merchant_url,
                 ..
             } => Ok(Self {
                 device_id: device_id.to_owned(),
                 transaction_key: transaction_key.to_owned(),
                 developer_id: developer_id.to_owned(),
+                merchant_street_address: merchant_street_address.to_owned(),
+                customer_service_phone_number: customer_service_phone_number.to_owned(),
+                merchant_url: merchant_url.to_owned(),
             }),
             _ => Err(error_stack::report!(IntegrationError::FailedToObtainAuthType {
                 context: Default::default(),
@@ -1278,115 +1307,300 @@ fn format_country_alpha3(country: common_enums::CountryAlpha2) -> String {
 fn build_tsys_product_details(
     detail: &domain_types::payment_address::OrderDetailsWithAmount,
     currency: common_enums::Currency,
-    zero_amount: &StringMajorUnit,
-    derived_tax_rate: Option<&String>,
-    require_commodity_code: bool,
-) -> Result<TsysTransitProductDetails, Report<IntegrationError>> {
-    let price = super::TsysTransitAmountConvertor::convert(detail.amount, currency)?;
-    let unit_discount_amount = detail
-        .unit_discount_amount
-        .map(|amount| super::TsysTransitAmountConvertor::convert(amount, currency))
-        .transpose()?
-        .unwrap_or_else(|| zero_amount.clone());
-    let has_discount = detail
-        .unit_discount_amount
-        .map(|amount| amount.get_amount_as_i64() > 0)
-        .unwrap_or(false);
-    let product_tax_amount = detail
-        .total_tax_amount
-        .map(|amount| super::TsysTransitAmountConvertor::convert(amount, currency))
-        .transpose()?
-        .unwrap_or_else(|| zero_amount.clone());
-    let product_commodity_code = detail
-        .commodity_code
-        .clone()
-        .or_else(|| detail.upc.clone())
-        .or_else(|| detail.product_id.clone())
-        .or_else(|| detail.sku.clone())
-        .map(|code| sanitize_alphanumeric_space(&code, 12));
+    card_network: Option<&CardNetwork>,
+    payment_channel: &Option<PaymentChannel>,
+) -> Result<Option<TsysTransitProductDetails>, Report<IntegrationError>> {
+    if matches!(
+        card_network,
+        Some(CardNetwork::Visa) | Some(CardNetwork::Mastercard)
+    ) {
+        let is_visa_card = matches!(card_network, Some(CardNetwork::Visa));
 
-    if require_commodity_code && product_commodity_code.is_none() {
-        return Err(IntegrationError::MissingRequiredField {
-            field_name: "productCommodityCode required for Visa/Mastercard Level III",
-            context: Default::default(),
-        }
-        .into());
+        let missing_field = |field_name: &'static str| {
+            IntegrationError::MissingRequiredField {
+        field_name,
+        context: IntegrationErrorContext {
+            suggested_action: Some(format!("Provide {field_name} in the request")),
+            doc_url: None,
+            additional_context: Some(format!(
+                "{field_name} is required for Level III order_details on card_network={card_network:?}"
+            )),
+        },
     }
+        };
+        let is_ecommerce_payment =
+            matches!(payment_channel, Some(PaymentChannel::Ecommerce) | None);
 
-    Ok(TsysTransitProductDetails {
-        product_code: detail
+        let product_code = detail
             .product_id
             .clone()
             .or_else(|| detail.sku.clone())
             .or_else(|| detail.upc.clone())
             .map(|code| sanitize_alphanumeric_space(&code, 20))
             .filter(|code| !code.is_empty())
-            .unwrap_or_else(|| sanitize_alphanumeric_space(&detail.product_name, 20)),
-        product_name: truncate_chars(&detail.product_name, 50),
-        price,
-        quantity: u32::from(detail.quantity),
-        measurement_unit: detail
-            .unit_of_measure
+            .unwrap_or_else(|| sanitize_alphanumeric_space(&detail.product_name, 20));
+
+        let product_name = truncate_chars(&detail.product_name, 50);
+        let price = super::TsysTransitAmountConvertor::convert(detail.amount, currency)?;
+        let quantity = u32::from(detail.quantity);
+        let measurement_unit = detail.unit_of_measure.clone();
+        let unit_discount_amount = detail
+            .unit_discount_amount
+            .map(|amount| super::TsysTransitAmountConvertor::convert(amount, currency))
+            .transpose()?;
+        let product_tax_name = detail.product_tax_code.clone();
+
+        let product_tax_amount = detail
+            .total_tax_amount
+            .map(|amount| super::TsysTransitAmountConvertor::convert(amount, currency))
+            .transpose()?;
+
+        let product_tax_percentage = detail.tax_rate.map(format_decimal);
+
+        let product_tax_type = detail
+            .product_tax_code
             .clone()
-            .or_else(|| Some("EA".to_string())),
-        product_discount_details: Some(TsysTransitProductDiscountDetails {
-            product_discount_name: "Line Item Discount".to_string(),
-            product_discount_amount: unit_discount_amount,
-            product_discount_percentage: Some("0.01".to_string()),
-            product_discount_type: "DISCOUNT".to_string(),
-            priority: 1,
-            stackable: if has_discount {
-                TsysTransitYesNo::Yes
-            } else {
-                TsysTransitYesNo::No
-            },
-        }),
-        product_tax_details: Some(TsysTransitProductTaxDetails {
-            product_tax_name: detail
-                .product_tax_code
-                .clone()
-                .or_else(|| Some("TAX".to_string())),
-            product_tax_amount: Some(product_tax_amount),
-            product_tax_percentage: Some(
+            .map(|tax_code| truncate_chars(&tax_code, 4));
+
+        let commodity_code = detail
+            .commodity_code
+            .clone()
+            .or_else(|| detail.upc.clone())
+            .or_else(|| detail.product_id.clone())
+            .or_else(|| detail.sku.clone())
+            .map(|code| sanitize_alphanumeric_space(&code, 12));
+
+        let product_discount_name = detail
+            .discount_name
+            .clone()
+            .map(|discount_type| sanitize_alphanumeric_space(&discount_type, 50));
+        let product_discount_percentage = detail.discount_percentage;
+        let product_discount_type = detail
+            .discount_type
+            .clone()
+            .map(|discount_type| sanitize_alphanumeric_space(&discount_type, 20));
+        let priority = 1;
+        let has_discount = detail
+            .unit_discount_amount
+            .map(|amount| amount.get_amount_as_i64() > 0)
+            .unwrap_or(false);
+        let stackable = if has_discount {
+            TsysTransitYesNo::Yes
+        } else {
+            TsysTransitYesNo::No
+        };
+        let product_variation = (!is_ecommerce_payment)
+            .then_some({
                 detail
-                    .tax_rate
-                    .map(format_decimal)
-                    .or_else(|| derived_tax_rate.cloned())
-                    .unwrap_or_else(|| "0".to_string()),
-            ),
-            product_tax_type: detail
-                .product_tax_code
-                .clone()
-                .map(|tax_code| truncate_chars(&tax_code, 4)),
-        }),
-        product_variation: detail
-            .sub_category
-            .clone()
-            .or_else(|| detail.category.clone()),
-        product_modifier_details: detail
-            .brand
-            .clone()
-            .or_else(|| detail.category.clone())
-            .map(|modifier_name| TsysTransitProductModifierDetails {
-                modifier_name: truncate_chars(&modifier_name, 50),
-                modifier_value: detail
                     .sub_category
                     .clone()
-                    .or_else(|| detail.description.clone())
-                    .map(|value| truncate_chars(&value, 25)),
-                modifier_price: None,
+                    .or_else(|| detail.category.clone())
+            })
+            .flatten();
+        let product_modifier_details = (!is_ecommerce_payment)
+            .then_some({
+                detail
+                    .brand
+                    .clone()
+                    .or_else(|| detail.category.clone())
+                    .map(|modifier_name| TsysTransitProductModifierDetails {
+                        modifier_name: truncate_chars(&modifier_name, 50),
+                        modifier_value: detail
+                            .sub_category
+                            .clone()
+                            .or_else(|| detail.description.clone())
+                            .map(|value| truncate_chars(&value, 25)),
+                        modifier_price: None,
+                    })
+            })
+            .flatten();
+        let product_notes = (!is_ecommerce_payment)
+            .then_some({
+                detail
+                    .description
+                    .clone()
+                    .map(|description| truncate_chars(&description, 100))
+            })
+            .flatten();
+
+        let product_discount_indicator = (!is_ecommerce_payment).then_some({
+            if has_discount {
+                TsysTransitProductDiscountIndicator::Y
+            } else {
+                TsysTransitProductDiscountIndicator::N
+            }
+        });
+
+        let missing_fields_error = |missing_fields: Vec<&'static str>| {
+            IntegrationError::MissingRequiredFields {
+            context: IntegrationErrorContext {
+                suggested_action: Some(format!(
+                    "Provide the following order_details fields: {missing_fields:?}"
+                )),
+                doc_url: None,
+                additional_context: Some(format!(
+                    "these fields are required for Level III order_details on card_network={card_network:?}"
+                )),
+            },
+            field_names: missing_fields,
+        }
+        };
+
+        if matches!(card_network, Some(CardNetwork::Visa)) {
+            let missing_fields = collect_missing_value_keys!(
+                ("order_details.commodity_code", commodity_code),
+                ("order_details.unit_of_measure", measurement_unit),
+                ("order_details.unit_discount_amount", unit_discount_amount),
+                ("order_details.product_tax_name", product_tax_name),
+                ("order_details.product_tax_amount", product_tax_amount),
+                (
+                    "order_details.product_tax_percentage",
+                    product_tax_percentage
+                )
+            );
+
+            if !missing_fields.is_empty() {
+                Err::<(), Report<IntegrationError>>(missing_fields_error(missing_fields).into())?;
+            };
+        };
+
+        if matches!(card_network, Some(CardNetwork::Mastercard)) {
+            let missing_fields = collect_missing_value_keys!(
+                ("order_details.unit_of_measure", measurement_unit),
+                ("order_details.unit_discount_amount", unit_discount_amount),
+                ("order_details.product_tax_name", product_tax_name),
+                ("order_details.product_tax_amount", product_tax_amount),
+                (
+                    "order_details.product_tax_percentage",
+                    product_tax_percentage
+                ),
+                ("order_details.unit_discount_amount", unit_discount_amount)
+            );
+
+            if !missing_fields.is_empty() {
+                Err::<(), Report<IntegrationError>>(missing_fields_error(missing_fields).into())?;
+            };
+        };
+
+        Ok(Some(TsysTransitProductDetails {
+            product_code,
+            product_name,
+            price,
+            quantity,
+            measurement_unit,
+            product_discount_details: Some(TsysTransitProductDiscountDetails {
+                product_discount_name: product_discount_name
+                    .ok_or(missing_field("order_details.discount_name"))?,
+                product_discount_amount: unit_discount_amount
+                    .ok_or(missing_field("order_details.unit_discount_amount"))?,
+                product_discount_percentage: product_discount_percentage
+                    .ok_or(missing_field("order_details.discount_percentage"))?,
+                product_discount_type: product_discount_type
+                    .ok_or(missing_field("order_details.discount_type"))?,
+                priority,
+                stackable,
             }),
-        product_notes: detail
-            .description
+            product_tax_details: Some(TsysTransitProductTaxDetails {
+                product_tax_name,
+                product_tax_amount,
+                product_tax_percentage,
+                product_tax_type,
+            }),
+            product_variation,
+            product_modifier_details,
+            product_notes,
+            product_discount_indicator,
+            product_commodity_code: is_visa_card
+                .then_some(commodity_code.ok_or(missing_field("order_details.commodity_code")))
+                .transpose()?,
+        }))
+    } else {
+        Ok(None)
+    }
+}
+
+#[derive(Debug, Clone)]
+struct MerchantAcceptorInfo {
+    street_address: Secret<String>,
+    customer_service_phone_number: Secret<String>,
+    phone_number: Secret<String>,
+    url: url::Url,
+}
+
+#[derive(Debug, Clone, Serialize, strum::EnumString)]
+#[serde(rename_all = "UPPERCASE")]
+#[strum(serialize_all = "snake_case")]
+pub enum TsysTransitTaxCategory {
+    Service,
+    Duty,
+    VAT,
+    Alternate,
+    National,
+    #[serde(rename = "TAX_EXEMPT")]
+    TaxExempt,
+}
+
+fn build_merchant_acceptor_info(
+    auth_data: &TsysTransitAuthType,
+    card_network: Option<&CardNetwork>,
+    payment_channel: Option<&PaymentChannel>,
+) -> Result<Option<MerchantAcceptorInfo>, Report<IntegrationError>> {
+    if matches!(card_network, Some(CardNetwork::Mastercard))
+        && matches!(payment_channel, Some(PaymentChannel::Ecommerce) | None)
+    {
+        let missing_field = |field_name: &'static str| IntegrationError::MissingRequiredField {
+            field_name,
+            context: IntegrationErrorContext {
+                suggested_action: Some(format!("Provide {field_name} in connector_metadata")),
+                doc_url: None,
+                additional_context: Some(format!(
+                    "{field_name} is required for Mastercard on payment_channel={payment_channel:?}"
+                )),
+            },
+        };
+
+        let street_address = auth_data
+            .merchant_street_address
             .clone()
-            .map(|description| truncate_chars(&description, 100)),
-        product_discount_indicator: Some(if has_discount {
-            TsysTransitProductDiscountIndicator::Y
-        } else {
-            TsysTransitProductDiscountIndicator::N
-        }),
-        product_commodity_code,
-    })
+            .ok_or(missing_field(
+                "connector_metadata.tsys_transit.merchant_street_address",
+            ))?;
+        let customer_service_phone_number =
+            auth_data
+                .customer_service_phone_number
+                .clone()
+                .ok_or(missing_field(
+                    "connector_metadata.tsys_transit.customer_service_phone_number",
+                ))?;
+        let phone_number = customer_service_phone_number.clone();
+        let merchant_url = auth_data.merchant_url.clone().ok_or(missing_field(
+            "connector_metadata.tsys_transit.merchant_url",
+        ))?;
+
+        let url =
+            url::Url::parse(&merchant_url).change_context(IntegrationError::InvalidDataFormat {
+                field_name: "connector_metadata.tsys_transit.merchant_url",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Ensure connector_metadata.tsys_transit.merchant_url is a valid URL"
+                            .to_string(),
+                    ),
+                    doc_url: None,
+                    additional_context: Some(format!(
+                        "failed to parse merchant_url {merchant_url:?} as a URL"
+                    )),
+                },
+            })?;
+
+        Ok(Some(MerchantAcceptorInfo {
+            street_address,
+            customer_service_phone_number,
+            phone_number,
+            url,
+        }))
+    } else {
+        Ok(None)
+    }
 }
 
 fn compute_commercial_card_context<
@@ -1398,170 +1612,134 @@ fn compute_commercial_card_context<
         PaymentsAuthorizeData<T>,
         PaymentsResponseData,
     >,
-    commercial_meta: Option<&TsysTransitCommercialCardMetadata>,
     card_network: Option<&CardNetwork>,
+    auth_data: &TsysTransitAuthType,
 ) -> Result<CommercialCardContext, Report<IntegrationError>> {
-    let empty_commercial_meta = TsysTransitCommercialCardMetadata::default();
-    let commercial_meta = commercial_meta.unwrap_or(&empty_commercial_meta);
+    let merchant_acceptor_info = build_merchant_acceptor_info(
+        auth_data,
+        card_network,
+        router_data.request.payment_channel.as_ref(),
+    )?;
+    let request_metadata = router_data
+        .request
+        .metadata
+        .as_ref()
+        .map(|meta| {
+            serde_json::from_value::<TsysTransitPaymentRequestMetadata>(meta.clone().expose())
+                .change_context(IntegrationError::InvalidDataFormat {
+                    field_name: "connector_metadata.tsys_transit",
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Ensure connector_metadata.tsys_transit matches the expected schema"
+                                .to_string(),
+                        ),
+                        doc_url: None,
+                        additional_context: Some(
+                            "failed to deserialize TsysTransitPaymentRequestMetadata from connector_metadata"
+                                .to_string(),
+                        ),
+                    },
+                })
+        })
+        .transpose()?
+        .unwrap_or_default();
 
+    let vat_invoice =
+        sanitize_optional_alphanumeric_space(request_metadata.vat_invoice_number.clone(), 15);
+    let customer_vat_number = request_metadata.customer_vat_number.clone();
+    let ship_from_zip = request_metadata.ship_from_zip.clone();
     let l2_l3_data = router_data.resource_common_data.l2_l3_data.as_deref();
-    let shipping_address = router_data.resource_common_data.get_shipping_address().ok();
-    let billing_address = router_data.resource_common_data.get_billing_address().ok();
-    let billing_descriptor = router_data.request.billing_descriptor.as_ref();
-    let connector_request_reference_id = router_data
-        .resource_common_data
-        .connector_request_reference_id
-        .clone();
+    let order_date = l2_l3_data
+        .map(domain_types::connector_types::L2L3Data::get_order_date_mmddyyyy)
+        .transpose()?
+        .flatten();
+    let summary_commodity_code =
+        sanitize_optional_alphanumeric_space(request_metadata.summary_commodity_code, 25);
+    let acceptor_street_address = merchant_acceptor_info
+        .as_ref()
+        .map(|info| info.street_address.clone());
+    let acceptor_customer_service_phone_number = merchant_acceptor_info
+        .as_ref()
+        .map(|info| info.customer_service_phone_number.clone());
+    let acceptor_phone_number = merchant_acceptor_info
+        .as_ref()
+        .map(|info| info.phone_number.clone());
+    let acceptor_url = merchant_acceptor_info.as_ref().map(|info| info.url.clone());
     let order_details = l2_l3_data
         .and_then(|data| data.get_order_details())
         .or_else(|| router_data.resource_common_data.order_details.clone())
         .unwrap_or_default();
+    let product_details: Option<Vec<TsysTransitProductDetails>> = order_details
+        .iter()
+        .map(|detail| {
+            build_tsys_product_details(
+                detail,
+                router_data.request.currency,
+                card_network,
+                &router_data.request.payment_channel,
+            )
+        })
+        .collect::<Result<Vec<Option<TsysTransitProductDetails>>, Report<IntegrationError>>>()
+        .ok()
+        .and_then(|items| items.into_iter().collect());
+    let shipping_charges = l2_l3_data
+        .and_then(|data| data.get_shipping_cost())
+        .or(router_data.request.shipping_cost)
+        .map(|amount| {
+            super::TsysTransitAmountConvertor::convert(amount, router_data.request.currency)
+        })
+        .transpose()?;
+    let duty_charges = l2_l3_data
+        .and_then(|data| data.get_duty_amount())
+        .map(|amount| {
+            super::TsysTransitAmountConvertor::convert(amount, router_data.request.currency)
+        })
+        .transpose()?;
+    let derived_tax_rate = order_details
+        .iter()
+        .find_map(|detail| detail.tax_rate.map(format_decimal));
+    let derived_tax_type = order_details
+        .iter()
+        .find_map(|detail| detail.product_tax_code.clone())
+        .filter(|value| !value.is_empty());
     let order_tax_amount = l2_l3_data
         .and_then(|data| data.get_order_tax_amount())
         .or(router_data.request.order_tax_amount);
-    let order_reference = l2_l3_data
-        .and_then(|data| data.get_merchant_order_reference_id())
-        .or_else(|| router_data.request.merchant_order_id.clone());
-
-    // Level III out of scope — shippingCharges / dutyCharges are L3 enhanced
-    // tags and are never emitted.
-    let shipping_charges: Option<StringMajorUnit> = None;
-    let duty_charges: Option<StringMajorUnit> = None;
-
-    if order_details.is_empty()
-        && order_tax_amount.is_none()
-        && shipping_charges.is_none()
-        && duty_charges.is_none()
-    {
-        return Ok(CommercialCardContext::default());
-    }
-
-    // Level III is out of scope for this connector: every commercial
-    // transaction is emitted as Level II. No productDetails / additionalTax
-    // Details / vatInvoice / shipFromZip / enhanced tax & shipping.
-    let commercial_card_level = TsysTransitCommercialCardLevel::Level2;
-    let is_level3 = false;
-    let is_visa_or_mastercard = matches!(
-        card_network,
-        Some(CardNetwork::Visa) | Some(CardNetwork::Mastercard)
-    );
-    let is_mastercard = matches!(card_network, Some(CardNetwork::Mastercard));
-    let is_amex = matches!(card_network, Some(CardNetwork::AmericanExpress));
-    let zero_amount = super::TsysTransitAmountConvertor::convert(
-        MinorUnit::new(0),
-        router_data.request.currency,
-    )?;
-
     let sales_tax = order_tax_amount
         .map(|amount| {
             super::TsysTransitAmountConvertor::convert(amount, router_data.request.currency)
         })
         .transpose()?;
-
-    let derived_tax_rate = order_details
-        .iter()
-        .find_map(|detail| detail.tax_rate.map(format_decimal))
-        .or_else(|| is_level3.then_some("0".to_string()));
-    let derived_tax_type = order_details
-        .iter()
-        .find_map(|detail| detail.product_tax_code.clone())
-        .filter(|value| !value.is_empty());
-
-    let additional_tax_details = if is_level3 && is_visa_or_mastercard {
-        let tax_amount =
-            sales_tax
-                .clone()
-                .ok_or_else(|| IntegrationError::MissingRequiredField {
-                    field_name: "salesTax required for commercial_card_level LEVEL3",
-                    context: Default::default(),
-                })?;
-        let tax_type = derived_tax_type.clone().ok_or_else(|| {
-            IntegrationError::MissingRequiredField {
-                field_name:
-                    "taxType required for additionalTaxDetails (order_details[0].product_tax_code missing)",
-                context: Default::default(),
-            }
-        })?;
-
-        vec![TsysTransitAdditionalTaxDetails {
-            tax_type: tax_type.clone(),
-            tax_amount,
-            tax_rate: Some(derived_tax_rate.clone().unwrap_or_else(|| "0".to_string())),
-            tax_category: Some(tax_type),
-        }]
-    } else {
-        Vec::new()
-    };
-
-    let product_details = if is_level3 {
-        if order_details.is_empty() {
-            return Err(IntegrationError::MissingRequiredField {
-                field_name: "order_details required for commercial_card_level LEVEL3",
-                context: Default::default(),
-            }
-            .into());
-        }
-
-        order_details
-            .iter()
-            .map(|detail| {
-                build_tsys_product_details(
-                    detail,
-                    router_data.request.currency,
-                    &zero_amount,
-                    derived_tax_rate.as_ref(),
-                    is_visa_or_mastercard,
-                )
-            })
-            .collect::<Result<Vec<_>, Report<IntegrationError>>>()?
-    } else {
-        Vec::new()
-    };
-
+    let tax_amount = sales_tax.clone();
+    let tax_category = derived_tax_type.clone().map(|value| value.parse::<TsysTransitTaxCategory>()).transpose().change_context(
+        IntegrationError::InvalidDataFormat {
+            field_name: "order_details.product_tax_code",
+            context: IntegrationErrorContext {
+                suggested_action: Some("Ensure that the product_tax_code is one of the valid TSYS TransIT tax categories: service, duty, vat, alternate, national and tax_exempt".to_string()),
+                doc_url: None,
+                additional_context: Some(format!(
+                    "failed to parse product_tax_code {derived_tax_type:?} as a TsysTransitTaxCategory"
+                )),
+            },
+        },
+    )?;
+    let order_reference = l2_l3_data
+        .and_then(|data| data.get_merchant_order_reference_id())
+        .or_else(|| router_data.request.merchant_order_id.clone());
+    let connector_request_reference_id = router_data
+        .resource_common_data
+        .connector_request_reference_id
+        .clone();
     let purchase_order = sanitize_optional_alphanumeric_space(
         order_reference
             .clone()
             .or_else(|| Some(connector_request_reference_id.clone())),
         25,
     );
-    let charge_descriptor = billing_descriptor.and_then(|descriptor| {
-        sanitize_optional_alphanumeric_space(
-            descriptor
-                .statement_descriptor
-                .clone()
-                .or_else(|| descriptor.reference.clone())
-                .or_else(|| descriptor.name.as_ref().map(|name| name.clone().expose())),
-            25,
-        )
-    });
-    let supplier_reference_number = (!is_level3 || is_amex)
-        .then(|| {
-            sanitize_optional_alphanumeric_space(
-                order_reference
-                    .clone()
-                    .or_else(|| Some(connector_request_reference_id.clone())),
-                9,
-            )
-        })
-        .flatten();
-    // Level III out of scope — customerVATNumber not emitted.
-    let customer_vat_number: Option<String> = None;
-    let customer_ref_id = (!is_level3 || is_amex)
-        .then(|| {
-            sanitize_optional_alphanumeric_space(
-                order_reference
-                    .clone()
-                    .or_else(|| Some(connector_request_reference_id.clone())),
-                17,
-            )
-        })
-        .flatten();
-    // Level III out of scope — orderDate / summaryCommodityCode / vatInvoice /
-    // shipFromZip are L3-only tags and are never emitted.
-    let order_date: Option<String> = None;
-    let summary_commodity_code: Option<String> = None;
-    let vat_invoice: Option<String> = None;
-    let ship_from_zip: Option<String> = None;
+    let shipping_address = router_data.resource_common_data.get_shipping_address().ok();
+    let billing_address = router_data.resource_common_data.get_billing_address().ok();
+    let billing_descriptor = router_data.request.billing_descriptor.as_ref();
+
     let ship_to_zip = l2_l3_data
         .and_then(|data| data.get_shipping_zip())
         .map(|zip| zip.expose())
@@ -1575,6 +1753,7 @@ fn compute_commercial_card_context<
                 .and_then(|address| address.zip.clone())
                 .map(|zip| zip.expose())
         });
+
     let destination_country_code = normalize_tsys_country_code(
         l2_l3_data
             .and_then(|data| data.get_shipping_country())
@@ -1591,145 +1770,90 @@ fn compute_commercial_card_context<
             }),
     );
 
-    if is_level3 && is_visa_or_mastercard {
-        if sales_tax.is_none() {
-            return Err(IntegrationError::MissingRequiredField {
-                field_name:
-                    "salesTax required for TSYS commercial-card Level III (Visa/Mastercard)",
-                context: Default::default(),
-            }
-            .into());
-        }
-        if purchase_order.is_none() {
-            return Err(IntegrationError::MissingRequiredField {
-                field_name: "purchaseOrder required for Visa/Mastercard Level III",
-                context: Default::default(),
-            }
-            .into());
-        }
-        if shipping_charges.is_none() {
-            return Err(IntegrationError::MissingRequiredField {
-                field_name: "shippingCharges required for Visa/Mastercard Level III",
-                context: Default::default(),
-            }
-            .into());
-        }
-        if duty_charges.is_none() {
-            return Err(IntegrationError::MissingRequiredField {
-                field_name: "dutyCharges required for Visa/Mastercard Level III",
-                context: Default::default(),
-            }
-            .into());
-        }
-        if is_mastercard
-            && destination_country_code
-                .as_ref()
-                .is_none_or(|code| code.len() != 3)
-        {
-            return Err(IntegrationError::MissingRequiredField {
-                field_name:
-                    "destinationCountryCode required and must be 3-digit for Mastercard Level III",
-                context: Default::default(),
-            }
-            .into());
-        }
-    }
+    let supplier_reference_number = sanitize_optional_alphanumeric_space(
+        order_reference
+            .clone()
+            .or_else(|| Some(connector_request_reference_id.clone())),
+        9,
+    );
 
-    if matches!(
-        commercial_card_level,
-        TsysTransitCommercialCardLevel::Level2
-    ) {
-        if is_visa_or_mastercard && purchase_order.is_none() {
-            return Err(IntegrationError::MissingRequiredField {
-                field_name: "purchaseOrder required for Visa/Mastercard Level II",
-                context: Default::default(),
-            }
-            .into());
-        }
-        if sales_tax.is_none() {
-            return Err(IntegrationError::MissingRequiredField {
-                field_name: "salesTax required for TSYS commercial-card Level II",
-                context: Default::default(),
-            }
-            .into());
-        }
-    }
+    let customer_ref_id = sanitize_optional_alphanumeric_space(
+        order_reference
+            .clone()
+            .or_else(|| Some(connector_request_reference_id.clone())),
+        17,
+    );
 
-    if matches!(
-        commercial_card_level,
-        TsysTransitCommercialCardLevel::Level2
-    ) && is_amex
-    {
-        // TSYS cert: shipToZip / destinationCountryCode are Visa/MC L3-only,
-        // they are NOT required on AMEX L2.  supplierReferenceNumber,
-        // customerRefID, chargeDescriptor remain AMEX L2 essentials.
-        for (field_name, is_missing) in [
-            (
-                "supplierReferenceNumber",
-                supplier_reference_number.is_none(),
-            ),
-            ("customerRefID", customer_ref_id.is_none()),
-            ("chargeDescriptor", charge_descriptor.is_none()),
-        ] {
-            if is_missing {
-                return Err(IntegrationError::MissingRequiredField {
-                    field_name,
-                    context: Default::default(),
-                }
-                .into());
-            }
-        }
-    }
+    let charge_descriptor = billing_descriptor.and_then(|descriptor| {
+        sanitize_optional_alphanumeric_space(
+            descriptor
+                .statement_descriptor
+                .clone()
+                .or_else(|| descriptor.reference.clone())
+                .or_else(|| descriptor.name.as_ref().map(|name| name.clone().expose())),
+            25,
+        )
+    });
 
-    if is_level3 && is_visa_or_mastercard {
-        for (field_name, is_missing) in [
-            ("purchaseOrder", purchase_order.is_none()),
-            ("orderDate", order_date.is_none()),
-            ("summaryCommodityCode", summary_commodity_code.is_none()),
-            ("vatInvoice", vat_invoice.is_none()),
-            ("shipFromZip", ship_from_zip.is_none()),
-            ("shipToZip", ship_to_zip.is_none()),
-            ("destinationCountryCode", destination_country_code.is_none()),
-        ] {
-            if is_missing {
-                return Err(IntegrationError::MissingRequiredField {
-                    field_name,
-                    context: Default::default(),
-                }
-                .into());
-            }
-        }
-    }
+    let is_visa_and_mastercard_level3_common_field_present = tax_amount.is_some()
+        && tax_category.is_some()
+        && derived_tax_type.is_some()
+        && derived_tax_rate.is_some()
+        && shipping_charges.is_some()
+        && duty_charges.is_some()
+        && product_details.is_some()
+        && purchase_order.is_some()
+        && order_date.is_some()
+        && summary_commodity_code.is_some()
+        && vat_invoice.is_some()
+        && ship_from_zip.is_some()
+        && ship_to_zip.is_some()
+        && destination_country_code.is_some();
 
-    if is_level3 && matches!(card_network, Some(CardNetwork::Visa)) && customer_vat_number.is_none()
-    {
-        return Err(IntegrationError::MissingRequiredField {
-            field_name: "customerVATNumber required for Visa Level 3",
-            context: Default::default(),
+    let is_level3 = match card_network {
+        Some(CardNetwork::Visa) => {
+            is_visa_and_mastercard_level3_common_field_present
+                && customer_vat_number.is_some()
+                && sales_tax.is_some()
         }
-        .into());
-    }
+        Some(CardNetwork::Mastercard) => is_visa_and_mastercard_level3_common_field_present,
+        _ => false,
+    };
 
-    if is_level3 && is_visa_or_mastercard && additional_tax_details.is_empty() {
-        return Err(IntegrationError::MissingRequiredField {
-            field_name: "additionalTaxDetails required for Visa/Mastercard Level III",
-            context: Default::default(),
+    let is_level2 = match card_network {
+        Some(CardNetwork::AmericanExpress) => {
+            supplier_reference_number.is_some()
+                && sales_tax.is_some()
+                && ship_to_zip.is_some()
+                && charge_descriptor.is_some()
+                && customer_ref_id.is_some()
         }
-        .into());
-    }
+        Some(CardNetwork::Visa) | Some(CardNetwork::Mastercard) => {
+            sales_tax.is_some() && purchase_order.is_some()
+        }
+        _ => false,
+    };
+
+    let commercial_card_level = if is_level3 {
+        Some(TsysTransitCommercialCardLevel::Level3)
+    } else if is_level2 {
+        Some(TsysTransitCommercialCardLevel::Level2)
+    } else {
+        None
+    };
 
     Ok(CommercialCardContext {
         sales_tax,
-        additional_tax_details,
+        tax_type: derived_tax_type,
+        tax_amount,
+        tax_rate: derived_tax_rate,
+        tax_category,
         shipping_charges,
         duty_charges,
         product_details,
-        commercial_card_level: Some(commercial_card_level),
-        purchase_order: purchase_order.clone(),
+        commercial_card_level,
+        purchase_order,
         charge_descriptor,
-        charge_descriptor_2: commercial_meta.charge_descriptor_2.clone(),
-        charge_descriptor_3: commercial_meta.charge_descriptor_3.clone(),
-        charge_descriptor_4: commercial_meta.charge_descriptor_4.clone(),
         customer_vat_number,
         customer_ref_id,
         supplier_reference_number,
@@ -1739,6 +1863,10 @@ fn compute_commercial_card_context<
         ship_from_zip,
         ship_to_zip,
         destination_country_code,
+        acceptor_customer_service_phone_number,
+        acceptor_street_address,
+        acceptor_url,
+        acceptor_phone_number,
     })
 }
 
@@ -1768,15 +1896,55 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             T,
         >,
     ) -> Result<Self, Self::Error> {
+        validate_authorize_request(&item.router_data)?;
+
         let assembly = extract_for_authorize(&item)?;
         let is_manual_capture = assembly.profile.capture.is_manual();
-        let body = assemble_authorize_body(assembly);
+        let body = assemble_authorize_body(assembly)?;
         Ok(if is_manual_capture {
             Self::Auth(body)
         } else {
             Self::Sale(body)
         })
     }
+}
+
+fn validate_off_session_ecommerce_support(
+    setup_future_usage: Option<FutureUsage>,
+    payment_channel: Option<&PaymentChannel>,
+) -> Result<(), Report<IntegrationError>> {
+    let is_off_session = setup_future_usage == Some(FutureUsage::OffSession);
+
+    let is_ecommerce_payment = matches!(payment_channel, Some(PaymentChannel::Ecommerce) | None);
+
+    if is_off_session && is_ecommerce_payment {
+        Err(IntegrationError::NotSupported {
+            message: "Off-session e-commerce payments".to_string(),
+            connector: "tsysTransit",
+            context: IntegrationErrorContext {
+                suggested_action: Some(
+                    "Use a different connector or payment channel that supports off-session payments"
+                        .to_string(),
+                ),
+                doc_url: None,
+                additional_context: None
+            },
+        }
+        .into())
+    } else {
+        Ok(())
+    }
+}
+
+fn validate_authorize_request<
+    T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
+>(
+    item: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+) -> Result<(), Report<IntegrationError>> {
+    validate_off_session_ecommerce_support(
+        item.request.setup_future_usage,
+        item.request.payment_channel.as_ref(),
+    )
 }
 
 struct AuthorizeAssembly {
@@ -1862,16 +2030,6 @@ fn extract_for_authorize<T: PaymentMethodDataTypes + Debug + Sync + Send + 'stat
     let card_network = card
         .and_then(|c| c.card_network.clone())
         .or_else(|| nti_card_opt.and_then(|n| n.card_network.clone()));
-    let merchant_metadata_early = match router_data.request.metadata.as_ref() {
-        Some(meta) => serde_json::from_value::<TsysTransitMerchantMetadata>(meta.clone().expose())
-            .change_context(IntegrationError::InvalidDataFormat {
-                field_name: "connector_metadata.tsys_transit",
-                context: Default::default(),
-            })?,
-        None => TsysTransitMerchantMetadata::default(),
-    };
-    let merchant_inner_early = merchant_metadata_early.into_inner();
-    let commercial_meta = merchant_inner_early.commercial_card.clone();
     let recurring_context = compute_recurring_context(
         router_data.request.mit_category.clone(),
         router_data
@@ -1880,14 +2038,12 @@ fn extract_for_authorize<T: PaymentMethodDataTypes + Debug + Sync + Send + 'stat
             .as_ref(),
         card_network.as_ref(),
     )?;
-    let commercial_card_context = compute_commercial_card_context(
-        router_data,
-        commercial_meta.as_ref(),
-        card_network.as_ref(),
-    )?;
+    let commercial_card_context =
+        compute_commercial_card_context(router_data, card_network.as_ref(), &auth)?;
     let three_ds_context = compute_three_ds_context(router_data, card_network.as_ref());
 
-    let profile = TxProfile::derive_for_authorize(router_data);
+    let profile =
+        TxProfile::derive_for_authorize(router_data, commercial_card_context.commercial_card_level);
     let cvv_present_for_authorize = card.map(|c| !c.card_cvc.peek().is_empty()).unwrap_or(false);
 
     let (card_number, expiration_date, cvv2, customer_code, wallet_details) =
@@ -1989,7 +2145,9 @@ fn extract_for_authorize<T: PaymentMethodDataTypes + Debug + Sync + Send + 'stat
     })
 }
 
-fn assemble_authorize_body(assembly: AuthorizeAssembly) -> TsysTransitAuthorizeBody {
+fn assemble_authorize_body(
+    assembly: AuthorizeAssembly,
+) -> Result<TsysTransitAuthorizeBody, Report<IntegrationError>> {
     let AuthorizeAssembly {
         profile,
         auth,
@@ -2075,16 +2233,60 @@ fn assemble_authorize_body(assembly: AuthorizeAssembly) -> TsysTransitAuthorizeB
 
     let partial_auth_support = rules::network_indicators::partial_auth_support(&profile);
 
-    TsysTransitAuthorizeBody {
+    let additional_tax_details = rules::commercial::additional_tax_details(
+        &profile,
+        commercial_card_context.tax_type,
+        commercial_card_context.tax_amount,
+        commercial_card_context.tax_rate,
+        commercial_card_context.tax_category,
+    )?;
+    let sales_tax = rules::commercial::sales_tax(&profile, commercial_card_context.sales_tax)?;
+    let customer_vat_number = rules::commercial::customer_vat_number(
+        &profile,
+        commercial_card_context.customer_vat_number,
+    )?;
+    let shipping_charges =
+        rules::commercial::shipping_charges(&profile, commercial_card_context.shipping_charges)?;
+    let duty_charges =
+        rules::commercial::duty_charges(&profile, commercial_card_context.duty_charges)?;
+    let product_details =
+        rules::commercial::product_details(&profile, commercial_card_context.product_details)?;
+    let order_date = rules::commercial::order_date(&profile, commercial_card_context.order_date)?;
+    let summary_commodity_code = rules::commercial::summary_commodity_code(
+        &profile,
+        commercial_card_context.summary_commodity_code,
+    )?;
+    let vat_invoice =
+        rules::commercial::vat_invoice(&profile, commercial_card_context.vat_invoice)?;
+    let ship_from_zip =
+        rules::commercial::ship_from_zip(&profile, commercial_card_context.ship_from_zip)?;
+    let destination_country_code = rules::commercial::destination_country_code(
+        &profile,
+        commercial_card_context.destination_country_code,
+    )?;
+    let purchase_order =
+        rules::commercial::purchase_order(&profile, commercial_card_context.purchase_order)?;
+    let charge_descriptor =
+        rules::commercial::charge_descriptor(&profile, commercial_card_context.charge_descriptor)?;
+    let customer_ref_id =
+        rules::commercial::customer_ref_id(&profile, commercial_card_context.customer_ref_id)?;
+    let supplier_reference_number = rules::commercial::supplier_reference_number(
+        &profile,
+        commercial_card_context.supplier_reference_number,
+    )?;
+    let ship_to_zip =
+        rules::commercial::ship_to_zip(&profile, commercial_card_context.ship_to_zip)?;
+
+    Ok(TsysTransitAuthorizeBody {
         device_id: auth.device_id,
         transaction_key: auth.transaction_key,
         card_data_source,
         transaction_amount,
-        sales_tax: commercial_card_context.sales_tax,
+        sales_tax,
         surcharge,
-        additional_tax_details: commercial_card_context.additional_tax_details,
-        shipping_charges: commercial_card_context.shipping_charges,
-        duty_charges: commercial_card_context.duty_charges,
+        additional_tax_details,
+        shipping_charges,
+        duty_charges,
         card_number,
         expiration_date,
         cvv2,
@@ -2101,35 +2303,20 @@ fn assemble_authorize_body(assembly: AuthorizeAssembly) -> TsysTransitAuthorizeB
         address_line1,
         zip,
         external_reference_id,
-        product_details: commercial_card_context.product_details,
+        product_details,
         commercial_card_level: commercial_card_context.commercial_card_level,
         // Per-field commercial gating from rules::commercial.
-        purchase_order: rules::commercial::purchase_order(
-            &profile,
-            commercial_card_context.purchase_order,
-        ),
-        charge_descriptor: commercial_card_context.charge_descriptor,
-        charge_descriptor_2: commercial_card_context.charge_descriptor_2,
-        charge_descriptor_3: commercial_card_context.charge_descriptor_3,
-        charge_descriptor_4: commercial_card_context.charge_descriptor_4,
-        customer_vat_number: commercial_card_context.customer_vat_number,
-        customer_ref_id: rules::commercial::customer_ref_id(
-            &profile,
-            commercial_card_context.customer_ref_id,
-        ),
-        supplier_reference_number: rules::commercial::supplier_reference_number(
-            &profile,
-            commercial_card_context.supplier_reference_number,
-        ),
-        order_date: commercial_card_context.order_date,
-        summary_commodity_code: commercial_card_context.summary_commodity_code,
-        vat_invoice: commercial_card_context.vat_invoice,
-        ship_from_zip: commercial_card_context.ship_from_zip,
-        ship_to_zip: rules::commercial::ship_to_zip(&profile, commercial_card_context.ship_to_zip),
-        destination_country_code: rules::commercial::destination_country_code(
-            &profile,
-            commercial_card_context.destination_country_code,
-        ),
+        purchase_order,
+        charge_descriptor,
+        customer_vat_number,
+        customer_ref_id,
+        supplier_reference_number,
+        order_date,
+        summary_commodity_code,
+        vat_invoice,
+        ship_from_zip,
+        ship_to_zip,
+        destination_country_code,
         card_on_file: card_on_file_from_rule,
         partial_auth_support,
         terminal_capability,
@@ -2154,7 +2341,12 @@ fn assemble_authorize_body(assembly: AuthorizeAssembly) -> TsysTransitAuthorizeB
         last_registered_change_date,
         authorization_indicator,
         mit: mit_block_for_body,
-    }
+        acceptor_street_address: commercial_card_context.acceptor_street_address,
+        acceptor_customer_service_phone_number: commercial_card_context
+            .acceptor_customer_service_phone_number,
+        acceptor_phone_number: commercial_card_context.acceptor_phone_number,
+        acceptor_u_r_l_address: commercial_card_context.acceptor_url,
+    })
 }
 #[derive(Debug, Clone)]
 pub enum MandateDispatch {
@@ -3292,6 +3484,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let auth = TsysTransitAuthType::try_from(&router_data.connector_config)?;
+        validate_off_session_ecommerce_support(
+            router_data.request.setup_future_usage,
+            router_data.request.payment_channel.as_ref(),
+        )?;
+        let is_ecommerce_payment = matches!(
+            router_data.request.payment_channel,
+            Some(PaymentChannel::Ecommerce)
+        );
 
         let card = match &router_data.request.payment_method_data {
             PaymentMethodData::Card(card) => card,
@@ -3329,7 +3529,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let (cardholder_first_name, cardholder_last_name) =
             split_domain_full_name(card.card_holder_name.clone());
         let is_visa_card_auth = matches!(card.card_network, Some(CardNetwork::Visa));
-        let first_name = if is_visa_card_auth {
+        let first_name = if is_visa_card_auth && !is_ecommerce_payment {
             billing
                 .and_then(|a| a.first_name.clone())
                 .or(cardholder_first_name)
@@ -3341,7 +3541,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .and_then(|a| a.last_name.clone())
             .or(cardholder_last_name)
             .map(|name| Secret::new(sanitize_alphanumeric_space(name.peek(), 25)));
-        let last_name = if is_visa_card_auth {
+
+        let last_name = if is_visa_card_auth && !is_ecommerce_payment {
             Some(derived_last_name.ok_or_else(|| {
                 error_stack::report!(IntegrationError::MissingRequiredField {
                     field_name: "billing.address.last_name required for Visa CardAuthentication Account Name Inquiry",
@@ -3387,6 +3588,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // authentications used to store credentials for future payments.
         let card_on_file = rules::cof_mit::card_on_file(&profile);
         let cit_status_indicator = rules::cof_mit::cit_status_indicator(&profile);
+        let m_pos_acceptance_device_type =
+            (!is_ecommerce_payment).then_some(POS_ACCEPTANCE_DEVICE_TYPE.to_string());
+
+        let merchant_acceptor_info = build_merchant_acceptor_info(
+            &auth,
+            card.card_network.as_ref(),
+            router_data.request.payment_channel.as_ref(),
+        )?;
 
         Ok(Self {
             device_id: auth.device_id,
@@ -3424,10 +3633,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             // mPos must be the LAST element on CardAuthentication per
             // the SBX XSD; downstream fields (cardOnFile, etc.) live
             // earlier in the struct now.
-            m_pos_acceptance_device_type: "0".to_string(),
+            m_pos_acceptance_device_type,
             authorization_indicator,
             card_on_file,
             cit_status_indicator,
+            acceptor_street_address: merchant_acceptor_info
+                .as_ref()
+                .map(|info| info.street_address.clone()),
+            acceptor_customer_service_phone_number: merchant_acceptor_info
+                .as_ref()
+                .map(|info| info.customer_service_phone_number.clone()),
+            acceptor_phone_number: merchant_acceptor_info
+                .as_ref()
+                .map(|info| info.phone_number.clone()),
+            acceptor_u_r_l_address: merchant_acceptor_info.as_ref().map(|info| info.url.clone()),
         })
     }
 }
@@ -3514,7 +3733,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         Ok(Self {
             resource_common_data: PaymentFlowData {
-                status: AttemptStatus::Authorized,
+                status: AttemptStatus::Charged,
                 ..router_data.resource_common_data.clone()
             },
             response: Ok(payments_response_data),

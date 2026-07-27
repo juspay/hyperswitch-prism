@@ -699,6 +699,9 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             transaction_key: k(),
             developer_id: s(),
             base_url: None,
+            merchant_street_address: None,
+            customer_service_phone_number: None,
+            merchant_url: None,
         },
         ConnectorEnum::TwocTwopPaco => ConnectorSpecificConfig::TwocTwopPaco {
             access_token: s(),
@@ -758,6 +761,10 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
         ConnectorEnum::Kount => ConnectorSpecificConfig::Kount {
             api_key: k(),
             auth_server_id: None,
+            base_url: None,
+        },
+        ConnectorEnum::Givepayments => ConnectorSpecificConfig::Givepayments {
+            api_key: k(),
             base_url: None,
         },
     }

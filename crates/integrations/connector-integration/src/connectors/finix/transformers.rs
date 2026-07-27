@@ -1,6 +1,10 @@
 use crate::types::ResponseRouterData;
 use common_enums::{AttemptStatus, CountryAlpha2, CountryAlpha3, Currency, RefundStatus};
-use common_utils::{consts, pii::Email, types::MinorUnit};
+use common_utils::{
+    consts,
+    pii::{Email, SecretSerdeValue},
+    types::MinorUnit,
+};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, CreateConnectorCustomer, PSync, PaymentMethodToken, RSync, Refund,
@@ -266,9 +270,14 @@ pub struct FinixCreatePaymentInstrumentRequest {
     pub tags: Option<FinixTags>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub address: Option<FinixAddress>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    // HS emits these as explicit `null` (no skip_serializing_if) for card payment instruments;
+    // mirror that so the shadow request bodies match. Finix derives card_brand/card_type from the
+    // PAN, so they stay None for cards; merchant_identity/third_party_token carry values only for
+    // wallet (Google/Apple Pay) tokenization.
+    pub card_brand: Option<String>,
+    pub card_type: Option<String>,
+    pub additional_data: Option<HashMap<String, String>>,
     pub merchant_identity: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub third_party_token: Option<Secret<String>>,
     // Bank account specific fields for ACH
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -343,19 +352,28 @@ pub type FinixSetupMandateResponse = FinixInstrumentResponse;
 
 // AUTHORIZE FLOW - REQUEST/RESPONSE
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct FinixPaymentThreeDSecure {
+    pub cardholder_authentication: Secret<String>,
+    pub electronic_commerce_indicator: String,
+    pub transaction_id: Option<String>,
+}
+
 #[derive(Debug, Serialize)]
-pub struct FinixAuthorizeRequest {
+pub struct FinixPaymentsRequest {
     pub amount: MinorUnit,
     pub currency: Currency,
     pub source: String,
     pub merchant: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub idempotency_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub tags: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fraud_session_id: Option<String>,
+    #[serde(rename = "3d_secure_authentication")]
+    pub three_d_secure_authentication: Option<FinixPaymentThreeDSecure>,
+    pub idempotency_id: Option<String>,
     pub statement_descriptor: Option<String>,
 }
+
+pub type FinixAuthorizeRequest = FinixPaymentsRequest;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FinixAuthorizeResponse {
@@ -379,9 +397,8 @@ pub struct FinixNetworkDetails {
     pub authorization_code: Option<String>,
 }
 
-// RepeatPayment (MIT) reuses the Authorize request/response shape.
-// A recurring charge is a POST /transfers (or /authorizations) with `source` set to a
-// previously stored Payment Instrument ID returned by SetupRecurring.
+// RepeatPayment (MIT) uses the same payment-create request shape as Authorize,
+// matching HS's `FinixPaymentsRequest` serialization for both flows.
 pub type FinixRepeatPaymentRequest = FinixAuthorizeRequest;
 pub type FinixRepeatPaymentResponse = FinixAuthorizeResponse;
 
@@ -418,6 +435,41 @@ impl From<&FinixPaymentStatus> for AttemptStatus {
             FinixPaymentStatus::Unknown => Self::Pending,
         }
     }
+}
+
+fn get_finix_three_d_secure(
+    authentication_data: Option<&domain_types::router_request_types::AuthenticationData>,
+) -> Result<Option<FinixPaymentThreeDSecure>, error_stack::Report<IntegrationError>> {
+    authentication_data
+        .map(|auth_data| {
+            Ok(FinixPaymentThreeDSecure {
+                cardholder_authentication: auth_data.cavv.clone().ok_or(
+                    IntegrationError::MissingRequiredField {
+                        field_name: "authentication_data.cavv",
+                        context: IntegrationErrorContext::default(),
+                    },
+                )?,
+                electronic_commerce_indicator: auth_data.eci.clone().ok_or(
+                    IntegrationError::MissingRequiredField {
+                        field_name: "authentication_data.eci",
+                        context: IntegrationErrorContext::default(),
+                    },
+                )?,
+                transaction_id: auth_data.threeds_server_transaction_id.clone(),
+            })
+        })
+        .transpose()
+}
+
+fn get_finix_fraud_session_id(connector_feature_data: Option<&SecretSerdeValue>) -> Option<String> {
+    connector_feature_data.and_then(|feature_data| {
+        feature_data
+            .peek()
+            .get("finix_additional_details")
+            .and_then(|details| details.get("fraud_session_id"))
+            .and_then(|value| value.as_str())
+            .map(ToOwned::to_owned)
+    })
 }
 
 // TRYFROM IMPLEMENTATIONS - AUTHORIZE REQUEST
@@ -475,19 +527,25 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .billing_descriptor
             .clone()
             .and_then(|billing_descriptor| billing_descriptor.statement_descriptor);
+        let three_d_secure_authentication =
+            get_finix_three_d_secure(router_data.request.authentication_data.as_ref())?;
+        let fraud_session_id =
+            get_finix_fraud_session_id(router_data.request.connector_feature_data.as_ref());
 
         Ok(Self {
             amount: router_data.request.amount,
             currency: router_data.request.currency,
             source,
             merchant: merchant_id,
+            tags: None,
+            fraud_session_id,
+            three_d_secure_authentication,
             idempotency_id: Some(
                 router_data
                     .resource_common_data
                     .connector_request_reference_id
                     .clone(),
             ),
-            tags: None,
             statement_descriptor,
         })
     }
@@ -525,6 +583,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 }),
                 resource_common_data: PaymentFlowData {
                     status: AttemptStatus::Failure,
+                    connector_response: connector_response_data,
                     ..item.router_data.resource_common_data.clone()
                 },
                 ..item.router_data
@@ -1172,6 +1231,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 address: get_billing_address_as_finix_address(
                     &item.router_data.resource_common_data,
                 ),
+                card_brand: None,
+                card_type: None,
+                additional_data: None,
                 merchant_identity: None,
                 third_party_token: None,
                 account_number: None,
@@ -1205,6 +1267,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             identity: customer_id,
                             tags: None,
                             address: None,
+                            card_brand: None,
+                            card_type: None,
+                            additional_data: None,
                             merchant_identity: None,
                             third_party_token: None,
                             account_number: Some(account_number.clone()),
@@ -1245,6 +1310,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             identity: customer_id,
                             tags: None,
                             address: None,
+                            card_brand: None,
+                            card_type: None,
+                            additional_data: None,
                             merchant_identity: Some(Secret::new(merchant_identity)),
                             third_party_token: Some(Secret::new(third_party_token.token.clone())),
                             account_number: None,
@@ -1410,6 +1478,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 address: get_billing_address_as_finix_address(
                     &item.router_data.resource_common_data,
                 ),
+                card_brand: None,
+                card_type: None,
+                additional_data: None,
                 merchant_identity: None,
                 third_party_token: None,
                 account_number: None,
@@ -1443,6 +1514,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             identity: customer_id,
                             tags,
                             address: None,
+                            card_brand: None,
+                            card_type: None,
+                            additional_data: None,
                             merchant_identity: None,
                             third_party_token: None,
                             account_number: Some(account_number.clone()),
@@ -1483,6 +1557,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             identity: customer_id,
                             tags,
                             address: None,
+                            card_brand: None,
+                            card_type: None,
+                            additional_data: None,
                             merchant_identity: Some(Secret::new(merchant_identity)),
                             third_party_token: Some(Secret::new(third_party_token.token.clone())),
                             account_number: None,
@@ -1656,24 +1733,31 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         };
 
+        let statement_descriptor = router_data
+            .request
+            .billing_descriptor
+            .clone()
+            .and_then(|billing_descriptor| billing_descriptor.statement_descriptor);
+        let three_d_secure_authentication =
+            get_finix_three_d_secure(router_data.request.authentication_data.as_ref())?;
+        let fraud_session_id =
+            get_finix_fraud_session_id(router_data.request.connector_feature_data.as_ref());
+
         Ok(Self {
             amount: router_data.request.minor_amount,
             currency: router_data.request.currency,
             source,
             merchant: merchant_id,
+            tags: None,
+            fraud_session_id,
+            three_d_secure_authentication,
             idempotency_id: Some(
                 router_data
                     .resource_common_data
                     .connector_request_reference_id
                     .clone(),
             ),
-            tags: Some(serde_json::json!({
-                FINIX_REFERENCE_TAG_KEY: router_data
-                    .resource_common_data
-                    .connector_request_reference_id
-                    .clone(),
-            })),
-            statement_descriptor: None,
+            statement_descriptor,
         })
     }
 }
@@ -1689,6 +1773,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let response = &item.response;
 
+        // Finix echoes AVS / network details on failed charges too, and hyperswitch's
+        // `get_finix_response` attaches them outside its success/failure split, so this
+        // must be computed before the failure branch to stay at parity.
+        let connector_response_data =
+            convert_to_additional_payment_method_connector_response(&item.response)
+                .map(ConnectorResponseData::with_additional_payment_method_data);
+
         // Surface explicit Finix failure responses (failure_message present) directly.
         if let Some(failure_message) = response.failure_message.clone() {
             let code = response
@@ -1698,12 +1789,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             return Ok(Self {
                 resource_common_data: PaymentFlowData {
                     status: AttemptStatus::Failure,
+                    connector_response: connector_response_data,
                     ..item.router_data.resource_common_data.clone()
                 },
                 response: Err(ErrorResponse {
                     code,
-                    message: failure_message.clone(),
-                    reason: Some(failure_message),
+                    message: failure_message,
+                    reason: None,
                     status_code: item.http_code,
                     attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: Some(response.id.clone()),
@@ -1730,10 +1822,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Mirror the Authorize flow for shadow parity: surface the charged Payment
         // Instrument (`source`) as the connector mandate id and attach the AVS / network
         // details as the connector_response.
-        let connector_response_data =
-            convert_to_additional_payment_method_connector_response(&item.response)
-                .map(ConnectorResponseData::with_additional_payment_method_data);
-
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
