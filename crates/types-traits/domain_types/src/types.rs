@@ -13400,28 +13400,9 @@ fn card_with_no_cvc_to_proto(
         card_exp_year: Some(card.card_exp_year),
         card_holder_name: card.card_holder_name,
         card_issuer: card.card_issuer,
-        card_network: card.card_network.map(|network| {
-            let proto_network = match network {
-                CardNetwork::Visa => grpc_api_types::payments::CardNetwork::Visa,
-                CardNetwork::Mastercard => grpc_api_types::payments::CardNetwork::Mastercard,
-                CardNetwork::AmericanExpress => grpc_api_types::payments::CardNetwork::Amex,
-                CardNetwork::JCB => grpc_api_types::payments::CardNetwork::Jcb,
-                CardNetwork::DinersClub => grpc_api_types::payments::CardNetwork::Diners,
-                CardNetwork::Discover => grpc_api_types::payments::CardNetwork::Discover,
-                CardNetwork::CartesBancaires => {
-                    grpc_api_types::payments::CardNetwork::CartesBancaires
-                }
-                CardNetwork::UnionPay => grpc_api_types::payments::CardNetwork::Unionpay,
-                CardNetwork::RuPay => grpc_api_types::payments::CardNetwork::Rupay,
-                CardNetwork::Maestro => grpc_api_types::payments::CardNetwork::Maestro,
-                CardNetwork::Interac => grpc_api_types::payments::CardNetwork::InteracCard,
-                CardNetwork::Star => grpc_api_types::payments::CardNetwork::Star,
-                CardNetwork::Pulse => grpc_api_types::payments::CardNetwork::Pulse,
-                CardNetwork::Accel => grpc_api_types::payments::CardNetwork::Accel,
-                CardNetwork::Nyce => grpc_api_types::payments::CardNetwork::Nyce,
-            };
-            i32::from(proto_network)
-        }),
+        card_network: card
+            .card_network
+            .map(|network| i32::from(grpc_payment_types::CardNetwork::foreign_from(network))),
         card_type: card.card_type,
         card_issuing_country_alpha2: card.card_issuing_country,
         bank_code: card.bank_code,
