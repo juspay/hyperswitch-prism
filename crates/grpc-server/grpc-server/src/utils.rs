@@ -461,8 +461,13 @@ fn art_recording_rows_size_bytes(rows: &[CsvRecording]) -> usize {
         .sum()
 }
 
-fn flush_art_recording(runtime: &ArtRuntime, config: &configs::ArtRecordingConfig, order_id: &str) {
-    if runtime.mode() != ArtMode::Record || !config.enabled {
+fn flush_art_recording(
+    runtime: &ArtRuntime,
+    config: &configs::ArtRecordingConfig,
+    order_id: &str,
+    should_publish: bool,
+) {
+    if runtime.mode() != ArtMode::Record || !config.should_publish(should_publish) {
         return;
     }
 
@@ -523,6 +528,8 @@ where
     Fut: Future<Output = Result<tonic::Response<R>, tonic::Status>>,
     R: Serialize,
 {
+    let should_publish_art_recording = request_data.extracted_metadata.art_recording_enabled;
+
     if art_runtime.mode() == ArtMode::Record {
         if let Err(error) = art_effects::record_metadata_with_runtime(
             &mut art_runtime,
@@ -559,7 +566,12 @@ where
         }
     }
 
-    flush_art_recording(&art_runtime, art_recording_config, &art_order_id);
+    flush_art_recording(
+        &art_runtime,
+        art_recording_config,
+        &art_order_id,
+        should_publish_art_recording,
+    );
 
     result
 }
@@ -1570,12 +1582,16 @@ macro_rules! implement_connector_operation {
 
 #[cfg(test)]
 mod art_lifecycle_tests {
+    use std::collections::HashSet;
+
     use art_recorder::{
         runtime::{ArtMode, ArtRuntime},
         schema::{CsvRecording, RecordingEntry},
     };
     use common_utils::{
-        events::FlowName, metadata::MaskedMetadata, request_metrics::ConnectorLatencyTracker,
+        events::FlowName,
+        metadata::{HeaderMaskingConfig, MaskedMetadata},
+        request_metrics::ConnectorLatencyTracker,
     };
     use domain_types::{
         connector_types::{ConnectorEnum, ConnectorVariant},
@@ -1799,7 +1815,13 @@ mod art_lifecycle_tests {
         let request_data = RequestData {
             payload: TestPayload { amount: 100 },
             extracted_metadata: metadata_payload(),
-            masked_metadata: MaskedMetadata::new(metadata, Default::default()),
+            masked_metadata: MaskedMetadata::new(
+                metadata,
+                HeaderMaskingConfig::new(HashSet::from([
+                    "x-merchant-id".to_string(),
+                    "x-request-id".to_string(),
+                ])),
+            ),
             extensions: tonic::Extensions::default(),
         };
         let response = Ok(tonic::Response::new(TestResponse { status: "ok" }));
@@ -1833,6 +1855,8 @@ mod art_lifecycle_tests {
                     && entry.api_request.api_req_method == "GRPC"
                     && entry.api_request.api_req_url == "grpc://PaymentService/Authorize"
                     && entry.api_request.api_req_body == json!({"amount": 100})
+                    && entry.api_request.api_req_headers.get("x-merchant-id").map(String::as_str) == Some("merchant_123")
+                    && entry.api_request.api_req_headers.get("x-request-id").map(String::as_str) == Some("req_phase_5")
                     && entry.api_response.api_res_code == 0
                     && entry.api_response.api_res_body == json!({"status": "ok"})
                     && entry.start_time == json!("2026-07-07T13:00:00Z")

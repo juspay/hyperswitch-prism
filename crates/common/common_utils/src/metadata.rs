@@ -197,15 +197,22 @@ impl MaskedMetadata {
                 let masked_value = match entry {
                     tonic::metadata::KeyAndValueRef::Ascii(_, _) => self
                         .get_maskable(key_name)
-                        .map(|maskable| format!("{maskable:?}")),
+                        .map(render_maskable_header_value),
                     tonic::metadata::KeyAndValueRef::Binary(_, _) => self
                         .get_bin_maskable(key_name)
-                        .map(|maskable| format!("{maskable:?}")),
+                        .map(render_maskable_header_value),
                 };
 
                 masked_value.map(|value| (key_name.to_string(), value))
             })
             .collect()
+    }
+}
+
+fn render_maskable_header_value(maskable: Maskable<String>) -> String {
+    match maskable {
+        Maskable::Masked(secret) => format!("{secret:?}"),
+        Maskable::Normal(value) => value,
     }
 }
 
@@ -218,4 +225,40 @@ pub fn merchant_id_or_default(value: Option<&str>) -> String {
         tracing::warn!("x-merchant-id header missing, using default merchant ID");
         "DefaultMerchantId".to_string()
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashSet;
+
+    use super::{HeaderMaskingConfig, MaskedMetadata};
+
+    #[test]
+    fn get_all_masked_returns_plain_values_for_unmasked_headers() {
+        let mut metadata = tonic::metadata::MetadataMap::new();
+        metadata.insert(
+            "x-merchant-id",
+            "azharamin".parse().expect("valid metadata value"),
+        );
+        metadata.insert(
+            "x-connector-config",
+            "connector-secret".parse().expect("valid metadata value"),
+        );
+
+        let masked_metadata = MaskedMetadata::new(
+            metadata,
+            HeaderMaskingConfig::new(HashSet::from(["x-merchant-id".to_string()])),
+        );
+
+        let headers = masked_metadata.get_all_masked();
+
+        assert_eq!(
+            headers.get("x-merchant-id").map(String::as_str),
+            Some("azharamin")
+        );
+        assert_eq!(
+            headers.get("x-connector-config").map(String::as_str),
+            Some("*** alloc::string::String ***")
+        );
+    }
 }

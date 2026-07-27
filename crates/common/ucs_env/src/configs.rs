@@ -199,6 +199,12 @@ impl Default for ArtRecordingConfig {
     }
 }
 
+impl ArtRecordingConfig {
+    pub fn should_publish(&self, recording_requested: bool) -> bool {
+        self.enabled && recording_requested
+    }
+}
+
 #[cfg(test)]
 mod test_config_tests {
     use super::{ArtFeature, ArtRecordingConfig, Config, MockServerProtocol, TestConfig};
@@ -305,7 +311,7 @@ mod test_config_tests {
     }
 
     #[test]
-    fn art_feature_uses_recording_config_without_request_opt_in() {
+    fn art_feature_records_when_recording_config_is_enabled() {
         let config = config_with_art_modes(false, true);
 
         assert_eq!(config.art_feature(false), ArtFeature::Record);
@@ -314,6 +320,23 @@ mod test_config_tests {
             .create_art_replay_context("req_art_record")
             .expect("record ART feature should not create replay context")
             .is_none());
+    }
+
+    #[test]
+    fn art_recording_publish_requires_config_and_request_opt_in() {
+        let disabled_config = ArtRecordingConfig {
+            enabled: false,
+            ..Default::default()
+        };
+        let enabled_config = ArtRecordingConfig {
+            enabled: true,
+            ..Default::default()
+        };
+
+        assert!(!disabled_config.should_publish(false));
+        assert!(!disabled_config.should_publish(true));
+        assert!(!enabled_config.should_publish(false));
+        assert!(enabled_config.should_publish(true));
     }
 
     #[test]
