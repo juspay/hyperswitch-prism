@@ -210,6 +210,65 @@ impl From<&KountDecision> for FrmDecision {
     }
 }
 
+/// Pairs a parsed Kount response with the verbatim JSON body it was parsed from.
+///
+/// `raw_connector_response` must carry Kount's response *exactly* as received —
+/// re-serialising the typed struct silently drops every field we don't model.
+/// Deserialising into a `serde_json::Value` first preserves the full payload,
+/// while the typed `parsed_response` still drives decision mapping.
+///
+/// `Serialize` emits `raw_response` (the verbatim body), not the typed struct —
+/// mirroring twoc_twop_paco. The Golden Log Line runs `masked_serialize` over the
+/// connector response type, so both the pre_risk_check and notify
+/// `connector_response_data` logs carry Kount's exact response, including fields
+/// we don't model. (Trade-off: because the raw value is a plain `serde_json::Value`
+/// with no `Secret` fields, `connector_response_data` is not per-field masked; the
+/// `raw_connector_response` reply field is still wrapped whole in `Secret`, so it
+/// masks as one blob wherever that field itself is logged.)
+#[derive(Debug, Clone)]
+pub struct KountResponseWithRaw<T> {
+    pub parsed_response: T,
+    pub raw_response: serde_json::Value,
+}
+
+impl<'de, T: serde::de::DeserializeOwned> Deserialize<'de> for KountResponseWithRaw<T> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let raw_response = serde_json::Value::deserialize(deserializer)?;
+        let parsed_response = T::deserialize(&raw_response).map_err(serde::de::Error::custom)?;
+        Ok(Self {
+            parsed_response,
+            raw_response,
+        })
+    }
+}
+
+impl<T> Serialize for KountResponseWithRaw<T> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.raw_response.serialize(serializer)
+    }
+}
+
+/// Per-flow response newtypes. Each is a distinct named type so the connector
+/// macros generate a unique templating type per flow, while sharing
+/// [`KountResponseWithRaw`]'s full-body capture.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct KountPreRiskCheckResponse(pub KountResponseWithRaw<KountOrderResponse>);
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct KountFrmPaymentOutcomeResponse(pub KountResponseWithRaw<KountUpdateOrderResponse>);
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct KountFrmRefundProcessedResponse(pub KountResponseWithRaw<KountRefundUpdateResponse>);
+
 /// Evaluate Order response (`POST /commerce/v2/orders`), shared by PreRiskCheck
 /// and the notify flows. PII/card fields are `Secret`-wrapped so they mask in the
 /// event log; risk analytics stay in plaintext.
@@ -1504,22 +1563,25 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-impl TryFrom<ResponseRouterData<KountOrderResponse, Self>>
+impl TryFrom<ResponseRouterData<KountPreRiskCheckResponse, Self>>
     for RouterDataV2<PreRiskCheck, FrmFlowData, PreRiskCheckRequest, PreRiskCheckResponse>
 {
     type Error = ResponseError;
 
-    fn try_from(item: ResponseRouterData<KountOrderResponse, Self>) -> Result<Self, Self::Error> {
-        // Always surface the raw Kount response (independent of the global
-        // `return_raw_connector_data` flag), mirroring twoc_twop_paco / ppro.
-        // Mask through the PII serializer so the stored/egressed blob never carries
-        // cleartext card/PII — a plain `serde_json::to_string` emits `Secret` fields
-        // exposed. `None` on serialization failure (degrades the audit trail rather
-        // than failing the flow).
-        let raw_connector_response = hyperswitch_masking::masked_serialize(&item.response)
+    fn try_from(
+        item: ResponseRouterData<KountPreRiskCheckResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        // Always surface the *verbatim* Kount body (independent of the global
+        // `return_raw_connector_data` flag). Serialising the captured raw JSON —
+        // not the typed struct — keeps every field Kount sent, including any we
+        // don't model. Wrapped whole in `Secret` so it masks in the event log.
+        // `None` on serialization failure (degrades the audit trail rather than
+        // failing the flow).
+        let raw_connector_response = serde_json::to_string(&item.response.0.raw_response)
             .ok()
-            .map(|value| Secret::new(value.to_string()));
-        let order = item.response.order.as_ref();
+            .map(Secret::new);
+        let parsed = &item.response.0.parsed_response;
+        let order = parsed.order.as_ref();
         let risk = order.and_then(|order| order.risk_inquiry.as_ref());
         Ok(Self {
             response: Ok(PreRiskCheckResponse {
@@ -1682,7 +1744,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-impl TryFrom<ResponseRouterData<KountUpdateOrderResponse, Self>>
+impl TryFrom<ResponseRouterData<KountFrmPaymentOutcomeResponse, Self>>
     for RouterDataV2<
         FrmPaymentOutcome,
         FrmFlowData,
@@ -1693,12 +1755,20 @@ impl TryFrom<ResponseRouterData<KountUpdateOrderResponse, Self>>
     type Error = ResponseError;
 
     fn try_from(
-        item: ResponseRouterData<KountUpdateOrderResponse, Self>,
+        item: ResponseRouterData<KountFrmPaymentOutcomeResponse, Self>,
     ) -> Result<Self, Self::Error> {
+        // Surface the verbatim Kount notify body (see PreRiskCheck mapping).
+        let raw_connector_response = serde_json::to_string(&item.response.0.raw_response)
+            .ok()
+            .map(Secret::new);
         Ok(Self {
             response: Ok(FrmPaymentOutcomeResponse {
                 status_code: item.http_code,
             }),
+            resource_common_data: FrmFlowData {
+                raw_connector_response,
+                ..item.router_data.resource_common_data
+            },
             ..item.router_data
         })
     }
@@ -1798,7 +1868,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-impl TryFrom<ResponseRouterData<KountRefundUpdateResponse, Self>>
+impl TryFrom<ResponseRouterData<KountFrmRefundProcessedResponse, Self>>
     for RouterDataV2<
         FrmRefundProcessed,
         FrmFlowData,
@@ -1809,12 +1879,20 @@ impl TryFrom<ResponseRouterData<KountRefundUpdateResponse, Self>>
     type Error = ResponseError;
 
     fn try_from(
-        item: ResponseRouterData<KountRefundUpdateResponse, Self>,
+        item: ResponseRouterData<KountFrmRefundProcessedResponse, Self>,
     ) -> Result<Self, Self::Error> {
+        // Surface the verbatim Kount notify body (see PreRiskCheck mapping).
+        let raw_connector_response = serde_json::to_string(&item.response.0.raw_response)
+            .ok()
+            .map(Secret::new);
         Ok(Self {
             response: Ok(FrmRefundProcessedResponse {
                 status_code: item.http_code,
             }),
+            resource_common_data: FrmFlowData {
+                raw_connector_response,
+                ..item.router_data.resource_common_data
+            },
             ..item.router_data
         })
     }
