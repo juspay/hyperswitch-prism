@@ -29,6 +29,24 @@ use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
+pub(crate) const AIRWALLEX_INTEGRATION_DOC_URL: &str = "https://www.airwallex.com/docs/api";
+
+/// Builds an [`IntegrationErrorContext`] carrying why Airwallex needs the field and what the
+/// caller has to change. Without this the merchant only sees "Missing required field: X", which
+/// does not say which payment method demanded it or where the value is sourced from.
+///
+/// [`IntegrationErrorContext`]: domain_types::errors::IntegrationErrorContext
+fn aw_err_ctx(
+    additional_context: impl Into<String>,
+    suggested_action: impl Into<String>,
+) -> domain_types::errors::IntegrationErrorContext {
+    domain_types::errors::IntegrationErrorContext {
+        additional_context: Some(additional_context.into()),
+        suggested_action: Some(suggested_action.into()),
+        doc_url: Some(AIRWALLEX_INTEGRATION_DOC_URL.to_string()),
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct AirwallexAuthType {
     pub api_key: Secret<String>,
@@ -520,7 +538,13 @@ fn get_wallet_details(
                 .get_encrypted_google_pay_token()
                 .change_context(IntegrationError::MissingRequiredField {
                     field_name: "gpay wallet_token",
-                    context: Default::default(),
+                    context: aw_err_ctx(
+                        "Airwallex Google Pay requires the encrypted Google Pay token from \
+                         payment_method_data.wallet.google_pay.tokenization_data",
+                        "Send the raw PaymentData token returned by the Google Pay API in \
+                         tokenization_data; it must be the encrypted `token` string, not an \
+                         already-decrypted or empty payload",
+                    ),
                 })
                 .attach_printable("Failed to get gpay wallet token")?;
             Ok(AirwallexPaymentMethod::Wallets(
@@ -540,12 +564,22 @@ fn get_wallet_details(
                 .or_else(|| resource_common_data.get_billing_full_name().ok())
                 .ok_or(IntegrationError::MissingRequiredField {
                     field_name: "shopper_name",
-                    context: Default::default(),
+                    context: aw_err_ctx(
+                        "Airwallex PayPal requires paypal.shopper_name, sourced from the \
+                         customer name or, failing that, billing.address first_name + last_name",
+                        "Send customer.name, or both billing.address.first_name and \
+                         billing.address.last_name, on the payment request",
+                    ),
                 })?;
             let country_code = resource_common_data.get_billing_country().map_err(|_| {
                 IntegrationError::MissingRequiredField {
                     field_name: "country_code",
-                    context: Default::default(),
+                    context: aw_err_ctx(
+                        "Airwallex PayPal requires paypal.country_code, sourced from \
+                         billing.address.country",
+                        "Send billing.address.country as a two-letter ISO 3166-1 alpha-2 code \
+                         (e.g. GB, DE) on the payment request",
+                    ),
                 }
             })?;
             Ok(AirwallexPaymentMethod::Wallets(
@@ -565,18 +599,32 @@ fn get_wallet_details(
                 .or_else(|| resource_common_data.get_billing_full_name().ok())
                 .ok_or(IntegrationError::MissingRequiredField {
                     field_name: "shopper_name",
-                    context: Default::default(),
+                    context: aw_err_ctx(
+                        "Airwallex Skrill requires skrill.shopper_name, sourced from the \
+                         customer name or, failing that, billing.address first_name + last_name",
+                        "Send customer.name, or both billing.address.first_name and \
+                         billing.address.last_name, on the payment request",
+                    ),
                 })?;
             let shopper_email = resource_common_data.get_billing_email().map_err(|_| {
                 IntegrationError::MissingRequiredField {
                     field_name: "shopper_email",
-                    context: Default::default(),
+                    context: aw_err_ctx(
+                        "Airwallex Skrill requires skrill.shopper_email to identify the Skrill \
+                         wallet account; it is sourced from billing.email",
+                        "Send billing.email on the payment request",
+                    ),
                 }
             })?;
             let country_code = resource_common_data.get_billing_country().map_err(|_| {
                 IntegrationError::MissingRequiredField {
                     field_name: "country_code",
-                    context: Default::default(),
+                    context: aw_err_ctx(
+                        "Airwallex Skrill requires skrill.country_code, sourced from \
+                         billing.address.country",
+                        "Send billing.address.country as a two-letter ISO 3166-1 alpha-2 code \
+                         (e.g. GB, DE) on the payment request",
+                    ),
                 }
             })?;
             Ok(AirwallexPaymentMethod::Wallets(
@@ -610,7 +658,12 @@ fn get_paylater_details(
             let country_code = resource_common_data.get_billing_country().map_err(|_| {
                 IntegrationError::MissingRequiredField {
                     field_name: "country_code",
-                    context: Default::default(),
+                    context: aw_err_ctx(
+                        "Airwallex Klarna requires klarna.country_code to select the Klarna \
+                         market; it is sourced from billing.address.country",
+                        "Send billing.address.country as a two-letter ISO 3166-1 alpha-2 code \
+                         for a Klarna-supported market (e.g. GB, DE, SE)",
+                    ),
                 }
             })?;
             Ok(AirwallexPaymentMethod::PayLater(
@@ -640,12 +693,21 @@ fn get_paylater_details(
                 .get_billing_phone()
                 .map_err(|_| IntegrationError::MissingRequiredField {
                     field_name: "shopper_phone",
-                    context: Default::default(),
+                    context: aw_err_ctx(
+                        "Airwallex Atome requires atome.shopper_phone; it is sourced from \
+                         billing.phone",
+                        "Send billing.phone.number on the payment request",
+                    ),
                 })?
                 .get_number_with_country_code()
                 .map_err(|_| IntegrationError::MissingRequiredField {
                     field_name: "country_code",
-                    context: Default::default(),
+                    context: aw_err_ctx(
+                        "Airwallex Atome needs the shopper phone in full international form, so \
+                         billing.phone must carry a country code alongside the number",
+                        "Send billing.phone.country_code (e.g. 65) together with \
+                         billing.phone.number",
+                    ),
                 })?;
             Ok(AirwallexPaymentMethod::PayLater(
                 AirwallexPayLaterData::Atome(AirwallexAtomeData {
@@ -678,13 +740,24 @@ fn get_banktransfer_details(
                     shopper_name: resource_common_data.get_billing_full_name().map_err(|_| {
                         IntegrationError::MissingRequiredField {
                             field_name: "shopper_name",
-                            context: Default::default(),
+                            context: aw_err_ctx(
+                                "Airwallex Indonesian bank transfer requires \
+                                 bank_transfer.shopper_name, sourced from billing.address \
+                                 first_name + last_name",
+                                "Send both billing.address.first_name and \
+                                 billing.address.last_name on the payment request",
+                            ),
                         }
                     })?,
                     shopper_email: resource_common_data.get_billing_email().map_err(|_| {
                         IntegrationError::MissingRequiredField {
                             field_name: "shopper_email",
-                            context: Default::default(),
+                            context: aw_err_ctx(
+                                "Airwallex Indonesian bank transfer requires \
+                                 bank_transfer.shopper_email to deliver the virtual account \
+                                 instructions; it is sourced from billing.email",
+                                "Send billing.email on the payment request",
+                            ),
                         }
                     })?,
                     // `bank_name` is required by Airwallex to route the Indonesian bank transfer;
@@ -692,14 +765,27 @@ fn get_banktransfer_details(
                     bank_name: AirwallexIndonesianBankName::try_from(bank_name.as_ref().ok_or(
                         IntegrationError::MissingRequiredField {
                             field_name: "bank_name",
-                            context: Default::default(),
+                            context: aw_err_ctx(
+                                "Airwallex routes the Indonesian bank transfer to a specific \
+                                 issuer, so bank_transfer.bank_name cannot be inferred",
+                                "Send payment_method_data.bank_transfer.bank_name with one of \
+                                 the Indonesian banks Airwallex supports: bank_mandiri, \
+                                 bank_danamon, bank_negara_indonesia, bank_rakyat_indonesia, \
+                                 cimb_niaga, maybank, permata_bank",
+                            ),
                         },
                     )?)?
                     .0,
                     country_code: resource_common_data.get_billing_country().map_err(|_| {
                         IntegrationError::MissingRequiredField {
                             field_name: "country_code",
-                            context: Default::default(),
+                            context: aw_err_ctx(
+                                "Airwallex Indonesian bank transfer requires \
+                                 bank_transfer.country_code, sourced from \
+                                 billing.address.country",
+                                "Send billing.address.country as ID for the Indonesian bank \
+                                 transfer",
+                            ),
                         }
                     })?,
                 },
@@ -992,7 +1078,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .map(|data| serde_json::to_string(data.peek()))
                     .transpose()
                     .change_context(IntegrationError::RequestEncodingFailed {
-                        context: Default::default(),
+                        context: aw_err_ctx(
+                            "Failed to serialize the 3DS redirect payload into \
+                             three_ds.acs_response for the Airwallex confirm_continue call",
+                            "Ensure the redirect response payload echoed back from the ACS is \
+                             valid JSON",
+                        ),
                     })?
                     .map(Secret::new);
                 // Unique per call: a 3DS flow issues confirm_continue more than once (after DDC,
@@ -1989,7 +2080,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             .amount_converter
                             .convert(detail.amount, item.router_data.request.currency)
                             .map_err(|_| IntegrationError::RequestEncodingFailed {
-                                context: Default::default(),
+                                context: aw_err_ctx(
+                                    "Failed to convert an order line item amount into the \
+                                     Airwallex minor-unit representation for order.products",
+                                    "Ensure every order_details entry carries an amount valid \
+                                     for the payment currency",
+                                ),
                             })?;
                         Ok(AirwallexProductData {
                             name: detail.product_name.clone(),
