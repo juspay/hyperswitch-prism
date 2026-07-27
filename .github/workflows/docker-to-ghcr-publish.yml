@@ -19,6 +19,9 @@ jobs:
   validate-tag:
     name: Validate tag format
     runs-on: ubuntu-latest
+    # This job only inspects the ref name from the `github` context — it never
+    # checks out the repo or calls the API — so it needs no token scopes at all.
+    permissions: {}
     steps:
       # Tag names are attacker-controllable text that later becomes the image
       # version, so reject anything that isn't a strict CalVer/SemVer tag
