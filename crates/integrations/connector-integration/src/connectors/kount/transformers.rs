@@ -627,8 +627,9 @@ pub struct KountRespFulfillment {
     pub shipping: Option<KountRespShipping>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<String>,
+    /// Digital-delivery access URL — may carry a download token, so masked.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub access_url: Option<String>,
+    pub access_url: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub digital_downloaded: Option<bool>,
     /// Download device IP — PII, masked. (Kount's field name carries a typo,
