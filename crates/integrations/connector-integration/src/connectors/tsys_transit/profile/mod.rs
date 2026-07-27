@@ -33,12 +33,11 @@ use domain_types::{
 use hyperswitch_masking::PeekInterface;
 use serde::Serialize;
 
+use super::transformers::{TsysTransitCardDataSource, TsysTransitCommercialCardLevel};
 pub use acceptance::{AcceptanceProfile, TerminalDataBlock};
 pub use card_family::CardFamily;
 pub use cof_phase::{CofPhase, MitIntent, MitKind};
 pub use commercial::CommercialLevel;
-
-use super::transformers::TsysTransitCardDataSource;
 
 /// Map the acceptance channel to the `cardDataSource` wire value. This is an
 /// axis ORTHOGONAL to the recurring/terminal semantics: a recurring MOTO
@@ -106,6 +105,7 @@ impl TxProfile {
             PaymentsAuthorizeData<T>,
             PaymentsResponseData,
         >,
+        commercial_card_context: Option<TsysTransitCommercialCardLevel>,
     ) -> Self
     where
         T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
@@ -128,31 +128,11 @@ impl TxProfile {
             request.off_session,
         );
 
-        // Commercial level — look at the same signals the original
-        // `compute_commercial_card_context` used: L2L3 line items / tax /
-        // shipping / duty either on the request or in resource_common_data.
-        let l2_l3 = router_data.resource_common_data.l2_l3_data.as_deref();
-        let has_order_details = l2_l3
-            .and_then(|d| d.get_order_details())
-            .map(|details| !details.is_empty())
-            .unwrap_or_else(|| {
-                router_data
-                    .resource_common_data
-                    .order_details
-                    .as_ref()
-                    .is_some_and(|d| !d.is_empty())
-            });
-        let has_tax_amount = l2_l3.and_then(|d| d.get_order_tax_amount()).is_some()
-            || request.order_tax_amount.is_some();
-        let has_shipping_charges =
-            l2_l3.and_then(|d| d.get_shipping_cost()).is_some() || request.shipping_cost.is_some();
-        let has_duty_charges = l2_l3.and_then(|d| d.get_duty_amount()).is_some();
-        let commercial_level = CommercialLevel::derive(
-            has_order_details,
-            has_tax_amount,
-            has_shipping_charges,
-            has_duty_charges,
-        );
+        let commercial_level = match commercial_card_context {
+            Some(TsysTransitCommercialCardLevel::Level2) => CommercialLevel::L2,
+            Some(TsysTransitCommercialCardLevel::Level3) => CommercialLevel::L3,
+            None => CommercialLevel::None,
+        };
 
         let three_ds = match request
             .authentication_data

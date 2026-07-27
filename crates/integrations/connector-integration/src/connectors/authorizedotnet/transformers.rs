@@ -299,7 +299,13 @@ impl ForeignTryFrom<serde_json::Value> for Vec<UserField> {
         let mut vector = Self::new();
 
         if let serde_json::Value::Object(obj) = metadata {
-            for (key, value) in obj {
+            // Sort keys alphabetically so the outbound userField order is deterministic
+            // and matches hyperswitch's native authorizedotnet request (which parses
+            // metadata into a BTreeMap<String, Value> for the same purpose), regardless
+            // of the insertion/storage order the metadata JSON arrived in.
+            let sorted: std::collections::BTreeMap<String, serde_json::Value> =
+                obj.into_iter().collect();
+            for (key, value) in sorted {
                 vector.push(UserField {
                     name: key,
                     value: match value {
