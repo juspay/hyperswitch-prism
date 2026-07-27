@@ -4290,9 +4290,9 @@ enum CardRefreshOutcome {
   CARD_REFRESH_ACCOUNT_UPDATED = 1;     // Card reissued; the returned card is the new one
   CARD_REFRESH_EXPIRY_UPDATED = 2;      // Same card number, new expiry
   CARD_REFRESH_NO_CHANGE = 3;           // Stored card is current
-  CARD_REFRESH_CLOSED = 4;              // Terminal
-  CARD_REFRESH_NOT_FOUND = 5;           // Terminal; network does not recognise the card
-  CARD_REFRESH_CONTACT_ISSUER = 6;      // Terminal; needs cardholder action
+  CARD_REFRESH_CLOSED = 4;              // Account closed; stop using the card
+  CARD_REFRESH_NOT_FOUND = 5;           // No update available; card not found, or the BIN is not participating
+  CARD_REFRESH_CONTACT_ISSUER = 6;      // Issuer advises contacting the cardholder
 }
 
 // Status of a recharge operation
