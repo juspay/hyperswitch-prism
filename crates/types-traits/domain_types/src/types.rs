@@ -15961,17 +15961,15 @@ pub fn generate_payment_pre_authenticate_response<T: PaymentMethodDataTypes>(
             }
         },
         Err(err) => {
-            // `unwrap_or_default()` here previously emitted PAYMENT_STATUS_UNSPECIFIED,
-            // which the HS UCS-client maps back to None → router keeps the prior status
-            // (e.g. payment_method_awaited). Connectors like redsys leave
-            // `err.attempt_status` as None while setting resource_common_data.status to
-            // Failure, so fall back to `grpc_status` (the flow's resolved status) to match
-            // the Direct gateway's failure status on error envelopes.
-            let status = err
-                .attempt_status
-                .clone()
-                .map(grpc_api_types::payments::PaymentStatus::foreign_from)
-                .unwrap_or(grpc_status);
+            let status = match err.get_attempt_status_for_grpc(
+                err.status_code,
+                router_data_v2.resource_common_data.status,
+            ) {
+                Some(attempt_status) => {
+                    grpc_api_types::payments::PaymentStatus::foreign_from(attempt_status)
+                }
+                None => grpc_api_types::payments::PaymentStatus::Unspecified,
+            };
             PaymentMethodAuthenticationServicePreAuthenticateResponse {
                 connector_transaction_id: None,
                 redirection_data: None,
@@ -16162,11 +16160,15 @@ pub fn generate_payment_authenticate_response<T: PaymentMethodDataTypes>(
             }
         },
         Err(err) => {
-            let status = err
-                .attempt_status
-                .clone()
-                .map(grpc_api_types::payments::PaymentStatus::foreign_from)
-                .unwrap_or_default();
+            let status = match err.get_attempt_status_for_grpc(
+                err.status_code,
+                router_data_v2.resource_common_data.status,
+            ) {
+                Some(attempt_status) => {
+                    grpc_api_types::payments::PaymentStatus::foreign_from(attempt_status)
+                }
+                None => grpc_api_types::payments::PaymentStatus::Unspecified,
+            };
             PaymentMethodAuthenticationServiceAuthenticateResponse {
                 connector_transaction_id: Some("session_created".to_string()),
                 redirection_data: None,
@@ -16257,11 +16259,15 @@ pub fn generate_payment_post_authenticate_response<T: PaymentMethodDataTypes>(
             }
         },
         Err(err) => {
-            let status = err
-                .attempt_status
-                .clone()
-                .map(grpc_api_types::payments::PaymentStatus::foreign_from)
-                .unwrap_or_default();
+            let status = match err.get_attempt_status_for_grpc(
+                err.status_code,
+                router_data_v2.resource_common_data.status,
+            ) {
+                Some(attempt_status) => {
+                    grpc_api_types::payments::PaymentStatus::foreign_from(attempt_status)
+                }
+                None => grpc_api_types::payments::PaymentStatus::Unspecified,
+            };
             PaymentMethodAuthenticationServicePostAuthenticateResponse {
                 connector_transaction_id: None,
                 redirection_data: None,
