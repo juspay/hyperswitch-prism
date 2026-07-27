@@ -717,7 +717,6 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             juspay_encryption_public_key: Some(s()),
             response_decryption_private_key: Some(s()),
             card_sync_key_id: Some(s()),
-            card_sync_feature_id: Some(s()),
             base_url: None,
         },
         ConnectorEnum::Glomopay => ConnectorSpecificConfig::Glomopay {

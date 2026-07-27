@@ -1351,7 +1351,6 @@ pub struct JuspayCardSyncAuthType {
     pub juspay_encryption_public_key: Secret<String>,
     pub response_decryption_private_key: Secret<String>,
     pub card_sync_key_id: Secret<String>,
-    pub card_sync_feature_id: Secret<String>,
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for JuspayCardSyncAuthType {
@@ -1371,7 +1370,6 @@ impl TryFrom<&ConnectorSpecificConfig> for JuspayCardSyncAuthType {
                 juspay_encryption_public_key,
                 response_decryption_private_key,
                 card_sync_key_id,
-                card_sync_feature_id,
                 ..
             } => Ok(Self {
                 api_key: api_key.to_owned(),
@@ -1384,9 +1382,6 @@ impl TryFrom<&ConnectorSpecificConfig> for JuspayCardSyncAuthType {
                 card_sync_key_id: card_sync_key_id
                     .to_owned()
                     .ok_or_else(|| missing("card_sync_key_id"))?,
-                card_sync_feature_id: card_sync_feature_id
-                    .to_owned()
-                    .ok_or_else(|| missing("card_sync_feature_id"))?,
             }),
             _ => Err(error_stack::report!(
                 errors::IntegrationError::FailedToObtainAuthType {

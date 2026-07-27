@@ -47,7 +47,6 @@ pub(crate) mod headers {
     pub(crate) const X_MERCHANT_ID: &str = "x-merchantid";
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
     pub(crate) const VERSION: &str = "version";
-    pub(crate) const X_FEATURE: &str = "x-feature";
 }
 
 const JUSPAY_API_VERSION: &str = "2023-06-30";
@@ -166,10 +165,6 @@ macros::create_all_prerequisites!(
                 (
                     headers::AUTHORIZATION.to_string(),
                     format!("Basic {encoded_api_key}").into_masked(),
-                ),
-                (
-                    headers::X_FEATURE.to_string(),
-                    auth.card_sync_feature_id.peek().to_string().into_masked(),
                 ),
             ])
         }
@@ -628,7 +623,7 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<RefreshPaymentMethod, RefreshPaymentMethodFlowData, RefreshPaymentMethodData<T>, RefreshPaymentMethodResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             let base_url = self.connector_base_url_refresh(req);
-            Ok(format!("{base_url}card/sync"))
+            Ok(format!("{base_url}cardAccountUpdater"))
         }
     }
 );

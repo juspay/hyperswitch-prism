@@ -40,9 +40,6 @@ mod card_sync_tests {
                 String::from_utf8(pkey.private_key_to_pem_pkcs8().expect("pem")).expect("utf8"),
             ),
             card_sync_key_id: Secret::new("key_0123456789abcdef0123456789abcd".to_string()),
-            card_sync_feature_id: Secret::new(
-                "1b4e28ba-2fa1-11d2-883f-0016d3cca427".to_string(),
-            ),
         }
     }
 
@@ -712,7 +709,6 @@ mod card_sync_tests {
             juspay_encryption_public_key: Some(Secret::new("pub".to_string())),
             response_decryption_private_key: Some(Secret::new("priv".to_string())),
             card_sync_key_id: Some(Secret::new("key_x".to_string())),
-            card_sync_feature_id: Some(Secret::new("feature".to_string())),
             base_url: None,
         };
 
@@ -721,14 +717,13 @@ mod card_sync_tests {
 
     #[test]
     fn names_each_missing_card_sync_config_field_individually() {
-        // The compiler cannot enforce that Refresh gets its four extra fields,
+        // The compiler cannot enforce that Refresh gets its three extra fields,
         // because they stay optional so payment flows are unaffected. This is
         // the test that does.
         let field_names = [
             "juspay_encryption_public_key",
             "response_decryption_private_key",
             "card_sync_key_id",
-            "card_sync_feature_id",
         ];
 
         for missing in field_names {
@@ -741,8 +736,6 @@ mod card_sync_tests {
                     .then(|| Secret::new("priv".to_string())),
                 card_sync_key_id: (missing != "card_sync_key_id")
                     .then(|| Secret::new("key_x".to_string())),
-                card_sync_feature_id: (missing != "card_sync_feature_id")
-                    .then(|| Secret::new("feature".to_string())),
                 base_url: None,
             };
 
@@ -992,7 +985,6 @@ mod card_sync_length_tests {
                 String::from_utf8(pkey.private_key_to_pem_pkcs8().expect("pem")).expect("utf8"),
             ),
             card_sync_key_id: Secret::new("key_x".to_string()),
-            card_sync_feature_id: Secret::new("feature".to_string()),
         }
     }
 
