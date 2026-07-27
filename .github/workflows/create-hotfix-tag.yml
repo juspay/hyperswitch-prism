@@ -17,6 +17,12 @@ jobs:
   create_tag:
     runs-on: ubuntu-latest
     needs: [authorize]
+    # Checkout and the commit/tag push both authenticate with
+    # CONNECTOR_SERVICE_CI_PAT; `contents: read` is only so that
+    # taiki-e/install-action can use GITHUB_TOKEN for its release downloads
+    # rather than hitting anonymous API rate limits.
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout repository
