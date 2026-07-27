@@ -883,21 +883,34 @@ impl TryFrom<ResponseRouterData<SyncResponse, Self>>
                 response.transaction.last()
             });
 
-        // Handle empty response (means AuthenticationPending) or transaction data
-        let (status, transaction_id) = if let Some(transaction) = transaction {
-            // Map condition field from XML to AttemptStatus using NmiStatus enum
-            let status = AttemptStatus::from(NmiStatus::from(transaction.condition.clone()));
-            (status, Some(transaction.transaction_id.clone()))
-        } else {
-            // Empty XML response = AuthenticationPending (during 3DS flow)
-            (AttemptStatus::AuthenticationPending, None)
+        // Handle empty response (connector hasn't indexed the transaction yet, e.g.
+        // AuthenticationPending) or transaction data. Hyperswitch's own PSync transformer
+        // leaves the ENTIRE prior response untouched in the empty-response branch
+        // (`None => Ok(Self { ..item.data })`) — both resource_id and status. Match that:
+        // anchor resource_id to the requested transaction_id, and leave status as whatever
+        // it already was instead of forcing AttemptStatus::AuthenticationPending.
+        let (status, transaction_id) = match transaction {
+            Some(transaction) => (
+                // Map condition field from XML to AttemptStatus using NmiStatus enum
+                Some(AttemptStatus::from(NmiStatus::from(
+                    transaction.condition.clone(),
+                ))),
+                transaction.transaction_id.clone(),
+            ),
+            None => (None, requested_transaction_id),
+        };
+
+        let resource_common_data = match status {
+            Some(status) => PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            None => item.router_data.resource_common_data,
         };
 
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: transaction_id
-                    .map(ResponseId::ConnectorTransactionId)
-                    .unwrap_or(ResponseId::NoResponseId),
+                resource_id: ResponseId::ConnectorTransactionId(transaction_id),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
@@ -908,10 +921,7 @@ impl TryFrom<ResponseRouterData<SyncResponse, Self>>
                 status_code: item.http_code,
                 splits: None,
             }),
-            resource_common_data: PaymentFlowData {
-                status,
-                ..item.router_data.resource_common_data
-            },
+            resource_common_data,
             ..item.router_data
         })
     }
