@@ -47,6 +47,187 @@ fn aw_err_ctx(
     }
 }
 
+/// Names the Airwallex payment method a shopper field is being sourced for. The shared field
+/// getters below use it to report both the method and the exact JSON path Airwallex nests the
+/// field under, so every payment method fails the same way instead of hand-rolling its own
+/// message.
+#[derive(Clone, Copy)]
+struct AirwallexMethodField {
+    /// Prose label used in the error message, e.g. `"PayPal"`.
+    label: &'static str,
+    /// JSON object key Airwallex nests the field under, e.g. `"paypal"` → `paypal.shopper_name`.
+    key: &'static str,
+}
+
+const AW_PAYPAL: AirwallexMethodField = AirwallexMethodField {
+    label: "PayPal",
+    key: "paypal",
+};
+const AW_SKRILL: AirwallexMethodField = AirwallexMethodField {
+    label: "Skrill",
+    key: "skrill",
+};
+const AW_KLARNA: AirwallexMethodField = AirwallexMethodField {
+    label: "Klarna",
+    key: "klarna",
+};
+const AW_ATOME: AirwallexMethodField = AirwallexMethodField {
+    label: "Atome",
+    key: "atome",
+};
+const AW_TRUSTLY: AirwallexMethodField = AirwallexMethodField {
+    label: "Trustly",
+    key: "trustly",
+};
+const AW_BLIK: AirwallexMethodField = AirwallexMethodField {
+    label: "Blik",
+    key: "blik",
+};
+const AW_ID_BANK_TRANSFER: AirwallexMethodField = AirwallexMethodField {
+    label: "Indonesian bank transfer",
+    key: "bank_transfer",
+};
+
+/// Appends an optional payment-method-specific clause to a shared suggested action, so the common
+/// wording stays in one place while Klarna's market list or the Indonesian `ID` requirement can
+/// still be spelled out.
+fn aw_suggestion(base: &str, note: Option<&str>) -> String {
+    match note {
+        Some(note) => format!("{base}. {note}"),
+        None => base.to_string(),
+    }
+}
+
+/// `shopper_name` for payment methods that take the explicit customer name and fall back to the
+/// billing full name, mirroring the reference connector's sourcing.
+fn get_shopper_name(
+    resource_common_data: &PaymentFlowData,
+    customer_name: Option<Secret<String>>,
+    method: AirwallexMethodField,
+    note: Option<&str>,
+) -> Result<Secret<String>, IntegrationError> {
+    customer_name
+        .or_else(|| resource_common_data.get_billing_full_name().ok())
+        .ok_or_else(|| IntegrationError::MissingRequiredField {
+            field_name: "shopper_name",
+            context: aw_err_ctx(
+                format!(
+                    "Airwallex {} requires {}.shopper_name, sourced from the customer name or, \
+                     failing that, billing.address first_name + last_name",
+                    method.label, method.key
+                ),
+                aw_suggestion(
+                    "Send customer.name, or both billing.address.first_name and \
+                     billing.address.last_name, on the payment request",
+                    note,
+                ),
+            ),
+        })
+}
+
+/// `shopper_name` for payment methods that only ever source it from the billing address. Kept
+/// separate from [`get_shopper_name`] so the message never advertises `customer.name` as a source
+/// for a flow that does not read it.
+fn get_billing_shopper_name(
+    resource_common_data: &PaymentFlowData,
+    method: AirwallexMethodField,
+    note: Option<&str>,
+) -> Result<Secret<String>, IntegrationError> {
+    resource_common_data.get_billing_full_name().map_err(|_| {
+        IntegrationError::MissingRequiredField {
+            field_name: "shopper_name",
+            context: aw_err_ctx(
+                format!(
+                    "Airwallex {} requires {}.shopper_name, sourced from billing.address \
+                     first_name + last_name",
+                    method.label, method.key
+                ),
+                aw_suggestion(
+                    "Send both billing.address.first_name and billing.address.last_name on the \
+                     payment request",
+                    note,
+                ),
+            ),
+        }
+    })
+}
+
+/// `shopper_email`, sourced from the billing email.
+fn get_shopper_email(
+    resource_common_data: &PaymentFlowData,
+    method: AirwallexMethodField,
+    note: Option<&str>,
+) -> Result<Email, IntegrationError> {
+    resource_common_data
+        .get_billing_email()
+        .map_err(|_| IntegrationError::MissingRequiredField {
+            field_name: "shopper_email",
+            context: aw_err_ctx(
+                format!(
+                    "Airwallex {} requires {}.shopper_email; it is sourced from billing.email",
+                    method.label, method.key
+                ),
+                aw_suggestion("Send billing.email on the payment request", note),
+            ),
+        })
+}
+
+/// `country_code`, sourced from the billing country.
+fn get_country_code(
+    resource_common_data: &PaymentFlowData,
+    method: AirwallexMethodField,
+    note: Option<&str>,
+) -> Result<common_enums::CountryAlpha2, IntegrationError> {
+    resource_common_data
+        .get_billing_country()
+        .map_err(|_| IntegrationError::MissingRequiredField {
+            field_name: "country_code",
+            context: aw_err_ctx(
+                format!(
+                    "Airwallex {} requires {}.country_code, sourced from billing.address.country",
+                    method.label, method.key
+                ),
+                aw_suggestion(
+                    "Send billing.address.country as a two-letter ISO 3166-1 alpha-2 code (e.g. \
+                     GB, DE) on the payment request",
+                    note,
+                ),
+            ),
+        })
+}
+
+/// `shopper_phone` in full international form. Airwallex needs the country code and the number
+/// together, so the two sourcing failures are reported separately.
+fn get_shopper_phone_with_country_code(
+    resource_common_data: &PaymentFlowData,
+    method: AirwallexMethodField,
+) -> Result<Secret<String>, IntegrationError> {
+    resource_common_data
+        .get_billing_phone()
+        .map_err(|_| IntegrationError::MissingRequiredField {
+            field_name: "shopper_phone",
+            context: aw_err_ctx(
+                format!(
+                    "Airwallex {} requires {}.shopper_phone; it is sourced from billing.phone",
+                    method.label, method.key
+                ),
+                "Send billing.phone.number on the payment request",
+            ),
+        })?
+        .get_number_with_country_code()
+        .map_err(|_| IntegrationError::MissingRequiredField {
+            field_name: "country_code",
+            context: aw_err_ctx(
+                format!(
+                    "Airwallex {} needs the shopper phone in full international form, so \
+                     billing.phone must carry a country code alongside the number",
+                    method.label
+                ),
+                "Send billing.phone.country_code (e.g. 65) together with billing.phone.number",
+            ),
+        })
+}
+
 #[derive(Debug, Clone)]
 pub struct AirwallexAuthType {
     pub api_key: Secret<String>,
@@ -524,6 +705,81 @@ fn get_device_data<T: PaymentMethodDataTypes>(
     }))
 }
 
+// Shared Card conversion used by both the intent (AirwallexPaymentRequest) and
+// confirm (AirwallexConfirmRequest) builders so the two paths cannot drift.
+fn get_card_details<T: PaymentMethodDataTypes>(
+    card_data: &domain_types::payment_method_data::Card<T>,
+) -> AirwallexPaymentMethod {
+    AirwallexPaymentMethod::Card(AirwallexCardData {
+        card: AirwallexCardDetails {
+            number: Secret::new(card_data.card_number.peek().to_string()),
+            expiry_month: card_data.card_exp_month.clone(),
+            expiry_year: card_data.get_expiry_year_4_digit(),
+            cvc: card_data.card_cvc.clone(),
+            name: card_data
+                .card_holder_name
+                .clone()
+                .map(|name| Secret::new(name.expose())),
+        },
+        payment_method_type: AirwallexPaymentType::Card,
+    })
+}
+
+// Shared BankRedirect conversion used by both the intent (AirwallexPaymentRequest) and
+// confirm (AirwallexConfirmRequest) builders so the two paths cannot drift. iDeal only carries
+// the issuer bank; Trustly and Blik additionally need the shopper name (and, for Trustly, the
+// billing country).
+fn get_bankredirect_details(
+    bank_redirect_data: &domain_types::payment_method_data::BankRedirectData,
+    resource_common_data: &PaymentFlowData,
+) -> Result<AirwallexPaymentMethod, error_stack::Report<IntegrationError>> {
+    match bank_redirect_data {
+        domain_types::payment_method_data::BankRedirectData::Ideal { bank_name } => {
+            Ok(AirwallexPaymentMethod::BankRedirect(
+                AirwallexBankRedirectData::Ideal(AirwallexIdealData {
+                    ideal: AirwallexIdealDetails {
+                        bank_name: *bank_name,
+                    },
+                    payment_method_type: AirwallexPaymentType::Ideal,
+                }),
+            ))
+        }
+        domain_types::payment_method_data::BankRedirectData::Trustly { .. } => {
+            Ok(AirwallexPaymentMethod::BankRedirect(
+                AirwallexBankRedirectData::Trustly(AirwallexTrustlyData {
+                    trustly: AirwallexTrustlyDetails {
+                        shopper_name: get_billing_shopper_name(
+                            resource_common_data,
+                            AW_TRUSTLY,
+                            None,
+                        )?,
+                        country_code: get_country_code(resource_common_data, AW_TRUSTLY, None)?,
+                    },
+                    payment_method_type: AirwallexPaymentType::Trustly,
+                }),
+            ))
+        }
+        domain_types::payment_method_data::BankRedirectData::Blik { blik_code: _ } => {
+            Ok(AirwallexPaymentMethod::BankRedirect(
+                AirwallexBankRedirectData::Blik(AirwallexBlikData {
+                    blik: AirwallexBlikDetails {
+                        shopper_name: get_billing_shopper_name(
+                            resource_common_data,
+                            AW_BLIK,
+                            None,
+                        )?,
+                    },
+                    payment_method_type: AirwallexPaymentType::Blik,
+                }),
+            ))
+        }
+        _ => Err(error_stack::report!(IntegrationError::NotImplemented(
+            "Bank Redirect Payment Method".to_string(),
+            Default::default()
+        ))),
+    }
+}
+
 // Shared wallet conversion used by both the intent (AirwallexPaymentRequest) and
 // confirm (AirwallexConfirmRequest) builders so the two paths cannot drift.
 fn get_wallet_details(
@@ -558,30 +814,9 @@ fn get_wallet_details(
             ))
         }
         domain_types::payment_method_data::WalletData::PaypalRedirect(_) => {
-            // Prefer the explicit customer_name; fall back to the billing full name, mirroring
-            // the reference connector's shopper_name sourcing.
-            let shopper_name = customer_name
-                .or_else(|| resource_common_data.get_billing_full_name().ok())
-                .ok_or(IntegrationError::MissingRequiredField {
-                    field_name: "shopper_name",
-                    context: aw_err_ctx(
-                        "Airwallex PayPal requires paypal.shopper_name, sourced from the \
-                         customer name or, failing that, billing.address first_name + last_name",
-                        "Send customer.name, or both billing.address.first_name and \
-                         billing.address.last_name, on the payment request",
-                    ),
-                })?;
-            let country_code = resource_common_data.get_billing_country().map_err(|_| {
-                IntegrationError::MissingRequiredField {
-                    field_name: "country_code",
-                    context: aw_err_ctx(
-                        "Airwallex PayPal requires paypal.country_code, sourced from \
-                         billing.address.country",
-                        "Send billing.address.country as a two-letter ISO 3166-1 alpha-2 code \
-                         (e.g. GB, DE) on the payment request",
-                    ),
-                }
-            })?;
+            let shopper_name =
+                get_shopper_name(resource_common_data, customer_name, AW_PAYPAL, None)?;
+            let country_code = get_country_code(resource_common_data, AW_PAYPAL, None)?;
             Ok(AirwallexPaymentMethod::Wallets(
                 AirwallexWalletData::Paypal(AirwallexPaypalData {
                     paypal: AirwallexPaypalDetails {
@@ -593,40 +828,14 @@ fn get_wallet_details(
             ))
         }
         domain_types::payment_method_data::WalletData::Skrill(_) => {
-            // Prefer the explicit customer_name; fall back to the billing full name, mirroring
-            // the reference connector's shopper_name sourcing.
-            let shopper_name = customer_name
-                .or_else(|| resource_common_data.get_billing_full_name().ok())
-                .ok_or(IntegrationError::MissingRequiredField {
-                    field_name: "shopper_name",
-                    context: aw_err_ctx(
-                        "Airwallex Skrill requires skrill.shopper_name, sourced from the \
-                         customer name or, failing that, billing.address first_name + last_name",
-                        "Send customer.name, or both billing.address.first_name and \
-                         billing.address.last_name, on the payment request",
-                    ),
-                })?;
-            let shopper_email = resource_common_data.get_billing_email().map_err(|_| {
-                IntegrationError::MissingRequiredField {
-                    field_name: "shopper_email",
-                    context: aw_err_ctx(
-                        "Airwallex Skrill requires skrill.shopper_email to identify the Skrill \
-                         wallet account; it is sourced from billing.email",
-                        "Send billing.email on the payment request",
-                    ),
-                }
-            })?;
-            let country_code = resource_common_data.get_billing_country().map_err(|_| {
-                IntegrationError::MissingRequiredField {
-                    field_name: "country_code",
-                    context: aw_err_ctx(
-                        "Airwallex Skrill requires skrill.country_code, sourced from \
-                         billing.address.country",
-                        "Send billing.address.country as a two-letter ISO 3166-1 alpha-2 code \
-                         (e.g. GB, DE) on the payment request",
-                    ),
-                }
-            })?;
+            let shopper_name =
+                get_shopper_name(resource_common_data, customer_name, AW_SKRILL, None)?;
+            let shopper_email = get_shopper_email(
+                resource_common_data,
+                AW_SKRILL,
+                Some("Airwallex uses it to identify the Skrill wallet account"),
+            )?;
+            let country_code = get_country_code(resource_common_data, AW_SKRILL, None)?;
             Ok(AirwallexPaymentMethod::Wallets(
                 AirwallexWalletData::Skrill(AirwallexSkrillData {
                     skrill: AirwallexSkrillDetails {
@@ -655,17 +864,14 @@ fn get_paylater_details(
 ) -> Result<AirwallexPaymentMethod, error_stack::Report<IntegrationError>> {
     match paylater_data {
         domain_types::payment_method_data::PayLaterData::KlarnaRedirect {} => {
-            let country_code = resource_common_data.get_billing_country().map_err(|_| {
-                IntegrationError::MissingRequiredField {
-                    field_name: "country_code",
-                    context: aw_err_ctx(
-                        "Airwallex Klarna requires klarna.country_code to select the Klarna \
-                         market; it is sourced from billing.address.country",
-                        "Send billing.address.country as a two-letter ISO 3166-1 alpha-2 code \
-                         for a Klarna-supported market (e.g. GB, DE, SE)",
-                    ),
-                }
-            })?;
+            let country_code = get_country_code(
+                resource_common_data,
+                AW_KLARNA,
+                Some(
+                    "Airwallex uses it to select the Klarna market, so it must be one Klarna \
+                      supports (e.g. GB, DE, SE)",
+                ),
+            )?;
             Ok(AirwallexPaymentMethod::PayLater(
                 AirwallexPayLaterData::Klarna(Box::new(AirwallexKlarnaData {
                     klarna: AirwallexKlarnaDetails {
@@ -689,26 +895,8 @@ fn get_paylater_details(
             ))
         }
         domain_types::payment_method_data::PayLaterData::AtomeRedirect {} => {
-            let shopper_phone = resource_common_data
-                .get_billing_phone()
-                .map_err(|_| IntegrationError::MissingRequiredField {
-                    field_name: "shopper_phone",
-                    context: aw_err_ctx(
-                        "Airwallex Atome requires atome.shopper_phone; it is sourced from \
-                         billing.phone",
-                        "Send billing.phone.number on the payment request",
-                    ),
-                })?
-                .get_number_with_country_code()
-                .map_err(|_| IntegrationError::MissingRequiredField {
-                    field_name: "country_code",
-                    context: aw_err_ctx(
-                        "Airwallex Atome needs the shopper phone in full international form, so \
-                         billing.phone must carry a country code alongside the number",
-                        "Send billing.phone.country_code (e.g. 65) together with \
-                         billing.phone.number",
-                    ),
-                })?;
+            let shopper_phone =
+                get_shopper_phone_with_country_code(resource_common_data, AW_ATOME)?;
             Ok(AirwallexPaymentMethod::PayLater(
                 AirwallexPayLaterData::Atome(AirwallexAtomeData {
                     atome: AirwallexAtomeDetails { shopper_phone },
@@ -737,29 +925,16 @@ fn get_banktransfer_details(
         } => Ok(AirwallexPaymentMethod::BankTransfer(
             AirwallexBankTransferData::IndonesianBankTransfer(IndonesianBankTransferData {
                 bank_transfer: IndonesianBankTransferDetails {
-                    shopper_name: resource_common_data.get_billing_full_name().map_err(|_| {
-                        IntegrationError::MissingRequiredField {
-                            field_name: "shopper_name",
-                            context: aw_err_ctx(
-                                "Airwallex Indonesian bank transfer requires \
-                                 bank_transfer.shopper_name, sourced from billing.address \
-                                 first_name + last_name",
-                                "Send both billing.address.first_name and \
-                                 billing.address.last_name on the payment request",
-                            ),
-                        }
-                    })?,
-                    shopper_email: resource_common_data.get_billing_email().map_err(|_| {
-                        IntegrationError::MissingRequiredField {
-                            field_name: "shopper_email",
-                            context: aw_err_ctx(
-                                "Airwallex Indonesian bank transfer requires \
-                                 bank_transfer.shopper_email to deliver the virtual account \
-                                 instructions; it is sourced from billing.email",
-                                "Send billing.email on the payment request",
-                            ),
-                        }
-                    })?,
+                    shopper_name: get_billing_shopper_name(
+                        resource_common_data,
+                        AW_ID_BANK_TRANSFER,
+                        None,
+                    )?,
+                    shopper_email: get_shopper_email(
+                        resource_common_data,
+                        AW_ID_BANK_TRANSFER,
+                        Some("Airwallex delivers the virtual account instructions to it"),
+                    )?,
                     // `bank_name` is required by Airwallex to route the Indonesian bank transfer;
                     // map the domain bank to Airwallex's exact token (rejecting unsupported banks).
                     bank_name: AirwallexIndonesianBankName::try_from(bank_name.as_ref().ok_or(
@@ -776,24 +951,48 @@ fn get_banktransfer_details(
                         },
                     )?)?
                     .0,
-                    country_code: resource_common_data.get_billing_country().map_err(|_| {
-                        IntegrationError::MissingRequiredField {
-                            field_name: "country_code",
-                            context: aw_err_ctx(
-                                "Airwallex Indonesian bank transfer requires \
-                                 bank_transfer.country_code, sourced from \
-                                 billing.address.country",
-                                "Send billing.address.country as ID for the Indonesian bank \
-                                 transfer",
-                            ),
-                        }
-                    })?,
+                    country_code: get_country_code(
+                        resource_common_data,
+                        AW_ID_BANK_TRANSFER,
+                        Some("For the Indonesian bank transfer that country is ID"),
+                    )?,
                 },
                 payment_method_type: AirwallexPaymentType::BankTransfer,
             }),
         )),
         _ => Err(error_stack::report!(IntegrationError::NotImplemented(
             crate::utils::get_unimplemented_payment_method_error_message("airwallex"),
+            Default::default()
+        ))),
+    }
+}
+
+// Single entry point for turning the domain payment method into the Airwallex payload. Both the
+// intent (AirwallexPaymentRequest) and the confirm (AirwallexConfirmRequest) builders call it, so
+// the two request paths cannot drift.
+fn get_payment_method_details<T: PaymentMethodDataTypes>(
+    payment_method_data: &domain_types::payment_method_data::PaymentMethodData<T>,
+    resource_common_data: &PaymentFlowData,
+    customer_name: Option<Secret<String>>,
+) -> Result<AirwallexPaymentMethod, error_stack::Report<IntegrationError>> {
+    match payment_method_data {
+        domain_types::payment_method_data::PaymentMethodData::Card(card_data) => {
+            Ok(get_card_details(card_data))
+        }
+        domain_types::payment_method_data::PaymentMethodData::BankRedirect(bank_redirect_data) => {
+            get_bankredirect_details(bank_redirect_data, resource_common_data)
+        }
+        domain_types::payment_method_data::PaymentMethodData::Wallet(wallet_data) => {
+            get_wallet_details(wallet_data, resource_common_data, customer_name)
+        }
+        domain_types::payment_method_data::PaymentMethodData::PayLater(paylater_data) => {
+            get_paylater_details(paylater_data, resource_common_data)
+        }
+        domain_types::payment_method_data::PaymentMethodData::BankTransfer(banktransfer_data) => {
+            get_banktransfer_details(banktransfer_data, resource_common_data)
+        }
+        _ => Err(error_stack::report!(IntegrationError::NotImplemented(
+            "Payment Method".to_string(),
             Default::default()
         ))),
     }
@@ -868,108 +1067,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         // UCS unified flow - always create payment intent with payment method
 
-        let payment_method = match item.router_data.request.payment_method_data.clone() {
-            domain_types::payment_method_data::PaymentMethodData::Card(card_data) => {
-                AirwallexPaymentMethod::Card(AirwallexCardData {
-                    card: AirwallexCardDetails {
-                        number: Secret::new(card_data.card_number.peek().to_string()),
-                        expiry_month: card_data.card_exp_month.clone(),
-                        expiry_year: card_data.get_expiry_year_4_digit(),
-                        cvc: card_data.card_cvc.clone(),
-                        name: card_data
-                            .card_holder_name
-                            .map(|name| Secret::new(name.expose())),
-                    },
-                    payment_method_type: AirwallexPaymentType::Card,
-                })
-            }
-            domain_types::payment_method_data::PaymentMethodData::BankRedirect(
-                bank_redirect_data,
-            ) => match bank_redirect_data {
-                domain_types::payment_method_data::BankRedirectData::Ideal { bank_name } => {
-                    AirwallexPaymentMethod::BankRedirect(AirwallexBankRedirectData::Ideal(
-                        AirwallexIdealData {
-                            ideal: AirwallexIdealDetails { bank_name },
-                            payment_method_type: AirwallexPaymentType::Ideal,
-                        },
-                    ))
-                }
-                domain_types::payment_method_data::BankRedirectData::Trustly { .. } => {
-                    AirwallexPaymentMethod::BankRedirect(AirwallexBankRedirectData::Trustly(
-                        AirwallexTrustlyData {
-                            trustly: AirwallexTrustlyDetails {
-                                shopper_name: item
-                                    .router_data
-                                    .resource_common_data
-                                    .get_billing_full_name()
-                                    .map_err(|_| IntegrationError::MissingRequiredField {
-                                        field_name: "billing.first_name",
-                                        context: Default::default(),
-                                    })?,
-                                country_code: item
-                                    .router_data
-                                    .resource_common_data
-                                    .get_billing_country()
-                                    .map_err(|_| IntegrationError::MissingRequiredField {
-                                        field_name: "country_code",
-                                        context: Default::default(),
-                                    })?,
-                            },
-                            payment_method_type: AirwallexPaymentType::Trustly,
-                        },
-                    ))
-                }
-                domain_types::payment_method_data::BankRedirectData::Blik { blik_code: _ } => {
-                    AirwallexPaymentMethod::BankRedirect(AirwallexBankRedirectData::Blik(
-                        AirwallexBlikData {
-                            blik: AirwallexBlikDetails {
-                                shopper_name: item
-                                    .router_data
-                                    .resource_common_data
-                                    .get_billing_full_name()
-                                    .map_err(|_| IntegrationError::MissingRequiredField {
-                                        field_name: "billing.first_name",
-                                        context: Default::default(),
-                                    })?,
-                            },
-                            payment_method_type: AirwallexPaymentType::Blik,
-                        },
-                    ))
-                }
-                _ => {
-                    return Err(error_stack::report!(IntegrationError::NotImplemented(
-                        "Bank Redirect Payment Method".to_string(),
-                        Default::default()
-                    )))
-                }
-            },
-            domain_types::payment_method_data::PaymentMethodData::Wallet(wallet_data) => {
-                get_wallet_details(
-                    &wallet_data,
-                    &item.router_data.resource_common_data,
-                    item.router_data
-                        .request
-                        .customer_name
-                        .clone()
-                        .map(Secret::new),
-                )?
-            }
-            domain_types::payment_method_data::PaymentMethodData::PayLater(paylater_data) => {
-                get_paylater_details(&paylater_data, &item.router_data.resource_common_data)?
-            }
-            domain_types::payment_method_data::PaymentMethodData::BankTransfer(
-                banktransfer_data,
-            ) => get_banktransfer_details(
-                &banktransfer_data,
-                &item.router_data.resource_common_data,
-            )?,
-            _ => {
-                return Err(error_stack::report!(IntegrationError::NotImplemented(
-                    "Payment Method".to_string(),
-                    Default::default()
-                )))
-            }
-        };
+        let payment_method = get_payment_method_details(
+            &item.router_data.request.payment_method_data,
+            &item.router_data.resource_common_data,
+            item.router_data
+                .request
+                .customer_name
+                .clone()
+                .map(Secret::new),
+        )?;
 
         let auto_capture = matches!(
             item.router_data.request.capture_method,
@@ -1823,108 +1929,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         // Confirm flow for 2-step process (not currently used in UCS)
 
-        let payment_method = match item.router_data.request.payment_method_data.clone() {
-            domain_types::payment_method_data::PaymentMethodData::Card(card_data) => {
-                AirwallexPaymentMethod::Card(AirwallexCardData {
-                    card: AirwallexCardDetails {
-                        number: Secret::new(card_data.card_number.peek().to_string()),
-                        expiry_month: card_data.card_exp_month.clone(),
-                        expiry_year: card_data.get_expiry_year_4_digit(),
-                        cvc: card_data.card_cvc.clone(),
-                        name: card_data
-                            .card_holder_name
-                            .map(|name| Secret::new(name.expose())),
-                    },
-                    payment_method_type: AirwallexPaymentType::Card,
-                })
-            }
-            domain_types::payment_method_data::PaymentMethodData::BankRedirect(
-                bank_redirect_data,
-            ) => match bank_redirect_data {
-                domain_types::payment_method_data::BankRedirectData::Ideal { bank_name } => {
-                    AirwallexPaymentMethod::BankRedirect(AirwallexBankRedirectData::Ideal(
-                        AirwallexIdealData {
-                            ideal: AirwallexIdealDetails { bank_name },
-                            payment_method_type: AirwallexPaymentType::Ideal,
-                        },
-                    ))
-                }
-                domain_types::payment_method_data::BankRedirectData::Trustly { .. } => {
-                    AirwallexPaymentMethod::BankRedirect(AirwallexBankRedirectData::Trustly(
-                        AirwallexTrustlyData {
-                            trustly: AirwallexTrustlyDetails {
-                                shopper_name: item
-                                    .router_data
-                                    .resource_common_data
-                                    .get_billing_full_name()
-                                    .map_err(|_| IntegrationError::MissingRequiredField {
-                                        field_name: "billing.first_name",
-                                        context: Default::default(),
-                                    })?,
-                                country_code: item
-                                    .router_data
-                                    .resource_common_data
-                                    .get_billing_country()
-                                    .map_err(|_| IntegrationError::MissingRequiredField {
-                                        field_name: "country_code",
-                                        context: Default::default(),
-                                    })?,
-                            },
-                            payment_method_type: AirwallexPaymentType::Trustly,
-                        },
-                    ))
-                }
-                domain_types::payment_method_data::BankRedirectData::Blik { blik_code: _ } => {
-                    AirwallexPaymentMethod::BankRedirect(AirwallexBankRedirectData::Blik(
-                        AirwallexBlikData {
-                            blik: AirwallexBlikDetails {
-                                shopper_name: item
-                                    .router_data
-                                    .resource_common_data
-                                    .get_billing_full_name()
-                                    .map_err(|_| IntegrationError::MissingRequiredField {
-                                        field_name: "billing.first_name",
-                                        context: Default::default(),
-                                    })?,
-                            },
-                            payment_method_type: AirwallexPaymentType::Blik,
-                        },
-                    ))
-                }
-                _ => {
-                    return Err(error_stack::report!(IntegrationError::NotImplemented(
-                        "Bank Redirect Payment Method".to_string(),
-                        Default::default()
-                    )))
-                }
-            },
-            domain_types::payment_method_data::PaymentMethodData::Wallet(wallet_data) => {
-                get_wallet_details(
-                    &wallet_data,
-                    &item.router_data.resource_common_data,
-                    item.router_data
-                        .request
-                        .customer_name
-                        .clone()
-                        .map(Secret::new),
-                )?
-            }
-            domain_types::payment_method_data::PaymentMethodData::PayLater(paylater_data) => {
-                get_paylater_details(&paylater_data, &item.router_data.resource_common_data)?
-            }
-            domain_types::payment_method_data::PaymentMethodData::BankTransfer(
-                banktransfer_data,
-            ) => get_banktransfer_details(
-                &banktransfer_data,
-                &item.router_data.resource_common_data,
-            )?,
-            _ => {
-                return Err(error_stack::report!(IntegrationError::NotImplemented(
-                    "Payment Method".to_string(),
-                    Default::default()
-                )))
-            }
-        };
+        let payment_method = get_payment_method_details(
+            &item.router_data.request.payment_method_data,
+            &item.router_data.resource_common_data,
+            item.router_data
+                .request
+                .customer_name
+                .clone()
+                .map(Secret::new),
+        )?;
 
         let auto_capture = matches!(
             item.router_data.request.capture_method,
@@ -2300,18 +2313,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let payment_method = match item.router_data.request.payment_method_data.clone() {
+        let payment_method = match &item.router_data.request.payment_method_data {
             domain_types::payment_method_data::PaymentMethodData::Card(card_data) => {
-                AirwallexPaymentMethod::Card(AirwallexCardData {
-                    card: AirwallexCardDetails {
-                        number: Secret::new(card_data.card_number.peek().to_string()),
-                        expiry_month: card_data.card_exp_month.clone(),
-                        expiry_year: card_data.get_expiry_year_4_digit(),
-                        cvc: card_data.card_cvc.clone(),
-                        name: card_data.card_holder_name,
-                    },
-                    payment_method_type: AirwallexPaymentType::Card,
-                })
+                get_card_details(card_data)
             }
             _ => {
                 return Err(IntegrationError::NotSupported {
