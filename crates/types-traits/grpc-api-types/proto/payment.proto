@@ -1032,6 +1032,12 @@ message OrderDetailsWithAmount {
   optional string commodity_code = 18;
   // Discount amount applied to a single unit (in minor currency units)
   optional int64 unit_discount_amount = 19;
+  // Discount name applied to this item
+  optional string discount_name = 20;
+  // Discount percentage applied to this item
+  optional double discount_percentage = 21;
+  // Discount type applied to this item
+  optional string discount_type = 22;
 }
 
 // Access token details
@@ -5257,6 +5263,9 @@ message TsysTransitConfig {
   SecretString device_id = 1;
   SecretString transaction_key = 2;
   SecretString developer_id = 3;
+  optional SecretString merchant_street_address = 4;
+  optional SecretString customer_service_phone_number = 5;
+  optional string merchant_url = 6;
   optional string base_url = 50;
 }
 

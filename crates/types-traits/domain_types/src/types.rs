@@ -4711,6 +4711,9 @@ impl ForeignTryFrom<grpc_api_types::payments::OrderDetailsWithAmount> for OrderD
                 .unit_discount_amount
                 .map(common_utils::types::MinorUnit::new),
             total_amount: None,
+            discount_name: item.discount_name,
+            discount_percentage: item.discount_percentage,
+            discount_type: item.discount_type,
         })
     }
 }
@@ -4923,7 +4926,15 @@ impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for Pay
             .map(|m| ForeignTryFrom::foreign_try_from((m, "feature_data")))
             .transpose()?;
 
-        let order_details: Option<Vec<OrderDetailsWithAmount>> = None;
+        let order_details = value
+            .order_details
+            .map(|details| {
+                details
+                    .into_iter()
+                    .map(OrderDetailsWithAmount::foreign_try_from)
+                    .collect::<Result<Vec<_>, _>>()
+            })
+            .transpose()?;
 
         let access_token = value
             .state

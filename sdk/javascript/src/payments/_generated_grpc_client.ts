@@ -300,7 +300,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   ImerchantsolutionsConfig: ["apiKey", "merchantId"],
   GivepaymentsConfig: ["apiKey"],
   AxisbankConfig: ["merchantKid", "juspayKid", "merchantPrivateKey", "juspayPublicKey"],
-  TsysTransitConfig: ["deviceId", "transactionKey", "developerId"],
+  TsysTransitConfig: ["deviceId", "transactionKey", "developerId", "merchantStreetAddress", "customerServicePhoneNumber"],
   FlywireConfig: ["apiKey", "sharedSecret"],
   AffirmConfig: ["publicKey", "privateKey"],
   TwocTwopPacoConfig: ["accessToken", "officeId", "pacoKid", "merchantSigningPrivateKey", "merchantEncryptionPrivateKey", "pacoSigningPublicKey", "pacoEncryptionPublicKey", "responseAudience"],
