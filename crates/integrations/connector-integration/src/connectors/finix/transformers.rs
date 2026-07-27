@@ -270,9 +270,14 @@ pub struct FinixCreatePaymentInstrumentRequest {
     pub tags: Option<FinixTags>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub address: Option<FinixAddress>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    // HS emits these as explicit `null` (no skip_serializing_if) for card payment instruments;
+    // mirror that so the shadow request bodies match. Finix derives card_brand/card_type from the
+    // PAN, so they stay None for cards; merchant_identity/third_party_token carry values only for
+    // wallet (Google/Apple Pay) tokenization.
+    pub card_brand: Option<String>,
+    pub card_type: Option<String>,
+    pub additional_data: Option<HashMap<String, String>>,
     pub merchant_identity: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub third_party_token: Option<Secret<String>>,
     // Bank account specific fields for ACH
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1226,6 +1231,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 address: get_billing_address_as_finix_address(
                     &item.router_data.resource_common_data,
                 ),
+                card_brand: None,
+                card_type: None,
+                additional_data: None,
                 merchant_identity: None,
                 third_party_token: None,
                 account_number: None,
@@ -1259,6 +1267,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             identity: customer_id,
                             tags: None,
                             address: None,
+                            card_brand: None,
+                            card_type: None,
+                            additional_data: None,
                             merchant_identity: None,
                             third_party_token: None,
                             account_number: Some(account_number.clone()),
@@ -1299,6 +1310,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             identity: customer_id,
                             tags: None,
                             address: None,
+                            card_brand: None,
+                            card_type: None,
+                            additional_data: None,
                             merchant_identity: Some(Secret::new(merchant_identity)),
                             third_party_token: Some(Secret::new(third_party_token.token.clone())),
                             account_number: None,
@@ -1464,6 +1478,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 address: get_billing_address_as_finix_address(
                     &item.router_data.resource_common_data,
                 ),
+                card_brand: None,
+                card_type: None,
+                additional_data: None,
                 merchant_identity: None,
                 third_party_token: None,
                 account_number: None,
@@ -1497,6 +1514,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             identity: customer_id,
                             tags,
                             address: None,
+                            card_brand: None,
+                            card_type: None,
+                            additional_data: None,
                             merchant_identity: None,
                             third_party_token: None,
                             account_number: Some(account_number.clone()),
@@ -1537,6 +1557,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             identity: customer_id,
                             tags,
                             address: None,
+                            card_brand: None,
+                            card_type: None,
+                            additional_data: None,
                             merchant_identity: Some(Secret::new(merchant_identity)),
                             third_party_token: Some(Secret::new(third_party_token.token.clone())),
                             account_number: None,
