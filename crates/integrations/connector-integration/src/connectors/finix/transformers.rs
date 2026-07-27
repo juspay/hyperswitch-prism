@@ -525,6 +525,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 }),
                 resource_common_data: PaymentFlowData {
                     status: AttemptStatus::Failure,
+                    connector_response: connector_response_data,
                     ..item.router_data.resource_common_data.clone()
                 },
                 ..item.router_data
@@ -1689,6 +1690,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let response = &item.response;
 
+        // Finix echoes AVS / network details on failed charges too, and hyperswitch's
+        // `get_finix_response` attaches them outside its success/failure split, so this
+        // must be computed before the failure branch to stay at parity.
+        let connector_response_data =
+            convert_to_additional_payment_method_connector_response(&item.response)
+                .map(ConnectorResponseData::with_additional_payment_method_data);
+
         // Surface explicit Finix failure responses (failure_message present) directly.
         if let Some(failure_message) = response.failure_message.clone() {
             let code = response
@@ -1698,6 +1706,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             return Ok(Self {
                 resource_common_data: PaymentFlowData {
                     status: AttemptStatus::Failure,
+                    connector_response: connector_response_data,
                     ..item.router_data.resource_common_data.clone()
                 },
                 response: Err(ErrorResponse {
@@ -1730,10 +1739,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Mirror the Authorize flow for shadow parity: surface the charged Payment
         // Instrument (`source`) as the connector mandate id and attach the AVS / network
         // details as the connector_response.
-        let connector_response_data =
-            convert_to_additional_payment_method_connector_response(&item.response)
-                .map(ConnectorResponseData::with_additional_payment_method_data);
-
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
