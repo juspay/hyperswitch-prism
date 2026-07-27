@@ -1,6 +1,10 @@
 use crate::types::ResponseRouterData;
 use common_enums::{AttemptStatus, CountryAlpha2, CountryAlpha3, Currency, RefundStatus};
-use common_utils::{consts, pii::Email, types::MinorUnit};
+use common_utils::{
+    consts,
+    pii::{Email, SecretSerdeValue},
+    types::MinorUnit,
+};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, CreateConnectorCustomer, PSync, PaymentMethodToken, RSync, Refund,
@@ -343,19 +347,28 @@ pub type FinixSetupMandateResponse = FinixInstrumentResponse;
 
 // AUTHORIZE FLOW - REQUEST/RESPONSE
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct FinixPaymentThreeDSecure {
+    pub cardholder_authentication: Secret<String>,
+    pub electronic_commerce_indicator: String,
+    pub transaction_id: Option<String>,
+}
+
 #[derive(Debug, Serialize)]
-pub struct FinixAuthorizeRequest {
+pub struct FinixPaymentsRequest {
     pub amount: MinorUnit,
     pub currency: Currency,
     pub source: String,
     pub merchant: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub idempotency_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub tags: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fraud_session_id: Option<String>,
+    #[serde(rename = "3d_secure_authentication")]
+    pub three_d_secure_authentication: Option<FinixPaymentThreeDSecure>,
+    pub idempotency_id: Option<String>,
     pub statement_descriptor: Option<String>,
 }
+
+pub type FinixAuthorizeRequest = FinixPaymentsRequest;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FinixAuthorizeResponse {
@@ -379,9 +392,8 @@ pub struct FinixNetworkDetails {
     pub authorization_code: Option<String>,
 }
 
-// RepeatPayment (MIT) reuses the Authorize request/response shape.
-// A recurring charge is a POST /transfers (or /authorizations) with `source` set to a
-// previously stored Payment Instrument ID returned by SetupRecurring.
+// RepeatPayment (MIT) uses the same payment-create request shape as Authorize,
+// matching HS's `FinixPaymentsRequest` serialization for both flows.
 pub type FinixRepeatPaymentRequest = FinixAuthorizeRequest;
 pub type FinixRepeatPaymentResponse = FinixAuthorizeResponse;
 
@@ -418,6 +430,41 @@ impl From<&FinixPaymentStatus> for AttemptStatus {
             FinixPaymentStatus::Unknown => Self::Pending,
         }
     }
+}
+
+fn get_finix_three_d_secure(
+    authentication_data: Option<&domain_types::router_request_types::AuthenticationData>,
+) -> Result<Option<FinixPaymentThreeDSecure>, error_stack::Report<IntegrationError>> {
+    authentication_data
+        .map(|auth_data| {
+            Ok(FinixPaymentThreeDSecure {
+                cardholder_authentication: auth_data.cavv.clone().ok_or(
+                    IntegrationError::MissingRequiredField {
+                        field_name: "authentication_data.cavv",
+                        context: IntegrationErrorContext::default(),
+                    },
+                )?,
+                electronic_commerce_indicator: auth_data.eci.clone().ok_or(
+                    IntegrationError::MissingRequiredField {
+                        field_name: "authentication_data.eci",
+                        context: IntegrationErrorContext::default(),
+                    },
+                )?,
+                transaction_id: auth_data.threeds_server_transaction_id.clone(),
+            })
+        })
+        .transpose()
+}
+
+fn get_finix_fraud_session_id(connector_feature_data: Option<&SecretSerdeValue>) -> Option<String> {
+    connector_feature_data.and_then(|feature_data| {
+        feature_data
+            .peek()
+            .get("finix_additional_details")
+            .and_then(|details| details.get("fraud_session_id"))
+            .and_then(|value| value.as_str())
+            .map(ToOwned::to_owned)
+    })
 }
 
 // TRYFROM IMPLEMENTATIONS - AUTHORIZE REQUEST
@@ -475,19 +522,25 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .billing_descriptor
             .clone()
             .and_then(|billing_descriptor| billing_descriptor.statement_descriptor);
+        let three_d_secure_authentication =
+            get_finix_three_d_secure(router_data.request.authentication_data.as_ref())?;
+        let fraud_session_id =
+            get_finix_fraud_session_id(router_data.request.connector_feature_data.as_ref());
 
         Ok(Self {
             amount: router_data.request.amount,
             currency: router_data.request.currency,
             source,
             merchant: merchant_id,
+            tags: None,
+            fraud_session_id,
+            three_d_secure_authentication,
             idempotency_id: Some(
                 router_data
                     .resource_common_data
                     .connector_request_reference_id
                     .clone(),
             ),
-            tags: None,
             statement_descriptor,
         })
     }
@@ -1657,24 +1710,31 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         };
 
+        let statement_descriptor = router_data
+            .request
+            .billing_descriptor
+            .clone()
+            .and_then(|billing_descriptor| billing_descriptor.statement_descriptor);
+        let three_d_secure_authentication =
+            get_finix_three_d_secure(router_data.request.authentication_data.as_ref())?;
+        let fraud_session_id =
+            get_finix_fraud_session_id(router_data.request.connector_feature_data.as_ref());
+
         Ok(Self {
             amount: router_data.request.minor_amount,
             currency: router_data.request.currency,
             source,
             merchant: merchant_id,
+            tags: None,
+            fraud_session_id,
+            three_d_secure_authentication,
             idempotency_id: Some(
                 router_data
                     .resource_common_data
                     .connector_request_reference_id
                     .clone(),
             ),
-            tags: Some(serde_json::json!({
-                FINIX_REFERENCE_TAG_KEY: router_data
-                    .resource_common_data
-                    .connector_request_reference_id
-                    .clone(),
-            })),
-            statement_descriptor: None,
+            statement_descriptor,
         })
     }
 }
