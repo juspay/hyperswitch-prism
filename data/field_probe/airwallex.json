@@ -77,45 +77,8 @@
         "error": "This feature is not implemented: Bank Redirect Payment Method"
       },
       "Blik": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "blik": {
-              "blik_code": "777124"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {
-              "first_name": "John"
-            }
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "state": {
-            "access_token": {
-              "token": "probe_access_token",
-              "expires_in_seconds": 3600,
-              "token_type": "Bearer"
-            }
-          },
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-demo.airwallex.com/api/v1/pa/payment_intents/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "authorization": "Bearer probe_access_token",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"request_id\":\"confirm_probe_txn_001\",\"payment_method\":{\"blik\":{\"shopper_name\":\"John\"},\"type\":\"blik\"},\"payment_method_options\":null,\"return_url\":\"https://example.com/return\",\"device_data\":null}"
-        }
+        "status": "error",
+        "error": "Stuck on field: shopper_name. Airwallex Blik requires blik.shopper_name, sourced from billing.address first_name + last_name — Missing required field: shopper_name. Airwallex Blik requires blik.shopper_name, sourced from billing.address first_name + last_name"
       },
       "Bluecode": {
         "status": "not_implemented",
@@ -373,7 +336,7 @@
       },
       "Klarna": {
         "status": "error",
-        "error": "Stuck on field: country_code. Airwallex Klarna requires klarna.country_code to select the Klarna market; it is sourced from billing.address.country — Missing required field: country_code. Airwallex Klarna requires klarna.country_code to select the Klarna market; it is sourced from billing.address.country"
+        "error": "Stuck on field: country_code. Airwallex Klarna requires klarna.country_code, sourced from billing.address.country — Missing required field: country_code. Airwallex Klarna requires klarna.country_code, sourced from billing.address.country"
       },
       "Lawson": {
         "status": "not_implemented",
@@ -572,44 +535,8 @@
         "error": "This feature is not implemented: Wallet Payment Method"
       },
       "Trustly": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "trustly": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {
-              "first_name": "John",
-              "country_alpha2_code": "US"
-            }
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "state": {
-            "access_token": {
-              "token": "probe_access_token",
-              "expires_in_seconds": 3600,
-              "token_type": "Bearer"
-            }
-          },
-          "connector_order_id": "connector_order_id"
-        },
-        "sample": {
-          "url": "https://api-demo.airwallex.com/api/v1/pa/payment_intents/connector_order_id/confirm",
-          "method": "Post",
-          "headers": {
-            "authorization": "Bearer probe_access_token",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"request_id\":\"confirm_probe_txn_001\",\"payment_method\":{\"trustly\":{\"shopper_name\":\"John\",\"country_code\":\"US\"},\"type\":\"trustly\"},\"payment_method_options\":null,\"return_url\":\"https://example.com/return\",\"device_data\":null}"
-        }
+        "status": "error",
+        "error": "Stuck on field: shopper_name. Airwallex Trustly requires trustly.shopper_name, sourced from billing.address first_name + last_name — Missing required field: shopper_name. Airwallex Trustly requires trustly.shopper_name, sourced from billing.address first_name + last_name"
       },
       "Twint": {
         "status": "not_implemented",

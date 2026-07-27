@@ -239,12 +239,12 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Local | ⚠ |
 | iDEAL | ✓ |
 | Sofort | ⚠ |
-| Trustly | ✓ |
+| Trustly | ? |
 | Giropay | ⚠ |
 | EPS | ⚠ |
 | Przelewy24 | ⚠ |
 | PSE | ⚠ |
-| BLIK | ✓ |
+| BLIK | ? |
 | Interac | ⚠ |
 | Bizum | ⚠ |
 | EFT | ⚠ |
@@ -333,16 +333,6 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 ```python
 "payment_method": {
   "ideal": {}
-}
-```
-
-##### BLIK
-
-```python
-"payment_method": {
-  "blik": {
-    "blik_code": "777124"
-  }
 }
 ```
 
