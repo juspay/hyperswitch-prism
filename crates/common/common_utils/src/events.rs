@@ -220,6 +220,30 @@ fn serialize_method<S: serde::Serializer>(
     serializer.serialize_str(method.as_deref().unwrap_or(""))
 }
 
+/// Deployment / runtime identity carried on every emitted event.
+///
+/// `version` is the compiled build (set once in `main` from `ucs_env::git_describe!()`), so it is
+/// always present. `application_name` / `deployment_id` / `pod_name` are optional and supplied by
+/// the deployment platform via `CS__RUNTIME_METADATA__*` config (e.g. the k8s Downward API:
+/// `metadata.name`, deployment labels). When a platform cannot provide one it is omitted rather
+/// than inferred; missing optional values never fail startup or event creation.
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, config_patch_derive::Patch)]
+pub struct RuntimeMetadata {
+    /// Compiled build version. Set at startup from the binary, never read from config.
+    #[serde(default, skip_deserializing)]
+    #[patch(ignore)]
+    pub version: String,
+    /// Application / microservice name (e.g. `connector-service-http`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub application_name: Option<String>,
+    /// Deployment / rollout identifier.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deployment_id: Option<String>,
+    /// Pod name (`metadata.name`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pod_name: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct Event {
     pub request_id: String,
@@ -243,6 +267,9 @@ pub struct Event {
     pub additional_fields: HashMap<String, MaskedSerdeValue>,
     #[serde(flatten)]
     pub lineage_ids: lineage::LineageIds<'static>,
+    /// Deployment / runtime identity, serialized as top-level keys.
+    #[serde(flatten)]
+    pub runtime_metadata: RuntimeMetadata,
 }
 
 impl Event {
@@ -293,33 +320,6 @@ impl Event {
         });
     }
 
-    /// The application / microservice name (e.g. `connector-service-http`). Sourced from the
-    /// `APPLICATION_NAME` env, not the internal gRPC `service_name`.
-    pub fn add_application_name(&mut self, application_name: &str) {
-        self.push_additional_field("application_name", application_name);
-    }
-
-    /// The deployed build version (e.g. `2026.07.08.0`). A/B groups on this field directly.
-    pub fn add_version(&mut self, version: &str) {
-        self.push_additional_field("version", version);
-    }
-
-    /// The rollout / replicaset id (k8s downward API).
-    pub fn add_deployment_id(&mut self, deployment_id: &str) {
-        self.push_additional_field("deployment_id", deployment_id);
-    }
-
-    /// The pod name (k8s downward API `metadata.name`).
-    pub fn add_pod_name(&mut self, pod_name: &str) {
-        self.push_additional_field("pod_name", pod_name);
-    }
-
-    /// Insert a single masked top-level field into `additional_fields`.
-    fn push_additional_field(&mut self, key: &str, value: &str) {
-        MaskedSerdeValue::from_masked_optional(&value.to_string(), key).map(|masked| {
-            self.additional_fields.insert(key.to_string(), masked);
-        });
-    }
 
     pub fn set_grpc_error_response(&mut self, tonic_error: &tonic::Status) {
         self.status_code = Some(tonic_error.code().into());
@@ -680,4 +680,89 @@ pub(crate) fn set_nested_value(
     );
 
     result.map(|_| ())
+}
+
+#[cfg(test)]
+mod runtime_metadata_tests {
+    use std::collections::HashMap;
+
+    use super::{Event, EventStage, ExecutionMode, FlowName, RuntimeMetadata};
+    use crate::lineage;
+
+    /// Build a minimal event carrying the given runtime metadata (no connector I/O fields set).
+    fn sample_event(runtime_metadata: RuntimeMetadata) -> Event {
+        Event {
+            request_id: "req-1".to_string(),
+            timestamp: 0,
+            flow_type: FlowName::Authorize,
+            connector: "tamara".to_string(),
+            url: None,
+            method: None,
+            stage: EventStage::ConnectorCall,
+            execution_mode: ExecutionMode::from_shadow_flag(false),
+            latency_ms: None,
+            status_code: None,
+            request_data: None,
+            response_data: None,
+            error: None,
+            headers: HashMap::new(),
+            additional_fields: HashMap::new(),
+            lineage_ids: lineage::LineageIds::default(),
+            runtime_metadata,
+        }
+    }
+
+    #[test]
+    fn all_supplied_metadata_reaches_top_level_event_fields() {
+        let rm = RuntimeMetadata {
+            version: "2026.07.21.2".to_string(),
+            application_name: Some("connector-service-http".to_string()),
+            deployment_id: Some("d02a2ba".to_string()),
+            pod_name: Some("connector-service-http-d02a2bac0e-c9d9c4945-h6r4g".to_string()),
+        };
+        let value = serde_json::to_value(sample_event(rm)).expect("event serializes");
+        let obj = value.as_object().expect("event is a JSON object");
+
+        assert_eq!(obj.get("version").and_then(|v| v.as_str()), Some("2026.07.21.2"));
+        assert_eq!(
+            obj.get("application_name").and_then(|v| v.as_str()),
+            Some("connector-service-http")
+        );
+        assert_eq!(obj.get("deployment_id").and_then(|v| v.as_str()), Some("d02a2ba"));
+        assert_eq!(
+            obj.get("pod_name").and_then(|v| v.as_str()),
+            Some("connector-service-http-d02a2bac0e-c9d9c4945-h6r4g")
+        );
+        // Flattened as top-level keys, not nested under a "runtime_metadata" object.
+        assert!(obj.get("runtime_metadata").is_none());
+    }
+
+    #[test]
+    fn absent_optional_metadata_is_omitted_but_version_remains() {
+        let rm = RuntimeMetadata {
+            version: "2026.07.21.2".to_string(),
+            application_name: None,
+            deployment_id: None,
+            pod_name: None,
+        };
+        let value = serde_json::to_value(sample_event(rm)).expect("event serializes");
+        let obj = value.as_object().expect("event is a JSON object");
+
+        assert_eq!(obj.get("version").and_then(|v| v.as_str()), Some("2026.07.21.2"));
+        assert!(!obj.contains_key("application_name"));
+        assert!(!obj.contains_key("deployment_id"));
+        assert!(!obj.contains_key("pod_name"));
+    }
+
+    #[test]
+    fn minimal_metadata_still_creates_and_serializes_with_version() {
+        // Only the compiled version present (all optional identity omitted) — event creation and
+        // serialization must not fail.
+        let rm = RuntimeMetadata {
+            version: "v".to_string(),
+            ..Default::default()
+        };
+        let value = serde_json::to_value(sample_event(rm)).expect("event serializes");
+        assert_eq!(value.get("version").and_then(|v| v.as_str()), Some("v"));
+    }
 }

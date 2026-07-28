@@ -503,6 +503,7 @@ fn create_and_emit_grpc_event<R>(
         additional_fields: HashMap::new(),
         lineage_ids: metadata_payload
             .map_or_else(|| LineageIds::empty(""), |md| md.lineage_ids.clone()),
+        runtime_metadata: config.runtime_metadata.clone(),
     };
 
     grpc_event
@@ -678,6 +679,7 @@ macro_rules! implement_connector_operation {
                 service_type: $crate::utils::service_type_str(&config.server.type_),
                 flow_name,
                 event_config: &config.events,
+                runtime_metadata: &config.runtime_metadata,
                 request_id: &request_id,
                 lineage_ids: &metadata_payload.lineage_ids,
                 reference_id: &metadata_payload.reference_id,
@@ -1040,6 +1042,7 @@ macro_rules! implement_connector_operation {
                 service_type: $crate::utils::service_type_str(&config.server.type_),
                 flow_name,
                 event_config: &config.events,
+                runtime_metadata: &config.runtime_metadata,
                 request_id: &request_id,
                 lineage_ids: &metadata_payload.lineage_ids,
                 reference_id: &metadata_payload.reference_id,

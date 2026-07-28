@@ -211,7 +211,7 @@ impl AdditionalHeaders for domain_types::frm::frm_types::FrmFlowData {
         None
     }
 }
-use common_utils::events::{Event, EventConfig, FlowName};
+use common_utils::events::{Event, EventConfig, FlowName, RuntimeMetadata};
 #[cfg(feature = "injector-client")]
 use common_utils::types::ExecutionMode;
 #[cfg(feature = "injector-client")]
@@ -504,6 +504,8 @@ pub struct EventProcessingParams<'a> {
     pub service_type: &'a str,
     pub flow_name: FlowName,
     pub event_config: &'a EventConfig,
+    /// Deployment/runtime identity threaded from application state, stamped onto every event.
+    pub runtime_metadata: &'a RuntimeMetadata,
     pub request_id: &'a str,
     pub lineage_ids: &'a lineage::LineageIds<'a>,
     pub reference_id: &'a Option<String>,
@@ -1077,6 +1079,9 @@ fn create_event(
         headers: event_headers,
         additional_fields: HashMap::new(),
         lineage_ids: event_params.lineage_ids.to_owned(),
+        // Deployment/runtime identity (compiled version + optional app/deployment/pod), threaded
+        // from application state; serialized as top-level event fields.
+        runtime_metadata: event_params.runtime_metadata.clone(),
     };
 
     event.add_reference_id(event_params.reference_id.as_deref());
@@ -1085,157 +1090,9 @@ fn create_event(
     event.add_service_name(event_params.service_name);
     event.add_tenant_id(event_params.tenant_id);
 
-    // Version metadata: stamp the four deployment fields on every event so A/B can group builds.
-    // `version` is the compiled build (injected by the binary); `application_name`/`deployment_id`/
-    // `pod_name` are derived from the pod name in `HOSTNAME`. Computed once and cached.
-    let version_metadata = version_metadata();
-    if let Some(application_name) = &version_metadata.application_name {
-        event.add_application_name(application_name);
-    }
-    if let Some(version) = &version_metadata.version {
-        event.add_version(version);
-    }
-    if let Some(deployment_id) = &version_metadata.deployment_id {
-        event.add_deployment_id(deployment_id);
-    }
-    if let Some(pod_name) = &version_metadata.pod_name {
-        event.add_pod_name(pod_name);
-    }
-
     event
 }
 
-/// The compiled build version, injected once by the binary at startup (e.g. from
-/// `ucs_env::git_describe!()`). Sourced from the binary rather than `ucs_env` directly to avoid a
-/// dependency cycle (`ucs_env` already depends on this crate), and rather than a config/env value
-/// because A/B groups on `version` and it must reflect the actual running build per deployment.
-static BUILD_VERSION: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-
-/// Record the compiled build version so every event can be tagged with it. Called once by the
-/// binary at startup. No-op if called again.
-pub fn set_build_version(version: String) {
-    let _ = BUILD_VERSION.set(version);
-}
-
-/// Deployment version metadata, computed once and cached.
-/// - `version`: the compiled build (via [`set_build_version`]; falls back to the `VERSION` env var).
-/// - `application_name` / `deployment_id` / `pod_name`: derived from the pod name in `HOSTNAME`,
-///   which k8s sets to `<application_name>-<replicaset_hash>-<pod_suffix>` — so no plain env var or
-///   downward-API `fieldRef` is required from the deployment pipeline.
-///
-/// Only compiled with `injector-client`, since its sole consumer (`create_event`) is gated on it;
-/// the FFI build (no `injector-client`) does not create events.
-#[cfg(feature = "injector-client")]
-struct VersionMetadata {
-    application_name: Option<String>,
-    version: Option<String>,
-    deployment_id: Option<String>,
-    pod_name: Option<String>,
-}
-
-#[cfg(feature = "injector-client")]
-fn version_metadata() -> &'static VersionMetadata {
-    static VERSION_METADATA: std::sync::OnceLock<VersionMetadata> = std::sync::OnceLock::new();
-    VERSION_METADATA.get_or_init(|| {
-        let version = BUILD_VERSION
-            .get()
-            .cloned()
-            .or_else(|| std::env::var("VERSION").ok());
-
-        // k8s sets HOSTNAME to the pod name: `<application_name>-<replicaset_hash>-<pod_suffix>`.
-        let (application_name, deployment_id, pod_name) = match std::env::var("HOSTNAME") {
-            Ok(hostname) => derive_pod_identity(&hostname),
-            Err(_) => (None, None, None),
-        };
-
-        VersionMetadata {
-            application_name,
-            version,
-            deployment_id,
-            pod_name,
-        }
-    })
-}
-
-/// Derive `(application_name, deployment_id, pod_name)` from a k8s pod name of the form
-/// `<application_name>-<replicaset_hash>-<pod_suffix>`:
-/// - `deployment_id` = the replicaset-hash segment (second from last),
-/// - `application_name` = everything before it,
-/// - `pod_name` = the full hostname.
-///
-/// A non-standard name (fewer than 3 `-`-separated segments) keeps only `pod_name`; an empty
-/// hostname yields all-`None`. Pure (input passed in, no env read) so the parsing is unit-testable.
-///
-/// Gated on `injector-client` alongside its only caller, `version_metadata`.
-#[cfg(feature = "injector-client")]
-fn derive_pod_identity(hostname: &str) -> (Option<String>, Option<String>, Option<String>) {
-    if hostname.is_empty() {
-        return (None, None, None);
-    }
-    let segments: Vec<&str> = hostname.split('-').collect();
-    // Bind the last two segments (replicaset hash + pod suffix) and keep the non-empty remainder as
-    // the application name. A slice pattern avoids panic-capable indexing (clippy::indexing_slicing).
-    match segments.as_slice() {
-        [application_name @ .., deployment_id, _pod_suffix] if !application_name.is_empty() => (
-            Some(application_name.join("-")),
-            Some(deployment_id.to_string()),
-            Some(hostname.to_string()),
-        ),
-        // Not a standard k8s pod name; keep the pod name only.
-        _ => (None, None, Some(hostname.to_string())),
-    }
-}
-
-#[cfg(all(test, feature = "injector-client"))]
-mod derive_pod_identity_tests {
-    use super::derive_pod_identity;
-
-    #[test]
-    fn standard_pod_name_splits_app_and_replicaset() {
-        let (app, dep, pod) = derive_pod_identity("connector-service-http-79f5d6b8c4-x2n7q");
-        assert_eq!(app.as_deref(), Some("connector-service-http"));
-        assert_eq!(dep.as_deref(), Some("79f5d6b8c4"));
-        assert_eq!(
-            pod.as_deref(),
-            Some("connector-service-http-79f5d6b8c4-x2n7q")
-        );
-    }
-
-    #[test]
-    fn deployment_name_with_build_token_absorbed_into_app() {
-        // Live sbx pod: the deployment name itself embeds a build token (`d02a2bac0e`), so it is
-        // absorbed into `application_name` and the replicaset hash remains the deployment_id.
-        let (app, dep, pod) =
-            derive_pod_identity("connector-service-http-d02a2bac0e-c9d9c4945-h6r4g");
-        assert_eq!(app.as_deref(), Some("connector-service-http-d02a2bac0e"));
-        assert_eq!(dep.as_deref(), Some("c9d9c4945"));
-        assert_eq!(
-            pod.as_deref(),
-            Some("connector-service-http-d02a2bac0e-c9d9c4945-h6r4g")
-        );
-    }
-
-    #[test]
-    fn exactly_three_segments() {
-        let (app, dep, pod) = derive_pod_identity("app-rs123-suffix");
-        assert_eq!(app.as_deref(), Some("app"));
-        assert_eq!(dep.as_deref(), Some("rs123"));
-        assert_eq!(pod.as_deref(), Some("app-rs123-suffix"));
-    }
-
-    #[test]
-    fn short_name_keeps_pod_only() {
-        let (app, dep, pod) = derive_pod_identity("connector-service");
-        assert_eq!(app, None);
-        assert_eq!(dep, None);
-        assert_eq!(pod.as_deref(), Some("connector-service"));
-    }
-
-    #[test]
-    fn empty_hostname_is_all_none() {
-        assert_eq!(derive_pod_identity(""), (None, None, None));
-    }
-}
 
 pub enum ApplicationResponse<R> {
     Json(R),
