@@ -926,6 +926,26 @@ jobs:
       # environment, and a matching trusted publisher on npmjs.com, npm mints
       # its own short-lived credential — no NODE_AUTH_TOKEN. Provenance is
       # attached automatically. Requires npm >= 11.5.1 (Node 24 ships 11.x).
+      # Decode the OIDC token claims npm will receive (identity info, not a
+      # secret) so we can compare them field-by-field to the trusted publisher
+      # on npmjs.com. "package not found" from the exchange means one of these
+      # claims (repository / workflow / environment / ref) doesn't match.
+      - name: Debug OIDC claims (npm audience)
+        if: ${{ needs.setup.outputs.preview_only == 'false' }}
+        run: |
+          val=$(curl -sf \
+            -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=npm:registry.npmjs.org" \
+            | python3 -c "import sys,json;print(json.load(sys.stdin)['value'])")
+          echo "$val" | python3 -c "
+          import sys, json, base64
+          p = sys.stdin.read().strip().split('.')[1]
+          p += '=' * (-len(p) % 4)
+          d = json.loads(base64.urlsafe_b64decode(p))
+          for k in ['repository','repository_owner','workflow','workflow_ref','job_workflow_ref','ref','environment','sub','aud']:
+              print(f'{k:18}: {d.get(k)}')
+          "
+
       - name: Publish to npm
         if: ${{ needs.setup.outputs.preview_only == 'false' }}
         working-directory: sdk/javascript
