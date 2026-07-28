@@ -1701,21 +1701,17 @@ pub fn parse_card_sync_response(
         .transpose()?;
 
     match outcome {
-        CardRefreshOutcome::AccountUpdated => {
-            if card_number.is_none() {
-                return Err(error_stack::report!(invalid_gateway_response(
-                    "updated_account_number"
-                )))
-                .attach_printable("ACCOUNT_UPDATED arrived without a replacement card number");
-            }
+        CardRefreshOutcome::AccountUpdated if card_number.is_none() => {
+            return Err(error_stack::report!(invalid_gateway_response(
+                "updated_account_number"
+            )))
+            .attach_printable("ACCOUNT_UPDATED arrived without a replacement card number");
         }
-        CardRefreshOutcome::ExpiryUpdated => {
-            if expiry.is_none() {
-                return Err(error_stack::report!(invalid_gateway_response(
-                    "updated_expiry_date"
-                )))
-                .attach_printable("EXPIRY_UPDATED arrived without a replacement expiry");
-            }
+        CardRefreshOutcome::ExpiryUpdated if expiry.is_none() => {
+            return Err(error_stack::report!(invalid_gateway_response(
+                "updated_expiry_date"
+            )))
+            .attach_printable("EXPIRY_UPDATED arrived without a replacement expiry");
         }
         _ => {}
     }
