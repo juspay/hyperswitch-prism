@@ -38,7 +38,7 @@
       },
       "ApplePay": {
         "status": "error",
-        "error": "Stuck on field: payment_method_token — Failed to parse Apple Pay wallet token. Datatrans Apple Pay Authorize requires tokenization_data.token to be a JSON string containing signature, protocolVersion, signedMessage, and intermediateSigningKey"
+        "error": "Stuck on field: payment_method_token — Failed to parse Apple Pay wallet token. Datatrans Apple Pay Authorize requires tokenization_data.token to be a JSON string containing data, header, signature, and version"
       },
       "ApplePayDecrypted": {
         "status": "error",
@@ -724,7 +724,7 @@
     "recurring_charge": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: additional_payment_data. Datatrans MIT requires stored card additional data — Missing required field: additional_payment_data. Datatrans MIT requires stored card additional data (expiry) for the alias charge"
+        "error": "Stuck on field: additional_payment_data.card. Datatrans MIT requires the stored card details — Missing required field: additional_payment_data.card. Datatrans MIT requires the stored card details (additional_payment_data.card) for the alias charge"
       }
     },
     "recurring_revoke": {
