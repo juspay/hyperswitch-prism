@@ -968,6 +968,8 @@ impl TryFrom<common_enums::PaymentMethodType> for StripePaymentMethodType {
             | common_enums::PaymentMethodType::NetworkToken
             | common_enums::PaymentMethodType::Mifinity
             | common_enums::PaymentMethodType::Satispay
+            | common_enums::PaymentMethodType::SatispayIntent
+            | common_enums::PaymentMethodType::SatispayQr
             | common_enums::PaymentMethodType::Wero
             | common_enums::PaymentMethodType::LazyPay
             | common_enums::PaymentMethodType::PhonePe
@@ -1278,6 +1280,8 @@ fn get_stripe_payment_method_type_from_wallet_data(
         | WalletData::Mifinity(_)
         | WalletData::MbWay(_)
         | WalletData::Satispay(_)
+        | WalletData::SatispayIntent(_)
+        | WalletData::SatispayQr(_)
         | WalletData::Wero(_)
         | WalletData::LazyPayRedirect(_)
         | WalletData::PhonePeRedirect(_)
@@ -1768,6 +1772,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> TryF
             | WalletData::Mifinity(_)
             | WalletData::MbWay(_)
             | WalletData::Satispay(_)
+            | WalletData::SatispayIntent(_)
+            | WalletData::SatispayQr(_)
             | WalletData::Wero(_)
             | WalletData::LazyPayRedirect(_)
             | WalletData::PhonePeRedirect(_)

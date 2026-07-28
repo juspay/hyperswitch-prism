@@ -1084,6 +1084,8 @@ pub enum PaymentMethodType {
     RedPagos,
     SamsungPay,
     Satispay,
+    SatispayIntent,
+    SatispayQr,
     Sepa,
     SepaBankTransfer,
     Sofort,

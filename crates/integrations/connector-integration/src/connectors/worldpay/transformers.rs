@@ -226,6 +226,8 @@ fn fetch_payment_instrument<
             | WalletDataPaymentMethod::BluecodeRedirect {}
             | WalletDataPaymentMethod::MbWay(_)
             | WalletDataPaymentMethod::Satispay(_)
+            | WalletDataPaymentMethod::SatispayIntent(_)
+            | WalletDataPaymentMethod::SatispayQr(_)
             | WalletDataPaymentMethod::Wero(_)
             | WalletDataPaymentMethod::LazyPayRedirect(_)
             | WalletDataPaymentMethod::PhonePeRedirect(_)

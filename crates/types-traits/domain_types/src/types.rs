@@ -1472,6 +1472,16 @@ impl<
                         payment_method_data::SatispayData {},
                     )))
                 }
+                grpc_api_types::payments::payment_method::PaymentMethod::SatispayIntent(_) => {
+                    Ok(Self::Wallet(payment_method_data::WalletData::SatispayIntent(
+                        payment_method_data::SatispayIntentData {},
+                    )))
+                }
+                grpc_api_types::payments::payment_method::PaymentMethod::SatispayQr(_) => {
+                    Ok(Self::Wallet(payment_method_data::WalletData::SatispayQr(
+                        payment_method_data::SatispayQrData {},
+                    )))
+                }
                 grpc_api_types::payments::payment_method::PaymentMethod::Wero(_) => {
                     Ok(Self::Wallet(payment_method_data::WalletData::Wero(
                         payment_method_data::WeroData {},
@@ -2479,6 +2489,12 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::Satispay => {
                 Ok(PaymentMethodType::Satispay)
             }
+            grpc_api_types::payments::PaymentMethodType::SatispayIntent => {
+                Ok(PaymentMethodType::SatispayIntent)
+            }
+            grpc_api_types::payments::PaymentMethodType::SatispayQr => {
+                Ok(PaymentMethodType::SatispayQr)
+            }
             grpc_api_types::payments::PaymentMethodType::Wero => Ok(PaymentMethodType::Wero),
             grpc_api_types::payments::PaymentMethodType::OpenBanking => {
                 Ok(PaymentMethodType::OpenBanking)
@@ -2621,6 +2637,8 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 grpc_api_types::payments::payment_method::PaymentMethod::SamsungPaySdk(_) => Ok(Some(PaymentMethodType::SamsungPay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::MbWay(_) => Ok(Some(PaymentMethodType::MbWay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::Satispay(_) => Ok(Some(PaymentMethodType::Satispay)),
+                grpc_api_types::payments::payment_method::PaymentMethod::SatispayIntent(_) => Ok(Some(PaymentMethodType::SatispayIntent)),
+                grpc_api_types::payments::payment_method::PaymentMethod::SatispayQr(_) => Ok(Some(PaymentMethodType::SatispayQr)),
                 grpc_api_types::payments::payment_method::PaymentMethod::Wero(_) => Ok(Some(PaymentMethodType::Wero)),
                 grpc_api_types::payments::payment_method::PaymentMethod::LazypayRedirect(_) => Ok(Some(PaymentMethodType::LazyPay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::PhonepeRedirect(_) => Ok(Some(PaymentMethodType::PhonePe)),
@@ -6432,6 +6450,14 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::SatispayIntent(_)),
+            } => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::SatispayQr(_)),
+            } => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::LazypayRedirect(_)),
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
@@ -8132,6 +8158,8 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::RevolutPay => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::MbWay => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::Satispay => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethodType::SatispayIntent => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethodType::SatispayQr => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::Wero => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::LazyPay => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::PhonePe => Ok(Self::Wallet),
@@ -8260,6 +8288,23 @@ impl ForeignTryFrom<router_response_types::RedirectForm>
             router_response_types::RedirectForm::Uri { uri } => Ok(Self {
                 form_type: Some(grpc_api_types::payments::redirect_form::FormType::Uri(
                     grpc_api_types::payments::UriData { uri },
+                )),
+            }),
+            router_response_types::RedirectForm::Qr {
+                payload,
+                image_base64,
+                image_url,
+                fallback_url,
+                expires_at,
+            } => Ok(Self {
+                form_type: Some(grpc_api_types::payments::redirect_form::FormType::QrData(
+                    grpc_api_types::payments::QrData {
+                        payload,
+                        image_base64,
+                        image_url,
+                        fallback_url,
+                        expires_at,
+                    },
                 )),
             }),
             router_response_types::RedirectForm::Mifinity {

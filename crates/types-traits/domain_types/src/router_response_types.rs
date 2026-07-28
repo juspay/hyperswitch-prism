@@ -60,6 +60,13 @@ pub enum RedirectForm {
     Uri {
         uri: String,
     },
+    Qr {
+        payload: Option<String>,
+        image_base64: Option<String>,
+        image_url: Option<String>,
+        fallback_url: Option<String>,
+        expires_at: Option<i64>,
+    },
 }
 
 impl From<(url::Url, Method)> for RedirectForm {
