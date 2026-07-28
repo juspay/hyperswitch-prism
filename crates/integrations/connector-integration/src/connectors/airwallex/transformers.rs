@@ -1033,7 +1033,7 @@ fn get_payment_method_details<T: PaymentMethodDataTypes>(
 // Build the correct `payment_method_options` object for the selected payment method.
 // Card/Wallet/BankRedirect keep the historical card options; PayLater emits its own
 // klarna/atome options block with `auto_capture`, mirroring the reference upstream.
-pub(super) fn build_payment_method_options(
+fn build_payment_method_options(
     payment_method: &AirwallexPaymentMethod,
     auto_capture: bool,
 ) -> Option<AirwallexPaymentOptions> {
