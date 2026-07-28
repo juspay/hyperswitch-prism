@@ -661,6 +661,20 @@ pub fn expand_expiry_year_to_four_digits(year: &Secret<String>) -> Secret<String
     }
 }
 
+/// Pad a 1-digit card expiry month (`"7"`) to 2 digits (`"07"`). Anything that isn't
+/// exactly 1 character passes through unchanged, including vault template tokens like
+/// `{{$card_exp_month}}`. Counterpart to [`expand_expiry_year_to_four_digits`] for
+/// stored-credential paths, where the month arrives as free-form text rather than a
+/// validated `Card`.
+pub fn pad_expiry_month_to_two_digits(month: &Secret<String>) -> Secret<String> {
+    let m = month.peek();
+    if m.len() == 1 {
+        Secret::new(format!("0{m}"))
+    } else {
+        Secret::new(m.clone())
+    }
+}
+
 /// Split a full name into (first_name, last_name) on the last whitespace.
 /// Single-token names go to first_name only. `None` / empty / whitespace-only input
 /// returns `(None, None)`.

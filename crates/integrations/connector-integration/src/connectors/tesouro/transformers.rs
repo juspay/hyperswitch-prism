@@ -249,13 +249,45 @@ fn get_valid_transaction_id(id: String) -> Result<String, Error> {
 }
 
 fn is_auto_capture(capture_method: Option<CaptureMethod>) -> bool {
-    matches!(capture_method, Some(CaptureMethod::Automatic) | None)
+    matches!(
+        capture_method,
+        Some(CaptureMethod::Automatic) | Some(CaptureMethod::SequentialAutomatic) | None
+    )
+}
+
+/// Request-side capture-method gate. Tesouro's `Capture` and `Void` flows are not implemented,
+/// so a `PRE_AUTHORIZATION` raised here could never be settled or released through this
+/// connector — the funds would stay held on the cardholder's card. Reject those capture methods
+/// up front rather than emitting an unsettleable authorization. `ValidationTrait` has no
+/// capture-method hook, so the check has to live in the request transformers.
+fn is_auto_capture_request(capture_method: Option<CaptureMethod>) -> Result<bool, Error> {
+    match capture_method {
+        Some(CaptureMethod::Automatic) | Some(CaptureMethod::SequentialAutomatic) | None => {
+            Ok(true)
+        }
+        Some(_) => Err(IntegrationError::CaptureMethodNotSupported {
+            context: Default::default(),
+        }
+        .into()),
+    }
 }
 
 fn get_card_payment_method<T: PaymentMethodDataTypes>(
     card: &Card<T>,
     is_mandate_payment: bool,
+    auth_type: common_enums::AuthenticationType,
 ) -> Result<TesouroPaymentMethodDetails<T>, Error> {
+    // Tesouro has no 3DS integration here, and a silently downgraded request would establish a
+    // credential without the authentication the merchant asked for. Guarded centrally so the
+    // Authorize and SetupMandate card paths cannot drift apart.
+    if auth_type == common_enums::AuthenticationType::ThreeDs {
+        return Err(IntegrationError::NotSupported {
+            message: "Cards 3DS".to_string(),
+            connector: "Tesouro",
+            context: Default::default(),
+        }
+        .into());
+    }
     let card_data = TesouroCardWithPanDetails {
         expiration_month: card
             .get_card_expiry_month_2_digit()
@@ -490,7 +522,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         )?;
         let bill_to_address = BillToAddress::from_payment_flow(&router_data.resource_common_data);
         let payment_method_details = match &router_data.request.payment_method_data {
-            PaymentMethodData::Card(card) => get_card_payment_method(card, true)?,
+            PaymentMethodData::Card(card) => get_card_payment_method(
+                card,
+                true,
+                router_data.resource_common_data.auth_type,
+            )?,
             PaymentMethodData::Wallet(WalletData::ApplePay(apple_pay)) => {
                 get_apple_pay_payment_method(apple_pay)?
             }
@@ -582,23 +618,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .connector_request_reference_id
                 .clone(),
         )?;
-        let auto_capture = is_auto_capture(router_data.request.capture_method);
+        let auto_capture = is_auto_capture_request(router_data.request.capture_method)?;
         let is_mandate = router_data.request.is_mandate_payment();
 
         let payment_method_details = match &router_data.request.payment_method_data {
-            PaymentMethodData::Card(card) => {
-                if router_data.resource_common_data.auth_type
-                    == common_enums::AuthenticationType::ThreeDs
-                {
-                    return Err(IntegrationError::NotSupported {
-                        message: "Cards 3DS".to_string(),
-                        connector: "Tesouro",
-                        context: Default::default(),
-                    }
-                    .into());
-                }
-                get_card_payment_method(card, is_mandate)?
-            }
+            PaymentMethodData::Card(card) => get_card_payment_method(
+                card,
+                is_mandate,
+                router_data.resource_common_data.auth_type,
+            )?,
             PaymentMethodData::Wallet(WalletData::ApplePay(apple_pay)) => {
                 get_apple_pay_payment_method(apple_pay)?
             }
@@ -685,7 +713,11 @@ pub struct TesouroRepeatPaymentRequest {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TesouroMandateMetadata {
-    pub activity_date: String,
+    /// CIT `activityDate`, replayed as `originalPurchaseDate` on the MIT. Optional because the
+    /// Authorize response carries it as `Option<String>`; the expiry below must survive a
+    /// response that omits it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub activity_date: Option<String>,
     /// Expiry of the credential backing the acquirer token, captured at CIT/SetupMandate time.
     /// Tesouro's `authorizeRecurring` requires `expirationMonth`/`expirationYear`, and a
     /// wallet-backed MIT cannot recover them from `additional_payment_data` (card-only), so the
@@ -830,7 +862,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 &router_data.request.additional_payment_data
             {
                 if expiration_month.is_none() {
-                    expiration_month = card_info.card_exp_month.clone();
+                    expiration_month = card_info
+                        .card_exp_month
+                        .as_ref()
+                        .map(domain_types::utils::pad_expiry_month_to_two_digits);
                 }
                 if expiration_year.is_none() {
                     expiration_year = card_info
@@ -860,10 +895,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Tesouro requires `originalPurchaseDate` (Date!) on a recurring charge. Prefer the CIT's
         // `activityDate` captured in the mandate metadata during the SetupMandate/Authorize leg;
         // when it is absent (e.g. a stored-credential MIT that does not thread mandate metadata)
-        // fall back to today's date so the required field is always present (matches hyperswitch).
+        // fall back to today's date so the required field is always present.
+        //
+        // The fallback is knowingly inaccurate — a stored credential was by definition established
+        // before today — and is kept deliberately: the field is non-nullable, so the alternative is
+        // a hard rejection of every metadata-less MIT. The hyperswitch reference makes the same
+        // trade-off. The `activityDate` path above is the one that carries a truthful date, and
+        // widening the metadata (see `build_mandate_reference`) keeps MITs on it wherever possible.
         let original_purchase_date = Some(
             mandate_metadata
-                .map(|tesouro_metadata| tesouro_metadata.activity_date)
+                .and_then(|tesouro_metadata| tesouro_metadata.activity_date)
                 .unwrap_or_else(|| common_utils::date_time::now().date().to_string()),
         );
 
@@ -895,7 +936,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         total_amount: amount,
                         currency: router_data.request.currency,
                     },
-                    automatic_capture: if is_auto_capture(router_data.request.capture_method) {
+                    automatic_capture: if is_auto_capture_request(
+                        router_data.request.capture_method,
+                    )? {
                         TesouroAutomaticCapture::OnApproval
                     } else {
                         TesouroAutomaticCapture::Never
@@ -1034,7 +1077,19 @@ fn get_credential_expiry<T: PaymentMethodDataTypes>(
 ) -> (Option<Secret<String>>, Option<Secret<String>>) {
     match payment_method_data {
         PaymentMethodData::Card(card) => (
-            card.get_card_expiry_month_2_digit().ok(),
+            // Not propagated: the request transformers already derive this month and fail the
+            // call if it is malformed, so by the time a response is being mapped the card has
+            // been accepted by Tesouro. Failing here would orphan a token the connector has
+            // already stored. Logged so a dropped expiry is never silent.
+            card.get_card_expiry_month_2_digit()
+                .inspect_err(|error| {
+                    tracing::warn!(
+                        ?error,
+                        "Tesouro: could not derive 2-digit card expiry month for mandate \
+                         metadata; the stored mandate will carry no expiry"
+                    );
+                })
+                .ok(),
             Some(card.get_expiry_year_4_digit()),
         ),
         PaymentMethodData::Wallet(WalletData::ApplePay(apple_pay)) => {
@@ -1050,7 +1105,16 @@ fn get_credential_expiry<T: PaymentMethodDataTypes>(
             match &google_pay.tokenization_data {
                 GpayTokenizationData::Decrypted(decrypted) => (
                     Some(decrypted.card_exp_month.clone()),
-                    decrypted.get_four_digit_expiry_year().ok(),
+                    decrypted
+                        .get_four_digit_expiry_year()
+                        .inspect_err(|error| {
+                            tracing::warn!(
+                                ?error,
+                                "Tesouro: could not expand Google Pay expiry year for mandate \
+                                 metadata; the stored mandate will carry no expiry"
+                            );
+                        })
+                        .ok(),
                 ),
                 GpayTokenizationData::Encrypted(_) => (None, None),
             }
@@ -1072,7 +1136,14 @@ fn build_mandate_reference(
         .map(|token| token.expose());
     connector_mandate_id.map(|connector_mandate_id| {
         let (expiration_month, expiration_year) = credential_expiry;
-        let mandate_metadata = activity_date.map(|activity_date| {
+        // Store the metadata whenever *any* of the three values is available. Gating the whole
+        // object on `activity_date` would drop the credential expiry on an approval where
+        // Tesouro omits `activityDate` (it is optional on the Authorize response), and the
+        // later MIT would then fail Tesouro's required `expirationMonth`/`expirationYear`.
+        let mandate_metadata = (activity_date.is_some()
+            || expiration_month.is_some()
+            || expiration_year.is_some())
+        .then(|| {
             common_utils::pii::SecretSerdeValue::new(serde_json::json!(TesouroMandateMetadata {
                 activity_date,
                 expiration_month,
@@ -1259,10 +1330,10 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<TesouroSetupMandateRe
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TesouroAuthorizeData {
-    #[serde(
-        alias = "authorizeRecurring",
-        alias = "authorizeCustomerInitiatedTransaction"
-    )]
+    /// `rename_all = "camelCase"` already matches the Authorize mutation's
+    /// `authorizeCustomerInitiatedTransaction`; the alias picks up the RepeatPayment
+    /// mutation, which returns the same shape under `authorizeRecurring`.
+    #[serde(alias = "authorizeRecurring")]
     authorize_customer_initiated_transaction: AuthorizationInnerResponse,
 }
 
@@ -1511,6 +1582,13 @@ pub enum TesouroSyncStatus {
     Capture,
     Reversal,
     Sale,
+    /// Any `__typename` outside the union members Tesouro documents today. Without this the
+    /// whole `TesouroSyncData` fails to deserialize, falls through the untagged
+    /// `TesouroApiResponse` to `Error` (which also fails, there being no `errors` key) and
+    /// surfaces as serde's opaque "data did not match any variant" — a successful payment
+    /// reported as an undiagnosable sync failure. Fail soft to the previous status instead.
+    #[serde(other)]
+    Unknown,
 }
 
 pub type TesouroSyncResponse = TesouroApiResponse<TesouroSyncData>;
@@ -1547,6 +1625,13 @@ fn map_sync_status(
         TesouroSyncStatus::Authorization => AttemptStatus::Authorizing,
         TesouroSyncStatus::Capture => AttemptStatus::CaptureInitiated,
         TesouroSyncStatus::Reversal => AttemptStatus::VoidInitiated,
+        TesouroSyncStatus::Unknown => {
+            tracing::warn!(
+                "Tesouro PSync returned an unmapped paymentTransaction __typename; holding the \
+                 previous attempt status"
+            );
+            previous_status
+        }
     }
 }
 
