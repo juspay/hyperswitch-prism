@@ -1093,7 +1093,6 @@ fn create_event(
     event
 }
 
-
 pub enum ApplicationResponse<R> {
     Json(R),
 }

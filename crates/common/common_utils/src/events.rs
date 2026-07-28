@@ -320,7 +320,6 @@ impl Event {
         });
     }
 
-
     pub fn set_grpc_error_response(&mut self, tonic_error: &tonic::Status) {
         self.status_code = Some(tonic_error.code().into());
         let error_body = serde_json::json!({
@@ -723,12 +722,18 @@ mod runtime_metadata_tests {
         let value = serde_json::to_value(sample_event(rm)).expect("event serializes");
         let obj = value.as_object().expect("event is a JSON object");
 
-        assert_eq!(obj.get("version").and_then(|v| v.as_str()), Some("2026.07.21.2"));
+        assert_eq!(
+            obj.get("version").and_then(|v| v.as_str()),
+            Some("2026.07.21.2")
+        );
         assert_eq!(
             obj.get("application_name").and_then(|v| v.as_str()),
             Some("connector-service-http")
         );
-        assert_eq!(obj.get("deployment_id").and_then(|v| v.as_str()), Some("d02a2ba"));
+        assert_eq!(
+            obj.get("deployment_id").and_then(|v| v.as_str()),
+            Some("d02a2ba")
+        );
         assert_eq!(
             obj.get("pod_name").and_then(|v| v.as_str()),
             Some("connector-service-http-d02a2bac0e-c9d9c4945-h6r4g")
@@ -748,7 +753,10 @@ mod runtime_metadata_tests {
         let value = serde_json::to_value(sample_event(rm)).expect("event serializes");
         let obj = value.as_object().expect("event is a JSON object");
 
-        assert_eq!(obj.get("version").and_then(|v| v.as_str()), Some("2026.07.21.2"));
+        assert_eq!(
+            obj.get("version").and_then(|v| v.as_str()),
+            Some("2026.07.21.2")
+        );
         assert!(!obj.contains_key("application_name"));
         assert!(!obj.contains_key("deployment_id"));
         assert!(!obj.contains_key("pod_name"));
