@@ -929,6 +929,20 @@ jobs:
       - name: Publish to npm
         if: ${{ needs.setup.outputs.preview_only == 'false' }}
         working-directory: sdk/javascript
+        # verbose so the log shows the OIDC token-exchange result explicitly:
+        # a `POST .../oidc/token/exchange/package/...` line = OIDC attempted;
+        # no such line = npm skipped OIDC (e.g. an authToken in .npmrc forced
+        # token auth) and any 404 is an auth problem, not a config mismatch.
+        env:
+          NPM_CONFIG_LOGLEVEL: verbose
         run: |
+          echo "== OIDC availability =="
+          [ -n "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ] \
+            && echo "id-token endpoint: PRESENT (OIDC possible)" \
+            || echo "id-token endpoint: MISSING (job lacks id-token: write / environment)"
+          echo "== npm auth config (values masked) =="
+          npm config get userconfig
+          npm config ls -l 2>/dev/null | grep -iE '_authtoken|always-auth|//registry' | sed 's/=.*/=<redacted>/' || echo "(no authToken lines)"
+          echo "== publishing =="
           npm ci
           npm publish ../../artifacts/sdk-javascript/*.tgz --access public
