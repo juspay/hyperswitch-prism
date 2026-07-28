@@ -109,7 +109,10 @@ fn get_shopper_name(
     customer_name
         .or_else(|| resource_common_data.get_billing_full_name().ok())
         .ok_or_else(|| IntegrationError::MissingRequiredField {
-            field_name: "shopper_name",
+            // `field_name` is the caller-facing request path, never the Airwallex JSON key: it is
+            // what a merchant has to change and what field-probe resolves through
+            // `patch-config.toml`. The Airwallex-side name lives in `additional_context` below.
+            field_name: "billing.first_name",
             context: aw_err_ctx(
                 format!(
                     "Airwallex {} requires {}.shopper_name, sourced from the customer name or, \
@@ -135,7 +138,7 @@ fn get_billing_shopper_name(
 ) -> Result<Secret<String>, IntegrationError> {
     resource_common_data.get_billing_full_name().map_err(|_| {
         IntegrationError::MissingRequiredField {
-            field_name: "shopper_name",
+            field_name: "billing.first_name",
             context: aw_err_ctx(
                 format!(
                     "Airwallex {} requires {}.shopper_name, sourced from billing.address \
@@ -161,7 +164,7 @@ fn get_shopper_email(
     resource_common_data
         .get_billing_email()
         .map_err(|_| IntegrationError::MissingRequiredField {
-            field_name: "shopper_email",
+            field_name: "billing.email",
             context: aw_err_ctx(
                 format!(
                     "Airwallex {} requires {}.shopper_email; it is sourced from billing.email",
@@ -181,7 +184,7 @@ fn get_country_code(
     resource_common_data
         .get_billing_country()
         .map_err(|_| IntegrationError::MissingRequiredField {
-            field_name: "country_code",
+            field_name: "billing.country",
             context: aw_err_ctx(
                 format!(
                     "Airwallex {} requires {}.country_code, sourced from billing.address.country",
@@ -205,7 +208,7 @@ fn get_shopper_phone_with_country_code(
     resource_common_data
         .get_billing_phone()
         .map_err(|_| IntegrationError::MissingRequiredField {
-            field_name: "shopper_phone",
+            field_name: "billing.phone",
             context: aw_err_ctx(
                 format!(
                     "Airwallex {} requires {}.shopper_phone; it is sourced from billing.phone",
@@ -216,7 +219,7 @@ fn get_shopper_phone_with_country_code(
         })?
         .get_number_with_country_code()
         .map_err(|_| IntegrationError::MissingRequiredField {
-            field_name: "country_code",
+            field_name: "billing.phone.country_code",
             context: aw_err_ctx(
                 format!(
                     "Airwallex {} needs the shopper phone in full international form, so \
@@ -283,10 +286,13 @@ pub struct AirwallexPaymentRequest {
     pub request_id: String,
     // Payment method data for confirm step
     pub payment_method: AirwallexPaymentMethod,
-    // Options for payment processing
+    // Options for payment processing. Skipped when absent so a non-card intent does not ship
+    // `"payment_method_options": null` — Airwallex treats the key as present-but-empty.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_method_options: Option<AirwallexPaymentOptions>,
     pub return_url: Option<String>,
     // Device data for fraud detection
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub device_data: Option<AirwallexDeviceData>,
     // CIT (setup_future_usage) only: set up an Airwallex PaymentConsent so the confirm response
     // returns a payment_consent_id usable as the connector mandate for future MITs. Omitted for
@@ -386,8 +392,13 @@ impl TryFrom<&common_enums::BankNames> for AirwallexIndonesianBankName {
             common_enums::BankNames::CimbNiaga => Ok(Self("cimb_niaga".to_string())),
             common_enums::BankNames::Maybank => Ok(Self("maybank".to_string())),
             common_enums::BankNames::PermataBank => Ok(Self("permata".to_string())),
+            // The payment method itself is supported — only this bank is not — so the generic
+            // "Selected payment method through airwallex" message would point at the wrong thing.
             _ => Err(error_stack::report!(IntegrationError::NotImplemented(
-                crate::utils::get_unimplemented_payment_method_error_message("airwallex"),
+                "Selected bank for the Airwallex Indonesian bank transfer is not supported. \
+                 Airwallex accepts bank_mandiri, bank_danamon, bank_negara_indonesia, \
+                 bank_rakyat_indonesia, cimb_niaga, maybank or permata_bank"
+                    .to_string(),
                 Default::default()
             ))),
         }
@@ -540,10 +551,6 @@ pub struct AirwallexCardDetails {
     pub name: Option<Secret<String>>,
 }
 
-// Note: PayLater data structures remain unimplemented.
-// This transformer supports card payments, selected wallets (Google Pay, PayPal),
-// plus selected bank redirects.
-
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AirwallexPaymentType {
@@ -650,8 +657,11 @@ pub struct AirwallexPayLaterOptions {
 pub struct AirwallexConfirmRequest {
     pub request_id: String,
     pub payment_method: AirwallexPaymentMethod,
+    // Mirrors AirwallexPaymentRequest: omit rather than send an explicit null.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_method_options: Option<AirwallexPaymentOptions>,
     pub return_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub device_data: Option<AirwallexDeviceData>,
 }
 
@@ -793,7 +803,7 @@ fn get_wallet_details(
                 .tokenization_data
                 .get_encrypted_google_pay_token()
                 .change_context(IntegrationError::MissingRequiredField {
-                    field_name: "gpay wallet_token",
+                    field_name: "payment_method_data.wallet.google_pay.tokenization_data",
                     context: aw_err_ctx(
                         "Airwallex Google Pay requires the encrypted Google Pay token from \
                          payment_method_data.wallet.google_pay.tokenization_data",
@@ -939,7 +949,7 @@ fn get_banktransfer_details(
                     // map the domain bank to Airwallex's exact token (rejecting unsupported banks).
                     bank_name: AirwallexIndonesianBankName::try_from(bank_name.as_ref().ok_or(
                         IntegrationError::MissingRequiredField {
-                            field_name: "bank_name",
+                            field_name: "payment_method_data.bank_transfer.bank_name",
                             context: aw_err_ctx(
                                 "Airwallex routes the Indonesian bank transfer to a specific \
                                  issuer, so bank_transfer.bank_name cannot be inferred",
@@ -965,6 +975,28 @@ fn get_banktransfer_details(
             Default::default()
         ))),
     }
+}
+
+/// Whether this Authorize call is the card 3DS return leg, which Airwallex finishes on
+/// `/confirm_continue` with a `3ds_continue` body rather than on `/confirm`.
+///
+/// Gated on the payment method being a card **and** HS having supplied a `redirect_response`.
+/// In practice only cards come back through Authorize, because `get_return_url` routes cards to
+/// `complete_authorize_url` and APMs to `router_return_url` — but that is an emergent property of
+/// a different branch. Keying the endpoint and the request body off the same explicit condition
+/// means an APM that ever did return here gets its normal confirm body instead of a `three_ds`
+/// payload Airwallex would reject for a PayPal or Klarna intent.
+///
+/// Used by both [`AirwallexAuthorizeRequest::try_from`] and `get_url` in `airwallex.rs`, so the
+/// URL and the body cannot disagree about which leg is being sent.
+pub(crate) fn is_card_three_ds_continue<T: PaymentMethodDataTypes>(
+    request: &PaymentsAuthorizeData<T>,
+) -> bool {
+    request.redirect_response.is_some()
+        && matches!(
+            request.payment_method_data,
+            domain_types::payment_method_data::PaymentMethodData::Card(_)
+        )
 }
 
 // Single entry point for turning the domain payment method into the Airwallex payload. Both the
@@ -1001,7 +1033,7 @@ fn get_payment_method_details<T: PaymentMethodDataTypes>(
 // Build the correct `payment_method_options` object for the selected payment method.
 // Card/Wallet/BankRedirect keep the historical card options; PayLater emits its own
 // klarna/atome options block with `auto_capture`, mirroring the reference upstream.
-fn build_payment_method_options(
+pub(super) fn build_payment_method_options(
     payment_method: &AirwallexPaymentMethod,
     auto_capture: bool,
 ) -> Option<AirwallexPaymentOptions> {
@@ -1175,7 +1207,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        match item.router_data.request.redirect_response.as_ref() {
+        // Same gate as `get_url` in airwallex.rs, so the endpoint and the body always agree.
+        let three_ds_return_leg = item
+            .router_data
+            .request
+            .redirect_response
+            .as_ref()
+            .filter(|_| is_card_three_ds_continue(&item.router_data.request));
+        match three_ds_return_leg {
             // 3DS return leg: echo the ACS/redirect payload back as three_ds.acs_response.
             Some(redirect_response) => {
                 let acs_response = redirect_response
@@ -1318,6 +1357,11 @@ pub enum AirwallexNextActionType {
 pub struct AirwallexNextAction {
     #[serde(rename = "type")]
     pub action_type: AirwallexNextActionType,
+    /// Deserialized for completeness but deliberately **not** used to pick the redirect method —
+    /// [`build_redirection_data`] always emits GET. Airwallex embeds a one-time `?key=` in the
+    /// 3DS-method URL that has to stay in the query string; a POST form would move it into the
+    /// body and the endpoint 401s. Do not "fix" this by honouring `method` without re-testing the
+    /// card 3DS challenge end to end.
     pub method: Option<String>,
     pub url: Option<String>,
 }
@@ -1328,6 +1372,24 @@ pub struct AirwallexProcessorResponse {
     pub message: Option<String>,
     pub decline_code: Option<String>,
     pub network_code: Option<String>,
+}
+
+/// Turns any `next_action` carrying a URL into a GET [`RedirectForm`].
+///
+/// Shared by all three response transformers (Authorize, SetupMandate, RepeatPayment) so redirect
+/// surfacing cannot drift between them. It is deliberately **not** gated on
+/// `action_type == Redirect`: card 3DS arrives as `device_data_collection` / `other`, and the
+/// earlier gated version silently dropped those — which matters most on SetupMandate, the CIT card
+/// path where a 3DS challenge is most likely. GET is always used; see
+/// [`AirwallexNextAction::method`].
+fn build_redirection_data(next_action: &Option<AirwallexNextAction>) -> Option<Box<RedirectForm>> {
+    next_action.as_ref().and_then(|next_action| {
+        next_action.url.as_ref().and_then(|url_str| {
+            Url::parse(url_str)
+                .ok()
+                .map(|url| Box::new(RedirectForm::from((url, Method::Get))))
+        })
+    })
 }
 
 // Helper function to get payment status from Airwallex status (following Hyperswitch pattern)
@@ -1376,19 +1438,9 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AirwallexPaymentsResp
     ) -> Result<Self, Self::Error> {
         let status = get_payment_status(&item.response.status, &item.response.next_action);
 
-        // Handle redirection for APM redirects (type "redirect") AND card 3DS device-data-collection
-        // / challenge (type "other" / "device_data_collection"). Mirror native HS: surface ANY
-        // next_action that carries a URL as a GET RedirectForm. GET keeps the URL's query intact
-        // (Airwallex embeds a one-time `?key=` in the 3DS-method URL that must stay in the URL — a
-        // POST form strips the query into the body and the endpoint 401s). This replaces the old
-        // behaviour that only surfaced type "redirect" and dropped the card 3DS ("other") action.
-        let redirection_data = item.response.next_action.as_ref().and_then(|next_action| {
-            next_action.url.as_ref().and_then(|url_str| {
-                Url::parse(url_str)
-                    .ok()
-                    .map(|url| Box::new(RedirectForm::from((url, Method::Get))))
-            })
-        });
+        // Handles APM redirects (type "redirect") AND card 3DS device-data-collection / challenge
+        // (type "other" / "device_data_collection"), which the old type-gated version dropped.
+        let redirection_data = build_redirection_data(&item.response.next_action);
 
         // Extract network transaction ID for network response fields (PR #240 Issue #4)
         let network_txn_id = item
@@ -2384,17 +2436,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AirwallexSetupMandate
     ) -> Result<Self, Self::Error> {
         let status = get_payment_status(&item.response.status, &item.response.next_action);
 
-        let redirection_data = item.response.next_action.as_ref().and_then(|next_action| {
-            if next_action.action_type == AirwallexNextActionType::Redirect {
-                next_action.url.as_ref().and_then(|url_str| {
-                    Url::parse(url_str)
-                        .ok()
-                        .map(|url| Box::new(RedirectForm::from((url, Method::Get))))
-                })
-            } else {
-                None
-            }
-        });
+        let redirection_data = build_redirection_data(&item.response.next_action);
 
         // Airwallex MIT requires `payment_method.id` (pm_...) in addition to the
         // PaymentConsent id (cst_...). The pm_... is surfaced under
@@ -2584,17 +2626,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AirwallexRepeatPaymen
     ) -> Result<Self, Self::Error> {
         let status = get_payment_status(&item.response.status, &item.response.next_action);
 
-        let redirection_data = item.response.next_action.as_ref().and_then(|next_action| {
-            if next_action.action_type == AirwallexNextActionType::Redirect {
-                next_action.url.as_ref().and_then(|url_str| {
-                    Url::parse(url_str)
-                        .ok()
-                        .map(|url| Box::new(RedirectForm::from((url, Method::Get))))
-                })
-            } else {
-                None
-            }
-        });
+        let redirection_data = build_redirection_data(&item.response.next_action);
 
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {

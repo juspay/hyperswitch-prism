@@ -1102,11 +1102,6 @@ message Atome {
 
 /*
 
-// Atome - Asian BNPL service
-message Atome {
-  // Fields will be added as needed for Atome integration
-}
-
 // PayBright - Canadian BNPL service
 message PayBright {
   // Fields will be added as needed for PayBright integration

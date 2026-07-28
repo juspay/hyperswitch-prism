@@ -1,3 +1,4 @@
+mod test;
 pub mod transformers;
 
 use std::fmt::Debug;
@@ -279,9 +280,10 @@ macros::macro_connector_implementation!(
             let order_id = req.resource_common_data.connector_order_id
                 .as_ref()
                 .ok_or(IntegrationError::MissingRequiredField { field_name: "connector_order_id", context: Default::default() })?;
-            // When HS re-invokes Authorize after a 3DS redirect (redirect_response present), finish
-            // the payment on the same intent via `confirm_continue` instead of `confirm`.
-            let endpoint = if req.request.redirect_response.is_some() {
+            // When HS re-invokes Authorize after a card 3DS redirect, finish the payment on the
+            // same intent via `confirm_continue` instead of `confirm`. Same gate as the request
+            // body builder in transformers.rs, so the URL and the body cannot disagree.
+            let endpoint = if transformers::is_card_three_ds_continue(&req.request) {
                 "confirm_continue"
             } else {
                 "confirm"
