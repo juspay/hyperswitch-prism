@@ -77,8 +77,45 @@
         "error": "This feature is not implemented: Bank Redirect Payment Method"
       },
       "Blik": {
-        "status": "error",
-        "error": "Stuck on field: shopper_name. Airwallex Blik requires blik.shopper_name, sourced from billing.address first_name + last_name — Missing required field: shopper_name. Airwallex Blik requires blik.shopper_name, sourced from billing.address first_name + last_name"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "blik": {
+              "blik_code": "777124"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "first_name": "John"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          },
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-demo.airwallex.com/api/v1/pa/payment_intents/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"request_id\":\"confirm_probe_txn_001\",\"payment_method\":{\"blik\":{\"shopper_name\":\"John\"},\"type\":\"blik\"},\"return_url\":\"https://example.com/return\"}"
+        }
       },
       "Bluecode": {
         "status": "not_implemented",
@@ -136,7 +173,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"request_id\":\"confirm_probe_txn_001\",\"payment_method\":{\"card\":{\"number\":\"4111111111111111\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvc\":\"737\",\"name\":\"John Doe\"},\"type\":\"card\"},\"payment_method_options\":{\"card\":{\"auto_capture\":true}},\"return_url\":\"https://example.com/return\",\"device_data\":null}"
+          "body": "{\"request_id\":\"confirm_probe_txn_001\",\"payment_method\":{\"card\":{\"number\":\"4111111111111111\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvc\":\"737\",\"name\":\"John Doe\"},\"type\":\"card\"},\"payment_method_options\":{\"card\":{\"auto_capture\":true}},\"return_url\":\"https://example.com/return\"}"
         }
       },
       "CashappQr": {
@@ -258,12 +295,12 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"request_id\":\"confirm_probe_txn_001\",\"payment_method\":{\"googlepay\":{\"encrypted_payment_token\":\"{\\\"id\\\":\\\"tok_probe_gpay\\\",\\\"object\\\":\\\"token\\\",\\\"type\\\":\\\"card\\\"}\",\"payment_data_type\":\"encrypted_payment_token\"},\"type\":\"googlepay\"},\"payment_method_options\":null,\"return_url\":\"https://example.com/return\",\"device_data\":null}"
+          "body": "{\"request_id\":\"confirm_probe_txn_001\",\"payment_method\":{\"googlepay\":{\"encrypted_payment_token\":\"{\\\"id\\\":\\\"tok_probe_gpay\\\",\\\"object\\\":\\\"token\\\",\\\"type\\\":\\\"card\\\"}\",\"payment_data_type\":\"encrypted_payment_token\"},\"type\":\"googlepay\"},\"return_url\":\"https://example.com/return\"}"
         }
       },
       "GooglePayDecrypted": {
         "status": "error",
-        "error": "Stuck on field: gpay wallet_token. Airwallex Google Pay requires the encrypted Google Pay token from payment_method_data.wallet.google_pay.tokenization_data — Missing required field: gpay wallet_token. Airwallex Google Pay requires the encrypted Google Pay token from payment_method_data.wallet.google_pay.tokenization_data"
+        "error": "Stuck on field: payment_method_data.wallet.google_pay.tokenization_data. Airwallex Google Pay requires the encrypted Google Pay token from payment_method_data.wallet.google_pay.tokenization_data — Missing required field: payment_method_data.wallet.google_pay.tokenization_data. Airwallex Google Pay requires the encrypted Google Pay token from payment_method_data.wallet.google_pay.tokenization_data"
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
@@ -303,7 +340,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"request_id\":\"confirm_probe_txn_001\",\"payment_method\":{\"ideal\":{},\"type\":\"ideal\"},\"payment_method_options\":null,\"return_url\":\"https://example.com/return\",\"device_data\":null}"
+          "body": "{\"request_id\":\"confirm_probe_txn_001\",\"payment_method\":{\"ideal\":{},\"type\":\"ideal\"},\"return_url\":\"https://example.com/return\"}"
         }
       },
       "Indomaret": {
@@ -312,7 +349,7 @@
       },
       "IndonesianBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: shopper_name. Airwallex Indonesian bank transfer requires bank_transfer.shopper_name, sourced from billing.address first_name + last_name — Missing required field: shopper_name. Airwallex Indonesian bank transfer requires bank_transfer.shopper_name, sourced from billing.address first_name + last_name"
+        "error": "Stuck on field: payment_method_data.bank_transfer.bank_name. Airwallex routes the Indonesian bank transfer to a specific issuer, so bank_transfer.bank_name cannot be inferred — Missing required field: payment_method_data.bank_transfer.bank_name. Airwallex routes the Indonesian bank transfer to a specific issuer, so bank_transfer.bank_name cannot be inferred"
       },
       "InstantBankTransfer": {
         "status": "not_implemented",
@@ -335,8 +372,43 @@
         "error": "This feature is not implemented: Wallet Payment Method"
       },
       "Klarna": {
-        "status": "error",
-        "error": "Stuck on field: country_code. Airwallex Klarna requires klarna.country_code, sourced from billing.address.country — Missing required field: country_code. Airwallex Klarna requires klarna.country_code, sourced from billing.address.country"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "klarna": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "country_alpha2_code": "US"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          },
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-demo.airwallex.com/api/v1/pa/payment_intents/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"request_id\":\"confirm_probe_txn_001\",\"payment_method\":{\"klarna\":{\"country_code\":\"US\",\"billing\":{\"address\":{\"country_code\":\"US\"}}},\"type\":\"klarna\"},\"payment_method_options\":{\"klarna\":{\"auto_capture\":true}},\"return_url\":\"https://example.com/return\"}"
+        }
       },
       "Lawson": {
         "status": "not_implemented",
@@ -443,8 +515,46 @@
         "error": "This feature is not implemented: Wallet Payment Method"
       },
       "PaypalRedirect": {
-        "status": "error",
-        "error": "Stuck on field: shopper_name. Airwallex PayPal requires paypal.shopper_name, sourced from the customer name or, failing that, billing.address first_name + last_name — Missing required field: shopper_name. Airwallex PayPal requires paypal.shopper_name, sourced from the customer name or, failing that, billing.address first_name + last_name"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "paypal_redirect": {
+              "email": "test@example.com"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "country_alpha2_code": "US"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          },
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-demo.airwallex.com/api/v1/pa/payment_intents/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"request_id\":\"confirm_probe_txn_001\",\"payment_method\":{\"paypal\":{\"shopper_name\":\"John\",\"country_code\":\"US\"},\"type\":\"paypal\"},\"return_url\":\"https://example.com/return\"}"
+        }
       },
       "PaypalSdk": {
         "status": "not_implemented",
@@ -519,8 +629,45 @@
         "error": "This feature is not implemented: Payment Method"
       },
       "Skrill": {
-        "status": "error",
-        "error": "Stuck on field: shopper_name. Airwallex Skrill requires skrill.shopper_name, sourced from the customer name or, failing that, billing.address first_name + last_name — Missing required field: shopper_name. Airwallex Skrill requires skrill.shopper_name, sourced from the customer name or, failing that, billing.address first_name + last_name"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "skrill_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "country_alpha2_code": "US",
+              "email": "test@example.com"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          },
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-demo.airwallex.com/api/v1/pa/payment_intents/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"request_id\":\"confirm_probe_txn_001\",\"payment_method\":{\"skrill\":{\"shopper_name\":\"John\",\"shopper_email\":\"test@example.com\",\"country_code\":\"US\"},\"type\":\"skrill\"},\"return_url\":\"https://example.com/return\"}"
+        }
       },
       "Sofort": {
         "status": "not_implemented",
@@ -535,8 +682,44 @@
         "error": "This feature is not implemented: Wallet Payment Method"
       },
       "Trustly": {
-        "status": "error",
-        "error": "Stuck on field: shopper_name. Airwallex Trustly requires trustly.shopper_name, sourced from billing.address first_name + last_name — Missing required field: shopper_name. Airwallex Trustly requires trustly.shopper_name, sourced from billing.address first_name + last_name"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "trustly": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "country_alpha2_code": "US"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          },
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-demo.airwallex.com/api/v1/pa/payment_intents/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"request_id\":\"confirm_probe_txn_001\",\"payment_method\":{\"trustly\":{\"shopper_name\":\"John\",\"country_code\":\"US\"},\"type\":\"trustly\"},\"return_url\":\"https://example.com/return\"}"
+        }
       },
       "Twint": {
         "status": "not_implemented",
@@ -799,7 +982,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"request_id\":\"confirm_probe_proxy_txn_001\",\"payment_method\":{\"card\":{\"number\":\"{{$card_number}}\",\"expiry_month\":\"{{$card_exp_month}}\",\"expiry_year\":\"{{$card_exp_year}}\",\"cvc\":\"{{$card_cvc}}\",\"name\":\"John Doe\"},\"type\":\"card\"},\"payment_method_options\":{\"card\":{\"auto_capture\":true}},\"return_url\":\"https://example.com/return\",\"device_data\":null}"
+          "body": "{\"request_id\":\"confirm_probe_proxy_txn_001\",\"payment_method\":{\"card\":{\"number\":\"{{$card_number}}\",\"expiry_month\":\"{{$card_exp_month}}\",\"expiry_year\":\"{{$card_exp_year}}\",\"cvc\":\"{{$card_cvc}}\",\"name\":\"John Doe\"},\"type\":\"card\"},\"payment_method_options\":{\"card\":{\"auto_capture\":true}},\"return_url\":\"https://example.com/return\"}"
         }
       }
     },

@@ -5,9 +5,9 @@
 // Paysafe — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx paysafe.ts checkout_autocapture
 
-import { PaymentMethodAuthenticationClient, PaymentClient, CustomerClient, RefundClient, types } from 'hyperswitch-prism';
+import { PaymentMethodAuthenticationClient, PaymentClient, CustomerClient, RefundClient, PaymentMethodClient, types } from 'hyperswitch-prism';
 const { Environment, CaptureMethod, Currency } = types;
-export const SUPPORTED_FLOWS = ["authenticate", "capture", "customer_create", "get", "pre_authenticate", "refund", "refund_get", "token_authorize"];
+export const SUPPORTED_FLOWS = ["authenticate", "capture", "customer_create", "get", "pre_authenticate", "refund", "refund_get", "token_authorize", "tokenize", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -140,6 +140,40 @@ function _buildTokenAuthorizeRequest(): types.IPaymentServiceTokenAuthorizeReque
     };
 }
 
+function _buildTokenizeRequest(): types.IPaymentMethodServiceTokenizeRequest {
+    return {
+        "amount": {  // Payment Information.
+            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        },
+        "paymentMethod": {
+            "card": {  // Generic card payment.
+                "cardNumber": {"value": "4111111111111111"},  // Card Identification.
+                "cardExpMonth": {"value": "03"},
+                "cardExpYear": {"value": "2030"},
+                "cardCvc": {"value": "737"},
+                "cardHolderName": {"value": "John Doe"}  // Cardholder Information.
+            }
+        },
+        "address": {  // Address Information.
+            "billingAddress": {
+            }
+        },
+        "returnUrl": "https://example.com/return"  // URLs for Redirection.
+    };
+}
+
+function _buildVoidRequest(connectorTransactionId: string): types.IPaymentServiceVoidRequest {
+    return {
+        "merchantVoidId": "probe_void_001",  // Identification.
+        "connectorTransactionId": connectorTransactionId,
+        "amount": {  // Amount Information.
+            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+    };
+}
+
 
 // ANCHOR: scenario_functions
 // Flow: PaymentMethodAuthenticationService.Authenticate
@@ -214,10 +248,28 @@ async function tokenAuthorize(merchantTransactionId: string, config: types.IConn
     return tokenResponse;
 }
 
+// Flow: PaymentMethodService.Tokenize
+async function tokenize(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentMethodClient = new PaymentMethodClient(config);
+
+    const tokenizeResponse = await paymentMethodClient.tokenize(_buildTokenizeRequest());
+
+    return tokenizeResponse;
+}
+
+// Flow: PaymentService.Void
+async function voidPayment(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentClient = new PaymentClient(config);
+
+    const voidResponse = await paymentClient.void(_buildVoidRequest('probe_connector_txn_001'));
+
+    return voidResponse;
+}
+
 
 // Export all process* functions for the smoke test
 export {
-    authenticate, capture, customerCreate, get, preAuthenticate, refund, refundGet, tokenAuthorize, _buildAuthenticateRequest, _buildCaptureRequest, _buildCustomerCreateRequest, _buildGetRequest, _buildPreAuthenticateRequest, _buildRefundRequest, _buildRefundGetRequest, _buildTokenAuthorizeRequest
+    authenticate, capture, customerCreate, get, preAuthenticate, refund, refundGet, tokenAuthorize, tokenize, voidPayment, _buildAuthenticateRequest, _buildCaptureRequest, _buildCustomerCreateRequest, _buildGetRequest, _buildPreAuthenticateRequest, _buildRefundRequest, _buildRefundGetRequest, _buildTokenAuthorizeRequest, _buildTokenizeRequest, _buildVoidRequest
 };
 
 // CLI runner
