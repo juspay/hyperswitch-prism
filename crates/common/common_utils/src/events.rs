@@ -682,6 +682,7 @@ pub(crate) fn set_nested_value(
 }
 
 #[cfg(test)]
+#[allow(clippy::expect_used)]
 mod runtime_metadata_tests {
     use std::collections::HashMap;
 
