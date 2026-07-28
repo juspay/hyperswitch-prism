@@ -19,6 +19,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.07.28.0
+
+### Features
+
+- **adyen/repeat_payment:** Thread network_txn_link_id through RecurringPaymentServiceChargeResponse ([#1839](https://github.com/juspay/connector-service/pull/1839)) ([`a285b61`](https://github.com/juspay/connector-service/commit/a285b61d4a9f0952816c92cda7a45c148a3f5408))
+- **connector:** [Datatrans]Implement mandates for ApplePay and GooglePay ([#2012](https://github.com/juspay/connector-service/pull/2012)) ([`088084e`](https://github.com/juspay/connector-service/commit/088084e9e2786387ec0fd2df05ae0f6f75c6db82))
+- **kount:** Enrich pre_risk_check (Evaluate Order) response — full masked risk body in logs ([#2004](https://github.com/juspay/connector-service/pull/2004)) ([`a5cc8c4`](https://github.com/juspay/connector-service/commit/a5cc8c4c5cb403307983d0c1975265ed5649c651))
+
+### Bug Fixes
+
+- **proto:** Add connector_reference_id and fix misuse as merchant_*_id ([#1968](https://github.com/juspay/connector-service/pull/1968)) ([`9b57cf8`](https://github.com/juspay/connector-service/commit/9b57cf806c17ec4163537199caa4155f8e4e77bb))
+
+**Full Changelog:** [`2026.07.27.1...2026.07.28.0`](https://github.com/juspay/connector-service/compare/2026.07.27.1...2026.07.28.0)
+
+- - -
+
 ## 2026.07.27.1
 
 ### Bug Fixes
