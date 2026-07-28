@@ -217,14 +217,6 @@ impl From<&KountDecision> for FrmDecision {
 /// Deserialising into a `serde_json::Value` first preserves the full payload,
 /// while the typed `parsed_response` still drives decision mapping.
 ///
-/// `Serialize` emits `raw_response` (the verbatim body), not the typed struct —
-/// mirroring twoc_twop_paco. The Golden Log Line runs `masked_serialize` over the
-/// connector response type, so both the pre_risk_check and notify
-/// `connector_response_data` logs carry Kount's exact response, including fields
-/// we don't model. (Trade-off: because the raw value is a plain `serde_json::Value`
-/// with no `Secret` fields, `connector_response_data` is not per-field masked; the
-/// `raw_connector_response` reply field is still wrapped whole in `Secret`, so it
-/// masks as one blob wherever that field itself is logged.)
 #[derive(Debug, Clone)]
 pub struct KountResponseWithRaw<T> {
     pub parsed_response: T,
@@ -245,12 +237,12 @@ impl<'de, T: serde::de::DeserializeOwned> Deserialize<'de> for KountResponseWith
     }
 }
 
-impl<T> Serialize for KountResponseWithRaw<T> {
+impl<T: Serialize> Serialize for KountResponseWithRaw<T> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
-        self.raw_response.serialize(serializer)
+        self.parsed_response.serialize(serializer)
     }
 }
 
@@ -329,16 +321,25 @@ pub struct KountRiskInquiry {
 }
 
 /// Response from the Kount Orders API update (`PATCH /commerce/v2/orders/{id}`).
-/// Distinct type from [`KountOrderResponse`] so the connector macros generate a
-/// unique templating type per flow.
+/// The PATCH ack echoes the order envelope only — no risk body (that comes solely
+/// from Evaluate Order). Modelling the real ack fields keeps the notify
+/// `connector_response_data` log complete and per-field masked. Distinct type from
+/// [`KountOrderResponse`] so the connector macros generate a unique templating type
+/// per flow.
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KountUpdateOrderResponse {
-    #[serde(alias = "orderId")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub order_id: Option<String>,
-    pub decision: Option<KountDecision>,
-    #[serde(alias = "omniscore", alias = "riskScore")]
-    pub score: Option<f64>,
-    pub reason: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant_order_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub channel: Option<String>,
+    /// Device fingerprint id — masks in the event log.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub device_session_id: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub creation_date_time: Option<String>,
 }
 
 /// Accept a JSON scalar that Kount may send as either a string or a number
@@ -1812,13 +1813,23 @@ pub struct KountRefundUpdateRequest {
     pub merchant: Option<KountMerchant>,
 }
 
-/// Response from the refund Update Order PATCH. Distinct type from
-/// [`KountUpdateOrderResponse`] so the connector macros generate a unique
-/// templating type per flow.
+/// Response from the refund Update Order PATCH — same order-envelope ack as
+/// [`KountUpdateOrderResponse`]. Distinct type so the connector macros generate a
+/// unique templating type per flow.
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KountRefundUpdateResponse {
-    #[serde(alias = "orderId")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub order_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant_order_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub channel: Option<String>,
+    /// Device fingerprint id — masks in the event log.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub device_session_id: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub creation_date_time: Option<String>,
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
