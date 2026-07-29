@@ -1360,7 +1360,17 @@ impl TryFrom<&ConnectorSpecificConfig> for JuspayCardSyncAuthType {
         let missing = |field_name: &'static str| {
             error_stack::report!(errors::IntegrationError::MissingRequiredField {
                 field_name,
-                context: Default::default(),
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "Juspay account updater requires `{field_name}` in the connector config; \
+                         it is optional because the other Juspay flows do not use it"
+                    )),
+                    suggested_action: Some(format!(
+                        "Set `{field_name}` in the Juspay connector config sent as \
+                         x-connector-config metadata on the Refresh request"
+                    )),
+                    doc_url: None,
+                },
             })
         };
 
@@ -1385,7 +1395,20 @@ impl TryFrom<&ConnectorSpecificConfig> for JuspayCardSyncAuthType {
             }),
             _ => Err(error_stack::report!(
                 errors::IntegrationError::FailedToObtainAuthType {
-                    context: Default::default()
+                    context: errors::IntegrationErrorContext {
+                        additional_context: Some(
+                            "Juspay account updater received a connector config for a different \
+                             connector; only ConnectorSpecificConfig::Juspay carries the card-sync \
+                             keys"
+                                .to_owned()
+                        ),
+                        suggested_action: Some(
+                            "Send the Juspay connector config as x-connector-config metadata on \
+                             the Refresh request"
+                                .to_owned()
+                        ),
+                        doc_url: None,
+                    }
                 }
             )),
         }

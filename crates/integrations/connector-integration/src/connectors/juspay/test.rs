@@ -765,14 +765,26 @@ mod card_sync_tests {
             let err =
                 JuspayCardSyncAuthType::try_from(&config).expect_err("{missing} must be reported");
 
-            assert_eq!(
-                err.current_context(),
-                &errors::IntegrationError::MissingRequiredField {
-                    field_name: missing,
-                    context: Default::default(),
-                },
-                "the error must name {missing} specifically"
-            );
+            match err.current_context() {
+                errors::IntegrationError::MissingRequiredField {
+                    field_name,
+                    context,
+                } => {
+                    assert_eq!(
+                        *field_name, missing,
+                        "the error must name {missing} specifically"
+                    );
+                    let additional_context = context
+                        .additional_context
+                        .as_deref()
+                        .unwrap_or_else(|| panic!("{missing} must carry additional context"));
+                    assert!(
+                        additional_context.contains(missing),
+                        "the context for {missing} must name the field: {additional_context}"
+                    );
+                }
+                other => panic!("{missing} must be a MissingRequiredField, got {other:?}"),
+            }
         }
     }
 
