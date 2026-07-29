@@ -1669,6 +1669,11 @@ pub fn parse_card_sync_response(
 
     // Undefined what a payload means under an unmapped code, so don't decrypt it.
     if outcome == CardRefreshOutcome::Unrecognized {
+        tracing::warn!(
+            target: "juspay_card_sync",
+            response_code = %response_code.as_provider_code(),
+            "unmapped card sync response code; returning the submitted card unchanged"
+        );
         return Ok(unchanged(outcome));
     }
 

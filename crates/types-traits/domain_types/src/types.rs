@@ -13402,7 +13402,8 @@ impl
         // id is the only correlation handle. Matches the webhook-verify precedent.
         let request_id = metadata
             .get_raw(common_utils::consts::X_REQUEST_ID)
-            .unwrap_or_default();
+            .filter(|request_id| !request_id.trim().is_empty())
+            .unwrap_or_else(common_utils::fp_utils::generate_uuid_v7);
 
         Ok(Self {
             connectors,
