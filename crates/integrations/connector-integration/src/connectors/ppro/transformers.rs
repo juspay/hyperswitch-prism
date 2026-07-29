@@ -1095,8 +1095,8 @@ pub(crate) fn build_auth_redirect(
                 }
                 Some(RedirectForm::Qr {
                     payload: details.code_payload.clone(),
-                    image_base64: details.code_image.clone(),
-                    image_url: None,
+                    image_base64: None,
+                    image_url: details.code_image.clone(),
                     fallback_url: None,
                     expires_at: details.scan_by.as_deref().and_then(parse_scan_by_expiry),
                 })

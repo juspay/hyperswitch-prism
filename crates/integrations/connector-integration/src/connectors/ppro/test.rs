@@ -1104,7 +1104,7 @@ mod transformer_tests {
             PproAuthenticationType::ScanCode,
             Some(PproAuthDetailsResponse {
                 code_payload: Some("qr_payload_abc".to_string()),
-                code_image: Some("base64_image_data".to_string()),
+                code_image: Some("https://images.ppro.com/qr/abc.png".to_string()),
                 scan_by: Some("2026-07-23T12:00:00Z".to_string()),
                 ..empty_details()
             }),
@@ -1115,11 +1115,17 @@ mod transformer_tests {
             Some(RedirectForm::Qr {
                 payload,
                 image_base64,
+                image_url,
                 expires_at,
                 ..
             }) => {
                 ensure_eq!(payload, Some("qr_payload_abc".to_string()));
-                ensure_eq!(image_base64, Some("base64_image_data".to_string()));
+                // PPRO returns `codeImage` as a hosted URL, not base64.
+                ensure_eq!(image_base64, None);
+                ensure_eq!(
+                    image_url,
+                    Some("https://images.ppro.com/qr/abc.png".to_string())
+                );
                 ensure!(expires_at.is_some(), "expires_at should have parsed");
             }
             other => return Err(format!("expected RedirectForm::Qr, got {other:?}").into()),
