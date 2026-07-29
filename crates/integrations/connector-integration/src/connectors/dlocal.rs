@@ -18,7 +18,7 @@ use domain_types::{
         RefundsResponseData, RepeatPaymentData, RequestDetails, ResponseId,
         SetupMandateRequestData, WebhookDetailsResponse, WebhookResourceReference,
     },
-    payment_method_data::{self, PaymentMethodData, PaymentMethodDataTypes},
+    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
     router_data::ErrorResponse,
     router_data_v2::RouterDataV2,
     router_response_types::Response,
@@ -236,10 +236,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let connector_mandate_id =
             if is_enrollment_webhook && matches!(&body.status, DlocalPaymentStatus::Active) {
                 Some(body.id.clone())
-            } else if let Some(enrollment_id) = body.enrollment_id_from_successful_payment() {
-                Some(enrollment_id)
             } else {
-                None
+                body.enrollment_id_from_successful_payment()
             };
 
         let mandate_reference = connector_mandate_id.map(|enrollment_id| {
@@ -722,7 +720,7 @@ macros::macro_connector_implementation!(
                 // amount (dLocal rejects amounts <= 1.00 with code 5016 "Amount too low").
                 PaymentMethodData::Card(_) => Ok(format!("{base_url}secure_payments")),
                 // GCash recurring setup uses the dLocal Enrollment API directly.
-                PaymentMethodData::Wallet(payment_method_data::WalletData::GcashRedirect(_)) => {
+                PaymentMethodData::Wallet(_) => {
                     Ok(format!("{base_url}enrollments"))
                 }
                 _ => Ok(format!("{base_url}payments")),

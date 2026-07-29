@@ -167,8 +167,6 @@ pub struct DlocalPaymentsRequest<
     #[serde(skip_serializing_if = "Option::is_none")]
     pub card: Option<Card<T>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub wallet: Option<Wallet>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub enrollment: Option<DlocalEnrollment>,
     pub order_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -266,7 +264,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         // is handled separately via SetupMandate with `save: Some(true)`.
                         save: None,
                     }),
-                    wallet: None,
                     enrollment: None,
                     order_id,
                     three_dsecure: match item.router_data.resource_common_data.auth_type {
@@ -300,7 +297,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         address: None,
                     },
                     card: None,
-                    wallet: None,
                     enrollment: None,
                     order_id,
                     three_dsecure: None,
@@ -337,7 +333,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             address: payer_address,
                         },
                         card: None,
-                        wallet: None,
                         enrollment: Some(DlocalEnrollment {
                             external_id: Some(order_id.clone()),
                             enrollment_type: Some(DlocalEnrollmentType::OnDemand),
@@ -370,7 +365,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             address: None,
                         },
                         card: None,
-                        wallet: None,
                         enrollment: None,
                         order_id,
                         three_dsecure: None,
@@ -407,7 +401,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         address: None,
                     },
                     card: None,
-                    wallet: None,
                     enrollment: None,
                     order_id,
                     three_dsecure: None,
@@ -437,7 +430,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         address: None,
                     },
                     card: None,
-                    wallet: None,
                     enrollment: None,
                     order_id,
                     three_dsecure: None,
@@ -581,8 +573,6 @@ pub struct DlocalRepeatPaymentRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub card: Option<DlocalRepeatPaymentCard>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub wallet: Option<Wallet>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub enrollment: Option<DlocalEnrollment>,
     pub order_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -697,7 +687,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     address: payer_address,
                 },
                 card: None,
-                wallet: None,
                 enrollment: Some(DlocalEnrollment {
                     id: Some(connector_mandate_id),
                     ..Default::default()
@@ -732,7 +721,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 stored_credential_type,
                 stored_credential_usage: StoredCredentialUsage::Used,
             }),
-            wallet: None,
             enrollment: None,
             order_id,
             notification_url: router_data.request.webhook_url.clone(),
@@ -761,8 +749,6 @@ pub struct DlocalSetupMandateRequest<
     pub payer: Payer,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub card: Option<Card<T>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub wallet: Option<Wallet>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub order_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -861,7 +847,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         capture: "false".to_string(),
                         save: Some(true),
                     }),
-                    wallet: None,
                     order_id: Some(order_id),
                     three_dsecure: None,
                     callback_url,
@@ -892,7 +877,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         address: payer_address,
                     },
                     card: None,
-                    wallet: None,
                     order_id: None,
                     three_dsecure: None,
                     callback_url,
@@ -1162,9 +1146,6 @@ pub struct DlocalWebhookBody {
     pub payment_method_type: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_method_flow: Option<String>,
-    /// Present in legacy wallet flows or payment+enrollment webhook payloads.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub wallet: Option<DlocalWebhookWallet>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub enrollment: Option<DlocalEnrollment>,
 }
