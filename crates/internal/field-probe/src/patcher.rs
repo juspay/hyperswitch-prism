@@ -80,9 +80,16 @@ where
     }
 }
 
-/// Strips parenthetical notes and type annotations from connector error strings.
+/// Strips parenthetical notes, type annotations and trailing prose from connector error strings.
 /// "foo (bar from SomeFlow)" → "foo"
 /// "field_name: SomeType"    → "field_name"
+/// "billing.email. Airwallex Skrill requires …" → "billing.email"
+///
+/// The last form comes from `combine_error_message_with_context`, which renders
+/// `IntegrationError::MissingRequiredField` as `"Missing required field: {field}. {context}"`.
+/// A field path never contains ". " (a dot inside a path is not followed by a space), so cutting
+/// at the first sentence boundary recovers the path while keeping the merchant-facing prose in
+/// the message itself.
 fn clean_error_field(field: &str) -> &str {
     field
         .split(" (")
@@ -93,6 +100,11 @@ fn clean_error_field(field: &str) -> &str {
         .next()
         .unwrap_or(field)
         .trim()
+        .split(". ")
+        .next()
+        .unwrap_or(field)
+        .trim()
+        .trim_end_matches('.')
 }
 
 /// Parses a config key into (target_path, flow).
@@ -451,6 +463,16 @@ mod tests {
         );
         assert_eq!(clean_error_field("field_name: String"), "field_name");
         assert_eq!(clean_error_field("  field_name  "), "field_name");
+        // `combine_error_message_with_context` appends ". {additional_context}" to the base
+        // message, so the extracted field carries the remediation prose. Only the path survives.
+        assert_eq!(
+            clean_error_field(
+                "billing.first_name. Airwallex Blik requires blik.shopper_name, sourced from \
+                 billing.address first_name + last_name"
+            ),
+            "billing.first_name"
+        );
+        assert_eq!(clean_error_field("billing.email."), "billing.email");
     }
 
     #[test]
