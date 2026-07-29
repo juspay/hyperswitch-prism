@@ -1935,6 +1935,9 @@ impl<
                 grpc_api_types::payments::payment_method::PaymentMethod::TamaraRedirect(_) => Ok(
                     Self::PayLater(payment_method_data::PayLaterData::TamaraRedirect {}),
                 ),
+                grpc_api_types::payments::payment_method::PaymentMethod::Atome(_) => Ok(
+                    Self::PayLater(payment_method_data::PayLaterData::AtomeRedirect {}),
+                ),
                 // ============================================================================
                 // DIRECT DEBIT - Direct variants
                 // ============================================================================
@@ -2506,6 +2509,9 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::Netbanking => {
                 Ok(PaymentMethodType::Netbanking)
             }
+            grpc_api_types::payments::PaymentMethodType::Ideal => Ok(PaymentMethodType::Ideal),
+            grpc_api_types::payments::PaymentMethodType::Blik => Ok(PaymentMethodType::Blik),
+            grpc_api_types::payments::PaymentMethodType::Atome => Ok(PaymentMethodType::Atome),
             grpc_api_types::payments::PaymentMethodType::Affirm => Ok(PaymentMethodType::Affirm),
             _ => Err(IntegrationError::InvalidDataFormat {
                 field_name: "payment_method_type",
@@ -2676,6 +2682,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 grpc_api_types::payments::payment_method::PaymentMethod::Klarna(_) => Ok(Some(PaymentMethodType::Klarna)),
                 grpc_api_types::payments::payment_method::PaymentMethod::Alma(_) => Ok(Some(PaymentMethodType::Alma)),
                 grpc_api_types::payments::payment_method::PaymentMethod::TamaraRedirect(_) => Ok(Some(PaymentMethodType::Tamara)),
+                grpc_api_types::payments::payment_method::PaymentMethod::Atome(_) => Ok(Some(PaymentMethodType::Atome)),
                 // ============================================================================
                 // DIRECT DEBIT - PaymentMethodType mappings
                 // ============================================================================
@@ -6344,6 +6351,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::SkrillRedirect(_)),
+            } => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::RevolutPay(_)),
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
@@ -6465,10 +6476,6 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::WeroRedirect(_)),
-            } => Ok(Self::Wallet),
-            grpc_api_types::payments::PaymentMethod {
-                payment_method:
-                    Some(grpc_api_types::payments::payment_method::PaymentMethod::SkrillRedirect(_)),
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
@@ -6641,6 +6648,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::TamaraRedirect(_)),
+            } => Ok(Self::PayLater),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::Atome(_)),
             } => Ok(Self::PayLater),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
@@ -12056,6 +12067,16 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceCreateOrderRequest>
             value.payment_method_type(),
         )?;
 
+        let order_details = (!value.order_details.is_empty())
+            .then(|| {
+                value
+                    .order_details
+                    .into_iter()
+                    .map(OrderDetailsWithAmount::foreign_try_from)
+                    .collect::<Result<Vec<_>, _>>()
+            })
+            .transpose()?;
+
         Ok(Self {
             amount: amount.amount,
             currency: amount.currency,
@@ -12066,6 +12087,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceCreateOrderRequest>
                 .transpose()?,
             webhook_url,
             payment_method_type,
+            order_details,
         })
     }
 }
@@ -15135,6 +15157,16 @@ impl ForeignTryFrom<grpc_api_types::payments::BankNames> for common_enums::BankN
             grpc_api_types::payments::BankNames::FederalBank => Ok(Self::FederalBank),
             grpc_api_types::payments::BankNames::IndianOverseasBank => Ok(Self::IndianOverseasBank),
             grpc_api_types::payments::BankNames::CentralBankOfIndia => Ok(Self::CentralBankOfIndia),
+            grpc_api_types::payments::BankNames::BankMandiri => Ok(Self::BankMandiri),
+            grpc_api_types::payments::BankNames::BankDanamon => Ok(Self::BankDanamon),
+            grpc_api_types::payments::BankNames::BankNegaraIndonesia => {
+                Ok(Self::BankNegaraIndonesia)
+            }
+            grpc_api_types::payments::BankNames::BankRakyatIndonesia => {
+                Ok(Self::BankRakyatIndonesia)
+            }
+            grpc_api_types::payments::BankNames::CimbNiaga => Ok(Self::CimbNiaga),
+            grpc_api_types::payments::BankNames::PermataBank => Ok(Self::PermataBank),
         }
     }
 }
