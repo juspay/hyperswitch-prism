@@ -1180,10 +1180,7 @@ fn repeat_payment_credential_expiry<T: PaymentMethodDataTypes>(
         _ => (None, None),
     };
     let (request_month, request_year) = get_credential_expiry(&request.payment_method_data);
-    (
-        stored_month.or(request_month),
-        stored_year.or(request_year),
-    )
+    (stored_month.or(request_month), stored_year.or(request_year))
 }
 
 fn build_mandate_reference(
