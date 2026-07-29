@@ -261,14 +261,15 @@ fn is_auto_capture(capture_method: Option<CaptureMethod>) -> bool {
 /// up front rather than emitting an unsettleable authorization. `ValidationTrait` has no
 /// capture-method hook, so the check has to live in the request transformers.
 fn is_auto_capture_request(capture_method: Option<CaptureMethod>) -> Result<bool, Error> {
-    match capture_method {
-        Some(CaptureMethod::Automatic) | Some(CaptureMethod::SequentialAutomatic) | None => {
-            Ok(true)
-        }
-        Some(_) => Err(IntegrationError::CaptureMethodNotSupported {
+    // Deliberately expressed in terms of `is_auto_capture` so the two cannot classify the same
+    // capture method differently.
+    if is_auto_capture(capture_method) {
+        Ok(true)
+    } else {
+        Err(IntegrationError::CaptureMethodNotSupported {
             context: Default::default(),
         }
-        .into()),
+        .into())
     }
 }
 
@@ -919,7 +920,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let original_purchase_date = Some(
             mandate_metadata
                 .and_then(|tesouro_metadata| tesouro_metadata.activity_date)
-                .unwrap_or_else(|| common_utils::date_time::now().date().to_string()),
+                .unwrap_or_else(|| {
+                    let today = common_utils::date_time::now().date().to_string();
+                    // Warn so the rate of metadata-less MITs is observable, rather than the
+                    // fabricated date being indistinguishable from a truthful `activityDate`.
+                    tracing::warn!(
+                        original_purchase_date = %today,
+                        "Tesouro: recurring charge carries no CIT activityDate in its mandate \
+                         metadata; sending today's date as originalPurchaseDate, which is \
+                         inaccurate stored-credential data"
+                    );
+                    today
+                }),
         );
 
         let amount = TesouroAmountConvertor::convert(
@@ -1040,6 +1052,11 @@ pub struct TesouroApiErrorResponse {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct TesouroApiErrorData {
     message: String,
+    /// Machine-readable `code` / `reason`, same shape as [`TesouroGraphQlError`]. GraphQL APIs
+    /// conventionally return errors with HTTP 200, so this — not `build_error_response`, which
+    /// only runs on a non-2xx status — is the path that fires in practice; without it every
+    /// in-band error would surface as `NO_ERROR_CODE`.
+    extensions: Option<TesouroGraphQlErrorExtensions>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -1137,6 +1154,38 @@ fn get_credential_expiry<T: PaymentMethodDataTypes>(
     }
 }
 
+/// Credential expiry to persist when a *RepeatPayment* response re-emits a mandate.
+///
+/// An MIT's `payment_method_data` is `MandatePayment`, so [`get_credential_expiry`] yields
+/// `(None, None)` for it. Re-emitting the mandate from that would replace the stored
+/// `{activityDate, expirationMonth, expirationYear}` with `{activityDate}` alone — and the
+/// *next* MIT would then find no expiry in the metadata and, for a wallet mandate, none in
+/// `additional_payment_data` either (it is card-only), so `authorizeRecurring` would reject it
+/// with `Field "expirationMonth" of required type "NumericMonth!" was not provided`.
+///
+/// Carry the inbound mandate metadata's expiry forward instead, falling back to the request's
+/// own credential for an MIT that does carry one in the clear.
+fn repeat_payment_credential_expiry<T: PaymentMethodDataTypes>(
+    request: &RepeatPaymentData<T>,
+) -> (Option<Secret<String>>, Option<Secret<String>>) {
+    let (stored_month, stored_year) = match &request.mandate_reference {
+        MandateReferenceId::ConnectorMandateId(mandate_ref) => mandate_ref
+            .get_mandate_metadata()
+            .and_then(|metadata| {
+                serde_json::from_value::<TesouroMandateMetadata>(metadata.expose()).ok()
+            })
+            .map_or((None, None), |metadata| {
+                (metadata.expiration_month, metadata.expiration_year)
+            }),
+        _ => (None, None),
+    };
+    let (request_month, request_year) = get_credential_expiry(&request.payment_method_data);
+    (
+        stored_month.or(request_month),
+        stored_year.or(request_year),
+    )
+}
+
 fn build_mandate_reference(
     token_details: Option<TesouroTokenDetails>,
     payment_id: Option<String>,
@@ -1215,10 +1264,20 @@ fn top_level_error(
     } else {
         message
     };
+    let extensions = error_response
+        .errors
+        .first()
+        .and_then(|error| error.extensions.clone());
     Err(ErrorResponse {
-        code: NO_ERROR_CODE.to_string(),
+        code: extensions
+            .as_ref()
+            .and_then(|ext| ext.code.clone())
+            .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
         message: message.clone(),
-        reason: Some(message),
+        reason: extensions
+            .as_ref()
+            .and_then(|ext| ext.reason.clone())
+            .or(Some(message)),
         status_code: http_code,
         attempt_status: Some(domain_types::router_data::FlowStatus::Payment(
             attempt_status,
@@ -1538,7 +1597,9 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<TesouroAuthorizeRespo
                 success.data.authorize_customer_initiated_transaction,
                 auto_capture,
                 item.http_code,
-                get_credential_expiry(&item.router_data.request.payment_method_data),
+                // Not `get_credential_expiry` — an MIT carries no credential in the clear, and
+                // re-emitting a mandate without the expiry would break the following MIT.
+                repeat_payment_credential_expiry(&item.router_data.request),
             )?,
             TesouroApiResponse::Error(error_response) => {
                 let status = AttemptStatus::from(AuthOutcome(
