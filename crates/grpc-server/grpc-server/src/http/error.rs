@@ -189,7 +189,7 @@ fn extract_error_details_from_status(status: &tonic::Status) -> Option<ErrorDeta
 
 /// Extract the connector's exact HTTP error status when the gRPC details identify a
 /// connector-originated 4xx/5xx response.
-fn connector_http_status_from_status(status: &tonic::Status) -> Option<StatusCode> {
+fn connector_http_status_from_grpc_status(status: &tonic::Status) -> Option<StatusCode> {
     let connector_error =
         grpc_api_types::payments::ConnectorError::decode(status.details()).ok()?;
 
@@ -228,8 +228,12 @@ fn grpc_code_to_http_status(code: tonic::Code) -> StatusCode {
 // Convert tonic::Status to HTTP error
 impl From<tonic::Status> for HttpError {
     fn from(status: tonic::Status) -> Self {
-        let http_status = connector_http_status_from_status(&status)
-            .unwrap_or_else(|| grpc_code_to_http_status(status.code()));
+        // Preserve the exact connector HTTP status when available; otherwise use the
+        // canonical gRPC-to-HTTP fallback.
+        let http_status = match connector_http_status_from_grpc_status(&status) {
+            Some(connector_status) => connector_status,
+            None => grpc_code_to_http_status(status.code()),
+        };
 
         let message = status.message().to_string();
 
