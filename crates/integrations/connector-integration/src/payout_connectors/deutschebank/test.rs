@@ -4,6 +4,7 @@
 #[allow(clippy::panic)]
 mod tests {
     use domain_types::errors::IntegrationError;
+    use hyperswitch_masking::PeekInterface;
 
     use super::super::transformers::split_pem_bundle;
 
@@ -32,7 +33,7 @@ mod tests {
         let bundle = format!("{CERT_A}\n{KEY_PKCS8}\n");
         let (cert, key) = split_pem_bundle(&bundle).unwrap();
         assert!(cert.contains("MIIBcert+A"));
-        assert!(key.contains("MIIEpkcs8"));
+        assert!(key.peek().contains("MIIEpkcs8"));
     }
 
     #[test]
@@ -40,23 +41,23 @@ mod tests {
         let bundle = format!("{KEY_PKCS8}\n{CERT_A}\n");
         let (cert, key) = split_pem_bundle(&bundle).unwrap();
         assert!(cert.contains("MIIBcert+A"));
-        assert!(key.contains("MIIEpkcs8"));
+        assert!(key.peek().contains("MIIEpkcs8"));
     }
 
     #[test]
     fn accepts_pkcs1_rsa_key() {
         let bundle = format!("{CERT_A}\n{KEY_PKCS1}\n");
         let (_, key) = split_pem_bundle(&bundle).unwrap();
-        assert!(key.contains("MIIEpkcs1"));
-        assert!(key.contains("RSA PRIVATE KEY"));
+        assert!(key.peek().contains("MIIEpkcs1"));
+        assert!(key.peek().contains("RSA PRIVATE KEY"));
     }
 
     #[test]
     fn accepts_sec1_ec_key() {
         let bundle = format!("{CERT_A}\n{KEY_SEC1}\n");
         let (_, key) = split_pem_bundle(&bundle).unwrap();
-        assert!(key.contains("MIIEsec1"));
-        assert!(key.contains("EC PRIVATE KEY"));
+        assert!(key.peek().contains("MIIEsec1"));
+        assert!(key.peek().contains("EC PRIVATE KEY"));
     }
 
     #[test]
@@ -104,7 +105,7 @@ mod tests {
         let bundle = format!("{CERT_A}\n{stray}\n{KEY_PKCS8}\n");
         let (cert, key) = split_pem_bundle(&bundle).unwrap();
         assert!(!cert.contains("MIIBpub"));
-        assert!(!key.contains("MIIBpub"));
+        assert!(!key.peek().contains("MIIBpub"));
     }
 
     #[test]
@@ -150,7 +151,7 @@ mod tests {
     #[test]
     fn connector_payout_id_round_trips() {
         use super::super::transformers::{decode_connector_payout_id, encode_connector_payout_id};
-        use hyperswitch_masking::{PeekInterface, Secret};
+        use hyperswitch_masking::Secret;
 
         let end_to_end_id = "E2EABC123";
         let iban = Secret::new("DE89370400440532013000".to_string());

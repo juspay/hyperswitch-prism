@@ -3498,7 +3498,6 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     _ => Err(err().into()),
                 },
                 ConnectorEnum::TwocTwopPaco => Err(err().into()),
-                ConnectorEnum::Deutschebank => Err(err().into()),
                 ConnectorEnum::Tamara => match auth {
                     ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Tamara {
                         api_key: api_key.clone(),

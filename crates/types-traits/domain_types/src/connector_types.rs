@@ -148,7 +148,6 @@ pub enum ConnectorEnum {
     Axisbank,
     TsysTransit,
     TwocTwopPaco,
-    Deutschebank,
     Juspay,
     Glomopay,
     Payconex,
@@ -231,7 +230,6 @@ impl TryFrom<ConnectorEnum> for PayoutConnectorEnum {
             ConnectorEnum::Loonio => Ok(Self::Loonio),
             ConnectorEnum::Paypal => Ok(Self::Paypal),
             ConnectorEnum::Itaubank => Ok(Self::Itaubank),
-            ConnectorEnum::Deutschebank => Ok(Self::Deutschebank),
             ConnectorEnum::Worldpayxml => Ok(Self::Worldpayxml),
             ConnectorEnum::Cybersource => Ok(Self::Cybersource),
             _ => Err(IntegrationError::InvalidDataFormat {
@@ -453,7 +451,6 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Axisbank => Ok(Self::Axisbank),
             grpc_api_types::payments::Connector::TsysTransit => Ok(Self::TsysTransit),
             grpc_api_types::payments::Connector::TwocTwopPaco => Ok(Self::TwocTwopPaco),
-            grpc_api_types::payments::Connector::Deutschebank => Ok(Self::Deutschebank),
             grpc_api_types::payments::Connector::Juspay => Ok(Self::Juspay),
             grpc_api_types::payments::Connector::Payconex => Ok(Self::Payconex),
             grpc_api_types::payments::Connector::Tamara => Ok(Self::Tamara),

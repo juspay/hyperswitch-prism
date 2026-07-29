@@ -1,7 +1,7 @@
 use super::DeutschebankPayoutsRouterData;
 use crate::types::ResponseRouterData;
 use common_enums::PayoutStatus;
-use common_utils::types::FloatMajorUnitForConnector;
+use common_utils::types::{FloatMajorUnit, FloatMajorUnitForConnector};
 use domain_types::{
     connector_flow::{PayoutEligibility, PayoutGet, PayoutTransfer},
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
@@ -59,7 +59,7 @@ impl TryFrom<&ConnectorSpecificConfig> for DeutschebankAuthType {
                     key_id: key_id.to_owned(),
                     signing_private_key: signing_private_key.to_owned(),
                     client_certificate: Secret::new(cert),
-                    client_certificate_key: Secret::new(key),
+                    client_certificate_key: key,
                 })
             }
             _ => Err(error_stack::report!(
@@ -321,7 +321,7 @@ pub struct DeutschebankCustomerCreditTransferInitiation {
 pub struct DeutschebankGroupHeader {
     pub message_identification: String,
     pub creation_date_time: String,
-    pub control_sum: common_utils::types::FloatMajorUnit,
+    pub control_sum: FloatMajorUnit,
     pub number_of_transactions: String,
     pub initiating_party: DeutschebankParty,
 }
@@ -337,7 +337,7 @@ pub struct DeutschebankPaymentInformation {
     pub payment_information_identification: String,
     pub payment_method: &'static str,
     pub batch_booking: bool,
-    pub control_sum: common_utils::types::FloatMajorUnit,
+    pub control_sum: FloatMajorUnit,
     pub number_of_transactions: String,
     pub payment_type_information: DeutschebankPaymentTypeInformation,
     pub requested_execution_date: DeutschebankExecutionDate,
@@ -421,7 +421,7 @@ pub struct DeutschebankAmountWrapper {
 #[derive(Debug, Serialize)]
 pub struct DeutschebankInstructedAmount {
     pub currency: common_enums::Currency,
-    pub value: common_utils::types::FloatMajorUnit,
+    pub value: FloatMajorUnit,
 }
 
 pub struct DeutschebankSepaPaymentBuilt {
@@ -976,7 +976,7 @@ fn parse_pem_blocks(input: &str) -> Vec<PemBlock<'_>> {
 
 pub(super) fn split_pem_bundle(
     bundle: &str,
-) -> Result<(String, String), error_stack::Report<IntegrationError>> {
+) -> Result<(String, Secret<String>), error_stack::Report<IntegrationError>> {
     let blocks = parse_pem_blocks(bundle);
 
     let certs: Vec<&str> = blocks
@@ -1017,7 +1017,7 @@ pub(super) fn split_pem_bundle(
 
     let cert_chain = format!("{}\n", certs.join("\n"));
     let key_pem = keys.first().map(|k| format!("{k}\n")).unwrap_or_default();
-    Ok((cert_chain, key_pem))
+    Ok((cert_chain, Secret::new(key_pem)))
 }
 
 fn extract_customer_name(

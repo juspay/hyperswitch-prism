@@ -748,16 +748,6 @@ impl Connectors {
             ConnectorEnum::TwocTwopPaco => {
                 patched.twoc_twop_paco.apply(params_patch);
             }
-            ConnectorEnum::Deutschebank => {
-                let deutschebank_patch = ConnectorParamsWithCaBundlePatch {
-                    base_url: urls.base_url.clone(),
-                    dispute_base_url: Some(urls.dispute_base_url.clone()),
-                    secondary_base_url: Some(urls.secondary_base_url.clone()),
-                    third_base_url: Some(urls.third_base_url.clone()),
-                    server_ca_bundle: None,
-                };
-                patched.deutschebank.apply(deutschebank_patch);
-            }
             ConnectorEnum::Flywire => {
                 patched.flywire.apply(params_patch);
             }
