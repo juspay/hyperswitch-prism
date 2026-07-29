@@ -17,7 +17,7 @@ use domain_types::{
     router_data_v2::RouterDataV2,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use super::{TesouroAmountConvertor, TesouroRouterData};
@@ -862,10 +862,24 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 &router_data.request.additional_payment_data
             {
                 if expiration_month.is_none() {
-                    expiration_month = card_info
-                        .card_exp_month
-                        .as_ref()
-                        .map(domain_types::utils::pad_expiry_month_to_two_digits);
+                    // A stored month can arrive unpadded ("7") while Tesouro's NumericMonth!
+                    // expects "07", so pad it with the same primitive that backs
+                    // Card::get_card_expiry_month_2_digit. Anything that is not a valid
+                    // 1..=12 month (vault template tokens included) passes through unchanged
+                    // rather than failing an MIT whose credential is already stored.
+                    expiration_month = card_info.card_exp_month.as_ref().map(|month| {
+                        month
+                            .peek()
+                            .parse::<u8>()
+                            .ok()
+                            .and_then(|month| {
+                                cards::validate::CardExpirationMonth::try_from(month).ok()
+                            })
+                            .map_or_else(
+                                || month.clone(),
+                                |padded| Secret::new(padded.two_digits()),
+                            )
+                    });
                 }
                 if expiration_year.is_none() {
                     expiration_year = card_info
