@@ -187,28 +187,49 @@ fn extract_error_details_from_status(status: &tonic::Status) -> Option<ErrorDeta
     None
 }
 
+/// Extract the connector's exact HTTP error status when the gRPC details identify a
+/// connector-originated 4xx/5xx response.
+fn connector_http_status_from_status(status: &tonic::Status) -> Option<StatusCode> {
+    let connector_error =
+        grpc_api_types::payments::ConnectorError::decode(status.details()).ok()?;
+
+    if connector_error.error_code != "CONNECTOR_ERROR_RESPONSE" {
+        return None;
+    }
+
+    let status_code = u16::try_from(connector_error.http_status_code?).ok()?;
+    let status_code = StatusCode::from_u16(status_code).ok()?;
+
+    (status_code.is_client_error() || status_code.is_server_error()).then_some(status_code)
+}
+
+fn grpc_code_to_http_status(code: tonic::Code) -> StatusCode {
+    match code {
+        tonic::Code::Ok => StatusCode::OK,
+        tonic::Code::Cancelled => StatusCode::REQUEST_TIMEOUT,
+        tonic::Code::Unknown => StatusCode::INTERNAL_SERVER_ERROR,
+        tonic::Code::InvalidArgument => StatusCode::BAD_REQUEST,
+        tonic::Code::DeadlineExceeded => StatusCode::GATEWAY_TIMEOUT,
+        tonic::Code::NotFound => StatusCode::NOT_FOUND,
+        tonic::Code::AlreadyExists => StatusCode::CONFLICT,
+        tonic::Code::PermissionDenied => StatusCode::FORBIDDEN,
+        tonic::Code::ResourceExhausted => StatusCode::TOO_MANY_REQUESTS,
+        tonic::Code::FailedPrecondition => StatusCode::PRECONDITION_FAILED,
+        tonic::Code::Aborted => StatusCode::CONFLICT,
+        tonic::Code::OutOfRange => StatusCode::RANGE_NOT_SATISFIABLE,
+        tonic::Code::Unimplemented => StatusCode::NOT_IMPLEMENTED,
+        tonic::Code::Internal => StatusCode::INTERNAL_SERVER_ERROR,
+        tonic::Code::Unavailable => StatusCode::SERVICE_UNAVAILABLE,
+        tonic::Code::DataLoss => StatusCode::INTERNAL_SERVER_ERROR,
+        tonic::Code::Unauthenticated => StatusCode::UNAUTHORIZED,
+    }
+}
+
 // Convert tonic::Status to HTTP error
 impl From<tonic::Status> for HttpError {
     fn from(status: tonic::Status) -> Self {
-        let http_status = match status.code() {
-            tonic::Code::Ok => StatusCode::OK,
-            tonic::Code::Cancelled => StatusCode::REQUEST_TIMEOUT,
-            tonic::Code::Unknown => StatusCode::INTERNAL_SERVER_ERROR,
-            tonic::Code::InvalidArgument => StatusCode::BAD_REQUEST,
-            tonic::Code::DeadlineExceeded => StatusCode::GATEWAY_TIMEOUT,
-            tonic::Code::NotFound => StatusCode::NOT_FOUND,
-            tonic::Code::AlreadyExists => StatusCode::CONFLICT,
-            tonic::Code::PermissionDenied => StatusCode::FORBIDDEN,
-            tonic::Code::ResourceExhausted => StatusCode::TOO_MANY_REQUESTS,
-            tonic::Code::FailedPrecondition => StatusCode::PRECONDITION_FAILED,
-            tonic::Code::Aborted => StatusCode::CONFLICT,
-            tonic::Code::OutOfRange => StatusCode::RANGE_NOT_SATISFIABLE,
-            tonic::Code::Unimplemented => StatusCode::NOT_IMPLEMENTED,
-            tonic::Code::Internal => StatusCode::INTERNAL_SERVER_ERROR,
-            tonic::Code::Unavailable => StatusCode::SERVICE_UNAVAILABLE,
-            tonic::Code::DataLoss => StatusCode::INTERNAL_SERVER_ERROR,
-            tonic::Code::Unauthenticated => StatusCode::UNAUTHORIZED,
-        };
+        let http_status = connector_http_status_from_status(&status)
+            .unwrap_or_else(|| grpc_code_to_http_status(status.code()));
 
         let message = status.message().to_string();
 
@@ -220,5 +241,91 @@ impl From<tonic::Status> for HttpError {
             message,
             details,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn status_with_connector_error(
+        grpc_code: tonic::Code,
+        error_code: &str,
+        http_status_code: Option<u32>,
+    ) -> tonic::Status {
+        let connector_error = grpc_api_types::payments::ConnectorError {
+            error_message: "connector error".to_string(),
+            error_code: error_code.to_string(),
+            http_status_code,
+            error_info: None,
+        };
+        let mut encoded = Vec::new();
+        connector_error
+            .encode(&mut encoded)
+            .expect("encoding ConnectorError should succeed");
+
+        tonic::Status::with_details(grpc_code, "connector error", encoded.into())
+    }
+
+    #[test]
+    fn connector_http_status_takes_precedence_over_grpc_mapping() {
+        let cases = [
+            (tonic::Code::Unknown, 409),
+            (tonic::Code::Unknown, 422),
+            (tonic::Code::DeadlineExceeded, 408),
+            (tonic::Code::Unavailable, 502),
+            (tonic::Code::Unknown, 599),
+        ];
+
+        for (grpc_code, connector_http_status) in cases {
+            let status = status_with_connector_error(
+                grpc_code,
+                "CONNECTOR_ERROR_RESPONSE",
+                Some(connector_http_status.into()),
+            );
+
+            let http_error = HttpError::from(status);
+
+            assert_eq!(
+                http_error.status.as_u16(),
+                connector_http_status,
+                "connector HTTP status should be preserved for {grpc_code:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn non_connector_response_errors_use_grpc_fallback() {
+        let status = status_with_connector_error(
+            tonic::Code::Internal,
+            "RESPONSE_HANDLING_FAILED",
+            Some(422),
+        );
+
+        let http_error = HttpError::from(status);
+
+        assert_eq!(http_error.status, StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    #[test]
+    fn invalid_connector_http_status_uses_grpc_fallback() {
+        for connector_http_status in [200, 600] {
+            let status = status_with_connector_error(
+                tonic::Code::Unknown,
+                "CONNECTOR_ERROR_RESPONSE",
+                Some(connector_http_status),
+            );
+
+            let http_error = HttpError::from(status);
+
+            assert_eq!(http_error.status, StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    #[test]
+    fn missing_details_use_grpc_fallback() {
+        let http_error = HttpError::from(tonic::Status::invalid_argument("invalid request"));
+
+        assert_eq!(http_error.status, StatusCode::BAD_REQUEST);
     }
 }

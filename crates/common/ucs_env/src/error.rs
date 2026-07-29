@@ -221,11 +221,18 @@ impl ToGrpcStatus for ConnectorError {
         let _ = connector_error.encode(&mut buf);
 
         match self {
-            Self::ConnectorErrorResponse(error_response) => Status::with_details(
-                connector_http_status_to_grpc_code(error_response.status_code),
-                msg,
-                buf.into(),
-            ),
+            Self::ConnectorErrorResponse(error_response) => match error_response.status_code {
+                400 => Status::with_details(tonic::Code::InvalidArgument, msg, buf.into()),
+                401 => Status::with_details(tonic::Code::Unauthenticated, msg, buf.into()),
+                403 => Status::with_details(tonic::Code::PermissionDenied, msg, buf.into()),
+                404 => Status::with_details(tonic::Code::NotFound, msg, buf.into()),
+                429 => Status::with_details(tonic::Code::ResourceExhausted, msg, buf.into()),
+                500 => Status::with_details(tonic::Code::Internal, msg, buf.into()),
+                501 => Status::with_details(tonic::Code::Unimplemented, msg, buf.into()),
+                503 => Status::with_details(tonic::Code::Unavailable, msg, buf.into()),
+                504 => Status::with_details(tonic::Code::DeadlineExceeded, msg, buf.into()),
+                _ => Status::with_details(tonic::Code::Unknown, msg, buf.into()),
+            },
             Self::ResponseDeserializationFailed { .. }
             | Self::ResponseHandlingFailed { .. }
             | Self::UnexpectedResponseError { .. }
@@ -233,28 +240,6 @@ impl ToGrpcStatus for ConnectorError {
                 Status::with_details(tonic::Code::Internal, msg, buf.into())
             }
         }
-    }
-}
-
-/// Maps a connector's HTTP response status to the closest canonical gRPC code.
-///
-/// The exact connector status is retained in `ConnectorError.http_status_code`.
-/// Unknown connector 4xx responses remain caller-visible errors rather than being
-/// converted to `Unknown`, which the HTTP bridge exposes as a UCS 500 response.
-fn connector_http_status_to_grpc_code(status_code: u16) -> tonic::Code {
-    match status_code {
-        401 => tonic::Code::Unauthenticated,
-        403 => tonic::Code::PermissionDenied,
-        404 => tonic::Code::NotFound,
-        408 | 504 => tonic::Code::DeadlineExceeded,
-        409 => tonic::Code::Aborted,
-        412 => tonic::Code::FailedPrecondition,
-        429 => tonic::Code::ResourceExhausted,
-        501 => tonic::Code::Unimplemented,
-        502 | 503 => tonic::Code::Unavailable,
-        400..=499 => tonic::Code::InvalidArgument,
-        500..=599 => tonic::Code::Unknown,
-        _ => tonic::Code::Unknown,
     }
 }
 
@@ -376,40 +361,5 @@ impl IntoGrpcStatus for Report<InternalError> {
 impl IntoGrpcStatus for Report<ConnectorFlowError> {
     fn into_grpc_status(self) -> Status {
         self.to_grpc_error().into_grpc_status()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::connector_http_status_to_grpc_code;
-    use tonic::Code;
-
-    #[test]
-    fn maps_connector_http_statuses_to_canonical_grpc_codes() {
-        let cases = [
-            (400, Code::InvalidArgument),
-            (401, Code::Unauthenticated),
-            (403, Code::PermissionDenied),
-            (404, Code::NotFound),
-            (408, Code::DeadlineExceeded),
-            (409, Code::Aborted),
-            (412, Code::FailedPrecondition),
-            (422, Code::InvalidArgument),
-            (429, Code::ResourceExhausted),
-            (500, Code::Unknown),
-            (501, Code::Unimplemented),
-            (502, Code::Unavailable),
-            (503, Code::Unavailable),
-            (504, Code::DeadlineExceeded),
-            (599, Code::Unknown),
-        ];
-
-        for (http_status, expected_grpc_code) in cases {
-            assert_eq!(
-                connector_http_status_to_grpc_code(http_status),
-                expected_grpc_code,
-                "unexpected gRPC mapping for connector HTTP status {http_status}"
-            );
-        }
     }
 }
