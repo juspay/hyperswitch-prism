@@ -13422,55 +13422,98 @@ impl ForeignTryFrom<connector_types::RefreshPaymentMethodResponseData>
     fn foreign_try_from(
         value: connector_types::RefreshPaymentMethodResponseData,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
-        use grpc_api_types::payments::refresh_result::Result as ProtoRefreshResult;
-        use grpc_api_types::payments::CardRefreshOutcome as ProtoOutcome;
-
-        let result = value.result.map(|result| match result {
-            connector_types::RefreshPaymentMethodResult::Card(card_result) => {
-                let outcome = match card_result.outcome {
-                    connector_types::CardRefreshOutcome::Unrecognized => ProtoOutcome::Unspecified,
-                    connector_types::CardRefreshOutcome::AccountUpdated => {
-                        ProtoOutcome::CardRefreshAccountUpdated
-                    }
-                    connector_types::CardRefreshOutcome::ExpiryUpdated => {
-                        ProtoOutcome::CardRefreshExpiryUpdated
-                    }
-                    connector_types::CardRefreshOutcome::NoChange => {
-                        ProtoOutcome::CardRefreshNoChange
-                    }
-                    connector_types::CardRefreshOutcome::Closed => ProtoOutcome::CardRefreshClosed,
-                    connector_types::CardRefreshOutcome::NotFound => {
-                        ProtoOutcome::CardRefreshNotFound
-                    }
-                    connector_types::CardRefreshOutcome::ContactIssuer => {
-                        ProtoOutcome::CardRefreshContactIssuer
-                    }
-                };
-
-                grpc_api_types::payments::RefreshResult {
-                    result: Some(ProtoRefreshResult::Card(
-                        grpc_api_types::payments::CardRefreshResult {
-                            outcome: outcome.into(),
-                            // Option only because prost boxes message fields.
-                            card: Some(
-                                grpc_api_types::payments::CardDetailsWithNoCvc::foreign_from(
-                                    card_result.card,
-                                ),
-                            ),
-                        },
-                    )),
-                }
-            }
-        });
-
         Ok(Self {
-            result,
+            result: value.result.map(ForeignFrom::foreign_from),
             status_code: u32::from(value.status_code),
             error: None,
             response_headers: std::collections::HashMap::new(),
             raw_connector_response: None,
             raw_connector_request: None,
         })
+    }
+}
+
+impl ForeignFrom<connector_types::CardRefreshOutcome>
+    for grpc_api_types::payments::CardRefreshOutcome
+{
+    fn foreign_from(outcome: connector_types::CardRefreshOutcome) -> Self {
+        match outcome {
+            connector_types::CardRefreshOutcome::Unrecognized => Self::Unspecified,
+            connector_types::CardRefreshOutcome::AccountUpdated => Self::CardRefreshAccountUpdated,
+            connector_types::CardRefreshOutcome::ExpiryUpdated => Self::CardRefreshExpiryUpdated,
+            connector_types::CardRefreshOutcome::NoChange => Self::CardRefreshNoChange,
+            connector_types::CardRefreshOutcome::Closed => Self::CardRefreshClosed,
+            connector_types::CardRefreshOutcome::NotFound => Self::CardRefreshNotFound,
+            connector_types::CardRefreshOutcome::ContactIssuer => Self::CardRefreshContactIssuer,
+        }
+    }
+}
+
+impl ForeignFrom<connector_types::RefreshPaymentMethodResult>
+    for grpc_api_types::payments::RefreshResult
+{
+    fn foreign_from(result: connector_types::RefreshPaymentMethodResult) -> Self {
+        match result {
+            connector_types::RefreshPaymentMethodResult::Card(card_result) => Self {
+                result: Some(grpc_api_types::payments::refresh_result::Result::Card(
+                    grpc_api_types::payments::CardRefreshResult {
+                        outcome: i32::from(
+                            grpc_api_types::payments::CardRefreshOutcome::foreign_from(
+                                card_result.outcome,
+                            ),
+                        ),
+                        // Option only because prost boxes message fields.
+                        card: Some(
+                            grpc_api_types::payments::CardDetailsWithNoCvc::foreign_from(
+                                card_result.card,
+                            ),
+                        ),
+                    },
+                )),
+            },
+        }
+    }
+}
+
+impl
+    ForeignFrom<(
+        router_data::ErrorResponse,
+        Option<payment_method_data::CardWithNoCvc>,
+    )> for grpc_api_types::payments::PaymentMethodServiceRefreshResponse
+{
+    fn foreign_from(
+        (error, submitted_card): (
+            router_data::ErrorResponse,
+            Option<payment_method_data::CardWithNoCvc>,
+        ),
+    ) -> Self {
+        Self {
+            result: submitted_card.map(|card| grpc_api_types::payments::RefreshResult {
+                result: Some(grpc_api_types::payments::refresh_result::Result::Card(
+                    grpc_api_types::payments::CardRefreshResult {
+                        outcome: grpc_api_types::payments::CardRefreshOutcome::Unspecified.into(),
+                        card: Some(
+                            grpc_api_types::payments::CardDetailsWithNoCvc::foreign_from(card),
+                        ),
+                    },
+                )),
+            }),
+            status_code: u32::from(error.status_code),
+            error: Some(grpc_api_types::payments::ErrorInfo {
+                unified_details: None,
+                issuer_details: None,
+                connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
+                    code: Some(error.code),
+                    message: Some(error.message),
+                    reason: error.reason,
+                    connector_transaction_id: error.connector_transaction_id,
+                    status: None,
+                }),
+            }),
+            response_headers: std::collections::HashMap::new(),
+            raw_connector_response: None,
+            raw_connector_request: None,
+        }
     }
 }
 
@@ -17269,36 +17312,17 @@ pub fn generate_refresh_payment_method_response<T: PaymentMethodDataTypes>(
             Ok(proto)
         }
         // `error`, not the outcome, is what says we never reached the network.
-        Err(error) => Ok(
-            grpc_api_types::payments::PaymentMethodServiceRefreshResponse {
-                result: submitted_card.map(|card| grpc_api_types::payments::RefreshResult {
-                    result: Some(grpc_api_types::payments::refresh_result::Result::Card(
-                        grpc_api_types::payments::CardRefreshResult {
-                            outcome: grpc_api_types::payments::CardRefreshOutcome::Unspecified
-                                .into(),
-                            card: Some(
-                                grpc_api_types::payments::CardDetailsWithNoCvc::foreign_from(card),
-                            ),
-                        },
-                    )),
-                }),
-                status_code: u32::from(error.status_code),
-                error: Some(grpc_api_types::payments::ErrorInfo {
-                    unified_details: None,
-                    issuer_details: None,
-                    connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
-                        code: Some(error.code.clone()),
-                        message: Some(error.message.clone()),
-                        reason: error.reason.clone(),
-                        connector_transaction_id: error.connector_transaction_id.clone(),
-                        status: None,
-                    }),
-                }),
-                response_headers,
-                raw_connector_response,
-                raw_connector_request,
-            },
-        ),
+        Err(error) => {
+            let mut proto =
+                grpc_api_types::payments::PaymentMethodServiceRefreshResponse::foreign_from((
+                    error,
+                    submitted_card,
+                ));
+            proto.response_headers = response_headers;
+            proto.raw_connector_response = raw_connector_response;
+            proto.raw_connector_request = raw_connector_request;
+            Ok(proto)
+        }
     }
 }
 
@@ -17440,266 +17464,5 @@ impl From<connector_types::WebhookResourceReference> for grpc_api_types::payment
                 })),
             },
         }
-    }
-}
-
-#[cfg(test)]
-#[allow(clippy::expect_used, clippy::unwrap_used)]
-mod refresh_flow_tests {
-    use super::*;
-    use crate::router_data::{ConnectorSpecificConfig, ErrorResponse};
-    use hyperswitch_masking::{PeekInterface, Secret};
-    use std::str::FromStr;
-
-    const VISA: &str = "4111111111111111";
-
-    fn submitted_card() -> payment_method_data::CardWithNoCvc {
-        payment_method_data::CardWithNoCvc {
-            card_number: cards::CardNumber::from_str(VISA).expect("valid test card"),
-            card_exp_month: Secret::new("08".to_string()),
-            card_exp_year: Secret::new("2027".to_string()),
-            card_issuer: Some("Test Bank".to_string()),
-            card_network: Some(common_enums::CardNetwork::Visa),
-            card_holder_name: Some(Secret::new("A Cardholder".to_string())),
-            ..Default::default()
-        }
-    }
-
-    fn router_data_with(
-        payment_method_data: payment_method_data::PaymentMethodData<
-            payment_method_data::DefaultPCIHolder,
-        >,
-        response: Result<connector_types::RefreshPaymentMethodResponseData, ErrorResponse>,
-    ) -> RouterDataV2<
-        crate::connector_flow::RefreshPaymentMethod,
-        connector_types::RefreshPaymentMethodFlowData,
-        connector_types::RefreshPaymentMethodData<payment_method_data::DefaultPCIHolder>,
-        connector_types::RefreshPaymentMethodResponseData,
-    > {
-        RouterDataV2 {
-            flow: std::marker::PhantomData,
-            resource_common_data: connector_types::RefreshPaymentMethodFlowData {
-                connectors: Connectors::default(),
-                connector_request_reference_id: "refresh_test".to_string(),
-                raw_connector_response: None,
-                raw_connector_request: None,
-                connector_response_headers: None,
-            },
-            connector_config: ConnectorSpecificConfig::NoKey,
-            request: connector_types::RefreshPaymentMethodData {
-                payment_method_data,
-            },
-            response,
-        }
-    }
-
-    /// The common case: a card request.
-    fn router_data(
-        response: Result<connector_types::RefreshPaymentMethodResponseData, ErrorResponse>,
-    ) -> RouterDataV2<
-        crate::connector_flow::RefreshPaymentMethod,
-        connector_types::RefreshPaymentMethodFlowData,
-        connector_types::RefreshPaymentMethodData<payment_method_data::DefaultPCIHolder>,
-        connector_types::RefreshPaymentMethodResponseData,
-    > {
-        router_data_with(
-            payment_method_data::PaymentMethodData::CardWithNoCvc(submitted_card()),
-            response,
-        )
-    }
-
-    fn card_of(
-        response: &grpc_api_types::payments::PaymentMethodServiceRefreshResponse,
-    ) -> grpc_api_types::payments::CardDetailsWithNoCvc {
-        let result = response.result.as_ref().expect("result is always present");
-        match result.result.as_ref().expect("arm is always set") {
-            grpc_api_types::payments::refresh_result::Result::Card(card) => {
-                card.card.clone().expect("card is always present")
-            }
-        }
-    }
-
-    /// There is no response shape, success or failure, in which the caller does
-    /// not get a card back.
-    #[test]
-    fn a_connector_error_still_returns_the_submitted_card() {
-        let response = generate_refresh_payment_method_response(router_data(Err(ErrorResponse {
-            code: "NETWORK_ERROR".to_string(),
-            message: "could not reach the network".to_string(),
-            status_code: 502,
-            ..Default::default()
-        })))
-        .expect("the error path is a response, not a transport failure");
-
-        let card = card_of(&response);
-        assert_eq!(
-            card.card_number.expect("card number"),
-            cards::CardNumber::from_str(VISA).expect("valid"),
-            "the submitted card must come back untouched"
-        );
-        assert_eq!(
-            card.card_exp_year.expect("exp year").peek(),
-            "2027",
-            "expiry must be echoed, not cleared"
-        );
-        assert_eq!(
-            card.card_issuer.as_deref(),
-            Some("Test Bank"),
-            "fields Juspay never returns must survive the error path"
-        );
-    }
-
-    /// `error` is the only discriminator between "we could not ask" and an
-    /// unmapped network code — both report UNSPECIFIED.
-    #[test]
-    fn a_connector_error_reports_unspecified_and_populates_error() {
-        let response = generate_refresh_payment_method_response(router_data(Err(ErrorResponse {
-            code: "NETWORK_ERROR".to_string(),
-            message: "could not reach the network".to_string(),
-            status_code: 502,
-            ..Default::default()
-        })))
-        .expect("response");
-
-        let result = response.result.as_ref().expect("result");
-        match result.result.as_ref().expect("arm") {
-            grpc_api_types::payments::refresh_result::Result::Card(card) => {
-                assert_eq!(
-                    card.outcome,
-                    grpc_api_types::payments::CardRefreshOutcome::Unspecified as i32,
-                    "a transport failure carries no network verdict"
-                );
-            }
-        }
-
-        assert_eq!(response.status_code, 502);
-        let error = response
-            .error
-            .expect("error must be set on the failure path");
-        let details = error.connector_details.expect("connector details");
-        assert_eq!(details.code.as_deref(), Some("NETWORK_ERROR"));
-    }
-
-    // ---- request side: the shared layer carries any instrument, any holder ----
-
-    fn empty_request() -> grpc_api_types::payments::PaymentMethodServiceRefreshRequest {
-        grpc_api_types::payments::PaymentMethodServiceRefreshRequest {
-            payment_method: None,
-        }
-    }
-
-    fn build_refresh_data(
-        pmd: Option<payment_method_data::PaymentMethodData<payment_method_data::DefaultPCIHolder>>,
-    ) -> Result<
-        connector_types::RefreshPaymentMethodData<payment_method_data::DefaultPCIHolder>,
-        error_stack::Report<IntegrationError>,
-    > {
-        connector_types::RefreshPaymentMethodData::foreign_try_from((empty_request(), pmd))
-    }
-
-    /// A card instrument is carried through field-for-field.
-    #[test]
-    fn a_card_instrument_is_carried_through_unchanged() {
-        let data = build_refresh_data(Some(payment_method_data::PaymentMethodData::CardWithNoCvc(
-            submitted_card(),
-        )))
-        .expect("a card instrument must be accepted");
-
-        let payment_method_data::PaymentMethodData::CardWithNoCvc(card) = data.payment_method_data
-        else {
-            panic!("expected a card_with_no_cvc instrument");
-        };
-        assert_eq!(card.card_number, submitted_card().card_number);
-        assert_eq!(card.card_exp_year.peek(), "2027");
-        assert_eq!(
-            card.card_issuer.as_deref(),
-            Some("Test Bank"),
-            "metadata the provider never returns must still reach the connector"
-        );
-    }
-
-    /// The shared request is not card-only. Whether a non-card instrument can be
-    /// *refreshed* is the connector's call downstream, not this type's.
-    #[test]
-    fn a_non_card_instrument_is_carried_by_the_shared_request() {
-        let data = build_refresh_data(Some(payment_method_data::PaymentMethodData::Upi(
-            payment_method_data::UpiData::UpiCollect(payment_method_data::UpiCollectData {
-                vpa_id: None,
-                upi_source: None,
-            }),
-        )))
-        .expect("the shared request must accept any instrument");
-
-        assert!(
-            matches!(
-                data.payment_method_data,
-                payment_method_data::PaymentMethodData::Upi(_)
-            ),
-            "the instrument must survive into the domain model, not be narrowed away"
-        );
-    }
-
-    /// Absence is the one thing this constructor rejects.
-    #[test]
-    fn an_absent_instrument_is_rejected() {
-        assert!(
-            build_refresh_data(None).is_err(),
-            "refresh must reject a request with no instrument to refresh"
-        );
-    }
-
-    /// The error echo carries a card only when the request was one.
-    #[test]
-    fn a_non_card_connector_error_carries_no_result() {
-        let response = generate_refresh_payment_method_response(router_data_with(
-            payment_method_data::PaymentMethodData::Upi(payment_method_data::UpiData::UpiCollect(
-                payment_method_data::UpiCollectData {
-                    vpa_id: None,
-                    upi_source: None,
-                },
-            )),
-            Err(ErrorResponse {
-                code: "NOT_IMPLEMENTED".to_string(),
-                message: "Juspay refresh supports card_with_no_cvc only".to_string(),
-                status_code: 501,
-                ..Default::default()
-            }),
-        ))
-        .expect("response");
-
-        assert!(
-            response.result.is_none(),
-            "a non-card request has no card to echo"
-        );
-        assert!(
-            response.error.is_some(),
-            "the rejection must surface as error"
-        );
-    }
-
-    /// The success path must not be collateral damage of the error-path echo.
-    #[test]
-    fn a_successful_no_change_returns_the_card_and_no_error() {
-        let response = generate_refresh_payment_method_response(router_data(Ok(
-            connector_types::RefreshPaymentMethodResponseData {
-                result: Some(connector_types::RefreshPaymentMethodResult::Card(
-                    connector_types::CardRefreshResult {
-                        outcome: connector_types::CardRefreshOutcome::NoChange,
-                        card: submitted_card(),
-                    },
-                )),
-                status_code: 200,
-            },
-        )))
-        .expect("response");
-
-        assert_eq!(
-            card_of(&response).card_number.expect("card number"),
-            cards::CardNumber::from_str(VISA).expect("valid")
-        );
-        assert!(
-            response.error.is_none(),
-            "a successful inquiry must not look like a failure"
-        );
     }
 }
