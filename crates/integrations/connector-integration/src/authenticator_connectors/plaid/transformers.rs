@@ -35,6 +35,7 @@ const PLAID_SUBTYPE_SAVINGS: &str = "savings";
 pub struct PlaidAuthType {
     pub client_id: Secret<String>,
     pub secret: Secret<String>,
+    pub client_name: Option<String>,
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for PlaidAuthType {
@@ -43,10 +44,14 @@ impl TryFrom<&ConnectorSpecificConfig> for PlaidAuthType {
     fn try_from(config: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match config {
             ConnectorSpecificConfig::Plaid {
-                client_id, secret, ..
+                client_id,
+                secret,
+                client_name,
+                ..
             } => Ok(Self {
                 client_id: client_id.clone(),
                 secret: secret.clone(),
+                client_name: client_name.clone(),
             }),
             _ => Err(report!(IntegrationError::FailedToObtainAuthType {
                 context: IntegrationErrorContext {
@@ -73,7 +78,6 @@ pub struct PlaidLinkTokenRequest {
     pub client_name: String,
     pub user: PlaidUser,
     pub products: Vec<String>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub country_codes: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub language: Option<String>,
@@ -123,36 +127,22 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let auth = PlaidAuthType::try_from(&item.router_data.connector_config)?;
         let req = &item.router_data.request;
 
-        let client_name = item
-            .router_data
-            .resource_common_data
-            .connector_feature_data
-            .as_ref()
-            .and_then(|feature_data| {
-                feature_data
-                    .peek()
-                    .as_object()
-                    .and_then(|obj| obj.get("client_name"))
-                    .and_then(|val| val.as_str())
-                    .map(|client_name_str| client_name_str.to_owned())
+        let client_name = auth.client_name.ok_or_else(|| {
+            report!(IntegrationError::MissingRequiredField {
+                field_name: "client_name",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "client_name must be set in the Plaid connector config".to_owned(),
+                    ),
+                    suggested_action: Some(
+                        "Set client_name in the Plaid connector config".to_owned(),
+                    ),
+                    doc_url: Some(
+                        "https://plaid.com/docs/api/tokens/#linktokencreate-client_name".to_owned(),
+                    ),
+                },
             })
-            .ok_or_else(|| {
-                report!(IntegrationError::MissingRequiredField {
-                    field_name: "client_name",
-                    context: IntegrationErrorContext {
-                        additional_context: Some(
-                            "connector_feature_data must contain \"client_name\"".to_owned(),
-                        ),
-                        suggested_action: Some(
-                            "Set \"client_name\" in connector_feature_data to the application name displayed to users in the Plaid Link flow".to_owned(),
-                        ),
-                        doc_url: Some(
-                            "https://plaid.com/docs/api/tokens/#linktokencreate-client_name"
-                                .to_owned(),
-                        ),
-                    },
-                })
-            })?;
+        })?;
 
         let customer = req.customer.as_ref().ok_or_else(|| {
             report!(IntegrationError::MissingRequiredField {
@@ -183,6 +173,25 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .iter()
             .map(|country_code| country_code.to_string())
             .collect::<Vec<_>>();
+
+        if country_codes.is_empty() {
+            return Err(report!(IntegrationError::MissingRequiredField {
+                field_name: "country_codes",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Plaid /link/token/create requires at least one country code".to_owned(),
+                    ),
+                    suggested_action: Some(
+                        "Set country_codes in the Authenticator domain context, e.g. [\"US\"]"
+                            .to_owned(),
+                    ),
+                    doc_url: Some(
+                        "https://plaid.com/docs/api/tokens/#linktokencreate-country-codes"
+                            .to_owned(),
+                    ),
+                },
+            }));
+        }
 
         Ok(Self {
             client_id: auth.client_id,
@@ -223,6 +232,13 @@ impl TryFrom<ResponseRouterData<PlaidLinkTokenResponse, Self>>
 
         let expires_in_seconds: Option<i64> = res.expiration.as_deref().and_then(|exp| {
             time::OffsetDateTime::parse(exp, &time::format_description::well_known::Rfc3339)
+                .inspect_err(|e| {
+                    tracing::debug!(
+                        error = %e,
+                        raw_expiration = %exp,
+                        "Plaid link_token expiration is not RFC3339; expires_in_seconds will be omitted"
+                    );
+                })
                 .ok()
                 .map(|expiry_time| {
                     let now = time::OffsetDateTime::now_utc();
@@ -466,14 +482,13 @@ pub struct PlaidBalances {
     pub iso_currency_code: Option<common_enums::Currency>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
+#[serde(default)]
 pub struct PlaidNumbers {
-    #[serde(default)]
     pub ach: Vec<PlaidAchNumbers>,
-    #[serde(default)]
+    pub eft: Vec<PlaidEftNumbers>,
     pub bacs: Vec<PlaidBacsNumbers>,
-    #[serde(default)]
-    pub international: Vec<PlaidSepaNumbers>,
+    pub international: Vec<PlaidInternationalNumbers>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -484,6 +499,14 @@ pub struct PlaidAchNumbers {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+pub struct PlaidEftNumbers {
+    pub account_id: Secret<String>,
+    pub account: Secret<String>,
+    pub routing: Secret<String>,
+    pub institution: Secret<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 pub struct PlaidBacsNumbers {
     pub account_id: Secret<String>,
     pub account: Secret<String>,
@@ -491,7 +514,7 @@ pub struct PlaidBacsNumbers {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct PlaidSepaNumbers {
+pub struct PlaidInternationalNumbers {
     pub account_id: Secret<String>,
     pub iban: Secret<String>,
     pub bic: Option<Secret<String>>,
@@ -511,91 +534,127 @@ impl TryFrom<ResponseRouterData<PlaidAuthGetResponse, Self>>
         let res = item.response;
         let request_currency = item.router_data.resource_common_data.get_currency();
 
-        // Build lookup maps from account_id → routing details
-        let ach_map: std::collections::HashMap<_, _> = res
-            .numbers
-            .ach
+        let (numbers, accounts_info) = (res.numbers, res.accounts);
+        let id_to_account: std::collections::HashMap<String, _> = accounts_info
             .into_iter()
-            .map(|ach| (ach.account_id.peek().to_owned(), ach))
-            .collect();
-        let bacs_map: std::collections::HashMap<_, _> = res
-            .numbers
-            .bacs
-            .into_iter()
-            .map(|bacs| (bacs.account_id.peek().to_owned(), bacs))
-            .collect();
-        let sepa_map: std::collections::HashMap<_, _> = res
-            .numbers
-            .international
-            .into_iter()
-            .map(|sepa| (sepa.account_id.peek().to_owned(), sepa))
-            .collect();
-
-        // Only include accounts that have at least one routing scheme (ACH / BACS / SEPA).
-        let accounts: Vec<BankAccount> = res
-            .accounts
-            .into_iter()
-            .filter_map(|acct| {
-                let id = acct.account_id.peek();
+            .map(|acct| {
                 let currency = acct.balances.iso_currency_code.or(request_currency);
-                let account_details = match currency {
-                    Some(common_enums::Currency::USD) => ach_map.get(id).map(|ach| {
-                        BankAccountRoutingDetails::Ach(BankAccountAchDetails {
-                            account_number: ach.account.clone(),
-                            routing_number: ach.routing.clone(),
+                let balance = acct.balances.current.zip(currency).and_then(|(amt, c)| {
+                    super::PlaidAmountConvertor::convert_back(amt, c)
+                        .ok()
+                        .map(|amount| common_utils::types::Money {
+                            amount,
+                            currency: c,
                         })
-                    })?,
-                    Some(common_enums::Currency::GBP) => bacs_map.get(id).map(|bacs| {
-                        BankAccountRoutingDetails::Bacs(BankAccountBacsDetails {
-                            account_number: bacs.account.clone(),
-                            sort_code: bacs.sort_code.clone(),
-                        })
-                    })?,
-                    Some(common_enums::Currency::EUR) => sepa_map.get(id).map(|sepa| {
-                        BankAccountRoutingDetails::Sepa(BankAccountSepaDetails {
-                            iban: sepa.iban.clone(),
-                            bic: sepa.bic.clone(),
-                        })
-                    })?,
-                    // Unsupported currency — skip this account
-                    _ => return None,
-                };
-
+                });
+                let available_balance =
+                    acct.balances.available.zip(currency).and_then(|(amt, c)| {
+                        super::PlaidAmountConvertor::convert_back(amt, c)
+                            .ok()
+                            .map(|amount| common_utils::types::Money {
+                                amount,
+                                currency: c,
+                            })
+                    });
                 let bank_type = acct.subtype.as_deref().and_then(plaid_subtype_to_bank_type);
                 let bank_holder_type = acct.holder_category.as_ref().map(|hc| match hc {
                     PlaidHolderCategory::Personal => BankHolderType::Personal,
                     PlaidHolderCategory::Business => BankHolderType::Business,
                 });
-                let balance = acct
-                    .balances
-                    .current
-                    .zip(currency)
-                    .and_then(|(amt, currency)| {
-                        super::PlaidAmountConvertor::convert_back(amt, currency)
-                            .ok()
-                            .map(|amount| common_utils::types::Money { amount, currency })
-                    });
-                let available_balance =
-                    acct.balances
-                        .available
-                        .zip(currency)
-                        .and_then(|(amt, currency)| {
-                            super::PlaidAmountConvertor::convert_back(amt, currency)
-                                .ok()
-                                .map(|amount| common_utils::types::Money { amount, currency })
-                        });
-
-                Some(BankAccount {
-                    account_name: acct.name,
-                    account_id: acct.account_id,
-                    bank_type,
-                    bank_holder_type,
-                    balance,
-                    available_balance,
-                    account_details: Some(account_details),
-                })
+                (
+                    acct.account_id.peek().to_owned(),
+                    (
+                        acct.account_id,
+                        acct.name,
+                        bank_type,
+                        bank_holder_type,
+                        balance,
+                        available_balance,
+                    ),
+                )
             })
             .collect();
+
+        let mut accounts: Vec<BankAccount> = Vec::new();
+
+        numbers.ach.into_iter().for_each(|ach| {
+            if let Some((
+                account_id,
+                name,
+                bank_type,
+                bank_holder_type,
+                balance,
+                available_balance,
+            )) = id_to_account.get(ach.account_id.peek())
+            {
+                accounts.push(BankAccount {
+                    account_id: account_id.clone(),
+                    account_name: name.clone(),
+                    bank_type: *bank_type,
+                    bank_holder_type: *bank_holder_type,
+                    balance: balance.clone(),
+                    available_balance: available_balance.clone(),
+                    account_details: Some(BankAccountRoutingDetails::Ach(BankAccountAchDetails {
+                        account_number: ach.account,
+                        routing_number: ach.routing,
+                    })),
+                });
+            }
+        });
+
+        numbers.bacs.into_iter().for_each(|bacs| {
+            if let Some((
+                account_id,
+                name,
+                bank_type,
+                bank_holder_type,
+                balance,
+                available_balance,
+            )) = id_to_account.get(bacs.account_id.peek())
+            {
+                accounts.push(BankAccount {
+                    account_id: account_id.clone(),
+                    account_name: name.clone(),
+                    bank_type: *bank_type,
+                    bank_holder_type: *bank_holder_type,
+                    balance: balance.clone(),
+                    available_balance: available_balance.clone(),
+                    account_details: Some(BankAccountRoutingDetails::Bacs(
+                        BankAccountBacsDetails {
+                            account_number: bacs.account,
+                            sort_code: bacs.sort_code,
+                        },
+                    )),
+                });
+            }
+        });
+
+        numbers.international.into_iter().for_each(|sepa| {
+            if let Some((
+                account_id,
+                name,
+                bank_type,
+                bank_holder_type,
+                balance,
+                available_balance,
+            )) = id_to_account.get(sepa.account_id.peek())
+            {
+                accounts.push(BankAccount {
+                    account_id: account_id.clone(),
+                    account_name: name.clone(),
+                    bank_type: *bank_type,
+                    bank_holder_type: *bank_holder_type,
+                    balance: balance.clone(),
+                    available_balance: available_balance.clone(),
+                    account_details: Some(BankAccountRoutingDetails::Sepa(
+                        BankAccountSepaDetails {
+                            iban: sepa.iban,
+                            bic: sepa.bic,
+                        },
+                    )),
+                });
+            }
+        });
 
         Ok(Self {
             response: Ok(GetPaymentMethodResponseData {

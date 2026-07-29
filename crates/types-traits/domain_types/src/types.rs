@@ -10212,20 +10212,15 @@ impl ForeignTryFrom<MerchantAuthenticationServiceCreateClientAuthenticationToken
                     locale: None,
                 })
             }
-            None => Ok(Self {
-                amount: common_utils::types::MinorUnit::new(0),
-                currency: common_enums::Currency::USD,
-                country: None,
-                order_details: None,
-                order_tax_amount: None,
-                shipping_cost: None,
-                payment_method_type: None,
-                customer: None,
-                webhook_url: None,
-                country_codes: vec![],
-                locale: None,
-                permissions,
-            }),
+            _ => Err(report!(IntegrationError::InvalidDataFormat {
+                field_name: "unknown",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Domain context is required for SDK session".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            })),
         }
     }
 }
@@ -12929,12 +12924,6 @@ pub fn generate_create_payment_method_token_response<T: PaymentMethodDataTypes>(
     grpc_api_types::payments::PaymentMethodServiceTokenizeResponse,
     error_stack::Report<ConnectorError>,
 > {
-    let raw_connector_response = router_data_v2
-        .resource_common_data
-        .get_raw_connector_response();
-    let raw_connector_request = router_data_v2
-        .resource_common_data
-        .get_raw_connector_request();
     let response_headers = router_data_v2
         .resource_common_data
         .get_connector_response_headers_as_map();
@@ -12952,8 +12941,6 @@ pub fn generate_create_payment_method_token_response<T: PaymentMethodDataTypes>(
                     merchant_payment_method_id: Some(token_clone),
                     state: None,
                     connector_payment_method_id: response.connector_payment_method_id,
-                    raw_connector_response,
-                    raw_connector_request,
                 },
             )
         }
@@ -12976,8 +12963,6 @@ pub fn generate_create_payment_method_token_response<T: PaymentMethodDataTypes>(
                 merchant_payment_method_id: e.connector_transaction_id,
                 state: None,
                 connector_payment_method_id: None,
-                raw_connector_response,
-                raw_connector_request,
             },
         ),
     }
@@ -14421,7 +14406,7 @@ pub fn generate_payment_sdk_session_token_response(
                                     grpc_api_types::payments::AuthenticatorConnectorSpecificClientAuthenticationResponse {
                                         connector: Some(grpc_api_types::payments::authenticator_connector_specific_client_authentication_response::Connector::Plaid(
                                             grpc_api_types::payments::PlaidClientAuthenticationResponse {
-                                                link_token: plaid_token.link_token.expose(),
+                                                link_token: Some(plaid_token.link_token),
                                                 expires_in_seconds: plaid_token.expires_in_seconds,
                                                 hosted_link_url: plaid_token.hosted_link_url,
                                             },
@@ -14745,7 +14730,7 @@ impl ForeignTryFrom<ClientAuthenticationTokenData>
                             grpc_api_types::payments::AuthenticatorConnectorSpecificClientAuthenticationResponse {
                                 connector: Some(grpc_api_types::payments::authenticator_connector_specific_client_authentication_response::Connector::Plaid(
                                     grpc_api_types::payments::PlaidClientAuthenticationResponse {
-                                        link_token: plaid_token.link_token.expose(),
+                                        link_token: Some(plaid_token.link_token),
                                         expires_in_seconds: plaid_token.expires_in_seconds,
                                         hosted_link_url: plaid_token.hosted_link_url,
                                     },

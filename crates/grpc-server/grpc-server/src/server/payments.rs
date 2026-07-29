@@ -2585,15 +2585,18 @@ impl PaymentMethod {
                 token: hyperswitch_masking::Secret::new(String::new()),
             },
         );
+        let connector_feature_data = request
+            .connector_feature_data
+            .clone()
+            .map(|m| ForeignTryFrom::foreign_try_from((m, "feature_data")))
+            .transpose()
+            .map_err(|e| e.to_grpc_error())?;
         let tokenization_data = PaymentMethodTokenizationData::<DefaultPCIHolder> {
-            payment_method_data: dummy_pm_data,
+            payment_method_data: dummy_pm_data, // unused by authenticator path
             metadata: request.metadata.clone(),
-            connector_feature_data: request
-                .connector_feature_data
-                .as_ref()
-                .and_then(|s| serde_json::from_str(s.peek()).ok()),
-            amount: common_utils::types::MinorUnit::new(0),
-            currency: common_enums::Currency::USD,
+            connector_feature_data,
+            amount: common_utils::types::MinorUnit::new(0), // unused by authenticator path
+            currency: common_enums::Currency::USD,          // unused by authenticator path
             browser_info: None,
             capture_method: None,
             customer_acceptance: None,

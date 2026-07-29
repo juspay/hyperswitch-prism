@@ -917,6 +917,7 @@ pub enum ConnectorSpecificConfig {
     Plaid {
         client_id: Secret<String>,
         secret: Secret<String>,
+        client_name: Option<String>,
         base_url: Option<String>,
     },
 }
@@ -2354,6 +2355,7 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             AuthType::Plaid(plaid) => Ok(Self::Plaid {
                 client_id: plaid.client_id.ok_or_else(err)?,
                 secret: plaid.secret.ok_or_else(err)?,
+                client_name: plaid.client_name,
                 base_url: plaid.base_url,
             }),
             AuthType::Givepayments(givepayments) => Ok(Self::Givepayments {
@@ -3546,6 +3548,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Plaid {
                             client_id: api_key.clone(),
                             secret: key1.clone(),
+                            client_name: None,
                             base_url: None,
                         }),
                         _ => Err(err().into()),
