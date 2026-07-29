@@ -1360,17 +1360,7 @@ impl TryFrom<&ConnectorSpecificConfig> for JuspayCardSyncAuthType {
         let missing = |field_name: &'static str| {
             error_stack::report!(errors::IntegrationError::MissingRequiredField {
                 field_name,
-                context: errors::IntegrationErrorContext {
-                    additional_context: Some(format!(
-                        "Juspay account updater requires `{field_name}` in the connector config; \
-                         it is optional because the other Juspay flows do not use it"
-                    )),
-                    suggested_action: Some(format!(
-                        "Set `{field_name}` in the Juspay connector config sent as \
-                         x-connector-config metadata on the Refresh request"
-                    )),
-                    doc_url: None,
-                },
+                context: Default::default(),
             })
         };
 
