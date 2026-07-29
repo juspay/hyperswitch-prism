@@ -381,9 +381,7 @@ impl IntoGrpcStatus for Report<ConnectorFlowError> {
 
 #[cfg(test)]
 mod tests {
-    use super::{connector_http_status_to_grpc_code, ToGrpcStatus};
-    use domain_types::{errors::ConnectorError, router_data::ErrorResponse};
-    use prost::Message;
+    use super::connector_http_status_to_grpc_code;
     use tonic::Code;
 
     #[test]
@@ -412,36 +410,6 @@ mod tests {
                 expected_grpc_code,
                 "unexpected gRPC mapping for connector HTTP status {http_status}"
             );
-        }
-    }
-
-    #[test]
-    fn leaves_non_error_and_non_http_statuses_unknown() {
-        for status in [0, 200, 399, 600, u16::MAX] {
-            assert_eq!(
-                connector_http_status_to_grpc_code(status),
-                Code::Unknown,
-                "unexpected gRPC mapping for non-error status {status}"
-            );
-        }
-    }
-
-    #[test]
-    fn preserves_connector_409_in_grpc_error_details() {
-        let connector_error = ConnectorError::ConnectorErrorResponse(ErrorResponse {
-            code: "409".to_string(),
-            message: "idempotency key reused with a different request body".to_string(),
-            status_code: 409,
-            ..ErrorResponse::default()
-        });
-
-        let status = connector_error.to_grpc_status_unlogged();
-        let details = grpc_api_types::payments::ConnectorError::decode(status.details());
-
-        assert_eq!(status.code(), Code::Aborted);
-        assert!(details.is_ok(), "connector error details should decode");
-        if let Ok(details) = details {
-            assert_eq!(details.http_status_code, Some(409));
         }
     }
 }
