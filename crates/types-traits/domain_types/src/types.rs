@@ -13392,22 +13392,15 @@ impl
     type Error = IntegrationError;
 
     fn foreign_try_from(
-        (_value, connectors, metadata): (
+        (_value, connectors, _metadata): (
             grpc_api_types::payments::PaymentMethodServiceRefreshRequest,
             Connectors,
             &MaskedMetadata,
         ),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
-        // The request carries no identifier of its own, so the caller's request
-        // id is the only correlation handle. Matches the webhook-verify precedent.
-        let request_id = metadata
-            .get_raw(common_utils::consts::X_REQUEST_ID)
-            .filter(|request_id| !request_id.trim().is_empty())
-            .unwrap_or_else(common_utils::fp_utils::generate_uuid_v7);
-
         Ok(Self {
             connectors,
-            connector_request_reference_id: format!("refresh_{request_id}"),
+            connector_request_reference_id: String::new(),
             raw_connector_response: None,
             raw_connector_request: None,
             connector_response_headers: None,
