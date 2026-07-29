@@ -91,22 +91,120 @@ pub fn build_ddc_html(
         .map(|url| format!(r#" action="{}""#, html_attr_escape(url)))
         .unwrap_or_default();
     format!(
-        r#"<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>
-<form id="kount-ddc-form" method="POST"{form_action}></form>
-<script type="module">
-  import kountSDK from "{KOUNT_WEB_SDK_URL}";
-  const kountConfig = {{
-    clientID: "{client_id}",
-    environment: "{environment}",
-    isSinglePageApp: false,
-    isDebugEnabled: false,
-    callbacks: {{
-      "collect-end": function () {{ document.getElementById("kount-ddc-form").submit(); }}
-    }}
-  }};
-  kountSDK(kountConfig, "{session_id}");
-</script>
-</body></html>"#
+        r#"<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name='viewport' content='width=device-width, initial-scale=1'>
+    <style type='text/css'>
+        * {{
+            padding: 0;
+            margin: 0;
+            box-sizing: border-box;
+        }}
+
+        #brandCard {{
+            width: 100%;
+            height: 100%;
+            background-color: #ffffff;
+            align-items: center;
+            justify-content: center;
+            display: flex;
+            box-sizing: border-box;
+            flex-flow: column wrap;
+            position: absolute;
+        }}
+
+        body {{
+            background-color: #ffffff;
+            height: 100%;
+            width: 100%;
+            padding: 20px;
+            font-family: Arial, Helvetica, Sans-Serif;
+        }}
+
+        html {{
+            background-color: #f4f4f4;
+            height: 100%;
+        }}
+
+        #content {{
+            width: 100%;
+            height: 100%;
+            position: fixed;
+            overflow: hidden;
+            margin: 0 auto;
+        }}
+
+        .brandLoader {{
+            height: 100%;
+            width: 100%;
+            display: flex;
+            box-sizing: border-box;
+            flex-flow: column wrap;
+            background-color: #404040;
+            align-items: center;
+            justify-content: center;
+            border-radius: 0px;
+            flex: 0 0 auto;
+        }}
+
+        .statement {{
+            font-size: 14px;
+            font-family: system-ui;
+            color: #444444;
+            margin-top: 24px;
+        }}
+
+        #loading {{
+            width: 48px;
+            height: 48px;
+            viewbox: 0 0 16 16;
+            -webkit-animation: rotation 1.8s infinite linear;
+        }}
+
+        @-webkit-keyframes rotation {{
+            from {{
+                -webkit-transform: rotate(0deg);
+            }}
+
+            to {{
+                -webkit-transform: rotate(359deg);
+            }}
+        }}
+
+        #brandingText {{
+            width: auto;
+            height: 14px;
+            margin-top: 16px;
+        }}
+    </style>
+</head>
+<body>
+    <div class='brandLoader' id='brandLoader'>
+        <div id='brandCard'> 
+            <img id='loading' src='data:image/png;base64,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' />
+            <div class='statement'>Processing your payment</div> 
+        </div>
+    </div>
+
+    <form id="kount-ddc-form" method="POST"{form_action}></form>
+    
+    <script type="module">
+      import kountSDK from "{KOUNT_WEB_SDK_URL}";
+      const kountConfig = {{
+        clientID: "{client_id}",
+        environment: "{environment}",
+        isSinglePageApp: false,
+        isDebugEnabled: false,
+        callbacks: {{
+          "collect-end": function () {{ document.getElementById("kount-ddc-form").submit(); }}
+        }}
+      }};
+      kountSDK(kountConfig, "{session_id}");
+    </script>
+</body>
+</html>"#
     )
 }
 
