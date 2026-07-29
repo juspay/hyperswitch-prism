@@ -461,6 +461,14 @@ pub enum BankNames {
     CapitecBusiness,
     AfricanBank,
     AfricanBankBusiness,
+    // Indonesian banks (used by Airwallex bank_transfer). CimbNiaga is the
+    // Indonesian CIMB Niaga, distinct from the Malaysian CimbBank above.
+    BankMandiri,
+    BankDanamon,
+    BankNegaraIndonesia,
+    BankRakyatIndonesia,
+    CimbNiaga,
+    PermataBank,
 }
 
 /// Specifies the regulated name for a card network, primarily used for US debit card routing regulations.

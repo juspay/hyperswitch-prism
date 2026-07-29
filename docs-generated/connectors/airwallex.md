@@ -195,13 +195,13 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Apple Pay | ⚠ |
 | Apple Pay Dec | ⚠ |
 | Apple Pay SDK | ⚠ |
-| Google Pay | ⚠ |
-| Google Pay Dec | ⚠ |
+| Google Pay | ✓ |
+| Google Pay Dec | ? |
 | Google Pay SDK | ⚠ |
 | PayPal SDK | ⚠ |
 | Amazon Pay | ⚠ |
 | Cash App | ⚠ |
-| PayPal | ⚠ |
+| PayPal | ✓ |
 | WeChat Pay | ⚠ |
 | Alipay | ⚠ |
 | Revolut Pay | ⚠ |
@@ -223,7 +223,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Swish | ⚠ |
 | Affirm | ⚠ |
 | Afterpay | ⚠ |
-| Klarna | ⚠ |
+| Klarna | ✓ |
 | UPI Collect | ⚠ |
 | UPI Intent | ⚠ |
 | UPI QR | ⚠ |
@@ -265,7 +265,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Danamon VA | ⚠ |
 | Mandiri VA | ⚠ |
 | Local | ⚠ |
-| Indonesian | ⚠ |
+| Indonesian | ? |
 | ACH | ⚠ |
 | SEPA | ⚠ |
 | BACS | ⚠ |
@@ -307,11 +307,42 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
+##### Google Pay
+
+```python
+"payment_method": {
+  "google_pay_sdk": {
+    "type": "CARD",
+    "description": "Visa 1111",
+    "info": {
+      "card_network": "VISA",
+      "card_details": "1111"
+    },
+    "tokenization_data": {
+      "encrypted_data": {
+        "token_type": "PAYMENT_GATEWAY",
+        "token": "{\"id\":\"tok_probe_gpay\",\"object\":\"token\",\"type\":\"card\"}"
+      }
+    }
+  }
+}
+```
+
 ##### iDEAL
 
 ```python
 "payment_method": {
   "ideal": {}
+}
+```
+
+##### PayPal Redirect
+
+```python
+"payment_method": {
+  "paypal_redirect": {
+    "email": "test@example.com"
+  }
 }
 ```
 
@@ -322,6 +353,14 @@ Authorize a payment amount on a payment method. This reserves funds without capt
   "blik": {
     "blik_code": "777124"
   }
+}
+```
+
+##### Klarna
+
+```python
+"payment_method": {
+  "klarna": {}
 }
 ```
 
