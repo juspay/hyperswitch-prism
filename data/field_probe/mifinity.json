@@ -642,6 +642,11 @@
         "error": "mandate_revoke flow not supported by mifinity connector"
       }
     },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "refund": {
       "default": {
         "status": "not_implemented",

@@ -1002,6 +1002,11 @@
         "error": "mandate_revoke flow not supported by barclaycard connector"
       }
     },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "refund": {
       "default": {
         "status": "supported",
