@@ -5399,10 +5399,6 @@ message JuspayConfig {
   optional SecretString juspay_encryption_public_key = 3;
   optional SecretString response_decryption_private_key = 4;
   optional SecretString card_sync_key_id = 5;
-  // 6 held card_sync_feature_id (the x-feature header). The header is not
-  // required by the account updater API; the field number is not reused.
-  reserved 6;
-  reserved "card_sync_feature_id";
 
   optional string base_url = 50;
 }
