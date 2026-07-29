@@ -8,7 +8,7 @@ use common_utils::{
     errors::CustomResult, events, ext_traits::ByteSliceExt, types::StringMajorUnit,
 };
 use domain_types::{
-    connector_flow::{self, Authorize, PSync, Void},
+    connector_flow::{self, Authorize, PSync, RSync, Refund, Void},
     connector_types::*,
     errors,
     payment_method_data::PaymentMethodDataTypes,
@@ -26,8 +26,8 @@ use interfaces::{
 };
 use serde::Serialize;
 use transformers::{
-    self as maya, MayaPaymentsRequest, MayaPaymentsResponse, MayaRrnSyncResponse, MayaVoidRequest,
-    MayaVoidResponse,
+    self as maya, MayaPaymentsRequest, MayaPaymentsResponse, MayaRefundRequest, MayaRefundResponse,
+    MayaRefundSyncResponse, MayaVoidRequest, MayaVoidResponse, MayaWebhookBody,
 };
 
 use super::macros;
@@ -53,7 +53,7 @@ macros::create_all_prerequisites!(
         ),
         (
             flow: PSync,
-            response_body: MayaRrnSyncResponse,
+            response_body: MayaWebhookBody,
             router_data: RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ),
         (
@@ -61,6 +61,17 @@ macros::create_all_prerequisites!(
             request_body: MayaVoidRequest,
             response_body: MayaVoidResponse,
             router_data: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ),
+        (
+            flow: Refund,
+            request_body: MayaRefundRequest,
+            response_body: MayaRefundResponse,
+            router_data: RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+        ),
+        (
+            flow: RSync,
+            response_body: MayaRefundSyncResponse,
+            router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
         )
     ],
     amount_converters: [
@@ -269,15 +280,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<errors::WebhookError>> {
-        let body: maya::MayaWebhookBody = request
+        let body: MayaWebhookBody = request
             .body
             .parse_struct("MayaWebhookBody")
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
-        match body.payment_status() {
-            Some("PAYMENT_SUCCESS") => Ok(EventType::PaymentIntentSuccess),
-            _ => Ok(EventType::PaymentIntentFailure),
-        }
+        let effective_status = body.payment_status().unwrap_or("PAYMENT_FAILED");
+        let maya_payment_status: maya::MayaPaymentStatus =
+            serde_json::from_str(&format!("\"{effective_status}\""))
+                .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
+
+        Ok(EventType::from(maya_payment_status))
     }
 
     fn process_payment_webhook(
@@ -287,7 +300,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_account_details: Option<ConnectorSpecificConfig>,
         _event_context: Option<EventContext>,
     ) -> Result<WebhookDetailsResponse, error_stack::Report<errors::WebhookError>> {
-        let body: maya::MayaWebhookBody = request
+        let body: MayaWebhookBody = request
             .body
             .parse_struct("MayaWebhookBody")
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
@@ -299,10 +312,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let status = common_enums::AttemptStatus::from(maya_payment_status);
 
-        let connector_response_reference_id = body
-            .request_reference_number
-            .clone()
-            .or(body.transaction_reference_number.clone());
+        let connector_response_reference_id = body.connector_response_reference_id();
 
         Ok(WebhookDetailsResponse {
             resource_id: Some(ResponseId::ConnectorTransactionId(body.id)),
@@ -373,7 +383,7 @@ macros::macro_connector_implementation!(
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Maya,
-    curl_response: MayaRrnSyncResponse,
+    curl_response: MayaWebhookBody,
     flow_name: PSync,
     resource_common_data: PaymentFlowData,
     flow_request: PaymentsSyncData,
@@ -391,7 +401,7 @@ macros::macro_connector_implementation!(
                 PaymentsResponseData,
             >,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
-            // The RRN endpoint is authenticated with the SECRET key.
+            // The payment-by-id endpoint is authenticated with the SECRET key.
             self.get_secret_auth_header(&req.connector_config)
         }
 
@@ -404,18 +414,24 @@ macros::macro_connector_implementation!(
                 PaymentsResponseData,
             >,
         ) -> CustomResult<String, errors::IntegrationError> {
-            // The RRN is the merchant's `requestReferenceNumber` that we sent during
-            // Authorize (sourced from `connector_request_reference_id`).
-            let rrn = &req.resource_common_data.connector_request_reference_id;
+            // Retrieve the payment using the Maya `paymentId` returned during Authorize.
+            let payment_id = req
+                .request
+                .connector_transaction_id
+                .get_connector_transaction_id()
+                .change_context(errors::IntegrationError::MissingRequiredField {
+                    field_name: "connector_transaction_id",
+                    context: Default::default(),
+                })?;
             Ok(format!(
-                "{}/payments/v1/payment-rrns/{rrn}",
+                "{}/payments/v1/payments/{payment_id}",
                 self.base_url(&req.resource_common_data.connectors)
             ))
         }
     }
 );
 
-// ===== VOID/CANCEL CONNECTOR INTEGRATION =====
+// ===== VOID CONNECTOR INTEGRATION =====
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Maya,
@@ -458,7 +474,101 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, errors::IntegrationError> {
             let payment_id = req.request.connector_transaction_id.clone();
             Ok(format!(
-                "{}/payments/v1/payments/{payment_id}/cancel",
+                "{}/payments/v1/payments/{payment_id}/voids",
+                self.base_url(&req.resource_common_data.connectors)
+            ))
+        }
+    }
+);
+
+// ===== REFUND CONNECTOR INTEGRATION =====
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Maya,
+    curl_request: Json(MayaRefundRequest),
+    curl_response: MayaRefundResponse,
+    flow_name: Refund,
+    resource_common_data: RefundFlowData,
+    flow_request: RefundsData,
+    flow_response: RefundsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<
+                Refund,
+                RefundFlowData,
+                RefundsData,
+                RefundsResponseData,
+            >,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
+            let mut header = vec![(
+                headers::CONTENT_TYPE.to_string(),
+                "application/json".to_string().into(),
+            )];
+            let mut auth_header = self.get_secret_auth_header(&req.connector_config)?;
+            header.append(&mut auth_header);
+            Ok(header)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<
+                Refund,
+                RefundFlowData,
+                RefundsData,
+                RefundsResponseData,
+            >,
+        ) -> CustomResult<String, errors::IntegrationError> {
+            let payment_id = req.request.connector_transaction_id.clone();
+            Ok(format!(
+                "{}/payments/v1/payments/{payment_id}/refunds",
+                self.base_url(&req.resource_common_data.connectors)
+            ))
+        }
+    }
+);
+
+// ===== REFUND SYNC CONNECTOR INTEGRATION =====
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Maya,
+    curl_response: MayaRefundSyncResponse,
+    flow_name: RSync,
+    resource_common_data: RefundFlowData,
+    flow_request: RefundSyncData,
+    flow_response: RefundsResponseData,
+    http_method: Get,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<
+                RSync,
+                RefundFlowData,
+                RefundSyncData,
+                RefundsResponseData,
+            >,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
+            self.get_secret_auth_header(&req.connector_config)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<
+                RSync,
+                RefundFlowData,
+                RefundSyncData,
+                RefundsResponseData,
+            >,
+        ) -> CustomResult<String, errors::IntegrationError> {
+            let payment_id = req.request.connector_transaction_id.clone();
+            let refund_id = req.request.connector_refund_id.clone();
+            Ok(format!(
+                "{}/payments/v1/payments/{payment_id}/refunds/{refund_id}",
                 self.base_url(&req.resource_common_data.connectors)
             ))
         }
@@ -683,22 +793,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsCancelPostCaptureData,
         PaymentsResponseData,
     > for Maya<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        connector_flow::RSync,
-        RefundFlowData,
-        RefundSyncData,
-        RefundsResponseData,
-    > for Maya<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<connector_flow::Refund, RefundFlowData, RefundsData, RefundsResponseData>
-    for Maya<T>
 {
 }
 

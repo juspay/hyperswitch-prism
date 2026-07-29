@@ -487,6 +487,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletDataPaymentMethod::CashfreeRedirect(_)
                 | WalletDataPaymentMethod::PayURedirect(_)
                 | WalletDataPaymentMethod::EaseBuzzRedirect(_)
+                | WalletDataPaymentMethod::PayMayaRedirect(_)
                 | WalletDataPaymentMethod::QwikcilverWalletDirect(_)
                 | WalletDataPaymentMethod::Skrill(_) => Err(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("novalnet"),
@@ -2235,6 +2236,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletDataPaymentMethod::CashfreeRedirect(_)
                 | WalletDataPaymentMethod::PayURedirect(_)
                 | WalletDataPaymentMethod::EaseBuzzRedirect(_)
+                | WalletDataPaymentMethod::PayMayaRedirect(_)
                 | WalletDataPaymentMethod::QwikcilverWalletDirect(_)
                 | WalletDataPaymentMethod::Skrill(_) => Err(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("novalnet"),

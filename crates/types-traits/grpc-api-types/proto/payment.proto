@@ -944,6 +944,7 @@ enum PaymentMethodType {
   OPEN_BANKING = 112;
   QWIKCILVER_WALLET = 113;
   SKRILL = 114;
+  PAY_MAYA = 115;
 }
 
 // Product type enumeration

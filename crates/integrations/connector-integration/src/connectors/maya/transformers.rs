@@ -1,9 +1,10 @@
 use common_utils::{types::StringMajorUnit, Method};
 use domain_types::{
-    connector_flow::{Authorize, PSync, Void},
+    connector_flow::{Authorize, PSync, RSync, Refund, Void},
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsResponseData,
-        PaymentsSyncData, ResponseId,
+        EventType, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsResponseData,
+        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        ResponseId,
     },
     errors::{self, ConnectorError, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
@@ -104,62 +105,10 @@ pub struct MayaPaymentsResponse {
     pub redirect_url: String,
 }
 
-/// Maya "Retrieve Payment via Request Reference Number (RRN)" response body.
+/// Maya payment / webhook status values (used by PSync / webhooks).
 ///
-/// The RRN endpoint (`GET /payments/v1/payment-rrns/{rrn}`) returns an **array** of
-/// payment objects sharing the queried RRN. Each element has the same shape as a
-/// Maya webhook payment body, so [`MayaWebhookBody`] is reused for the element
-/// type — this gives us the [`payment_status`](MayaWebhookBody::payment_status)
-/// helper for effective-status extraction (prefer `paymentStatus`, fall back to
-/// `status`).
-///
-/// A permissive deserializer accepts both a bare JSON array (`[...]`, the shape
-/// documented by Maya) and a wrapper object containing an array under a common key
-/// (`{ "data": [...] }`, `{ "payments": [...] }`, `{ "results": [...] }`).
-#[derive(Debug, Clone, Serialize)]
-pub struct MayaRrnSyncResponse(pub Vec<MayaWebhookBody>);
-
-impl<'de> Deserialize<'de> for MayaRrnSyncResponse {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        use serde::de::Error;
-
-        let value = serde_json::Value::deserialize(deserializer)?;
-
-        // Bare JSON array (the documented Maya shape).
-        if value.is_array() {
-            let items = serde_json::from_value::<Vec<MayaWebhookBody>>(value).map_err(|e| {
-                D::Error::custom(format!("failed to deserialize Maya RRN array: {e}"))
-            })?;
-            return Ok(Self(items));
-        }
-
-        // Defensive fallback: wrapper object containing the array under a common key.
-        if let serde_json::Value::Object(map) = &value {
-            for key in ["data", "payments", "results", "items"] {
-                if let Some(inner) = map.get(key) {
-                    if inner.is_array() {
-                        let items = serde_json::from_value::<Vec<MayaWebhookBody>>(inner.clone())
-                            .map_err(|e| {
-                            D::Error::custom(format!(
-                                "failed to deserialize Maya RRN array in '{key}': {e}"
-                            ))
-                        })?;
-                        return Ok(Self(items));
-                    }
-                }
-            }
-        }
-
-        Err(D::Error::custom(
-            "expected a JSON array or a wrapper object containing an array for the Maya RRN sync response",
-        ))
-    }
-}
-
-/// Maya payment status values (used by PSync / webhooks).
+/// Includes both the documented payment-object statuses and the webhook event
+/// names returned by Maya (e.g. `CHECKOUT_DROPOUT`, `3DS_PAYMENT_SUCCESS`).
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum MayaPaymentStatus {
@@ -176,6 +125,21 @@ pub enum MayaPaymentStatus {
     PaymentCancelled,
     Voided,
     Refunded,
+    // Webhook-specific event names. Explicit renames are required for values
+    // that contain numbers (3DS) or do not round-trip cleanly through serde's
+    // SCREAMING_SNAKE_CASE conversion.
+    #[serde(rename = "CHECKOUT_DROPOUT")]
+    CheckOutDropout,
+    #[serde(rename = "3DS_PAYMENT_FAILURE")]
+    ThreeDsPaymentFailure,
+    #[serde(rename = "3DS_PAYMENT_DROPOUT")]
+    ThreeDsPaymentDropout,
+    #[serde(rename = "CHECKOUT_SUCCESS")]
+    CheckOutSuccess,
+    #[serde(rename = "CHECKOUT_FAILURE")]
+    CheckOutFailure,
+    #[serde(rename = "3DS_PAYMENT_SUCCESS")]
+    ThreeDsPaymentSuccess,
 }
 
 impl From<MayaPaymentStatus> for common_enums::AttemptStatus {
@@ -187,14 +151,51 @@ impl From<MayaPaymentStatus> for common_enums::AttemptStatus {
             MayaPaymentStatus::ForAuthentication | MayaPaymentStatus::Authenticating => {
                 Self::AuthenticationPending
             }
-            MayaPaymentStatus::AuthSuccess => Self::AuthenticationSuccessful,
-            MayaPaymentStatus::AuthFailed => Self::AuthenticationFailed,
-            MayaPaymentStatus::PaymentProcessing => Self::Authorizing,
+            MayaPaymentStatus::AuthSuccess | MayaPaymentStatus::ThreeDsPaymentSuccess => {
+                Self::AuthenticationSuccessful
+            }
+            MayaPaymentStatus::AuthFailed
+            | MayaPaymentStatus::ThreeDsPaymentFailure
+            | MayaPaymentStatus::ThreeDsPaymentDropout
+            | MayaPaymentStatus::CheckOutDropout => Self::AuthenticationFailed,
+            MayaPaymentStatus::PaymentProcessing | MayaPaymentStatus::CheckOutSuccess => {
+                Self::Authorizing
+            }
             MayaPaymentStatus::PaymentSuccess => Self::Charged,
-            MayaPaymentStatus::PaymentFailed => Self::AuthorizationFailed,
+            MayaPaymentStatus::PaymentFailed | MayaPaymentStatus::CheckOutFailure => {
+                Self::AuthorizationFailed
+            }
             MayaPaymentStatus::PaymentCancelled | MayaPaymentStatus::Voided => Self::Voided,
             MayaPaymentStatus::PaymentExpired => Self::Expired,
             MayaPaymentStatus::Refunded => Self::AutoRefunded,
+        }
+    }
+}
+
+impl From<MayaPaymentStatus> for EventType {
+    fn from(status: MayaPaymentStatus) -> Self {
+        match status {
+            MayaPaymentStatus::PaymentSuccess => Self::PaymentIntentSuccess,
+            MayaPaymentStatus::AuthSuccess | MayaPaymentStatus::ThreeDsPaymentSuccess => {
+                Self::PaymentIntentAuthorizationSuccess
+            }
+            MayaPaymentStatus::PaymentCancelled | MayaPaymentStatus::Voided => {
+                Self::PaymentIntentCancelled
+            }
+            MayaPaymentStatus::PaymentExpired => Self::PaymentIntentExpired,
+            MayaPaymentStatus::PaymentProcessing
+            | MayaPaymentStatus::CheckOutSuccess
+            | MayaPaymentStatus::PendingToken
+            | MayaPaymentStatus::PendingPayment
+            | MayaPaymentStatus::ForAuthentication
+            | MayaPaymentStatus::Authenticating => Self::PaymentIntentProcessing,
+            MayaPaymentStatus::PaymentFailed
+            | MayaPaymentStatus::CheckOutFailure
+            | MayaPaymentStatus::AuthFailed
+            | MayaPaymentStatus::ThreeDsPaymentFailure
+            | MayaPaymentStatus::CheckOutDropout
+            | MayaPaymentStatus::ThreeDsPaymentDropout => Self::PaymentIntentFailure,
+            MayaPaymentStatus::Refunded => Self::RefundSuccess,
         }
     }
 }
@@ -205,8 +206,8 @@ impl From<MayaPaymentStatus> for common_enums::AttemptStatus {
 
 /// Pay-with-Maya payment object.
 ///
-/// Used for both incoming webhooks and the elements returned by the RRN-based
-/// payment-status endpoint (`GET /payments/v1/payment-rrns/{rrn}`).
+/// Used for both incoming webhooks and the response from the payment-by-ID
+/// endpoint (`GET /payments/v1/payments/{paymentId}`).
 ///
 /// Only the fields relevant to the Pay-with-Maya redirect flow are modeled;
 /// Checkout / Payment-Facilitator / Vault fields are intentionally omitted.
@@ -231,6 +232,10 @@ pub struct MayaWebhookBody {
     #[serde(default)]
     pub error_message: Option<String>,
     #[serde(default)]
+    pub can_void: Option<bool>,
+    #[serde(default)]
+    pub can_refund: Option<bool>,
+    #[serde(default)]
     pub metadata: Option<serde_json::Value>,
 }
 
@@ -241,23 +246,64 @@ impl MayaWebhookBody {
     pub fn payment_status(&self) -> Option<&str> {
         self.payment_status.as_deref().or(self.status.as_deref())
     }
+
+    /// Merchant reference echoed by Maya, distinct from Maya's payment `id`.
+    pub fn connector_response_reference_id(&self) -> Option<String> {
+        self.request_reference_number
+            .clone()
+            .or_else(|| self.transaction_reference_number.clone())
+    }
 }
 
 // =============================================================================
 // VOID FLOW TYPES AND TRANSFORMERS
 // =============================================================================
 
-/// Maya "Cancel Payment" request body.
-///
-/// The endpoint does not require any fields; we serialize it as an empty object.
+/// Maya "Void Payment" request body.
 #[derive(Debug, Serialize)]
-pub struct MayaVoidRequest {}
+#[serde(rename_all = "camelCase")]
+pub struct MayaVoidRequest {
+    pub reason: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub request_reference_number: Option<String>,
+}
 
-/// Maya "Cancel Payment" response body.
-#[derive(Debug, Serialize, Deserialize)]
+/// Maya void status values.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum MayaVoidStatus {
+    Success,
+    Failed,
+    Pending,
+}
+
+impl From<MayaVoidStatus> for common_enums::AttemptStatus {
+    fn from(status: MayaVoidStatus) -> Self {
+        match status {
+            MayaVoidStatus::Success => Self::Voided,
+            MayaVoidStatus::Failed => Self::Failure,
+            MayaVoidStatus::Pending => Self::Pending,
+        }
+    }
+}
+
+/// Maya "Void Payment" response body.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MayaVoidResponse {
-    pub payment_status: MayaPaymentStatus,
+    pub id: String,
+    #[serde(default)]
+    pub status: Option<MayaVoidStatus>,
+    #[serde(default)]
+    pub reason: Option<String>,
+    #[serde(default)]
+    pub request_reference_number: Option<String>,
+    #[serde(default)]
+    pub payment: Option<String>,
+    #[serde(default)]
+    pub created_at: Option<String>,
+    #[serde(default)]
+    pub updated_at: Option<String>,
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -271,12 +317,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
-        _item: MayaRouterData<
+        item: MayaRouterData<
             RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {})
+        let router_data = item.router_data;
+
+        Ok(Self {
+            reason: "Customer request".to_string(),
+            request_reference_number: Some(
+                router_data
+                    .resource_common_data
+                    .connector_request_reference_id,
+            ),
+        })
     }
 }
 
@@ -367,6 +422,17 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<MayaPaymentsResponse,
 
         let status = common_enums::AttemptStatus::Pending;
 
+        // Maya returns only `paymentId` and `redirectUrl` in the create-payment response.
+        // The merchant-facing reference is the `requestReferenceNumber` we sent in the
+        // request (`connector_request_reference_id`). Surface it as the connector
+        // response reference id so it stays consistent across Authorize / PSync / Webhook.
+        let connector_response_reference_id = Some(
+            item.router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+        );
+
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.payment_id.clone()),
@@ -374,7 +440,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<MayaPaymentsResponse,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: Some(item.response.payment_id),
+                connector_response_reference_id,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
             }),
@@ -387,12 +453,12 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<MayaPaymentsResponse,
     }
 }
 
-impl TryFrom<ResponseRouterData<MayaRrnSyncResponse, Self>>
+impl TryFrom<ResponseRouterData<MayaWebhookBody, Self>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
 
-    fn try_from(item: ResponseRouterData<MayaRrnSyncResponse, Self>) -> Result<Self, Self::Error> {
+    fn try_from(item: ResponseRouterData<MayaWebhookBody, Self>) -> Result<Self, Self::Error> {
         // The Maya paymentId from the request, used as a fallback for `resource_id`
         // when the response does not carry one.
         let request_txn_id = item
@@ -401,15 +467,13 @@ impl TryFrom<ResponseRouterData<MayaRrnSyncResponse, Self>>
             .connector_transaction_id
             .get_connector_transaction_id()
             .ok();
+        let connector_request_reference_id = item
+            .router_data
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
 
-        // The RRN endpoint returns an array of payments that share the queried RRN.
-        // Pick the first element.
-        let payment = item
-            .response
-            .0
-            .into_iter()
-            .next()
-            .ok_or_else(|| ConnectorError::response_handling_failed(item.http_code))?;
+        let payment = item.response;
 
         // Effective status: prefer `paymentStatus`, fall back to `status`
         // (same logic as the webhook body).
@@ -423,19 +487,43 @@ impl TryFrom<ResponseRouterData<MayaRrnSyncResponse, Self>>
         // `resource_id`: Maya paymentId (`id`) from the response if available, falling
         // back to the request's `connector_transaction_id`.
         let resource_id_value = if !payment.id.is_empty() {
-            payment.id
+            payment.id.clone()
         } else {
             request_txn_id.unwrap_or_default()
         };
 
+        // `connector_response_reference_id`: the merchant reference number echoed back
+        // by Maya (`requestReferenceNumber`). This keeps the reference consistent with
+        // what Euler/Juspay uses as `txn_id`.
+        let connector_response_reference_id = payment
+            .connector_response_reference_id()
+            .unwrap_or(connector_request_reference_id);
+
+        // Expose Maya's `canVoid` / `canRefund` flags so downstream services can
+        // decide whether void/refund operations are currently allowed.
+        let connector_metadata = {
+            let mut map = serde_json::Map::new();
+            if let Some(can_void) = payment.can_void {
+                map.insert("canVoid".to_string(), serde_json::json!(can_void));
+            }
+            if let Some(can_refund) = payment.can_refund {
+                map.insert("canRefund".to_string(), serde_json::json!(can_refund));
+            }
+            if map.is_empty() {
+                None
+            } else {
+                Some(serde_json::Value::Object(map))
+            }
+        };
+
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(resource_id_value.clone()),
+                resource_id: ResponseId::ConnectorTransactionId(resource_id_value),
                 redirection_data: None,
                 mandate_reference: None,
-                connector_metadata: None,
+                connector_metadata,
                 network_txn_id: None,
-                connector_response_reference_id: Some(resource_id_value),
+                connector_response_reference_id: Some(connector_response_reference_id),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
             }),
@@ -454,8 +542,13 @@ impl TryFrom<ResponseRouterData<MayaVoidResponse, Self>>
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<MayaVoidResponse, Self>) -> Result<Self, Self::Error> {
-        let status = common_enums::AttemptStatus::from(item.response.payment_status.clone());
+        let status = item
+            .response
+            .status
+            .map(common_enums::AttemptStatus::from)
+            .unwrap_or(common_enums::AttemptStatus::Voided);
         let connector_transaction_id = item.router_data.request.connector_transaction_id.clone();
+        let void_id = item.response.id;
 
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -464,7 +557,7 @@ impl TryFrom<ResponseRouterData<MayaVoidResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: Some(connector_transaction_id),
+                connector_response_reference_id: Some(void_id),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
             }),
@@ -474,5 +567,192 @@ impl TryFrom<ResponseRouterData<MayaVoidResponse, Self>>
             },
             ..item.router_data
         })
+    }
+}
+
+// =============================================================================
+// REFUND FLOW TYPES AND TRANSFORMERS
+// =============================================================================
+
+/// Maya refund status values.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum MayaRefundStatus {
+    Success,
+    Failed,
+    Pending,
+}
+
+impl From<MayaRefundStatus> for common_enums::RefundStatus {
+    fn from(status: MayaRefundStatus) -> Self {
+        match status {
+            MayaRefundStatus::Success => Self::Success,
+            MayaRefundStatus::Failed => Self::Failure,
+            MayaRefundStatus::Pending => Self::Pending,
+        }
+    }
+}
+
+/// Maya "Refund Payment" request body.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MayaRefundRequest {
+    pub total_amount: MayaTotalAmount,
+    pub reason: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub request_reference_number: Option<String>,
+}
+
+/// Maya "Refund Payment" response body.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MayaRefundResponse {
+    pub id: String,
+    #[serde(default)]
+    pub status: Option<MayaRefundStatus>,
+    #[serde(default)]
+    pub reason: Option<String>,
+    #[serde(default)]
+    pub request_reference_number: Option<String>,
+    #[serde(default)]
+    pub payment: Option<String>,
+    #[serde(default)]
+    pub created_at: Option<String>,
+    #[serde(default)]
+    pub updated_at: Option<String>,
+}
+
+/// Type alias for the refund-sync flow.
+///
+/// `create_all_prerequisites!` generates a unique templating struct per
+/// response type, so reusing the same type for both `Refund` and `RSync`
+/// causes a duplicate-definition error. This alias points to the same
+/// underlying deserialization logic while satisfying the macro.
+pub type MayaRefundSyncResponse = MayaRefundResponse;
+
+impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<MayaRouterData<RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>, T>>
+    for MayaRefundRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: MayaRouterData<RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>, T>,
+    ) -> Result<Self, Self::Error> {
+        let router_data = item.router_data;
+
+        let value = item
+            .connector
+            .amount_converter
+            .convert(
+                router_data.request.minor_refund_amount,
+                router_data.request.currency,
+            )
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })
+            .attach_printable("Failed to convert refund amount to Maya major unit")?;
+
+        let reason = router_data
+            .request
+            .reason
+            .unwrap_or_else(|| "Customer request".to_string());
+
+        Ok(Self {
+            total_amount: MayaTotalAmount {
+                value,
+                currency: router_data.request.currency,
+            },
+            reason,
+            request_reference_number: Some(
+                router_data
+                    .resource_common_data
+                    .connector_request_reference_id,
+            ),
+        })
+    }
+}
+
+impl TryFrom<ResponseRouterData<MayaRefundResponse, Self>>
+    for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(item: ResponseRouterData<MayaRefundResponse, Self>) -> Result<Self, Self::Error> {
+        let refund_status = item
+            .response
+            .status
+            .map(common_enums::RefundStatus::from)
+            .unwrap_or(common_enums::RefundStatus::Success);
+
+        Ok(Self {
+            response: Ok(RefundsResponseData {
+                connector_refund_id: item.response.id,
+                refund_status,
+                status_code: item.http_code,
+            }),
+            ..item.router_data
+        })
+    }
+}
+
+impl TryFrom<ResponseRouterData<MayaRefundSyncResponse, Self>>
+    for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<MayaRefundSyncResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let refund_status = item
+            .response
+            .status
+            .map(common_enums::RefundStatus::from)
+            .unwrap_or(common_enums::RefundStatus::Pending);
+
+        Ok(Self {
+            response: Ok(RefundsResponseData {
+                connector_refund_id: item.response.id,
+                refund_status,
+                status_code: item.http_code,
+            }),
+            ..item.router_data
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::MayaWebhookBody;
+
+    #[test]
+    fn payment_id_and_merchant_reference_remain_distinct() {
+        let payment: MayaWebhookBody = serde_json::from_value(serde_json::json!({
+            "id": "c0ea08ca-9344-45a4-be41-ee03665bbe13",
+            "status": "PAYMENT_SUCCESS",
+            "requestReferenceNumber": "azharamin-1785229582-1"
+        }))
+        .expect("Maya payment response must deserialize");
+
+        assert_eq!(payment.id, "c0ea08ca-9344-45a4-be41-ee03665bbe13");
+        assert_eq!(
+            payment.connector_response_reference_id().as_deref(),
+            Some("azharamin-1785229582-1")
+        );
+    }
+
+    #[test]
+    fn transaction_reference_number_is_used_as_merchant_reference_fallback() {
+        let payment: MayaWebhookBody = serde_json::from_value(serde_json::json!({
+            "id": "maya-payment-id",
+            "status": "PAYMENT_SUCCESS",
+            "transactionReferenceNumber": "merchant-transaction-id"
+        }))
+        .expect("Maya payment response must deserialize");
+
+        assert_eq!(
+            payment.connector_response_reference_id().as_deref(),
+            Some("merchant-transaction-id")
+        );
     }
 }

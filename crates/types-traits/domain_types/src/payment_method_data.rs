@@ -843,6 +843,7 @@ pub enum WalletData {
     CashfreeRedirect(CashfreeRedirection),
     PayURedirect(PayURedirection),
     EaseBuzzRedirect(EaseBuzzRedirection),
+    PayMayaRedirect(PayMayaRedirection),
     /// Qwikcilver / Pine Labs stored-value wallet — caller supplies the wallet number directly.
     QwikcilverWalletDirect(Box<QwikcilverWalletDirectData>),
     /// Skrill redirect wallet — consumer email is sourced from billing details.
@@ -928,6 +929,9 @@ pub struct PayURedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct EaseBuzzRedirection {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct PayMayaRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct MifinityData {
