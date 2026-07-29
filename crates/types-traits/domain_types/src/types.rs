@@ -13376,9 +13376,8 @@ impl
             &MaskedMetadata,
         ),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
-        // The request carries no identifier of its own — it is the card itself,
-        // not a reference to one — so the caller's request id is the only
-        // correlation handle available. Matches the webhook-verify precedent.
+        // The request carries no identifier of its own, so the caller's request
+        // id is the only correlation handle. Matches the webhook-verify precedent.
         let request_id = metadata
             .get_raw(common_utils::consts::X_REQUEST_ID)
             .unwrap_or_default();
@@ -17214,8 +17213,6 @@ pub fn generate_refresh_payment_method_response<T: PaymentMethodDataTypes>(
         .get_raw_connector_request();
 
     // Kept aside before the response is consumed, so the error path can echo it.
-    // Only a card has something to echo; any other instrument can reach here only
-    // as a connector rejection, and carries no card back.
     let submitted_card = match router_data_v2.request.payment_method_data {
         payment_method_data::PaymentMethodData::CardWithNoCvc(card) => Some(card),
         _ => None,
@@ -17239,9 +17236,7 @@ pub fn generate_refresh_payment_method_response<T: PaymentMethodDataTypes>(
             proto.raw_connector_request = raw_connector_request;
             Ok(proto)
         }
-        // Could not ask: echo the card under UNSPECIFIED (no network verdict) and
-        // set `error`. `error`, not the outcome, is what says we never asked. A
-        // non-card request has no card to echo, so it carries only the error.
+        // `error`, not the outcome, is what says we never reached the network.
         Err(error) => Ok(
             grpc_api_types::payments::PaymentMethodServiceRefreshResponse {
                 result: submitted_card.map(|card| grpc_api_types::payments::RefreshResult {
@@ -17466,8 +17461,7 @@ mod refresh_flow_tests {
         }
     }
 
-    /// The common case: a card request. Response tests exercise the error echo,
-    /// which only carries a card.
+    /// The common case: a card request.
     fn router_data(
         response: Result<connector_types::RefreshPaymentMethodResponseData, ErrorResponse>,
     ) -> RouterDataV2<
@@ -17493,8 +17487,8 @@ mod refresh_flow_tests {
         }
     }
 
-    /// The load-bearing property of the contract: there is no response shape,
-    /// success or failure, in which the caller does not get a card back.
+    /// There is no response shape, success or failure, in which the caller does
+    /// not get a card back.
     #[test]
     fn a_connector_error_still_returns_the_submitted_card() {
         let response = generate_refresh_payment_method_response(router_data(Err(ErrorResponse {
@@ -17524,8 +17518,7 @@ mod refresh_flow_tests {
     }
 
     /// `error` is the only discriminator between "we could not ask" and an
-    /// unmapped network code — both report UNSPECIFIED. If this pairing ever
-    /// drifts, callers silently read transport failures as successful inquiries.
+    /// unmapped network code — both report UNSPECIFIED.
     #[test]
     fn a_connector_error_reports_unspecified_and_populates_error() {
         let response = generate_refresh_payment_method_response(router_data(Err(ErrorResponse {
@@ -17556,11 +17549,6 @@ mod refresh_flow_tests {
     }
 
     // ---- request side: the shared layer carries any instrument, any holder ----
-    //
-    // The proto→PaymentMethodData extraction (and its CardProxy→VaultTokenHolder
-    // dispatch) is shared machinery exercised by the tokenize/authorize tests;
-    // the refresh constructor's own job is narrower — wrap whatever instrument it
-    // is handed, and reject absence. That is what these pin.
 
     fn empty_request() -> grpc_api_types::payments::PaymentMethodServiceRefreshRequest {
         grpc_api_types::payments::PaymentMethodServiceRefreshRequest {
@@ -17577,8 +17565,7 @@ mod refresh_flow_tests {
         connector_types::RefreshPaymentMethodData::foreign_try_from((empty_request(), pmd))
     }
 
-    /// A card instrument is carried through field-for-field, since the response
-    /// echoes it back.
+    /// A card instrument is carried through field-for-field.
     #[test]
     fn a_card_instrument_is_carried_through_unchanged() {
         let data = build_refresh_data(Some(payment_method_data::PaymentMethodData::CardWithNoCvc(
@@ -17599,9 +17586,8 @@ mod refresh_flow_tests {
         );
     }
 
-    /// The point of the refactor: the shared request is not card-only. A non-card
-    /// instrument passes through untouched; whether it can be *refreshed* is the
-    /// connector's call downstream — not this type's.
+    /// The shared request is not card-only. Whether a non-card instrument can be
+    /// *refreshed* is the connector's call downstream, not this type's.
     #[test]
     fn a_non_card_instrument_is_carried_by_the_shared_request() {
         let data = build_refresh_data(Some(payment_method_data::PaymentMethodData::Upi(
@@ -17621,8 +17607,7 @@ mod refresh_flow_tests {
         );
     }
 
-    /// Refresh needs an instrument. Absence is the one thing this constructor
-    /// rejects — the macro dispatch has already resolved holder and instrument.
+    /// Absence is the one thing this constructor rejects.
     #[test]
     fn an_absent_instrument_is_rejected() {
         assert!(
@@ -17631,8 +17616,7 @@ mod refresh_flow_tests {
         );
     }
 
-    /// The error echo carries a card only when the request was one. A non-card
-    /// request that fails at the connector comes back as error-only — no result.
+    /// The error echo carries a card only when the request was one.
     #[test]
     fn a_non_card_connector_error_carries_no_result() {
         let response = generate_refresh_payment_method_response(router_data_with(

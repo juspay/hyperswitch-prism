@@ -1,10 +1,4 @@
 //! JWE encryption and decryption for Juspay Card Synchronization.
-//! The shared JOSE helper is a sign-then-encrypt / decrypt-then-verify pipeline
-//! (a PS256 JWS wrapped around an RSA-OAEP + A128CBC-HS256 JWE, four keys). Juspay
-//! card sync is JWE-only: no signing, one key per direction, and different
-//! algorithms (RSA-OAEP-256 + A128GCM). It shares neither the algorithms nor the
-//! two-layer shape, so this is a distinct helper, not a candidate for dedup.
-//!
 use base64::Engine;
 use common_utils::consts::BASE64_ENGINE_URL_SAFE_NO_PAD;
 use domain_types::errors::IntegrationError;
@@ -38,8 +32,7 @@ fn invalid_config(config: &'static str) -> IntegrationError {
     }
 }
 
-/// Reject an RSA key PEM below [`MIN_RSA_BITS`]. Keys are provisioned externally;
-/// this fails a misprovisioned weak key loudly rather than sealing PAN under it.
+/// Reject an RSA key PEM below [`MIN_RSA_BITS`].
 fn ensure_min_rsa_bits(
     pem: &Secret<String>,
     is_private: bool,
@@ -96,10 +89,8 @@ pub fn encrypt_card_data(
         .map(Secret::new)
 }
 
-/// Assert the JWE's `alg`/`enc` — the guard against algorithm confusion. Other
-/// header params (`kid`, `cty`, …) are inert: we decrypt with one fixed key and
-/// never act on header metadata. Must run before decryption, since josekit takes
-/// `enc` from the header.
+/// Assert the JWE's `alg`/`enc` — the guard against algorithm confusion. Must run
+/// before decryption, since josekit takes `enc` from the header.
 fn validate_protected_header(
     compact_jwe: &str,
 ) -> Result<(), error_stack::Report<IntegrationError>> {

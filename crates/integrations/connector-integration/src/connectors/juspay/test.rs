@@ -1,8 +1,7 @@
 //! Tests for the Juspay account-updater (card sync) provider layer.
 //!
-//! Covers the §4 consistency rules, every documented response code, the error
-//! envelope, and card-sync config resolution. The JWE tests live beside the
-//! crypto module itself, since they exercise its private header validation.
+//! The JWE tests live beside the crypto module itself, since they exercise its
+//! private header validation.
 
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
@@ -155,7 +154,6 @@ mod card_sync_tests {
         assert_eq!(request.network, JuspayCardNetwork::Visa);
         assert_eq!(request.key_id.peek(), auth.card_sync_key_id.peek());
 
-        // Round-trip through the same key pair to confirm the plaintext shape.
         let parsed = decrypt_card_data(&request.card_data, &auth);
 
         assert_eq!(parsed["accountNumber"], VISA);
@@ -244,10 +242,6 @@ mod card_sync_tests {
     }
 
     // ---------- capability boundary: card-only ----------
-    //
-    // The shared refresh request carries any instrument (see the domain_types
-    // refresh_flow tests). Juspay narrows to card_with_no_cvc here; these pin
-    // that boundary living in the connector, not in shared types.
 
     fn refresh_data(
         payment_method_data: PaymentMethodData<DefaultPCIHolder>,
@@ -286,8 +280,6 @@ mod card_sync_tests {
     #[test]
     fn parses_expiry_updated_with_the_echoed_card_number() {
         let auth = auth();
-        // The observed shape: the submitted card comes back unchanged, and only
-        // the expiry has moved.
         let payload = encrypted(
             &auth,
             r#"{"updatedAccountNumber":"4111111111111111","isAccountUpdated":true,"updatedExpiryDate":"0829"}"#,
@@ -327,7 +319,6 @@ mod card_sync_tests {
         .expect("parse");
 
         let refreshed = card_of(&parsed);
-        // The card is complete, so an unchanged number carries over from the request.
         assert_eq!(refreshed.card_number.get_card_no(), VISA);
         assert_eq!(refreshed.card_exp_year.peek(), "2029");
     }
@@ -373,7 +364,6 @@ mod card_sync_tests {
 
         let refreshed = card_of(&parsed);
         assert_eq!(refreshed.card_number.get_card_no(), MASTERCARD);
-        // Unchanged expiry carries over from the request.
         assert_eq!(refreshed.card_exp_month.peek(), "08");
         assert_eq!(refreshed.card_exp_year.peek(), "2027");
     }
@@ -443,7 +433,6 @@ mod card_sync_tests {
     #[test]
     fn parses_the_terminal_outcomes_with_the_payload_absent() {
         let auth = auth();
-        // Both shapes are observed; both are accepted.
         for code in [
             JuspayCardSyncResponseCode::NoChange,
             JuspayCardSyncResponseCode::CardClosed,
@@ -479,8 +468,7 @@ mod card_sync_tests {
     #[test]
     fn an_unknown_code_ignores_its_payload_and_echoes_the_submitted_card() {
         let auth = auth();
-        // A card number distinct from the submitted one, so echoing and
-        // applying the payload are distinguishable.
+        // A card number distinct from the submitted one.
         let payload = encrypted(
             &auth,
             r#"{"updatedAccountNumber":"5555555555554444","isAccountUpdated":true,"updatedExpiryDate":"0829"}"#,
@@ -755,9 +743,6 @@ mod card_sync_tests {
 
     #[test]
     fn names_each_missing_card_sync_config_field_individually() {
-        // The compiler cannot enforce that Refresh gets its three extra fields,
-        // because they stay optional so payment flows are unaffected. This is
-        // the test that does.
         let field_names = [
             "juspay_encryption_public_key",
             "response_decryption_private_key",
@@ -795,11 +780,7 @@ mod card_sync_tests {
 
     #[test]
     fn parses_the_card_sync_error_envelope() {
-        // A real sandbox error body. Note the absent `status`/`error_code`
-        // (success and error shapes are disjoint), and the `error`, `category`,
-        // `href`, `request_id` fields we do not declare — serde drops them, which
-        // is why the struct omits them. What matters is what the error builder
-        // reads: error_info.code, error_message, and the user messages.
+        // A real sandbox error body; the fields we do not declare are dropped.
         let body = r#"{
             "error": true,
             "error_message": "LTR_ENTRY_NOT_FOUND",
@@ -858,8 +839,6 @@ mod card_sync_tests {
 
     #[test]
     fn still_parses_the_orchestrator_error_envelope() {
-        // The existing payment flows' shape must keep working: the card-sync
-        // fields were added as optional precisely so this stays true.
         let body = r#"{"status":"ERROR","error_code":"invalid_request","error_message":"bad"}"#;
         let parsed: JuspayErrorResponse = serde_json::from_str(body).expect("deserialize");
 
@@ -911,8 +890,7 @@ mod card_sync_failure_tests {
         for (code, message) in cases {
             let error = build_card_sync_failure(&failure(code, message), 200);
 
-            // The raw provider code is forwarded rather than mapped — the
-            // caller owns retry policy, not us.
+            // Forwarded rather than mapped — the caller owns retry policy.
             assert_eq!(error.code, code);
             assert_eq!(error.message, message);
             assert_eq!(error.reason.as_deref(), Some(message));
@@ -935,8 +913,7 @@ mod card_sync_failure_tests {
 
     #[test]
     fn deserializes_a_success_envelope_without_a_response_code() {
-        // `responseCode` is optional per the provider spec, so its absence must
-        // not fail deserialization — it is rejected later, as a bad response.
+        // `responseCode` is optional per the provider spec; it is rejected later.
         let parsed: JuspayCardSyncResponse =
             serde_json::from_str(r#"{"status":"SUCCESS","payload":null}"#).expect("deserialize");
 
