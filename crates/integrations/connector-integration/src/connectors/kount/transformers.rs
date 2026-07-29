@@ -210,41 +210,507 @@ impl From<&KountDecision> for FrmDecision {
     }
 }
 
-/// Response from Evaluate Order (`POST /commerce/v2/orders`). Kount nests the
-/// order under an `order` object, with the risk decision under `riskInquiry`.
+/// Pairs a parsed Kount response with the verbatim JSON body it was parsed from.
+///
+/// `raw_connector_response` must carry Kount's response *exactly* as received —
+/// re-serialising the typed struct silently drops every field we don't model.
+/// Deserialising into a `serde_json::Value` first preserves the full payload,
+/// while the typed `parsed_response` still drives decision mapping.
+///
+#[derive(Debug, Clone)]
+pub struct KountResponseWithRaw<T> {
+    pub parsed_response: T,
+    pub raw_response: serde_json::Value,
+}
+
+impl<'de, T: serde::de::DeserializeOwned> Deserialize<'de> for KountResponseWithRaw<T> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let raw_response = serde_json::Value::deserialize(deserializer)?;
+        let parsed_response = T::deserialize(&raw_response).map_err(serde::de::Error::custom)?;
+        Ok(Self {
+            parsed_response,
+            raw_response,
+        })
+    }
+}
+
+impl<T: Serialize> Serialize for KountResponseWithRaw<T> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.parsed_response.serialize(serializer)
+    }
+}
+
+/// Per-flow response newtypes. Each is a distinct named type so the connector
+/// macros generate a unique templating type per flow, while sharing
+/// [`KountResponseWithRaw`]'s full-body capture.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct KountPreRiskCheckResponse(pub KountResponseWithRaw<KountOrderResponse>);
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct KountFrmPaymentOutcomeResponse(pub KountResponseWithRaw<KountUpdateOrderResponse>);
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct KountFrmRefundProcessedResponse(pub KountResponseWithRaw<KountRefundUpdateResponse>);
+
+/// Evaluate Order response (`POST /commerce/v2/orders`), shared by PreRiskCheck
+/// and the notify flows. PII/card fields are `Secret`-wrapped so they mask in the
+/// event log; risk analytics stay in plaintext.
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KountOrderResponse {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version: Option<String>,
     pub order: Option<KountOrder>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub warnings: Option<Vec<serde_json::Value>>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KountOrder {
     /// Kount-assigned order id.
-    #[serde(rename = "orderId")]
     pub order_id: Option<String>,
-    #[serde(rename = "riskInquiry")]
     pub risk_inquiry: Option<KountRiskInquiry>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant_order_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub channel: Option<String>,
+    /// Device/session identifier — PII, masked.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub device_session_id: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub creation_date_time: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transactions: Option<Vec<KountRespTransaction>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fulfillment: Option<Vec<KountRespFulfillment>>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KountRiskInquiry {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub decision: Option<KountDecision>,
-    #[serde(alias = "omniscore", alias = "score")]
+    // Kept as `f64` (the live Kount response returns a JSON number, e.g. `61.4`);
+    // the PreRiskCheck mapping reads this to derive the integer risk score.
+    #[serde(alias = "score", skip_serializing_if = "Option::is_none")]
     pub omniscore: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub persona: Option<KountPersona>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub device: Option<KountRespDevice>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub segment_executed: Option<KountSegmentExecuted>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<KountEmailSignals>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub policy_management: Option<KountPolicyManagement>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason_code: Option<String>,
 }
 
 /// Response from the Kount Orders API update (`PATCH /commerce/v2/orders/{id}`).
-/// Distinct type from [`KountOrderResponse`] so the connector macros generate a
-/// unique templating type per flow.
+/// The PATCH ack echoes the order envelope only — no risk body (that comes solely
+/// from Evaluate Order). Modelling the real ack fields keeps the notify
+/// `connector_response_data` log complete and per-field masked. Distinct type from
+/// [`KountOrderResponse`] so the connector macros generate a unique templating type
+/// per flow.
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KountUpdateOrderResponse {
-    #[serde(alias = "orderId")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub order_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant_order_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub channel: Option<String>,
+    /// Device fingerprint id — masks in the event log.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub device_session_id: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub creation_date_time: Option<String>,
+}
+
+/// Accept a JSON scalar that Kount may send as either a string or a number
+/// (the Orders guide documents several count fields as stringified numbers —
+/// e.g. `"uniqueCards": "3"` — while the live sandbox returns JSON numbers).
+/// Normalises both into an `Option<String>` so the field always parses.
+fn de_stringy<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum StringOrNumber {
+        S(String),
+        N(serde_json::Number),
+        B(bool),
+    }
+    Ok(
+        Option::<StringOrNumber>::deserialize(deserializer)?.map(|value| match value {
+            StringOrNumber::S(s) => s,
+            StringOrNumber::N(n) => n.to_string(),
+            StringOrNumber::B(b) => b.to_string(),
+        }),
+    )
+}
+
+/// Like [`de_stringy`] but yields a masked `Secret` — for PII scalars (e.g.
+/// geo-coordinates) that Kount may send as a string or a number.
+fn de_stringy_secret<'de, D>(deserializer: D) -> Result<Option<Secret<String>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    Ok(de_stringy(deserializer)?.map(Secret::new))
+}
+
+/// Persona velocity/aggregate counts. Kount documents these as stringified
+/// numbers but the live API returns JSON numbers, so they parse leniently via
+/// [`de_stringy`]. Not PII — kept in plaintext for risk analytics.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KountPersona {
+    #[serde(
+        default,
+        deserialize_with = "de_stringy",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub unique_cards: Option<String>,
+    #[serde(
+        default,
+        deserialize_with = "de_stringy",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub unique_devices: Option<String>,
+    #[serde(
+        default,
+        deserialize_with = "de_stringy",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub unique_emails: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub riskiest_country: Option<String>,
+    #[serde(
+        default,
+        deserialize_with = "de_stringy",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub total_bank_approved_orders: Option<String>,
+    #[serde(
+        default,
+        deserialize_with = "de_stringy",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub total_bank_declined_orders: Option<String>,
+    #[serde(
+        default,
+        deserialize_with = "de_stringy",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub max_velocity: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub riskiest_region: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KountRespDevice {
+    /// Device fingerprint id — PII, masked.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub collection_date_time: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub browser: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub device_attributes: Option<KountDeviceAttributes>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub location: Option<KountDeviceLocation>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tor: Option<bool>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KountDeviceAttributes {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub os: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub first_seen_date_time: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub language: Option<String>,
+    #[serde(
+        default,
+        deserialize_with = "de_stringy",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub timezone_offset: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mobile_sdk_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cookies_enabled: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub screen_resolution: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ip: Option<Vec<KountDeviceIp>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub local_time: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_agent: Option<String>,
+}
+
+/// Device IP details — all addresses are PII, masked.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KountDeviceIp {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub address: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub organization: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pierced_address: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pierced_organization: Option<String>,
+}
+
+/// Geolocation of the device. Everything that pinpoints the end user — precise
+/// coordinates, postal code, area code, city and region — is PII and masked;
+/// only country-level fields stay in plaintext.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KountDeviceLocation {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub area_code: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub city: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub country: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub country_code: Option<String>,
+    #[serde(
+        default,
+        deserialize_with = "de_stringy_secret",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub latitude: Option<Secret<String>>,
+    #[serde(
+        default,
+        deserialize_with = "de_stringy_secret",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub longitude: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub postal_code: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub region: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub region_code: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub locale_country_code: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KountSegmentExecuted {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub segment: Option<KountSegment>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub policies_executed: Option<Vec<KountPolicyExecuted>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tags: Option<Vec<String>>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KountSegment {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub priority: Option<i64>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KountPolicyExecuted {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub outcome: Option<KountPolicyOutcome>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KountPolicyOutcome {
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
+    pub outcome_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value: Option<String>,
+}
+
+/// Email reputation signals (metadata about the email, not the address itself).
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KountEmailSignals {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_verified_domain: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub first_seen: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub most_recent: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KountPolicyManagement {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub decision: Option<KountDecision>,
-    #[serde(alias = "omniscore", alias = "riskScore")]
-    pub score: Option<f64>,
-    pub reason: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub set_executed: Option<KountNameVersion>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub segment_executed: Option<KountSegment>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub policies_executed: Option<Vec<KountPolicyExecuted>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tags: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tag_weights: Option<Vec<KountTagWeight>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub set: Option<KountNameVersion>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub segment: Option<KountSegment>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub actions: Option<Vec<KountAction>>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KountNameVersion {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KountTagWeight {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub value: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub weight: Option<f64>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KountAction {
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
+    pub action_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub values: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub add_to_list_values: Option<Vec<KountAddToListValue>>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KountAddToListValue {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub list_ids: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub field_types: Option<Vec<serde_json::Value>>,
+}
+
+/// A transaction on the Orders response. `payment` carries card data — masked.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KountRespTransaction {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transaction_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant_transaction_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payment: Option<Vec<KountRespPayment>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub processor_merchant_id: Option<String>,
+}
+
+/// Payment instrument on the Orders response. Every card-identifying field is
+/// PII/card data — masked.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KountRespPayment {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_brand: Option<Secret<String>>,
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
+    pub payment_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payment_token: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bin: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last4: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub issuing_organization: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expiration_month: Option<Secret<i64>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expiration_year: Option<Secret<i64>>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KountRespFulfillment {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fulfillment_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant_fulfillment_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shipping: Option<KountRespShipping>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<String>,
+    /// Digital-delivery access URL — may carry a download token, so masked.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub access_url: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub digital_downloaded: Option<bool>,
+    /// Download device IP — PII, masked. (Kount's field name carries a typo,
+    /// `downnloadDeviceIp`, preserved here so it deserializes.)
+    #[serde(rename = "downnloadDeviceIp", skip_serializing_if = "Option::is_none")]
+    pub download_device_ip: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KountRespShipping {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub provider: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tracking_number: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub method: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shipped_date_time: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub delivered_date_time: Option<String>,
 }
 
 /// Truncate a merchant-supplied id into a valid Kount `sessionId` (≤32 chars,
@@ -605,15 +1071,15 @@ pub struct KountTransaction {
 pub struct KountPayment {
     #[serde(rename = "type")]
     pub payment_type: KountPaymentType,
-    /// Card BIN (first 6 digits) — no full PAN is sent.
+    /// Card BIN (first 6 digits) — no full PAN is sent. Card data, masked.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub bin: Option<String>,
+    pub bin: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub last4: Option<String>,
+    pub last4: Option<Secret<String>>,
     /// Stable, salted hash of the payment instrument (never the raw PAN). Lets
     /// Kount link/score the instrument across orders. See [`payment_token_hash`].
     #[serde(rename = "paymentToken", skip_serializing_if = "Option::is_none")]
-    pub payment_token: Option<String>,
+    pub payment_token: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -621,9 +1087,9 @@ pub struct KountPerson {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<KountName>,
     #[serde(rename = "emailAddress", skip_serializing_if = "Option::is_none")]
-    pub email_address: Option<String>,
+    pub email_address: Option<Secret<String>>,
     #[serde(rename = "phoneNumber", skip_serializing_if = "Option::is_none")]
-    pub phone_number: Option<String>,
+    pub phone_number: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub address: Option<KountAddress>,
 }
@@ -631,33 +1097,36 @@ pub struct KountPerson {
 #[derive(Debug, Clone, Serialize)]
 pub struct KountName {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub first: Option<String>,
+    pub first: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub last: Option<String>,
+    pub last: Option<Secret<String>>,
 }
 
 impl KountName {
     /// Build a name only when at least one part is present, so we never emit an
     /// empty `{}` name object.
     fn from_parts(first: Option<String>, last: Option<String>) -> Option<Self> {
-        (first.is_some() || last.is_some()).then_some(Self { first, last })
+        (first.is_some() || last.is_some()).then_some(Self {
+            first: first.map(Secret::new),
+            last: last.map(Secret::new),
+        })
     }
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct KountAddress {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub line1: Option<String>,
+    pub line1: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub line2: Option<String>,
+    pub line2: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub city: Option<String>,
+    pub city: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub region: Option<String>,
+    pub region: Option<Secret<String>>,
     #[serde(rename = "countryCode", skip_serializing_if = "Option::is_none")]
     pub country_code: Option<String>,
     #[serde(rename = "postalCode", skip_serializing_if = "Option::is_none")]
-    pub postal_code: Option<String>,
+    pub postal_code: Option<Secret<String>>,
 }
 
 /// Build a Kount person block (name / email / phone / address) from a domain
@@ -676,18 +1145,38 @@ fn kount_person_from_address(addr: &Address) -> Option<KountPerson> {
         KountName::from_parts(first, last)
     });
     let kount_address = details.map(|details| KountAddress {
-        line1: details.line1.as_ref().map(|line| line.peek().to_string()),
-        line2: details.line2.as_ref().map(|line| line.peek().to_string()),
-        city: details.city.as_ref().map(|city| city.peek().to_string()),
-        region: details.state.as_ref().map(|state| state.peek().to_string()),
+        line1: details
+            .line1
+            .as_ref()
+            .map(|line| Secret::new(line.peek().to_string())),
+        line2: details
+            .line2
+            .as_ref()
+            .map(|line| Secret::new(line.peek().to_string())),
+        city: details
+            .city
+            .as_ref()
+            .map(|city| Secret::new(city.peek().to_string())),
+        region: details
+            .state
+            .as_ref()
+            .map(|state| Secret::new(state.peek().to_string())),
         country_code: details.country.map(|country| country.to_string()),
-        postal_code: details.zip.as_ref().map(|zip| zip.peek().to_string()),
+        postal_code: details
+            .zip
+            .as_ref()
+            .map(|zip| Secret::new(zip.peek().to_string())),
     });
-    let email_address = addr.email.as_ref().map(|email| email.peek().to_string());
-    let phone_number = addr
-        .phone
+    let email_address = addr
+        .email
         .as_ref()
-        .and_then(|phone| phone.number.as_ref().map(|num| num.peek().to_string()));
+        .map(|email| Secret::new(email.peek().to_string()));
+    let phone_number = addr.phone.as_ref().and_then(|phone| {
+        phone
+            .number
+            .as_ref()
+            .map(|num| Secret::new(num.peek().to_string()))
+    });
     if name.is_none()
         && kount_address.is_none()
         && email_address.is_none()
@@ -717,11 +1206,11 @@ fn kount_person_from_customer(customer: &CustomerInfo) -> Option<KountPerson> {
     let email_address = customer
         .customer_email
         .as_ref()
-        .map(|email| email.peek().to_string());
+        .map(|email| Secret::new(email.peek().to_string()));
     let phone_number = customer
         .customer_phone_number
         .as_ref()
-        .map(|phone| phone.peek().to_string());
+        .map(|phone| Secret::new(phone.peek().to_string()));
     if first.is_none() && last.is_none() && email_address.is_none() && phone_number.is_none() {
         return None;
     }
@@ -1036,9 +1525,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 };
                 KountPayment {
                     payment_type: instrument.payment_type,
-                    bin,
-                    last4,
-                    payment_token,
+                    bin: bin.map(Secret::new),
+                    last4: last4.map(Secret::new),
+                    payment_token: payment_token.map(Secret::new),
                 }
             })
         });
@@ -1075,16 +1564,25 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-impl TryFrom<ResponseRouterData<KountOrderResponse, Self>>
+impl TryFrom<ResponseRouterData<KountPreRiskCheckResponse, Self>>
     for RouterDataV2<PreRiskCheck, FrmFlowData, PreRiskCheckRequest, PreRiskCheckResponse>
 {
     type Error = ResponseError;
 
-    fn try_from(item: ResponseRouterData<KountOrderResponse, Self>) -> Result<Self, Self::Error> {
-        // Always surface the raw Kount response (independent of the global
-        // `return_raw_connector_data` flag), mirroring twoc_twop_paco / ppro.
-        let raw_connector_response = serde_json::to_string(&item.response).ok().map(Secret::new);
-        let order = item.response.order.as_ref();
+    fn try_from(
+        item: ResponseRouterData<KountPreRiskCheckResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        // Always surface the *verbatim* Kount body (independent of the global
+        // `return_raw_connector_data` flag). Serialising the captured raw JSON —
+        // not the typed struct — keeps every field Kount sent, including any we
+        // don't model. Wrapped whole in `Secret` so it masks in the event log.
+        // `None` on serialization failure (degrades the audit trail rather than
+        // failing the flow).
+        let raw_connector_response = serde_json::to_string(&item.response.0.raw_response)
+            .ok()
+            .map(Secret::new);
+        let parsed = &item.response.0.parsed_response;
+        let order = parsed.order.as_ref();
         let risk = order.and_then(|order| order.risk_inquiry.as_ref());
         Ok(Self {
             response: Ok(PreRiskCheckResponse {
@@ -1247,7 +1745,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-impl TryFrom<ResponseRouterData<KountUpdateOrderResponse, Self>>
+impl TryFrom<ResponseRouterData<KountFrmPaymentOutcomeResponse, Self>>
     for RouterDataV2<
         FrmPaymentOutcome,
         FrmFlowData,
@@ -1258,12 +1756,20 @@ impl TryFrom<ResponseRouterData<KountUpdateOrderResponse, Self>>
     type Error = ResponseError;
 
     fn try_from(
-        item: ResponseRouterData<KountUpdateOrderResponse, Self>,
+        item: ResponseRouterData<KountFrmPaymentOutcomeResponse, Self>,
     ) -> Result<Self, Self::Error> {
+        // Surface the verbatim Kount notify body (see PreRiskCheck mapping).
+        let raw_connector_response = serde_json::to_string(&item.response.0.raw_response)
+            .ok()
+            .map(Secret::new);
         Ok(Self {
             response: Ok(FrmPaymentOutcomeResponse {
                 status_code: item.http_code,
             }),
+            resource_common_data: FrmFlowData {
+                raw_connector_response,
+                ..item.router_data.resource_common_data
+            },
             ..item.router_data
         })
     }
@@ -1307,13 +1813,23 @@ pub struct KountRefundUpdateRequest {
     pub merchant: Option<KountMerchant>,
 }
 
-/// Response from the refund Update Order PATCH. Distinct type from
-/// [`KountUpdateOrderResponse`] so the connector macros generate a unique
-/// templating type per flow.
+/// Response from the refund Update Order PATCH — same order-envelope ack as
+/// [`KountUpdateOrderResponse`]. Distinct type so the connector macros generate a
+/// unique templating type per flow.
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KountRefundUpdateResponse {
-    #[serde(alias = "orderId")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub order_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant_order_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub channel: Option<String>,
+    /// Device fingerprint id — masks in the event log.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub device_session_id: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub creation_date_time: Option<String>,
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -1363,7 +1879,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-impl TryFrom<ResponseRouterData<KountRefundUpdateResponse, Self>>
+impl TryFrom<ResponseRouterData<KountFrmRefundProcessedResponse, Self>>
     for RouterDataV2<
         FrmRefundProcessed,
         FrmFlowData,
@@ -1374,12 +1890,20 @@ impl TryFrom<ResponseRouterData<KountRefundUpdateResponse, Self>>
     type Error = ResponseError;
 
     fn try_from(
-        item: ResponseRouterData<KountRefundUpdateResponse, Self>,
+        item: ResponseRouterData<KountFrmRefundProcessedResponse, Self>,
     ) -> Result<Self, Self::Error> {
+        // Surface the verbatim Kount notify body (see PreRiskCheck mapping).
+        let raw_connector_response = serde_json::to_string(&item.response.0.raw_response)
+            .ok()
+            .map(Secret::new);
         Ok(Self {
             response: Ok(FrmRefundProcessedResponse {
                 status_code: item.http_code,
             }),
+            resource_common_data: FrmFlowData {
+                raw_connector_response,
+                ..item.router_data.resource_common_data
+            },
             ..item.router_data
         })
     }

@@ -118,6 +118,7 @@ let config = ConnectorConfig {
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
 | [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
 | [PaymentService.VerifyRedirectResponse](#paymentserviceverifyredirectresponse) | Payments | `PaymentServiceVerifyRedirectResponseRequest` |
+| [PaymentService.Void](#paymentservicevoid) | Payments | `PaymentServiceVoidRequest` |
 
 ### Payments
 
@@ -130,7 +131,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/tamara/tamara.py) · [TypeScript](../../examples/tamara/tamara.ts#L101) · [Kotlin](../../examples/tamara/tamara.kt#L76) · [Rust](../../examples/tamara/tamara.rs)
+**Examples:** [Python](../../examples/tamara/tamara.py) · [TypeScript](../../examples/tamara/tamara.ts#L112) · [Kotlin](../../examples/tamara/tamara.kt#L87) · [Rust](../../examples/tamara/tamara.rs)
 
 #### PaymentService.Get
 
@@ -141,7 +142,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/tamara/tamara.py) · [TypeScript](../../examples/tamara/tamara.ts#L110) · [Kotlin](../../examples/tamara/tamara.kt#L86) · [Rust](../../examples/tamara/tamara.rs)
+**Examples:** [Python](../../examples/tamara/tamara.py) · [TypeScript](../../examples/tamara/tamara.ts#L121) · [Kotlin](../../examples/tamara/tamara.kt#L97) · [Rust](../../examples/tamara/tamara.rs)
 
 #### PaymentService.Refund
 
@@ -152,7 +153,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/tamara/tamara.py) · [TypeScript](../../examples/tamara/tamara.ts#L137) · [Kotlin](../../examples/tamara/tamara.kt#L125) · [Rust](../../examples/tamara/tamara.rs)
+**Examples:** [Python](../../examples/tamara/tamara.py) · [TypeScript](../../examples/tamara/tamara.ts#L148) · [Kotlin](../../examples/tamara/tamara.kt#L136) · [Rust](../../examples/tamara/tamara.rs)
 
 #### PaymentService.VerifyRedirectResponse
 
@@ -163,7 +164,18 @@ Verify and process redirect responses from 3D Secure or other external flows. Va
 | **Request** | `PaymentServiceVerifyRedirectResponseRequest` |
 | **Response** | `PaymentServiceVerifyRedirectResponseResponse` |
 
-**Examples:** [Python](../../examples/tamara/tamara.py) · [TypeScript](../../examples/tamara/tamara.ts#L155) · [Kotlin](../../examples/tamara/tamara.kt#L147) · [Rust](../../examples/tamara/tamara.rs)
+**Examples:** [Python](../../examples/tamara/tamara.py) · [TypeScript](../../examples/tamara/tamara.ts#L166) · [Kotlin](../../examples/tamara/tamara.kt#L158) · [Rust](../../examples/tamara/tamara.rs)
+
+#### PaymentService.Void
+
+Cancel an authorized payment that has not been captured. Releases held funds back to the customer's payment method when a transaction cannot be completed.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceVoidRequest` |
+| **Response** | `PaymentServiceVoidResponse` |
+
+**Examples:** [Python](../../examples/tamara/tamara.py) · [TypeScript](../../examples/tamara/tamara.ts) · [Kotlin](../../examples/tamara/tamara.kt#L168) · [Rust](../../examples/tamara/tamara.rs)
 
 ### Refunds
 
@@ -176,4 +188,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/tamara/tamara.py) · [TypeScript](../../examples/tamara/tamara.ts#L146) · [Kotlin](../../examples/tamara/tamara.kt#L135) · [Rust](../../examples/tamara/tamara.rs)
+**Examples:** [Python](../../examples/tamara/tamara.py) · [TypeScript](../../examples/tamara/tamara.ts#L157) · [Kotlin](../../examples/tamara/tamara.kt#L146) · [Rust](../../examples/tamara/tamara.rs)

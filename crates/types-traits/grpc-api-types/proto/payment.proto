@@ -1033,6 +1033,12 @@ message OrderDetailsWithAmount {
   optional string commodity_code = 18;
   // Discount amount applied to a single unit (in minor currency units)
   optional int64 unit_discount_amount = 19;
+  // Discount name applied to this item
+  optional string discount_name = 20;
+  // Discount percentage applied to this item
+  optional double discount_percentage = 21;
+  // Discount type applied to this item
+  optional string discount_type = 22;
 }
 
 // Access token details
@@ -2585,6 +2591,10 @@ message PaymentServiceAuthorizeResponse {
   optional MandateReferenceDetails mandate_reference_details = 22;
   // The connector's reported status (code/message/reason).
   optional RawConnectorStatus raw_connector_status = 23;
+
+  // Another reference for the connector's transaction, returned in the connector's response.
+  // Distinct from connector_transaction_id — e.g. Stripe charge ID (ch_xxx), order codes, invoice numbers.
+  optional string connector_reference_id = 24;
 }
 
 // Request message for synchronizing payment status
@@ -2719,6 +2729,10 @@ message PaymentServiceGetResponse {
   optional MandateReferenceDetails mandate_reference_details = 35;
   // The connector's reported status (code/message/reason).
   optional RawConnectorStatus raw_connector_status = 36;
+
+  // Another reference for the connector's transaction, returned in the connector's response.
+  // Distinct from connector_transaction_id — e.g. Stripe charge ID (ch_xxx), order codes, invoice numbers.
+  optional string connector_reference_id = 37;
 }
 
 // Request message for voiding a payment
@@ -2794,6 +2808,10 @@ message PaymentServiceVoidResponse {
   optional MandateReferenceDetails mandate_reference_details = 14;
   // The connector's reported status (code/message/reason).
   optional RawConnectorStatus raw_connector_status = 15;
+
+  // Another reference for the connector's transaction, returned in the connector's response.
+  // Distinct from connector_transaction_id — e.g. Stripe charge ID (ch_xxx), order codes, invoice numbers.
+  optional string connector_reference_id = 16;
 }
 
 // Request message for reversing a captured payment if not yet settled (similar
@@ -2837,6 +2855,13 @@ message PaymentServiceReverseResponse {
   // Raw Request and Response for debugging
   optional SecretString raw_connector_request = 7;
   optional SecretString raw_connector_response = 8;
+
+  // The connector's reported status for this response.
+  optional RawConnectorStatus raw_connector_status = 9;
+
+  // Another reference for the connector's transaction, returned in the connector's response.
+  // Distinct from connector_transaction_id — e.g. Stripe charge ID (ch_xxx), order codes, invoice numbers.
+  optional string connector_reference_id = 10;
 }
 
 // Request message for creating an access token
@@ -3041,6 +3066,10 @@ message PaymentServiceCaptureResponse {
 
   // Raw Response for debugging
   optional SecretString raw_connector_response = 16;
+
+  // Another reference for the connector's transaction, returned in the connector's response.
+  // Distinct from connector_transaction_id — e.g. Stripe charge ID (ch_xxx), order codes, invoice numbers.
+  optional string connector_reference_id = 18;
 }
 
 // Request message for creating an order
@@ -3067,6 +3096,10 @@ message PaymentServiceCreateOrderRequest {
   // Payment Method Type
   optional PaymentMethodType payment_method_type =
       8; // The type of payment method (e.g., apple_pay, google_pay)
+
+  // Order line items. Required by some connectors (e.g. Airwallex PayLater /
+  // Klarna) when creating the order/payment-intent.
+  repeated OrderDetailsWithAmount order_details = 9;
 }
 
 // Response message for create order operation
@@ -3091,6 +3124,9 @@ message PaymentServiceCreateOrderResponse {
   // SDK Session Data
   optional ClientAuthenticationTokenData session_data =
       9; // SDK session data for wallets (Apple Pay, Google Pay) and other SDK types
+
+  // The connector's reported status for this response.
+  optional RawConnectorStatus raw_connector_status = 10;
 }
 
 // Request message for processing a refund
@@ -3200,6 +3236,10 @@ message RefundResponse {
   optional string merchant_transaction_id = 24;
   // The connector's reported status (code/message/reason).
   optional RawConnectorStatus raw_connector_status = 25;
+
+  // Another reference for the connector's transaction, returned in the connector's response.
+  // Distinct from connector_refund_id — e.g. secondary refund references, invoice numbers.
+  optional string connector_reference_id = 26;
 }
 
 // Request message for voiding/reversing a refund before settlement.
@@ -3282,6 +3322,9 @@ message DisputeResponse {
 
   // Raw Request for debugging
   optional SecretString raw_connector_request = 18;
+
+  // Another reference for the connector's transaction, returned in the connector's response.
+  optional string connector_reference_id = 19;
 }
 
 // Request message for setting up a mandate
@@ -3579,6 +3622,10 @@ message RecurringPaymentServiceChargeResponse {
 
   // The connector's reported status (code/message/reason).
   optional RawConnectorStatus raw_connector_status = 19;
+
+  // A scheme-generated reference that Mastercard intends to use for tracking and linking transactions across the ecosystem.
+  // Distinct from network_transaction_id.
+  optional string network_txn_link_id = 20;
 }
 
 // Request message for a mandate revoke operation
@@ -3754,6 +3801,9 @@ message PaymentMethodAuthenticationServiceAuthenticateResponse {
 
   // Raw Response for debugging
   optional SecretString raw_connector_response = 12;
+
+  // The connector's reported status (code/message/reason).
+  optional RawConnectorStatus raw_connector_status = 13;
 }
 
 // Request message for post-authentication step
@@ -3824,6 +3874,9 @@ message PaymentMethodAuthenticationServicePostAuthenticateResponse {
 
   // Raw Response for debugging
   optional SecretString raw_connector_response = 13;
+
+  // The connector's reported status for this response.
+  optional RawConnectorStatus raw_connector_status = 14;
 }
 
 // Request message for incremental authorization
@@ -5246,6 +5299,9 @@ message TsysTransitConfig {
   SecretString device_id = 1;
   SecretString transaction_key = 2;
   SecretString developer_id = 3;
+  optional SecretString merchant_street_address = 4;
+  optional SecretString customer_service_phone_number = 5;
+  optional string merchant_url = 6;
   optional string base_url = 50;
 }
 
