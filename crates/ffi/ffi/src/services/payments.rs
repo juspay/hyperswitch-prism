@@ -19,6 +19,7 @@ use grpc_api_types::payments::{
     PaymentMethodAuthenticationServicePreAuthenticateRequest,
     PaymentMethodAuthenticationServicePreAuthenticateResponse,
     PaymentMethodServiceEligibilityRequest, PaymentMethodServiceEligibilityResponse,
+    PaymentMethodServiceRefreshRequest, PaymentMethodServiceRefreshResponse,
     PaymentMethodServiceTokenizeRequest, PaymentMethodServiceTokenizeResponse,
     PaymentServiceAuthorizeRequest, PaymentServiceAuthorizeResponse, PaymentServiceCaptureRequest,
     PaymentServiceCaptureResponse, PaymentServiceCreateOrderRequest,
@@ -39,9 +40,9 @@ use domain_types::{
         Accept, Authenticate, Authorize, Capture, ClientAuthenticationToken,
         CreateConnectorCustomer, CreateOrder, DefendDispute, GetConnectorCustomer,
         IncrementalAuthorization, MandateRevoke, PSync, PaymentMethodEligibility,
-        PaymentMethodToken, PostAuthenticate, PreAuthenticate, RSync, Refund, RepeatPayment,
-        ServerAuthenticationToken, ServerSessionAuthenticationToken, SetupMandate, SubmitEvidence,
-        Void, VoidPC,
+        PaymentMethodToken, PostAuthenticate, PreAuthenticate, RSync, Refund,
+        RefreshPaymentMethod, RepeatPayment, ServerAuthenticationToken,
+        ServerSessionAuthenticationToken, SetupMandate, SubmitEvidence, Void, VoidPC,
     },
     connector_types::{
         AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
@@ -52,7 +53,8 @@ use domain_types::{
         PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
         PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefreshPaymentMethodData,
+        RefreshPaymentMethodFlowData, RefreshPaymentMethodResponseData, RefundFlowData,
         RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, RequestDetails,
         ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
         ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
@@ -540,6 +542,36 @@ res_transformer!(
     connector_data_type: T,
     request_data_fn: |p: &PaymentMethodServiceEligibilityRequest| {
         domain_types::utils::ForeignTryFrom::foreign_try_from(p.clone())
+    },
+);
+
+// refresh (account updater) request transformer
+req_transformer!(
+    fn_name: refresh_req_transformer,
+    request_type: PaymentMethodServiceRefreshRequest,
+    flow_marker: RefreshPaymentMethod,
+    resource_common_data_type: RefreshPaymentMethodFlowData,
+    request_data_type: RefreshPaymentMethodData<domain_types::payment_method_data::DefaultPCIHolder>,
+    response_data_type: RefreshPaymentMethodResponseData,
+    connector_data_type: domain_types::payment_method_data::DefaultPCIHolder,
+    request_data_fn: |p: &PaymentMethodServiceRefreshRequest| {
+        domain_types::types::build_request_data_with_some_pmd(p.payment_method.clone(), p.clone())
+    },
+);
+
+// refresh (account updater) response transformer
+res_transformer!(
+    fn_name: refresh_res_transformer,
+    request_type: PaymentMethodServiceRefreshRequest,
+    response_type: PaymentMethodServiceRefreshResponse,
+    flow_marker: RefreshPaymentMethod,
+    resource_common_data_type: RefreshPaymentMethodFlowData,
+    request_data_type: RefreshPaymentMethodData<domain_types::payment_method_data::DefaultPCIHolder>,
+    response_data_type: RefreshPaymentMethodResponseData,
+    generate_response_fn: generate_refresh_payment_method_response,
+    connector_data_type: domain_types::payment_method_data::DefaultPCIHolder,
+    request_data_fn: |p: &PaymentMethodServiceRefreshRequest| {
+        domain_types::types::build_request_data_with_some_pmd(p.payment_method.clone(), p.clone())
     },
 );
 
