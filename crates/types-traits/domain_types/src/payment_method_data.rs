@@ -851,9 +851,6 @@ pub enum WalletData {
     Skrill(SkrillData),
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
-pub struct SkrillData {}
-
 impl WalletData {
     pub fn get_wallet_token(&self) -> Result<Secret<String>, Error> {
         match self {
@@ -900,6 +897,9 @@ impl WalletData {
         }
     }
 }
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct SkrillData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct RevolutPayData {}
