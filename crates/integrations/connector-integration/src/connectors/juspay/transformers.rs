@@ -1608,11 +1608,11 @@ fn parse_updated_expiry(
     expiry: &Secret<String>,
 ) -> Result<(Secret<String>, Secret<String>), error_stack::Report<errors::IntegrationError>> {
     let raw = expiry.peek().trim();
-    if raw.len() != 4 {
+    if raw.len() != 4 || !raw.bytes().all(|b| b.is_ascii_digit()) {
         return Err(error_stack::report!(invalid_gateway_response(
             "updated_expiry_date"
         )))
-        .attach_printable("updatedExpiryDate is not in MMYY form");
+        .attach_printable("updatedExpiryDate is not four ASCII digits in MMYY form");
     }
 
     let (month, year) = raw.split_at(2);
