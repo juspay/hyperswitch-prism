@@ -4324,6 +4324,10 @@ message PaymentMethodServiceRefreshResponse {
   uint32 status_code = 2;                   // HTTP status code from the connector
   optional ErrorInfo error = 3;             // Error details if the call failed
   map<string, string> response_headers = 4; // Response headers from the connector
+
+  // Raw Response/Request for debugging
+  optional SecretString raw_connector_response = 5;
+  optional SecretString raw_connector_request = 6;
 }
 
 // One arm per instrument; each carries its own outcome type.

@@ -195,6 +195,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   PaymentMethodServiceCreateResponse: ["rawConnectorResponse", "rawConnectorRequest"],
   PaymentMethodServiceGetRequest: ["connectorFeatureData", "metadata"],
   PaymentMethodServiceGetResponse: ["rawConnectorResponse", "rawConnectorRequest"],
+  PaymentMethodServiceRefreshResponse: ["rawConnectorResponse", "rawConnectorRequest"],
   WalletDetails: ["walletPin"],
   BankAccount: ["accountId"],
   BankAccountDetailsAch: ["accountNumber", "routingNumber"],
@@ -747,7 +748,7 @@ export class GrpcPaymentMethodClient {
     return callGrpc(this.ffi, this.config, "payment_method/payment_method_get",
       req, types.PaymentMethodServiceGetRequest, types.PaymentMethodServiceGetResponse);
   }
-  /** PaymentMethodService.Refresh — Refresh a stored payment method against the provider and return what changed. */
+  /** PaymentMethodService.Refresh — Refresh a payment method the caller already holds in full. The request carries the instrument itself, not a reference to it: use Refresh when you own the complete payment method details and the provider exposes an endpoint that evaluates them. */
   async refresh(req: unknown): Promise<unknown> {
     return callGrpc(this.ffi, this.config, "payment_method/refresh",
       req, types.PaymentMethodServiceRefreshRequest, types.PaymentMethodServiceRefreshResponse);

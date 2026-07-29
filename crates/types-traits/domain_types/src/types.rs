@@ -13375,7 +13375,11 @@ impl ForeignTryFrom<connector_types::RefreshPaymentMethodResponseData>
                         grpc_api_types::payments::CardRefreshResult {
                             outcome: outcome.into(),
                             // Option only because prost boxes message fields.
-                            card: Some(card_with_no_cvc_to_proto(card_result.card)),
+                            card: Some(
+                                grpc_api_types::payments::CardDetailsWithNoCvc::foreign_from(
+                                    card_result.card,
+                                ),
+                            ),
                         },
                     )),
                 }
@@ -13387,26 +13391,30 @@ impl ForeignTryFrom<connector_types::RefreshPaymentMethodResponseData>
             status_code: u32::from(value.status_code),
             error: None,
             response_headers: std::collections::HashMap::new(),
+            raw_connector_response: None,
+            raw_connector_request: None,
         })
     }
 }
 
-fn card_with_no_cvc_to_proto(
-    card: payment_method_data::CardWithNoCvc,
-) -> grpc_api_types::payments::CardDetailsWithNoCvc {
-    grpc_api_types::payments::CardDetailsWithNoCvc {
-        card_number: Some(card.card_number),
-        card_exp_month: Some(card.card_exp_month),
-        card_exp_year: Some(card.card_exp_year),
-        card_holder_name: card.card_holder_name,
-        card_issuer: card.card_issuer,
-        card_network: card
-            .card_network
-            .map(|network| i32::from(grpc_payment_types::CardNetwork::foreign_from(network))),
-        card_type: card.card_type,
-        card_issuing_country_alpha2: card.card_issuing_country,
-        bank_code: card.bank_code,
-        nick_name: card.nick_name.map(|name| name.expose()),
+impl ForeignFrom<payment_method_data::CardWithNoCvc>
+    for grpc_api_types::payments::CardDetailsWithNoCvc
+{
+    fn foreign_from(card: payment_method_data::CardWithNoCvc) -> Self {
+        Self {
+            card_number: Some(card.card_number),
+            card_exp_month: Some(card.card_exp_month),
+            card_exp_year: Some(card.card_exp_year),
+            card_holder_name: card.card_holder_name,
+            card_issuer: card.card_issuer,
+            card_network: card
+                .card_network
+                .map(|network| i32::from(grpc_payment_types::CardNetwork::foreign_from(network))),
+            card_type: card.card_type,
+            card_issuing_country_alpha2: card.card_issuing_country,
+            bank_code: card.bank_code,
+            nick_name: card.nick_name.map(|name| name.expose()),
+        }
     }
 }
 
@@ -17125,8 +17133,7 @@ pub fn generate_create_payment_method_response(
     }
 }
 
-/// No raw request/response is emitted (the raw payload decrypts to a PAN), and a
-/// connector error becomes UNSPECIFIED with `error` set.
+/// A connector error becomes UNSPECIFIED with `error` set.
 pub fn generate_refresh_payment_method_response<T: PaymentMethodDataTypes>(
     router_data_v2: RouterDataV2<
         crate::connector_flow::RefreshPaymentMethod,
@@ -17141,6 +17148,12 @@ pub fn generate_refresh_payment_method_response<T: PaymentMethodDataTypes>(
     let response_headers = router_data_v2
         .resource_common_data
         .get_connector_response_headers_as_map();
+    let raw_connector_response = router_data_v2
+        .resource_common_data
+        .get_raw_connector_response();
+    let raw_connector_request = router_data_v2
+        .resource_common_data
+        .get_raw_connector_request();
 
     // Kept aside before the response is consumed, so the error path can echo it.
     // Only a card has something to echo; any other instrument can reach here only
@@ -17164,6 +17177,8 @@ pub fn generate_refresh_payment_method_response<T: PaymentMethodDataTypes>(
                     },
                 })?;
             proto.response_headers = response_headers;
+            proto.raw_connector_response = raw_connector_response;
+            proto.raw_connector_request = raw_connector_request;
             Ok(proto)
         }
         // Could not ask: echo the card under UNSPECIFIED (no network verdict) and
@@ -17176,7 +17191,9 @@ pub fn generate_refresh_payment_method_response<T: PaymentMethodDataTypes>(
                         grpc_api_types::payments::CardRefreshResult {
                             outcome: grpc_api_types::payments::CardRefreshOutcome::Unspecified
                                 .into(),
-                            card: Some(card_with_no_cvc_to_proto(card)),
+                            card: Some(
+                                grpc_api_types::payments::CardDetailsWithNoCvc::foreign_from(card),
+                            ),
                         },
                     )),
                 }),
@@ -17193,6 +17210,8 @@ pub fn generate_refresh_payment_method_response<T: PaymentMethodDataTypes>(
                     }),
                 }),
                 response_headers,
+                raw_connector_response,
+                raw_connector_request,
             },
         ),
     }
