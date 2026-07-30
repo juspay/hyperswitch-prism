@@ -1,7 +1,11 @@
 use crate::errors::{IntegrationError, IntegrationErrorContext};
 use crate::payouts;
+use crate::router_data_v2::RouterDataV2;
 use crate::types::Connectors;
-use crate::utils::{extract_merchant_id_from_metadata, ForeignFrom, ForeignTryFrom};
+use crate::utils::{
+    extract_connector_request_reference_id, extract_merchant_id_from_metadata, ForeignFrom,
+    ForeignTryFrom,
+};
 use common_utils::metadata::MaskedMetadata;
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, PeekInterface};
@@ -29,7 +33,7 @@ impl
             merchant_id,
             payout_id: value.merchant_payout_id.clone().unwrap_or_default(),
             connectors,
-            connector_request_reference_id: crate::utils::extract_connector_request_reference_id(
+            connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_payout_id,
             ),
             raw_connector_response: None,
@@ -1505,7 +1509,7 @@ impl
             merchant_id,
             payout_id: value.merchant_payout_id.clone().unwrap_or_default(),
             connectors,
-            connector_request_reference_id: crate::utils::extract_connector_request_reference_id(
+            connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_payout_id,
             ),
             raw_connector_response: None,
@@ -1546,7 +1550,7 @@ impl
             merchant_id,
             payout_id: value.merchant_payout_id.clone().unwrap_or_default(),
             connectors,
-            connector_request_reference_id: crate::utils::extract_connector_request_reference_id(
+            connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_payout_id,
             ),
             raw_connector_response: None,
@@ -1587,7 +1591,7 @@ impl
             merchant_id,
             payout_id: value.merchant_payout_id.clone().unwrap_or_default(),
             connectors,
-            connector_request_reference_id: crate::utils::extract_connector_request_reference_id(
+            connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_payout_id,
             ),
             raw_connector_response: None,
@@ -1628,7 +1632,7 @@ impl
             merchant_id,
             payout_id: value.merchant_quote_id.clone().unwrap_or_default(),
             connectors,
-            connector_request_reference_id: crate::utils::extract_connector_request_reference_id(
+            connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_quote_id,
             ),
             raw_connector_response: None,
@@ -1669,7 +1673,7 @@ impl
             merchant_id,
             payout_id: value.merchant_payout_id.clone().unwrap_or_default(),
             connectors,
-            connector_request_reference_id: crate::utils::extract_connector_request_reference_id(
+            connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_payout_id,
             ),
             raw_connector_response: None,
@@ -1710,7 +1714,7 @@ impl
             merchant_id,
             payout_id: value.merchant_payout_id.clone().unwrap_or_default(),
             connectors,
-            connector_request_reference_id: crate::utils::extract_connector_request_reference_id(
+            connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_payout_id,
             ),
             raw_connector_response: None,
@@ -1751,7 +1755,7 @@ impl
             merchant_id,
             payout_id: value.merchant_payout_id.clone().unwrap_or_default(),
             connectors,
-            connector_request_reference_id: crate::utils::extract_connector_request_reference_id(
+            connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_payout_id,
             ),
             raw_connector_response: None,
@@ -1771,7 +1775,7 @@ impl
 }
 
 pub fn generate_payout_create_response(
-    router_data_v2: crate::router_data_v2::RouterDataV2<
+    router_data_v2: RouterDataV2<
         crate::connector_flow::PayoutCreate,
         super::payouts_types::PayoutFlowData,
         super::payouts_types::PayoutCreateRequest,
@@ -1808,7 +1812,7 @@ pub fn generate_payout_create_response(
 }
 
 pub fn generate_payout_transfer_response(
-    router_data_v2: crate::router_data_v2::RouterDataV2<
+    router_data_v2: RouterDataV2<
         crate::connector_flow::PayoutTransfer,
         super::payouts_types::PayoutFlowData,
         super::payouts_types::PayoutTransferRequest,
@@ -1854,7 +1858,7 @@ pub fn generate_payout_transfer_response(
 }
 
 pub fn generate_payout_get_response(
-    router_data_v2: crate::router_data_v2::RouterDataV2<
+    router_data_v2: RouterDataV2<
         crate::connector_flow::PayoutGet,
         super::payouts_types::PayoutFlowData,
         super::payouts_types::PayoutGetRequest,
@@ -1900,7 +1904,7 @@ pub fn generate_payout_get_response(
 }
 
 pub fn generate_payout_void_response(
-    router_data_v2: crate::router_data_v2::RouterDataV2<
+    router_data_v2: RouterDataV2<
         crate::connector_flow::PayoutVoid,
         super::payouts_types::PayoutFlowData,
         super::payouts_types::PayoutVoidRequest,
@@ -1946,7 +1950,7 @@ pub fn generate_payout_void_response(
 }
 
 pub fn generate_payout_stage_response(
-    router_data_v2: crate::router_data_v2::RouterDataV2<
+    router_data_v2: RouterDataV2<
         crate::connector_flow::PayoutStage,
         super::payouts_types::PayoutFlowData,
         super::payouts_types::PayoutStageRequest,
@@ -1992,7 +1996,7 @@ pub fn generate_payout_stage_response(
 }
 
 pub fn generate_payout_create_link_response(
-    router_data_v2: crate::router_data_v2::RouterDataV2<
+    router_data_v2: RouterDataV2<
         crate::connector_flow::PayoutCreateLink,
         super::payouts_types::PayoutFlowData,
         super::payouts_types::PayoutCreateLinkRequest,
@@ -2038,7 +2042,7 @@ pub fn generate_payout_create_link_response(
 }
 
 pub fn generate_payout_create_recipient_response(
-    router_data_v2: crate::router_data_v2::RouterDataV2<
+    router_data_v2: RouterDataV2<
         crate::connector_flow::PayoutCreateRecipient,
         super::payouts_types::PayoutFlowData,
         super::payouts_types::PayoutCreateRecipientRequest,
@@ -2214,7 +2218,7 @@ impl
             merchant_id,
             payout_id: value.merchant_payout_id.clone().unwrap_or_default(),
             connectors,
-            connector_request_reference_id: crate::utils::extract_connector_request_reference_id(
+            connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_payout_id,
             ),
             raw_connector_response: None,
@@ -2234,7 +2238,7 @@ impl
 }
 
 pub fn generate_payout_eligibility_response(
-    router_data_v2: crate::router_data_v2::RouterDataV2<
+    router_data_v2: RouterDataV2<
         crate::connector_flow::PayoutEligibility,
         super::payouts_types::PayoutFlowData,
         super::payouts_types::PayoutEligibilityRequest,
@@ -2282,7 +2286,7 @@ pub fn generate_payout_eligibility_response(
 }
 
 pub fn generate_payout_enroll_disburse_account_response(
-    router_data_v2: crate::router_data_v2::RouterDataV2<
+    router_data_v2: RouterDataV2<
         crate::connector_flow::PayoutEnrollDisburseAccount,
         super::payouts_types::PayoutFlowData,
         super::payouts_types::PayoutEnrollDisburseAccountRequest,

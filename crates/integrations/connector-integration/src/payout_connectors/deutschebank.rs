@@ -1,9 +1,6 @@
 pub mod signing;
 pub mod transformers;
 
-#[cfg(test)]
-mod test;
-
 use std::fmt::Debug;
 
 use common_enums::CurrencyUnit;
