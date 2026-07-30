@@ -360,17 +360,18 @@ impl Config {
         // Validate the environment field
         config.common.validate()?;
 
-        if let Some(bundle) = config.connectors.deutschebank.server_ca_bundle.as_deref() {
-            let trimmed = bundle.trim();
-            if !trimmed.is_empty() {
-                external_services::service::validate_ca_certificate_pem(trimmed).map_err(
-                    |err| {
-                        config::ConfigError::Message(format!(
-                        "Invalid `connectors.deutschebank.server_ca_bundle`: expected a valid PEM \
+        // Fail fast on malformed platform CA config, using the same PEM parser as
+        // runtime client construction. Generic over any connector that exposes a
+        // server_ca_bundle (see `Connectors::server_ca_bundles`).
+        for (connector, pem) in config.connectors.server_ca_bundles() {
+            let pem = pem.trim();
+            if !pem.is_empty() {
+                external_services::service::parse_ca_pem_bundle(pem.as_bytes()).map_err(|err| {
+                    config::ConfigError::Message(format!(
+                        "Invalid `connectors.{connector}.server_ca_bundle`: expected a valid PEM \
                          CA bundle: {err}"
                     ))
-                    },
-                )?;
+                })?;
             }
         }
 

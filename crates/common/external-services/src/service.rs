@@ -1292,7 +1292,7 @@ pub fn create_client(
     proxy_name: &str,
     client_certificate: Option<Secret<String>>,
     client_certificate_key: Option<Secret<String>>,
-    additional_ca_pem: Option<Secret<String>>,
+    ca_certificate_pem: Option<Secret<String>>,
     test_mode: bool,
 ) -> CustomResult<Client, ApiClientError> {
     match (client_certificate.clone(), client_certificate_key.clone()) {
@@ -1304,7 +1304,9 @@ pub fn create_client(
                 encoded_certificate,
                 encoded_certificate_key,
             )?;
-            let client_builder = additional_ca_pem
+            // NOTE: the client identity certificate is no longer registered as a root CA.
+            // Server verification now uses webpki roots plus ca_certificate_pem only.
+            let client_builder = ca_certificate_pem
                 .map(create_certificate)
                 .transpose()?
                 .unwrap_or_default()
@@ -1530,6 +1532,16 @@ pub fn create_identity_from_certificate_and_key(
         .change_context(ApiClientError::CertificateDecodeFailed)
 }
 
+/// Single PEM-bundle parser used by BOTH runtime client construction
+/// ([`create_certificate`]) and config-load validation, so the two can never
+/// drift apart (e.g. one switching to `from_pem` while the other doesn't).
+pub fn parse_ca_pem_bundle(
+    pem: &[u8],
+) -> Result<Vec<reqwest::Certificate>, error_stack::Report<ApiClientError>> {
+    reqwest::Certificate::from_pem_bundle(pem)
+        .change_context(ApiClientError::CertificateDecodeFailed)
+}
+
 pub fn create_certificate(
     encoded_certificate: Secret<String>,
 ) -> Result<Vec<reqwest::Certificate>, error_stack::Report<ApiClientError>> {
@@ -1539,16 +1551,7 @@ pub fn create_certificate(
 
     let certificate = String::from_utf8(decoded_certificate)
         .change_context(ApiClientError::CertificateDecodeFailed)?;
-    reqwest::Certificate::from_pem_bundle(certificate.as_bytes())
-        .change_context(ApiClientError::CertificateDecodeFailed)
-}
-
-pub fn validate_ca_certificate_pem(
-    certificate: &str,
-) -> Result<(), error_stack::Report<ApiClientError>> {
-    reqwest::Certificate::from_pem_bundle(certificate.as_bytes())
-        .change_context(ApiClientError::CertificateDecodeFailed)
-        .map(|_| ())
+    parse_ca_pem_bundle(certificate.as_bytes())
 }
 
 async fn handle_response(

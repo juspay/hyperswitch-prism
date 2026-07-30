@@ -521,6 +521,14 @@ impl HasConnectors for crate::payouts::payouts_types::PayoutFlowData {
 }
 
 impl Connectors {
+    pub fn server_ca_bundles(&self) -> Vec<(&'static str, &str)> {
+        let mut bundles = Vec::new();
+        if let Some(pem) = self.deutschebank.server_ca_bundle.as_deref() {
+            bundles.push(("deutschebank", pem));
+        }
+        bundles
+    }
+
     /// Patch the specified connector's URL configuration with resolved URLs from superposition.
     ///
     /// This method creates a new `Connectors` instance with the specified connector's
