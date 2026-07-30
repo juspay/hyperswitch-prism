@@ -381,6 +381,10 @@ pub enum ConnectorSpecificConfig {
         base_url: Option<String>,
         secondary_base_url: Option<String>,
     },
+    Givepayments {
+        api_key: Secret<String>,
+        base_url: Option<String>,
+    },
 
     // --- Two-field connectors ---
     Razorpay {
@@ -712,6 +716,9 @@ pub enum ConnectorSpecificConfig {
         transaction_key: Secret<String>,
         developer_id: Secret<String>,
         base_url: Option<String>,
+        merchant_street_address: Option<Secret<String>>,
+        customer_service_phone_number: Option<Secret<String>>,
+        merchant_url: Option<String>,
     },
     Wellsfargo {
         api_key: Secret<String>,
@@ -863,6 +870,9 @@ pub enum ConnectorSpecificConfig {
     Juspay {
         api_key: Secret<String>,
         merchant_id: Secret<String>,
+        juspay_encryption_public_key: Option<Secret<String>>,
+        response_decryption_private_key: Option<Secret<String>>,
+        card_sync_key_id: Option<Secret<String>>,
         base_url: Option<String>,
     },
     Glomopay {
@@ -1261,6 +1271,7 @@ impl ConnectorSpecificConfig {
                 public_key,
                 private_key
             },
+            Givepayments { api_key },
         )
     }
 
@@ -1704,6 +1715,7 @@ impl ConnectorSpecificConfig {
                     public_key,
                     private_key
                 },
+                Givepayments { api_key },
             ),
             serde_json::Value::Object(connector_patch),
         );
@@ -2246,6 +2258,9 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             AuthType::Juspay(juspay) => Ok(Self::Juspay {
                 api_key: juspay.api_key.ok_or_else(err)?,
                 merchant_id: juspay.merchant_id.ok_or_else(err)?,
+                juspay_encryption_public_key: juspay.juspay_encryption_public_key,
+                response_decryption_private_key: juspay.response_decryption_private_key,
+                card_sync_key_id: juspay.card_sync_key_id,
                 base_url: juspay.base_url,
             }),
             AuthType::Payconex(payconex) => Ok(Self::Payconex {
@@ -2276,6 +2291,9 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 transaction_key: tsys_transit.transaction_key.ok_or_else(err)?,
                 developer_id: tsys_transit.developer_id.ok_or_else(err)?,
                 base_url: tsys_transit.base_url,
+                merchant_street_address: tsys_transit.merchant_street_address,
+                customer_service_phone_number: tsys_transit.customer_service_phone_number,
+                merchant_url: tsys_transit.merchant_url,
             }),
             AuthType::Interpayments(interpayments) => Ok(Self::Interpayments {
                 api_key: interpayments.api_key.ok_or_else(err)?,
@@ -2337,6 +2355,10 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             AuthType::Glomopay(glomopay) => Ok(Self::Glomopay {
                 api_key: glomopay.api_key.ok_or_else(err)?,
                 base_url: glomopay.base_url,
+            }),
+            AuthType::Givepayments(givepayments) => Ok(Self::Givepayments {
+                api_key: givepayments.api_key.ok_or_else(err)?,
+                base_url: givepayments.base_url,
             }),
         }
     }
@@ -2436,6 +2458,13 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                 },
                 ConnectorEnum::Xendit => match auth {
                     ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Xendit {
+                        api_key: api_key.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Givepayments => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Givepayments {
                         api_key: api_key.clone(),
                         base_url: None,
                     }),
@@ -3433,6 +3462,9 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Juspay {
                         api_key: api_key.clone(),
                         merchant_id: key1.clone(),
+                        juspay_encryption_public_key: None,
+                        response_decryption_private_key: None,
+                        card_sync_key_id: None,
                         base_url: None,
                     }),
                     _ => Err(err().into()),
@@ -3454,6 +3486,9 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         transaction_key: api_key.clone(),
                         developer_id: api_secret.clone(),
                         base_url: None,
+                        merchant_street_address: None,
+                        customer_service_phone_number: None,
+                        merchant_url: None,
                     }),
                     _ => Err(err().into()),
                 },

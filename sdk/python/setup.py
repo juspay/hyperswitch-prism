@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="hyperswitch-prism",
-    version="0.0.4",
+    version="0.0.0.dev0",
     description="Hyperswitch Payments SDK — Python client for connector integrations via UniFFI FFI",
     packages=find_packages(where="src"),
     package_dir={"": "src"},

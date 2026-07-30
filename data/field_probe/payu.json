@@ -69,8 +69,41 @@
         "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
       },
       "BillDeskRedirect": {
-        "status": "error",
-        "error": "Stuck on field: billing.first_name. PayU requires firstname as a mandatory field in the payment request hash. — Missing required field: billing.first_name. PayU requires firstname as a mandatory field in the payment request hash."
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "billdesk_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "email": "test@example.com",
+              "phone_number": "4155552671",
+              "phone_country_code": "+1"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "browser_info": {
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://secure.snd.payu.com//_payment",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "key=probe_key&txnid=probe_txn_001&amount=10.00&currency=USD&productinfo=Payment&firstname=John&email=test%40example.com&phone=%2B14155552671&surl=https%3A%2F%2Fexample.com%2Freturn&furl=https%3A%2F%2Fexample.com%2Freturn&pg=CASH&bankcode=BILLDESK&s2s_client_ip=1.2.3.4&s2s_device_info=web&api_version=2.0&hash=a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3&udf1=IRRELEVANT_PAYMENT_ID&udf2=DefaultMerchantId"
+        }
       },
       "Bizum": {
         "status": "not_supported",
@@ -105,8 +138,41 @@
         "error": "Wallet type not supported by PayU is not supported by payu. PayU only supports specific Indian wallet redirect flows."
       },
       "CashfreeRedirect": {
-        "status": "error",
-        "error": "Stuck on field: billing.first_name. PayU requires firstname as a mandatory field in the payment request hash. — Missing required field: billing.first_name. PayU requires firstname as a mandatory field in the payment request hash."
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "cashfree_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "email": "test@example.com",
+              "phone_number": "4155552671",
+              "phone_country_code": "+1"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "browser_info": {
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://secure.snd.payu.com//_payment",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "key=probe_key&txnid=probe_txn_001&amount=10.00&currency=USD&productinfo=Payment&firstname=John&email=test%40example.com&phone=%2B14155552671&surl=https%3A%2F%2Fexample.com%2Freturn&furl=https%3A%2F%2Fexample.com%2Freturn&pg=CASH&bankcode=CASHFREE&s2s_client_ip=1.2.3.4&s2s_device_info=web&api_version=2.0&hash=a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3&udf1=IRRELEVANT_PAYMENT_ID&udf2=DefaultMerchantId"
+        }
       },
       "CimbVaBankTransfer": {
         "status": "not_supported",
@@ -118,7 +184,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Dana": {
         "status": "not_supported",
@@ -130,15 +196,48 @@
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "EVoucher": {
         "status": "not_supported",
         "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
       },
       "EaseBuzzRedirect": {
-        "status": "error",
-        "error": "Stuck on field: billing.first_name. PayU requires firstname as a mandatory field in the payment request hash. — Missing required field: billing.first_name. PayU requires firstname as a mandatory field in the payment request hash."
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "easebuzz_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "email": "test@example.com",
+              "phone_number": "4155552671",
+              "phone_country_code": "+1"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "browser_info": {
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://secure.snd.payu.com//_payment",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "key=probe_key&txnid=probe_txn_001&amount=10.00&currency=USD&productinfo=Payment&firstname=John&email=test%40example.com&phone=%2B14155552671&surl=https%3A%2F%2Fexample.com%2Freturn&furl=https%3A%2F%2Fexample.com%2Freturn&pg=CASH&bankcode=EASEBUZZ&s2s_client_ip=1.2.3.4&s2s_device_info=web&api_version=2.0&hash=a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3&udf1=IRRELEVANT_PAYMENT_ID&udf2=DefaultMerchantId"
+        }
       },
       "Efecty": {
         "status": "not_supported",
@@ -166,7 +265,7 @@
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "GoPay": {
         "status": "not_supported",
@@ -225,8 +324,41 @@
         "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
       },
       "LazyPayRedirect": {
-        "status": "error",
-        "error": "Stuck on field: billing.first_name. PayU requires firstname as a mandatory field in the payment request hash. — Missing required field: billing.first_name. PayU requires firstname as a mandatory field in the payment request hash."
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "lazypay_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "email": "test@example.com",
+              "phone_number": "4155552671",
+              "phone_country_code": "+1"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "browser_info": {
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://secure.snd.payu.com//_payment",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "key=probe_key&txnid=probe_txn_001&amount=10.00&currency=USD&productinfo=Payment&firstname=John&email=test%40example.com&phone=%2B14155552671&surl=https%3A%2F%2Fexample.com%2Freturn&furl=https%3A%2F%2Fexample.com%2Freturn&pg=BNPL&bankcode=LAZYPAY&s2s_client_ip=1.2.3.4&s2s_device_info=web&api_version=2.0&hash=a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3&udf1=IRRELEVANT_PAYMENT_ID&udf2=DefaultMerchantId"
+        }
       },
       "LocalBankRedirect": {
         "status": "not_supported",
@@ -254,7 +386,7 @@
       },
       "MobilePayRedirect": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Momo": {
         "status": "not_supported",
@@ -265,8 +397,43 @@
         "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
       },
       "Netbanking": {
-        "status": "error",
-        "error": "Stuck on field: billing.first_name. PayU requires firstname as a mandatory field in the payment request hash. — Missing required field: billing.first_name. PayU requires firstname as a mandatory field in the payment request hash."
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "netbanking": {
+              "issuer": "HdfcBank"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "email": "test@example.com",
+              "phone_number": "4155552671",
+              "phone_country_code": "+1"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "browser_info": {
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://secure.snd.payu.com//_payment",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "key=probe_key&txnid=probe_txn_001&amount=10.00&currency=USD&productinfo=Payment&firstname=John&email=test%40example.com&phone=%2B14155552671&surl=https%3A%2F%2Fexample.com%2Freturn&furl=https%3A%2F%2Fexample.com%2Freturn&pg=NB&bankcode=HDFB&s2s_client_ip=1.2.3.4&s2s_device_info=web&api_version=2.0&hash=a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3&udf1=IRRELEVANT_PAYMENT_ID&udf2=DefaultMerchantId"
+        }
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_supported",
@@ -298,7 +465,7 @@
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "OpenBankingUk": {
         "status": "not_supported",
@@ -321,8 +488,41 @@
         "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
       },
       "PayURedirect": {
-        "status": "error",
-        "error": "Stuck on field: billing.first_name. PayU requires firstname as a mandatory field in the payment request hash. — Missing required field: billing.first_name. PayU requires firstname as a mandatory field in the payment request hash."
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "payu_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "email": "test@example.com",
+              "phone_number": "4155552671",
+              "phone_country_code": "+1"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "browser_info": {
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://secure.snd.payu.com//_payment",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "key=probe_key&txnid=probe_txn_001&amount=10.00&currency=USD&productinfo=Payment&firstname=John&email=test%40example.com&phone=%2B14155552671&surl=https%3A%2F%2Fexample.com%2Freturn&furl=https%3A%2F%2Fexample.com%2Freturn&pg=BNPL&bankcode=LAZYPAY&s2s_client_ip=1.2.3.4&s2s_device_info=web&api_version=2.0&hash=a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3&udf1=IRRELEVANT_PAYMENT_ID&udf2=DefaultMerchantId"
+        }
       },
       "PaypalRedirect": {
         "status": "not_supported",
@@ -334,19 +534,52 @@
       },
       "Paysera": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "PermataBankTransfer": {
         "status": "not_supported",
         "error": "Payment method not supported by PayU. Only UPI, Wallet, and Netbanking payments are supported is not supported by payu"
       },
       "PhonePeRedirect": {
-        "status": "error",
-        "error": "Stuck on field: billing.first_name. PayU requires firstname as a mandatory field in the payment request hash. — Missing required field: billing.first_name. PayU requires firstname as a mandatory field in the payment request hash."
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "phonepe_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "email": "test@example.com",
+              "phone_number": "4155552671",
+              "phone_country_code": "+1"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "browser_info": {
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://secure.snd.payu.com//_payment",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "key=probe_key&txnid=probe_txn_001&amount=10.00&currency=USD&productinfo=Payment&firstname=John&email=test%40example.com&phone=%2B14155552671&surl=https%3A%2F%2Fexample.com%2Freturn&furl=https%3A%2F%2Fexample.com%2Freturn&pg=CASH&bankcode=PHONEPE&s2s_client_ip=1.2.3.4&s2s_device_info=web&api_version=2.0&hash=a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3&udf1=IRRELEVANT_PAYMENT_ID&udf2=DefaultMerchantId"
+        }
       },
       "Pix": {
         "status": "not_supported",
@@ -425,16 +658,117 @@
         "error": "Wallet type not supported by PayU is not supported by payu. PayU only supports specific Indian wallet redirect flows."
       },
       "UpiCollect": {
-        "status": "error",
-        "error": "Stuck on field: billing.first_name. PayU requires firstname as a mandatory field in the payment request hash. — Missing required field: billing.first_name. PayU requires firstname as a mandatory field in the payment request hash."
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "upi_collect": {
+              "vpa_id": "test@upi"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "email": "test@example.com",
+              "phone_number": "4155552671",
+              "phone_country_code": "+1"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "browser_info": {
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://secure.snd.payu.com//_payment",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "key=probe_key&txnid=probe_txn_001&amount=10.00&currency=USD&productinfo=Payment&firstname=John&email=test%40example.com&phone=%2B14155552671&surl=https%3A%2F%2Fexample.com%2Freturn&furl=https%3A%2F%2Fexample.com%2Freturn&pg=UPI&bankcode=UPI&vpa=test%40upi&txn_s2s_flow=2&s2s_client_ip=1.2.3.4&s2s_device_info=web&api_version=2.0&hash=a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3&udf1=IRRELEVANT_PAYMENT_ID&udf2=DefaultMerchantId"
+        }
       },
       "UpiIntent": {
-        "status": "error",
-        "error": "Stuck on field: billing.first_name. PayU requires firstname as a mandatory field in the payment request hash. — Missing required field: billing.first_name. PayU requires firstname as a mandatory field in the payment request hash."
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "upi_intent": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "email": "test@example.com",
+              "phone_number": "4155552671",
+              "phone_country_code": "+1"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "browser_info": {
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://secure.snd.payu.com//_payment",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "key=probe_key&txnid=probe_txn_001&amount=10.00&currency=USD&productinfo=Payment&firstname=John&email=test%40example.com&phone=%2B14155552671&surl=https%3A%2F%2Fexample.com%2Freturn&furl=https%3A%2F%2Fexample.com%2Freturn&pg=UPI&bankcode=INTENT&txn_s2s_flow=2&s2s_client_ip=1.2.3.4&s2s_device_info=web&api_version=2.0&hash=a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3&udf1=IRRELEVANT_PAYMENT_ID&udf2=DefaultMerchantId"
+        }
       },
       "UpiQr": {
-        "status": "error",
-        "error": "Stuck on field: billing.first_name. PayU requires firstname as a mandatory field in the payment request hash. — Missing required field: billing.first_name. PayU requires firstname as a mandatory field in the payment request hash."
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "upi_qr": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "email": "test@example.com",
+              "phone_number": "4155552671",
+              "phone_country_code": "+1"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "browser_info": {
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://secure.snd.payu.com//_payment",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "key=probe_key&txnid=probe_txn_001&amount=10.00&currency=USD&productinfo=Payment&firstname=John&email=test%40example.com&phone=%2B14155552671&surl=https%3A%2F%2Fexample.com%2Freturn&furl=https%3A%2F%2Fexample.com%2Freturn&pg=UPI&bankcode=INTENT&txn_s2s_flow=2&s2s_client_ip=1.2.3.4&s2s_device_info=web&api_version=2.0&hash=a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3&udf1=IRRELEVANT_PAYMENT_ID&udf2=DefaultMerchantId"
+        }
       },
       "Vipps": {
         "status": "not_supported",
@@ -634,6 +968,11 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: mandate_revoke flow for payu"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "refund": {

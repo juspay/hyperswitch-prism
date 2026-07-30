@@ -401,7 +401,7 @@ macros::macro_connector_implementation!(
             // (MIT is served by the separate RepeatPayment flow -> `/v1/transactions/authorize`.)
             let native_three_ds =
                 req.resource_common_data.is_three_ds() && req.request.authentication_data.is_none();
-            if native_three_ds || req.request.is_mandate_payment() {
+            if req.request.is_card() && (native_three_ds || req.request.is_mandate_payment()) {
                 Ok(format!("{base_url}/v1/transactions"))
             } else {
                 Ok(format!("{base_url}/v1/transactions/authorize"))
