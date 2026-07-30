@@ -93,17 +93,18 @@ impl TryFrom<&ConnectorSpecificConfig> for PaysafeAuthType {
 #[serde(rename_all = "snake_case")]
 pub struct PaysafeMandateMetadata {
     pub initial_transaction_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub payment_method: Option<PaysafeMandatePaymentMethod>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stored_credential_type: Option<PaysafeStoredCredentialType>,
 }
 
 /// Self-contained mandate reference encoded into `connector_mandate_id`.
 ///
-/// The gRPC recurring path cannot carry `mandate_metadata` (the proto
-/// `ConnectorMandateReferenceId` has no metadata field and the Charge ->
-/// RepeatPaymentData conversion hardcodes it to `None`), so the CIT Authorize
-/// response encodes BOTH the reusable payment-handle token and the initial
-/// transaction id (Paysafe payment `id`) into `connector_mandate_id`. The MIT
-/// RepeatPayment request decodes both back out. Older bare-token values are
-/// still handled via the `mandate_metadata` fallback.
+/// New mandates store only the payment-handle token in `connector_mandate_id`
+/// and carry the initial transaction data in `mandate_metadata`. This compact
+/// type remains for mandates created before that metadata was forwarded through
+/// the gRPC recurring path.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct PaysafeMandateReference {
@@ -155,13 +156,35 @@ pub enum PaysafeMandatePaymentMethod {
     GooglePay,
 }
 
-/// Resolve the processing account for a wallet stored-credential payment: the
-/// CIT settle of a converted (customer-vaulted, paymentType CARD) wallet handle
-/// and the MIT replay. Unlike a raw single-use wallet handle, a converted
-/// handle carries no account binding, so Paysafe requires an explicit accountId
-/// (5068 without one) — and the MIT must replay the SAME account that processed
-/// the initial transaction (3061 "Invalid initial transaction reference"
-/// otherwise). Mirrors the Tokenize minting resolution so all three legs agree:
+fn paysafe_stored_credential_type(
+    mit_category: Option<&enums::MitCategory>,
+) -> Result<PaysafeStoredCredentialType, IntegrationError> {
+    match mit_category {
+        Some(enums::MitCategory::Recurring) => Ok(PaysafeStoredCredentialType::Recurring),
+        Some(enums::MitCategory::Unscheduled) | None => Ok(PaysafeStoredCredentialType::Topup),
+        Some(
+            category @ (enums::MitCategory::Installment | enums::MitCategory::Resubmission),
+        ) => {
+            Err(IntegrationError::NotSupported {
+                message: format!("MIT category {category:?}"),
+                connector: "paysafe",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Paysafe wallet mandates currently support only recurring and unscheduled/top-up stored credentials."
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
+            })
+        }
+    }
+}
+
+/// Resolve the processing account for a wallet stored-credential payment. The
+/// CIT spends a SINGLE_USE wallet handle and the MIT replays the converted
+/// MULTI_USE handle. The MIT must use the same account that processed the
+/// initial transaction (3061 "Invalid initial transaction reference"
+/// otherwise). Mirrors the Tokenize minting resolution so all legs agree:
 /// Apple Pay → encrypt/decrypt slot by payload variant (decrypt-first chain
 /// when the variant is unknown), fallback card no_three_ds; Google Pay → card
 /// no_three_ds.
@@ -1552,6 +1575,35 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaysafePaymentMethodT
     fn try_from(
         item: ResponseRouterData<PaysafePaymentMethodTokenResponse, Self>,
     ) -> Result<Self, Self::Error> {
+        let is_wallet_vault_conversion = matches!(
+            &item.router_data.request.payment_method_data,
+            PaymentMethodData::Wallet(WalletData::ApplePay(_) | WalletData::GooglePay(_))
+        ) && item
+            .router_data
+            .resource_common_data
+            .connector_customer
+            .is_some()
+            && paysafe_parse_feature_data_handle_token(
+                item.router_data.request.connector_feature_data.as_ref(),
+            )
+            .is_some();
+
+        if is_wallet_vault_conversion
+            && (item.response.status != PaysafePaymentHandleStatus::Payable
+                || item.response.usage != Some(PaysafeUsage::MultiUse))
+        {
+            return Err(ConnectorError::UnexpectedResponseError {
+                context: domain_types::errors::ResponseTransformationErrorContext {
+                    http_status_code: Some(item.http_code),
+                    additional_context: Some(format!(
+                        "Paysafe wallet vault conversion must return a PAYABLE MULTI_USE handle; received status {:?} and usage {:?}.",
+                        item.response.status, item.response.usage
+                    )),
+                },
+            }
+            .into());
+        }
+
         let status = enums::AttemptStatus::try_from(item.response.status)?;
 
         let mut router_data = item.router_data;
@@ -1655,78 +1707,34 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             )
         };
 
-        // Hyperswitch parity (verified via shadow-mode body comparison): only CARD
-        // settles carry an accountId (three_ds/no_three_ds by auth type). Every other
-        // payment method — wallets, ACH, redirect-APM settle legs — sends NO accountId:
-        // the payment handle already carries its account binding, and re-specifying an
-        // account (e.g. for an INTERAC_ETRANSFER handle) is rejected by Paysafe with
-        // error 5068.
-        // Exception (sandbox-verified): a wallet CIT (stored-credential setup) settles
-        // the customer-vaulted CONVERTED handle, which has no account binding — Paysafe
-        // then requires an explicit accountId, resolved to mirror the Tokenize minting
-        // account so the later MIT (same account, error 3061 otherwise) lines up.
-        // Match on the payment-method enum (not payment_method_data) because the settle
-        // leg carries PaymentMethodData::PaymentMethodToken for cards too.
-        let account_id = match router_data.resource_common_data.payment_method {
-            enums::PaymentMethod::Card => {
-                if router_data.resource_common_data.is_three_ds() {
-                    Some(account_id.get_account_id(
-                        PaysafeAccountKind::CardThreeDs,
-                        router_data.request.currency,
-                    )?)
-                } else {
-                    Some(account_id.get_account_id(
-                        PaysafeAccountKind::CardNoThreeDs,
-                        router_data.request.currency,
-                    )?)
-                }
-            }
-            enums::PaymentMethod::Wallet
-                if router_data.request.is_customer_initiated_mandate_payment() =>
-            {
-                match &router_data.request.payment_method_data {
-                    PaymentMethodData::Wallet(WalletData::GooglePay(_)) => {
+        // Only card settles carry an explicit accountId. Wallet CIT spends the
+        // account-bound SINGLE_USE handle returned by Tokenize, so re-specifying
+        // accountId is rejected by Paysafe with error 5068. After CIT, HS converts
+        // that handle to MULTI_USE; the MIT path resolves and sends the matching
+        // accountId separately.
+        let is_wallet_handle = matches!(
+            router_data.request.payment_method_type,
+            Some(enums::PaymentMethodType::ApplePay | enums::PaymentMethodType::GooglePay)
+        );
+        let account_id = if is_wallet_handle {
+            None
+        } else {
+            match router_data.resource_common_data.payment_method {
+                enums::PaymentMethod::Card => {
+                    if router_data.resource_common_data.is_three_ds() {
+                        Some(account_id.get_account_id(
+                            PaysafeAccountKind::CardThreeDs,
+                            router_data.request.currency,
+                        )?)
+                    } else {
                         Some(account_id.get_account_id(
                             PaysafeAccountKind::CardNoThreeDs,
                             router_data.request.currency,
                         )?)
                     }
-                    PaymentMethodData::Wallet(WalletData::ApplePay(apple_pay_data)) => {
-                        let flow = match &apple_pay_data.payment_data {
-                            ApplePayPaymentData::Encrypted(_) => PaysafeApplePayFlow::Encrypt,
-                            _ => PaysafeApplePayFlow::Decrypt,
-                        };
-                        Some(resolve_wallet_mandate_account(
-                            &account_id,
-                            Some(flow),
-                            router_data.request.currency,
-                        )?)
-                    }
-                    // Token-only settle (payment_method_data is a handle, not the
-                    // raw wallet payload). The encrypt/decrypt distinction is lost,
-                    // so identify the wallet via payment_method_type and mirror the
-                    // raw-payload arms above — scoped to Apple Pay / Google Pay so a
-                    // different wallet (e.g. Skrill) doing a CIT is NOT forced onto a
-                    // Paysafe apple_pay/card account.
-                    _ => match router_data.request.payment_method_type {
-                        Some(enums::PaymentMethodType::ApplePay) => {
-                            Some(resolve_wallet_mandate_account(
-                                &account_id,
-                                None,
-                                router_data.request.currency,
-                            )?)
-                        }
-                        Some(enums::PaymentMethodType::GooglePay) => {
-                            Some(account_id.get_account_id(
-                                PaysafeAccountKind::CardNoThreeDs,
-                                router_data.request.currency,
-                            )?)
-                        }
-                        _ => None,
-                    },
                 }
+                _ => None,
             }
-            _ => None,
         };
 
         Ok(Self {
@@ -1739,14 +1747,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             settle_with_auth,
             currency_code: router_data.request.currency,
             customer_ip,
-            // CIT (first mandate payment): register the initial transaction of the
-            // stored-credential series so the subsequent MIT — which references
-            // initialTransactionId — is accepted/scored correctly by Paysafe.
-            // Mirrors hyperswitch's storedCredential {type: ADHOC, occurrence: INITIAL}.
+            // CIT (first mandate payment): register the initial transaction with
+            // the stored-credential type selected by mit_category. The MIT reads
+            // the same type from mandate metadata and references this payment via
+            // initialTransactionId.
             // One-off (non-mandate) payments send no storedCredential.
             stored_credential: if router_data.request.is_customer_initiated_mandate_payment() {
                 Some(PaysafeStoredCredential {
-                    stored_credential_type: PaysafeStoredCredentialType::Adhoc,
+                    stored_credential_type: paysafe_stored_credential_type(
+                        router_data.request.mit_category.as_ref(),
+                    )?,
                     occurrence: MandateOccurrence::Initial,
                     initial_transaction_id: None,
                 })
@@ -1816,17 +1826,11 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaysafeAuthorizeRespo
             PaysafeAuthorizeResponse::Payment(response) => {
                 let status = get_paysafe_payment_status(response.status, capture_method);
 
-                // Store payment_handle_token for mandate if present. Encode both the
-                // reusable payment-handle token and the initial transaction id (Paysafe
-                // payment `id`) into connector_mandate_id, because the gRPC recurring path
-                // cannot carry mandate_metadata. The MIT RepeatPayment request decodes both
-                // back out.
                 // Record which account slot the CIT settled under so the MIT can
-                // replay the SAME one (3061 otherwise). For Apple Pay the slot is
-                // the encrypt/decrypt flow — derived from the payload exactly as the
-                // settle arm above resolves the account. Cards get `None` (omitted):
-                // it saves bytes in the VARCHAR(128) mandate blob and the MIT already
-                // defaults an absent `pm` to card no_three_ds.
+                // replay the same one (3061 otherwise). The connector mandate id
+                // initially carries the SINGLE_USE handle; HS replaces only that
+                // id with the post-CIT MULTI_USE handle while preserving this
+                // metadata.
                 let mandate_payment_method = match &router_data.request.payment_method_data {
                     PaymentMethodData::Wallet(WalletData::ApplePay(apple_pay_data)) => {
                         Some(match &apple_pay_data.payment_data {
@@ -1853,20 +1857,33 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaysafeAuthorizeRespo
                         _ => None,
                     },
                 };
-                let mandate_reference = response.payment_handle_token.as_ref().map(|token| {
-                    let connector_mandate_id = serde_json::to_string(&PaysafeMandateReference {
-                        payment_handle_token: token.peek().to_string(),
-                        initial_transaction_id: response.id.clone(),
-                        payment_method: mandate_payment_method,
+                let mandate_reference = router_data
+                    .request
+                    .is_customer_initiated_mandate_payment()
+                    .then(|| {
+                        response.payment_handle_token.as_ref().map(|token| {
+                            let stored_credential_type =
+                                match router_data.request.mit_category.as_ref() {
+                                    Some(enums::MitCategory::Recurring) => {
+                                        PaysafeStoredCredentialType::Recurring
+                                    }
+                                    _ => PaysafeStoredCredentialType::Topup,
+                                };
+                            MandateReference {
+                                connector_mandate_id: Some(token.peek().to_string()),
+                                payment_method_id: None,
+                                connector_mandate_request_reference_id: None,
+                                mandate_metadata: Some(common_utils::pii::SecretSerdeValue::new(
+                                    serde_json::json!(PaysafeMandateMetadata {
+                                        initial_transaction_id: response.id.clone(),
+                                        payment_method: mandate_payment_method,
+                                        stored_credential_type: Some(stored_credential_type),
+                                    }),
+                                )),
+                            }
+                        })
                     })
-                    .unwrap_or_else(|_| token.peek().to_string());
-                    MandateReference {
-                        connector_mandate_id: Some(connector_mandate_id),
-                        payment_method_id: None,
-                        connector_mandate_request_reference_id: None,
-                        mandate_metadata: None,
-                    }
-                });
+                    .flatten();
 
                 router_data.resource_common_data.status = status;
 
@@ -2204,31 +2221,36 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let raw_connector_mandate_id = mandate_data.get_connector_mandate_id().ok_or(
             IntegrationError::MissingRequiredField {
-                field_name: "connector_mandate_id",
-                context: IntegrationErrorContext {
-                    additional_context: Some(
-                        "Paysafe MIT requires the connector_mandate_id JSON ({payment_handle_token, initial_transaction_id}) returned by the CIT Authorize."
-                            .to_string(),
-                    ),
-                    ..Default::default()
-                },
+                    field_name: "connector_mandate_id",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Paysafe MIT requires the MULTI_USE connector_mandate_id produced by the post-CIT wallet conversion."
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
             },
         )?;
 
-        // Decode the connector_mandate_id. The CIT Authorize response encodes both the
-        // reusable payment-handle token and the initial transaction id as JSON (because
-        // the gRPC recurring path cannot carry mandate_metadata). For backward
-        // compatibility, a bare (non-JSON) value is treated as the payment-handle token
-        // and the initial transaction id is sourced from mandate_metadata instead.
-        let (payment_handle_token, initial_transaction_id, mandate_payment_method): (
+        // New mandates carry a bare MULTI_USE handle plus mandate metadata.
+        // Continue decoding the compact JSON connector id issued by older UCS
+        // versions; those mandates used TOPUP for both CIT and MIT.
+        let (
+            payment_handle_token,
+            initial_transaction_id,
+            mandate_payment_method,
+            stored_credential_type,
+        ): (
             Secret<String>,
             String,
             Option<PaysafeMandatePaymentMethod>,
+            PaysafeStoredCredentialType,
         ) = match serde_json::from_str::<PaysafeMandateReference>(&raw_connector_mandate_id) {
             Ok(decoded) => (
                 Secret::new(decoded.payment_handle_token),
                 decoded.initial_transaction_id,
                 decoded.payment_method,
+                PaysafeStoredCredentialType::Topup,
             ),
             Err(_) => {
                 let mandate_metadata: PaysafeMandateMetadata = mandate_data
@@ -2247,7 +2269,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .change_context(IntegrationError::RequestEncodingFailed {
                             context: IntegrationErrorContext {
                                 additional_context: Some(
-                                    "mandate_metadata did not parse as PaysafeMandateMetadata ({initial_transaction_id})."
+                                    "mandate_metadata did not parse as PaysafeMandateMetadata ({initial_transaction_id, payment_method, stored_credential_type})."
                                         .to_string(),
                                 ),
                                 ..Default::default()
@@ -2256,7 +2278,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 (
                     Secret::new(raw_connector_mandate_id),
                     mandate_metadata.initial_transaction_id,
-                    None,
+                    mandate_metadata.payment_method,
+                    mandate_metadata
+                        .stored_credential_type
+                        .unwrap_or(PaysafeStoredCredentialType::Topup),
                 )
             }
         };
@@ -2275,7 +2300,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // MIT (Merchant Initiated Transaction) stored credential
         let stored_credential = Some(PaysafeStoredCredential {
-            stored_credential_type: PaysafeStoredCredentialType::Topup,
+            stored_credential_type,
             occurrence: MandateOccurrence::Subsequent,
             initial_transaction_id: Some(initial_transaction_id),
         });
@@ -2289,10 +2314,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // - Card / Google Pay: handles are vaulted under the card no_three_ds
         //   account (MITs are never 3DS) — mirrors hyperswitch, which sends the
         //   no_three_ds card account for PaymentMethodData::MandatePayment.
-        // - Apple Pay: the converted vault handle was minted under a specific
-        //   apple_pay slot — replay the CIT's exact encrypt/decrypt account
-        //   (ap_e/ap_d); a flow-unknown `ap` (or a legacy hint) falls back to the
-        //   decrypt-first chain, mirroring the token-only Tokenize resolution.
+        // - Apple Pay: replay the CIT's exact encrypt/decrypt account (ap_e/ap_d);
+        //   a flow-unknown `ap` (or a legacy hint) falls back to the decrypt-first
+        //   chain, mirroring the token-only Tokenize resolution.
         let effective_payment_method =
             mandate_payment_method.or(match router_data.request.payment_method_type {
                 Some(enums::PaymentMethodType::ApplePay) => {
