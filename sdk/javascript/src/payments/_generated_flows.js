@@ -96,6 +96,9 @@ const FLOWS = {
   // recurring_revoke: RecurringPaymentService.Revoke — Cancel an existing recurring payment mandate. Stops future automatic charges on customer's stored consent for subscription cancellations.
   recurring_revoke                           : { request: "RecurringPaymentServiceRevokeRequest", response: "RecurringPaymentServiceRevokeResponse" },
 
+  // refresh: PaymentMethodService.Refresh — Refresh a payment method the caller already holds in full. The request carries the instrument itself, not a reference to it: use Refresh when you own the complete payment method details and the provider exposes an endpoint that evaluates them.
+  refresh                                    : { request: "PaymentMethodServiceRefreshRequest", response: "PaymentMethodServiceRefreshResponse" },
+
   // refund: PaymentService.Refund — Process a partial or full refund for a captured payment. Returns funds to the customer when goods are returned or services are cancelled.
   refund                                     : { request: "PaymentServiceRefundRequest", response: "RefundResponse" },
 

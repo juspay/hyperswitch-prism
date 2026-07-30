@@ -37,6 +37,8 @@ from payments.generated.payment_pb2 import (
     PaymentMethodAuthenticationServicePreAuthenticateResponse,
     PaymentMethodServiceEligibilityRequest,
     PaymentMethodServiceEligibilityResponse,
+    PaymentMethodServiceRefreshRequest,
+    PaymentMethodServiceRefreshResponse,
     PaymentMethodServiceTokenizeRequest,
     PaymentMethodServiceTokenizeResponse,
     PaymentServiceAuthorizeRequest,
@@ -168,6 +170,10 @@ class PaymentMethodAuthenticationClient(_ConnectorClientBase):
 class PaymentMethodClient(_ConnectorClientBase):
     def eligibility(self, request: PaymentMethodServiceEligibilityRequest, options: RequestConfig | None = ...) -> PaymentMethodServiceEligibilityResponse:
         """PaymentMethodService.Eligibility — Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check)"""
+        ...
+
+    def refresh(self, request: PaymentMethodServiceRefreshRequest, options: RequestConfig | None = ...) -> PaymentMethodServiceRefreshResponse:
+        """PaymentMethodService.Refresh — Refresh a payment method the caller already holds in full. The request carries the instrument itself, not a reference to it: use Refresh when you own the complete payment method details and the provider exposes an endpoint that evaluates them."""
         ...
 
     def tokenize(self, request: PaymentMethodServiceTokenizeRequest, options: RequestConfig | None = ...) -> PaymentMethodServiceTokenizeResponse:

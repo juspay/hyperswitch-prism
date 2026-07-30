@@ -646,6 +646,11 @@
         "error": "This feature is not implemented: mandate_revoke flow for affirm"
       }
     },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "refund": {
       "default": {
         "status": "supported",

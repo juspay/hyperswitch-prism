@@ -1,3 +1,4 @@
+pub mod crypto;
 pub mod transformers;
 
 use std::fmt::Debug;
@@ -6,10 +7,13 @@ use base64::Engine;
 use common_enums::CurrencyUnit;
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
 use domain_types::{
-    connector_flow::{Authorize, Capture, CreateOrder, PSync, RSync, Refund, Void},
+    connector_flow::{
+        Authorize, Capture, CreateOrder, PSync, RSync, RefreshPaymentMethod, Refund, Void,
+    },
     connector_types::{
         PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentVoidData,
         PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
+        RefreshPaymentMethodData, RefreshPaymentMethodFlowData, RefreshPaymentMethodResponseData,
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
     },
     errors::{self, IntegrationError},
@@ -28,9 +32,9 @@ use interfaces::{
 use serde::Serialize;
 use transformers::{
     self as juspay, JuspayAuthorizeRequest, JuspayAuthorizeResponse, JuspayCaptureRequest,
-    JuspayCaptureResponse, JuspayCreateOrderRequest, JuspayCreateOrderResponse,
-    JuspayOrderStatusResponse, JuspayRefundRequest, JuspayRefundResponse, JuspayRefundSyncResponse,
-    JuspayVoidRequest, JuspayVoidResponse,
+    JuspayCaptureResponse, JuspayCardSyncRequest, JuspayCardSyncResponse, JuspayCreateOrderRequest,
+    JuspayCreateOrderResponse, JuspayOrderStatusResponse, JuspayRefundRequest,
+    JuspayRefundResponse, JuspayRefundSyncResponse, JuspayVoidRequest, JuspayVoidResponse,
 };
 
 use crate::{types::ResponseRouterData, with_error_response_body};
@@ -45,6 +49,9 @@ pub(crate) mod headers {
 }
 
 const JUSPAY_API_VERSION: &str = "2023-06-30";
+
+/// Shortest PAN Juspay's card-sync accepts; used by the transformers module.
+pub(super) const JUSPAY_MIN_PAN_LENGTH: usize = 13;
 
 use super::macros;
 
@@ -93,6 +100,12 @@ macros::create_all_prerequisites!(
             request_body: JuspayVoidRequest,
             response_body: JuspayVoidResponse,
             router_data: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ),
+        (
+            flow: RefreshPaymentMethod,
+            request_body: JuspayCardSyncRequest,
+            response_body: JuspayCardSyncResponse,
+            router_data: RouterDataV2<RefreshPaymentMethod, RefreshPaymentMethodFlowData, RefreshPaymentMethodData<T>, RefreshPaymentMethodResponseData>,
         )
     ],
     amount_converters: [],
@@ -129,6 +142,35 @@ macros::create_all_prerequisites!(
         pub fn connector_base_url_refunds<'a, F, Req, Res>(
             &self,
             req: &'a RouterDataV2<F, RefundFlowData, Req, Res>,
+        ) -> &'a str {
+            &req.resource_common_data.connectors.juspay.base_url
+        }
+
+        pub fn build_card_sync_headers<F, FCD, Req, Res>(
+            &self,
+            req: &RouterDataV2<F, FCD, Req, Res>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError>
+        where
+            Self: ConnectorIntegrationV2<F, FCD, Req, Res>,
+        {
+            let auth = juspay::JuspayCardSyncAuthType::try_from(&req.connector_config)?;
+            let encoded_api_key = BASE64_ENGINE.encode(format!("{}:", auth.api_key.peek()));
+
+            Ok(vec![
+                (
+                    headers::CONTENT_TYPE.to_string(),
+                    "application/json".to_string().into(),
+                ),
+                (
+                    headers::AUTHORIZATION.to_string(),
+                    format!("Basic {encoded_api_key}").into_masked(),
+                ),
+            ])
+        }
+
+        pub fn connector_base_url_refresh<'a, F, Req, Res>(
+            &self,
+            req: &'a RouterDataV2<F, RefreshPaymentMethodFlowData, Req, Res>,
         ) -> &'a str {
             &req.resource_common_data.connectors.juspay.base_url
         }
@@ -196,12 +238,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         let code = response
             .error_code
             .clone()
+            .or_else(|| {
+                response
+                    .error_info
+                    .as_ref()
+                    .and_then(|info| info.code.clone())
+            })
             .or_else(|| response.status.clone())
             .unwrap_or_else(|| res.status_code.to_string());
 
         let message = response
             .error_message
             .clone()
+            .or_else(|| response.user_message.clone())
             .or_else(|| {
                 response
                     .error_info
@@ -219,6 +268,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     .clone()
                     .or_else(|| info.developer_message.clone())
             })
+            .or_else(|| response.user_message.clone())
             .or_else(|| response.error_message.clone());
 
         Ok(ErrorResponse {
@@ -540,6 +590,41 @@ crate::connectors::macros::macro_connector_payout_implementation!(
     connector: Juspay,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize]
+);
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::RefreshPaymentMethodV2<T> for Juspay<T>
+{
+}
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Juspay,
+    curl_request: Json(JuspayCardSyncRequest),
+    curl_response: JuspayCardSyncResponse,
+    flow_name: RefreshPaymentMethod,
+    resource_common_data: RefreshPaymentMethodFlowData,
+    flow_request: RefreshPaymentMethodData<T>,
+    flow_response: RefreshPaymentMethodResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<RefreshPaymentMethod, RefreshPaymentMethodFlowData, RefreshPaymentMethodData<T>, RefreshPaymentMethodResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_card_sync_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<RefreshPaymentMethod, RefreshPaymentMethodFlowData, RefreshPaymentMethodData<T>, RefreshPaymentMethodResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let base_url = self.connector_base_url_refresh(req);
+            Ok(format!("{base_url}cardAccountUpdater"))
+        }
+    }
 );
 
 crate::connectors::macros::macro_connector_flow_status_impls!(

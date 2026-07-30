@@ -26,6 +26,8 @@ use grpc_api_types::payments::{
     PaymentMethodAuthenticationServicePreAuthenticateResponse,
     PaymentMethodServiceEligibilityRequest,
     PaymentMethodServiceEligibilityResponse,
+    PaymentMethodServiceRefreshRequest,
+    PaymentMethodServiceRefreshResponse,
     PaymentMethodServiceTokenizeRequest,
     PaymentMethodServiceTokenizeResponse,
     PaymentServiceAuthorizeRequest,
@@ -108,6 +110,7 @@ use crate::services::payments::{
     proxy_authorize_req_transformer, proxy_authorize_res_transformer,
     proxy_setup_recurring_req_transformer, proxy_setup_recurring_res_transformer,
     recurring_revoke_req_transformer, recurring_revoke_res_transformer,
+    refresh_req_transformer, refresh_res_transformer,
     refund_req_transformer, refund_res_transformer,
     refund_get_req_transformer, refund_get_res_transformer,
     reverse_req_transformer, reverse_res_transformer,
@@ -199,6 +202,8 @@ impl_flow_handlers!(proxy_authorize, PaymentServiceProxyAuthorizeRequest, Paymen
 impl_flow_handlers!(proxy_setup_recurring, PaymentServiceProxySetupRecurringRequest, PaymentServiceSetupRecurringResponse, proxy_setup_recurring_req_transformer, proxy_setup_recurring_res_transformer, domain_types::connector_types::ConnectorEnum);
 // recurring_revoke: RecurringPaymentService.Revoke — Cancel an existing recurring payment mandate. Stops future automatic charges on customer's stored consent for subscription cancellations.
 impl_flow_handlers!(recurring_revoke, RecurringPaymentServiceRevokeRequest, RecurringPaymentServiceRevokeResponse, recurring_revoke_req_transformer, recurring_revoke_res_transformer, domain_types::connector_types::ConnectorEnum);
+// refresh: PaymentMethodService.Refresh — Refresh a payment method the caller already holds in full. The request carries the instrument itself, not a reference to it: use Refresh when you own the complete payment method details and the provider exposes an endpoint that evaluates them.
+impl_flow_handlers!(refresh, PaymentMethodServiceRefreshRequest, PaymentMethodServiceRefreshResponse, refresh_req_transformer, refresh_res_transformer, domain_types::connector_types::ConnectorEnum);
 // refund: PaymentService.Refund — Process a partial or full refund for a captured payment. Returns funds to the customer when goods are returned or services are cancelled.
 impl_flow_handlers!(refund, PaymentServiceRefundRequest, RefundResponse, refund_req_transformer, refund_res_transformer, domain_types::connector_types::ConnectorEnum);
 // refund_get: RefundService.Get — Retrieve refund status from the payment processor. Tracks refund progress through processor settlement for accurate customer communication.

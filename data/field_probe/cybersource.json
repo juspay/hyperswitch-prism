@@ -1166,6 +1166,11 @@
         }
       }
     },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "refund": {
       "default": {
         "status": "supported",

@@ -278,6 +278,11 @@ class GrpcPaymentMethodClient internal constructor(
     suspend fun payment_method_get(req: PaymentMethodServiceGetRequest): PaymentMethodServiceGetResponse =
         callGrpc(config, "payment_method/payment_method_get", req, PaymentMethodServiceGetResponse.parser())
     /**
+     * PaymentMethodService.Refresh — Refresh a payment method the caller already holds in full. The request carries the instrument itself, not a reference to it: use Refresh when you own the complete payment method details and the provider exposes an endpoint that evaluates them.
+     */
+    suspend fun refresh(req: PaymentMethodServiceRefreshRequest): PaymentMethodServiceRefreshResponse =
+        callGrpc(config, "payment_method/refresh", req, PaymentMethodServiceRefreshResponse.parser())
+    /**
      * PaymentMethodService.Recharge — Recharge a payment method (wallet, gift card, prepaid card) with funds.
      */
     suspend fun recharge(req: PaymentMethodServiceRechargeRequest): PaymentMethodServiceRechargeResponse =

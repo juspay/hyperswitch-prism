@@ -14,9 +14,9 @@ use domain_types::connector_types::{
     PaymentVoidData, PaymentsAuthenticateData, PaymentsAuthorizeData,
     PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
     PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsSyncData,
-    RechargeRequestData, RefundSyncData, RefundVoidPostRefundData, RefundsData, RepeatPaymentData,
-    ServerAuthenticationTokenRequestData, ServerSessionAuthenticationTokenRequestData,
-    SetupMandateRequestData, SubmitEvidenceData,
+    RechargeRequestData, RefreshPaymentMethodData, RefundSyncData, RefundVoidPostRefundData,
+    RefundsData, RepeatPaymentData, ServerAuthenticationTokenRequestData,
+    ServerSessionAuthenticationTokenRequestData, SetupMandateRequestData, SubmitEvidenceData,
 };
 use domain_types::frm::frm_types::{
     FrmChargebackReceivedRequest, FrmPaymentOutcomeRequest, FrmRefundProcessedRequest,
@@ -52,9 +52,10 @@ use domain_types::{
         PaymentMethodTokenIntegrityObject, PaymentSynIntegrityObject, PaymentVoidIntegrityObject,
         PaymentVoidPostCaptureIntegrityObject, PostAuthenticateIntegrityObject,
         PostRiskCheckIntegrityObject, PreAuthenticateIntegrityObject, PreRiskCheckIntegrityObject,
-        RechargeIntegrityObject, RefundIntegrityObject, RefundSyncIntegrityObject,
-        RepeatPaymentIntegrityObject, SessionTokenIntegrityObject, SetupMandateIntegrityObject,
-        SubmitEvidenceIntegrityObject, VerifyWebhookSourceIntegrityObject,
+        RechargeIntegrityObject, RefreshPaymentMethodIntegrityObject, RefundIntegrityObject,
+        RefundSyncIntegrityObject, RepeatPaymentIntegrityObject, SessionTokenIntegrityObject,
+        SetupMandateIntegrityObject, SubmitEvidenceIntegrityObject,
+        VerifyWebhookSourceIntegrityObject,
     },
 };
 
@@ -215,6 +216,7 @@ impl_check_integrity!(SurchargeRefundSucceededRequest);
 impl_check_integrity!(RechargeRequestData);
 impl_check_integrity!(CreatePaymentMethodData);
 impl_check_integrity!(GetPaymentMethodData);
+impl_check_integrity!(RefreshPaymentMethodData<S>);
 impl_check_integrity!(PreRiskCheckRequest);
 impl_check_integrity!(PostRiskCheckRequest);
 impl_check_integrity!(FrmPaymentOutcomeRequest);
@@ -443,6 +445,18 @@ impl GetIntegrityObject<PaymentMethodEligibilityIntegrityObject> for PaymentMeth
 
     fn get_request_integrity_object(&self) -> PaymentMethodEligibilityIntegrityObject {
         PaymentMethodEligibilityIntegrityObject {}
+    }
+}
+
+impl<T: PaymentMethodDataTypes> GetIntegrityObject<RefreshPaymentMethodIntegrityObject>
+    for RefreshPaymentMethodData<T>
+{
+    fn get_response_integrity_object(&self) -> Option<RefreshPaymentMethodIntegrityObject> {
+        None
+    }
+
+    fn get_request_integrity_object(&self) -> RefreshPaymentMethodIntegrityObject {
+        RefreshPaymentMethodIntegrityObject {}
     }
 }
 
@@ -1005,6 +1019,18 @@ impl FlowIntegrity for MandateRevokeIntegrityObject {
 }
 
 impl FlowIntegrity for PaymentMethodEligibilityIntegrityObject {
+    type IntegrityObject = Self;
+
+    fn compare(
+        _req_integrity_object: Self,
+        _res_integrity_object: Self,
+        _connector_transaction_id: Option<String>,
+    ) -> Result<(), IntegrityCheckError> {
+        Ok(())
+    }
+}
+
+impl FlowIntegrity for RefreshPaymentMethodIntegrityObject {
     type IntegrityObject = Self;
 
     fn compare(

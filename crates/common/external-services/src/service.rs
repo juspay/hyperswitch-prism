@@ -122,6 +122,18 @@ impl ConnectorRequestReference for domain_types::connector_types::VerifyWebhookS
     }
 }
 
+impl ConnectorRequestReference for domain_types::connector_types::RefreshPaymentMethodFlowData {
+    fn get_connector_request_reference_id(&self) -> &str {
+        &self.connector_request_reference_id
+    }
+}
+
+impl AdditionalHeaders for domain_types::connector_types::RefreshPaymentMethodFlowData {
+    fn get_vault_headers(&self) -> Option<&HashMap<String, Secret<String>>> {
+        None
+    }
+}
+
 impl AdditionalHeaders for domain_types::connector_types::VerifyWebhookSourceFlowData {
     fn get_vault_headers(&self) -> Option<&HashMap<String, Secret<String>>> {
         None
@@ -266,6 +278,11 @@ impl GetFlowStatus for domain_types::connector_types::RefundFlowData {
     }
 }
 impl GetFlowStatus for domain_types::connector_types::DisputeFlowData {
+    fn flow_status(&self) -> Option<domain_types::router_data::FlowStatus> {
+        None
+    }
+}
+impl GetFlowStatus for domain_types::connector_types::RefreshPaymentMethodFlowData {
     fn flow_status(&self) -> Option<domain_types::router_data::FlowStatus> {
         None
     }

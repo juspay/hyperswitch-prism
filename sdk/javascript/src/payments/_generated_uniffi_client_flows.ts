@@ -531,6 +531,23 @@ export class UniffiClient extends _UniffiClientBase {
     return this.callRes('recurring_revoke', responseBytes, requestBytes, optionsBytes);
   }
 
+  /** Build connector HTTP request for refresh flow. */
+  refreshReq(
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callReq('refresh', requestBytes, optionsBytes);
+  }
+
+  /** Parse connector HTTP response for refresh flow. */
+  refreshRes(
+    responseBytes: Buffer | Uint8Array,
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callRes('refresh', responseBytes, requestBytes, optionsBytes);
+  }
+
   /** Build connector HTTP request for refund flow. */
   refundReq(
     requestBytes: Buffer | Uint8Array,
