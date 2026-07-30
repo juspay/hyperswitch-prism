@@ -957,7 +957,9 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResp
                         ..item.router_data.resource_common_data
                     },
                     response: Ok(PaymentsResponseData::PreAuthenticateResponse {
-                        resource_id: None,
+                        resource_id: response_ref_id
+                            .clone()
+                            .map(ResponseId::ConnectorTransactionId),
                         redirection_data,
                         connector_response_reference_id: response_ref_id,
                         status_code: item.http_code,

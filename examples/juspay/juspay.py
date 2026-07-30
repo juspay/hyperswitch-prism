@@ -19,6 +19,9 @@ _default_config = sdk_config_pb2.ConnectorConfig(
         juspay=payment_pb2.JuspayConfig(
             api_key=payment_methods_pb2.SecretString(value="YOUR_API_KEY"),
             merchant_id=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_ID"),
+            juspay_encryption_public_key=payment_methods_pb2.SecretString(value="YOUR_JUSPAY_ENCRYPTION_PUBLIC_KEY"),
+            response_decryption_private_key=payment_methods_pb2.SecretString(value="YOUR_RESPONSE_DECRYPTION_PRIVATE_KEY"),
+            card_sync_key_id=payment_methods_pb2.SecretString(value="YOUR_CARD_SYNC_KEY_ID"),
             base_url="YOUR_BASE_URL",
         ),
     ),

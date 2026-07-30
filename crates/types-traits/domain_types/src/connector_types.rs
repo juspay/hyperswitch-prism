@@ -2031,6 +2031,9 @@ pub struct PaymentCreateOrderData {
     pub metadata: Option<SecretSerdeValue>,
     pub webhook_url: Option<String>,
     pub payment_method_type: Option<common_enums::PaymentMethodType>,
+    // Order line items, needed by some connectors (e.g. Airwallex PayLater/Klarna)
+    // at order/intent creation time.
+    pub order_details: Option<Vec<payment_address::OrderDetailsWithAmount>>,
 }
 
 #[derive(Debug, Clone)]
@@ -2126,6 +2129,45 @@ pub struct GetPaymentMethodResponseData {
     pub connector_payment_method_id: Option<String>,
     pub customer: Option<CustomerInfo>,
     pub payment_method_details: Option<payment_method_data::PaymentMethodDetails>,
+    pub status_code: u16,
+}
+
+#[derive(Debug, Clone)]
+pub struct RefreshPaymentMethodData<T: PaymentMethodDataTypes> {
+    pub payment_method_data: payment_method_data::PaymentMethodData<T>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CardRefreshOutcome {
+    Unrecognized,
+    AccountUpdated,
+    ExpiryUpdated,
+    NoChange,
+    Closed,
+    NotFound,
+    ContactIssuer,
+}
+
+impl CardRefreshOutcome {
+    pub fn is_update_outcome(&self) -> bool {
+        matches!(self, Self::AccountUpdated | Self::ExpiryUpdated)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct CardRefreshResult {
+    pub outcome: CardRefreshOutcome,
+    pub card: payment_method_data::CardWithNoCvc,
+}
+
+#[derive(Debug, Clone)]
+pub enum RefreshPaymentMethodResult {
+    Card(CardRefreshResult),
+}
+
+#[derive(Debug, Clone)]
+pub struct RefreshPaymentMethodResponseData {
+    pub result: Option<RefreshPaymentMethodResult>,
     pub status_code: u16,
 }
 
@@ -3729,6 +3771,44 @@ impl ConnectorResponseHeaders for VerifyWebhookSourceFlowData {
 }
 
 #[derive(Debug, Clone)]
+pub struct RefreshPaymentMethodFlowData {
+    pub connectors: Connectors,
+    pub connector_request_reference_id: String,
+    /// Provider's encrypted form only — never decrypted payment method data.
+    pub raw_connector_response: Option<Secret<String>>,
+    pub raw_connector_request: Option<Secret<String>>,
+    pub connector_response_headers: Option<http::HeaderMap>,
+}
+
+impl RawConnectorRequestResponse for RefreshPaymentMethodFlowData {
+    fn set_raw_connector_response(&mut self, response: Option<Secret<String>>) {
+        self.raw_connector_response = response;
+    }
+
+    fn get_raw_connector_response(&self) -> Option<Secret<String>> {
+        self.raw_connector_response.clone()
+    }
+
+    fn get_raw_connector_request(&self) -> Option<Secret<String>> {
+        self.raw_connector_request.clone()
+    }
+
+    fn set_raw_connector_request(&mut self, request: Option<Secret<String>>) {
+        self.raw_connector_request = request;
+    }
+}
+
+impl ConnectorResponseHeaders for RefreshPaymentMethodFlowData {
+    fn set_connector_response_headers(&mut self, headers: Option<http::HeaderMap>) {
+        self.connector_response_headers = headers;
+    }
+
+    fn get_connector_response_headers(&self) -> Option<&http::HeaderMap> {
+        self.connector_response_headers.as_ref()
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct DisputeResponseData {
     pub connector_dispute_id: String,
     pub dispute_status: DisputeStatus,
@@ -4522,6 +4602,31 @@ impl L2L3Data {
 
     pub fn get_order_date(&self) -> Option<time::PrimitiveDateTime> {
         self.order_info.as_ref().and_then(|order| order.order_date)
+    }
+
+    pub fn get_order_date_mmddyyyy(
+        &self,
+    ) -> Result<Option<String>, error_stack::Report<IntegrationError>> {
+        self.get_order_date()
+            .map(|date| {
+                common_utils::date_time::format_date(
+                    date,
+                    common_utils::date_time::DateFormat::MMDDYYYY,
+                )
+                .change_context(IntegrationError::InvalidDataFormat {
+                    field_name: "order_date",
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Ensure order_details.order_date is a valid date".to_string(),
+                        ),
+                        additional_context: Some(format!(
+                            "failed to format order_date {date:?} as MMDDYYYY"
+                        )),
+                        doc_url: None,
+                    },
+                })
+            })
+            .transpose()
     }
 
     pub fn get_order_details(&self) -> Option<Vec<payment_address::OrderDetailsWithAmount>> {
