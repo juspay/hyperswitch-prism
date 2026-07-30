@@ -114,24 +114,33 @@ pub fn authenticator_connector_from_composite_authorize_metadata(
 }
 
 /// Resolves the connector variant from composite metadata headers.
-/// Priority: x-frm-connector → x-surcharge-connector → x-auth-connector → x-connector (payment).
-/// Returns `Err` when a specialised header is present but malformed/unknown.
+/// Priority: x-connector (payment) → x-surcharge-connector → x-frm-connector → x-auth-connector.
+/// Matches the ordering in ucs_interface_common/src/metadata.rs (connector → surcharge → frm → auth).
+/// Payout is omitted because composite never handles payout flows.
+/// Returns `Err` when a header is present but malformed/unknown, or when no header is found.
 pub fn connector_variant_from_composite_metadata(
     metadata: &tonic::metadata::MetadataMap,
 ) -> Result<ConnectorVariant, Box<tonic::Status>> {
-    if let Some(connector) = frm_connector_from_composite_frm_metadata(metadata)? {
-        return Ok(ConnectorVariant::Frm(connector));
+    if metadata.get(X_CONNECTOR_NAME).is_some() {
+        return connector_from_composite_authorize_metadata(metadata)
+            .map(ConnectorVariant::Payment);
     }
 
     if let Some(connector) = surcharge_connector_from_composite_surcharge_metadata(metadata)? {
         return Ok(ConnectorVariant::Surcharge(connector));
     }
 
+    if let Some(connector) = frm_connector_from_composite_frm_metadata(metadata)? {
+        return Ok(ConnectorVariant::Frm(connector));
+    }
+
     if let Some(connector) = authenticator_connector_from_composite_authorize_metadata(metadata)? {
         return Ok(ConnectorVariant::Authenticator(connector));
     }
 
-    connector_from_composite_authorize_metadata(metadata).map(ConnectorVariant::Payment)
+    Err(Box::new(tonic::Status::invalid_argument(
+        "missing connector metadata: one of x-connector, x-surcharge-connector, x-frm-connector, or x-auth-connector is required",
+    )))
 }
 
 pub fn grpc_connector_from_connector_variant(connector: &ConnectorVariant) -> i32 {
