@@ -15,6 +15,14 @@ pub struct CsealHeaders {
     pub signature: String,
 }
 
+/// Build the Deutsche Bank CSEAL request headers (`Date`, `Digest`, `Signature`).
+///
+/// Implements the HTTP-Signatures scheme DB's CSEAL gateway expects:
+/// - `Date`: current time as an HTTP-date.
+/// - `Digest` (non-GET only): `SHA-256=<base64(sha256(body))>`.
+/// - `Signature`: RSA-SHA256 over the canonical signing string
+///   (`date`, `(request-target)`, and `digest` for non-GET), formatted as the
+///   `keyId=…,algorithm="rsa-sha256",headers="…",signature="…"` header value.
 pub fn build_cseal_headers(
     method: Method,
     path: &str,
@@ -60,6 +68,8 @@ pub fn build_cseal_headers(
     })
 }
 
+/// Format a timestamp as an HTTP-date (RFC 7231, e.g. `Tue, 15 Nov 1994 08:12:31 GMT`)
+/// for the CSEAL `Date` header.
 fn format_http_date(dt: OffsetDateTime) -> Result<String, error_stack::Report<IntegrationError>> {
     let fmt = format_description!(
         "[weekday repr:short], [day] [month repr:short] [year] [hour]:[minute]:[second] GMT"
@@ -74,6 +84,8 @@ fn format_http_date(dt: OffsetDateTime) -> Result<String, error_stack::Report<In
         })
 }
 
+/// Compute the CSEAL `Digest` header value for a request body:
+/// `SHA-256=<base64(sha256(body))>`.
 fn compute_digest(body: &[u8]) -> String {
     let hash = Sha256::digest(body);
     format!(
@@ -82,15 +94,23 @@ fn compute_digest(body: &[u8]) -> String {
     )
 }
 
+/// RSA-SHA256 sign `data` with a PEM-encoded private key, returning the base64
+/// signature.
+///
+/// `ring` only accepts PKCS#8 keys, so we first try PKCS#8 directly and, on
+/// failure, assume the DER is a bare PKCS#1 `RSAPrivateKey` and wrap it in a
+/// PKCS#8 envelope ([`wrap_pkcs1_as_pkcs8`]) before retrying. This lets merchants
+/// upload either `-----BEGIN PRIVATE KEY-----` (PKCS#8) or
+/// `-----BEGIN RSA PRIVATE KEY-----` (PKCS#1) forms.
 fn sign_rsa_sha256(
     data: &[u8],
     private_key_pem: &Secret<String>,
 ) -> Result<String, error_stack::Report<IntegrationError>> {
     let pem = private_key_pem.peek();
-    let der = extract_der_from_pem(pem).map_err(|e| IntegrationError::InvalidConnectorConfig {
+    let der = extract_der_from_pem(pem).map_err(|_| IntegrationError::InvalidConnectorConfig {
         config: "signing_private_key",
         context: IntegrationErrorContext {
-            additional_context: Some(format!("PEM body could not be base64-decoded: {e}")),
+            additional_context: Some("PEM body is not valid base64".to_string()),
             suggested_action: Some(
                 "Re-upload `signing_private_key` as a well-formed PEM block.".to_string(),
             ),
@@ -135,6 +155,8 @@ fn sign_rsa_sha256(
     Ok(base64::engine::general_purpose::STANDARD.encode(&sig))
 }
 
+/// Decode a PEM block to raw DER bytes: drop the `-----BEGIN/END-----` armor and
+/// blank lines, then base64-decode the concatenated body.
 fn extract_der_from_pem(pem: &str) -> Result<Vec<u8>, base64::DecodeError> {
     let stripped: String = pem
         .lines()
@@ -143,20 +165,41 @@ fn extract_der_from_pem(pem: &str) -> Result<Vec<u8>, base64::DecodeError> {
     base64::engine::general_purpose::STANDARD.decode(stripped.trim())
 }
 
+/// Wrap a bare PKCS#1 `RSAPrivateKey` (DER) in a PKCS#8 `PrivateKeyInfo` envelope,
+/// which is the only form `ring` accepts.
+///
+/// Produces the ASN.1 DER:
+/// ```text
+/// SEQUENCE {                       -- PrivateKeyInfo
+///   INTEGER 0,                     -- version
+///   SEQUENCE {                     -- AlgorithmIdentifier
+///     OID 1.2.840.113549.1.1.1,    -- rsaEncryption
+///     NULL
+///   },
+///   OCTET STRING { <pkcs1 DER> }   -- privateKey
+/// }
+/// ```
+/// `ALG_ID` is the pre-encoded `AlgorithmIdentifier` (SEQUENCE of the rsaEncryption
+/// OID + NULL parameters).
 fn wrap_pkcs1_as_pkcs8(pkcs1: &[u8]) -> Vec<u8> {
     const ALG_ID: &[u8] = &[
         0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00,
     ];
 
-    let octet_string = encode_der_tlv(0x04, pkcs1);
-    let version = vec![0x02, 0x01, 0x00]; // INTEGER 0
+    let octet_string = encode_der_tlv(0x04, pkcs1); // OCTET STRING wrapping the PKCS#1 key
+    let version = vec![0x02, 0x01, 0x00]; // INTEGER 0 (PKCS#8 version)
     let mut content = Vec::with_capacity(version.len() + ALG_ID.len() + octet_string.len());
     content.extend_from_slice(&version);
     content.extend_from_slice(ALG_ID);
     content.extend_from_slice(&octet_string);
-    encode_der_tlv(0x30, &content)
+    encode_der_tlv(0x30, &content) // wrap the three fields in the outer SEQUENCE
 }
 
+/// Encode a single ASN.1 DER TLV (tag-length-value).
+///
+/// Handles DER definite-length encoding: short form for lengths ≤ 0x7f (one byte),
+/// and long form for larger lengths (`0x81 <len>` for ≤ 0xff, `0x82 <hi> <lo>` for
+/// ≤ 0xffff). Lengths beyond 0xffff are not produced here — RSA keys stay well under.
 fn encode_der_tlv(tag: u8, data: &[u8]) -> Vec<u8> {
     let mut out = Vec::with_capacity(data.len() + 4);
     out.push(tag);
