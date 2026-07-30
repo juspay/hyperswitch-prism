@@ -263,10 +263,7 @@ mod tests {
             http_status_code,
             error_info: None,
         };
-        let mut encoded = Vec::new();
-        connector_error
-            .encode(&mut encoded)
-            .expect("encoding ConnectorError should succeed");
+        let encoded = connector_error.encode_to_vec();
 
         tonic::Status::with_details(grpc_code, "connector error", encoded.into())
     }
