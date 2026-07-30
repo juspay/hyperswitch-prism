@@ -505,9 +505,9 @@ impl Payments {
             PaymentsResponseData,
         > = connector_data.connector.get_connector_integration_v2();
 
-        let connectors = utils::get_resolved_connectors(
+        let connectors = utils::apply_url_overrides(
             config,
-            &connector_data.connector_name,
+            &metadata_payload.connector,
             &connector_config,
             metadata_payload.environment.as_deref(),
         )
@@ -643,9 +643,11 @@ impl Payments {
             PaymentsResponseData,
         > = connector_data.connector.get_connector_integration_v2();
 
-        let connectors = utils::connectors_with_connector_config_overrides(
-            &metadata_payload.connector_config,
+        let connectors = utils::apply_url_overrides(
             config,
+            &metadata_payload.connector,
+            &metadata_payload.connector_config,
+            metadata_payload.environment.as_deref(),
         )
         .to_grpc_error()?;
 
@@ -1037,9 +1039,9 @@ impl PaymentService for Payments {
                     let payments_sync_data =
                         PaymentsSyncData::foreign_try_from(payload.clone()).to_grpc_error()?;
 
-                    let connectors = utils::get_resolved_connectors(
+                    let connectors = utils::apply_url_overrides(
                         &config,
-                        &connector_data.connector_name,
+                        &connector,
                         &metadata_payload.connector_config,
                         metadata_payload.environment.as_deref(),
                     )
@@ -1237,9 +1239,11 @@ impl PaymentService for Payments {
                         .ok_or_else(|| ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "connector", context: domain_types::errors::IntegrationErrorContext { suggested_action: Some("Check connector rollout/configuration and call only flows implemented for this connector".to_string()), ..Default::default() } }))?;
 
                     // Check if connector supports access tokens
-                    let connectors = utils::connectors_with_connector_config_overrides(
-                        &metadata_payload.connector_config,
+                    let connectors = utils::apply_url_overrides(
                         &config,
+                        &metadata_payload.connector,
+                        &metadata_payload.connector_config,
+                        metadata_payload.environment.as_deref(),
                     )
                     .to_grpc_error()?;
 
@@ -1519,9 +1523,11 @@ impl PaymentService for Payments {
                         .ok_or_else(|| ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "connector", context: domain_types::errors::IntegrationErrorContext { suggested_action: Some("Check connector rollout/configuration and call only flows implemented for this connector".to_string()), ..Default::default() } }))?;
 
                     // Check if connector supports access tokens
-                    let connectors = utils::connectors_with_connector_config_overrides(
-                        &metadata_payload.connector_config,
+                    let connectors = utils::apply_url_overrides(
                         &config,
+                        &metadata_payload.connector,
+                        &metadata_payload.connector_config,
+                        metadata_payload.environment.as_deref(),
                     )
                     .to_grpc_error()?;
 
@@ -2404,9 +2410,13 @@ impl PaymentMethod {
             PaymentMethodTokenResponse,
         > = connector_data.connector.get_connector_integration_v2();
 
-        let connectors =
-            utils::connectors_with_connector_config_overrides(&connector_config, config)
-                .to_grpc_error()?;
+        let connectors = utils::apply_url_overrides(
+            config,
+            &metadata_payload.connector,
+            &connector_config,
+            metadata_payload.environment.as_deref(),
+        )
+        .to_grpc_error()?;
 
         // Create payment flow data
         let payment_flow_data =
@@ -2870,9 +2880,11 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                     let connector_data: ConnectorData<DefaultPCIHolder> = ConnectorData::from_connector_variant(&connector)
             .ok_or_else(|| ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "connector", context: domain_types::errors::IntegrationErrorContext { suggested_action: Some("Check connector rollout/configuration and call only flows implemented for this connector".to_string()), ..Default::default() } }))?;
 
-                    let connectors = utils::connectors_with_connector_config_overrides(
-                        connector_config,
+                    let connectors = utils::apply_url_overrides(
                         &config,
+                        &connector,
+                        connector_config,
+                        metadata_payload.environment.as_deref(),
                     )
                     .to_grpc_error()?;
 
@@ -2983,9 +2995,11 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                     let connector_config = &metadata_payload.connector_config;
 
                     let access_token_create_request = request_data.payload;
-                    let connectors = utils::connectors_with_connector_config_overrides(
-                        connector_config,
+                    let connectors = utils::apply_url_overrides(
                         &config,
+                        &metadata_payload.connector,
+                        connector_config,
+                        metadata_payload.environment.as_deref(),
                     )
                     .to_grpc_error()?;
 
@@ -3110,9 +3124,11 @@ impl RecurringPaymentService for RecurringPayments {
                         PaymentsResponseData,
                     > = connector_data.connector.get_connector_integration_v2();
 
-                    let connectors = utils::connectors_with_connector_config_overrides(
-                        &metadata_payload.connector_config,
+                    let connectors = utils::apply_url_overrides(
                         &config,
+                        &metadata_payload.connector,
+                        &metadata_payload.connector_config,
+                        metadata_payload.environment.as_deref(),
                     )
                     .to_grpc_error()?;
 
