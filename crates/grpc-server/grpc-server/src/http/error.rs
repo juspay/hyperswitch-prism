@@ -190,23 +190,17 @@ fn extract_error_details_from_status(status: &tonic::Status) -> Option<ErrorDeta
 /// Extract the connector's exact HTTP error status when the decoded details identify a
 /// connector-originated 4xx/5xx response.
 fn connector_http_status_from_error_details(details: Option<&ErrorDetails>) -> Option<StatusCode> {
-    let Some(ErrorDetails::ConnectorError {
-        error_code,
-        http_status_code: Some(http_status_code),
-        ..
-    }) = details
-    else {
-        return None;
-    };
-
-    if error_code != "CONNECTOR_ERROR_RESPONSE" {
-        return None;
+    match details {
+        Some(ErrorDetails::ConnectorError {
+            error_code,
+            http_status_code: Some(http_status_code),
+            ..
+        }) if error_code == "CONNECTOR_ERROR_RESPONSE" => u16::try_from(*http_status_code)
+            .ok()
+            .and_then(|status_code| StatusCode::from_u16(status_code).ok())
+            .filter(|status_code| status_code.is_client_error() || status_code.is_server_error()),
+        _ => None,
     }
-
-    let status_code = u16::try_from(*http_status_code).ok()?;
-    let status_code = StatusCode::from_u16(status_code).ok()?;
-
-    (status_code.is_client_error() || status_code.is_server_error()).then_some(status_code)
 }
 
 fn grpc_code_to_http_status(code: tonic::Code) -> StatusCode {
