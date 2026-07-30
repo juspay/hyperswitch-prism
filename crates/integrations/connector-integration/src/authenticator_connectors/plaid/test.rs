@@ -494,7 +494,10 @@ mod tests {
 
             let details = parse(accounts, numbers);
             assert_eq!(details.accounts.len(), 1);
-            let acct = details.accounts.first().expect("expected at least one account");
+            let acct = details
+                .accounts
+                .first()
+                .expect("expected at least one account");
             assert!(matches!(acct.bank_type, Some(BankType::Checking)));
             assert!(matches!(
                 acct.bank_holder_type,
@@ -526,7 +529,10 @@ mod tests {
 
             let details = parse(accounts, numbers);
             assert_eq!(details.accounts.len(), 1);
-            let acct = details.accounts.first().expect("expected at least one account");
+            let acct = details
+                .accounts
+                .first()
+                .expect("expected at least one account");
             assert!(matches!(acct.bank_type, Some(BankType::Savings)));
             assert!(matches!(
                 acct.bank_holder_type,
@@ -558,7 +564,10 @@ mod tests {
 
             let details = parse(accounts, numbers);
             assert_eq!(details.accounts.len(), 1);
-            let acct = details.accounts.first().expect("expected at least one account");
+            let acct = details
+                .accounts
+                .first()
+                .expect("expected at least one account");
             assert!(matches!(
                 acct.account_details,
                 Some(BankAccountRoutingDetails::Sepa(_))
