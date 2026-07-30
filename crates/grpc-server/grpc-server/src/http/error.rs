@@ -187,17 +187,23 @@ fn extract_error_details_from_status(status: &tonic::Status) -> Option<ErrorDeta
     None
 }
 
-/// Extract the connector's exact HTTP error status when the gRPC details identify a
+/// Extract the connector's exact HTTP error status when the decoded details identify a
 /// connector-originated 4xx/5xx response.
-fn connector_http_status_from_grpc_status(status: &tonic::Status) -> Option<StatusCode> {
-    let connector_error =
-        grpc_api_types::payments::ConnectorError::decode(status.details()).ok()?;
+fn connector_http_status_from_error_details(details: Option<&ErrorDetails>) -> Option<StatusCode> {
+    let Some(ErrorDetails::ConnectorError {
+        error_code,
+        http_status_code: Some(http_status_code),
+        ..
+    }) = details
+    else {
+        return None;
+    };
 
-    if connector_error.error_code != "CONNECTOR_ERROR_RESPONSE" {
+    if error_code != "CONNECTOR_ERROR_RESPONSE" {
         return None;
     }
 
-    let status_code = u16::try_from(connector_error.http_status_code?).ok()?;
+    let status_code = u16::try_from(*http_status_code).ok()?;
     let status_code = StatusCode::from_u16(status_code).ok()?;
 
     (status_code.is_client_error() || status_code.is_server_error()).then_some(status_code)
@@ -228,17 +234,16 @@ fn grpc_code_to_http_status(code: tonic::Code) -> StatusCode {
 // Convert tonic::Status to HTTP error
 impl From<tonic::Status> for HttpError {
     fn from(status: tonic::Status) -> Self {
+        let details = extract_error_details_from_status(&status);
+
         // Preserve the exact connector HTTP status when available; otherwise use the
         // canonical gRPC-to-HTTP fallback.
-        let http_status = match connector_http_status_from_grpc_status(&status) {
+        let http_status = match connector_http_status_from_error_details(details.as_ref()) {
             Some(connector_status) => connector_status,
             None => grpc_code_to_http_status(status.code()),
         };
 
         let message = status.message().to_string();
-
-        // Extract SDK error details from Status
-        let details = extract_error_details_from_status(&status);
 
         Self {
             status: http_status,
