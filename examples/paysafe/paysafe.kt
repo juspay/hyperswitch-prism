@@ -13,6 +13,7 @@ import payments.PaymentMethodAuthenticationClient
 import payments.PaymentClient
 import payments.CustomerClient
 import payments.RefundClient
+import payments.PaymentMethodClient
 import payments.CaptureMethod
 import payments.Currency
 import payments.ConnectorConfig
@@ -22,7 +23,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.PaysafeConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("authenticate", "capture", "customer_create", "get", "pre_authenticate", "refund", "refund_get", "token_authorize")
+val SUPPORTED_FLOWS = listOf<String>("authenticate", "capture", "customer_create", "get", "pre_authenticate", "refund", "refund_get", "token_authorize", "tokenize", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -72,6 +73,17 @@ private fun buildRefundRequest(connectorTransactionIdStr: String): PaymentServic
             currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         }
         reason = "customer_request"  // Reason for the refund.
+    }.build()
+}
+
+private fun buildVoidRequest(connectorTransactionIdStr: String): PaymentServiceVoidRequest {
+    return PaymentServiceVoidRequest.newBuilder().apply {
+        merchantVoidId = "probe_void_001"  // Identification.
+        connectorTransactionId = connectorTransactionIdStr
+        amountBuilder.apply {  // Amount Information.
+            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
     }.build()
 }
 
@@ -204,6 +216,43 @@ fun tokenAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
     println("Status: ${response.status.name}")
 }
 
+// Flow: PaymentMethodService.Tokenize
+fun tokenize(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentMethodClient(config)
+    val request = PaymentMethodServiceTokenizeRequest.newBuilder().apply {
+        amountBuilder.apply {  // Payment Information.
+            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+        paymentMethodBuilder.apply {
+            cardBuilder.apply {  // Generic card payment.
+                cardNumberBuilder.value = "4111111111111111"  // Card Identification.
+                cardExpMonthBuilder.value = "03"
+                cardExpYearBuilder.value = "2030"
+                cardCvcBuilder.value = "737"
+                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
+            }
+        }
+        addressBuilder.apply {  // Address Information.
+            billingAddressBuilder.apply {
+            }
+        }
+        returnUrl = "https://example.com/return"  // URLs for Redirection.
+    }.build()
+    val response = client.tokenize(request)
+    println("Token: ${response.paymentMethodToken}")
+}
+
+// Flow: PaymentService.Void
+fun void(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
+    val request = buildVoidRequest("probe_connector_txn_001")
+    val response = client.void(request)
+    if (response.status.name == "FAILED")
+        throw RuntimeException("Void failed: ${response.error.unifiedDetails.message}")
+    println("Done: ${response.status.name}")
+}
+
 
 fun main(args: Array<String>) {
     val txnId = "order_001"
@@ -217,6 +266,8 @@ fun main(args: Array<String>) {
         "refund" -> refund(txnId)
         "refundGet" -> refundGet(txnId)
         "tokenAuthorize" -> tokenAuthorize(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: authenticate, capture, customerCreate, get, preAuthenticate, refund, refundGet, tokenAuthorize")
+        "tokenize" -> tokenize(txnId)
+        "void" -> void(txnId)
+        else -> System.err.println("Unknown flow: $flow. Available: authenticate, capture, customerCreate, get, preAuthenticate, refund, refundGet, tokenAuthorize, tokenize, void")
     }
 }

@@ -184,7 +184,8 @@ message PaymentMethod {
     Klarna klarna = 112;                                       // Klarna - Swedish BNPL service
     Alma alma = 113;                                           // Alma - French BNPL service
     TamaraRedirect tamara_redirect = 114;                                       // Tamara - Middle Eastern BNPL service
-    
+    Atome atome = 115;                                         // Atome - Asian BNPL service
+
     // NETWORK TRANSACTION METHODS (120-129) - For recurring payments with network transaction IDs
     CardDetailsForNetworkTransactionId card_details_for_network_transaction_id = 120; // Card details with network transaction ID
     NetworkTokenData network_token = 121; // Network token data
@@ -1094,12 +1095,12 @@ message TamaraRedirect {
   // Fields will be added as needed for tamara integration
 }
 
-/*
-
 // Atome - Asian BNPL service
 message Atome {
   // Fields will be added as needed for Atome integration
 }
+
+/*
 
 // PayBright - Canadian BNPL service
 message PayBright {
@@ -1544,6 +1545,14 @@ enum BankNames {
   CapitecBusiness = 195;
   AfricanBank = 196;
   AfricanBankBusiness = 197;
+  // Indonesian banks (Airwallex bank_transfer). CimbNiaga is the Indonesian CIMB
+  // Niaga, distinct from the Malaysian CimbBank = 17.
+  BankMandiri = 198;
+  BankDanamon = 199;
+  BankNegaraIndonesia = 200;
+  BankRakyatIndonesia = 201;
+  CimbNiaga = 202;
+  PermataBank = 203;
 }
 
 // ============================================================================

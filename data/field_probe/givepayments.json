@@ -9,328 +9,368 @@
     },
     "authorize": {
       "Ach": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "AchBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "Affirm": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "Afterpay": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "Alfamart": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "AliPayRedirect": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "AmazonPayRedirect": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "ApplePay": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "ApplePayDecrypted": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "ApplePayThirdPartySdk": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "Bacs": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "BacsBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "BancontactCard": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "BcaBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "Becs": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "BillDeskRedirect": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "Bizum": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "Blik": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "Bluecode": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "BniVaBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "Boleto": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "BriVaBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "Card": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "browser_info": {
+            "user_agent": "Mozilla/5.0 (probe-bot)",
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://api-sandbox.givepayments.com/payments",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "gp-requestor-ip": "1.2.3.4",
+            "gp-requestor-ua": "Mozilla/5.0 (probe-bot)",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":1000,\"paymethod\":{\"card\":{\"name\":\"John Doe\",\"number\":\"4111111111111111\",\"cvv\":\"737\",\"exp_year\":2030,\"exp_month\":3,\"tokenize\":false}},\"customer\":{\"email\":\"test@example.com\"}}"
+        }
       },
       "CashappQr": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "CashfreeRedirect": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "CimbVaBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "ClassicReward": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "Crypto": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Dana": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "DanamonVaBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "DuitNow": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "EVoucher": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "EaseBuzzRedirect": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "Efecty": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "Eft": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "Eps": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "FamilyMart": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "GCash": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "Giropay": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "Givex": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "GoPay": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "GooglePay": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "GooglePayDecrypted": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "GooglePayThirdPartySdk": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "Ideal": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "Indomaret": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "IndonesianBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "InstantBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "InstantBankTransferFinland": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "InstantBankTransferPoland": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "Interac": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "KakaoPay": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "Klarna": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "Lawson": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "LazyPayRedirect": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "LocalBankRedirect": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "LocalBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "MandiriVaBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "MbWay": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "Mifinity": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "MiniStop": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "MobilePayRedirect": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Momo": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "MultibancoBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "Netbanking": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "OnlineBankingCzechRepublic": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "OnlineBankingFinland": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "OnlineBankingFpx": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "OnlineBankingPoland": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "OnlineBankingSlovakia": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "OnlineBankingThailand": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "OpenBanking": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "OpenBankingPis": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "OpenBankingUk": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "Oxxo": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "PagoEfectivo": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "PayEasy": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "PaySafeCard": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "PayURedirect": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "PaypalRedirect": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "PaypalSdk": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "Paysera": {
         "status": "not_supported",
@@ -341,112 +381,112 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "PermataBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "PhonePeRedirect": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "Pix": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "Przelewy24": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "Pse": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "RedCompra": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "RedPagos": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "RevolutPay": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "SamsungPay": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "Satispay": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "Seicomart": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "Sepa": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "SepaBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "SepaGuaranteedDebit": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "SevenEleven": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "Skrill": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "Sofort": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "Swish": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "TouchNGo": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "Trustly": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "Twint": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "UpiCollect": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "UpiIntent": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "UpiQr": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "Vipps": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "WeChatPayQr": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
       "Wero": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       }
     },
     "capture": {
@@ -608,7 +648,7 @@
     "proxy_authorize": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "error": "Invalid data format: payment_method_data.card.card_exp_year. Expected format: YY or YYYY"
       }
     },
     "proxy_setup_recurring": {
@@ -676,6 +716,11 @@
         "error": "This feature is not implemented: mandate_revoke flow for givepayments"
       }
     },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "refund": {
       "default": {
         "status": "supported",
@@ -735,8 +780,8 @@
     },
     "token_authorize": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: browser_info.user_agent. GivePayments require user_agent in the payments header. — Missing required field: browser_info.user_agent. GivePayments require user_agent in the payments header."
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       }
     },
     "token_setup_recurring": {

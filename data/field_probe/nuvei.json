@@ -925,6 +925,11 @@
         "error": "mandate_revoke flow not supported by nuvei connector"
       }
     },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "refund": {
       "default": {
         "status": "supported",
