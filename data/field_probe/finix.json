@@ -692,6 +692,11 @@
         "error": "mandate_revoke flow not supported by finix connector"
       }
     },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "refund": {
       "default": {
         "status": "supported",
@@ -785,7 +790,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"type\":\"PAYMENT_CARD\",\"name\":\"John Doe\",\"number\":\"4111111111111111\",\"security_code\":\"737\",\"expiration_month\":3,\"expiration_year\":2030,\"identity\":\"cust_probe_123\",\"tags\":{\"merchant_reference\":\"probe_mandate_001\"},\"address\":{\"line1\":null,\"line2\":null,\"city\":null,\"region\":null,\"postal_code\":null,\"country\":null}}"
+          "body": "{\"type\":\"PAYMENT_CARD\",\"name\":\"John Doe\",\"number\":\"4111111111111111\",\"security_code\":\"737\",\"expiration_month\":3,\"expiration_year\":2030,\"identity\":\"cust_probe_123\",\"tags\":{\"merchant_reference\":\"probe_mandate_001\"},\"address\":{\"line1\":null,\"line2\":null,\"city\":null,\"region\":null,\"postal_code\":null,\"country\":null},\"card_brand\":null,\"card_type\":null,\"additional_data\":null,\"merchant_identity\":null,\"third_party_token\":null}"
         }
       }
     },

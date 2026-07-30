@@ -13346,6 +13346,192 @@ impl
     }
 }
 
+impl<
+        T: PaymentMethodDataTypes
+            + Default
+            + Debug
+            + Send
+            + Eq
+            + PartialEq
+            + Serialize
+            + serde::de::DeserializeOwned
+            + Clone,
+    >
+    ForeignTryFrom<(
+        grpc_api_types::payments::PaymentMethodServiceRefreshRequest,
+        Option<PaymentMethodData<T>>,
+    )> for connector_types::RefreshPaymentMethodData<T>
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        (_value, payment_method_data): (
+            grpc_api_types::payments::PaymentMethodServiceRefreshRequest,
+            Option<PaymentMethodData<T>>,
+        ),
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let payment_method_data =
+            payment_method_data.ok_or(IntegrationError::MissingRequiredField {
+                field_name: "payment_method",
+                context: IntegrationErrorContext::default(),
+            })?;
+
+        Ok(Self {
+            payment_method_data,
+        })
+    }
+}
+
+impl
+    ForeignTryFrom<(
+        grpc_api_types::payments::PaymentMethodServiceRefreshRequest,
+        Connectors,
+        &MaskedMetadata,
+    )> for connector_types::RefreshPaymentMethodFlowData
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        (_value, connectors, _metadata): (
+            grpc_api_types::payments::PaymentMethodServiceRefreshRequest,
+            Connectors,
+            &MaskedMetadata,
+        ),
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        Ok(Self {
+            connectors,
+            connector_request_reference_id: String::new(),
+            raw_connector_response: None,
+            raw_connector_request: None,
+            connector_response_headers: None,
+        })
+    }
+}
+
+impl ForeignTryFrom<connector_types::RefreshPaymentMethodResponseData>
+    for grpc_api_types::payments::PaymentMethodServiceRefreshResponse
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: connector_types::RefreshPaymentMethodResponseData,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        Ok(Self {
+            result: value.result.map(ForeignFrom::foreign_from),
+            status_code: u32::from(value.status_code),
+            error: None,
+            response_headers: std::collections::HashMap::new(),
+            raw_connector_response: None,
+            raw_connector_request: None,
+        })
+    }
+}
+
+impl ForeignFrom<connector_types::CardRefreshOutcome>
+    for grpc_api_types::payments::CardRefreshOutcome
+{
+    fn foreign_from(outcome: connector_types::CardRefreshOutcome) -> Self {
+        match outcome {
+            connector_types::CardRefreshOutcome::Unrecognized => Self::Unspecified,
+            connector_types::CardRefreshOutcome::AccountUpdated => Self::CardRefreshAccountUpdated,
+            connector_types::CardRefreshOutcome::ExpiryUpdated => Self::CardRefreshExpiryUpdated,
+            connector_types::CardRefreshOutcome::NoChange => Self::CardRefreshNoChange,
+            connector_types::CardRefreshOutcome::Closed => Self::CardRefreshClosed,
+            connector_types::CardRefreshOutcome::NotFound => Self::CardRefreshNotFound,
+            connector_types::CardRefreshOutcome::ContactIssuer => Self::CardRefreshContactIssuer,
+        }
+    }
+}
+
+impl ForeignFrom<connector_types::RefreshPaymentMethodResult>
+    for grpc_api_types::payments::RefreshResult
+{
+    fn foreign_from(result: connector_types::RefreshPaymentMethodResult) -> Self {
+        match result {
+            connector_types::RefreshPaymentMethodResult::Card(card_result) => Self {
+                result: Some(grpc_api_types::payments::refresh_result::Result::Card(
+                    grpc_api_types::payments::CardRefreshResult {
+                        outcome: i32::from(
+                            grpc_api_types::payments::CardRefreshOutcome::foreign_from(
+                                card_result.outcome,
+                            ),
+                        ),
+                        // Option only because prost boxes message fields.
+                        card: Some(
+                            grpc_api_types::payments::CardDetailsWithNoCvc::foreign_from(
+                                card_result.card,
+                            ),
+                        ),
+                    },
+                )),
+            },
+        }
+    }
+}
+
+impl
+    ForeignFrom<(
+        router_data::ErrorResponse,
+        Option<payment_method_data::CardWithNoCvc>,
+    )> for grpc_api_types::payments::PaymentMethodServiceRefreshResponse
+{
+    fn foreign_from(
+        (error, submitted_card): (
+            router_data::ErrorResponse,
+            Option<payment_method_data::CardWithNoCvc>,
+        ),
+    ) -> Self {
+        Self {
+            result: submitted_card.map(|card| grpc_api_types::payments::RefreshResult {
+                result: Some(grpc_api_types::payments::refresh_result::Result::Card(
+                    grpc_api_types::payments::CardRefreshResult {
+                        outcome: grpc_api_types::payments::CardRefreshOutcome::Unspecified.into(),
+                        card: Some(
+                            grpc_api_types::payments::CardDetailsWithNoCvc::foreign_from(card),
+                        ),
+                    },
+                )),
+            }),
+            status_code: u32::from(error.status_code),
+            error: Some(grpc_api_types::payments::ErrorInfo {
+                unified_details: None,
+                issuer_details: None,
+                connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
+                    code: Some(error.code),
+                    message: Some(error.message),
+                    reason: error.reason,
+                    connector_transaction_id: error.connector_transaction_id,
+                    status: None,
+                }),
+            }),
+            response_headers: std::collections::HashMap::new(),
+            raw_connector_response: None,
+            raw_connector_request: None,
+        }
+    }
+}
+
+impl ForeignFrom<payment_method_data::CardWithNoCvc>
+    for grpc_api_types::payments::CardDetailsWithNoCvc
+{
+    fn foreign_from(card: payment_method_data::CardWithNoCvc) -> Self {
+        Self {
+            card_number: Some(card.card_number),
+            card_exp_month: Some(card.card_exp_month),
+            card_exp_year: Some(card.card_exp_year),
+            card_holder_name: card.card_holder_name,
+            card_issuer: card.card_issuer,
+            card_network: card
+                .card_network
+                .map(|network| i32::from(grpc_payment_types::CardNetwork::foreign_from(network))),
+            card_type: card.card_type,
+            card_issuing_country_alpha2: card.card_issuing_country,
+            bank_code: card.bank_code,
+            nick_name: card.nick_name.map(|name| name.expose()),
+        }
+    }
+}
+
 impl ForeignTryFrom<grpc_api_types::payments::CustomerServiceCreateRequest>
     for ConnectorCustomerData
 {
@@ -17070,6 +17256,67 @@ pub fn generate_create_payment_method_response(
             raw_connector_response,
             raw_connector_request,
         }),
+    }
+}
+
+/// A connector error becomes UNSPECIFIED with `error` set.
+pub fn generate_refresh_payment_method_response<T: PaymentMethodDataTypes>(
+    router_data_v2: RouterDataV2<
+        crate::connector_flow::RefreshPaymentMethod,
+        connector_types::RefreshPaymentMethodFlowData,
+        connector_types::RefreshPaymentMethodData<T>,
+        connector_types::RefreshPaymentMethodResponseData,
+    >,
+) -> Result<
+    grpc_api_types::payments::PaymentMethodServiceRefreshResponse,
+    error_stack::Report<ConnectorError>,
+> {
+    let response_headers = router_data_v2
+        .resource_common_data
+        .get_connector_response_headers_as_map();
+    let raw_connector_response = router_data_v2
+        .resource_common_data
+        .get_raw_connector_response();
+    let raw_connector_request = router_data_v2
+        .resource_common_data
+        .get_raw_connector_request();
+
+    // Kept aside before the response is consumed, so the error path can echo it.
+    let submitted_card = match router_data_v2.request.payment_method_data {
+        payment_method_data::PaymentMethodData::CardWithNoCvc(card) => Some(card),
+        _ => None,
+    };
+
+    match router_data_v2.response {
+        Ok(response) => {
+            let status_code = response.status_code;
+            let mut proto =
+                grpc_api_types::payments::PaymentMethodServiceRefreshResponse::foreign_try_from(
+                    response,
+                )
+                .change_context(ConnectorError::ResponseHandlingFailed {
+                    context: ResponseTransformationErrorContext {
+                        http_status_code: Some(status_code),
+                        ..Default::default()
+                    },
+                })?;
+            proto.response_headers = response_headers;
+            proto.raw_connector_response = raw_connector_response;
+            proto.raw_connector_request = raw_connector_request;
+            Ok(proto)
+        }
+        // `error`, not the outcome, is what says we never reached the network.
+        Err(error) => {
+            let mut proto =
+                grpc_api_types::payments::PaymentMethodServiceRefreshResponse::foreign_from((
+                    error,
+                    submitted_card,
+                ));
+            proto.response_headers = response_headers;
+            proto.raw_connector_response = raw_connector_response;
+            proto.raw_connector_request = raw_connector_request;
+            Ok(proto)
+        }
     }
 }
 

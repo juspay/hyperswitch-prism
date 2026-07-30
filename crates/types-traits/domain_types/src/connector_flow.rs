@@ -118,6 +118,10 @@ pub struct CreatePaymentMethod;
 #[derive(Debug, Clone)]
 pub struct GetPaymentMethod;
 
+/// Refresh a stored payment method and return what the provider says changed.
+#[derive(Debug, Clone)]
+pub struct RefreshPaymentMethod;
+
 #[derive(Debug, Clone)]
 pub struct PreRiskCheck;
 
@@ -180,6 +184,7 @@ pub enum FlowName {
     Recharge,
     CreatePaymentMethod,
     GetPaymentMethod,
+    RefreshPaymentMethod,
     PreRiskCheck,
     PostRiskCheck,
     FrmPaymentOutcome,

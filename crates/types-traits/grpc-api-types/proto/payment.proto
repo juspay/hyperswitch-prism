@@ -4349,6 +4349,45 @@ message PaymentMethodServiceGetResponse {
   optional SecretString raw_connector_request = 10;
 }
 
+// Refresh a stored card against the network updater.
+message PaymentMethodServiceRefreshRequest {
+  PaymentMethod payment_method = 1;
+}
+
+message PaymentMethodServiceRefreshResponse {
+  RefreshResult result = 1;
+  uint32 status_code = 2;                   // HTTP status code from the connector
+  optional ErrorInfo error = 3;             // Error details if the call failed
+  map<string, string> response_headers = 4; // Response headers from the connector
+
+  // Raw Response/Request for debugging
+  optional SecretString raw_connector_response = 5;
+  optional SecretString raw_connector_request = 6;
+}
+
+// One arm per instrument; each carries its own outcome type.
+message RefreshResult {
+  oneof result {
+    CardRefreshResult card = 1;
+  }
+}
+
+message CardRefreshResult {
+  CardRefreshOutcome outcome = 1;
+  CardDetailsWithNoCvc card = 2;
+}
+
+enum CardRefreshOutcome {
+  // Unmapped network code, or a failure when `error` is set. Branch on `error`.
+  CARD_REFRESH_OUTCOME_UNSPECIFIED = 0;
+  CARD_REFRESH_ACCOUNT_UPDATED = 1;     // Card reissued; the returned card is the new one
+  CARD_REFRESH_EXPIRY_UPDATED = 2;      // Same card number, new expiry
+  CARD_REFRESH_NO_CHANGE = 3;           // Stored card is current
+  CARD_REFRESH_CLOSED = 4;              // Account closed; stop using the card
+  CARD_REFRESH_NOT_FOUND = 5;           // No update available; card not found, or the BIN is not participating
+  CARD_REFRESH_CONTACT_ISSUER = 6;      // Issuer advises contacting the cardholder
+}
+
 // Status of a recharge operation
 enum RechargeStatus {
   RECHARGE_STATUS_UNSPECIFIED = 0; // Default unspecified status
@@ -5360,6 +5399,11 @@ message InterpaymentsConfig {
 message JuspayConfig {
   SecretString api_key = 1;
   SecretString merchant_id = 2;
+
+  optional SecretString juspay_encryption_public_key = 3;
+  optional SecretString response_decryption_private_key = 4;
+  optional SecretString card_sync_key_id = 5;
+
   optional string base_url = 50;
 }
 

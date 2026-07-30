@@ -39,6 +39,7 @@ use grpc_api_types::payments::{
     PaymentMethodAuthenticationServicePreAuthenticateRequest,
     PaymentMethodAuthenticationServicePreAuthenticateResponse,
     PaymentMethodServiceEligibilityRequest, PaymentMethodServiceEligibilityResponse,
+    PaymentMethodServiceRefreshRequest, PaymentMethodServiceRefreshResponse,
     PaymentMethodServiceTokenizeRequest, PaymentMethodServiceTokenizeResponse,
     PaymentServiceAuthorizeRequest, PaymentServiceAuthorizeResponse, PaymentServiceCaptureRequest,
     PaymentServiceCaptureResponse, PaymentServiceCreateOrderRequest,
@@ -436,6 +437,13 @@ impl ConnectorClient {
         PaymentMethodServiceEligibilityResponse,
         eligibility_req_handler,
         eligibility_res_handler
+    );
+    impl_flow_method!(
+        refresh,
+        PaymentMethodServiceRefreshRequest,
+        PaymentMethodServiceRefreshResponse,
+        refresh_req_handler,
+        refresh_res_handler
     );
     impl_flow_method!(
         tokenize,
