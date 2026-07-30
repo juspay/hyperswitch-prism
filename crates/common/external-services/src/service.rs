@@ -1526,6 +1526,14 @@ pub fn create_certificate(
         .change_context(ApiClientError::CertificateDecodeFailed)
 }
 
+pub fn validate_ca_certificate_pem(
+    certificate: &str,
+) -> Result<(), error_stack::Report<ApiClientError>> {
+    reqwest::Certificate::from_pem_bundle(certificate.as_bytes())
+        .change_context(ApiClientError::CertificateDecodeFailed)
+        .map(|_| ())
+}
+
 async fn handle_response(
     response: CustomResult<reqwest::Response, ApiClientError>,
 ) -> CustomResult<Result<Response, Response>, ApiClientError> {

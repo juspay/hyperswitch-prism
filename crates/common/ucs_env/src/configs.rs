@@ -360,6 +360,18 @@ impl Config {
         // Validate the environment field
         config.common.validate()?;
 
+        if let Some(bundle) = config.connectors.deutschebank.server_ca_bundle.as_deref() {
+            let trimmed = bundle.trim();
+            if !trimmed.is_empty() {
+                external_services::service::validate_ca_certificate_pem(trimmed).map_err(|err| {
+                    config::ConfigError::Message(format!(
+                        "Invalid `connectors.deutschebank.server_ca_bundle`: expected a valid PEM \
+                         CA bundle: {err}"
+                    ))
+                })?;
+            }
+        }
+
         Ok(config)
     }
 
