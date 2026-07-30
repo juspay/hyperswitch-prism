@@ -98,7 +98,6 @@ pub fn apply_url_overrides(
     environment: Option<&str>,
 ) -> CustomResult<domain_types::types::Connectors, IntegrationError> {
     use domain_types::errors::IntegrationErrorContext;
-    use std::str::FromStr;
 
     let connector_name = connector.get_connector_name();
 
@@ -121,33 +120,31 @@ pub fn apply_url_overrides(
             ) {
                 Some(urls) => {
                     tracing::info!("resolved URLs from superposition for environment: {}", env);
-                    match connector_types::ConnectorEnum::from_str(&connector_name) {
-                        Ok(payment_connector) => {
-                            let patched_connectors = config
-                                .connectors
-                                .patch_connector_urls(&payment_connector, &urls)
-                                .map_err(|e| {
-                                    Report::new(IntegrationError::ConfigurationError {
-                                        code: "URL_PATCHING_FAILED".to_string(),
-                                        message: format!("URL patching failed: {e}"),
-                                        context: IntegrationErrorContext::default(),
-                                    })
-                                })?;
-                            connectors_with_connector_config_overrides_on_connectors(
-                                connector_config,
-                                patched_connectors,
-                            )
+                    let patch_result = match connector {
+                        connector_types::ConnectorVariant::Payment(c) => {
+                            config.connectors.patch_connector_urls(c, &urls)
                         }
-                        // TODO: add superpositon support for payout, FRM, and surcharge connectors. For now, log a warning and fall back to static config.
-                        Err(_) => {
-                            tracing::warn!(
-                                connector = %connector_name,
-                                "connector not found in ConnectorEnum for URL patching, \
-                                 falling back to static config with overrides"
-                            );
-                            connectors_with_connector_config_overrides(connector_config, config)
+                        connector_types::ConnectorVariant::Payout(c) => {
+                            config.connectors.patch_payout_connector_urls(c, &urls)
                         }
-                    }
+                        connector_types::ConnectorVariant::Frm(c) => {
+                            config.connectors.patch_frm_connector_urls(c, &urls)
+                        }
+                        connector_types::ConnectorVariant::Surcharge(c) => {
+                            config.connectors.patch_surcharge_connector_urls(c, &urls)
+                        }
+                    };
+                    let patched_connectors = patch_result.map_err(|e| {
+                        Report::new(IntegrationError::ConfigurationError {
+                            code: "URL_PATCHING_FAILED".to_string(),
+                            message: format!("URL patching failed: {e}"),
+                            context: IntegrationErrorContext::default(),
+                        })
+                    })?;
+                    connectors_with_connector_config_overrides_on_connectors(
+                        connector_config,
+                        patched_connectors,
+                    )
                 }
                 None => {
                     tracing::info!(
