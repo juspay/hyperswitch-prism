@@ -32,6 +32,7 @@ const PLAID_SUBTYPE_SAVINGS: &str = "savings";
 // AUTH TYPE
 // =============================================================================
 
+#[derive(Debug)]
 pub struct PlaidAuthType {
     pub client_id: Secret<String>,
     pub secret: Secret<String>,
