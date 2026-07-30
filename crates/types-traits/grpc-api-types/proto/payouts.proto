@@ -27,6 +27,9 @@ message PayoutEnums {
     REQUIRES_PAYOUT_METHOD_DATA = 11;
     REQUIRES_FULFILLMENT = 12;
     REQUIRES_VENDOR_ACCOUNT_CREATION = 13;
+    // Terminal refusal by the processor (e.g. Verification-of-Payee no-match /
+    // could-not-verify). Distinct from INELIGIBLE, which is non-terminal.
+    NOT_PERMITTED = 14;
   }
 
   enum PayoutRecipientType {

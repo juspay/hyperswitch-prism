@@ -145,6 +145,7 @@ impl crate::utils::ForeignFrom<common_enums::PayoutStatus>
             common_enums::PayoutStatus::Reversed => Self::Reversed,
             common_enums::PayoutStatus::Pending => Self::Pending,
             common_enums::PayoutStatus::Ineligible => Self::Ineligible,
+            common_enums::PayoutStatus::NotPermitted => Self::NotPermitted,
             common_enums::PayoutStatus::RequiresCreation => Self::RequiresCreation,
             common_enums::PayoutStatus::RequiresConfirmation => Self::RequiresConfirmation,
             common_enums::PayoutStatus::RequiresPayoutMethodData => Self::RequiresPayoutMethodData,

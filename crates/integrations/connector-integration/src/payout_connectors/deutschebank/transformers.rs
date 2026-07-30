@@ -121,7 +121,12 @@ impl From<DeutschebankVopMatchStatus> for PayoutStatus {
             DeutschebankVopMatchStatus::Mtch | DeutschebankVopMatchStatus::Cmtc => {
                 Self::RequiresFulfillment
             }
-            DeutschebankVopMatchStatus::Noap | DeutschebankVopMatchStatus::Nmtc => Self::Ineligible,
+            // No-match / could-not-verify are conclusive refusals of the payee, so
+            // map to the terminal `NotPermitted` (drives a failure webhook) rather
+            // than the non-terminal `Ineligible`.
+            DeutschebankVopMatchStatus::Noap | DeutschebankVopMatchStatus::Nmtc => {
+                Self::NotPermitted
+            }
         }
     }
 }

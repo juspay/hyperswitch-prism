@@ -186,7 +186,7 @@ mod tests {
     }
 
     #[test]
-    fn ineligible_vop_drops_connector_payout_id() {
+    fn not_permitted_vop_drops_connector_payout_id() {
         use super::super::transformers::{
             build_eligibility_response, DeutschebankVopMatchStatus, DeutschebankVopResponse,
         };
@@ -199,7 +199,7 @@ mod tests {
         let out = build_eligibility_response(resp, "vop-123".to_string(), 200).unwrap();
         assert_eq!(out.payout_eligible, Some(false));
         assert_eq!(out.connector_payout_id, None);
-        assert_eq!(out.payout_status, PayoutStatus::Ineligible);
+        assert_eq!(out.payout_status, PayoutStatus::NotPermitted);
     }
 
     #[test]
