@@ -79,20 +79,29 @@ pub fn validate_environment(environment: &str) -> Result<Env, String> {
     })
 }
 
-/// Resolves connector configuration with optional superposition URL patching.
+/// Resolves the effective [`Connectors`] for a request, applying all overrides in priority order:
 ///
-/// This function handles the complete flow for connector configuration:
-/// 1. If environment header is provided, validate and try to resolve URLs from superposition
-/// 2. If URLs are resolved, patch the connector config with them
-/// 3. Apply connector-specific config overrides
-/// 4. Fall back to static config if no environment or superposition resolution fails
-pub fn get_resolved_connectors(
+/// 1. **Superposition** — if `x-environment` is set, resolve URLs from the superposition config
+///    (dynamic, per-environment) for all connector variants (payment, payout, FRM, surcharge).
+/// 2. **Caller config override** — apply any `base_url` / URL fields set in `connector_config`
+///    (e.g. from the `x-connector-config` header) on top of whatever came from step 1.
+/// 3. **Static fallback** — if no environment is provided, superposition is unconfigured, or
+///    resolution fails, use the static TOML config as the base.
+///
+/// This is the **single entry point** for connector URL resolution. All flows must call this
+/// instead of `connectors_with_connector_config_overrides` directly so that both override
+/// sources are always applied consistently.
+pub fn apply_url_overrides(
     config: &configs::Config,
-    connector: &connector_types::ConnectorEnum,
+    connector: &connector_types::ConnectorVariant,
     connector_config: &ConnectorSpecificConfig,
     environment: Option<&str>,
 ) -> CustomResult<domain_types::types::Connectors, IntegrationError> {
     use domain_types::errors::IntegrationErrorContext;
+    use std::str::FromStr;
+
+    let connector_name = connector.get_connector_name();
+
     match environment {
         Some(env) => {
             validate_environment(env).map_err(|e| {
@@ -107,25 +116,38 @@ pub fn get_resolved_connectors(
 
             match resolve_connector_urls(
                 config.superposition_config.as_ref().map(|arc| arc.as_ref()),
-                connector,
+                &connector_name,
                 env,
             ) {
                 Some(urls) => {
                     tracing::info!("resolved URLs from superposition for environment: {}", env);
-                    let patched_connectors = config
-                        .connectors
-                        .patch_connector_urls(connector, &urls)
-                        .map_err(|e| {
-                            Report::new(IntegrationError::ConfigurationError {
-                                code: "URL_PATCHING_FAILED".to_string(),
-                                message: format!("URL patching failed: {e}"),
-                                context: IntegrationErrorContext::default(),
-                            })
-                        })?;
-                    connectors_with_connector_config_overrides_on_connectors(
-                        connector_config,
-                        patched_connectors,
-                    )
+                    match connector_types::ConnectorEnum::from_str(&connector_name) {
+                        Ok(payment_connector) => {
+                            let patched_connectors = config
+                                .connectors
+                                .patch_connector_urls(&payment_connector, &urls)
+                                .map_err(|e| {
+                                    Report::new(IntegrationError::ConfigurationError {
+                                        code: "URL_PATCHING_FAILED".to_string(),
+                                        message: format!("URL patching failed: {e}"),
+                                        context: IntegrationErrorContext::default(),
+                                    })
+                                })?;
+                            connectors_with_connector_config_overrides_on_connectors(
+                                connector_config,
+                                patched_connectors,
+                            )
+                        }
+                        // TODO: add superpositon support for payout, FRM, and surcharge connectors. For now, log a warning and fall back to static config.
+                        Err(_) => {
+                            tracing::warn!(
+                                connector = %connector_name,
+                                "connector not found in ConnectorEnum for URL patching, \
+                                 falling back to static config with overrides"
+                            );
+                            connectors_with_connector_config_overrides(connector_config, config)
+                        }
+                    }
                 }
                 None => {
                     tracing::info!(
@@ -149,7 +171,7 @@ pub fn get_resolved_connectors(
 ///
 /// # Arguments
 /// * `superposition_config` - Optional reference to the loaded superposition configuration
-/// * `connector` - The connector enum (e.g., "stripe", "adyen")
+/// * `connector_name` - The connector name string (e.g., "stripe", "adyen")
 /// * `environment` - The environment dimension (must be one of: "production", "sandbox", "development")
 ///
 /// # Returns
@@ -173,19 +195,19 @@ pub fn get_resolved_connectors(
 ///
 /// let urls = resolve_connector_urls(
 ///     config.superposition_config.as_ref(),
-///     &metadata_payload.connector,
+///     &connector.get_connector_name(),
 ///     environment,
 /// );
 /// ```
 pub fn resolve_connector_urls(
     superposition_config: Option<&SuperpositionConfig>,
-    connector: &connector_types::ConnectorEnum,
+    connector_name: &str,
     environment: &str,
 ) -> Option<ConnectorUrls> {
     let config = superposition_config?;
 
     let environment_lower = environment.to_lowercase();
-    let connector_str = connector.to_string().to_lowercase();
+    let connector_str = connector_name.to_lowercase();
 
     match config.resolve(&connector_str, &environment_lower) {
         Ok(resolved) => {
@@ -636,16 +658,14 @@ macro_rules! implement_connector_operation {
                 None => None,
             };
 
-            // Apply merchant-supplied per-request connector config overrides
-            // (e.g. base_url) before building common_flow_data. Without this,
-            // the macro would silently drop the override and downstream
-            // connector calls would hit the TOML default host — creating a
-            // split-brain where different flows in the same composite payment
-            // talk to different environments (sandbox vs prod).
+            // Resolve effective connector URLs — applies superposition (x-environment) first,
+            // then any caller-supplied base_url override from x-connector-config on top.
             let overridden_connectors =
-                ucs_interface_common::config::connectors_with_connector_config_overrides(
-                    &connector_config,
+                $crate::utils::apply_url_overrides(
                     &config,
+                    &metadata_payload.connector,
+                    &connector_config,
+                    metadata_payload.environment.as_deref(),
                 )
                 .to_grpc_error()?;
 
@@ -986,16 +1006,14 @@ macro_rules! implement_connector_operation {
             let specific_request_data = $request_data_constructor(payload.clone())
                 .to_grpc_error()?;
 
-            // Apply merchant-supplied per-request connector config overrides
-            // (e.g. base_url) before building common_flow_data. Without this,
-            // the macro would silently drop the override and downstream
-            // connector calls would hit the TOML default host — creating a
-            // split-brain where different flows in the same composite payment
-            // talk to different environments (sandbox vs prod).
+            // Resolve effective connector URLs — applies superposition (x-environment) first,
+            // then any caller-supplied base_url override from x-connector-config on top.
             let overridden_connectors =
-                ucs_interface_common::config::connectors_with_connector_config_overrides(
-                    &connector_config,
+                $crate::utils::apply_url_overrides(
                     &config,
+                    &metadata_payload.connector,
+                    &connector_config,
+                    metadata_payload.environment.as_deref(),
                 )
                 .to_grpc_error()?;
 

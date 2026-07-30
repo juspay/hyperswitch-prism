@@ -683,6 +683,11 @@
         "error": "mandate_revoke flow not supported by razorpay connector"
       }
     },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "refund": {
       "default": {
         "status": "supported",

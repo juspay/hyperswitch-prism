@@ -19,6 +19,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.07.30.1
+
+### Features
+
+- **core:** Unify connector URL resolution — superposition and connector-config override for all flows ([#2022](https://github.com/juspay/connector-service/pull/2022)) ([`d823d34`](https://github.com/juspay/connector-service/commit/d823d34537b49fc14c64bb9f17492a265c07e426))
+
+**Full Changelog:** [`2026.07.30.0...2026.07.30.1`](https://github.com/juspay/connector-service/compare/2026.07.30.0...2026.07.30.1)
+
+- - -
+
+## 2026.07.30.0
+
+### Features
+
+- **airwallex:** Add 10 payment methods (Wallet, PayLater, BankTransfer, Skrill) + parity fixes ([#1812](https://github.com/juspay/connector-service/pull/1812)) ([`02e3be9`](https://github.com/juspay/connector-service/commit/02e3be933607f145c1d8c40758850aafed652e34))
+
+### Bug Fixes
+
+- **finix:** Surface authorize soft-declines as response.Err ([#17034](https://github.com/juspay/connector-service/pull/17034)) ([#1670](https://github.com/juspay/connector-service/pull/1670)) ([`76ebb5f`](https://github.com/juspay/connector-service/commit/76ebb5f5016d4ffc0a295ba920804feaf0fe1829))
+
+**Full Changelog:** [`2026.07.28.0...2026.07.30.0`](https://github.com/juspay/connector-service/compare/2026.07.28.0...2026.07.30.0)
+
+- - -
+
 ## 2026.07.28.0
 
 ### Features

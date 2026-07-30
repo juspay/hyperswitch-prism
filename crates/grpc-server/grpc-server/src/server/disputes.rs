@@ -117,6 +117,7 @@ impl DisputeService for Disputes {
                         tenant_id,
                         merchant_id,
                         connector_latency,
+                        environment,
                         ..
                     } = request_data.extracted_metadata;
                     let connector_data: ConnectorData<DefaultPCIHolder> =
@@ -143,9 +144,11 @@ impl DisputeService for Disputes {
                     let dispute_data = SubmitEvidenceData::foreign_try_from(payload.clone())
                         .map_err(|e| e.to_grpc_error())?;
 
-                    let connectors = utils::connectors_with_connector_config_overrides(
-                        &connector_config,
+                    let connectors = utils::apply_url_overrides(
                         &config,
+                        &connector,
+                        &connector_config,
+                        environment.as_deref(),
                     )
                     .to_grpc_error()?;
 
@@ -352,6 +355,7 @@ impl DisputeService for Disputes {
                         tenant_id,
                         merchant_id,
                         connector_latency,
+                        environment,
                         ..
                     } = request_data.extracted_metadata;
                     let connector_data: ConnectorData<DefaultPCIHolder> =
@@ -378,9 +382,11 @@ impl DisputeService for Disputes {
                     let dispute_data = AcceptDisputeData::foreign_try_from(payload.clone())
                         .map_err(|e| e.to_grpc_error())?;
 
-                    let connectors = utils::connectors_with_connector_config_overrides(
-                        &connector_config,
+                    let connectors = utils::apply_url_overrides(
                         &config,
+                        &connector,
+                        &connector_config,
+                        environment.as_deref(),
                     )
                     .to_grpc_error()?;
 

@@ -16,8 +16,9 @@ use domain_types::{
         Authenticate, Authorize, Capture, ClientAuthenticationToken, CreateConnectorCustomer,
         CreateOrder, CreatePaymentMethod, GetConnectorCustomer, GetPaymentMethod,
         IncrementalAuthorization, MandateRevoke, PSync, PaymentMethodEligibility,
-        PaymentMethodToken, PostAuthenticate, PreAuthenticate, Recharge, Refund, RepeatPayment,
-        ServerAuthenticationToken, ServerSessionAuthenticationToken, SetupMandate, Void, VoidPC,
+        PaymentMethodToken, PostAuthenticate, PreAuthenticate, Recharge, RefreshPaymentMethod,
+        Refund, RepeatPayment, ServerAuthenticationToken, ServerSessionAuthenticationToken,
+        SetupMandate, Void, VoidPC,
     },
     connector_types::{
         ClientAuthenticationTokenRequestData, ConnectorCustomerData, ConnectorCustomerResponse,
@@ -30,10 +31,12 @@ use domain_types::{
         PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
         PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData,
-        RawConnectorRequestResponse, RechargeRequestData, RechargeResponseData, RefundFlowData,
-        RefundsData, RefundsResponseData, RepeatPaymentData, ServerAuthenticationTokenRequestData,
-        ServerAuthenticationTokenResponseData, ServerSessionAuthenticationTokenRequestData,
-        ServerSessionAuthenticationTokenResponseData, SetupMandateRequestData,
+        RawConnectorRequestResponse, RechargeRequestData, RechargeResponseData,
+        RefreshPaymentMethodData, RefreshPaymentMethodFlowData, RefreshPaymentMethodResponseData,
+        RefundFlowData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+        ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
+        SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
@@ -48,7 +51,8 @@ use domain_types::{
         generate_payment_method_eligibility_response, generate_payment_post_authenticate_response,
         generate_payment_pre_authenticate_response, generate_payment_sdk_session_token_response,
         generate_payment_sync_response, generate_payment_void_post_capture_response,
-        generate_payment_void_response, generate_recharge_response, generate_refund_response,
+        generate_payment_void_response, generate_recharge_response,
+        generate_refresh_payment_method_response, generate_refund_response,
         generate_repeat_payment_response, generate_setup_mandate_response,
         tokenized_authorize_to_base, tokenized_setup_recurring_to_base, AuthorizationRequest,
         PaymentMethodDataAction, SetupRecurringRequest,
@@ -77,7 +81,8 @@ use grpc_api_types::payments::{
     PaymentMethodServiceCreateResponse, PaymentMethodServiceEligibilityRequest,
     PaymentMethodServiceEligibilityResponse, PaymentMethodServiceGetRequest,
     PaymentMethodServiceGetResponse, PaymentMethodServiceRechargeRequest,
-    PaymentMethodServiceRechargeResponse, PaymentMethodServiceTokenizeRequest,
+    PaymentMethodServiceRechargeResponse, PaymentMethodServiceRefreshRequest,
+    PaymentMethodServiceRefreshResponse, PaymentMethodServiceTokenizeRequest,
     PaymentMethodServiceTokenizeResponse, PaymentServiceAuthorizeRequest,
     PaymentServiceAuthorizeResponse, PaymentServiceCaptureRequest, PaymentServiceCaptureResponse,
     PaymentServiceCreateOrderRequest, PaymentServiceCreateOrderResponse, PaymentServiceGetRequest,
@@ -505,9 +510,9 @@ impl Payments {
             PaymentsResponseData,
         > = connector_data.connector.get_connector_integration_v2();
 
-        let connectors = utils::get_resolved_connectors(
+        let connectors = utils::apply_url_overrides(
             config,
-            &connector_data.connector_name,
+            &metadata_payload.connector,
             &connector_config,
             metadata_payload.environment.as_deref(),
         )
@@ -643,9 +648,11 @@ impl Payments {
             PaymentsResponseData,
         > = connector_data.connector.get_connector_integration_v2();
 
-        let connectors = utils::connectors_with_connector_config_overrides(
-            &metadata_payload.connector_config,
+        let connectors = utils::apply_url_overrides(
             config,
+            &metadata_payload.connector,
+            &metadata_payload.connector_config,
+            metadata_payload.environment.as_deref(),
         )
         .to_grpc_error()?;
 
@@ -1037,9 +1044,9 @@ impl PaymentService for Payments {
                     let payments_sync_data =
                         PaymentsSyncData::foreign_try_from(payload.clone()).to_grpc_error()?;
 
-                    let connectors = utils::get_resolved_connectors(
+                    let connectors = utils::apply_url_overrides(
                         &config,
-                        &connector_data.connector_name,
+                        &connector,
                         &metadata_payload.connector_config,
                         metadata_payload.environment.as_deref(),
                     )
@@ -1237,9 +1244,11 @@ impl PaymentService for Payments {
                         .ok_or_else(|| ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "connector", context: domain_types::errors::IntegrationErrorContext { suggested_action: Some("Check connector rollout/configuration and call only flows implemented for this connector".to_string()), ..Default::default() } }))?;
 
                     // Check if connector supports access tokens
-                    let connectors = utils::connectors_with_connector_config_overrides(
-                        &metadata_payload.connector_config,
+                    let connectors = utils::apply_url_overrides(
                         &config,
+                        &metadata_payload.connector,
+                        &metadata_payload.connector_config,
+                        metadata_payload.environment.as_deref(),
                     )
                     .to_grpc_error()?;
 
@@ -1519,9 +1528,11 @@ impl PaymentService for Payments {
                         .ok_or_else(|| ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "connector", context: domain_types::errors::IntegrationErrorContext { suggested_action: Some("Check connector rollout/configuration and call only flows implemented for this connector".to_string()), ..Default::default() } }))?;
 
                     // Check if connector supports access tokens
-                    let connectors = utils::connectors_with_connector_config_overrides(
-                        &metadata_payload.connector_config,
+                    let connectors = utils::apply_url_overrides(
                         &config,
+                        &metadata_payload.connector,
+                        &metadata_payload.connector_config,
+                        metadata_payload.environment.as_deref(),
                     )
                     .to_grpc_error()?;
 
@@ -1973,6 +1984,49 @@ impl PaymentService for Payments {
 #[tonic::async_trait]
 impl PaymentMethodService for PaymentMethod {
     #[tracing::instrument(
+        name = "refresh",
+        fields(
+            name = common_utils::consts::NAME,
+            service_name = common_utils::consts::PAYMENT_METHOD_SERVICE_NAME,
+            service_method = "Refresh",
+            request_body = tracing::field::Empty,
+            response_body = tracing::field::Empty,
+            error_message = tracing::field::Empty,
+            merchant_id = tracing::field::Empty,
+            gateway = tracing::field::Empty,
+            request_id = tracing::field::Empty,
+            status_code = tracing::field::Empty,
+            message_ = "Golden Log Line (incoming)",
+            response_time = tracing::field::Empty,
+            tenant_id = tracing::field::Empty,
+            flow = FlowName::RefreshPaymentMethod.as_str(),
+            flow_specific_fields.status = tracing::field::Empty,
+        ),
+        skip(self, request)
+    )]
+    async fn refresh(
+        &self,
+        request: tonic::Request<PaymentMethodServiceRefreshRequest>,
+    ) -> Result<tonic::Response<PaymentMethodServiceRefreshResponse>, tonic::Status> {
+        info!("REFRESH_PAYMENT_METHOD_FLOW: initiated");
+        let service_name = request
+            .extensions()
+            .get::<String>()
+            .cloned()
+            .unwrap_or_else(|| "PaymentMethodService".to_string());
+        let config = get_config_from_request(&request).into_grpc_status()?;
+
+        grpc_logging_wrapper(
+            request,
+            &service_name,
+            config.clone(),
+            FlowName::RefreshPaymentMethod,
+            |request_data| Box::pin(self.internal_refresh_payment_method(request_data)),
+        )
+        .await
+    }
+
+    #[tracing::instrument(
         name = "tokenize",
         fields(
             name = common_utils::consts::NAME,
@@ -2345,6 +2399,23 @@ impl PaymentMethod {
     );
 
     implement_connector_operation!(
+        fn_name: internal_refresh_payment_method,
+        log_prefix: "REFRESH_PAYMENT_METHOD",
+        request_type: PaymentMethodServiceRefreshRequest,
+        response_type: PaymentMethodServiceRefreshResponse,
+        flow_marker: RefreshPaymentMethod,
+        resource_common_data_type: RefreshPaymentMethodFlowData,
+        request_data_type: RefreshPaymentMethodData,
+        response_data_type: RefreshPaymentMethodResponseData,
+        request_data_constructor: RefreshPaymentMethodData::foreign_try_from,
+        common_flow_data_constructor: RefreshPaymentMethodFlowData::foreign_try_from,
+        generate_response_fn: generate_refresh_payment_method_response,
+        connector_data: ConnectorData,
+        all_keys_required: None,
+        has_payment_method_data: option
+    );
+
+    implement_connector_operation!(
         fn_name: internal_pm_eligibility,
         log_prefix: "PAYMENT_METHOD_ELIGIBILITY",
         request_type: PaymentMethodServiceEligibilityRequest,
@@ -2404,9 +2475,13 @@ impl PaymentMethod {
             PaymentMethodTokenResponse,
         > = connector_data.connector.get_connector_integration_v2();
 
-        let connectors =
-            utils::connectors_with_connector_config_overrides(&connector_config, config)
-                .to_grpc_error()?;
+        let connectors = utils::apply_url_overrides(
+            config,
+            &metadata_payload.connector,
+            &connector_config,
+            metadata_payload.environment.as_deref(),
+        )
+        .to_grpc_error()?;
 
         // Create payment flow data
         let payment_flow_data =
@@ -2870,9 +2945,11 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                     let connector_data: ConnectorData<DefaultPCIHolder> = ConnectorData::from_connector_variant(&connector)
             .ok_or_else(|| ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "connector", context: domain_types::errors::IntegrationErrorContext { suggested_action: Some("Check connector rollout/configuration and call only flows implemented for this connector".to_string()), ..Default::default() } }))?;
 
-                    let connectors = utils::connectors_with_connector_config_overrides(
-                        connector_config,
+                    let connectors = utils::apply_url_overrides(
                         &config,
+                        &connector,
+                        connector_config,
+                        metadata_payload.environment.as_deref(),
                     )
                     .to_grpc_error()?;
 
@@ -2983,9 +3060,11 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                     let connector_config = &metadata_payload.connector_config;
 
                     let access_token_create_request = request_data.payload;
-                    let connectors = utils::connectors_with_connector_config_overrides(
-                        connector_config,
+                    let connectors = utils::apply_url_overrides(
                         &config,
+                        &metadata_payload.connector,
+                        connector_config,
+                        metadata_payload.environment.as_deref(),
                     )
                     .to_grpc_error()?;
 
@@ -3110,9 +3189,11 @@ impl RecurringPaymentService for RecurringPayments {
                         PaymentsResponseData,
                     > = connector_data.connector.get_connector_integration_v2();
 
-                    let connectors = utils::connectors_with_connector_config_overrides(
-                        &metadata_payload.connector_config,
+                    let connectors = utils::apply_url_overrides(
                         &config,
+                        &metadata_payload.connector,
+                        &metadata_payload.connector_config,
+                        metadata_payload.environment.as_deref(),
                     )
                     .to_grpc_error()?;
 

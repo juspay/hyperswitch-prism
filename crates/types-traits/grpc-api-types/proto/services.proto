@@ -253,6 +253,11 @@ service PaymentMethodService {
   // Retrieve payment method details from the payment processor.
   rpc Get(PaymentMethodServiceGetRequest) returns (PaymentMethodServiceGetResponse);
 
+  // Refresh a payment method the caller already holds in full. The request carries the
+  // instrument itself, not a reference to it: use Refresh when you own the complete
+  // payment method details and the provider exposes an endpoint that evaluates them.
+  rpc Refresh(PaymentMethodServiceRefreshRequest) returns (PaymentMethodServiceRefreshResponse);
+
   // Recharge a payment method (wallet, gift card, prepaid card) with funds.
   rpc Recharge(PaymentMethodServiceRechargeRequest) returns (PaymentMethodServiceRechargeResponse);
 
