@@ -3812,7 +3812,7 @@ fn repeat_payment_data_to_authorize<T: PaymentMethodDataTypes>(
         setup_mandate_details: None,
         connector_feature_data: req.connector_feature_data.clone(),
         connector_testing_data: req.connector_testing_data.clone(),
-        payment_channel: payment_channel_from_metadata,
+        payment_channel: req.payment_channel.clone().or(payment_channel_from_metadata),
         enable_partial_authorization: req.enable_partial_authorization,
         locale: req.locale.clone(),
         redirect_response: None,
