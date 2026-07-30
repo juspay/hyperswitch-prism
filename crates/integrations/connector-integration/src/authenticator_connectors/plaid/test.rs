@@ -494,7 +494,7 @@ mod tests {
 
             let details = parse(accounts, numbers);
             assert_eq!(details.accounts.len(), 1);
-            let acct = &details.accounts[0];
+            let acct = details.accounts.first().expect("expected at least one account");
             assert!(matches!(acct.bank_type, Some(BankType::Checking)));
             assert!(matches!(
                 acct.bank_holder_type,
@@ -526,7 +526,7 @@ mod tests {
 
             let details = parse(accounts, numbers);
             assert_eq!(details.accounts.len(), 1);
-            let acct = &details.accounts[0];
+            let acct = details.accounts.first().expect("expected at least one account");
             assert!(matches!(acct.bank_type, Some(BankType::Savings)));
             assert!(matches!(
                 acct.bank_holder_type,
@@ -558,8 +558,9 @@ mod tests {
 
             let details = parse(accounts, numbers);
             assert_eq!(details.accounts.len(), 1);
+            let acct = details.accounts.first().expect("expected at least one account");
             assert!(matches!(
-                details.accounts[0].account_details,
+                acct.account_details,
                 Some(BankAccountRoutingDetails::Sepa(_))
             ));
         }
@@ -587,7 +588,12 @@ mod tests {
             };
             let details = parse(accounts, numbers);
             assert_eq!(details.accounts.len(), 1);
-            assert!(details.accounts[0].bank_type.is_none());
+            assert!(details
+                .accounts
+                .first()
+                .expect("expected at least one account")
+                .bank_type
+                .is_none());
         }
     }
 
@@ -655,7 +661,7 @@ mod tests {
         }
 
         #[test]
-        fn test_link_token_response_unparseable_expiration_does_not_fail() {
+        fn test_link_token_response_unparsable_expiration_does_not_fail() {
             let json = r#"{"link_token":"link-sandbox-xyz","expiration":"not-a-date","request_id":"req2"}"#;
             let res: PlaidLinkTokenResponse = serde_json::from_str(json).unwrap();
             assert_eq!(res.expiration.as_deref(), Some("not-a-date"));
