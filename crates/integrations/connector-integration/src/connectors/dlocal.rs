@@ -6,7 +6,7 @@ use common_utils::{
     errors::CustomResult,
     events,
     ext_traits::ByteSliceExt,
-    types::FloatMajorUnit,
+    types::{FloatMajorUnit, MinorUnit},
 };
 use domain_types::router_data::ConnectorSpecificConfig;
 use domain_types::{
@@ -532,14 +532,25 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            Ok(format!(
-                "{}payments/{}/status",
-                self.connector_base_url_payments(req),
-                req.request
+            let connector_transaction_id = req
+                .request
                 .connector_transaction_id
                 .get_connector_transaction_id()
-                .change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })?,
-            ))
+                .change_context(IntegrationError::MissingConnectorTransactionID {
+                    context: Default::default(),
+                })?;
+
+            if req.request.amount == MinorUnit::new(0) {
+                Ok(format!(
+                    "{}enrollments/{connector_transaction_id}",
+                    self.connector_base_url_payments(req),
+                ))
+            } else {
+                Ok(format!(
+                    "{}payments/{connector_transaction_id}/status",
+                    self.connector_base_url_payments(req),
+                ))
+            }
         }
     }
 );

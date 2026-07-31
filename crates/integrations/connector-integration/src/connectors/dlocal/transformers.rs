@@ -1212,6 +1212,7 @@ pub struct DlocalPaymentsResponse {
     redirect_url: Option<url::Url>,
     ticket: Option<TicketData>,
     enrollment: Option<DlocalEnrollment>,
+    external_id: Option<String>,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<DlocalPaymentsResponse, Self>>
@@ -1236,18 +1237,43 @@ impl<F, T> TryFrom<ResponseRouterData<DlocalPaymentsResponse, Self>>
             .or(item.response.redirect_url)
             .map(|redirect_url| RedirectForm::from((redirect_url, Method::Get)));
 
+        let is_enrollment_response =
+            item.response.order_id.is_none() && item.response.external_id.is_some();
+
         // A redirect-flow APM (e.g. GCash) returns PENDING + a redirect_url; surface it as
         // AuthenticationPending so HS emits next_action.redirect_to_url rather than just
         // "processing".
-        let status = if redirection_data.is_some() {
+        let status = if is_enrollment_response
+            && matches!(&item.response.status, DlocalPaymentStatus::Active)
+        {
+            common_enums::AttemptStatus::Charged
+        } else if redirection_data.is_some() {
             common_enums::AttemptStatus::AuthenticationPending
         } else {
             common_enums::AttemptStatus::from(item.response.status.clone())
         };
+
+        let connector_mandate_id = if is_enrollment_response {
+            matches!(&item.response.status, DlocalPaymentStatus::Active)
+                .then(|| item.response.id.clone())
+        } else {
+            item.response
+                .enrollment
+                .as_ref()
+                .and_then(|enrollment| enrollment.id.clone())
+        };
+
+        let mandate_reference = connector_mandate_id.map(|connector_mandate_id| MandateReference {
+            connector_mandate_id: Some(connector_mandate_id),
+            payment_method_id: None,
+            connector_mandate_request_reference_id: None,
+            mandate_metadata: None,
+        });
+
         let response = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
             redirection_data: redirection_data.map(Box::new),
-            mandate_reference: None,
+            mandate_reference: mandate_reference.map(Box::new),
             connector_metadata: None,
             network_txn_id: None,
             network_txn_link_id: None,
