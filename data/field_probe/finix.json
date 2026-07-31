@@ -466,7 +466,8 @@
           "headers": {
             "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
             "content-type": "application/json",
-            "via": "HyperSwitch"
+            "via": "HyperSwitch",
+            "x-finix-referrer-source": "PLUGIN_HYPERSWITCH"
           },
           "body": "{\"capture_amount\":1000}"
         }
@@ -511,7 +512,8 @@
           "headers": {
             "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
             "content-type": "application/json",
-            "via": "HyperSwitch"
+            "via": "HyperSwitch",
+            "x-finix-referrer-source": "PLUGIN_HYPERSWITCH"
           },
           "body": "{\"entity\":{\"phone\":null,\"first_name\":null,\"last_name\":null,\"email\":null,\"personal_address\":null},\"tags\":null,\"type\":\"PERSONAL\"}"
         }
@@ -569,7 +571,8 @@
           "headers": {
             "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
             "content-type": "application/json",
-            "via": "HyperSwitch"
+            "via": "HyperSwitch",
+            "x-finix-referrer-source": "PLUGIN_HYPERSWITCH"
           },
           "body": null
         }
@@ -680,7 +683,8 @@
           "headers": {
             "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
             "content-type": "application/json",
-            "via": "HyperSwitch"
+            "via": "HyperSwitch",
+            "x-finix-referrer-source": "PLUGIN_HYPERSWITCH"
           },
           "body": "{\"amount\":1000,\"currency\":\"USD\",\"source\":\"probe-mandate-123\",\"merchant\":\"probe_merchant\",\"tags\":null,\"fraud_session_id\":null,\"3d_secure_authentication\":null,\"idempotency_id\":\"\",\"statement_descriptor\":null}"
         }
@@ -788,7 +792,8 @@
           "headers": {
             "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
             "content-type": "application/json",
-            "via": "HyperSwitch"
+            "via": "HyperSwitch",
+            "x-finix-referrer-source": "PLUGIN_HYPERSWITCH"
           },
           "body": "{\"type\":\"PAYMENT_CARD\",\"name\":\"John Doe\",\"number\":\"4111111111111111\",\"security_code\":\"737\",\"expiration_month\":3,\"expiration_year\":2030,\"identity\":\"cust_probe_123\",\"tags\":{\"merchant_reference\":\"probe_mandate_001\"},\"address\":{\"line1\":null,\"line2\":null,\"city\":null,\"region\":null,\"postal_code\":null,\"country\":null},\"card_brand\":null,\"card_type\":null,\"additional_data\":null,\"merchant_identity\":null,\"third_party_token\":null}"
         }
@@ -816,7 +821,8 @@
           "headers": {
             "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
             "content-type": "application/json",
-            "via": "HyperSwitch"
+            "via": "HyperSwitch",
+            "x-finix-referrer-source": "PLUGIN_HYPERSWITCH"
           },
           "body": "{\"amount\":1000,\"currency\":\"USD\",\"source\":\"pm_1AbcXyzStripeTestToken\",\"merchant\":\"probe_merchant\",\"tags\":null,\"fraud_session_id\":null,\"3d_secure_authentication\":null,\"idempotency_id\":\"probe_tokenized_txn_001\",\"statement_descriptor\":null}"
         }
@@ -852,7 +858,8 @@
           "headers": {
             "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
             "content-type": "application/json",
-            "via": "HyperSwitch"
+            "via": "HyperSwitch",
+            "x-finix-referrer-source": "PLUGIN_HYPERSWITCH"
           },
           "body": "{\"void_me\":true}"
         }
