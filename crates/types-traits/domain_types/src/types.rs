@@ -5239,7 +5239,7 @@ impl
             access_token,
             session_token: None,
             reference_id: None,
-            connector_order_id: None,
+            connector_order_id: value.connector_order_id,
             preprocessing_id: None,
             connector_api_version: None,
             test_mode: value.test_mode,
@@ -13650,6 +13650,14 @@ impl
             .map(|m| ForeignTryFrom::foreign_try_from((m, "merchant account metadata")))
             .transpose()?;
 
+        // Extract access_token from state field
+        let access_token = value
+            .state
+            .as_ref()
+            .and_then(|state| state.access_token.as_ref())
+            .map(ServerAuthenticationTokenResponseData::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
             raw_connector_status: None,
             merchant_id: merchant_id_from_header,
@@ -13669,7 +13677,7 @@ impl
             minor_amount_captured: None,
             minor_amount_capturable: None,
             amount: None,
-            access_token: None,
+            access_token,
             session_token: None,
             reference_id: None,
             connector_order_id: None,

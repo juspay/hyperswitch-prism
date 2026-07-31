@@ -3573,6 +3573,13 @@ message RecurringPaymentServiceChargeRequest {
 
   // Channel through which the repeat payment was initiated.
   optional PaymentChannel payment_channel = 38;
+
+  // Identifier of the order/intent created on the connector for this charge.
+  // Connectors whose MIT leg confirms a pre-created order (e.g. Airwallex
+  // confirming a PaymentIntent) require the caller to run CreateOrder first
+  // and pass the resulting id here. Mirrors
+  // PaymentServiceAuthorizeRequest.connector_order_id.
+  optional string connector_order_id = 39;
 }
 
 // Response message for repeat payment operation
@@ -4546,6 +4553,11 @@ message CustomerServiceCreateRequest {
 
   // Split payment configuration (platform fees, transfers, etc.)
   optional SplitPaymentsDetails split_payments = 9;
+
+  // Access token / connector session state for connectors whose customer API
+  // is authenticated separately from the merchant credentials (e.g. Airwallex
+  // Bearer tokens). Mirrors the `state` field on the payment service requests.
+  optional ConnectorState state = 10;
 }
 
 // Response message for creating a customer

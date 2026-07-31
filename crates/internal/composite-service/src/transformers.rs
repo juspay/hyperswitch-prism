@@ -203,6 +203,10 @@ impl ForeignFrom<&CompositeAuthorizeRequest> for CustomerServiceCreateRequest {
             connector_feature_data: item.connector_feature_data.clone(),
             test_mode: item.test_mode,
             split_payments: item.split_payments.clone(),
+            // Connectors whose customer API authenticates separately from the
+            // merchant credentials (e.g. Airwallex Bearer tokens) read the token
+            // off this. Mirrors the CustomerServiceGetRequest impl below.
+            state: item.state.clone(),
         }
     }
 }

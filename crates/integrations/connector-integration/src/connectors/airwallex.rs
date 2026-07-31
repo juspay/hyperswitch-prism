@@ -27,7 +27,7 @@ use domain_types::{
     types::Connectors,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, Maskable, PeekInterface};
+use hyperswitch_masking::{ExposeInterface, Maskable};
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
     decode::BodyDecoding, verification::SourceVerification,
@@ -558,21 +558,11 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             // Airwallex MIT requires a fresh PaymentIntent; caller must run CreateOrder
-            // first and pass connector_order_id via PaymentFlowData.connector_order_id,
-            // or (fallback) via connector_feature_data JSON: {"connector_order_id":"..."}.
-            // The fallback is required because RecurringPaymentServiceChargeRequest (proto)
-            // has no top-level `order_id` field, and its ForeignTryFrom for PaymentFlowData
-            // leaves `connector_order_id = None`.
+            // first and pass connector_order_id via PaymentFlowData.connector_order_id.
             let order_id = req
                 .resource_common_data
                 .connector_order_id
                 .clone()
-                .or_else(|| {
-                    req.resource_common_data
-                        .connector_feature_data
-                        .as_ref()
-                        .and_then(|v| v.peek().get("connector_order_id").and_then(|id| id.as_str().map(|s| s.to_string())))
-                })
                 .ok_or(IntegrationError::MissingRequiredField {
                     field_name: "connector_order_id",
                     context: Default::default(),
@@ -660,11 +650,9 @@ macros::macro_connector_implementation!(
 // ===== CONNECTOR CUSTOMER CONNECTOR INTEGRATIONS =====
 // Create Connector Customer — POST /api/v1/pa/customers/create.
 //
-// Airwallex requires a Bearer access token (from ServerAuthenticationToken).
-// CustomerServiceCreateRequest has no `state` field in the proto, so the access
-// token is passed manually via `connector_feature_data` as JSON of the shape
-// `{"access_token": "<token>"}`. This mirrors the existing RepeatPayment fallback
-// pattern for `connector_order_id`.
+// Airwallex requires a Bearer access token (from ServerAuthenticationToken),
+// supplied by the caller on CustomerServiceCreateRequest.state and surfaced as
+// PaymentFlowData.access_token.
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Airwallex,
@@ -685,18 +673,7 @@ macros::macro_connector_implementation!(
             let access_token = req
                 .resource_common_data
                 .get_access_token()
-                .ok()
-                .or_else(|| {
-                    req.resource_common_data
-                        .connector_feature_data
-                        .as_ref()
-                        .and_then(|v| {
-                            v.peek()
-                                .get("access_token")
-                                .and_then(|tok| tok.as_str().map(|s| s.to_string()))
-                        })
-                })
-                .ok_or(IntegrationError::FailedToObtainAuthType {
+                .change_context(IntegrationError::FailedToObtainAuthType {
                     context: Default::default(),
                 })?;
             Ok(self.build_headers(&access_token))
