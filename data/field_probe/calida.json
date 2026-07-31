@@ -629,6 +629,11 @@
         "error": "This feature is not implemented: mandate_revoke flow for calida"
       }
     },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "refund": {
       "default": {
         "status": "not_implemented",

@@ -14,6 +14,7 @@ use grpc_api_types::payments::{
     PaymentMethodAuthenticationServicePostAuthenticateRequest,
     PaymentMethodAuthenticationServicePreAuthenticateRequest,
     PaymentMethodServiceEligibilityRequest,
+    PaymentMethodServiceRefreshRequest,
     PaymentMethodServiceTokenizeRequest,
     PaymentServiceAuthorizeRequest,
     PaymentServiceCaptureRequest,
@@ -81,6 +82,7 @@ use crate::handlers::payments::{
     proxy_authorize_req_handler, proxy_authorize_res_handler,
     proxy_setup_recurring_req_handler, proxy_setup_recurring_res_handler,
     recurring_revoke_req_handler, recurring_revoke_res_handler,
+    refresh_req_handler, refresh_res_handler,
     refund_req_handler, refund_res_handler,
     refund_get_req_handler, refund_get_res_handler,
     reverse_req_handler, reverse_res_handler,
@@ -153,6 +155,8 @@ define_ffi_flow!(proxy_authorize, PaymentServiceProxyAuthorizeRequest, proxy_aut
 define_ffi_flow!(proxy_setup_recurring, PaymentServiceProxySetupRecurringRequest, proxy_setup_recurring_req_handler, proxy_setup_recurring_res_handler);
 // recurring_revoke: RecurringPaymentService.Revoke — Cancel an existing recurring payment mandate. Stops future automatic charges on customer's stored consent for subscription cancellations.
 define_ffi_flow!(recurring_revoke, RecurringPaymentServiceRevokeRequest, recurring_revoke_req_handler, recurring_revoke_res_handler);
+// refresh: PaymentMethodService.Refresh — Refresh a payment method the caller already holds in full. The request carries the instrument itself, not a reference to it: use Refresh when you own the complete payment method details and the provider exposes an endpoint that evaluates them.
+define_ffi_flow!(refresh, PaymentMethodServiceRefreshRequest, refresh_req_handler, refresh_res_handler);
 // refund: PaymentService.Refund — Process a partial or full refund for a captured payment. Returns funds to the customer when goods are returned or services are cancelled.
 define_ffi_flow!(refund, PaymentServiceRefundRequest, refund_req_handler, refund_res_handler);
 // refund_get: RefundService.Get — Retrieve refund status from the payment processor. Tracks refund progress through processor settlement for accurate customer communication.

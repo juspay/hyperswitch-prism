@@ -17,12 +17,13 @@ use common_utils::{request::Request, CustomResult};
 use domain_types::{
     connector_flow::{
         CreatePaymentMethod, GetPaymentMethod, PaymentMethodEligibility, Recharge,
-        VerifyWebhookSource,
+        RefreshPaymentMethod, VerifyWebhookSource,
     },
     connector_types::{
         CreatePaymentMethodData, CreatePaymentMethodResponseData, GetPaymentMethodData,
         GetPaymentMethodResponseData, PaymentFlowData, PaymentMethodEligibilityData,
         PaymentMethodEligibilityResponse, RechargeRequestData, RechargeResponseData,
+        RefreshPaymentMethodData, RefreshPaymentMethodFlowData, RefreshPaymentMethodResponseData,
         VerifyWebhookSourceFlowData,
     },
     errors::IntegrationError,
@@ -34,7 +35,7 @@ use domain_types::{
 use interfaces::connector_integration_v2::ConnectorIntegrationV2;
 use interfaces::connector_types::{
     CreatePaymentMethodV2, GetPaymentMethodV2, PaymentMethodEligibilityV2, RechargeV2,
-    VerifyWebhookSourceV2,
+    RefreshPaymentMethodV2, VerifyWebhookSourceV2,
 };
 
 /// Inner helper: emit the `VerifyWebhookSourceV2` + `ConnectorIntegrationV2` default impls
@@ -285,6 +286,7 @@ default_impl_verify_webhook_source_v2!(
         Kount,
         Hyperswitch,
         Affirm,
+        Tesouro,
     ],
 );
 // PayPal has its own implementation in paypal.rs
@@ -360,6 +362,7 @@ macro_rules! default_impl_recharge_v2 {
 }
 
 default_impl_recharge_v2!(
+    Tesouro,
     AbsaSanlam,
     Aci,
     Kount,
@@ -581,6 +584,7 @@ macro_rules! default_impl_get_payment_method_v2 {
 
 // Same connector universe as default_impl_recharge_v2! above.
 default_impl_create_payment_method_v2!(
+    Tesouro,
     AbsaSanlam,
     Aci,
     Kount,
@@ -682,6 +686,7 @@ default_impl_create_payment_method_v2!(
 );
 
 default_impl_get_payment_method_v2!(
+    Tesouro,
     AbsaSanlam,
     Aci,
     Kount,
@@ -784,6 +789,7 @@ default_impl_get_payment_method_v2!(
 
 default_impl_payment_method_eligibility_v2!(
     not_supported: [
+        Tesouro,
         Adyen,
         Authorizedotnet,
         Bluesnap,
@@ -880,4 +886,168 @@ default_impl_payment_method_eligibility_v2!(
         Hyperswitch,
         Affirm,
     ],
+);
+
+// ============================================================================
+// RefreshPaymentMethod default impls
+//
+// Same pattern as the Create/Get lists above. Juspay is absent because it wires
+// a real implementation in its own file.
+// ============================================================================
+
+#[macro_export]
+macro_rules! default_impl_refresh_payment_method_v2_single {
+    ($connector:ident) => {
+        impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + serde::Serialize>
+            RefreshPaymentMethodV2<T> for $connector<T>
+        {
+        }
+
+        impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + serde::Serialize>
+            ConnectorIntegrationV2<
+                RefreshPaymentMethod,
+                RefreshPaymentMethodFlowData,
+                RefreshPaymentMethodData<T>,
+                RefreshPaymentMethodResponseData,
+            > for $connector<T>
+        {
+            fn get_url(
+                &self,
+                _req: &RouterDataV2<
+                    RefreshPaymentMethod,
+                    RefreshPaymentMethodFlowData,
+                    RefreshPaymentMethodData<T>,
+                    RefreshPaymentMethodResponseData,
+                >,
+            ) -> CustomResult<String, IntegrationError> {
+                Err(::domain_types::errors::IntegrationError::connector_flow_not_implemented(
+                    ::interfaces::api::ConnectorCommon::id(self),
+                    "refresh_payment_method",
+                    ::domain_types::errors::IntegrationErrorContext::default(),
+                )
+                .into())
+            }
+
+            fn build_request_v2(
+                &self,
+                _req: &RouterDataV2<
+                    RefreshPaymentMethod,
+                    RefreshPaymentMethodFlowData,
+                    RefreshPaymentMethodData<T>,
+                    RefreshPaymentMethodResponseData,
+                >,
+            ) -> CustomResult<Option<Request>, IntegrationError> {
+                Ok(None)
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! default_impl_refresh_payment_method_v2 {
+    ( $( $connector:ident ),* $(,)? ) => {
+        $( $crate::default_impl_refresh_payment_method_v2_single!($connector); )*
+    };
+}
+
+default_impl_refresh_payment_method_v2!(
+    AbsaSanlam,
+    Aci,
+    Adyen,
+    Affirm,
+    Airwallex,
+    Authipay,
+    Authorizedotnet,
+    Axisbank,
+    Bambora,
+    Bamboraapac,
+    Bankofamerica,
+    Barclaycard,
+    Billwerk,
+    Bluesnap,
+    Braintree,
+    Calida,
+    Cashfree,
+    Cashtocode,
+    Celero,
+    Checkout,
+    Cryptopay,
+    Cybersource,
+    Datatrans,
+    Dlocal,
+    Easebuzz,
+    Elavon,
+    Finix,
+    Fiserv,
+    Fiservcommercehub,
+    Fiservemea,
+    Fiuu,
+    Flywire,
+    Forte,
+    Getnet,
+    Gigadat,
+    Givepayments,
+    Globalpay,
+    Glomopay,
+    Helcim,
+    Hipay,
+    Hyperpg,
+    Hyperswitch,
+    Iatapay,
+    Imerchantsolutions,
+    Itaubank,
+    Jpmorgan,
+    Kount,
+    Loonio,
+    Mifinity,
+    Mollie,
+    Multisafepay,
+    Netcetera,
+    Nexinets,
+    Nexixpay,
+    Nmi,
+    Noon,
+    Novalnet,
+    Nuvei,
+    Paybox,
+    Payconex,
+    Payload,
+    Payme,
+    Paypal,
+    Paysafe,
+    Paytm,
+    Payu,
+    Peachpayments,
+    Phonepe,
+    PinelabsOnline,
+    Placetopay,
+    Powertranz,
+    Ppro,
+    Qwikcilver,
+    Rapyd,
+    Razorpay,
+    RazorpayV2,
+    Redsys,
+    Revolut,
+    Revolv3,
+    Shift4,
+    Silverflow,
+    Stax,
+    Stripe,
+    Tamara,
+    Tesouro,
+    Truelayer,
+    Trustly,
+    Trustpay,
+    Trustpayments,
+    Tsys,
+    TsysTransit,
+    TwocTwopPaco,
+    Volt,
+    Wellsfargo,
+    Worldpay,
+    Worldpayvantiv,
+    Worldpayxml,
+    Xendit,
+    Zift,
 );

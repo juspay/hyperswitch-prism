@@ -9,8 +9,14 @@ use ucs_env::{configs, logger};
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(debug_assertions)]
     verify_other_config_files();
+
     #[allow(clippy::expect_used)]
     let mut config = configs::Config::new().expect("Failed while parsing config");
+
+    // Stamp the compiled build version onto runtime metadata so every event carries it (A/B groups
+    // on `version`). Sourced from the binary via `git_describe!()` — the authoritative running
+    // build, not a config/env value. `application_name`/`deployment_id`/`pod_name` come from config.
+    config.runtime_metadata.version = ucs_env::git_describe!().to_string();
 
     // Load superposition.toml for connector URL resolution
     let superposition_config_path = format!(

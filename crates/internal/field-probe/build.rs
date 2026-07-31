@@ -157,6 +157,7 @@ fn parse_flow_info(transformer_fn: &str, request_type: &str) -> Option<FlowInfo>
             | "proxy_setup_recurring"
             | "refund_get"
             | "recurring_revoke"
+            | "refresh"
     );
 
     Some(FlowInfo {
