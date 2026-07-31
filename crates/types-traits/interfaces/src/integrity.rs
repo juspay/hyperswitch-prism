@@ -1468,8 +1468,8 @@ impl GetIntegrityObject<PayoutEligibilityIntegrityObject> for PayoutEligibilityR
 
     fn get_request_integrity_object(&self) -> PayoutEligibilityIntegrityObject {
         PayoutEligibilityIntegrityObject {
-            amount: self.amount,
-            currency: self.source_currency,
+            amount: self.amount.amount,
+            currency: self.amount.currency,
         }
     }
 }

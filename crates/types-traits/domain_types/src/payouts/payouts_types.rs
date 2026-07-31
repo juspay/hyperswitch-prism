@@ -402,8 +402,7 @@ pub struct PayoutEnrollDisburseAccountResponse {
 #[derive(Debug, Clone)]
 pub struct PayoutEligibilityRequest {
     pub merchant_payout_id: Option<String>,
-    pub amount: common_utils::types::MinorUnit,
-    pub source_currency: common_enums::Currency,
+    pub amount: common_utils::types::Money,
     pub destination_currency: common_enums::Currency,
     pub payout_method_data: Option<PayoutMethodData>,
     pub source_bank_data: Option<Bank>,

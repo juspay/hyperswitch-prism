@@ -2189,8 +2189,10 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutMethodEligibilityRequest>
 
         Ok(Self {
             merchant_payout_id: value.merchant_payout_id.clone(),
-            amount: common_utils::types::MinorUnit::new(amount.minor_amount),
-            source_currency,
+            amount: common_utils::types::Money {
+                amount: common_utils::types::MinorUnit::new(amount.minor_amount),
+                currency: source_currency,
+            },
             destination_currency,
             payout_method_data,
             source_bank_data: value
