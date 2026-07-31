@@ -184,12 +184,22 @@ macros::create_all_prerequisites!(
                 .as_ref()
                 .map(|content| content.get_inner_value().expose().into_bytes())
                 .unwrap_or_default();
-            let headers =
-                self.cseal_headers_for_bytes(req, correlation_prefix, path, vop_id, &body_bytes)?;
+            // Sign over the request-target derived from the *actual* URL, so a per-MCA
+            // base_url that carries a path prefix still signs the path DB reconstructs.
+            // Falls back to the constant path if the URL can't be parsed.
+            let url = self.get_url(req)?;
+            let signed_path = signed_request_target(&url, path);
+            let headers = self.cseal_headers_for_bytes(
+                req,
+                correlation_prefix,
+                &signed_path,
+                vop_id,
+                &body_bytes,
+            )?;
             Ok(Some(
                 RequestBuilder::new()
                     .method(self.get_http_method())
-                    .url(self.get_url(req)?.as_str())
+                    .url(url.as_str())
                     .attach_default_headers()
                     .headers(headers)
                     .set_optional_body(body)
@@ -433,6 +443,21 @@ fn b64_pem(mut pem: String) -> String {
         pem.push('\n');
     }
     common_utils::consts::BASE64_ENGINE.encode(pem)
+}
+
+/// The HTTP-Signatures `(request-target)` path for `url`: the origin-form path
+/// (plus query, if any). This is what DB reconstructs from the request line, so
+/// signing over it — rather than the hardcoded endpoint constant — keeps the
+/// signature valid even if a per-MCA `base_url` carries a path prefix. Falls back
+/// to `fallback` if the URL cannot be parsed.
+fn signed_request_target(url: &str, fallback: &str) -> String {
+    match url::Url::parse(url) {
+        Ok(parsed) => match parsed.query() {
+            Some(query) => format!("{}?{}", parsed.path(), query),
+            None => parsed.path().to_string(),
+        },
+        Err(_) => fallback.to_string(),
+    }
 }
 
 /// Trust anchor for verifying DB's *server* certificate.

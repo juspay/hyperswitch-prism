@@ -361,8 +361,9 @@ impl Config {
         config.common.validate()?;
 
         // Fail fast on malformed platform CA config, using the same PEM parser as
-        // runtime client construction. Generic over any connector that exposes a
-        // server_ca_bundle (see `Connectors::server_ca_bundles`).
+        // runtime client construction. Iterates the hand-maintained list in
+        // `Connectors::server_ca_bundles` — a new connector with a CA bundle must be
+        // registered there to be validated here.
         for (connector, pem) in config.connectors.server_ca_bundles() {
             let pem = pem.trim();
             if !pem.is_empty() {

@@ -161,12 +161,8 @@ pub struct DeutschebankVopDebtor {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeutschebankVopResponse {
-    #[serde(
-        rename = "payeeNameMatch",
-        alias = "match",
-        alias = "result",
-        alias = "matchStatus"
-    )]
+    // DB's VoP response fields.
+    #[serde(rename = "payeeNameMatch")]
     pub match_status: Option<DeutschebankVopMatchStatus>,
     #[serde(
         rename = "additionalInfo",
@@ -524,7 +520,8 @@ impl
         // collapse them to a single constant shared across every payout, so
         // reject it rather than emit colliding, non-unique identifiers.
         if reference.trim().is_empty() {
-            return Err(error_stack::report!(IntegrationError::MissingRequiredField {
+            return Err(
+                error_stack::report!(IntegrationError::MissingRequiredField {
                 field_name: "merchant_payout_id",
                 context: IntegrationErrorContext {
                     additional_context: Some(
@@ -537,7 +534,8 @@ impl
                     ),
                     doc_url: None,
                 },
-            }));
+            }),
+            );
         }
         // Salt with `merchant_id` (matching `derive_vop_id`) so identifiers are
         // unique per merchant, not just per reference string.
@@ -578,7 +576,7 @@ impl
         // value fails with a clear error instead of an opaque DB scheme rejection.
         validate_sepa_purpose_code(&purpose_code)?;
 
-        let request = DeutschebankSepaPaymentRequest {
+        let request = Self {
             customer_credit_transfer_initiation: DeutschebankCustomerCreditTransferInitiation {
                 group_header: DeutschebankGroupHeader {
                     message_identification: message_id.clone(),
@@ -684,7 +682,9 @@ impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
 pub struct DeutschebankSepaPaymentResponse {
     #[serde(rename = "customerPaymentStatusReport")]
     pub customer_payment_status_report: Option<DeutschebankCustomerPaymentStatusReport>,
-    #[serde(rename = "transactionStatus", alias = "status")]
+    // Top-level `transactionStatus` is a real fallback DB sends (often null); the
+    // primary status lives in the nested `transactionInformationAndStatus` block.
+    #[serde(rename = "transactionStatus")]
     pub top_level_status: Option<DeutschebankPaymentStatus>,
 }
 
@@ -739,7 +739,9 @@ pub struct DeutschebankStatusDebtorAccount {
 pub struct DeutschebankStatusResponse {
     #[serde(rename = "customerPaymentStatusReport")]
     pub customer_payment_status_report: Option<DeutschebankCustomerPaymentStatusReport>,
-    #[serde(rename = "transactionStatus", alias = "status")]
+    // Top-level `transactionStatus` is a real fallback DB sends (often null); the
+    // primary status lives in the nested `transactionInformationAndStatus` block.
+    #[serde(rename = "transactionStatus")]
     pub top_level_status: Option<DeutschebankPaymentStatus>,
 }
 
@@ -813,8 +815,14 @@ impl TryFrom<ResponseRouterData<DeutschebankSepaPaymentResponse, Self>>
         // it here rather than rebuilding the whole request (which would re-run
         // amount conversion / required-field checks after the money already moved).
         let end_to_end_id = derive_end_to_end_id(
-            item.router_data.resource_common_data.merchant_id.get_string_repr(),
-            &item.router_data.resource_common_data.connector_request_reference_id,
+            item.router_data
+                .resource_common_data
+                .merchant_id
+                .get_string_repr(),
+            &item
+                .router_data
+                .resource_common_data
+                .connector_request_reference_id,
         );
 
         let payout_status = item
@@ -1001,9 +1009,7 @@ fn resolve_debtor_agent_bic(
 /// Validate that `value` fits the SEPA proprietary purpose code constraints:
 /// non-empty, at most `SEPA_MAX_PURPOSE_LEN` chars, and within the restricted
 /// SEPA character set.
-fn validate_sepa_purpose_code(
-    value: &str,
-) -> Result<(), error_stack::Report<IntegrationError>> {
+fn validate_sepa_purpose_code(value: &str) -> Result<(), error_stack::Report<IntegrationError>> {
     fn is_sepa_char(c: char) -> bool {
         c.is_ascii_alphanumeric() || " /-?:().,'+".contains(c)
     }
@@ -1014,12 +1020,12 @@ fn validate_sepa_purpose_code(
         Some(format!(
             "must be at most {SEPA_MAX_PURPOSE_LEN} characters (got {len})"
         ))
-    } else if let Some(bad) = value.chars().find(|&c| !is_sepa_char(c)) {
-        Some(format!(
-            "contains unsupported character {bad:?}; allowed: A-Z a-z 0-9 and / - ? : ( ) . , ' + space"
-        ))
     } else {
-        None
+        value.chars().find(|&c| !is_sepa_char(c)).map(|bad| {
+            format!(
+                "contains unsupported character {bad:?}; allowed: A-Z a-z 0-9 and / - ? : ( ) . , ' + space"
+            )
+        })
     };
     if let Some(detail) = problem {
         return Err(error_stack::report!(IntegrationError::InvalidDataFormat {

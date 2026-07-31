@@ -118,23 +118,28 @@ fn sign_rsa_sha256(
         },
     })?;
 
-    let key_pair = signature::RsaKeyPair::from_pkcs8(&der)
-        .or_else(|_| {
-            let wrapped = wrap_pkcs1_as_pkcs8(&der);
-            signature::RsaKeyPair::from_pkcs8(&wrapped)
-        })
-        .map_err(|rejection| IntegrationError::InvalidConnectorConfig {
-            config: "signing_private_key",
-            context: IntegrationErrorContext {
-                additional_context: Some(format!(
-                    "Could not parse RSA private key (expected PKCS#8 or PKCS#1 PEM): {rejection}"
-                )),
-                suggested_action: Some(
-                    "Provide an RSA private key in PEM PKCS#8 or PKCS#1 form.".to_string(),
-                ),
-                doc_url: None,
-            },
-        })?;
+    let key_pair = match signature::RsaKeyPair::from_pkcs8(&der) {
+        Ok(key_pair) => key_pair,
+        // Not PKCS#8 — assume a bare PKCS#1 `RSAPrivateKey` and wrap it in a PKCS#8
+        // envelope before retrying.
+        Err(_) => {
+            let wrapped = wrap_pkcs1_as_pkcs8(&der)?;
+            signature::RsaKeyPair::from_pkcs8(&wrapped).map_err(|rejection| {
+                IntegrationError::InvalidConnectorConfig {
+                    config: "signing_private_key",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(format!(
+                            "Could not parse RSA private key (expected PKCS#8 or PKCS#1 PEM): {rejection}"
+                        )),
+                        suggested_action: Some(
+                            "Provide an RSA private key in PEM PKCS#8 or PKCS#1 form.".to_string(),
+                        ),
+                        doc_url: None,
+                    },
+                }
+            })?
+        }
+    };
 
     let rng = rand::SystemRandom::new();
     let mut sig = vec![0u8; key_pair.public().modulus_len()];
@@ -181,12 +186,12 @@ fn extract_der_from_pem(pem: &str) -> Result<Vec<u8>, base64::DecodeError> {
 /// ```
 /// `ALG_ID` is the pre-encoded `AlgorithmIdentifier` (SEQUENCE of the rsaEncryption
 /// OID + NULL parameters).
-fn wrap_pkcs1_as_pkcs8(pkcs1: &[u8]) -> Vec<u8> {
+fn wrap_pkcs1_as_pkcs8(pkcs1: &[u8]) -> Result<Vec<u8>, error_stack::Report<IntegrationError>> {
     const ALG_ID: &[u8] = &[
         0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00,
     ];
 
-    let octet_string = encode_der_tlv(0x04, pkcs1); // OCTET STRING wrapping the PKCS#1 key
+    let octet_string = encode_der_tlv(0x04, pkcs1)?; // OCTET STRING wrapping the PKCS#1 key
     let version = vec![0x02, 0x01, 0x00]; // INTEGER 0 (PKCS#8 version)
     let mut content = Vec::with_capacity(version.len() + ALG_ID.len() + octet_string.len());
     content.extend_from_slice(&version);
@@ -199,11 +204,28 @@ fn wrap_pkcs1_as_pkcs8(pkcs1: &[u8]) -> Vec<u8> {
 ///
 /// Handles DER definite-length encoding: short form for lengths ≤ 0x7f (one byte),
 /// and long form for larger lengths (`0x81 <len>` for ≤ 0xff, `0x82 <hi> <lo>` for
-/// ≤ 0xffff). Lengths beyond 0xffff are not produced here — RSA keys stay well under.
-fn encode_der_tlv(tag: u8, data: &[u8]) -> Vec<u8> {
-    let mut out = Vec::with_capacity(data.len() + 4);
-    out.push(tag);
+/// ≤ 0xffff). Lengths beyond 0xffff are rejected explicitly — they are unreachable
+/// for RSA keys, but we error rather than silently emit a truncated (malformed) length.
+fn encode_der_tlv(tag: u8, data: &[u8]) -> Result<Vec<u8>, error_stack::Report<IntegrationError>> {
     let len = data.len();
+    if len > 0xffff {
+        return Err(error_stack::report!(
+            IntegrationError::RequestEncodingFailed {
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "ASN.1 DER value length {len} exceeds the supported maximum (0xffff)"
+                    )),
+                    suggested_action: Some(
+                        "Unexpected for RSA keys; verify `signing_private_key` is a valid RSA key."
+                            .to_string(),
+                    ),
+                    doc_url: None,
+                },
+            }
+        ));
+    }
+    let mut out = Vec::with_capacity(len + 4);
+    out.push(tag);
     let len_bytes = len.to_le_bytes();
     match len {
         0..=0x7f => out.push(len_bytes[0]),
@@ -211,5 +233,5 @@ fn encode_der_tlv(tag: u8, data: &[u8]) -> Vec<u8> {
         _ => out.extend_from_slice(&[0x82, len_bytes[1], len_bytes[0]]),
     }
     out.extend_from_slice(data);
-    out
+    Ok(out)
 }

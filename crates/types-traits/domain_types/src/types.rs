@@ -522,6 +522,13 @@ impl HasConnectors for crate::payouts::payouts_types::PayoutFlowData {
 }
 
 impl Connectors {
+    /// Connectors that expose a `server_ca_bundle`, paired with the configured
+    /// PEM, for startup validation.
+    ///
+    /// NOTE: this is an explicit, hand-maintained list — it is *not* automatically
+    /// generic over every connector. A new connector that adds a `server_ca_bundle`
+    /// field must also be registered here, otherwise its CA config silently skips
+    /// startup validation.
     pub fn server_ca_bundles(&self) -> Vec<(&'static str, &str)> {
         let mut bundles = Vec::new();
         if let Some(pem) = self.deutschebank.server_ca_bundle.as_deref() {
