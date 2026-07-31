@@ -995,7 +995,7 @@
     "recurring_charge": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: connector_order_id — Missing required field: connector_order_id"
+        "error": "Stuck on field: payment_method_id — Missing required field: payment_method_id"
       }
     },
     "recurring_revoke": {
