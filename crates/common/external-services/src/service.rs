@@ -223,7 +223,7 @@ impl AdditionalHeaders for domain_types::frm::frm_types::FrmFlowData {
         None
     }
 }
-use common_utils::events::{Event, EventConfig, FlowName};
+use common_utils::events::{Event, EventConfig, FlowName, RuntimeMetadata};
 #[cfg(feature = "injector-client")]
 use common_utils::types::ExecutionMode;
 #[cfg(feature = "injector-client")]
@@ -521,6 +521,8 @@ pub struct EventProcessingParams<'a> {
     pub service_type: &'a str,
     pub flow_name: FlowName,
     pub event_config: &'a EventConfig,
+    /// Deployment/runtime identity threaded from application state, stamped onto every event.
+    pub runtime_metadata: &'a RuntimeMetadata,
     pub request_id: &'a str,
     pub lineage_ids: &'a lineage::LineageIds<'a>,
     pub reference_id: &'a Option<String>,
@@ -1094,6 +1096,9 @@ fn create_event(
         headers: event_headers,
         additional_fields: HashMap::new(),
         lineage_ids: event_params.lineage_ids.to_owned(),
+        // Deployment/runtime identity (compiled version + optional app/deployment/pod), threaded
+        // from application state; serialized as top-level event fields.
+        runtime_metadata: event_params.runtime_metadata.clone(),
     };
 
     event.add_reference_id(event_params.reference_id.as_deref());
