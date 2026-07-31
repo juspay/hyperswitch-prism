@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.07.31.0
+
+### Features
+
+- **connector:** Implement SetupMandate for tesouro ([#1910](https://github.com/juspay/connector-service/pull/1910)) ([`2e6ac00`](https://github.com/juspay/connector-service/commit/2e6ac009d26c25e14849f1ea8726f03eb347958f))
+
+**Full Changelog:** [`2026.07.30.2...2026.07.31.0`](https://github.com/juspay/connector-service/compare/2026.07.30.2...2026.07.31.0)
+
+- - -
+
 ## 2026.07.30.2
 
 ### Features

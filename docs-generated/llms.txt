@@ -710,6 +710,14 @@ payment_methods: none
 flows: capture, get, handle_event, parse_event, refund, refund_get, verify_redirect, void
 examples_python: none
 
+## Tesouro
+connector_id: tesouro
+doc: docs/connectors/tesouro.md
+scenarios: none
+payment_methods: none
+flows: create_server_authentication_token
+examples_python: none
+
 ## Truelayer
 connector_id: truelayer
 doc: docs/connectors/truelayer.md
