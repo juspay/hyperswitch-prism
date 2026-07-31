@@ -3032,6 +3032,8 @@ pub struct AuthorizationRequest {
     /// Partner / merchant application identifiers (e.g. Adyen applicationInfo).
     pub partner_merchant_identifier_details:
         Option<grpc_payment_types::PartnerMerchantIdentifierDetails>,
+    /// Dynamic currency conversion decision and quote supplied for authorization.
+    pub dynamic_currency_conversion_data: Option<grpc_payment_types::DynamicCurrencyConversionData>,
 }
 
 /// Intermediate setup recurring request that accepts both CardDetails and ProxyCardDetails.
@@ -3136,6 +3138,7 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
             domain_data: req.domain_data,
             split_payments: req.split_payments,
             partner_merchant_identifier_details: req.partner_merchant_identifier_details,
+            dynamic_currency_conversion_data: req.dynamic_currency_conversion_data,
         }
     }
 }
@@ -3205,6 +3208,7 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             domain_data: req.domain_data,
             split_payments: None,
             partner_merchant_identifier_details: None,
+            dynamic_currency_conversion_data: None,
         }
     }
 }
@@ -4129,6 +4133,7 @@ impl<
                 .partner_merchant_identifier_details
                 .map(connector_types::PartnerMerchantIdentifierDetails::foreign_try_from)
                 .transpose()?,
+            dynamic_currency_conversion_data: value.dynamic_currency_conversion_data,
         })
     }
 }
@@ -6198,6 +6203,7 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                     splits: splits.map(|s| {
                         grpc_api_types::payments::ConnectorSplitResponseData::foreign_from(s)
                     }),
+                    dynamic_currency_conversion_data: None,
                 }
             }
             _ => {
@@ -6261,6 +6267,7 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                 connector_response,
                 network_txn_link_id: None,
                 splits: None,
+                dynamic_currency_conversion_data: None,
             }
         }
     };
@@ -16631,6 +16638,7 @@ pub fn tokenized_authorize_to_base(
         merchant_request_id: None,
         domain_data: None,
         partner_merchant_identifier_details: None,
+        dynamic_currency_conversion_data: None,
     }
 }
 
@@ -16809,6 +16817,7 @@ pub fn proxied_authorize_to_base(
         merchant_request_id: None,
         domain_data: None,
         partner_merchant_identifier_details: None,
+        dynamic_currency_conversion_data: None,
     })
 }
 
@@ -17459,5 +17468,51 @@ impl From<connector_types::WebhookResourceReference> for grpc_api_types::payment
                 })),
             },
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::AuthorizationRequest;
+    use grpc_api_types::payments::{
+        Currency, DccDecision, DccQuote, DynamicCurrencyConversionData, Money,
+        PaymentServiceAuthorizeRequest,
+    };
+
+    #[test]
+    fn authorize_request_preserves_dynamic_currency_conversion_data() {
+        let dcc_data = DynamicCurrencyConversionData {
+            decision: DccDecision::Accepted as i32,
+            quote: Some(DccQuote {
+                actual_amount: Some(Money {
+                    minor_amount: 12_345,
+                    currency: Currency::Eur as i32,
+                }),
+                exchange_rate: Some("1.0842".to_string()),
+                connector_quote_id: Some("quote_123".to_string()),
+                exchange_rate_id: Some("rate_123".to_string()),
+                provider: Some("provider".to_string()),
+                rate_source: Some("source".to_string()),
+                markup_percentage: Some("3.50".to_string()),
+                markup_amount: Some(Money {
+                    minor_amount: 350,
+                    currency: Currency::Eur as i32,
+                }),
+                currency_conversion_type: None,
+                quoted_at: Some(1_700_000_000),
+                expires_at: Some(1_700_000_300),
+            }),
+        };
+        let request = PaymentServiceAuthorizeRequest {
+            dynamic_currency_conversion_data: Some(dcc_data.clone()),
+            ..Default::default()
+        };
+
+        let authorization_request = AuthorizationRequest::from(request);
+
+        assert_eq!(
+            authorization_request.dynamic_currency_conversion_data,
+            Some(dcc_data)
+        );
     }
 }

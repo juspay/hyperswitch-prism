@@ -3825,6 +3825,7 @@ fn repeat_payment_data_to_authorize<T: PaymentMethodDataTypes>(
         mit_category: req.mit_category.clone(),
         domain_data: None,
         partner_merchant_identifier_details: None,
+        dynamic_currency_conversion_data: None,
     }
 }
 

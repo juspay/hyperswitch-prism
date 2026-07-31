@@ -60,6 +60,55 @@ message Money {
   Currency currency = 2; // ISO 4217 currency code (e.g., "USD", "EUR")
 }
 
+// DCC Quote details associated with a dynamic currency conversion decision.
+message DccQuote {
+  // Actual amount for the transaction, expressed in the cardholder currency.
+  Money actual_amount = 1;
+
+  // Exchange rate applied for the conversion, represented exactly as provided
+  // by the quote source.
+  optional string exchange_rate = 3;
+
+  // Connector/rate-provider references that may be required on authorization.
+  optional string connector_quote_id = 4;
+  optional string exchange_rate_id = 5;
+
+  // DCC provider/rate source metadata.
+  optional string provider = 6;
+  optional string rate_source = 7;
+
+  // Percentage markup included in the exchange rate, represented exactly as
+  // supplied by the provider (for example, "3.50").
+  optional string markup_percentage = 8;
+  optional Money markup_amount = 9;
+
+  // Type of currency conversion: DCC, MCP, or MCC.
+  optional CurrencyConversionType currency_conversion_type = 10;
+
+  // Unix epoch seconds.
+  optional int64 quoted_at = 11;
+  optional int64 expires_at = 12;
+}
+
+enum CurrencyConversionType {
+  CURRENCY_CONVERSION_TYPE_UNSPECIFIED = 0;
+  CURRENCY_CONVERSION_TYPE_DCC = 1;
+  CURRENCY_CONVERSION_TYPE_MCP = 2;
+  CURRENCY_CONVERSION_TYPE_MCC = 3;
+}
+
+enum DccDecision {
+  DCC_DECISION_UNSPECIFIED = 0;
+  DCC_DECISION_ACCEPTED = 1;
+  DCC_DECISION_DECLINED = 2;
+  DCC_DECISION_NOT_APPLICABLE = 3;
+}
+
+message DynamicCurrencyConversionData {
+  DccDecision decision = 1;
+  optional DccQuote quote = 2;
+}
+
 // Permissions wraps a repeated string field to allow optional presence
 // Used for fields like permissions where absence is semantically different from empty
 message Permissions {
@@ -2522,6 +2571,10 @@ message PaymentServiceAuthorizeRequest {
   optional Money surcharge_amount = 49;
 
   optional PartnerMerchantIdentifierDetails partner_merchant_identifier_details = 50;
+
+  // Dynamic currency conversion quote and decision data passed through the
+  // authorization flow for future connector-specific processing.
+  optional DynamicCurrencyConversionData dynamic_currency_conversion_data = 51;
 }
 
 // Partner / external-platform application details.
@@ -2595,6 +2648,9 @@ message PaymentServiceAuthorizeResponse {
   // Another reference for the connector's transaction, returned in the connector's response.
   // Distinct from connector_transaction_id — e.g. Stripe charge ID (ch_xxx), order codes, invoice numbers.
   optional string connector_reference_id = 24;
+
+  // Dynamic currency conversion decision and quote returned by the connector.
+  optional DynamicCurrencyConversionData dynamic_currency_conversion_data = 25;
 }
 
 // Request message for synchronizing payment status

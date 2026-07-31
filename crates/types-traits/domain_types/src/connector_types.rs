@@ -1619,6 +1619,10 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub domain_data: Option<DomainData>,
     /// Partner / merchant application identifiers (e.g. Adyen applicationInfo).
     pub partner_merchant_identifier_details: Option<PartnerMerchantIdentifierDetails>,
+    /// Dynamic currency conversion decision and quote supplied for authorization.
+    /// Connectors that support DCC can consume this when building their request.
+    pub dynamic_currency_conversion_data:
+        Option<grpc_api_types::payments::DynamicCurrencyConversionData>,
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {
