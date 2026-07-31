@@ -90,22 +90,35 @@ message DccQuote {
   optional int64 expires_at = 12;
 }
 
+// Identifies the currency conversion model used for the payment.
 enum CurrencyConversionType {
+  // Currency conversion type was not provided or could not be determined.
   CURRENCY_CONVERSION_TYPE_UNSPECIFIED = 0;
+  // Dynamic Currency Conversion (DCC).
   CURRENCY_CONVERSION_TYPE_DCC = 1;
+  // Multi-Currency Pricing (MCP).
   CURRENCY_CONVERSION_TYPE_MCP = 2;
+  // Merchant Currency Conversion (MCC).
   CURRENCY_CONVERSION_TYPE_MCC = 3;
 }
 
+// Indicates the customer's decision for a Dynamic Currency Conversion offer.
 enum DccDecision {
+  // DCC decision was not provided or could not be determined.
   DCC_DECISION_UNSPECIFIED = 0;
+  // The customer accepted the DCC offer.
   DCC_DECISION_ACCEPTED = 1;
+  // The customer declined the DCC offer.
   DCC_DECISION_DECLINED = 2;
+  // DCC does not apply to this payment.
   DCC_DECISION_NOT_APPLICABLE = 3;
 }
 
+// Contains the customer's DCC decision and the quote presented to them.
 message DynamicCurrencyConversionData {
+  // Customer's decision for the DCC offer.
   DccDecision decision = 1;
+  // Currency conversion quote presented to the customer, when available.
   optional DccQuote quote = 2;
 }
 
