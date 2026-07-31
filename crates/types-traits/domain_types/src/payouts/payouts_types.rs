@@ -301,6 +301,9 @@ pub struct PayoutTransferResponse {
 pub struct PayoutGetRequest {
     pub merchant_payout_id: Option<String>,
     pub connector_payout_id: Option<String>,
+    /// Source (debtor) bank data — required by connectors (e.g. Deutsche Bank)
+    /// that need the debtor account to perform a status enquiry.
+    pub source_bank_data: Option<Bank>,
 }
 
 #[derive(Debug, Clone)]

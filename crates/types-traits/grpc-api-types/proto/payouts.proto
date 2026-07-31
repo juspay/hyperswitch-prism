@@ -119,6 +119,10 @@ message SepaBankTransferPayout {
   SecretString iban = 4;
   // The Bank Identifier Code (BIC)
   optional SecretString bic = 5;
+  // The name of the account holder. For a debtor (source) account this is the
+  // ordering party; connectors that populate the ISO 20022 Dbtr/Nm need it here
+  // rather than falling back to the payee's name.
+  optional SecretString account_holder_name = 6;
 }
 
 message PixBankTransferPayout {
@@ -373,6 +377,10 @@ message PayoutServiceGetRequest {
   optional string connector_payout_id = 2;
   // access token
   optional SecretString access_token = 3;
+  // Source (debtor) bank data. Some connectors (e.g. Deutsche Bank) require the
+  // debtor account details to perform a status enquiry, so they must be carried
+  // on the Get request rather than smuggled inside connector_payout_id.
+  optional SourceBankData source_bank_data = 4;
 }
 
 // Response message for fetching a payout

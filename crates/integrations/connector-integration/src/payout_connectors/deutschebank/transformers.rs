@@ -23,7 +23,11 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
 const DEUTSCHEBANK_BICFI: &str = "DEUTDEDDXXX";
-const VOP_ID_SEPARATOR: char = '|';
+/// Deutsche Bank BIC prefix (`DEUTDE`) — the debtor account must be held at
+/// Deutsche Bank for CSEAL, so a supplied debtor BIC is validated against this.
+const DEUTSCHEBANK_BIC_PREFIX: &str = "DEUTDE";
+/// SEPA `Purpose/Proprietary` is `Max35Text` over the restricted SEPA charset.
+const SEPA_MAX_PURPOSE_LEN: usize = 35;
 
 const SEPA_PAYMENT_METHOD_CODE: &str = "TRF";
 const SEPA_SERVICE_LEVEL_CODE: &str = "SEPA";
@@ -221,6 +225,30 @@ pub fn derive_vop_id(merchant_id: &str, connector_request_reference_id: &str) ->
     uuid::Uuid::new_v5(&uuid::Uuid::NAMESPACE_OID, salted.as_bytes()).to_string()
 }
 
+/// Deterministic SEPA `endToEndIdentification`, salted with `merchant_id` so it
+/// is unique per merchant + reference. Because it is a pure function of stable
+/// inputs, PayoutGet / the Transfer response can re-derive it instead of
+/// rebuilding the whole request.
+pub fn derive_end_to_end_id(merchant_id: &str, reference: &str) -> String {
+    uuid::Uuid::new_v5(
+        &uuid::Uuid::NAMESPACE_OID,
+        format!("dbank-e2e:{merchant_id}:{reference}").as_bytes(),
+    )
+    .simple()
+    .to_string()
+    .to_uppercase()
+}
+
+/// Deterministic SEPA `messageIdentification` / `paymentInformationIdentification`.
+pub fn derive_message_id(merchant_id: &str, reference: &str) -> String {
+    uuid::Uuid::new_v5(
+        &uuid::Uuid::NAMESPACE_OID,
+        format!("dbank-msg:{merchant_id}:{reference}").as_bytes(),
+    )
+    .simple()
+    .to_string()
+}
+
 pub fn build_eligibility_response(
     vop_body: DeutschebankVopResponse,
     vop_id: String,
@@ -287,20 +315,46 @@ impl TryFrom<ResponseRouterData<DeutschebankVopResponse, Self>>
 
 // ===== Payment Status =====
 
+/// ISO 20022 pain.002 `TxSts` codes. We model the full set DB emits in
+/// practice; any code we don't recognise is captured by `Unknown` (via
+/// `#[serde(other)]`) so a present-but-unmapped status degrades to Pending
+/// instead of failing deserialization of the entire status response — which
+/// would leave an already-accepted payout permanently un-syncable.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum DeutschebankPaymentStatus {
+    // Settled — funds debited/credited.
+    Acsc,
+    Accc,
     Accp,
+    // Accepted but not yet settled.
+    Rcvd,
+    Actc,
+    Acsp,
+    Acwc,
+    Acwp,
     Pdng,
+    Part,
+    // Terminal negative.
     Rjct,
+    Canc,
+    #[serde(other)]
+    Unknown,
 }
 
 impl From<DeutschebankPaymentStatus> for PayoutStatus {
     fn from(value: DeutschebankPaymentStatus) -> Self {
+        use DeutschebankPaymentStatus as S;
         match value {
-            DeutschebankPaymentStatus::Accp => Self::Success,
-            DeutschebankPaymentStatus::Pdng => Self::Pending,
-            DeutschebankPaymentStatus::Rjct => Self::Failure,
+            // `ACCP` retained as Success from the original mapping; `ACSC`/`ACCC`
+            // are the settled/credited states.
+            S::Acsc | S::Accc | S::Accp => Self::Success,
+            // Accepted-but-not-settled and partial — keep syncing.
+            S::Rcvd | S::Actc | S::Acsp | S::Acwc | S::Acwp | S::Pdng | S::Part => Self::Pending,
+            S::Rjct => Self::Failure,
+            S::Canc => Self::Cancelled,
+            // Unmapped `TxSts` — degrade to Pending, never hard-fail.
+            S::Unknown => Self::Pending,
         }
     }
 }
@@ -429,12 +483,6 @@ pub struct DeutschebankInstructedAmount {
     pub value: FloatMajorUnit,
 }
 
-pub struct DeutschebankSepaPaymentBuilt {
-    pub request: DeutschebankSepaPaymentRequest,
-    pub end_to_end_id: String,
-    pub debtor_iban: Secret<String>,
-}
-
 impl
     TryFrom<
         &RouterDataV2<
@@ -443,7 +491,7 @@ impl
             PayoutTransferRequest,
             PayoutTransferResponse,
         >,
-    > for DeutschebankSepaPaymentBuilt
+    > for DeutschebankSepaPaymentRequest
 {
     type Error = error_stack::Report<IntegrationError>;
 
@@ -458,29 +506,45 @@ impl
         let creditor_iban = extract_payee_iban(req.request.payout_method_data.as_ref())?;
         let creditor_bic = extract_payee_bic(req.request.payout_method_data.as_ref())?;
         let debtor_iban = extract_debtor_iban(req.request.source_bank_data.as_ref())?;
+        let debtor_agent_bic = resolve_debtor_agent_bic(req.request.source_bank_data.as_ref())?;
+        // Creditor = payee (from customer.name); debtor = the ordering party,
+        // sourced from source_bank_data rather than falling back to the payee.
         let creditor_name = extract_customer_name(
             req.request.customer.as_ref(),
             "Creditor name is required for Deutsche Bank SEPA payment",
         )?;
+        let debtor_name = extract_debtor_name(req.request.source_bank_data.as_ref())?;
 
         let reference = req
             .resource_common_data
             .connector_request_reference_id
             .clone();
+        // The SEPA endToEndId / messageId (and the VoP-ID) are derived
+        // deterministically from the payout reference. An empty reference would
+        // collapse them to a single constant shared across every payout, so
+        // reject it rather than emit colliding, non-unique identifiers.
+        if reference.trim().is_empty() {
+            return Err(error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "merchant_payout_id",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Deutsche Bank derives the SEPA endToEndId / messageId from the payout \
+                         reference; an empty reference produces non-unique identifiers"
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Set a unique `merchant_payout_id` on the payout request.".to_string(),
+                    ),
+                    doc_url: None,
+                },
+            }));
+        }
+        // Salt with `merchant_id` (matching `derive_vop_id`) so identifiers are
+        // unique per merchant, not just per reference string.
+        let merchant_id = req.resource_common_data.merchant_id.get_string_repr();
 
-        let end_to_end_id = uuid::Uuid::new_v5(
-            &uuid::Uuid::NAMESPACE_OID,
-            format!("dbank-e2e:{reference}").as_bytes(),
-        )
-        .simple()
-        .to_string()
-        .to_uppercase();
-        let message_id = uuid::Uuid::new_v5(
-            &uuid::Uuid::NAMESPACE_OID,
-            format!("dbank-msg:{reference}").as_bytes(),
-        )
-        .simple()
-        .to_string();
+        let end_to_end_id = derive_end_to_end_id(merchant_id, &reference);
+        let message_id = derive_message_id(merchant_id, &reference);
         let creation_date_time = current_iso_utc_seconds()?;
         let execution_date = sepa_execution_date()?;
 
@@ -509,6 +573,10 @@ impl
                     },
                 })
             })?;
+        // `description` feeds the SEPA proprietary purpose code (Max35Text,
+        // restricted charset). Validate up front so an over-long or out-of-charset
+        // value fails with a clear error instead of an opaque DB scheme rejection.
+        validate_sepa_purpose_code(&purpose_code)?;
 
         let request = DeutschebankSepaPaymentRequest {
             customer_credit_transfer_initiation: DeutschebankCustomerCreditTransferInitiation {
@@ -518,7 +586,7 @@ impl
                     control_sum: amount,
                     number_of_transactions: SEPA_SINGLE_TRANSACTION_COUNT.to_string(),
                     initiating_party: DeutschebankParty {
-                        name: creditor_name.clone(),
+                        name: debtor_name.clone(),
                     },
                 },
                 payment_information: vec![DeutschebankPaymentInformation {
@@ -535,18 +603,14 @@ impl
                     requested_execution_date: DeutschebankExecutionDate {
                         date: execution_date,
                     },
-                    debtor: DeutschebankParty {
-                        name: creditor_name.clone(),
-                    },
+                    debtor: DeutschebankParty { name: debtor_name },
                     debtor_account: DeutschebankAccount {
-                        identification: DeutschebankIbanIdentification {
-                            iban: debtor_iban.clone(),
-                        },
+                        identification: DeutschebankIbanIdentification { iban: debtor_iban },
                         currency: Some(req.request.source_currency),
                     },
                     debtor_agent: DeutschebankAgent {
                         financial_institution_identification: DeutschebankBic {
-                            bicfi: Secret::new(DEUTSCHEBANK_BICFI.to_string()),
+                            bicfi: debtor_agent_bic,
                         },
                     },
                     credit_transfer_transaction_information: vec![DeutschebankCreditTransfer {
@@ -554,7 +618,7 @@ impl
                             proprietary: purpose_code,
                         },
                         payment_identification: DeutschebankPaymentIdentification {
-                            end_to_end_identification: end_to_end_id.clone(),
+                            end_to_end_identification: end_to_end_id,
                             instruction_identification: message_id.clone(),
                         },
                         amount: DeutschebankAmountWrapper {
@@ -582,11 +646,7 @@ impl
             },
         };
 
-        Ok(Self {
-            request,
-            end_to_end_id,
-            debtor_iban,
-        })
+        Ok(request)
     }
 }
 
@@ -616,7 +676,7 @@ impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        Ok(DeutschebankSepaPaymentBuilt::try_from(&item.router_data)?.request)
+        Self::try_from(&item.router_data)
     }
 }
 
@@ -658,31 +718,6 @@ pub struct DeutschebankTransactionInformationAndStatus {
     pub transaction_status: Option<DeutschebankPaymentStatus>,
     #[serde(rename = "originalEndToEndIdentification")]
     pub original_end_to_end_identification: Option<String>,
-}
-
-pub fn encode_connector_payout_id(end_to_end_id: &str, debtor_iban: &Secret<String>) -> String {
-    format!("{end_to_end_id}{VOP_ID_SEPARATOR}{}", debtor_iban.peek())
-}
-
-pub fn decode_connector_payout_id(
-    value: &str,
-) -> Result<(String, Secret<String>), error_stack::Report<IntegrationError>> {
-    let (end_to_end_id, iban) = value.split_once(VOP_ID_SEPARATOR).ok_or_else(|| {
-        error_stack::report!(IntegrationError::InvalidDataFormat {
-            field_name: "connector_payout_id",
-            context: IntegrationErrorContext {
-                additional_context: Some(format!(
-                    "Expected `<endToEndId>{VOP_ID_SEPARATOR}<debtorIban>` for Deutsche Bank status enquiry"
-                )),
-                suggested_action: Some(
-                    "Pass the exact `connector_payout_id` returned by Transfer; do not modify it."
-                        .to_string(),
-                ),
-                doc_url: None,
-            },
-        })
-    })?;
-    Ok((end_to_end_id.to_string(), Secret::new(iban.to_string())))
 }
 
 // ===== Status Enquiry =====
@@ -736,13 +771,14 @@ impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
         >,
     ) -> Result<Self, Self::Error> {
         let req = &item.router_data;
-        let connector_payout_id = req.request.connector_payout_id.as_deref().ok_or_else(|| {
+        // `connector_payout_id` is the opaque endToEndId returned by Transfer.
+        let end_to_end_id = req.request.connector_payout_id.clone().ok_or_else(|| {
             error_stack::report!(IntegrationError::MissingRequiredField {
                 field_name: "connector_payout_id",
                 context: IntegrationErrorContext {
                     additional_context: Some(
-                        "connector_payout_id (carrying endToEndId|debtorIban) is required for \
-                         Deutsche Bank status enquiry"
+                        "connector_payout_id (endToEndId) is required for Deutsche Bank status \
+                         enquiry"
                             .to_string(),
                     ),
                     suggested_action: Some(
@@ -752,7 +788,9 @@ impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
                 },
             })
         })?;
-        let (end_to_end_id, debtor_iban) = decode_connector_payout_id(connector_payout_id)?;
+        // The debtor account for the status enquiry now travels on `source_bank_data`
+        // rather than being smuggled inside `connector_payout_id`.
+        let debtor_iban = extract_debtor_iban(req.request.source_bank_data.as_ref())?;
 
         Ok(Self {
             debtor_account: DeutschebankStatusDebtorAccount {
@@ -771,18 +809,13 @@ impl TryFrom<ResponseRouterData<DeutschebankSepaPaymentResponse, Self>>
     fn try_from(
         item: ResponseRouterData<DeutschebankSepaPaymentResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let built =
-            DeutschebankSepaPaymentBuilt::try_from(&item.router_data)
-                .change_context(ConnectorError::ResponseDeserializationFailed {
-                context: domain_types::errors::ResponseTransformationErrorContext {
-                    http_status_code: Some(item.http_code),
-                    additional_context: Some(
-                        "rebuilding SEPA endToEndId + debtor IBAN to encode connector_payout_id"
-                            .to_string(),
-                    ),
-                },
-            })?;
-        let compound = encode_connector_payout_id(&built.end_to_end_id, &built.debtor_iban);
+        // `endToEndId` is a pure function of merchant_id + reference, so re-derive
+        // it here rather than rebuilding the whole request (which would re-run
+        // amount conversion / required-field checks after the money already moved).
+        let end_to_end_id = derive_end_to_end_id(
+            item.router_data.resource_common_data.merchant_id.get_string_repr(),
+            &item.router_data.resource_common_data.connector_request_reference_id,
+        );
 
         let payout_status = item
             .response
@@ -793,7 +826,7 @@ impl TryFrom<ResponseRouterData<DeutschebankSepaPaymentResponse, Self>>
             response: Ok(PayoutTransferResponse {
                 merchant_payout_id: None,
                 payout_status,
-                connector_payout_id: Some(compound),
+                connector_payout_id: Some(end_to_end_id),
                 status_code: item.http_code,
             }),
             ..item.router_data
@@ -901,6 +934,109 @@ fn extract_debtor_iban(
         }),
         ),
     }
+}
+
+/// Debtor (ordering party) name for the SEPA `Dbtr/Nm` and `InitgPty/Nm`.
+/// Sourced from `source_bank_data` — required, and deliberately does **not**
+/// fall back to the payee's `customer.name`, which would put the wrong party on
+/// the payment message and downstream AML screening.
+fn extract_debtor_name(
+    source_bank_data: Option<&Bank>,
+) -> Result<Secret<String>, error_stack::Report<IntegrationError>> {
+    match source_bank_data {
+        Some(Bank::Sepa(SepaBankTransfer {
+            account_holder_name: Some(name),
+            ..
+        })) => Ok(name.clone()),
+        _ => Err(error_stack::report!(
+            IntegrationError::MissingRequiredField {
+                field_name: "source_bank_data.sepa.account_holder_name",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Deutsche Bank requires the debtor (ordering party) name on \
+                         `source_bank_data.sepa.account_holder_name`"
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Set `source_bank_data.sepa.account_holder_name`.".to_string(),
+                    ),
+                    doc_url: None,
+                },
+            }
+        )),
+    }
+}
+
+/// Resolve the debtor agent BIC. CSEAL requires the debtor account to be held
+/// at Deutsche Bank, so we always send the generic `DEUTDEDDXXX` BICFI. If the
+/// caller supplied a debtor BIC on `source_bank_data`, we validate it is a
+/// Deutsche Bank BIC and reject a non-DB value rather than silently ignoring it.
+fn resolve_debtor_agent_bic(
+    source_bank_data: Option<&Bank>,
+) -> Result<Secret<String>, error_stack::Report<IntegrationError>> {
+    if let Some(Bank::Sepa(SepaBankTransfer { bic: Some(bic), .. })) = source_bank_data {
+        let supplied = bic.peek().trim().to_uppercase();
+        if !supplied.starts_with(DEUTSCHEBANK_BIC_PREFIX) {
+            return Err(error_stack::report!(IntegrationError::InvalidDataFormat {
+                field_name: "source_bank_data.sepa.bic",
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "Deutsche Bank CSEAL requires the debtor account at Deutsche Bank \
+                         (BIC starting `{DEUTSCHEBANK_BIC_PREFIX}`); a non-Deutsche-Bank debtor \
+                         BIC was supplied"
+                    )),
+                    suggested_action: Some(
+                        "Provide a Deutsche Bank debtor account, or omit \
+                         `source_bank_data.sepa.bic`."
+                            .to_string(),
+                    ),
+                    doc_url: None,
+                },
+            }));
+        }
+    }
+    Ok(Secret::new(DEUTSCHEBANK_BICFI.to_string()))
+}
+
+/// Validate that `value` fits the SEPA proprietary purpose code constraints:
+/// non-empty, at most `SEPA_MAX_PURPOSE_LEN` chars, and within the restricted
+/// SEPA character set.
+fn validate_sepa_purpose_code(
+    value: &str,
+) -> Result<(), error_stack::Report<IntegrationError>> {
+    fn is_sepa_char(c: char) -> bool {
+        c.is_ascii_alphanumeric() || " /-?:().,'+".contains(c)
+    }
+    let len = value.chars().count();
+    let problem = if value.trim().is_empty() {
+        Some("must not be empty".to_string())
+    } else if len > SEPA_MAX_PURPOSE_LEN {
+        Some(format!(
+            "must be at most {SEPA_MAX_PURPOSE_LEN} characters (got {len})"
+        ))
+    } else if let Some(bad) = value.chars().find(|&c| !is_sepa_char(c)) {
+        Some(format!(
+            "contains unsupported character {bad:?}; allowed: A-Z a-z 0-9 and / - ? : ( ) . , ' + space"
+        ))
+    } else {
+        None
+    };
+    if let Some(detail) = problem {
+        return Err(error_stack::report!(IntegrationError::InvalidDataFormat {
+            field_name: "description",
+            context: IntegrationErrorContext {
+                additional_context: Some(format!(
+                    "Deutsche Bank maps `description` to the SEPA proprietary purpose code: {detail}"
+                )),
+                suggested_action: Some(
+                    "Provide a short (<=35 char) description using the SEPA character set."
+                        .to_string(),
+                ),
+                doc_url: None,
+            },
+        }));
+    }
+    Ok(())
 }
 
 /// `YYYY-MM-DDTHH:MM:SSZ` UTC timestamp used for both the CSEAL

@@ -553,6 +553,9 @@ impl ForeignTryFrom<grpc_api_types::payouts::SepaBankTransferPayout>
             bic: sepa
                 .bic
                 .map(|b| ::hyperswitch_masking::Secret::new(b.peek().to_string())),
+            account_holder_name: sepa
+                .account_holder_name
+                .map(|n| ::hyperswitch_masking::Secret::new(n.peek().to_string())),
         })
     }
 }
@@ -1216,6 +1219,10 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceGetRequest>
         Ok(Self {
             merchant_payout_id: value.merchant_payout_id,
             connector_payout_id: value.connector_payout_id,
+            source_bank_data: value
+                .source_bank_data
+                .map(payouts::payout_method_data::Bank::foreign_try_from)
+                .transpose()?,
         })
     }
 }
@@ -2268,7 +2275,10 @@ pub fn generate_payout_eligibility_response(
                 grpc_api_types::payouts::payout_enums::PayoutStatus::Pending as i32,
             ),
             connector_payout_id: err.connector_transaction_id.clone(),
-            payout_eligible: Some(false),
+            // Transport / connector errors (timeout, 5xx, TLS, auth, signature) mean
+            // eligibility is *unknown* — not that the payee is ineligible. `Some(false)`
+            // is reserved for the connector-declared NOAP/NMTC path.
+            payout_eligible: None,
             error: Some(grpc_api_types::payouts::ErrorInfo {
                 unified_details: None,
                 connector_details: Some(grpc_api_types::payouts::ConnectorErrorDetails {

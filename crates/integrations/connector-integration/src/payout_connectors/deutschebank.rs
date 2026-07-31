@@ -267,9 +267,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             .response
             .parse_struct("DeutschebankErrorResponse")
             .unwrap_or_else(|err| {
+                // DB error bodies can echo IBANs / payee names. On this fallback the
+                // masked event body is empty (parse failed), so we still need a
+                // diagnostic — but never log the body in full. Cap to a short prefix
+                // and record the true length so truncation is visible.
+                const MAX_LOGGED_BODY: usize = 256;
+                let body = String::from_utf8_lossy(res.response.as_ref());
+                let snippet: String = body.chars().take(MAX_LOGGED_BODY).collect();
                 tracing::warn!(
                     deserialization_error = ?err,
-                    raw_body = %String::from_utf8_lossy(res.response.as_ref()),
+                    response_body_len = res.response.len(),
+                    response_body_truncated = body.chars().count() > MAX_LOGGED_BODY,
+                    response_body_snippet = %snippet,
                     "Failed to parse Deutsche Bank error response",
                 );
                 DeutschebankErrorResponse::default()
