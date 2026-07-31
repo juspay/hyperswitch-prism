@@ -817,13 +817,15 @@ impl Connectors {
             // Deutschebank uses `ConnectorParamsWithCaBundle`, so patch the resolved
             // URLs while leaving its `server_ca_bundle` untouched.
             PayoutConnectorEnum::Deutschebank => {
-                patched.deutschebank.apply(ConnectorParamsWithCaBundlePatch {
-                    base_url: urls.base_url.clone(),
-                    dispute_base_url: Some(urls.dispute_base_url.clone()),
-                    secondary_base_url: Some(urls.secondary_base_url.clone()),
-                    third_base_url: Some(urls.third_base_url.clone()),
-                    server_ca_bundle: None,
-                })
+                patched
+                    .deutschebank
+                    .apply(ConnectorParamsWithCaBundlePatch {
+                        base_url: urls.base_url.clone(),
+                        dispute_base_url: Some(urls.dispute_base_url.clone()),
+                        secondary_base_url: Some(urls.secondary_base_url.clone()),
+                        third_base_url: Some(urls.third_base_url.clone()),
+                        server_ca_bundle: None,
+                    })
             }
         }
         Ok(patched)
