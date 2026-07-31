@@ -634,7 +634,7 @@ fn card_family_recognises_16_digit_diners_from_pan() {
         CardFamily::from_card_number("3055155515160018"),
         CardFamily::Diners
     ));
-    // JCB (35xx) is not mis-caught as Diners.
+    // JCB (35xx) is not incorrectly classified as Diners.
     assert!(matches!(
         CardFamily::from_card_number("3530142019945859"),
         CardFamily::Jcb
