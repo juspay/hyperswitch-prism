@@ -421,6 +421,7 @@ pub struct Connectors {
     pub kount: ConnectorParams,
     pub plaid: ConnectorParams,
     pub givepayments: ConnectorParams,
+    pub tesouro: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
