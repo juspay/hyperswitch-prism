@@ -685,7 +685,9 @@ fn card_on_file_and_nti_none_on_mastercard_recurring_installment_mit() {
             CaptureKind::Auto,
         );
         assert!(cof_mit::card_on_file(&p).is_none());
-        assert!(!cof_mit::should_send_card_on_file_transaction_identifier(&p));
+        assert!(!cof_mit::should_send_card_on_file_transaction_identifier(
+            &p
+        ));
     }
 }
 
@@ -701,7 +703,9 @@ fn card_on_file_none_on_discover_family_unscheduled_mit() {
         CaptureKind::Auto,
     );
     assert!(cof_mit::card_on_file(&p).is_none());
-    assert!(!cof_mit::should_send_card_on_file_transaction_identifier(&p));
+    assert!(!cof_mit::should_send_card_on_file_transaction_identifier(
+        &p
+    ));
 }
 
 #[test]
