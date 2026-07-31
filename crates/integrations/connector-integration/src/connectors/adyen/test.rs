@@ -101,6 +101,7 @@ mod tests {
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
+                    dynamic_currency_conversion_data: None,
                     payment_method_data: PaymentMethodData::Card(
                         domain_types::payment_method_data::Card {
                             card_number: RawCardNumber(cards::CardNumber::from_str(
@@ -307,6 +308,7 @@ mod tests {
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
+                    dynamic_currency_conversion_data: None,
                     payment_method_data: PaymentMethodData::Card(Default::default()),
                     amount: MinorUnit::new(1000),
                     order_tax_amount: None,
