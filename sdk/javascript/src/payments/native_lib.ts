@@ -10,6 +10,12 @@
 import fs from "fs";
 import path from "path";
 
+/** Shared library extension per platform; anything else follows ELF naming. */
+const LIB_EXTENSION: Record<string, string | undefined> = {
+  darwin: "dylib",
+  win32: "dll",
+};
+
 /**
  * Absolute path to `libName` for the platform and architecture we are running on.
  *
@@ -19,7 +25,7 @@ import path from "path";
  */
 export function resolveNativeLib(generatedDir: string, libName: string): string {
   const target = `${process.platform}-${process.arch}`;
-  const ext = process.platform === "darwin" ? "dylib" : "so";
+  const ext = LIB_EXTENSION[process.platform] ?? "so";
   const libPath = path.join(generatedDir, target, `${libName}.${ext}`);
   if (fs.existsSync(libPath)) return libPath;
 
