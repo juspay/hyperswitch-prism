@@ -89,16 +89,17 @@ generate-proto: install-deps
 # ---------------------------------------------------------------------------
 # generate-grpc-bindings
 # Copies the pre-built gRPC FFI native library into the generated output
-# directory so it is bundled with the npm package.
+# directory so it is bundled with the npm package. Staged under
+# generated/<platform>-<arch>/ to match how the loader resolves it.
 # Requires: build-grpc-ffi-lib to have been run first.
 # ---------------------------------------------------------------------------
 generate-grpc-bindings:
 	@[ -f "$(GRPC_FFI_LIBRARY)" ] || \
 		(echo "Error: gRPC FFI library not found at $(GRPC_FFI_LIBRARY). Run 'make build-grpc-ffi-lib' first." && exit 1)
-	@echo "Copying gRPC FFI library to $(GENERATED_OUT)/..."
-	@mkdir -p $(GENERATED_OUT)
-	@cp -f $(GRPC_FFI_LIBRARY) $(GENERATED_OUT)/
-	@echo "gRPC library copied to $(GENERATED_OUT)/"
+	@echo "Copying gRPC FFI library to $(GENERATED_OUT)/$(NODE_TARGET)/..."
+	@mkdir -p $(GENERATED_OUT)/$(NODE_TARGET)
+	@cp -f $(GRPC_FFI_LIBRARY) $(GENERATED_OUT)/$(NODE_TARGET)/
+	@echo "gRPC library copied to $(GENERATED_OUT)/$(NODE_TARGET)/"
 
 # ---------------------------------------------------------------------------
 # generate-all
