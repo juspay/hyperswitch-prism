@@ -1,4 +1,5 @@
 use crate::types::ResponseRouterData;
+use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine};
 use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector};
 use domain_types::{
@@ -12,10 +13,10 @@ use domain_types::{
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
-    errors::{ConnectorError, IntegrationError},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{
-        BankDebitData, GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes,
-        RawCardNumber, WalletData,
+        ApplePayPaymentData, ApplePayWalletData, BankDebitData, GpayTokenizationData,
+        PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
     },
     router_data::{ConnectorSpecificConfig, FlowStatus},
     router_data_v2::RouterDataV2,
@@ -140,6 +141,137 @@ pub enum NmiPaymentMethod<T: PaymentMethodDataTypes> {
     Ach(Box<AchData>),
     GooglePay(Box<GooglePayData>),
     GooglePayDecrypt(Box<GooglePayDecryptedData>),
+    ApplePay(Box<ApplePayData>),
+    ApplePayDecrypt(Box<ApplePayDecryptedData>),
+}
+
+// ===== APPLE PAY DATA =====
+
+/// Apple Pay, gateway-decrypted variant (NMI Direct Post "Variant A").
+///
+/// The PassKit `payment.token.paymentData` blob is forwarded to NMI untouched in
+/// `applepay_payment_data` — NMI holds the Apple Pay payment-processing certificate and
+/// decrypts it itself. NMI's Direct Post documentation requires the value hex-encoded, and
+/// explicitly forbids sending `ccnumber`/`ccexp`/`cvv` alongside it (they are extracted from
+/// the token), which is why this struct carries the token and nothing else.
+#[derive(Debug, Serialize)]
+pub struct ApplePayData {
+    applepay_payment_data: Secret<String>,
+}
+
+/// Apple Pay, merchant-decrypted variant (NMI Direct Post "Variant B").
+///
+/// The PassKit token was decrypted upstream, so the device PAN and the network cryptogram
+/// travel as discrete form fields, flagged to NMI by `decrypted_applepay_data`. Mirrors the
+/// existing [`GooglePayDecryptedData`] twin field-for-field; `cavv` is non-optional here
+/// because Apple Pay always yields an `onlinePaymentCryptogram`.
+#[derive(Debug, Serialize)]
+pub struct ApplePayDecryptedData {
+    decrypted_applepay_data: DecryptedDataIndicator,
+    ccnumber: Secret<String>,
+    ccexp: Secret<String>,
+    cavv: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    eci: Option<String>,
+}
+
+/// The two mutually exclusive Apple Pay payloads NMI's `transact.php` accepts.
+///
+/// Deliberately flow-agnostic: only [`build_apple_pay_payment_data`] knows the encoding
+/// rules, and each flow maps this into its own request enum. Authorize consumes it today;
+/// the Customer Vault flows (SetupMandate / RepeatPayment) can consume the same value
+/// without duplicating the base64→hex conversion or the expiry/cryptogram extraction.
+pub enum NmiApplePayPaymentData {
+    /// Gateway-decrypted: the hex-encoded PassKit token.
+    Encrypted(ApplePayData),
+    /// Merchant-decrypted: DPAN + expiry + cryptogram + ECI.
+    Decrypted(ApplePayDecryptedData),
+}
+
+/// Builds the NMI Apple Pay form fields from the caller's Apple Pay wallet data.
+///
+/// Parity with the Hyperswitch Direct NMI integration
+/// (`crates/hyperswitch_connectors/src/connectors/nmi/transformers.rs:1015-1076`):
+/// the decrypted branch emits `decrypted_applepay_data=1` plus `ccnumber`/`ccexp`/`cavv`/`eci`,
+/// and the encrypted branch base64-decodes the PassKit token and re-encodes it as hex, which
+/// is the encoding Direct Post requires (the v5 REST API takes base64 — this connector talks
+/// Direct Post).
+fn build_apple_pay_payment_data(
+    apple_pay_data: &ApplePayWalletData,
+) -> Result<NmiApplePayPaymentData, error_stack::Report<IntegrationError>> {
+    match &apple_pay_data.payment_data {
+        ApplePayPaymentData::Decrypted(decrypted_data) => {
+            let ccexp = decrypted_data
+                .get_expiry_date_as_mmyy()
+                .change_context(IntegrationError::InvalidDataFormat {
+                    field_name: "payment_method.apple_pay.payment_data.decrypted_data.application_expiration_year",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "NMI Authorize needs the decrypted Apple Pay expiry as MMYY; the supplied application_expiration_month/application_expiration_year could not be reduced to that form."
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                })
+                .attach_printable(
+                    "NMI Apple Pay (merchant-decrypted): failed to derive ccexp from the decrypted Apple Pay expiry",
+                )?;
+
+            Ok(NmiApplePayPaymentData::Decrypted(ApplePayDecryptedData {
+                decrypted_applepay_data: DecryptedDataIndicator::Decrypted,
+                ccnumber: Secret::new(
+                    decrypted_data
+                        .application_primary_account_number
+                        .get_card_no(),
+                ),
+                ccexp,
+                cavv: decrypted_data
+                    .payment_data
+                    .online_payment_cryptogram
+                    .clone(),
+                eci: decrypted_data.payment_data.eci_indicator.clone(),
+            }))
+        }
+        ApplePayPaymentData::Encrypted(encrypted_data) => {
+            if encrypted_data.is_empty() {
+                return Err(error_stack::report!(
+                    IntegrationError::MissingRequiredField {
+                        field_name: "payment_method.apple_pay.payment_data.encrypted_data",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "NMI Authorize requires the base64-encoded Apple Pay PKPaymentToken paymentData for the gateway-decrypted flow; an empty token would reach NMI as an empty applepay_payment_data."
+                                    .to_string(),
+                            ),
+                            ..Default::default()
+                        },
+                    }
+                ));
+            }
+
+            // NMI Direct Post: "The value in payment.token.paymentData is a binary (NSData)
+            // object, so you must encode it as a hexadecimal string before it can be passed
+            // to the Gateway." The wallet SDK hands it to us base64-encoded, so decode first.
+            let decoded_apple_pay_data = BASE64_STANDARD
+                .decode(encrypted_data)
+                .change_context(IntegrationError::InvalidWalletToken {
+                    wallet_name: "Apple Pay".to_string(),
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "NMI Authorize expects payment_method.apple_pay.payment_data.encrypted_data to be a base64-encoded Apple Pay PKPaymentToken paymentData blob, which NMI receives hex-encoded."
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                })
+                .attach_printable(
+                    "NMI Apple Pay (gateway-decrypted): encrypted Apple Pay token is not valid base64",
+                )?;
+
+            Ok(NmiApplePayPaymentData::Encrypted(ApplePayData {
+                applepay_payment_data: Secret::new(hex::encode(decoded_apple_pay_data)),
+            }))
+        }
+    }
 }
 
 // ===== GOOGLE PAY DATA =====
@@ -159,6 +291,10 @@ pub struct GooglePayDecryptedData {
     eci: Option<String>,
 }
 
+/// NMI's flag telling `transact.php` that the wallet payload was decrypted upstream, i.e.
+/// that `ccnumber`/`ccexp`/`cavv`/`eci` carry the decrypted token rather than the encrypted
+/// blob. Serialised as the literal `1` — the value the Hyperswitch Direct NMI integration
+/// sends for both `decrypted_googlepay_data` and `decrypted_applepay_data`.
 #[derive(Debug, Serialize)]
 pub enum DecryptedDataIndicator {
     #[serde(rename = "1")]
@@ -502,6 +638,30 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             },
                         ),
                     }
+                }
+                PaymentMethodData::Wallet(WalletData::ApplePay(apple_pay_data)) => {
+                    // NMI accepts `type=auth` as well as `type=sale` for Apple Pay on
+                    // `transact.php`. Hyperswitch Direct derives the transaction type from the
+                    // capture method once, for every payment method
+                    // (`crates/hyperswitch_connectors/src/connectors/nmi/transformers.rs:736-739`),
+                    // so both Apple Pay variants honour `is_auto_capture()` here rather than
+                    // being pinned to `sale`.
+                    let transaction_type = if router_data.request.is_auto_capture() {
+                        TransactionType::Sale
+                    } else {
+                        TransactionType::Auth
+                    };
+
+                    let payment_method = match build_apple_pay_payment_data(apple_pay_data)? {
+                        NmiApplePayPaymentData::Encrypted(apple_pay) => {
+                            NmiPaymentMethod::ApplePay(Box::new(apple_pay))
+                        }
+                        NmiApplePayPaymentData::Decrypted(apple_pay) => {
+                            NmiPaymentMethod::ApplePayDecrypt(Box::new(apple_pay))
+                        }
+                    };
+
+                    (payment_method, transaction_type)
                 }
                 _ => {
                     let txn_type = if router_data.request.is_auto_capture() {
