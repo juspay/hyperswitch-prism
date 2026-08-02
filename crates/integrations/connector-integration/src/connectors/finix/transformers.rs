@@ -1145,6 +1145,105 @@ fn get_billing_address_as_finix_address(
         })
 }
 
+/// Finix's `POST /payment_instruments` requires a **four-digit** `expiration_year`
+/// (tech spec §SR-2) and hyperswitch's Direct gateway sends
+/// `get_expiry_year_as_4_digit_i32`. `card_exp_year` may legitimately arrive as `YY`,
+/// so it is expanded through the shared `get_expiry_year_4_digit()` helper before being
+/// parsed — sending the raw two-digit value would store the mandate with an expiry in
+/// year 30 instead of 2030 and make every later MIT charge fail at the network.
+///
+/// Shared by the Tokenize (`PaymentMethodToken`) and `SetupMandate` card arms so the two
+/// paths cannot drift.
+fn get_finix_expiration_year<T: PaymentMethodDataTypes>(
+    card: &domain_types::payment_method_data::Card<T>,
+) -> Result<Secret<i32>, error_stack::Report<IntegrationError>> {
+    card.get_expiry_year_4_digit()
+        .peek()
+        .parse::<i32>()
+        .change_context(IntegrationError::InvalidDataFormat {
+            field_name: "payment_method_data.card.card_exp_year",
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "Finix `expiration_year` must be a four-digit year; expected card_exp_year \
+                     in YY or YYYY form"
+                        .to_string(),
+                ),
+                suggested_action: Some(
+                    "Send card_exp_year as two or four decimal digits".to_string(),
+                ),
+                doc_url: Some("https://docs.finix.com/api/payment-instruments".to_string()),
+            },
+        })
+        .map(Secret::new)
+        .attach_printable(
+            "failed to build the Finix payment-instrument `expiration_year` from card_exp_year",
+        )
+}
+
+/// Builds the Finix `POST /payment_instruments` body for a Google Pay device token.
+///
+/// Shared by the Tokenize (`PaymentMethodToken`) and `SetupMandate` flows — both create the
+/// same Google Pay Payment Instrument — mirroring `build_apple_pay_instrument_request` so the
+/// two paths cannot drift. `name` and `address` are populated exactly as hyperswitch's
+/// `get_token_request` does for wallets: the billing full name (wallets carry no cardholder
+/// name of their own) and the billing address.
+fn build_google_pay_instrument_request(
+    google_pay_data: &domain_types::payment_method_data::GooglePayWalletData,
+    identity: String,
+    merchant_identity_id: Secret<String>,
+    name: Option<Secret<String>>,
+    address: Option<FinixAddress>,
+    tags: Option<FinixTags>,
+) -> Result<FinixCreatePaymentInstrumentRequest, error_stack::Report<IntegrationError>> {
+    let encrypted_token = google_pay_data
+        .tokenization_data
+        .get_encrypted_google_pay_payment_data_mandatory()
+        .change_context(IntegrationError::InvalidWalletToken {
+            wallet_name: "Google Pay".to_string(),
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "Google Pay token must carry the encrypted \
+                     `tokenizationData.token` string (signature, protocolVersion, signedMessage \
+                     and intermediateSigningKey); decrypted Google Pay data is not accepted by \
+                     Finix"
+                        .to_string(),
+                ),
+                suggested_action: Some(
+                    "Forward the unmodified Google Pay \
+                     `paymentMethodData.tokenizationData.token`"
+                        .to_string(),
+                ),
+                doc_url: Some(
+                    "https://docs.finix.com/guides/online-payments/digital-wallets".to_string(),
+                ),
+            },
+        })
+        .attach_printable(
+            "Finix requires the encrypted Google Pay token as the `third_party_token` of the \
+             GOOGLE_PAY payment instrument",
+        )?;
+
+    Ok(FinixCreatePaymentInstrumentRequest {
+        instrument_type: FinixPaymentInstrumentType::GooglePay,
+        name,
+        number: None,
+        security_code: None,
+        expiration_month: None,
+        expiration_year: None,
+        identity,
+        tags,
+        address,
+        card_brand: None,
+        card_type: None,
+        additional_data: None,
+        merchant_identity: Some(merchant_identity_id),
+        third_party_token: Some(Secret::new(encrypted_token.token.clone())),
+        account_number: None,
+        bank_code: None,
+        account_type: None,
+    })
+}
+
 /// Builds the Finix `POST /payment_instruments` body for an Apple Pay device token.
 ///
 /// Shared by the Tokenize (`PaymentMethodToken`) and `SetupMandate` flows — both create
@@ -1371,7 +1470,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 number: Some(Secret::new(card.card_number.peek().to_string())),
                 security_code: Some(card.card_cvc.clone()),
                 expiration_month: Some(card.get_expiry_month_as_i8()?),
-                expiration_year: Some(card.get_expiry_year_as_i32()?),
+                expiration_year: Some(get_finix_expiration_year(card)?),
                 identity: customer_id,
                 tags: None,
                 address: get_billing_address_as_finix_address(
@@ -1433,38 +1532,22 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentMethodData::Wallet(wallet_data) => {
                 match wallet_data {
                     domain_types::payment_method_data::WalletData::GooglePay(google_pay_data) => {
-                        // Get merchant_identity_id from auth
+                        // Finix requires the Google Pay-registered Identity (merchant_identity)
+                        // alongside the buyer identity for GOOGLE_PAY instruments.
                         let auth = FinixAuthType::try_from(&item.router_data.connector_config)?;
-                        let merchant_identity = auth.merchant_identity_id.peek().to_string();
 
-                        // Extract the encrypted token from Google Pay
-                        let third_party_token = google_pay_data
-                            .tokenization_data
-                            .get_encrypted_google_pay_payment_data_mandatory()
-                            .change_context(IntegrationError::InvalidWalletToken {
-                                wallet_name: "Google Pay".to_string(),
-                                context: Default::default(),
-                            })?;
-
-                        Ok(Self {
-                            instrument_type: FinixPaymentInstrumentType::GooglePay,
-                            name: None, // Name is optional for Google Pay tokenization
-                            number: None,
-                            security_code: None,
-                            expiration_month: None,
-                            expiration_year: None,
-                            identity: customer_id,
-                            tags: None,
-                            address: None,
-                            card_brand: None,
-                            card_type: None,
-                            additional_data: None,
-                            merchant_identity: Some(Secret::new(merchant_identity)),
-                            third_party_token: Some(Secret::new(third_party_token.token.clone())),
-                            account_number: None,
-                            bank_code: None,
-                            account_type: None,
-                        })
+                        build_google_pay_instrument_request(
+                            google_pay_data,
+                            customer_id,
+                            auth.merchant_identity_id,
+                            item.router_data
+                                .resource_common_data
+                                .get_optional_billing_full_name(),
+                            get_billing_address_as_finix_address(
+                                &item.router_data.resource_common_data,
+                            ),
+                            None,
+                        )
                     }
                     domain_types::payment_method_data::WalletData::ApplePay(apple_pay_data) => {
                         // Finix requires the Apple Pay-registered Identity (merchant_identity)
@@ -1521,31 +1604,59 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         Ok(Self {
             response: match (response.id.clone(), response.enabled) {
                 (Some(id), true) => Ok(PaymentMethodTokenResponse { token: id }),
-                _ => Err(disabled_instrument_error(&response, item.http_code)),
+                _ => Err(instrument_not_usable_error(&response, item.http_code)),
             },
             ..item.router_data
         })
     }
 }
 
-// Treat a 2xx that omits `id` or returns `enabled: false` as a payment failure.
-// Surfaces `disabled_code` / `disabled_message` so the caller can act on it.
-fn disabled_instrument_error(
+// Maps a 2xx `POST /payment_instruments` body that is not a usable instrument into a
+// failure. Tech spec §SR-5 lists these as two distinct outcomes and they must not collapse
+// into the same opaque `NO_ERROR_CODE` / `NO_ERROR_MESSAGE` pair:
+//   * `enabled: false` -> Finix stored the instrument but it can never be charged; propagate
+//     `disabled_code` / `disabled_message` verbatim as the connector's own code/message.
+//   * `id` absent      -> malformed response; no Payment Instrument (PI...) reference can be
+//     extracted at all, so say exactly that instead of an empty message.
+// Shared by the Tokenize and SetupMandate response transformers.
+fn instrument_not_usable_error(
     response: &FinixInstrumentResponse,
     status_code: u16,
 ) -> ErrorResponse {
-    let code = response
-        .disabled_code
-        .clone()
-        .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string());
-    let message = response
-        .disabled_message
-        .clone()
-        .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string());
+    let (code, message, reason) = match response.id.as_ref() {
+        // `id` present => the instrument exists but Finix flagged it `enabled: false`.
+        Some(instrument_id) => {
+            let message = response.disabled_message.clone().unwrap_or_else(|| {
+                format!(
+                    "Finix returned payment instrument {instrument_id} with `enabled: false`; \
+                     it cannot be charged"
+                )
+            });
+            (
+                response
+                    .disabled_code
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                message.clone(),
+                Some(message),
+            )
+        }
+        // No `id` => nothing to store as a token or mandate reference.
+        None => (
+            consts::NO_ERROR_CODE.to_string(),
+            "Finix accepted the request but returned no payment instrument id".to_string(),
+            Some(
+                "POST /payment_instruments returned a 2xx body without an `id`, so no Payment \
+                 Instrument (PI...) reference could be extracted for the token / mandate"
+                    .to_string(),
+            ),
+        ),
+    };
+
     ErrorResponse {
         code,
-        message: message.clone(),
-        reason: Some(message),
+        message,
+        reason,
         status_code,
         attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
         connector_transaction_id: response.id.clone(),
@@ -1637,7 +1748,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 number: Some(Secret::new(card.card_number.peek().to_string())),
                 security_code: Some(card.card_cvc.clone()),
                 expiration_month: Some(card.get_expiry_month_as_i8()?),
-                expiration_year: Some(card.get_expiry_year_as_i32()?),
+                expiration_year: Some(get_finix_expiration_year(card)?),
                 identity: customer_id,
                 tags,
                 address: get_billing_address_as_finix_address(
@@ -1699,38 +1810,22 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentMethodData::Wallet(wallet_data) => {
                 match wallet_data {
                     domain_types::payment_method_data::WalletData::GooglePay(google_pay_data) => {
-                        // Get merchant_identity_id from auth for wallet tokenization
+                        // Same Google Pay Payment Instrument as the Tokenize flow — built by the
+                        // shared helper so the two paths cannot drift.
                         let auth = FinixAuthType::try_from(&item.router_data.connector_config)?;
-                        let merchant_identity = auth.merchant_identity_id.peek().to_string();
 
-                        // Extract the encrypted token from Google Pay
-                        let third_party_token = google_pay_data
-                            .tokenization_data
-                            .get_encrypted_google_pay_payment_data_mandatory()
-                            .change_context(IntegrationError::InvalidWalletToken {
-                                wallet_name: "Google Pay".to_string(),
-                                context: Default::default(),
-                            })?;
-
-                        Ok(Self {
-                            instrument_type: FinixPaymentInstrumentType::GooglePay,
-                            name: None,
-                            number: None,
-                            security_code: None,
-                            expiration_month: None,
-                            expiration_year: None,
-                            identity: customer_id,
+                        build_google_pay_instrument_request(
+                            google_pay_data,
+                            customer_id,
+                            auth.merchant_identity_id,
+                            item.router_data
+                                .resource_common_data
+                                .get_optional_billing_full_name(),
+                            get_billing_address_as_finix_address(
+                                &item.router_data.resource_common_data,
+                            ),
                             tags,
-                            address: None,
-                            card_brand: None,
-                            card_type: None,
-                            additional_data: None,
-                            merchant_identity: Some(Secret::new(merchant_identity)),
-                            third_party_token: Some(Secret::new(third_party_token.token.clone())),
-                            account_number: None,
-                            bank_code: None,
-                            account_type: None,
-                        })
+                        )
                     }
                     domain_types::payment_method_data::WalletData::ApplePay(apple_pay_data) => {
                         // Same Apple Pay Payment Instrument as the Tokenize flow — built by the
@@ -1838,7 +1933,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     status: AttemptStatus::Failure,
                     ..item.router_data.resource_common_data.clone()
                 },
-                response: Err(disabled_instrument_error(&response, item.http_code)),
+                response: Err(instrument_not_usable_error(&response, item.http_code)),
                 ..item.router_data
             }),
         }
