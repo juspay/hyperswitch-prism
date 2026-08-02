@@ -141,8 +141,13 @@ pub enum NmiPaymentMethod<T: PaymentMethodDataTypes> {
     Ach(Box<AchData>),
     GooglePay(Box<GooglePayData>),
     GooglePayDecrypt(Box<GooglePayDecryptedData>),
-    ApplePay(Box<ApplePayData>),
-    ApplePayDecrypt(Box<ApplePayDecryptedData>),
+    /// Apple Pay, in whichever of the two Direct Post shapes
+    /// [`build_apple_pay_payment_data`] produced. Mirrors the Hyperswitch Direct
+    /// `PaymentMethod::ApplePayPayment(ApplePayPaymentData)` single variant
+    /// (`crates/hyperswitch_connectors/src/connectors/nmi/transformers.rs:654`) so the
+    /// encrypted/decrypted split lives in exactly one place and both Authorize and
+    /// SetupMandate consume the same value.
+    ApplePay(Box<NmiApplePayPaymentData>),
 }
 
 // ===== APPLE PAY DATA =====
@@ -177,10 +182,15 @@ pub struct ApplePayDecryptedData {
 
 /// The two mutually exclusive Apple Pay payloads NMI's `transact.php` accepts.
 ///
-/// Deliberately flow-agnostic: only [`build_apple_pay_payment_data`] knows the encoding
-/// rules, and each flow maps this into its own request enum. Authorize consumes it today;
-/// the Customer Vault flows (SetupMandate / RepeatPayment) can consume the same value
-/// without duplicating the base64→hex conversion or the expiry/cryptogram extraction.
+/// Deliberately flow-agnostic and serialized untagged, so the flow request enums
+/// (`NmiPaymentMethod` for Authorize, `NmiSetupMandatePaymentMethod` for SetupMandate) each
+/// hold it behind a single variant and neither re-implements the encrypted/decrypted split.
+/// Only [`build_apple_pay_payment_data`] knows the encoding rules. Mirrors the Hyperswitch
+/// Direct `ApplePayPaymentData` untagged enum
+/// (`crates/hyperswitch_connectors/src/connectors/nmi/transformers.rs:719-724`), which is
+/// likewise shared by that connector's Authorize and Validate/SetupMandate requests.
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
 pub enum NmiApplePayPaymentData {
     /// Gateway-decrypted: the hex-encoded PassKit token.
     Encrypted(ApplePayData),
@@ -190,8 +200,13 @@ pub enum NmiApplePayPaymentData {
 
 /// Builds the NMI Apple Pay form fields from the caller's Apple Pay wallet data.
 ///
+/// The single source of truth for the Apple Pay wire shape: every flow that accepts Apple Pay
+/// (Authorize `type=sale|auth`, SetupMandate `type=validate`) calls this and wraps the result,
+/// so the base64→hex conversion and the expiry/cryptogram extraction cannot drift between them.
+///
 /// Parity with the Hyperswitch Direct NMI integration
-/// (`crates/hyperswitch_connectors/src/connectors/nmi/transformers.rs:1015-1076`):
+/// (`crates/hyperswitch_connectors/src/connectors/nmi/transformers.rs:1015-1076`), which is
+/// likewise shared by its Authorize (`:834-838`) and Validate/SetupMandate (`:1115-1122`) paths:
 /// the decrypted branch emits `decrypted_applepay_data=1` plus `ccnumber`/`ccexp`/`cavv`/`eci`,
 /// and the encrypted branch base64-decodes the PassKit token and re-encodes it as hex, which
 /// is the encoding Direct Post requires (the v5 REST API takes base64 — this connector talks
@@ -207,7 +222,7 @@ fn build_apple_pay_payment_data(
                     field_name: "payment_method.apple_pay.payment_data.decrypted_data.application_expiration_year",
                     context: IntegrationErrorContext {
                         additional_context: Some(
-                            "NMI Authorize needs the decrypted Apple Pay expiry as MMYY; the supplied application_expiration_month/application_expiration_year could not be reduced to that form."
+                            "NMI needs the decrypted Apple Pay expiry as MMYY; the supplied application_expiration_month/application_expiration_year could not be reduced to that form."
                                 .to_string(),
                         ),
                         ..Default::default()
@@ -239,7 +254,7 @@ fn build_apple_pay_payment_data(
                         field_name: "payment_method.apple_pay.payment_data.encrypted_data",
                         context: IntegrationErrorContext {
                             additional_context: Some(
-                                "NMI Authorize requires the base64-encoded Apple Pay PKPaymentToken paymentData for the gateway-decrypted flow; an empty token would reach NMI as an empty applepay_payment_data."
+                                "NMI requires the base64-encoded Apple Pay PKPaymentToken paymentData for the gateway-decrypted flow; an empty token would reach NMI as an empty applepay_payment_data."
                                     .to_string(),
                             ),
                             ..Default::default()
@@ -257,7 +272,7 @@ fn build_apple_pay_payment_data(
                     wallet_name: "Apple Pay".to_string(),
                     context: IntegrationErrorContext {
                         additional_context: Some(
-                            "NMI Authorize expects payment_method.apple_pay.payment_data.encrypted_data to be a base64-encoded Apple Pay PKPaymentToken paymentData blob, which NMI receives hex-encoded."
+                            "NMI expects payment_method.apple_pay.payment_data.encrypted_data to be a base64-encoded Apple Pay PKPaymentToken paymentData blob, which NMI receives hex-encoded."
                                 .to_string(),
                         ),
                         ..Default::default()
@@ -652,16 +667,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         TransactionType::Auth
                     };
 
-                    let payment_method = match build_apple_pay_payment_data(apple_pay_data)? {
-                        NmiApplePayPaymentData::Encrypted(apple_pay) => {
-                            NmiPaymentMethod::ApplePay(Box::new(apple_pay))
-                        }
-                        NmiApplePayPaymentData::Decrypted(apple_pay) => {
-                            NmiPaymentMethod::ApplePayDecrypt(Box::new(apple_pay))
-                        }
-                    };
-
-                    (payment_method, transaction_type)
+                    (
+                        NmiPaymentMethod::ApplePay(Box::new(build_apple_pay_payment_data(
+                            apple_pay_data,
+                        )?)),
+                        transaction_type,
+                    )
                 }
                 _ => {
                     let txn_type = if router_data.request.is_auto_capture() {
@@ -1776,12 +1787,18 @@ pub struct NmiSetupMandateRequest<
     shipping_details: NmiShippingDetails,
 }
 
-/// Payment method for SetupMandate - supports Card and ACH
+/// Payment method for SetupMandate - supports Card, ACH and Apple Pay
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum NmiSetupMandatePaymentMethod<T: PaymentMethodDataTypes> {
     Card(NmiSetupMandateCard<T>),
     Ach(NmiSetupMandateAch),
+    /// Apple Pay, produced by the same [`build_apple_pay_payment_data`] the Authorize flow
+    /// uses, so a vaulted Apple Pay credential is described to NMI with exactly the fields
+    /// an Apple Pay sale would carry. Matches the Hyperswitch Direct
+    /// `NmiValidatePaymentData::ApplePayPayment(Box<ApplePayPaymentData>)`
+    /// (`crates/hyperswitch_connectors/src/connectors/nmi/transformers.rs:565`).
+    ApplePay(Box<NmiApplePayPaymentData>),
 }
 
 /// Card payment method for SetupMandate
@@ -1893,11 +1910,28 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     account_type: *bank_type,
                 })
             }
+            // Apple Pay reuses the Authorize helper verbatim: `type=validate` +
+            // `customer_vault=add_customer` stores the Apple Pay credential in NMI's Customer
+            // Vault and returns a `customer_vault_id`, which RepeatPayment later replays as
+            // `customer_vault_id` on a `type=sale`. Hyperswitch Direct wires Apple Pay into its
+            // Validate request the same way
+            // (`crates/hyperswitch_connectors/src/connectors/nmi/transformers.rs:1115-1122`).
+            PaymentMethodData::Wallet(WalletData::ApplePay(apple_pay_data)) => {
+                NmiSetupMandatePaymentMethod::ApplePay(Box::new(build_apple_pay_payment_data(
+                    apple_pay_data,
+                )?))
+            }
             _ => {
                 return Err(error_stack::report!(IntegrationError::NotSupported {
                     message: get_unimplemented_payment_method_error_message("NMI SetupMandate"),
                     connector: "NMI",
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "NMI SetupMandate (Customer Vault `type=validate`) accepts Card, ACH bank debit and Apple Pay wallet payment methods only."
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
                 }))
             }
         };
@@ -2384,4 +2418,146 @@ pub(crate) fn parse_nmi_webhook_signature_header(header: &str) -> Option<(&str, 
     let after_t = header.get(t_idx + 2..)?;
     let s_idx = after_t.rfind(",s=")?;
     Some((after_t.get(..s_idx)?, after_t.get(s_idx + 3..)?))
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+#[allow(clippy::expect_used)]
+#[allow(clippy::panic)]
+mod tests {
+    use super::*;
+    use domain_types::payment_method_data::{
+        ApplePayCryptogramData, ApplePayDecryptedData as DomainApplePayDecryptedData,
+        ApplepayPaymentMethod,
+    };
+
+    /// The base64 form of the 4-byte payload `0xde 0xad 0xbe 0xef`, i.e. what an Apple Pay SDK
+    /// hands us; NMI's Direct Post must receive it hex-encoded as `deadbeef`.
+    const SAMPLE_TOKEN_BASE64: &str = "3q2+7w==";
+    const SAMPLE_TOKEN_HEX: &str = "deadbeef";
+
+    fn apple_pay_payment_method() -> ApplepayPaymentMethod {
+        ApplepayPaymentMethod {
+            display_name: "Visa 1111".to_string(),
+            network: "Visa".to_string(),
+            pm_type: "debit".to_string(),
+        }
+    }
+
+    fn encrypted_wallet_data(token: &str) -> ApplePayWalletData {
+        ApplePayWalletData {
+            payment_data: ApplePayPaymentData::Encrypted(token.to_string()),
+            payment_method: apple_pay_payment_method(),
+            transaction_identifier: "txn_1".to_string(),
+        }
+    }
+
+    fn decrypted_wallet_data(eci: Option<&str>) -> ApplePayWalletData {
+        ApplePayWalletData {
+            payment_data: ApplePayPaymentData::Decrypted(DomainApplePayDecryptedData {
+                application_primary_account_number: "4111111111111111".parse().expect("card"),
+                application_expiration_month: Secret::new("03".to_string()),
+                application_expiration_year: Secret::new("2030".to_string()),
+                payment_data: ApplePayCryptogramData {
+                    online_payment_cryptogram: Secret::new("AAAA".to_string()),
+                    eci_indicator: eci.map(str::to_string),
+                },
+            }),
+            payment_method: apple_pay_payment_method(),
+            transaction_identifier: "txn_1".to_string(),
+        }
+    }
+
+    #[test]
+    fn encrypted_apple_pay_token_is_base64_decoded_then_hex_encoded() {
+        let built = build_apple_pay_payment_data(&encrypted_wallet_data(SAMPLE_TOKEN_BASE64))
+            .expect("encrypted apple pay token should build");
+
+        assert_eq!(
+            serde_urlencoded::to_string(&built).expect("serialize"),
+            format!("applepay_payment_data={SAMPLE_TOKEN_HEX}")
+        );
+    }
+
+    #[test]
+    fn decrypted_apple_pay_emits_the_flag_pan_expiry_cryptogram_and_eci() {
+        let built = build_apple_pay_payment_data(&decrypted_wallet_data(Some("05")))
+            .expect("decrypted apple pay data should build");
+
+        assert_eq!(
+            serde_urlencoded::to_string(&built).expect("serialize"),
+            "decrypted_applepay_data=1&ccnumber=4111111111111111&ccexp=0330&cavv=AAAA&eci=05"
+        );
+    }
+
+    #[test]
+    fn decrypted_apple_pay_omits_eci_when_absent() {
+        let built = build_apple_pay_payment_data(&decrypted_wallet_data(None))
+            .expect("decrypted apple pay data should build");
+
+        let encoded = serde_urlencoded::to_string(&built).expect("serialize");
+        assert!(
+            !encoded.contains("eci"),
+            "an absent eci must be omitted, not sent empty: {encoded}"
+        );
+    }
+
+    #[test]
+    fn empty_encrypted_apple_pay_token_is_rejected() {
+        let error = build_apple_pay_payment_data(&encrypted_wallet_data(""))
+            .expect_err("an empty token must not reach NMI");
+
+        assert!(
+            matches!(
+                error.current_context(),
+                IntegrationError::MissingRequiredField {
+                    field_name: "payment_method.apple_pay.payment_data.encrypted_data",
+                    ..
+                }
+            ),
+            "unexpected error: {error:?}"
+        );
+    }
+
+    #[test]
+    fn non_base64_encrypted_apple_pay_token_is_rejected() {
+        let error = build_apple_pay_payment_data(&encrypted_wallet_data("not base64 !!"))
+            .expect_err("a non-base64 token must not reach NMI");
+
+        assert!(
+            matches!(
+                error.current_context(),
+                IntegrationError::InvalidWalletToken { wallet_name, .. } if wallet_name == "Apple Pay"
+            ),
+            "unexpected error: {error:?}"
+        );
+    }
+
+    /// The anti-drift guarantee this change exists for: Authorize and SetupMandate wrap the very
+    /// same [`NmiApplePayPaymentData`], so the Apple Pay form fields NMI receives are identical
+    /// on both flows and cannot diverge without this test failing.
+    #[test]
+    fn authorize_and_setup_mandate_emit_identical_apple_pay_fields() {
+        for wallet_data in [
+            decrypted_wallet_data(Some("05")),
+            encrypted_wallet_data(SAMPLE_TOKEN_BASE64),
+        ] {
+            let authorize =
+                NmiPaymentMethod::<domain_types::payment_method_data::DefaultPCIHolder>::ApplePay(
+                    Box::new(
+                        build_apple_pay_payment_data(&wallet_data).expect("authorize apple pay"),
+                    ),
+                );
+            let setup_mandate = NmiSetupMandatePaymentMethod::<
+                domain_types::payment_method_data::DefaultPCIHolder,
+            >::ApplePay(Box::new(
+                build_apple_pay_payment_data(&wallet_data).expect("setup mandate apple pay"),
+            ));
+
+            assert_eq!(
+                serde_urlencoded::to_string(&authorize).expect("serialize authorize"),
+                serde_urlencoded::to_string(&setup_mandate).expect("serialize setup mandate"),
+            );
+        }
+    }
 }
