@@ -2280,6 +2280,16 @@ pub struct NmiActionBody {
     pub action_type: NmiActionType,
 }
 
+/// `event_body.action.action_type` on an NMI webhook.
+///
+/// NMI's normative OpenAPI enum for this field is 8 values — `auth`, `capture`, `sale`,
+/// `void`, `refund`, `credit`, `return`, `validate` — plus 3 further values observed only
+/// on check-status events: `settle`, `check_return`, `check_late_return`. This enum models
+/// only the 6 actions UCS acts on, so every other value MUST absorb into [`Self::Unknown`]
+/// rather than failing deserialization and turning an unmodelled action into an opaque
+/// `WebhookResourceObjectNotFound`. Mirrors the HS Direct connector, which carries the same
+/// `#[serde(other)] Unknown`
+/// (`hyperswitch/crates/hyperswitch_connectors/src/connectors/nmi/transformers.rs:1775-1776`).
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum NmiActionType {
@@ -2289,6 +2299,8 @@ pub enum NmiActionType {
     Refund,
     Sale,
     Void,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Deserialize)]
@@ -2296,6 +2308,17 @@ pub struct NmiWebhookEventBody {
     pub event_type: NmiWebhookEventType,
 }
 
+/// `event_type` on an NMI webhook.
+///
+/// NMI documents 36 gateway `event_type` values across 6 families. This enum models the 15
+/// transaction events UCS acts on; the other 21 — `transaction.credit.*`,
+/// `transaction.validate.*`, `transaction.check.status.*`, `recurring.*`,
+/// `settlement.batch.*`, `chargeback.batch.complete` and `acu.summary.*` — MUST deserialize
+/// to [`Self::Unknown`] and be acknowledged rather than rejected: NMI retries a non-200
+/// delivery 20 times over 3 days (<https://docs.nmi.com/reference/retry-logic>), so a single
+/// unmodelled event class would otherwise produce a three-day retry storm. Mirrors the HS
+/// Direct connector's `#[serde(other)] Unknown`
+/// (`hyperswitch/crates/hyperswitch_connectors/src/connectors/nmi/transformers.rs:1816-1817`).
 #[derive(Debug, Deserialize, Serialize)]
 pub enum NmiWebhookEventType {
     #[serde(rename = "transaction.sale.success")]
@@ -2328,6 +2351,8 @@ pub enum NmiWebhookEventType {
     CaptureFailure,
     #[serde(rename = "transaction.capture.unknown")]
     CaptureUnknown,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -2392,6 +2417,14 @@ pub(crate) fn get_nmi_webhook_event(
         | NmiWebhookEventType::AuthUnknown
         | NmiWebhookEventType::VoidUnknown
         | NmiWebhookEventType::CaptureUnknown => EventType::IncomingWebhookEventUnspecified,
+        NmiWebhookEventType::Unknown => {
+            tracing::warn!(
+                connector = "nmi",
+                flow = "Webhooks",
+                "Unrecognised NMI webhook event_type received; acknowledging without processing"
+            );
+            EventType::IncomingWebhookEventUnspecified
+        }
     }
 }
 
@@ -2559,5 +2592,267 @@ mod tests {
                 serde_urlencoded::to_string(&setup_mandate).expect("serialize setup mandate"),
             );
         }
+    }
+
+    // ===== INCOMING WEBHOOK TESTS =====
+
+    use domain_types::connector_types::EventType;
+
+    /// Deserializes an NMI webhook body and runs it through the event-type mapping, i.e.
+    /// exactly what `IncomingWebhook::get_event_type` does.
+    fn parse_event_type(body: &str) -> EventType {
+        let event_body: NmiWebhookEventBody = serde_json::from_str(body)
+            .unwrap_or_else(|error| panic!("event body should deserialize: {error} — {body}"));
+        get_nmi_webhook_event(event_body.event_type)
+    }
+
+    fn parse_event_type_variant(event_type: &str) -> NmiWebhookEventType {
+        let body = format!(r#"{{"event_type":"{event_type}"}}"#);
+        serde_json::from_str::<NmiWebhookEventBody>(&body)
+            .unwrap_or_else(|error| panic!("event_type {event_type} should deserialize: {error}"))
+            .event_type
+    }
+
+    fn parse_action_type(action_type: &str) -> NmiActionType {
+        let body = format!(r#"{{"action_type":"{action_type}"}}"#);
+        serde_json::from_str::<NmiActionBody>(&body)
+            .unwrap_or_else(|error| panic!("action_type {action_type} should deserialize: {error}"))
+            .action_type
+    }
+
+    /// A full NMI `transaction.sale.success` webhook in the shape NMI actually delivers,
+    /// including the many `event_body` keys the connector deliberately does not model.
+    /// `network_tokenised` drives the only two fields that differ between an Apple Pay-
+    /// originated sale and an equivalent raw keyed-card sale.
+    fn full_sale_webhook(network_tokenised: bool) -> String {
+        format!(
+            r#"{{
+                "event_type": "transaction.sale.success",
+                "event_body": {{
+                    "merchant": {{"id": "pmle-1072470", "name": "Test Merchant"}},
+                    "transaction_id": "10345678901",
+                    "transaction_type": "cc",
+                    "condition": "pendingsettlement",
+                    "processor_id": "ccprocessora",
+                    "order_id": "pay_nmi_wallet_001",
+                    "order_description": "Test order",
+                    "currency": "USD",
+                    "requested_amount": "10.00",
+                    "authorization_code": "123456",
+                    "card": {{
+                        "cc_number": "4xxxxxxxxxxx1111",
+                        "cc_exp": "0330",
+                        "cc_type": "Visa",
+                        "cc_bin": "411111",
+                        "entry_mode": "4"
+                    }},
+                    "action": {{
+                        "action_type": "sale",
+                        "success": "1",
+                        "amount": "10.00",
+                        "date": "20260803040000",
+                        "network_token_used": {network_tokenised},
+                        "network_token_cryptogram_created": {network_tokenised}
+                    }}
+                }}
+            }}"#
+        )
+    }
+
+    /// Regression test for the gap this change closes: before `#[serde(other)] Unknown`,
+    /// each of these hard-failed at `serde_json::from_slice` with `unknown variant`, so
+    /// `EventService/ParseEvent` returned a gRPC error and NMI retried the delivery 20 times
+    /// over 3 days. `transaction.validate.*` is live traffic today — our own SetupMandate
+    /// (including the Apple Pay SetupMandate) submits `type=validate`.
+    #[test]
+    fn unmodelled_event_types_absorb_into_unknown_and_are_acknowledged() {
+        for event_type in [
+            "transaction.credit.success",
+            "transaction.validate.success",
+            "chargeback.batch.complete",
+            "settlement.batch.complete",
+            "transaction.check.status.settle",
+        ] {
+            let parsed = parse_event_type_variant(event_type);
+            assert!(
+                matches!(parsed, NmiWebhookEventType::Unknown),
+                "{event_type} should absorb into NmiWebhookEventType::Unknown"
+            );
+            assert_eq!(
+                get_nmi_webhook_event(parsed),
+                EventType::IncomingWebhookEventUnspecified,
+                "{event_type} should be acknowledged as Unspecified"
+            );
+        }
+    }
+
+    /// Guards the 15 modelled `event_type` strings against the new `#[serde(other)]` arm:
+    /// each must still deserialize to its own variant (never `Unknown`) and map to its exact
+    /// event type, so a modelled event can never be silently swallowed.
+    #[test]
+    fn modelled_event_types_are_not_swallowed_by_the_serde_other_arm() {
+        for (event_type, expected) in [
+            ("transaction.sale.success", EventType::PaymentIntentSuccess),
+            ("transaction.sale.failure", EventType::PaymentIntentFailure),
+            (
+                "transaction.sale.unknown",
+                EventType::IncomingWebhookEventUnspecified,
+            ),
+            (
+                "transaction.auth.success",
+                EventType::PaymentIntentAuthorizationSuccess,
+            ),
+            (
+                "transaction.auth.failure",
+                EventType::PaymentIntentAuthorizationFailure,
+            ),
+            (
+                "transaction.auth.unknown",
+                EventType::IncomingWebhookEventUnspecified,
+            ),
+            (
+                "transaction.capture.success",
+                EventType::PaymentIntentCaptureSuccess,
+            ),
+            (
+                "transaction.capture.failure",
+                EventType::PaymentIntentCaptureFailure,
+            ),
+            (
+                "transaction.capture.unknown",
+                EventType::IncomingWebhookEventUnspecified,
+            ),
+            (
+                "transaction.void.success",
+                EventType::PaymentIntentCancelled,
+            ),
+            (
+                "transaction.void.failure",
+                EventType::PaymentIntentCancelFailure,
+            ),
+            (
+                "transaction.void.unknown",
+                EventType::IncomingWebhookEventUnspecified,
+            ),
+            ("transaction.refund.success", EventType::RefundSuccess),
+            ("transaction.refund.failure", EventType::RefundFailure),
+            (
+                "transaction.refund.unknown",
+                EventType::IncomingWebhookEventUnspecified,
+            ),
+        ] {
+            let parsed = parse_event_type_variant(event_type);
+            assert!(
+                !matches!(parsed, NmiWebhookEventType::Unknown),
+                "{event_type} is modelled and must not fall into the serde(other) arm"
+            );
+            assert_eq!(
+                get_nmi_webhook_event(parsed),
+                expected,
+                "unexpected event type mapping for {event_type}"
+            );
+        }
+    }
+
+    /// `validate`, `return` and `settle` are documented NMI `action.action_type` values that
+    /// UCS does not act on; they must absorb into `Unknown` instead of aborting the whole
+    /// webhook parse, while the six modelled actions keep their own variants.
+    #[test]
+    fn unmodelled_action_types_absorb_into_unknown() {
+        for action_type in ["validate", "return", "settle"] {
+            assert!(
+                matches!(parse_action_type(action_type), NmiActionType::Unknown),
+                "{action_type} should absorb into NmiActionType::Unknown"
+            );
+        }
+
+        assert!(matches!(parse_action_type("sale"), NmiActionType::Sale));
+        assert!(matches!(parse_action_type("auth"), NmiActionType::Auth));
+        assert!(matches!(
+            parse_action_type("capture"),
+            NmiActionType::Capture
+        ));
+        assert!(matches!(parse_action_type("void"), NmiActionType::Void));
+        assert!(matches!(parse_action_type("refund"), NmiActionType::Refund));
+        assert!(matches!(parse_action_type("credit"), NmiActionType::Credit));
+    }
+
+    /// THE determination behind "NMI Webhooks / Wallet-ApplePay", asserted rather than
+    /// asserted-in-prose: NMI's webhook payload carries no wallet discriminator, so an Apple
+    /// Pay-originated sale is indistinguishable from a raw keyed-card sale at every field the
+    /// webhook path reads (`event_type`, `order_id`, `transaction_id`, `condition`,
+    /// `action.action_type`). This is why **no Apple Pay-specific webhook code exists in this
+    /// connector** — any such branch would be unreachable dead code.
+    #[test]
+    fn apple_pay_and_raw_card_webhooks_parse_identically() {
+        // Apple Pay: NMI decrypts the PassKit token to a DPAN, so the transaction is reported
+        // as a network-tokenised Visa keyed (`entry_mode` 4) e-commerce sale.
+        let apple_pay_webhook = full_sale_webhook(true);
+        // Raw keyed card: same entry mode, no network token.
+        let raw_card_webhook = full_sale_webhook(false);
+
+        assert_eq!(
+            parse_event_type(&apple_pay_webhook),
+            parse_event_type(&raw_card_webhook),
+            "Apple Pay and raw card must yield the same webhook event type"
+        );
+
+        let apple_pay_body: NmiWebhookBody = serde_json::from_str(&apple_pay_webhook)
+            .expect("apple pay webhook body should deserialize");
+        let raw_card_body: NmiWebhookBody = serde_json::from_str(&raw_card_webhook)
+            .expect("raw card webhook body should deserialize");
+
+        assert_eq!(
+            apple_pay_body.event_body.order_id,
+            raw_card_body.event_body.order_id
+        );
+        assert_eq!(
+            apple_pay_body.event_body.transaction_id,
+            raw_card_body.event_body.transaction_id
+        );
+        assert_eq!(
+            apple_pay_body.event_body.condition,
+            raw_card_body.event_body.condition
+        );
+        assert_eq!(
+            serde_json::to_value(&apple_pay_body.event_body.action)
+                .expect("serialize apple pay action"),
+            serde_json::to_value(&raw_card_body.event_body.action)
+                .expect("serialize raw card action"),
+            "action_type must be identical — NMI reports both as a plain `sale`"
+        );
+    }
+
+    /// The payment-action resource object must be byte-identical to the PSync envelope HS
+    /// Direct emits, since downstream reuses the PSync parser on it.
+    #[test]
+    fn webhook_sync_response_serialises_to_the_psync_transaction_envelope() {
+        let webhook_body: NmiWebhookBody = serde_json::from_str(&full_sale_webhook(true))
+            .expect("webhook body should deserialize");
+
+        assert_eq!(
+            serde_json::to_string(&NmiWebhookSyncResponse::from(&webhook_body))
+                .expect("serialize webhook sync response"),
+            r#"{"transaction":{"transaction_id":"10345678901","condition":"pendingsettlement"}}"#
+        );
+    }
+
+    #[test]
+    fn webhook_signature_header_is_split_on_the_last_comma_s() {
+        assert_eq!(
+            parse_nmi_webhook_signature_header("t=1785000000,s=0a1b2c3d"),
+            Some(("1785000000", "0a1b2c3d"))
+        );
+
+        // HS Direct uses the greedy regex `r"t=(.*),s=(.*)"`, so a nonce that itself contains
+        // `,s=` is split on the LAST occurrence. Reproduced deliberately — a naive
+        // `split_once(",s=")` would diverge from the Direct gateway here.
+        assert_eq!(
+            parse_nmi_webhook_signature_header("t=1785000000,s=notthesignature,s=0a1b2c3d"),
+            Some(("1785000000,s=notthesignature", "0a1b2c3d"))
+        );
+
+        assert_eq!(parse_nmi_webhook_signature_header("t=1785000000"), None);
+        assert_eq!(parse_nmi_webhook_signature_header("malformed"), None);
     }
 }
