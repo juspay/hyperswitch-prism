@@ -71,7 +71,7 @@
             gradle            # Gradle build tool
 
             # Optional: database tools if you're building web apps
-            # postgresql
+            postgresql        # libpq + pg_config for diesel/pq-sys (-lpq)
             # sqlite
 
             # Optional: if you need to link against system libraries
