@@ -72,6 +72,18 @@ fn extract_headers_from_metadata(
     }
 }
 
+fn convert_optional_payment_method_type(
+    value: Option<i32>,
+) -> Result<Option<PaymentMethodType>, error_stack::Report<IntegrationError>> {
+    value
+        .and_then(|payment_method_type| {
+            grpc_api_types::payments::PaymentMethodType::try_from(payment_method_type).ok()
+        })
+        .map(<Option<PaymentMethodType>>::foreign_try_from)
+        .transpose()
+        .map(Option::flatten)
+}
+
 fn convert_optional_country_alpha2(
     value: grpc_api_types::payments::CountryAlpha2,
 ) -> Result<Option<CountryAlpha2>, error_stack::Report<IntegrationError>> {
@@ -5017,6 +5029,7 @@ impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for Pay
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
             status: common_enums::AttemptStatus::Pending,
             payment_method: PaymentMethod::Card,
+            payment_method_type: convert_optional_payment_method_type(value.payment_method_type)?,
             address,
             auth_type: common_enums::AuthenticationType::foreign_try_from(value.auth_type)?,
             connector_request_reference_id: extract_connector_request_reference_id(
@@ -5105,6 +5118,7 @@ impl ForeignTryFrom<(SetupRecurringRequest, Connectors, &MaskedMetadata)> for Pa
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
             status: common_enums::AttemptStatus::Pending,
             payment_method: PaymentMethod::Card,
+            payment_method_type: convert_optional_payment_method_type(value.payment_method_type)?,
             address,
             auth_type: common_enums::AuthenticationType::foreign_try_from(value.auth_type)?,
             connector_request_reference_id: extract_connector_request_reference_id(&Some(
@@ -5219,6 +5233,7 @@ impl
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
             status: common_enums::AttemptStatus::Pending,
             payment_method: PaymentMethod::Card, //TODO
+            payment_method_type: convert_optional_payment_method_type(value.payment_method_type)?,
             address,
             auth_type: common_enums::AuthenticationType::foreign_try_from(value.auth_type())?,
             connector_request_reference_id: extract_connector_request_reference_id(
