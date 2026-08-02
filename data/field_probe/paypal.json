@@ -1029,8 +1029,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: incremental_authorization flow for paypal"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.incremental_authorization_id. PayPal only populates an incremental authorization id when the original payment was created with intent AUTHORIZE and `request_incremental_authorization` set; there is nothing to reauthorize without it — Missing required field: connector_feature_data.incremental_authorization_id. PayPal only populates an incremental authorization id when the original payment was created with intent AUTHORIZE and `request_incremental_authorization` set; there is nothing to reauthorize without it"
       }
     },
     "parse_event": {
