@@ -2620,16 +2620,82 @@ mod tests {
             .action_type
     }
 
+    /// Every `event_body` field an NMI webhook exposes that correlates *at all* with the
+    /// payment having originated in a digital wallet. There are exactly four, and NMI's
+    /// published schema has no fifth: no `payment_method`, no `wallet` node, no
+    /// `wallet_type`/`token_type`, and a `transaction_type` whose enum is only
+    /// `cc | ck | cs` (<https://docs.nmi.com/reference/create-sale-v5>, `event_body` /
+    /// `CardDetails` / `TransactionAction` schemas).
+    ///
+    /// None of the four is a wallet *discriminator*:
+    /// * `cavv` / `eci` / `cardholder_auth` — NMI's own request schema calls these the
+    ///   *"repurposed 3-D Secure"* fields that a decrypted wallet cryptogram is submitted
+    ///   in (`CardholderAuth` `oneOf` variant "Decrypted wallet (Apple Pay / Google Pay)"),
+    ///   so a 3DS-authenticated raw card populates them identically.
+    /// * `network_token_used` / `network_token_cryptogram_created` — also set for a plain
+    ///   PAN tokenised via the Direct Post `network_tokenize=1` request flag, and identical
+    ///   for Apple Pay and Google Pay.
+    struct WalletProvenance {
+        network_tokenised: bool,
+        cavv: &'static str,
+        eci: &'static str,
+        cardholder_auth: &'static str,
+    }
+
+    /// Raw keyed PAN, no 3DS — the control.
+    const RAW_CARD: WalletProvenance = WalletProvenance {
+        network_tokenised: false,
+        cavv: "",
+        eci: "",
+        cardholder_auth: "",
+    };
+
+    /// Apple Pay. NMI decrypts the PassKit token to a DPAN, so the settled transaction is a
+    /// network-tokenised keyed (`entry_mode` 4) e-commerce sale.
+    const APPLE_PAY: WalletProvenance = WalletProvenance {
+        network_tokenised: true,
+        cavv: "AAABBIhoAAAAAAAAAAAAAAAAAAA=",
+        eci: "05",
+        cardholder_auth: "verified",
+    };
+
+    /// Google Pay submitted as `googlepay_payment_data=<base64 token>` (UCS
+    /// `NmiPaymentMethod::GooglePay`, transformers.rs:646-655). NMI decrypts the token
+    /// server-side to a DPAN + cryptogram, so the settled transaction is an ordinary `cc`.
+    const GOOGLE_PAY_TOKEN: WalletProvenance = WalletProvenance {
+        network_tokenised: true,
+        cavv: "AgAAAAAABk4DWZ4C28yUQAAAAAA=",
+        eci: "05",
+        cardholder_auth: "verified",
+    };
+
+    /// Google Pay submitted as `decrypted_googlepay_data=1` + DPAN/cryptogram (UCS
+    /// `NmiPaymentMethod::GooglePayDecrypt`, transformers.rs:629-643). Deliberately given a
+    /// *different* cryptogram and ECI from [`GOOGLE_PAY_TOKEN`] so the assertions below
+    /// prove the parsed output is invariant to these fields rather than proving two equal
+    /// inputs are equal.
+    const GOOGLE_PAY_DECRYPTED: WalletProvenance = WalletProvenance {
+        network_tokenised: true,
+        cavv: "3q2+7wAAAAAAAAAAAAAAAAAAAAA=",
+        eci: "07",
+        cardholder_auth: "attempted",
+    };
+
     /// A full NMI `transaction.sale.success` webhook in the shape NMI actually delivers,
     /// including the many `event_body` keys the connector deliberately does not model.
-    /// `network_tokenised` drives the only two fields that differ between an Apple Pay-
-    /// originated sale and an equivalent raw keyed-card sale.
-    fn full_sale_webhook(network_tokenised: bool) -> String {
+    fn sale_webhook(provenance: &WalletProvenance) -> String {
+        let WalletProvenance {
+            network_tokenised,
+            cavv,
+            eci,
+            cardholder_auth,
+        } = provenance;
         format!(
             r#"{{
                 "event_type": "transaction.sale.success",
                 "event_body": {{
                     "merchant": {{"id": "pmle-1072470", "name": "Test Merchant"}},
+                    "features": {{"is_test_mode": true}},
                     "transaction_id": "10345678901",
                     "transaction_type": "cc",
                     "condition": "pendingsettlement",
@@ -2639,24 +2705,68 @@ mod tests {
                     "currency": "USD",
                     "requested_amount": "10.00",
                     "authorization_code": "123456",
+                    "merchant_defined_fields": {{}},
                     "card": {{
                         "cc_number": "4xxxxxxxxxxx1111",
                         "cc_exp": "0330",
                         "cc_type": "Visa",
                         "cc_bin": "411111",
-                        "entry_mode": "4"
+                        "entry_mode": "4",
+                        "cavv": "{cavv}",
+                        "cavv_result": "",
+                        "eci": "{eci}",
+                        "cardholder_auth": "{cardholder_auth}",
+                        "feature_token": ""
                     }},
                     "action": {{
                         "action_type": "sale",
                         "success": "1",
                         "amount": "10.00",
                         "date": "20260803040000",
+                        "source": "api",
+                        "api_method": "direct_post",
                         "network_token_used": {network_tokenised},
                         "network_token_cryptogram_created": {network_tokenised}
                     }}
                 }}
             }}"#
         )
+    }
+
+    /// Everything `IncomingWebhook` reads out of an NMI webhook body, plus the resource
+    /// object it hands downstream. Two payloads with equal projections are, as far as the
+    /// whole webhook surface is concerned, the same event.
+    // `EventType` is `PartialEq` but not `Eq`, so this cannot derive `Eq`.
+    #[derive(Debug, PartialEq)]
+    struct WebhookProjection {
+        event_type: EventType,
+        /// From `NmiWebhookObjectReference` — what `get_webhook_event_reference` resolves.
+        reference_order_id: String,
+        reference_action: String,
+        /// From `NmiWebhookBody` — what `process_payment_webhook` / `process_refund_webhook`
+        /// and `get_webhook_resource_object` read.
+        transaction_id: String,
+        condition: String,
+        /// The serialized `{"transaction":{...}}` resource object, byte for byte.
+        resource_object: String,
+    }
+
+    fn project_webhook(body: &str) -> WebhookProjection {
+        let reference: NmiWebhookObjectReference = serde_json::from_str(body)
+            .unwrap_or_else(|error| panic!("object reference should deserialize: {error}"));
+        let webhook_body: NmiWebhookBody = serde_json::from_str(body)
+            .unwrap_or_else(|error| panic!("webhook body should deserialize: {error}"));
+
+        WebhookProjection {
+            event_type: parse_event_type(body),
+            reference_order_id: reference.event_body.order_id,
+            reference_action: serde_json::to_string(&reference.event_body.action)
+                .expect("serialize reference action"),
+            transaction_id: webhook_body.event_body.transaction_id.clone(),
+            condition: webhook_body.event_body.condition.clone(),
+            resource_object: serde_json::to_string(&NmiWebhookSyncResponse::from(&webhook_body))
+                .expect("serialize resource object"),
+        }
     }
 
     /// Regression test for the gap this change closes: before `#[serde(other)] Unknown`,
@@ -2787,9 +2897,9 @@ mod tests {
     fn apple_pay_and_raw_card_webhooks_parse_identically() {
         // Apple Pay: NMI decrypts the PassKit token to a DPAN, so the transaction is reported
         // as a network-tokenised Visa keyed (`entry_mode` 4) e-commerce sale.
-        let apple_pay_webhook = full_sale_webhook(true);
+        let apple_pay_webhook = sale_webhook(&APPLE_PAY);
         // Raw keyed card: same entry mode, no network token.
-        let raw_card_webhook = full_sale_webhook(false);
+        let raw_card_webhook = sale_webhook(&RAW_CARD);
 
         assert_eq!(
             parse_event_type(&apple_pay_webhook),
@@ -2823,11 +2933,64 @@ mod tests {
         );
     }
 
+    /// The Google Pay counterpart of the assertion above, and the reason this connector has
+    /// no Google Pay-specific webhook code.
+    ///
+    /// Google Pay reaches NMI two ways, both implemented in Authorize: the raw token
+    /// (`googlepay_payment_data`) and the merchant-decrypted path
+    /// (`decrypted_googlepay_data=1` + DPAN/cryptogram). NMI resolves both to a DPAN and
+    /// reports the result as an ordinary `transaction_type: "cc"` sale, so the delivered
+    /// webhook is indistinguishable from a raw-card one at every field the connector reads.
+    ///
+    /// The three payloads here differ in *all four* wallet-adjacent fields NMI exposes (see
+    /// [`WalletProvenance`]) and still project identically. If NMI ever adds a real wallet
+    /// discriminator this test keeps passing — it asserts the current schema's consequence,
+    /// not the absence of a future field — but any attempt to *branch* the parser on the
+    /// fields that exist today would be dead code, which is what this pins down.
+    #[test]
+    fn google_pay_and_raw_card_webhooks_parse_identically() {
+        let raw_card = project_webhook(&sale_webhook(&RAW_CARD));
+        let google_pay_token = project_webhook(&sale_webhook(&GOOGLE_PAY_TOKEN));
+        let google_pay_decrypted = project_webhook(&sale_webhook(&GOOGLE_PAY_DECRYPTED));
+
+        assert_eq!(
+            google_pay_token, raw_card,
+            "a `googlepay_payment_data` sale must project identically to a raw-card sale"
+        );
+        assert_eq!(
+            google_pay_decrypted, raw_card,
+            "a `decrypted_googlepay_data` sale must project identically to a raw-card sale"
+        );
+        // Explicit rather than transitive: the two Google Pay provenances carry different
+        // cryptograms and ECIs, so this states that the connector output does not depend on
+        // which Google Pay path Authorize took.
+        assert_eq!(
+            google_pay_token, google_pay_decrypted,
+            "both Google Pay provenances must project identically to each other"
+        );
+
+        // Guard the premise: the payloads really are different on the wire, so the equality
+        // above is a property of the parser and not of three identical inputs.
+        assert_ne!(
+            sale_webhook(&GOOGLE_PAY_TOKEN),
+            sale_webhook(&RAW_CARD),
+            "the Google Pay and raw-card payloads must differ before parsing"
+        );
+        assert_ne!(
+            sale_webhook(&GOOGLE_PAY_TOKEN),
+            sale_webhook(&GOOGLE_PAY_DECRYPTED),
+            "the two Google Pay payloads must differ before parsing"
+        );
+
+        assert_eq!(raw_card.event_type, EventType::PaymentIntentSuccess);
+        assert_eq!(raw_card.reference_order_id, "pay_nmi_wallet_001");
+    }
+
     /// The payment-action resource object must be byte-identical to the PSync envelope HS
     /// Direct emits, since downstream reuses the PSync parser on it.
     #[test]
     fn webhook_sync_response_serialises_to_the_psync_transaction_envelope() {
-        let webhook_body: NmiWebhookBody = serde_json::from_str(&full_sale_webhook(true))
+        let webhook_body: NmiWebhookBody = serde_json::from_str(&sale_webhook(&APPLE_PAY))
             .expect("webhook body should deserialize");
 
         assert_eq!(
