@@ -1610,11 +1610,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 // `samsungPayToken`. No re-serialisation or re-encoding of
                 // `payment_credential` is performed.
                 let samsung_pay_data = AdyenSamsungPay {
-                    samsung_pay_token: samsung_pay_data
-                        .payment_credential
-                        .token_data
-                        .data
-                        .clone(),
+                    samsung_pay_token: samsung_pay_data.payment_credential.token_data.data.clone(),
                 };
 
                 Ok(Self::SamsungPay(Box::new(samsung_pay_data)))
