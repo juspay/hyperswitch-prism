@@ -1054,6 +1054,15 @@ macros::macro_connector_implementation!(
 // handed back in `connector_feature_data`, and mints a NEW authorization id in the response.
 // Both HTTP 201 (created) and HTTP 200 (idempotent replay of the same `PayPal-Request-Id`) are
 // success and carry the same `authorization-2` schema.
+//
+// The endpoint is funding-source agnostic, so this block is deliberately free of any
+// payment-method branch: the path selector is an authorization id (not an order or a funding
+// instrument), the request body accepts only `amount`, and `authorization-2` carries no
+// funding-instrument block. PayPal's own operation description is in fact written for the wallet
+// case — "Reauthorizes an authorized PayPal account payment, by ID." Card and
+// Wallet(PayPal) — both `PaypalRedirect` and `PaypalSdk` — therefore share this code verbatim;
+// they differ only in which Authorize leg mints the authorization id (see
+// `extract_incremental_authorization_id`).
 // Doc: https://developer.paypal.com/docs/api/payments/v2/#authorizations_reauthorize
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],

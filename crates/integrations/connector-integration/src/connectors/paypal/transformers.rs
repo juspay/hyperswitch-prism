@@ -2518,6 +2518,28 @@ fn get_id_based_on_intent(
     })
 }
 
+/// Pulls the authorization id that `IncrementalAuthorization` later reauthorizes out of an
+/// `intent: AUTHORIZE` order response.
+///
+/// This is funding-source agnostic — every funding source converges on
+/// `purchase_units[].payments.authorizations[0].id`. What differs is which Authorize leg produces
+/// the response this runs against:
+///
+/// * **Card** — the create-order call itself (`POST /v2/checkout/orders` with
+///   `payment_source.card`) already carries the authorization, so the id is available on the first
+///   Authorize.
+/// * **Wallet — `PaypalRedirect`** — create-order returns `PAYER_ACTION_REQUIRED` with no
+///   `payments` block at all, so it deserializes as [`PaypalRedirectResponse`] and correctly yields
+///   no id. The authorization only exists after the buyer approves at PayPal and the caller issues
+///   a second Authorize carrying `connector_order_id`, which posts to
+///   `/v2/checkout/orders/{order_id}/authorize`; that response is a full order object and lands
+///   here.
+/// * **Wallet — `PaypalSdk`** — the JS SDK performs create-order plus approval client-side, so the
+///   single Authorize posts straight to `/v2/checkout/orders/{sdk_token}/authorize` and lands here
+///   on the first call.
+///
+/// Returns `None` rather than erroring: an order that legitimately has no authorization yet (the
+/// wallet redirect leg, or an `intent: CAPTURE` order) must not fail an otherwise valid response.
 fn extract_incremental_authorization_id(response: &PaypalOrdersResponse) -> Option<String> {
     for unit in &response.purchase_units {
         if let Some(authorizations) = &unit.payments.authorizations {
