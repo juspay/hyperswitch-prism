@@ -9358,6 +9358,25 @@ impl
 
         let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
 
+        // Connectors whose incremental-authorization endpoint is OAuth-protected (PayPal) read the
+        // bearer token off `PaymentFlowData`, so carry `state.access_token` through exactly as the
+        // Capture flow does.
+        let access_token = value
+            .state
+            .as_ref()
+            .and_then(|state| state.access_token.as_ref())
+            .map(ServerAuthenticationTokenResponseData::foreign_try_from)
+            .transpose()?;
+
+        // Header construction (for example PayPal's partner-attribution headers) reads the feature
+        // data off `PaymentFlowData`, while URL construction reads it off the request data; both
+        // are sourced from the same caller-supplied `connector_feature_data`.
+        let connector_feature_data = value
+            .connector_feature_data
+            .clone()
+            .map(|m| ForeignTryFrom::foreign_try_from((m, "feature data")))
+            .transpose()?;
+
         Ok(Self {
             raw_connector_status: None,
             merchant_id: merchant_id_from_header,
@@ -9374,10 +9393,10 @@ impl
             connector_customer: None,
             description: None,
             return_url: None,
-            connector_feature_data: None,
+            connector_feature_data,
             amount_captured: None,
             minor_amount_captured: None,
-            access_token: None,
+            access_token,
             session_token: None,
             reference_id: None,
             connector_order_id: None,
