@@ -51,11 +51,11 @@
             # protobuf stuff
             protobuf        # protoc compiler
             protoc-gen-rust-grpc
+            git
             grpc-tools
             grpcurl
             # Node.js runtime and tools
-            nodejs_20         # Node.js runtime for JavaScript SDK
-            nodePackages.npm  # npm package manager
+            nodejs_24         # Node.js runtime for JavaScript SDK
 
             # Python runtime and tools
             python3           # Python 3 runtime
