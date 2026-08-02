@@ -32,12 +32,12 @@ use domain_types::{
     payment_method_data::{
         ApplePayPaymentData, BankDebitData, BankRedirectData, BankTransferData, Card,
         CardRedirectData, DefaultPCIHolder, GiftCardData, GpayTokenizationData, NetworkTokenData,
-        PayLaterData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, VoucherData,
-        VoucherNextStepData, WalletData,
+        PayLaterData, PaymentMethodData, PaymentMethodDataTypes, PazeWalletData, RawCardNumber,
+        VoucherData, VoucherNextStepData, WalletData,
     },
     router_data::{
         ConnectorResponseData, ConnectorSpecificConfig, ErrorResponse,
-        ExtendedAuthorizationResponseData,
+        ExtendedAuthorizationResponseData, PazeDecryptedData,
     },
     router_data_v2::RouterDataV2,
     router_request_types::SyncRequestType,
@@ -118,6 +118,10 @@ pub enum CardBrand {
 }
 
 const GOOGLE_PAY_BRAND: &str = "googlepay";
+
+/// `mpiData.eci` is mandatory for Adyen network-token authorizations, but the decrypted Paze
+/// payload does not always carry one. Fall back to the fully-authenticated e-commerce indicator.
+const PAZE_DEFAULT_ECI: &str = "05";
 
 impl TryFrom<&domain_utils::CardIssuer> for CardBrand {
     type Error = error_stack::Report<IntegrationError>;
@@ -1441,6 +1445,52 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
+/// Adyen has no Paze-native `paymentMethod.type`. A Paze transaction is submitted through the
+/// network-token pass-through, so the decrypted Paze payload is required.
+fn get_paze_decrypted_data(paze_wallet_data: &PazeWalletData) -> Result<PazeDecryptedData, Error> {
+    match paze_wallet_data {
+        PazeWalletData::Decrypted(paze_decrypted_data) => Ok(*paze_decrypted_data.clone()),
+        PazeWalletData::CompleteResponse(complete_response) => serde_json::from_str::<
+            PazeDecryptedData,
+        >(complete_response.peek())
+        .change_context(IntegrationError::InvalidWalletToken {
+            wallet_name: "Paze".to_string(),
+            context: Default::default(),
+        }),
+    }
+}
+
+/// TAVV cryptogram carried by the decrypted Paze payload. Adyen expects it in
+/// `mpiData.tokenAuthenticationVerificationValue`.
+fn get_paze_token_cryptogram(
+    paze_decrypted_data: &PazeDecryptedData,
+) -> Result<Secret<String>, Error> {
+    paze_decrypted_data
+        .dynamic_data
+        .iter()
+        .find(|dynamic_data| {
+            dynamic_data.dynamic_data_value.is_some()
+                && dynamic_data
+                    .dynamic_data_type
+                    .as_deref()
+                    .is_some_and(|data_type| data_type.eq_ignore_ascii_case("CRYPTOGRAM_3DS"))
+        })
+        .or_else(|| {
+            paze_decrypted_data
+                .dynamic_data
+                .iter()
+                .find(|dynamic_data| dynamic_data.dynamic_data_value.is_some())
+        })
+        .and_then(|dynamic_data| dynamic_data.dynamic_data_value.clone())
+        .ok_or_else(|| {
+            IntegrationError::MissingRequiredField {
+                field_name: "paze_decrypted_data.dynamic_data.dynamic_data_value",
+                context: Default::default(),
+            }
+            .into()
+        })
+}
+
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<(
         &WalletData,
@@ -1548,8 +1598,29 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             WalletData::VippsRedirect { .. } => Ok(Self::Vipps),
             WalletData::SwishQr(_) => Ok(Self::Swish),
             WalletData::PaypalRedirect(_) => Ok(Self::AdyenPaypal),
+            WalletData::Paze(paze_wallet_data) => {
+                // Adyen exposes no Paze-native payment method type: the decrypted Paze payload
+                // (DPAN + expiry + brand) is submitted as a self-managed network token, with the
+                // TAVV cryptogram sent separately in `mpiData`.
+                let paze_decrypted_data = get_paze_decrypted_data(paze_wallet_data)?;
+                let adyen_network_token = AdyenNetworkTokenData {
+                    number: paze_decrypted_data.token.payment_token.clone(),
+                    expiry_month: paze_decrypted_data.token.token_expiration_month.clone(),
+                    expiry_year: domain_utils::expand_expiry_year_to_four_digits(
+                        &paze_decrypted_data.token.token_expiration_year,
+                    ),
+                    holder_name: paze_decrypted_data
+                        .billing_address
+                        .name
+                        .clone()
+                        .or_else(|| item.resource_common_data.get_optional_billing_full_name())
+                        .or_else(|| Some(paze_decrypted_data.consumer.full_name.clone())),
+                    brand: get_adyen_card_network(paze_decrypted_data.payment_card_network.clone()),
+                    network_payment_reference: None,
+                };
+                Ok(Self::NetworkToken(Box::new(adyen_network_token)))
+            }
             WalletData::AmazonPayRedirect(_)
-            | WalletData::Paze(_)
             | WalletData::RevolutPay(_)
             | WalletData::SamsungPay(_)
             | WalletData::AliPayQr(_)
@@ -2511,6 +2582,30 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 } else {
                     None
                 }
+            }
+            WalletData::Paze(paze_wallet_data) => {
+                // Network-token authorization: TAVV cryptogram plus a fully authenticated
+                // directory/authentication response, as required by Adyen for Paze DPANs.
+                let paze_decrypted_data = get_paze_decrypted_data(paze_wallet_data)?;
+                Some(AdyenMpiData {
+                    directory_response: common_enums::TransactionStatus::Success,
+                    authentication_response: common_enums::TransactionStatus::Success,
+                    cavv: None,
+                    token_authentication_verification_value: Some(get_paze_token_cryptogram(
+                        &paze_decrypted_data,
+                    )?),
+                    eci: Some(
+                        paze_decrypted_data
+                            .eci
+                            .clone()
+                            .unwrap_or_else(|| PAZE_DEFAULT_ECI.to_string()),
+                    ),
+                    ds_trans_id: None,
+                    three_ds_version: None,
+                    challenge_cancel: None,
+                    risk_score: None,
+                    cavv_algorithm: None,
+                })
             }
             _ => None,
         };
