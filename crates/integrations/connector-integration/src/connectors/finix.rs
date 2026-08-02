@@ -145,15 +145,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         payment_method: PaymentMethod,
         payment_method_type: Option<PaymentMethodType>,
     ) -> bool {
-        // Check for specific wallet types that need tokenization
-        let is_google_pay_wallet = payment_method == PaymentMethod::Wallet
-            && matches!(payment_method_type, Some(PaymentMethodType::GooglePay));
+        // Finix exchanges wallet device tokens for a Payment Instrument via
+        // POST /payment_instruments before the wallet can be charged.
+        let is_tokenizable_wallet = payment_method == PaymentMethod::Wallet
+            && matches!(
+                payment_method_type,
+                Some(PaymentMethodType::GooglePay) | Some(PaymentMethodType::ApplePay)
+            );
 
         // Card and BankDebit always need tokenization
         matches!(
             payment_method,
             PaymentMethod::Card | PaymentMethod::BankDebit
-        ) || is_google_pay_wallet
+        ) || is_tokenizable_wallet
     }
 }
 

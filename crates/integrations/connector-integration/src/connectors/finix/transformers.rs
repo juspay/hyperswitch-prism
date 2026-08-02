@@ -308,6 +308,58 @@ impl From<&common_enums::BankHolderType> for FinixAccountType {
     }
 }
 
+// =============================================================================
+// APPLE PAY `third_party_token` PAYLOAD
+// =============================================================================
+// Finix expects the raw PassKit payment token, re-serialized as a JSON *string*
+// in `third_party_token`. Field naming inside the Apple Pay token is camelCase
+// (`paymentData`, `paymentMethod`, `publicKeyHash`, `ephemeralPublicKey`,
+// `transactionId`, `transactionIdentifier`) while the enclosing Finix Payment
+// Instrument body stays snake_case.
+// See https://docs.finix.com/guides/online-payments/digital-wallets/apple-pay/apple-pay-on-ios
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FinixApplePayPaymentToken {
+    pub token: FinixApplePayToken,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FinixApplePayToken {
+    pub payment_data: FinixApplePayEncryptedData,
+    pub payment_method: FinixApplePayPaymentMethod,
+    pub transaction_identifier: String,
+}
+
+/// The `paymentData` object of an Apple Pay token. This is also the shape we
+/// deserialize the decoded PassKit token into, so every field is the cryptogram
+/// material itself and stays `Secret` from construction.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FinixApplePayEncryptedData {
+    pub data: Secret<String>,
+    pub signature: Secret<String>,
+    pub header: FinixApplePayHeader,
+    pub version: Secret<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FinixApplePayHeader {
+    pub public_key_hash: Secret<String>,
+    pub ephemeral_public_key: Secret<String>,
+    pub transaction_id: Secret<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FinixApplePayPaymentMethod {
+    pub display_name: Secret<String>,
+    pub network: Secret<String>,
+    #[serde(rename = "type")]
+    pub method_type: Secret<String>,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub enum FinixPaymentInstrumentType {
     #[serde(rename = "PAYMENT_CARD")]
@@ -1093,6 +1145,101 @@ fn get_billing_address_as_finix_address(
         })
 }
 
+/// Builds the Finix `POST /payment_instruments` body for an Apple Pay device token.
+///
+/// Shared by the Tokenize (`PaymentMethodToken`) and `SetupMandate` flows — both create
+/// the same Apple Pay Payment Instrument, so the token reshaping lives here once and the
+/// two paths cannot drift.
+///
+/// Finix wants the PassKit token re-serialized as a JSON *string* under
+/// `third_party_token`, with `merchant_identity` set to the Identity registered for
+/// Apple Pay. See
+/// https://docs.finix.com/guides/online-payments/digital-wallets/apple-pay/apple-pay-on-ios
+fn build_apple_pay_instrument_request(
+    apple_pay_data: &domain_types::payment_method_data::ApplePayWalletData,
+    identity: String,
+    merchant_identity_id: Secret<String>,
+    name: Option<Secret<String>>,
+    address: Option<FinixAddress>,
+    tags: Option<FinixTags>,
+) -> Result<FinixCreatePaymentInstrumentRequest, error_stack::Report<IntegrationError>> {
+    // Base64-decodes the PassKit token and keeps it inside a `Secret`; the util's own
+    // error already names Apple Pay.
+    let decoded_token = apple_pay_data
+        .get_applepay_decoded_payment_data()
+        .attach_printable(
+            "Apple Pay `payment_data` must carry the base64-encoded PassKit payment token; \
+             pre-decrypted Apple Pay data is not accepted by Finix",
+        )?;
+
+    let apple_pay_payment_data: FinixApplePayEncryptedData = serde_json::from_str(
+        decoded_token.peek(),
+    )
+    .change_context(IntegrationError::InvalidWalletToken {
+        wallet_name: "Apple Pay".to_string(),
+        context: IntegrationErrorContext {
+            additional_context: Some(
+                "Apple Pay token must contain data, signature, version and a header with \
+                 publicKeyHash, ephemeralPublicKey and transactionId"
+                    .to_string(),
+            ),
+            suggested_action: Some(
+                "Forward the unmodified PassKit `paymentData` object, base64-encoded".to_string(),
+            ),
+            doc_url: Some(
+                "https://docs.finix.com/guides/online-payments/digital-wallets/apple-pay/apple-pay-on-ios"
+                    .to_string(),
+            ),
+        },
+    })?;
+
+    let finix_token = FinixApplePayPaymentToken {
+        token: FinixApplePayToken {
+            payment_data: apple_pay_payment_data,
+            payment_method: FinixApplePayPaymentMethod {
+                display_name: Secret::new(apple_pay_data.payment_method.display_name.clone()),
+                network: Secret::new(apple_pay_data.payment_method.network.clone()),
+                method_type: Secret::new(apple_pay_data.payment_method.pm_type.clone()),
+            },
+            transaction_identifier: apple_pay_data.transaction_identifier.clone(),
+        },
+    };
+
+    let third_party_token = serde_json::to_string(&finix_token).change_context(
+        IntegrationError::InvalidWalletToken {
+            wallet_name: "Apple Pay".to_string(),
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "failed to serialize the Apple Pay token (paymentData, paymentMethod, \
+                     transactionIdentifier) into Finix's `third_party_token` string"
+                        .to_string(),
+                ),
+                ..Default::default()
+            },
+        },
+    )?;
+
+    Ok(FinixCreatePaymentInstrumentRequest {
+        instrument_type: FinixPaymentInstrumentType::ApplePay,
+        name,
+        number: None,
+        security_code: None,
+        expiration_month: None,
+        expiration_year: None,
+        identity,
+        tags,
+        address,
+        card_brand: None,
+        card_type: None,
+        additional_data: None,
+        merchant_identity: Some(merchant_identity_id),
+        third_party_token: Some(Secret::new(third_party_token)),
+        account_number: None,
+        bank_code: None,
+        account_type: None,
+    })
+}
+
 // TRYFROM IMPLEMENTATIONS - CREATE CONNECTOR CUSTOMER REQUEST
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -1319,15 +1466,34 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             account_type: None,
                         })
                     }
+                    domain_types::payment_method_data::WalletData::ApplePay(apple_pay_data) => {
+                        // Finix requires the Apple Pay-registered Identity (merchant_identity)
+                        // alongside the buyer identity for APPLE_PAY instruments.
+                        let auth = FinixAuthType::try_from(&item.router_data.connector_config)?;
+
+                        build_apple_pay_instrument_request(
+                            apple_pay_data,
+                            customer_id,
+                            auth.merchant_identity_id,
+                            item.router_data
+                                .resource_common_data
+                                .get_optional_billing_full_name(),
+                            get_billing_address_as_finix_address(
+                                &item.router_data.resource_common_data,
+                            ),
+                            None,
+                        )
+                    }
                     _ => Err(IntegrationError::NotImplemented(
-                        "Only Google Pay wallet tokenization is supported".into(),
+                        "Only Google Pay and Apple Pay wallet tokenization are supported".into(),
                         Default::default(),
                     )
                     .into()),
                 }
             }
             _ => Err(IntegrationError::NotImplemented(
-                "Only card, bank debit, and Google Pay tokenization are supported".into(),
+                "Only card, bank debit, Google Pay, and Apple Pay tokenization are supported"
+                    .into(),
                 Default::default(),
             )
             .into()),
@@ -1566,15 +1732,36 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             account_type: None,
                         })
                     }
+                    domain_types::payment_method_data::WalletData::ApplePay(apple_pay_data) => {
+                        // Same Apple Pay Payment Instrument as the Tokenize flow — built by the
+                        // shared helper so the two paths cannot drift.
+                        let auth = FinixAuthType::try_from(&item.router_data.connector_config)?;
+
+                        build_apple_pay_instrument_request(
+                            apple_pay_data,
+                            customer_id,
+                            auth.merchant_identity_id,
+                            item.router_data
+                                .resource_common_data
+                                .get_optional_billing_full_name(),
+                            get_billing_address_as_finix_address(
+                                &item.router_data.resource_common_data,
+                            ),
+                            tags,
+                        )
+                    }
                     _ => Err(IntegrationError::NotImplemented(
-                        "Only Google Pay wallet is supported for SetupMandate".into(),
+                        "Only Google Pay and Apple Pay wallets are supported for SetupMandate"
+                            .into(),
                         Default::default(),
                     )
                     .into()),
                 }
             }
             _ => Err(IntegrationError::NotImplemented(
-                "Only card, bank debit (ACH), and Google Pay are supported for SetupMandate".into(),
+                "Only card, bank debit (ACH), Google Pay, and Apple Pay are supported for \
+                 SetupMandate"
+                    .into(),
                 Default::default(),
             )
             .into()),
