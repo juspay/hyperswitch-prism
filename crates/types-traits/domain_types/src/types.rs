@@ -9309,9 +9309,20 @@ impl ForeignTryFrom<PaymentServiceIncrementalAuthorizationRequest>
             .map(|metadata| serde_json::from_str(&metadata.expose()))
             .transpose()
             .change_context(IntegrationError::InvalidDataFormat {
-                field_name: "unknown",
+                field_name: "connector_feature_data",
                 context: IntegrationErrorContext {
-                    additional_context: Some("Failed to parse connector metadata".to_string()),
+                    additional_context: Some(
+                        "Failed to parse connector_feature_data on the IncrementalAuthorization \
+                         request as JSON. This field carries the connector-specific metadata \
+                         persisted by the original Authorize (for PayPal, the authorization id \
+                         the reauthorize call targets)."
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Send connector_feature_data exactly as it was returned by the Authorize \
+                         response for this payment, without re-encoding it."
+                            .to_string(),
+                    ),
                     ..Default::default()
                 },
             })?;

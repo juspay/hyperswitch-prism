@@ -1917,6 +1917,9 @@ impl<F, T> TryFrom<ResponseRouterData<PaypalAuthUpdateResponse, Self>>
 /// reauthorize endpoint.
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, strum::Display)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+// `serde(rename_all)` governs the wire format only; `strum` needs its own casing directive or
+// `Display` would log `PartiallyCaptured` where PayPal sent `PARTIALLY_CAPTURED`.
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum PaypalIncrementalStatus {
     /// Funds are held under the newly minted authorization — the success terminal state for a
     /// reauthorization.
