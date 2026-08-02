@@ -225,6 +225,8 @@ pub enum AdyenPaymentMethod<
     ApplePay(Box<AdyenApplePay>),
     #[serde(rename = "scheme")]
     ApplePayDecrypt(Box<AdyenApplePayDecryptData>),
+    #[serde(rename = "samsungpay")]
+    SamsungPay(Box<AdyenSamsungPay>),
     #[serde(rename = "scheme")]
     BancontactCard(Box<AdyenCard<DefaultPCIHolder>>),
     Bizum,
@@ -1084,6 +1086,18 @@ pub struct AdyenApplePay {
     apple_pay_token: Secret<String>,
 }
 
+/// Adyen `SamsungPayDetails`. Adyen decrypts the wallet token server-side, so the
+/// payload from the Samsung Pay SDK is forwarded verbatim as a single opaque string —
+/// structurally identical to `AdyenGPay` / `AdyenApplePay`.
+///
+/// Note: `SamsungPayDetails` declares `additionalProperties: false`, so no card fields
+/// may be sent alongside `samsungPayToken`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AdyenSamsungPay {
+    #[serde(rename = "samsungPayToken")]
+    samsung_pay_token: Secret<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum PaymentType {
@@ -1581,6 +1595,30 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 Ok(apple_pay_wallet_data)
             }
 
+            WalletData::SamsungPay(samsung_pay_data) => {
+                // Adyen accepts the Samsung Pay token still encrypted and decrypts it
+                // server-side, so there is no DPAN / expiry / brand extraction and no
+                // separate `mpiData` cryptogram (unlike the Paze path above), and
+                // `mpi_data` is deliberately left `None` for this wallet.
+                //
+                // `SamsungPayWalletData` stores the *decomposed* Samsung Pay SDK
+                // response; the opaque encrypted payment payload produced by the SDK is
+                // carried in `payment_credential.3_d_s.data`. That is the single value
+                // every consumer of `SamsungPayWalletData` in this codebase treats as
+                // "the Samsung Pay token" (cf. `get_samsung_pay_fluid_data_value` in the
+                // Cybersource transformers), so it is what gets forwarded verbatim as
+                // `samsungPayToken`. No re-serialisation or re-encoding of
+                // `payment_credential` is performed.
+                let samsung_pay_data = AdyenSamsungPay {
+                    samsung_pay_token: samsung_pay_data
+                        .payment_credential
+                        .token_data
+                        .data
+                        .clone(),
+                };
+
+                Ok(Self::SamsungPay(Box::new(samsung_pay_data)))
+            }
             WalletData::AliPayRedirect(_) => Ok(Self::AliPay),
             WalletData::AliPayHkRedirect(_) => Ok(Self::AliPayHk),
             WalletData::DanaRedirect { .. } => Ok(Self::Dana),
@@ -1622,7 +1660,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
             WalletData::AmazonPayRedirect(_)
             | WalletData::RevolutPay(_)
-            | WalletData::SamsungPay(_)
             | WalletData::AliPayQr(_)
             | WalletData::ApplePayRedirect(_)
             | WalletData::ApplePayThirdPartySdk(_)
