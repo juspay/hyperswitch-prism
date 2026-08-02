@@ -38,16 +38,36 @@ use super::super::transformers::{
     TsysTransitCardOnFile, TsysTransitMcCitStatusIndicator, TsysTransitMit, TsysTransitMitIndicator,
 };
 
-/// `cardOnFile` — Visa-only "Y" marker, sent for any stored-credential
-/// flow EXCEPT CIT-using-stored (where it's a MIT-only tag).
+/// `cardOnFile` — "Y" marker, network- and phase-dependent:
+///
+///   • **Visa** — sent ONLY on CIT-setup (the transaction that stores the
+///     credential). NOT on a Visa MIT: TSYS rejects it on the 25.50 Visa
+///     card-on-file MIT ("cardOnFile tag must not be sent … in step 9").
+///   • **Discover family** (Discover / JCB / Diners / UnionPay) — sent on the
+///     recurring / installment MIT (cert rows 147, 155, 165, 172), where it
+///     accompanies `cardOnFileTransactionIdentifier`. NOT on the CIT-setup
+///     (store) transaction (cert rows 133, 134).
+///   • **Mastercard / AMEX** — never; they signal the stored credential via
+///     `mitStatusIndicator` / `citStatusIndicator` instead.
 pub fn card_on_file(profile: &TxProfile) -> Option<TsysTransitCardOnFile> {
-    if !matches!(profile.card_family, CardFamily::Visa) {
-        return None;
+    match (profile.card_family, profile.cof_phase) {
+        (CardFamily::Visa, CofPhase::CitSetup { .. }) => Some(TsysTransitCardOnFile::Y),
+        (family, CofPhase::Mit(MitKind::Recurring | MitKind::Installment))
+            if is_discover_family(family) =>
+        {
+            Some(TsysTransitCardOnFile::Y)
+        }
+        _ => None,
     }
-    match profile.cof_phase {
-        CofPhase::CitSetup { .. } | CofPhase::Mit(_) => Some(TsysTransitCardOnFile::Y),
-        CofPhase::NoCof | CofPhase::CitUsingStored => None,
-    }
+}
+
+/// The Discover "family" of networks that share stored-credential signalling
+/// (Discover, JCB, Diners, UnionPay).
+fn is_discover_family(family: CardFamily) -> bool {
+    matches!(
+        family,
+        CardFamily::Discover | CardFamily::Jcb | CardFamily::Diners | CardFamily::UnionPay
+    )
 }
 
 /// `citStatusIndicator`.
@@ -102,13 +122,22 @@ pub fn mit_status_indicator(profile: &TxProfile) -> Option<TsysTransitMitIndicat
 
 /// Whether to send the `cardOnFileTransactionIdentifier` tag at all.
 ///
-/// MIT only (suppressed on CIT-using-stored / CIT-setup) AND **Visa only**.
-/// The tag carries a network transaction identifier — a Visa concept.
-/// Source of truth TSYS_MOTO_V2 step 5: only the Visa MIT (row 164) sends it
-/// (`000000000640845`); Mastercard (163) uses `mitStatusIndicator=M101`,
-/// Discover (165) uses `mitStatusIndicator=U`, and AMEX (166) omits it.
+/// MIT only (suppressed on CIT-using-stored / CIT-setup). Sent for:
+///   • **Visa** — any MIT kind. Source of truth TSYS_MOTO_V2 step 5: the Visa
+///     unscheduled MIT (row 164) carries it (`000000000640845`).
+///   • **Discover family** (Discover / JCB / Diners / UnionPay) — on the
+///     recurring / installment MIT (cert rows 147, 155, 165, 172), alongside
+///     `cardOnFile` and `mitStatusIndicator` (R / S / T).
+/// NOT sent for Mastercard (uses `mitStatusIndicator=M10x`), AMEX (omits it),
+/// nor for the Discover-family *unscheduled* MIT (MOTO_V2 uses `U` instead).
 pub fn should_send_card_on_file_transaction_identifier(profile: &TxProfile) -> bool {
-    profile.cof_phase.is_mit() && matches!(profile.card_family, CardFamily::Visa)
+    match (profile.card_family, profile.cof_phase) {
+        (CardFamily::Visa, phase) => phase.is_mit(),
+        (family, CofPhase::Mit(MitKind::Recurring | MitKind::Installment)) => {
+            is_discover_family(family)
+        }
+        _ => false,
+    }
 }
 
 /// The `mit` block — sent for vault-stored mandates to indicate the MIT
