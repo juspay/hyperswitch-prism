@@ -164,6 +164,12 @@ JS_PLATFORMS := \
   aarch64-unknown-linux-gnu:linux-arm64 \
   aarch64-apple-darwin:darwin-arm64
 
+# Native libraries bundled with the package. Both are resolved at runtime by
+# resolveNativeLib() in src/payments/native_lib.ts — libconnector_service_ffi by
+# the UniFFI client, libhyperswitch_grpc_ffi by the gRPC client — so both have to
+# be staged for every target, or the tarball loads one and throws on the other.
+JS_NATIVE_LIBS := libconnector_service_ffi libhyperswitch_grpc_ffi
+
 # node platform-arch dir for the CURRENT build platform (used by generate-bindings).
 NODE_TARGET := $(strip \
   $(if $(filter x86_64-unknown-linux-gnu,$(PLATFORM)),linux-x64,\
@@ -175,7 +181,7 @@ NODE_TARGET := $(strip \
 dist:
 	@echo "Building JavaScript SDK distribution package..."
 	@mkdir -p $(GENERATED_OUT)
-	@# The published tarball bundles each platform's native lib under
+	@# The published tarball bundles each platform's native libs under
 	@# generated/<platform>-<arch>/ so a single package works on every platform
 	@# and the loader selects by process.arch. Fail closed if a required binary
 	@# is missing unless ALLOW_PARTIAL_DIST=1 (deliberate single-platform build;
@@ -184,12 +190,14 @@ dist:
 	for entry in $(JS_PLATFORMS); do \
 		triple=$${entry%%:*}; target=$${entry##*:}; \
 		ext=so; case "$$triple" in *apple-darwin) ext=dylib;; esac; \
-		lib="$(REPO_ROOT)/target/$$triple/release/libconnector_service_ffi.$$ext"; \
-		if [ ! -f "$$lib" ]; then echo "  missing $$triple: $$lib"; missing=1; continue; fi; \
-		mkdir -p "$(GENERATED_OUT)/$$target"; \
-		cp -f "$$lib" "$(GENERATED_OUT)/$$target/"; \
-		echo "  staged $$target/libconnector_service_ffi.$$ext"; \
-		built=$$((built+1)); \
+		for name in $(JS_NATIVE_LIBS); do \
+			lib="$(REPO_ROOT)/target/$$triple/release/$$name.$$ext"; \
+			if [ ! -f "$$lib" ]; then echo "  missing $$triple: $$lib"; missing=1; continue; fi; \
+			mkdir -p "$(GENERATED_OUT)/$$target"; \
+			cp -f "$$lib" "$(GENERATED_OUT)/$$target/"; \
+			echo "  staged $$target/$$name.$$ext"; \
+			built=$$((built+1)); \
+		done; \
 	done; \
 	if [ "$$missing" = "1" ]; then \
 		if [ "$(ALLOW_PARTIAL_DIST)" = "1" ]; then \
