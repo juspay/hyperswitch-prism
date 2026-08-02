@@ -203,13 +203,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .attach_printable("Finix-Signature `sig` value is not valid hex")?;
 
         // HS signs `"{timestamp}:{raw body}"` — the RAW request bytes, never a
-        // re-serialization (get_webhook_source_verification_message).
-        let message = format!(
-            "{}:{}",
-            signature_header.timestamp,
-            String::from_utf8_lossy(&request.body)
-        )
-        .into_bytes();
+        // re-serialization (get_webhook_source_verification_message). The body is
+        // appended byte-for-byte rather than through `String::from_utf8_lossy`, which
+        // would substitute U+FFFD for any non-UTF-8 byte before hashing and turn a
+        // valid signature into a mismatch.
+        let mut message = format!("{}:", signature_header.timestamp).into_bytes();
+        message.extend_from_slice(&request.body);
 
         let signed_message = crypto::HmacSha256
             .sign_message(&connector_webhook_secrets.secret, &message)

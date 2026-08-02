@@ -467,23 +467,108 @@ pub struct FinixLink {
     pub href: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+/// Finix resource `state`. This is the single deserialization source of truth for the
+/// Finix `state` field: authorizations, transfers, reversals AND every incoming-webhook
+/// payload read it through this one enum, so the flows cannot drift apart.
+///
+/// `RETURNED` is documented on `GET /transfers/{id}` (ACH-style return of an already
+/// settled transfer) and is modelled explicitly rather than being folded into `Unknown`;
+/// `#[serde(other)]` still keeps any future value decodable instead of failing the whole
+/// response/webhook body.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum FinixPaymentStatus {
     Succeeded,
     Failed,
     Pending,
     Canceled,
+    Returned,
+    #[serde(other)]
     Unknown,
+}
+
+/// Which Finix resource a `state` was read from. Mirrors HS `FinixFlow`: it decides
+/// whether a `SUCCEEDED` is an authorization hold (`AU…`) or a captured charge (`TR…`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FinixFlow {
+    Auth,
+    Transfer,
+    Capture,
+}
+
+impl From<&FinixId> for FinixFlow {
+    fn from(id: &FinixId) -> Self {
+        match id {
+            FinixId::Auth(_) => Self::Auth,
+            FinixId::Transfer(_) => Self::Transfer,
+        }
+    }
+}
+
+/// Canonical Finix `state` -> `AttemptStatus` mapping. Authorize, PSync, Capture, Void,
+/// RepeatPayment and the incoming-webhook path all route through this one function so a
+/// webhook can never report a different status than a sync for the same connector state.
+///
+/// Deliberate departures from the hyperswitch (Direct) `get_attempt_status`, both applied
+/// here once rather than per flow:
+/// * `UNKNOWN` is indeterminate, so it stays `Pending` (re-sync decides) instead of
+///   becoming a terminal `Failure`/`VoidFailed`.
+/// * `CANCELED` means the resource was voided, so it maps to `Voided` rather than
+///   `AuthorizationFailed`/`Failure`.
+/// * A `PENDING` void stays `Pending` rather than being reported as `Voided` early.
+pub fn get_finix_attempt_status(
+    state: &FinixPaymentStatus,
+    flow: FinixFlow,
+    is_void: Option<bool>,
+) -> AttemptStatus {
+    if is_void == Some(true) {
+        return match state {
+            FinixPaymentStatus::Succeeded | FinixPaymentStatus::Canceled => AttemptStatus::Voided,
+            FinixPaymentStatus::Failed | FinixPaymentStatus::Returned => AttemptStatus::VoidFailed,
+            FinixPaymentStatus::Pending | FinixPaymentStatus::Unknown => AttemptStatus::Pending,
+        };
+    }
+
+    match state {
+        FinixPaymentStatus::Canceled => AttemptStatus::Voided,
+        FinixPaymentStatus::Unknown => AttemptStatus::Pending,
+        FinixPaymentStatus::Pending => match flow {
+            FinixFlow::Auth => AttemptStatus::AuthenticationPending,
+            FinixFlow::Transfer | FinixFlow::Capture => AttemptStatus::Pending,
+        },
+        FinixPaymentStatus::Succeeded => match flow {
+            FinixFlow::Auth => AttemptStatus::Authorized,
+            FinixFlow::Transfer => AttemptStatus::Charged,
+            // A SUCCEEDED capture only confirms the authorization update; the funds
+            // movement (transfer) settles asynchronously, so the attempt stays Pending
+            // until a PSync on the transfer id confirms the charge.
+            FinixFlow::Capture => AttemptStatus::Pending,
+        },
+        FinixPaymentStatus::Failed | FinixPaymentStatus::Returned => match flow {
+            FinixFlow::Auth => AttemptStatus::AuthorizationFailed,
+            FinixFlow::Transfer | FinixFlow::Capture => AttemptStatus::Failure,
+        },
+    }
 }
 
 impl From<&FinixPaymentStatus> for AttemptStatus {
     fn from(status: &FinixPaymentStatus) -> Self {
+        get_finix_attempt_status(status, FinixFlow::Transfer, None)
+    }
+}
+
+/// Canonical Finix `state` -> `RefundStatus` mapping, shared by Refund, RSync and the
+/// REVERSAL-transfer webhook path.
+impl From<&FinixPaymentStatus> for RefundStatus {
+    fn from(status: &FinixPaymentStatus) -> Self {
         match status {
-            FinixPaymentStatus::Succeeded => Self::Charged,
-            FinixPaymentStatus::Failed => Self::Failure,
+            FinixPaymentStatus::Succeeded => Self::Success,
+            FinixPaymentStatus::Failed
+            | FinixPaymentStatus::Canceled
+            | FinixPaymentStatus::Returned => Self::Failure,
             FinixPaymentStatus::Pending => Self::Pending,
-            FinixPaymentStatus::Canceled => Self::Voided,
+            // Indeterminate — keep the refund open so RSync retries rather than
+            // reporting a terminal failure.
             FinixPaymentStatus::Unknown => Self::Pending,
         }
     }
@@ -618,18 +703,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             convert_to_additional_payment_method_connector_response(&item.response)
                 .map(ConnectorResponseData::with_additional_payment_method_data);
 
-        // Determine status based on ID type, mirroring Hyperswitch's `get_attempt_status`:
+        // Determine status based on ID type via the canonical mapping:
         // - Transfer (TR*): Succeeded -> Charged, failure -> Failure
         // - Authorization (AU*): Succeeded -> Authorized, failure -> AuthorizationFailed
         let finix_id = FinixId::from(response.id.clone());
-        let status = match (&finix_id, &response.state) {
-            (FinixId::Transfer(_), FinixPaymentStatus::Succeeded) => AttemptStatus::Charged,
-            (FinixId::Transfer(_), FinixPaymentStatus::Pending) => AttemptStatus::Pending,
-            (FinixId::Transfer(_), _) => AttemptStatus::Failure,
-            (FinixId::Auth(_), FinixPaymentStatus::Succeeded) => AttemptStatus::Authorized,
-            (FinixId::Auth(_), FinixPaymentStatus::Pending) => AttemptStatus::AuthenticationPending,
-            (FinixId::Auth(_), _) => AttemptStatus::AuthorizationFailed,
-        };
+        let status = get_finix_attempt_status(&response.state, FinixFlow::from(&finix_id), None);
 
         // Finix reports declines as an HTTP-2xx body with `state: FAILED` (soft decline).
         // Hyperswitch's Direct path maps any `state.is_failure()` (FAILED/CANCELED/UNKNOWN)
@@ -772,17 +850,13 @@ impl TryFrom<ResponseRouterData<FinixPSyncResponse, Self>>
         let response = &item.response;
 
         // Determine status based on ID type (AU* = Auth/Authorized, TR* = Transfer/Charged)
-        // This follows the same pattern as Hyperswitch
+        // through the canonical mapping shared with Authorize, Capture and webhooks.
         let finix_id = FinixId::from(response.id.clone());
-        let status = match (&finix_id, &response.state) {
-            (FinixId::Auth(_), FinixPaymentStatus::Succeeded) => AttemptStatus::Authorized,
-            (FinixId::Auth(_), FinixPaymentStatus::Pending) => AttemptStatus::AuthenticationPending,
-            (FinixId::Transfer(_), FinixPaymentStatus::Succeeded) => AttemptStatus::Charged,
-            (FinixId::Transfer(_), FinixPaymentStatus::Pending) => AttemptStatus::Pending,
-            (_, FinixPaymentStatus::Failed) => AttemptStatus::Failure,
-            (_, FinixPaymentStatus::Canceled) => AttemptStatus::Voided,
-            (_, FinixPaymentStatus::Unknown) => AttemptStatus::Pending,
-        };
+        let status = get_finix_attempt_status(
+            &response.state,
+            FinixFlow::from(&finix_id),
+            response.is_void,
+        );
 
         // For transfers (TR...), use the transfer ID directly
         // For authorizations (AU...), use transfer ID if available for refunds
@@ -873,26 +947,10 @@ impl TryFrom<ResponseRouterData<FinixCaptureResponse, Self>>
 
         // A SUCCEEDED capture only confirms the authorization update; the funds
         // movement (transfer) settles asynchronously, so the attempt stays Pending
-        // until a PSync on the transfer id confirms the charge.
-        let status = if response.is_void == Some(true) {
-            match response.state {
-                FinixPaymentStatus::Pending | FinixPaymentStatus::Succeeded => {
-                    AttemptStatus::Voided
-                }
-                FinixPaymentStatus::Failed
-                | FinixPaymentStatus::Canceled
-                | FinixPaymentStatus::Unknown => AttemptStatus::VoidFailed,
-            }
-        } else {
-            match response.state {
-                FinixPaymentStatus::Pending | FinixPaymentStatus::Succeeded => {
-                    AttemptStatus::Pending
-                }
-                FinixPaymentStatus::Failed
-                | FinixPaymentStatus::Canceled
-                | FinixPaymentStatus::Unknown => AttemptStatus::Failure,
-            }
-        };
+        // until a PSync on the transfer id confirms the charge (canonical mapping,
+        // `FinixFlow::Capture`).
+        let status =
+            get_finix_attempt_status(&response.state, FinixFlow::Capture, response.is_void);
 
         let connector_response = build_finix_connector_response(&response);
 
@@ -992,13 +1050,7 @@ impl TryFrom<ResponseRouterData<FinixRSyncResponse, Self>>
 
     fn try_from(item: ResponseRouterData<FinixRSyncResponse, Self>) -> Result<Self, Self::Error> {
         let response = item.response;
-        let refund_status = match response.state {
-            FinixPaymentStatus::Succeeded => RefundStatus::Success,
-            FinixPaymentStatus::Failed => RefundStatus::Failure,
-            FinixPaymentStatus::Pending => RefundStatus::Pending,
-            FinixPaymentStatus::Canceled => RefundStatus::Failure,
-            FinixPaymentStatus::Unknown => RefundStatus::Pending,
-        };
+        let refund_status = RefundStatus::from(&response.state);
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: response.id,
@@ -1041,14 +1093,8 @@ impl TryFrom<ResponseRouterData<FinixVoidResponse, Self>>
 
     fn try_from(item: ResponseRouterData<FinixVoidResponse, Self>) -> Result<Self, Self::Error> {
         let response = item.response;
-        // Void-specific status mapping
-        let status = match response.state {
-            FinixPaymentStatus::Succeeded => AttemptStatus::Voided,
-            FinixPaymentStatus::Failed => AttemptStatus::VoidFailed,
-            FinixPaymentStatus::Pending => AttemptStatus::Pending,
-            FinixPaymentStatus::Canceled => AttemptStatus::Voided,
-            FinixPaymentStatus::Unknown => AttemptStatus::Pending,
-        };
+        // Void-specific status mapping — the canonical mapping's `is_void` branch.
+        let status = get_finix_attempt_status(&response.state, FinixFlow::Auth, Some(true));
 
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -1106,13 +1152,7 @@ impl TryFrom<ResponseRouterData<FinixRefundResponse, Self>>
 
     fn try_from(item: ResponseRouterData<FinixRefundResponse, Self>) -> Result<Self, Self::Error> {
         let response = item.response;
-        let status = match response.state {
-            FinixPaymentStatus::Succeeded => RefundStatus::Success,
-            FinixPaymentStatus::Failed => RefundStatus::Failure,
-            FinixPaymentStatus::Pending => RefundStatus::Pending,
-            FinixPaymentStatus::Canceled => RefundStatus::Failure,
-            FinixPaymentStatus::Unknown => RefundStatus::Pending,
-        };
+        let status = RefundStatus::from(&response.state);
 
         Ok(Self {
             response: Ok(RefundsResponseData {
@@ -2088,17 +2128,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             });
         }
 
-        // Reuse Authorize's ID-aware status mapping: TR* → Charged, AU* → Authorized.
+        // Reuse the canonical ID-aware status mapping: TR* → Charged, AU* → Authorized.
         let finix_id = FinixId::from(response.id.clone());
-        let status = match (&finix_id, &response.state) {
-            (FinixId::Transfer(_), FinixPaymentStatus::Succeeded) => AttemptStatus::Charged,
-            (FinixId::Transfer(_), FinixPaymentStatus::Pending) => AttemptStatus::Pending,
-            (FinixId::Auth(_), FinixPaymentStatus::Succeeded) => AttemptStatus::Authorized,
-            (FinixId::Auth(_), FinixPaymentStatus::Pending) => AttemptStatus::AuthenticationPending,
-            (_, FinixPaymentStatus::Failed) => AttemptStatus::Failure,
-            (_, FinixPaymentStatus::Canceled) => AttemptStatus::Voided,
-            (_, FinixPaymentStatus::Unknown) => AttemptStatus::Pending,
-        };
+        let status = get_finix_attempt_status(&response.state, FinixFlow::from(&finix_id), None);
 
         // Mirror the Authorize flow for shadow parity: surface the charged Payment
         // Instrument (`source`) as the connector mandate id and attach the AVS / network
@@ -2147,18 +2179,6 @@ use domain_types::connector_types::{
 use domain_types::errors::WebhookError;
 use time::PrimitiveDateTime;
 
-/// Webhook transaction state. Mirrors HS `FinixState` (transformers/request.rs).
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum FinixState {
-    Pending,
-    Succeeded,
-    Failed,
-    Canceled,
-    #[serde(other)]
-    Unknown,
-}
-
 /// Webhook transfer type. Mirrors HS `FinixPaymentType` (transformers/request.rs).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -2199,12 +2219,15 @@ pub struct FinixWebhookPaymentsResponse {
     pub currency: Currency,
     pub is_void: Option<bool>,
     pub source: Option<Secret<String>>,
-    pub state: FinixState,
+    pub state: FinixPaymentStatus,
     pub failure_code: Option<String>,
     pub messages: Option<Vec<String>>,
     pub failure_message: Option<String>,
     pub transfer: Option<String>,
-    pub tags: FinixTags,
+    // Optional in the Direct (hyperswitch) model and genuinely omitted by the documented
+    // `authorization` webhook sample — a required field here would reject those events.
+    #[serde(default)]
+    pub tags: Option<FinixTags>,
     #[serde(rename = "type")]
     pub payment_type: Option<FinixPaymentType>,
     pub three_d_secure: Option<FinixThreeDSecure>,
@@ -2212,7 +2235,8 @@ pub struct FinixWebhookPaymentsResponse {
     pub network_details: Option<FinixNetworkDetails>,
 }
 
-/// Mirrors HS `FinixDisputeState` (transformers/response.rs).
+/// Mirrors HS `FinixDisputeState` (transformers/response.rs). `#[serde(other)]` keeps a
+/// future Finix dispute state decodable instead of failing the whole webhook body.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum FinixDisputeState {
@@ -2220,6 +2244,8 @@ pub enum FinixDisputeState {
     Pending,
     Lost,
     Won,
+    #[serde(other)]
+    Unknown,
 }
 
 /// Mirrors HS `FinixDisputes` (transformers/response.rs).
@@ -2229,7 +2255,14 @@ pub struct FinixDisputes {
     pub reason: Option<String>,
     pub amount: MinorUnit,
     pub state: FinixDisputeState,
-    pub currency: Currency,
+    // The documented Finix Dispute resource (`GET /disputes/{id}`) carries NO `currency`
+    // key, so this must stay optional: a required field would fail `FinixWebhookBody`
+    // decoding for every real dispute event and take `get_event_type` /
+    // `get_webhook_event_reference` down with it (`FinixEmbedded` is untagged). The
+    // absence is only reported where the value is actually needed, in
+    // `build_finix_dispute_webhook_response`.
+    #[serde(default)]
+    pub currency: Option<Currency>,
     pub id: String,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created_at: Option<PrimitiveDateTime>,
@@ -2252,9 +2285,19 @@ impl<T: Clone> SingleEventType<T> {
     }
 }
 
+/// Mirrors HS `FinixEvidence` (transformers/response.rs). `evidence.created` is a
+/// default-on Finix subscription, so the variant exists purely so such a delivery
+/// degrades to "event not supported" instead of `WebhookBodyDecodingFailed`.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct FinixEvidence {
+    pub dispute: String,
+    pub id: String,
+    pub state: String,
+}
+
 /// Mirrors HS `FinixEmbedded` (transformers/response.rs). Untagged: variant order
-/// (Authorizations, Transfers, Disputes) matches HS so ambiguous payloads resolve
-/// identically.
+/// (Authorizations, Transfers, Disputes, Evidences) matches HS so ambiguous payloads
+/// resolve identically.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum FinixEmbedded {
@@ -2266,6 +2309,9 @@ pub enum FinixEmbedded {
     },
     Disputes {
         disputes: SingleEventType<FinixDisputes>,
+    },
+    Evidences {
+        evidences: SingleEventType<FinixEvidence>,
     },
 }
 
@@ -2359,42 +2405,66 @@ pub(super) fn get_finix_webhook_event_type(
 
             if authorization.is_void == Some(true) {
                 match authorization.state {
-                    FinixState::Failed | FinixState::Canceled | FinixState::Unknown => {
-                        Ok(EventType::PaymentIntentCancelFailure)
-                    }
-                    FinixState::Pending => Ok(EventType::PaymentIntentProcessing),
-                    FinixState::Succeeded => Ok(EventType::PaymentIntentCancelled),
+                    FinixPaymentStatus::Failed
+                    | FinixPaymentStatus::Canceled
+                    | FinixPaymentStatus::Returned
+                    | FinixPaymentStatus::Unknown => Ok(EventType::PaymentIntentCancelFailure),
+                    FinixPaymentStatus::Pending => Ok(EventType::PaymentIntentProcessing),
+                    FinixPaymentStatus::Succeeded => Ok(EventType::PaymentIntentCancelled),
                 }
             } else {
                 match authorization.state {
-                    FinixState::Pending => Ok(EventType::PaymentIntentProcessing),
-                    FinixState::Succeeded => Ok(EventType::PaymentIntentAuthorizationSuccess),
-                    FinixState::Failed | FinixState::Canceled | FinixState::Unknown => {
+                    FinixPaymentStatus::Pending => Ok(EventType::PaymentIntentProcessing),
+                    FinixPaymentStatus::Succeeded => {
+                        Ok(EventType::PaymentIntentAuthorizationSuccess)
+                    }
+                    FinixPaymentStatus::Failed
+                    | FinixPaymentStatus::Canceled
+                    | FinixPaymentStatus::Returned => {
                         Ok(EventType::PaymentIntentAuthorizationFailure)
                     }
+                    // Indeterminate: emit no event rather than a terminal failure.
+                    FinixPaymentStatus::Unknown => Ok(EventType::IncomingWebhookEventUnspecified),
                 }
             }
         }
         FinixEmbedded::Transfers { transfers } => {
             let transfer = transfers.get_first_event()?;
 
-            if transfer.payment_type == Some(FinixPaymentType::Reversal) {
-                match transfer.state {
-                    FinixState::Succeeded => Ok(EventType::RefundSuccess),
+            match transfer.payment_type {
+                Some(FinixPaymentType::Reversal) => match transfer.state {
+                    FinixPaymentStatus::Succeeded => Ok(EventType::RefundSuccess),
                     // HS: `EventNotSupported` (see doc comment above).
-                    FinixState::Pending => Ok(EventType::IncomingWebhookEventUnspecified),
-                    FinixState::Failed | FinixState::Canceled | FinixState::Unknown => {
-                        Ok(EventType::RefundFailure)
-                    }
-                }
-            } else {
-                match transfer.state {
-                    FinixState::Pending => Ok(EventType::PaymentIntentProcessing),
-                    FinixState::Succeeded => Ok(EventType::PaymentIntentSuccess),
-                    FinixState::Failed | FinixState::Canceled | FinixState::Unknown => {
-                        Ok(EventType::PaymentIntentFailure)
-                    }
-                }
+                    FinixPaymentStatus::Pending => Ok(EventType::IncomingWebhookEventUnspecified),
+                    FinixPaymentStatus::Failed
+                    | FinixPaymentStatus::Canceled
+                    | FinixPaymentStatus::Returned => Ok(EventType::RefundFailure),
+                    FinixPaymentStatus::Unknown => Ok(EventType::IncomingWebhookEventUnspecified),
+                },
+                Some(FinixPaymentType::Debit) => match transfer.state {
+                    FinixPaymentStatus::Pending => Ok(EventType::PaymentIntentProcessing),
+                    FinixPaymentStatus::Succeeded => Ok(EventType::PaymentIntentSuccess),
+                    FinixPaymentStatus::Failed
+                    | FinixPaymentStatus::Canceled
+                    | FinixPaymentStatus::Returned => Ok(EventType::PaymentIntentFailure),
+                    // HS: `EventNotSupported` for an indeterminate DEBIT transfer.
+                    FinixPaymentStatus::Unknown => Ok(EventType::IncomingWebhookEventUnspecified),
+                },
+                // CREDIT / FEE / ADJUSTMENT / DISPUTE / RESERVE / SETTLEMENT / UNKNOWN and
+                // an absent `type` are platform-ledger movements, not the merchant's
+                // payment. HS returns `EventNotSupported` for all of them; classifying
+                // them as payment events would apply a settlement or a dispute debit to
+                // the payment attempt.
+                Some(
+                    FinixPaymentType::Credit
+                    | FinixPaymentType::Fee
+                    | FinixPaymentType::Adjustment
+                    | FinixPaymentType::Dispute
+                    | FinixPaymentType::Reserve
+                    | FinixPaymentType::Settlement
+                    | FinixPaymentType::Unknown,
+                )
+                | None => Ok(EventType::IncomingWebhookEventUnspecified),
             }
         }
         FinixEmbedded::Disputes { disputes } => {
@@ -2405,16 +2475,21 @@ pub(super) fn get_finix_webhook_event_type(
                 FinixDisputeState::Inquiry => Ok(EventType::DisputeChallenged),
                 FinixDisputeState::Lost => Ok(EventType::DisputeLost),
                 FinixDisputeState::Won => Ok(EventType::DisputeWon),
+                FinixDisputeState::Unknown => Ok(EventType::IncomingWebhookEventUnspecified),
             }
         }
+        // HS `FinixEmbedded::Evidences` -> `EventNotSupported`.
+        FinixEmbedded::Evidences { .. } => Ok(EventType::IncomingWebhookEventUnspecified),
     }
 }
 
 /// Ports HS `FinixWebhookBody::get_webhook_object_reference_id`:
 /// - Authorizations -> `PaymentId(ConnectorTransactionId(authorization.id))`
 /// - Transfers (REVERSAL) -> `RefundId(ConnectorRefundId(transfer.id))`
-/// - Transfers (FEE) -> error (HS: `WebhookEventTypeNotFound`, platform fee ignored)
-/// - Transfers (other) -> `PaymentId(ConnectorTransactionId(transfer.id))`
+/// - Transfers (DEBIT) -> `PaymentId(ConnectorTransactionId(transfer.id))`
+/// - Transfers (any other `type`, or an absent one) -> `WebhookEventTypeNotFound`: these
+///   are platform-ledger movements (fee, settlement, reserve, dispute debit, …) whose id
+///   is not a payment or a refund the caller can resolve.
 /// - Disputes -> HS emits `PaymentId(ConnectorTransactionId(dispute.transfer))`; the
 ///   HS reference normaliser maps a prism Dispute reference via
 ///   `connector_dispute_id.or(connector_transaction_id)` into exactly that, so
@@ -2444,16 +2519,28 @@ pub(super) fn get_finix_webhook_reference(
                         connector_transaction_id: None,
                     },
                 ))),
-                // finix platform fee ignored (HS: Err(WebhookEventTypeNotFound))
-                Some(FinixPaymentType::Fee) => Err(error_stack::report!(
-                    WebhookError::WebhookReferenceIdNotFound
-                )),
-                _ => Ok(Some(WebhookResourceReference::Payment(
+                Some(FinixPaymentType::Debit) => Ok(Some(WebhookResourceReference::Payment(
                     PaymentWebhookReference {
                         connector_transaction_id: Some(transfer.id),
                         merchant_transaction_id: None,
                     },
                 ))),
+                // Platform-ledger transfers (fee, settlement, reserve, dispute debit,
+                // credit, adjustment) — HS: Err(WebhookEventTypeNotFound).
+                Some(
+                    FinixPaymentType::Credit
+                    | FinixPaymentType::Fee
+                    | FinixPaymentType::Adjustment
+                    | FinixPaymentType::Dispute
+                    | FinixPaymentType::Reserve
+                    | FinixPaymentType::Settlement
+                    | FinixPaymentType::Unknown,
+                )
+                | None => {
+                    Err(error_stack::report!(WebhookError::WebhookEventTypeNotFound)).attach_printable(
+                        "Finix transfer webhook is not a DEBIT or a REVERSAL, so its id is neither a payment nor a refund reference",
+                    )
+                }
             }
         }
         FinixEmbedded::Disputes { disputes } => {
@@ -2466,82 +2553,60 @@ pub(super) fn get_finix_webhook_reference(
                 },
             )))
         }
-    }
-}
-
-/// Which HS flow a webhook payment resource belongs to (`FinixFlow` in HS).
-/// Webhooks only ever carry authorizations or transfers, so HS's `Capture` arm
-/// is unreachable from the webhook path and is not ported.
-#[derive(Clone, Copy, Debug)]
-pub(super) enum FinixWebhookFlow {
-    Auth,
-    Transfer,
-}
-
-/// Ports HS `get_attempt_status` (finix/transformers.rs) for the webhook path.
-fn get_finix_webhook_attempt_status(
-    state: &FinixState,
-    flow: FinixWebhookFlow,
-    is_void: Option<bool>,
-) -> AttemptStatus {
-    if is_void == Some(true) {
-        return match state {
-            FinixState::Failed | FinixState::Canceled | FinixState::Unknown => {
-                AttemptStatus::VoidFailed
-            }
-            FinixState::Pending => AttemptStatus::Voided,
-            FinixState::Succeeded => AttemptStatus::Voided,
-        };
-    }
-    match (flow, state) {
-        (FinixWebhookFlow::Auth, FinixState::Pending) => AttemptStatus::AuthenticationPending,
-        (FinixWebhookFlow::Auth, FinixState::Succeeded) => AttemptStatus::Authorized,
-        (
-            FinixWebhookFlow::Auth,
-            FinixState::Failed | FinixState::Canceled | FinixState::Unknown,
-        ) => AttemptStatus::AuthorizationFailed,
-        (FinixWebhookFlow::Transfer, FinixState::Pending) => AttemptStatus::Pending,
-        (FinixWebhookFlow::Transfer, FinixState::Succeeded) => AttemptStatus::Charged,
-        (
-            FinixWebhookFlow::Transfer,
-            FinixState::Failed | FinixState::Canceled | FinixState::Unknown,
-        ) => AttemptStatus::Failure,
-    }
-}
-
-/// Ports HS `impl From<FinixState> for RefundStatus` (finix/transformers.rs).
-fn get_finix_webhook_refund_status(state: &FinixState) -> RefundStatus {
-    match state {
-        FinixState::Pending => RefundStatus::Pending,
-        FinixState::Succeeded => RefundStatus::Success,
-        FinixState::Failed | FinixState::Canceled | FinixState::Unknown => RefundStatus::Failure,
+        // HS `FinixEmbedded::Evidences` -> Err(WebhookEventTypeNotFound).
+        FinixEmbedded::Evidences { .. } => {
+            Err(error_stack::report!(WebhookError::WebhookEventTypeNotFound))
+                .attach_printable("Finix `evidence` webhooks carry no payment or refund reference")
+        }
     }
 }
 
 /// Dispute status per the HS webhook event mapping (PENDING -> DisputeOpened,
 /// INQUIRY -> DisputeChallenged, LOST -> DisputeLost, WON -> DisputeWon).
-fn get_finix_webhook_dispute_status(state: &FinixDisputeState) -> common_enums::DisputeStatus {
+fn get_finix_webhook_dispute_status(
+    state: &FinixDisputeState,
+) -> Result<common_enums::DisputeStatus, error_stack::Report<WebhookError>> {
     match state {
-        FinixDisputeState::Pending => common_enums::DisputeStatus::DisputeOpened,
-        FinixDisputeState::Inquiry => common_enums::DisputeStatus::DisputeChallenged,
-        FinixDisputeState::Lost => common_enums::DisputeStatus::DisputeLost,
-        FinixDisputeState::Won => common_enums::DisputeStatus::DisputeWon,
+        FinixDisputeState::Pending => Ok(common_enums::DisputeStatus::DisputeOpened),
+        FinixDisputeState::Inquiry => Ok(common_enums::DisputeStatus::DisputeChallenged),
+        FinixDisputeState::Lost => Ok(common_enums::DisputeStatus::DisputeLost),
+        FinixDisputeState::Won => Ok(common_enums::DisputeStatus::DisputeWon),
+        // An unmapped dispute state has no safe DisputeStatus; report it instead of
+        // guessing a terminal outcome.
+        FinixDisputeState::Unknown => {
+            Err(error_stack::report!(WebhookError::WebhookEventTypeNotFound))
+                .attach_printable("unrecognised Finix dispute state on the webhook payload")
+        }
     }
 }
 
-/// Builds the payment webhook content for authorizations and (non-reversal)
-/// transfers. Status mapping ports HS `get_attempt_status` with
-/// `FinixFlow::Auth` / `FinixFlow::Transfer` respectively.
+/// Builds the payment webhook content for authorizations and DEBIT transfers. Status
+/// mapping goes through the canonical `get_finix_attempt_status` shared with Authorize,
+/// PSync, Capture and Void, with `FinixFlow::Auth` / `FinixFlow::Transfer` respectively.
 pub(super) fn build_finix_payment_webhook_response(
     body: &FinixWebhookBody,
     raw_body: &[u8],
 ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
     let (resource, flow) = match &body.webhook_embedded {
         FinixEmbedded::Authorizations { authorizations } => {
-            (authorizations.get_first_event()?, FinixWebhookFlow::Auth)
+            (authorizations.get_first_event()?, FinixFlow::Auth)
         }
         FinixEmbedded::Transfers { transfers } => {
-            (transfers.get_first_event()?, FinixWebhookFlow::Transfer)
+            let transfer = transfers.get_first_event()?;
+            // Only a DEBIT transfer is the merchant's payment. The shared webhook
+            // dispatcher falls back to the payment builder for any event type it does
+            // not recognise, so a REVERSAL, a settlement, a fee, a reserve or a
+            // dispute debit would otherwise be reported as a charge on the payment
+            // attempt. Refuse them here instead of mis-reporting them.
+            if transfer.payment_type != Some(FinixPaymentType::Debit) {
+                return Err(error_stack::report!(
+                    WebhookError::WebhookResourceObjectNotFound
+                ))
+                .attach_printable(
+                    "expected a payment webhook (authorization or DEBIT transfer), but the transfer is not a DEBIT",
+                );
+            }
+            (transfer, FinixFlow::Transfer)
         }
         FinixEmbedded::Disputes { .. } => {
             return Err(error_stack::report!(
@@ -2549,9 +2614,15 @@ pub(super) fn build_finix_payment_webhook_response(
             ))
             .attach_printable("expected a payment webhook, but found a dispute webhook");
         }
+        FinixEmbedded::Evidences { .. } => {
+            return Err(error_stack::report!(
+                WebhookError::WebhookResourceObjectNotFound
+            ))
+            .attach_printable("expected a payment webhook, but found an evidence webhook");
+        }
     };
 
-    let status = get_finix_webhook_attempt_status(&resource.state, flow, resource.is_void);
+    let status = get_finix_attempt_status(&resource.state, flow, resource.is_void);
 
     Ok(WebhookDetailsResponse {
         resource_id: Some(ResponseId::ConnectorTransactionId(resource.id.clone())),
@@ -2574,15 +2645,31 @@ pub(super) fn build_finix_payment_webhook_response(
     })
 }
 
-/// Builds the refund webhook content for REVERSAL transfers. Status mapping
-/// ports HS `impl From<FinixState> for RefundStatus`.
+/// Builds the refund webhook content for REVERSAL transfers. Status mapping goes through
+/// the canonical `impl From<&FinixPaymentStatus> for RefundStatus` shared with Refund and
+/// RSync.
 pub(super) fn build_finix_refund_webhook_response(
     body: &FinixWebhookBody,
     raw_body: &[u8],
 ) -> Result<RefundWebhookDetailsResponse, error_stack::Report<WebhookError>> {
     let transfer = match &body.webhook_embedded {
-        FinixEmbedded::Transfers { transfers } => transfers.get_first_event()?,
-        FinixEmbedded::Authorizations { .. } | FinixEmbedded::Disputes { .. } => {
+        FinixEmbedded::Transfers { transfers } => {
+            let transfer = transfers.get_first_event()?;
+            // A Finix refund is a REVERSAL transfer; nothing else may be reported as a
+            // refund outcome (mirrors the DEBIT guard in the payment builder).
+            if transfer.payment_type != Some(FinixPaymentType::Reversal) {
+                return Err(error_stack::report!(
+                    WebhookError::WebhookResourceObjectNotFound
+                ))
+                .attach_printable(
+                    "expected a refund (reversal transfer) webhook, but the transfer is not a REVERSAL",
+                );
+            }
+            transfer
+        }
+        FinixEmbedded::Authorizations { .. }
+        | FinixEmbedded::Disputes { .. }
+        | FinixEmbedded::Evidences { .. } => {
             return Err(error_stack::report!(
                 WebhookError::WebhookResourceObjectNotFound
             ))
@@ -2595,7 +2682,7 @@ pub(super) fn build_finix_refund_webhook_response(
         // Finix REVERSAL webhooks only carry connector-side ids — no merchant
         // reference for the original payment.
         merchant_transaction_id: None,
-        status: get_finix_webhook_refund_status(&transfer.state),
+        status: RefundStatus::from(&transfer.state),
         connector_response_reference_id: None,
         error_code: transfer.failure_code,
         error_message: transfer.failure_message,
@@ -2615,7 +2702,9 @@ pub(super) fn build_finix_dispute_webhook_response(
 ) -> Result<DisputeWebhookDetailsResponse, error_stack::Report<WebhookError>> {
     let dispute = match &body.webhook_embedded {
         FinixEmbedded::Disputes { disputes } => disputes.get_first_event()?,
-        FinixEmbedded::Authorizations { .. } | FinixEmbedded::Transfers { .. } => {
+        FinixEmbedded::Authorizations { .. }
+        | FinixEmbedded::Transfers { .. }
+        | FinixEmbedded::Evidences { .. } => {
             return Err(error_stack::report!(
                 WebhookError::WebhookResourceObjectNotFound
             ))
@@ -2623,15 +2712,28 @@ pub(super) fn build_finix_dispute_webhook_response(
         }
     };
 
+    // Finix does not put a `currency` on the Dispute resource; hyperswitch takes it from
+    // the original payment context and errors when it is absent. UCS's dispute webhook
+    // entry point carries no such context, so the absence is reported here rather than
+    // being fabricated.
+    let currency = dispute
+        .currency
+        .ok_or_else(|| error_stack::report!(WebhookError::WebhookMissingRequiredField {
+            field: "currency"
+        }))
+        .attach_printable(
+            "Finix dispute webhooks do not carry a currency; it cannot be resolved from UCS state",
+        )?;
+
     Ok(DisputeWebhookDetailsResponse {
         amount: domain_types::utils::convert_amount_for_webhook(
             &common_utils::types::StringMinorUnitForConnector,
             dispute.amount,
-            dispute.currency,
+            currency,
         )?,
-        currency: dispute.currency,
+        currency,
         dispute_id: dispute.id,
-        status: get_finix_webhook_dispute_status(&dispute.state),
+        status: get_finix_webhook_dispute_status(&dispute.state)?,
         stage: common_enums::DisputeStage::Dispute,
         connector_response_reference_id: None,
         dispute_message: dispute.reason,
