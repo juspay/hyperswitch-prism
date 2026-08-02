@@ -1505,6 +1505,59 @@ fn get_paze_token_cryptogram(
         })
 }
 
+/// Builds the Adyen `networkToken` payment method from a decrypted Paze payload.
+///
+/// Shared by the Authorize and SetupMandate (SetupRecurring) flows: Adyen exposes no
+/// Paze-native `paymentMethod.type`, so both flows submit the Paze DPAN through the
+/// self-managed network-token pass-through.
+fn build_paze_network_token_data(
+    paze_decrypted_data: &PazeDecryptedData,
+    resource_common_data: &PaymentFlowData,
+) -> AdyenNetworkTokenData {
+    AdyenNetworkTokenData {
+        number: paze_decrypted_data.token.payment_token.clone(),
+        expiry_month: paze_decrypted_data.token.token_expiration_month.clone(),
+        expiry_year: domain_utils::expand_expiry_year_to_four_digits(
+            &paze_decrypted_data.token.token_expiration_year,
+        ),
+        holder_name: paze_decrypted_data
+            .billing_address
+            .name
+            .clone()
+            .or_else(|| resource_common_data.get_optional_billing_full_name())
+            .or_else(|| Some(paze_decrypted_data.consumer.full_name.clone())),
+        brand: get_adyen_card_network(paze_decrypted_data.payment_card_network.clone()),
+        network_payment_reference: None,
+    }
+}
+
+/// Builds the `mpiData` block that must accompany a Paze network token.
+///
+/// Network-token authorization: TAVV cryptogram plus a fully authenticated
+/// directory/authentication response, as required by Adyen for Paze DPANs. Shared by the
+/// Authorize and SetupMandate (SetupRecurring) flows.
+fn build_paze_mpi_data(paze_decrypted_data: &PazeDecryptedData) -> Result<AdyenMpiData, Error> {
+    Ok(AdyenMpiData {
+        directory_response: common_enums::TransactionStatus::Success,
+        authentication_response: common_enums::TransactionStatus::Success,
+        cavv: None,
+        token_authentication_verification_value: Some(get_paze_token_cryptogram(
+            paze_decrypted_data,
+        )?),
+        eci: Some(
+            paze_decrypted_data
+                .eci
+                .clone()
+                .unwrap_or_else(|| PAZE_DEFAULT_ECI.to_string()),
+        ),
+        ds_trans_id: None,
+        three_ds_version: None,
+        challenge_cancel: None,
+        risk_score: None,
+        cavv_algorithm: None,
+    })
+}
+
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<(
         &WalletData,
@@ -1637,22 +1690,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 // (DPAN + expiry + brand) is submitted as a self-managed network token, with the
                 // TAVV cryptogram sent separately in `mpiData`.
                 let paze_decrypted_data = get_paze_decrypted_data(paze_wallet_data)?;
-                let adyen_network_token = AdyenNetworkTokenData {
-                    number: paze_decrypted_data.token.payment_token.clone(),
-                    expiry_month: paze_decrypted_data.token.token_expiration_month.clone(),
-                    expiry_year: domain_utils::expand_expiry_year_to_four_digits(
-                        &paze_decrypted_data.token.token_expiration_year,
-                    ),
-                    holder_name: paze_decrypted_data
-                        .billing_address
-                        .name
-                        .clone()
-                        .or_else(|| item.resource_common_data.get_optional_billing_full_name())
-                        .or_else(|| Some(paze_decrypted_data.consumer.full_name.clone())),
-                    brand: get_adyen_card_network(paze_decrypted_data.payment_card_network.clone()),
-                    network_payment_reference: None,
-                };
-                Ok(Self::NetworkToken(Box::new(adyen_network_token)))
+                Ok(Self::NetworkToken(Box::new(build_paze_network_token_data(
+                    &paze_decrypted_data,
+                    &item.resource_common_data,
+                ))))
             }
             WalletData::AmazonPayRedirect(_)
             | WalletData::RevolutPay(_)
@@ -2617,28 +2658,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 }
             }
             WalletData::Paze(paze_wallet_data) => {
-                // Network-token authorization: TAVV cryptogram plus a fully authenticated
-                // directory/authentication response, as required by Adyen for Paze DPANs.
                 let paze_decrypted_data = get_paze_decrypted_data(paze_wallet_data)?;
-                Some(AdyenMpiData {
-                    directory_response: common_enums::TransactionStatus::Success,
-                    authentication_response: common_enums::TransactionStatus::Success,
-                    cavv: None,
-                    token_authentication_verification_value: Some(get_paze_token_cryptogram(
-                        &paze_decrypted_data,
-                    )?),
-                    eci: Some(
-                        paze_decrypted_data
-                            .eci
-                            .clone()
-                            .unwrap_or_else(|| PAZE_DEFAULT_ECI.to_string()),
-                    ),
-                    ds_trans_id: None,
-                    three_ds_version: None,
-                    challenge_cancel: None,
-                    risk_score: None,
-                    cavv_algorithm: None,
-                })
+                Some(build_paze_mpi_data(&paze_decrypted_data)?)
             }
             _ => None,
         };
@@ -6565,6 +6586,174 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
+/// SetupRecurring (SetupMandate) with a wallet payment method.
+///
+/// Only Paze is supported: Adyen has no Paze-native `paymentMethod.type`, so the decrypted
+/// Paze payload (DPAN + expiry + brand) is submitted as a self-managed network token with the
+/// TAVV cryptogram in `mpiData`, exactly as the Authorize flow does. The recurring credential
+/// is created as a side effect of this authorization via `storePaymentMethod` +
+/// `shopperReference` + `recurringProcessingModel`.
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<(
+        AdyenRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+        &WalletData,
+    )> for SetupMandateRequest<T>
+{
+    type Error = Error;
+    fn try_from(
+        value: (
+            AdyenRouterData<
+                RouterDataV2<
+                    SetupMandate,
+                    PaymentFlowData,
+                    SetupMandateRequestData<T>,
+                    PaymentsResponseData,
+                >,
+                T,
+            >,
+            &WalletData,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let (item, wallet_data) = value;
+
+        let paze_wallet_data = match wallet_data {
+            WalletData::Paze(paze_wallet_data) => paze_wallet_data,
+            _ => {
+                return Err(IntegrationError::NotImplemented(
+                    ("payment method").into(),
+                    Default::default(),
+                )
+                .into())
+            }
+        };
+        let paze_decrypted_data = get_paze_decrypted_data(paze_wallet_data)?;
+        let payment_method = PaymentMethod::AdyenPaymentMethod(Box::new(
+            AdyenPaymentMethod::NetworkToken(Box::new(build_paze_network_token_data(
+                &paze_decrypted_data,
+                &item.router_data.resource_common_data,
+            ))),
+        ));
+        let mpi_data = Some(build_paze_mpi_data(&paze_decrypted_data)?);
+
+        let amount = get_amount_data_for_setup_mandate(&item);
+        let auth_type = AdyenAuthType::try_from(&item.router_data.connector_config)?;
+        let shopper_interaction = AdyenShopperInteraction::from(&item.router_data);
+        let shopper_reference = match item
+            .router_data
+            .resource_common_data
+            .connector_customer
+            .clone()
+        {
+            Some(connector_customer_id) => Some(connector_customer_id),
+            None => match item.router_data.request.customer_id.clone() {
+                Some(customer_id) => Some(format!(
+                    "{}_{}",
+                    item.router_data
+                        .resource_common_data
+                        .merchant_id
+                        .get_string_repr(),
+                    customer_id.get_string_repr()
+                )),
+                None => None,
+            },
+        };
+        let (recurring_processing_model, store_payment_method, _) =
+            get_recurring_processing_model_for_setup_mandate(&item.router_data)?;
+
+        let return_url = item.router_data.request.router_return_url.clone().ok_or(
+            IntegrationError::MissingRequiredField {
+                field_name: "return_url",
+                context: Default::default(),
+            },
+        )?;
+
+        let billing_address = get_address_info(
+            item.router_data
+                .resource_common_data
+                .address
+                .get_payment_billing(),
+        )
+        .and_then(Result::ok);
+
+        let additional_data = get_additional_data_for_setup_mandate(&item.router_data)?;
+
+        let adyen_metadata =
+            get_adyen_metadata(item.router_data.request.metadata.clone().expose_option());
+        let device_fingerprint = adyen_metadata.device_fingerprint.clone();
+        let platform_chargeback_logic = adyen_metadata.platform_chargeback_logic.clone();
+
+        Ok(Self(AdyenPaymentRequest {
+            amount,
+            merchant_account: auth_type.merchant_account,
+            payment_method,
+            reference: item
+                .router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+            return_url,
+            shopper_interaction,
+            recurring_processing_model,
+            browser_info: get_browser_info_for_setup_mandate(&item.router_data)?,
+            additional_data,
+            mpi_data,
+            telephone_number: item
+                .router_data
+                .resource_common_data
+                .get_optional_billing_phone_number(),
+            shopper_name: get_shopper_name(
+                item.router_data
+                    .resource_common_data
+                    .address
+                    .get_payment_billing(),
+            ),
+            shopper_email: item
+                .router_data
+                .resource_common_data
+                .get_optional_billing_email(),
+            shopper_locale: item.router_data.request.locale.clone(),
+            social_security_number: None,
+            billing_address,
+            delivery_address: get_address_info(
+                item.router_data
+                    .resource_common_data
+                    .get_optional_shipping(),
+            )
+            .and_then(Result::ok),
+            country_code: get_country_code(
+                item.router_data.resource_common_data.get_optional_billing(),
+            ),
+            line_items: None,
+            shopper_reference,
+            store_payment_method,
+            channel: None,
+            shopper_statement: item
+                .router_data
+                .request
+                .billing_descriptor
+                .clone()
+                .and_then(|descriptor| descriptor.statement_descriptor),
+            shopper_ip: item.router_data.request.get_ip_address_as_optional(),
+            merchant_order_reference: item.router_data.request.merchant_order_id.clone(),
+            store: None,
+            splits: None,
+            device_fingerprint,
+            metadata: None,
+            platform_chargeback_logic,
+            session_validity: None,
+            application_info: None,
+        }))
+    }
+}
+
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         AdyenRouterData<
@@ -6604,8 +6793,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .into()),
             None => match item.router_data.request.payment_method_data.clone() {
                 PaymentMethodData::Card(ref card) => Self::try_from((item, card)),
-                PaymentMethodData::Wallet(_)
-                | PaymentMethodData::PayLater(_)
+                PaymentMethodData::Wallet(ref wallet_data) => Self::try_from((item, wallet_data)),
+                PaymentMethodData::PayLater(_)
                 | PaymentMethodData::BankRedirect(_)
                 | PaymentMethodData::BankDebit(_)
                 | PaymentMethodData::BankTransfer(_)
