@@ -2253,7 +2253,15 @@ pub enum FinixDisputeState {
 pub struct FinixDisputes {
     pub transfer: String,
     pub reason: Option<String>,
-    pub amount: MinorUnit,
+    // Finix declares `Dispute.amount` as `nullable: true` (OpenAPI
+    // `components.schemas.dispute.properties.amount`), and the Dispute schema marks no
+    // field as required. A non-`Option` field here therefore fails `FinixWebhookBody`
+    // decoding for any dispute delivered without an amount and — because `FinixEmbedded`
+    // is untagged — takes `get_event_type` and `get_webhook_event_reference` down with
+    // it, the same way the missing `currency` key did. The absence is reported only where
+    // the value is actually needed, in `build_finix_dispute_webhook_response`.
+    #[serde(default)]
+    pub amount: Option<MinorUnit>,
     pub state: FinixDisputeState,
     // The documented Finix Dispute resource (`GET /disputes/{id}`) carries NO `currency`
     // key, so this must stay optional: a required field would fail `FinixWebhookBody`
@@ -2718,17 +2726,27 @@ pub(super) fn build_finix_dispute_webhook_response(
     // being fabricated.
     let currency = dispute
         .currency
-        .ok_or_else(|| error_stack::report!(WebhookError::WebhookMissingRequiredField {
-            field: "currency"
-        }))
+        .ok_or_else(|| {
+            error_stack::report!(WebhookError::WebhookMissingRequiredField { field: "currency" })
+        })
         .attach_printable(
             "Finix dispute webhooks do not carry a currency; it cannot be resolved from UCS state",
         )?;
 
+    // `Dispute.amount` is nullable in Finix's schema; report the absence here (where the
+    // value is needed) rather than failing the whole body decode, and never substitute a
+    // fabricated zero.
+    let amount = dispute
+        .amount
+        .ok_or_else(|| {
+            error_stack::report!(WebhookError::WebhookMissingRequiredField { field: "amount" })
+        })
+        .attach_printable("Finix dispute webhook carried no `amount`")?;
+
     Ok(DisputeWebhookDetailsResponse {
         amount: domain_types::utils::convert_amount_for_webhook(
             &common_utils::types::StringMinorUnitForConnector,
-            dispute.amount,
+            amount,
             currency,
         )?,
         currency,
