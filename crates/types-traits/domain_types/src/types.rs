@@ -13030,12 +13030,12 @@ pub fn generate_create_payment_method_token_response<T: PaymentMethodDataTypes>(
                     error: None,
                     // Report the connector's real HTTP status (Finix returns 201) instead of a
                     // hardcoded 200, mirroring the Direct gateway's connector_http_status_code.
-                    // Connectors that do not record a status fall back to 200 (previous behavior).
+                    // Connectors that do not record a status report 0 (the proto3 default).
                     status_code: router_data_v2
                         .resource_common_data
                         .connector_http_status_code
                         .map(u32::from)
-                        .unwrap_or(200),
+                        .unwrap_or_default(),
                     response_headers: router_data_v2
                         .resource_common_data
                         .get_connector_response_headers_as_map(),
