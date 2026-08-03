@@ -1621,7 +1621,7 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub partner_merchant_identifier_details: Option<PartnerMerchantIdentifierDetails>,
     /// Dynamic currency conversion decision and quote supplied for authorization.
     /// Connectors that support DCC can consume this when building their request.
-    pub dynamic_currency_conversion_data: Option<DynamicCurrencyConversionData>,
+    pub dynamic_currency_conversion_data: Option<CurrencyConversionData>,
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {
@@ -4315,7 +4315,7 @@ pub enum DccDecision {
     NotApplicable,
 }
 
-/// The currency conversion model used for a DCC quote.
+/// The currency conversion model used for a conversion quote.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum CurrencyConversionType {
     Dcc,
@@ -4323,9 +4323,9 @@ pub enum CurrencyConversionType {
     Mcc,
 }
 
-/// Connector-agnostic details of a dynamic currency conversion quote.
+/// Connector-agnostic details of a currency conversion quote.
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct DccQuote {
+pub struct CurrencyConversionQuote {
     pub actual_amount: Option<Money>,
     pub exchange_rate: Option<String>,
     pub connector_quote_id: Option<String>,
@@ -4341,9 +4341,9 @@ pub struct DccQuote {
 
 /// A validated DCC decision and the quote presented to the cardholder.
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct DynamicCurrencyConversionData {
+pub struct CurrencyConversionData {
     pub decision: DccDecision,
-    pub quote: Option<DccQuote>,
+    pub quote: Option<CurrencyConversionQuote>,
 }
 
 /// Domain-specific data supplied by the merchant (airline today; extensible

@@ -134,7 +134,7 @@ message CompositeAuthorizeRequest {
 
   // Dynamic currency conversion quote and customer decision supplied for
   // authorization.
-  optional DynamicCurrencyConversionData dynamic_currency_conversion_data = 58;
+  optional CurrencyConversionData dynamic_currency_conversion_data = 58;
 }
 
 // Status of the composite authorize flow — indicates whether the flow is complete or needs a redirect.
@@ -747,7 +747,7 @@ message CompositeVerifyRedirectResponseRequest {
 
   // Dynamic currency conversion quote and customer decision supplied for
   // authorization after redirect verification.
-  optional DynamicCurrencyConversionData dynamic_currency_conversion_data = 54;
+  optional CurrencyConversionData dynamic_currency_conversion_data = 54;
 }
 
 // Response message for composite verify redirect response flow.

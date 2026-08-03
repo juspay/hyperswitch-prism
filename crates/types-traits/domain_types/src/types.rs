@@ -3092,7 +3092,7 @@ pub struct AuthorizationRequest {
     pub partner_merchant_identifier_details:
         Option<grpc_payment_types::PartnerMerchantIdentifierDetails>,
     /// Dynamic currency conversion decision and quote supplied for authorization.
-    pub dynamic_currency_conversion_data: Option<grpc_payment_types::DynamicCurrencyConversionData>,
+    pub dynamic_currency_conversion_data: Option<grpc_payment_types::CurrencyConversionData>,
 }
 
 /// Intermediate setup recurring request that accepts both CardDetails and ProxyCardDetails.
@@ -3827,11 +3827,13 @@ impl ForeignTryFrom<grpc_payment_types::CurrencyConversionType>
     }
 }
 
-impl ForeignTryFrom<grpc_payment_types::DccQuote> for connector_types::DccQuote {
+impl ForeignTryFrom<grpc_payment_types::CurrencyConversionQuote>
+    for connector_types::CurrencyConversionQuote
+{
     type Error = IntegrationError;
 
     fn foreign_try_from(
-        value: grpc_payment_types::DccQuote,
+        value: grpc_payment_types::CurrencyConversionQuote,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         Ok(Self {
             actual_amount: value
@@ -3873,13 +3875,13 @@ impl ForeignTryFrom<grpc_payment_types::DccQuote> for connector_types::DccQuote 
     }
 }
 
-impl ForeignTryFrom<grpc_payment_types::DynamicCurrencyConversionData>
-    for connector_types::DynamicCurrencyConversionData
+impl ForeignTryFrom<grpc_payment_types::CurrencyConversionData>
+    for connector_types::CurrencyConversionData
 {
     type Error = IntegrationError;
 
     fn foreign_try_from(
-        value: grpc_payment_types::DynamicCurrencyConversionData,
+        value: grpc_payment_types::CurrencyConversionData,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let decision = grpc_payment_types::DccDecision::try_from(value.decision).map_err(|_| {
             report!(IntegrationError::InvalidDataFormat {
@@ -3898,7 +3900,7 @@ impl ForeignTryFrom<grpc_payment_types::DynamicCurrencyConversionData>
             decision: connector_types::DccDecision::foreign_try_from(decision)?,
             quote: value
                 .quote
-                .map(connector_types::DccQuote::foreign_try_from)
+                .map(connector_types::CurrencyConversionQuote::foreign_try_from)
                 .transpose()?,
         })
     }
@@ -4321,7 +4323,7 @@ impl<
                 .transpose()?,
             dynamic_currency_conversion_data: value
                 .dynamic_currency_conversion_data
-                .map(connector_types::DynamicCurrencyConversionData::foreign_try_from)
+                .map(connector_types::CurrencyConversionData::foreign_try_from)
                 .transpose()?,
         })
     }

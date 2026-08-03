@@ -60,8 +60,8 @@ message Money {
   Currency currency = 2; // ISO 4217 currency code (e.g., "USD", "EUR")
 }
 
-// DCC Quote details associated with a dynamic currency conversion decision.
-message DccQuote {
+// Quote details associated with a currency conversion decision.
+message CurrencyConversionQuote {
   // Actual amount for the transaction, expressed in the cardholder currency.
   Money actual_amount = 1;
 
@@ -123,11 +123,11 @@ enum DccDecision {
 }
 
 // Contains the customer's DCC decision and the quote presented to them.
-message DynamicCurrencyConversionData {
+message CurrencyConversionData {
   // Customer's decision for the DCC offer.
   DccDecision decision = 1;
   // Currency conversion quote presented to the customer, when available.
-  optional DccQuote quote = 2;
+  optional CurrencyConversionQuote quote = 2;
 }
 
 // Permissions wraps a repeated string field to allow optional presence
@@ -2595,7 +2595,7 @@ message PaymentServiceAuthorizeRequest {
 
   // Dynamic currency conversion quote and decision data passed through the
   // authorization flow for future connector-specific processing.
-  optional DynamicCurrencyConversionData dynamic_currency_conversion_data = 51;
+  optional CurrencyConversionData dynamic_currency_conversion_data = 51;
 }
 
 // Partner / external-platform application details.
