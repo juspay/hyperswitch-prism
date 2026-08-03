@@ -367,7 +367,7 @@
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "error": "Payment method is not supported by worldpayvantiv"
       },
       "PermataBankTransfer": {
         "status": "not_supported",
