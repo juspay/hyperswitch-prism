@@ -155,6 +155,7 @@ fn payment_method_data_label<T: PaymentMethodDataTypes>(
         PaymentMethodData::PaymentMethodToken(_) => "payment_method_token",
         PaymentMethodData::OpenBanking(_) => "open_banking",
         PaymentMethodData::NetworkToken(_) => "network_token",
+        PaymentMethodData::CardWithNoCvc(_) => "card_with_no_cvc",
         PaymentMethodData::MobilePayment(_) => "mobile_payment",
     }
 }
@@ -1993,6 +1994,12 @@ fn get_authentication_data_for_validation_response(
         transaction_id: response.validate_response.xid,
         exemption_indicator: None,
         network_params: None,
+        created_at: None,
+        challenge_code: None,
+        challenge_cancel: None,
+        challenge_code_reason: None,
+        message_extension: None,
+        authentication_type: None,
     }
 }
 
@@ -2021,6 +2028,12 @@ fn get_authentication_data_for_authenticate_response(
         ucaf_collection_indicator: validate_response.ucaf_collection_indicator.clone(),
         exemption_indicator: None,
         network_params: None,
+        created_at: None,
+        challenge_code: None,
+        challenge_cancel: None,
+        challenge_code_reason: None,
+        message_extension: None,
+        authentication_type: None,
     }
 }
 

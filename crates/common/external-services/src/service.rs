@@ -122,6 +122,18 @@ impl ConnectorRequestReference for domain_types::connector_types::VerifyWebhookS
     }
 }
 
+impl ConnectorRequestReference for domain_types::connector_types::RefreshPaymentMethodFlowData {
+    fn get_connector_request_reference_id(&self) -> &str {
+        &self.connector_request_reference_id
+    }
+}
+
+impl AdditionalHeaders for domain_types::connector_types::RefreshPaymentMethodFlowData {
+    fn get_vault_headers(&self) -> Option<&HashMap<String, Secret<String>>> {
+        None
+    }
+}
+
 impl AdditionalHeaders for domain_types::connector_types::VerifyWebhookSourceFlowData {
     fn get_vault_headers(&self) -> Option<&HashMap<String, Secret<String>>> {
         None
@@ -211,7 +223,7 @@ impl AdditionalHeaders for domain_types::frm::frm_types::FrmFlowData {
         None
     }
 }
-use common_utils::events::{Event, EventConfig, FlowName};
+use common_utils::events::{Event, EventConfig, FlowName, RuntimeMetadata};
 #[cfg(feature = "injector-client")]
 use common_utils::types::ExecutionMode;
 #[cfg(feature = "injector-client")]
@@ -266,6 +278,11 @@ impl GetFlowStatus for domain_types::connector_types::RefundFlowData {
     }
 }
 impl GetFlowStatus for domain_types::connector_types::DisputeFlowData {
+    fn flow_status(&self) -> Option<domain_types::router_data::FlowStatus> {
+        None
+    }
+}
+impl GetFlowStatus for domain_types::connector_types::RefreshPaymentMethodFlowData {
     fn flow_status(&self) -> Option<domain_types::router_data::FlowStatus> {
         None
     }
@@ -504,6 +521,8 @@ pub struct EventProcessingParams<'a> {
     pub service_type: &'a str,
     pub flow_name: FlowName,
     pub event_config: &'a EventConfig,
+    /// Deployment/runtime identity threaded from application state, stamped onto every event.
+    pub runtime_metadata: &'a RuntimeMetadata,
     pub request_id: &'a str,
     pub lineage_ids: &'a lineage::LineageIds<'a>,
     pub reference_id: &'a Option<String>,
@@ -860,19 +879,20 @@ where
                         &masked_request,
                     );
 
-                    let result = handle_connector_response(
-                        response.change_context(
-                            ConnectorError::response_handling_failed_http_status_unknown(),
-                        ),
-                        updated_router_data,
-                        &connector,
-                        Some(&mut event),
-                        all_keys_required,
-                        &method.to_string(),
-                        url,
-                        Some(&event_params),
-                    )
-                    .map_err(report_connector_response_to_flow);
+                    let result = match response {
+                        Ok(body) => handle_connector_response(
+                            Ok(body),
+                            updated_router_data,
+                            &connector,
+                            Some(&mut event),
+                            all_keys_required,
+                            &method.to_string(),
+                            url,
+                            Some(&event_params),
+                        )
+                        .map_err(report_connector_response_to_flow),
+                        Err(transport_err) => Err(transport_err),
+                    };
 
                     emit_event_with_config(event, event_params.event_config);
                     result
@@ -977,19 +997,20 @@ where
                         &masked_request,
                     );
 
-                    let result = handle_connector_response(
-                        response.change_context(
-                            ConnectorError::response_handling_failed_http_status_unknown(),
-                        ),
-                        router_data,
-                        &connector,
-                        Some(&mut event),
-                        all_keys_required,
-                        "PUBLISH",
-                        topic,
-                        Some(&event_params),
-                    )
-                    .map_err(report_connector_response_to_flow);
+                    let result = match response {
+                        Ok(body) => handle_connector_response(
+                            Ok(body),
+                            router_data,
+                            &connector,
+                            Some(&mut event),
+                            all_keys_required,
+                            "PUBLISH",
+                            topic,
+                            Some(&event_params),
+                        )
+                        .map_err(report_connector_response_to_flow),
+                        Err(publish_err) => Err(publish_err),
+                    };
 
                     emit_event_with_config(event, event_params.event_config);
                     result
@@ -1075,6 +1096,9 @@ fn create_event(
         headers: event_headers,
         additional_fields: HashMap::new(),
         lineage_ids: event_params.lineage_ids.to_owned(),
+        // Deployment/runtime identity (compiled version + optional app/deployment/pod), threaded
+        // from application state; serialized as top-level event fields.
+        runtime_metadata: event_params.runtime_metadata.clone(),
     };
 
     event.add_reference_id(event_params.reference_id.as_deref());

@@ -44,6 +44,7 @@ message PaymentMethod {
     // CARD METHODS (1-9) - Direct variants
     CardDetails card = 3;                               // Generic card payment
     CardRedirect card_redirect = 4;                     // Card redirect flow
+    CardDetailsWithNoCvc card_with_no_cvc = 5;          // Card payment where CVC is not required
     ProxyCardDetails card_proxy = 7;                         // Generic card proxy payment
     TokenPaymentMethodType token = 8;                   // Payment tokens
     
@@ -183,7 +184,8 @@ message PaymentMethod {
     Klarna klarna = 112;                                       // Klarna - Swedish BNPL service
     Alma alma = 113;                                           // Alma - French BNPL service
     TamaraRedirect tamara_redirect = 114;                                       // Tamara - Middle Eastern BNPL service
-    
+    Atome atome = 115;                                         // Atome - Asian BNPL service
+
     // NETWORK TRANSACTION METHODS (120-129) - For recurring payments with network transaction IDs
     CardDetailsForNetworkTransactionId card_details_for_network_transaction_id = 120; // Card details with network transaction ID
     NetworkTokenData network_token = 121; // Network token data
@@ -242,6 +244,25 @@ message PaymentMethod {
 message TokenPaymentMethodType {
   // The token string representing a payment method.
   SecretString token = 1;
+}
+
+// Details of a payment card where CVC is not required for the selected connector flow.
+message CardDetailsWithNoCvc {
+  // Card Identification
+  CardNumberType card_number = 1;
+  SecretString card_exp_month = 2;
+  SecretString card_exp_year = 3;
+
+  // Cardholder Information
+  optional SecretString card_holder_name = 4;
+
+  // Card Metadata
+  optional string card_issuer = 5;
+  optional CardNetwork card_network = 6;
+  optional string card_type = 7;
+  optional string card_issuing_country_alpha2 = 8;
+  optional string bank_code = 9;
+  optional string nick_name = 10;
 }
 
 // Details of a payment card.
@@ -1074,12 +1095,12 @@ message TamaraRedirect {
   // Fields will be added as needed for tamara integration
 }
 
-/*
-
 // Atome - Asian BNPL service
 message Atome {
   // Fields will be added as needed for Atome integration
 }
+
+/*
 
 // PayBright - Canadian BNPL service
 message PayBright {
@@ -1524,6 +1545,14 @@ enum BankNames {
   CapitecBusiness = 195;
   AfricanBank = 196;
   AfricanBankBusiness = 197;
+  // Indonesian banks (Airwallex bank_transfer). CimbNiaga is the Indonesian CIMB
+  // Niaga, distinct from the Malaysian CimbBank = 17.
+  BankMandiri = 198;
+  BankDanamon = 199;
+  BankNegaraIndonesia = 200;
+  BankRakyatIndonesia = 201;
+  CimbNiaga = 202;
+  PermataBank = 203;
 }
 
 // ============================================================================

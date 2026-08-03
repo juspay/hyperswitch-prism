@@ -31,8 +31,9 @@ use grpc_api_types::payments::{
     merchant_authentication_service_create_client_authentication_token_request::DomainContext,
     payment_method::PaymentMethod as PmVariant, AcceptanceType, Address, AuthenticationType,
     CaptureMethod, ConnectorMandateReferenceId, CustomerAcceptance, CustomerServiceCreateRequest,
-    DisputeServiceAcceptRequest, DisputeServiceDefendRequest, DisputeServiceSubmitEvidenceRequest,
-    EventServiceHandleRequest, EvidenceDocument, EvidenceType, HttpMethod, MandateReference,
+    CustomerServiceGetRequest, DisputeServiceAcceptRequest, DisputeServiceDefendRequest,
+    DisputeServiceSubmitEvidenceRequest, EventServiceHandleRequest, EvidenceDocument, EvidenceType,
+    HttpMethod, MandateReference,
     MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest, PaymentAddress,
@@ -40,11 +41,12 @@ use grpc_api_types::payments::{
     PaymentMethodAuthenticationServiceAuthenticateRequest,
     PaymentMethodAuthenticationServicePostAuthenticateRequest,
     PaymentMethodAuthenticationServicePreAuthenticateRequest,
-    PaymentMethodServiceEligibilityRequest, PaymentMethodServiceTokenizeRequest,
-    PaymentServiceAuthorizeRequest, PaymentServiceCaptureRequest, PaymentServiceCreateOrderRequest,
-    PaymentServiceGetRequest, PaymentServiceIncrementalAuthorizationRequest,
-    PaymentServiceProxyAuthorizeRequest, PaymentServiceProxySetupRecurringRequest,
-    PaymentServiceRefundRequest, PaymentServiceReverseRequest, PaymentServiceSetupRecurringRequest,
+    PaymentMethodServiceEligibilityRequest, PaymentMethodServiceRefreshRequest,
+    PaymentMethodServiceTokenizeRequest, PaymentServiceAuthorizeRequest,
+    PaymentServiceCaptureRequest, PaymentServiceCreateOrderRequest, PaymentServiceGetRequest,
+    PaymentServiceIncrementalAuthorizationRequest, PaymentServiceProxyAuthorizeRequest,
+    PaymentServiceProxySetupRecurringRequest, PaymentServiceRefundRequest,
+    PaymentServiceReverseRequest, PaymentServiceSetupRecurringRequest,
     PaymentServiceTokenAuthorizeRequest, PaymentServiceTokenSetupRecurringRequest,
     PaymentServiceVerifyRedirectResponseRequest, PaymentServiceVoidRequest, ProxyCardDetails,
     RecurringPaymentServiceChargeRequest, RecurringPaymentServiceRevokeRequest,
@@ -52,7 +54,7 @@ use grpc_api_types::payments::{
 };
 use hyperswitch_masking::Secret;
 
-use crate::sample_data::{card_payment_method, usd_money};
+use crate::sample_data::{card_payment_method, card_with_no_cvc_payment_method, usd_money};
 
 pub(crate) fn base_authorize_request_with_meta(
     pm: PaymentMethod,
@@ -218,6 +220,16 @@ pub(crate) fn base_customer_create_request() -> CustomerServiceCreateRequest {
     }
 }
 
+pub(crate) fn base_customer_get_request() -> CustomerServiceGetRequest {
+    // customer_get is a lookup — supply the same identifying fields as create so
+    // connectors that key off merchant_customer_id or email can locate a record.
+    CustomerServiceGetRequest {
+        merchant_customer_id: Some("cust_probe_123".to_string()),
+        email: Some(Secret::new("test@example.com".to_string())),
+        ..Default::default()
+    }
+}
+
 pub(crate) fn base_eligibility_request() -> PaymentMethodServiceEligibilityRequest {
     PaymentMethodServiceEligibilityRequest {
         amount: Some(usd_money(1000)),
@@ -238,6 +250,12 @@ pub(crate) fn base_tokenize_request() -> PaymentMethodServiceTokenizeRequest {
             shipping_address: None,
         }),
         ..Default::default()
+    }
+}
+
+pub(crate) fn base_refresh_request() -> PaymentMethodServiceRefreshRequest {
+    PaymentMethodServiceRefreshRequest {
+        payment_method: Some(card_with_no_cvc_payment_method()),
     }
 }
 

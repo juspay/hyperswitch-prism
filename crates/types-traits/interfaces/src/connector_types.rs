@@ -18,12 +18,14 @@ use domain_types::{
         PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
         PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
         PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RechargeRequestData,
-        RechargeResponseData, RedirectDetailsResponse, RefundFlowData, RefundSyncData,
-        RefundVoidPostRefundData, RefundWebhookDetailsResponse, RefundsData, RefundsResponseData,
-        RepeatPaymentData, RequestDetails, ServerAuthenticationTokenRequestData,
-        ServerAuthenticationTokenResponseData, ServerSessionAuthenticationTokenRequestData,
-        ServerSessionAuthenticationTokenResponseData, SetupMandateRequestData, SubmitEvidenceData,
-        VerifyWebhookSourceFlowData, WebhookDetailsResponse, WebhookResourceReference,
+        RechargeResponseData, RedirectDetailsResponse, RefreshPaymentMethodData,
+        RefreshPaymentMethodFlowData, RefreshPaymentMethodResponseData, RefundFlowData,
+        RefundSyncData, RefundVoidPostRefundData, RefundWebhookDetailsResponse, RefundsData,
+        RefundsResponseData, RepeatPaymentData, RequestDetails,
+        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+        ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
+        SetupMandateRequestData, SubmitEvidenceData, VerifyWebhookSourceFlowData,
+        WebhookDetailsResponse, WebhookResourceReference,
     },
     errors::WebhookError,
     frm::frm_types::{
@@ -97,10 +99,12 @@ pub trait ConnectorServiceTrait<T: PaymentMethodDataTypes>:
     + ServerSessionAuthentication
     + ServerAuthentication
     + CreateConnectorCustomer
+    + GetConnectorCustomer
     + PaymentTokenV2<T>
     + RechargeV2
     + CreatePaymentMethodV2
     + GetPaymentMethodV2
+    + RefreshPaymentMethodV2<T>
     + PaymentVoidV2
     + PaymentVoidPostCaptureV2
     + IncomingWebhook
@@ -210,6 +214,10 @@ pub trait ValidationTrait: ConnectorCommon {
         false
     }
 
+    fn should_get_connector_customer(&self) -> bool {
+        false
+    }
+
     fn should_do_payment_method_token(
         &self,
         _payment_method: PaymentMethod,
@@ -303,6 +311,16 @@ pub trait CreateConnectorCustomer:
 {
 }
 
+pub trait GetConnectorCustomer:
+    ConnectorIntegrationV2<
+    connector_flow::GetConnectorCustomer,
+    PaymentFlowData,
+    ConnectorCustomerData,
+    ConnectorCustomerResponse,
+>
+{
+}
+
 pub trait PaymentTokenV2<T: PaymentMethodDataTypes>:
     ConnectorIntegrationV2<
     connector_flow::PaymentMethodToken,
@@ -339,6 +357,16 @@ pub trait GetPaymentMethodV2:
     PaymentFlowData,
     GetPaymentMethodData,
     GetPaymentMethodResponseData,
+>
+{
+}
+
+pub trait RefreshPaymentMethodV2<T: PaymentMethodDataTypes>:
+    ConnectorIntegrationV2<
+    connector_flow::RefreshPaymentMethod,
+    RefreshPaymentMethodFlowData,
+    RefreshPaymentMethodData<T>,
+    RefreshPaymentMethodResponseData,
 >
 {
 }

@@ -103,11 +103,11 @@ fn ecom_internet_uses_no_terminal_and_none_output() {
     let block = AcceptanceProfile::EcomInternet.terminal_data();
     assert!(matches!(
         block.terminal_operating_environment,
-        TsysTransitTerminalOperatingEnvironment::NoTerminal
+        TsysTransitTerminalOperatingEnvironment::OffMerchantPremisesUnattended
     ));
     assert!(matches!(
         block.terminal_output_capability,
-        TsysTransitTerminalOutputCapability::None
+        TsysTransitTerminalOutputCapability::DisplayOnly
     ));
     assert!(matches!(
         block.card_data_source,
@@ -406,10 +406,10 @@ fn purchase_order_strips_on_amex() {
         CommercialLevel::L2,
         CaptureKind::Auto,
     );
-    assert_eq!(
+    assert!(matches!(
         commercial::purchase_order(&p, Some("PO123".to_string())),
-        None
-    );
+        Ok(None)
+    ));
 }
 
 #[test]
@@ -421,10 +421,10 @@ fn purchase_order_passes_through_on_visa_l2() {
         CommercialLevel::L2,
         CaptureKind::Auto,
     );
-    assert_eq!(
+    assert!(matches!(
         commercial::purchase_order(&p, Some("PO123".to_string())),
-        Some("PO123".to_string())
-    );
+        Ok(Some(ref po)) if po == "PO123"
+    ));
 }
 
 #[test]
@@ -438,10 +438,10 @@ fn customer_ref_id_strips_on_mastercard() {
         CommercialLevel::L2,
         CaptureKind::Auto,
     );
-    assert_eq!(
+    assert!(matches!(
         commercial::customer_ref_id(&p, Some("REF123".to_string())),
-        None
-    );
+        Ok(None)
+    ));
 }
 
 #[test]
@@ -453,10 +453,10 @@ fn customer_ref_id_passes_through_on_amex() {
         CommercialLevel::L2,
         CaptureKind::Auto,
     );
-    assert_eq!(
+    assert!(matches!(
         commercial::customer_ref_id(&p, Some("REF123".to_string())),
-        Some("REF123".to_string())
-    );
+        Ok(Some(ref id)) if id == "REF123"
+    ));
 }
 
 #[test]
@@ -468,10 +468,10 @@ fn supplier_reference_number_strips_on_mastercard() {
         CommercialLevel::L2,
         CaptureKind::Auto,
     );
-    assert_eq!(
+    assert!(matches!(
         commercial::supplier_reference_number(&p, Some("SUP123".to_string())),
-        None
-    );
+        Ok(None)
+    ));
 }
 
 #[test]
@@ -485,7 +485,10 @@ fn ship_to_zip_stripped_on_mastercard_l2() {
         CommercialLevel::L2,
         CaptureKind::Auto,
     );
-    assert_eq!(commercial::ship_to_zip(&p, Some("12345".to_string())), None);
+    assert!(matches!(
+        commercial::ship_to_zip(&p, Some("12345".to_string())),
+        Ok(None)
+    ));
 }
 
 #[test]
@@ -498,10 +501,10 @@ fn ship_to_zip_sent_on_amex_l2() {
         CommercialLevel::L2,
         CaptureKind::Auto,
     );
-    assert_eq!(
+    assert!(matches!(
         commercial::ship_to_zip(&p, Some("85284".to_string())),
-        Some("85284".to_string())
-    );
+        Ok(Some(ref zip)) if zip == "85284"
+    ));
 }
 
 #[test]
@@ -514,7 +517,10 @@ fn ship_to_zip_stripped_when_not_commercial() {
         CommercialLevel::None,
         CaptureKind::Auto,
     );
-    assert_eq!(commercial::ship_to_zip(&p, Some("12345".to_string())), None);
+    assert!(matches!(
+        commercial::ship_to_zip(&p, Some("12345".to_string())),
+        Ok(None)
+    ));
 }
 
 #[test]
@@ -526,10 +532,10 @@ fn ship_to_zip_passes_through_on_visa_l3() {
         CommercialLevel::L3,
         CaptureKind::Auto,
     );
-    assert_eq!(
+    assert!(matches!(
         commercial::ship_to_zip(&p, Some("12345".to_string())),
-        Some("12345".to_string())
-    );
+        Ok(Some(ref zip)) if zip == "12345"
+    ));
 }
 
 #[test]
@@ -541,10 +547,10 @@ fn destination_country_code_strips_on_mastercard_l2() {
         CommercialLevel::L2,
         CaptureKind::Auto,
     );
-    assert_eq!(
+    assert!(matches!(
         commercial::destination_country_code(&p, Some("840".to_string())),
-        None
-    );
+        Ok(None)
+    ));
 }
 
 // ============================================================================
@@ -601,6 +607,105 @@ fn card_on_file_is_none_on_visa_cit_using_stored() {
         CaptureKind::Auto,
     );
     assert!(cof_mit::card_on_file(&p).is_none());
+}
+
+#[test]
+fn card_on_file_is_none_on_visa_mit() {
+    // Cert step 9: "cardOnFile tag must not be sent on the 25.50 Visa card on
+    // file transaction." cardOnFile is a storage marker for CIT-setup only; a
+    // MIT references the stored credential via cardOnFileTransactionIdentifier.
+    let p = profile(
+        AcceptanceProfile::MotoPhone,
+        CardFamily::Visa,
+        CofPhase::Mit(MitKind::Unscheduled),
+        CommercialLevel::None,
+        CaptureKind::Auto,
+    );
+    assert!(cof_mit::card_on_file(&p).is_none());
+}
+
+#[test]
+fn card_family_recognises_16_digit_diners_from_pan() {
+    // The cert Diners test card 3055155515160018 is a modern 16-digit Diners
+    // (TSYS routes it via Discover). The shared get_card_issuer only matches
+    // 14-digit Diners, so the connector's PAN fallback must still classify it
+    // as Diners for the Discover-family recurring/installment tags to fire.
+    assert!(matches!(
+        CardFamily::from_card_number("3055155515160018"),
+        CardFamily::Diners
+    ));
+    // JCB (35xx) is not wrongly caught as Diners.
+    assert!(matches!(
+        CardFamily::from_card_number("3530142019945859"),
+        CardFamily::Jcb
+    ));
+}
+
+#[test]
+fn card_on_file_and_nti_on_discover_family_recurring_installment_mit() {
+    // Cert rows 147/155 (JCB recurring) and 165/172 (Diners installment): the
+    // Discover-family recurring/installment MIT sends cardOnFile=Y AND
+    // cardOnFileTransactionIdentifier.
+    for family in [
+        CardFamily::Jcb,
+        CardFamily::Diners,
+        CardFamily::Discover,
+        CardFamily::UnionPay,
+    ] {
+        for kind in [MitKind::Recurring, MitKind::Installment] {
+            let p = profile(
+                AcceptanceProfile::RecurringMit,
+                family,
+                CofPhase::Mit(kind),
+                CommercialLevel::None,
+                CaptureKind::Auto,
+            );
+            assert!(
+                matches!(cof_mit::card_on_file(&p), Some(TsysTransitCardOnFile::Y)),
+                "cardOnFile=Y expected for {family:?} {kind:?}"
+            );
+            assert!(
+                cof_mit::should_send_card_on_file_transaction_identifier(&p),
+                "NTI expected for {family:?} {kind:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn card_on_file_and_nti_none_on_mastercard_recurring_installment_mit() {
+    // Cert rows 162/169 (MasterCard installment): MasterCard signals the stored
+    // credential via mitStatusIndicator=M10x, NOT cardOnFile / NTI.
+    for kind in [MitKind::Recurring, MitKind::Installment] {
+        let p = profile(
+            AcceptanceProfile::RecurringMit,
+            CardFamily::Mastercard,
+            CofPhase::Mit(kind),
+            CommercialLevel::None,
+            CaptureKind::Auto,
+        );
+        assert!(cof_mit::card_on_file(&p).is_none());
+        assert!(!cof_mit::should_send_card_on_file_transaction_identifier(
+            &p
+        ));
+    }
+}
+
+#[test]
+fn card_on_file_none_on_discover_family_unscheduled_mit() {
+    // Discover-family *unscheduled* MIT uses mitStatusIndicator=U (MOTO_V2),
+    // not cardOnFile / NTI — only recurring/installment carry those.
+    let p = profile(
+        AcceptanceProfile::MotoPhone,
+        CardFamily::Jcb,
+        CofPhase::Mit(MitKind::Unscheduled),
+        CommercialLevel::None,
+        CaptureKind::Auto,
+    );
+    assert!(cof_mit::card_on_file(&p).is_none());
+    assert!(!cof_mit::should_send_card_on_file_transaction_identifier(
+        &p
+    ));
 }
 
 #[test]
@@ -789,6 +894,28 @@ fn recurring_mit_card_data_source_follows_channel_not_recurring() {
 }
 
 #[test]
+fn card_family_falls_back_to_bin_when_network_absent() {
+    // A MIT card fetched from the locker (CardDetailsForNetworkTransactionId)
+    // can arrive without a network. cardOnFile / cardOnFileTransactionIdentifier
+    // are gated on CardFamily::Visa, so the family must be recovered from the
+    // PAN when the network is absent.
+    use common_enums::CardNetwork;
+    assert!(matches!(
+        CardFamily::from_card_number("4012000098765439"),
+        CardFamily::Visa
+    ));
+    assert!(matches!(
+        CardFamily::from_network_or_number(None, "4012000098765439"),
+        CardFamily::Visa
+    ));
+    // An explicit network still wins over BIN detection.
+    assert!(matches!(
+        CardFamily::from_network_or_number(Some(&CardNetwork::Mastercard), "4012000098765439"),
+        CardFamily::Mastercard
+    ));
+}
+
+#[test]
 fn recurring_mit_mastercard_cardholder_present_detail_is_recurring() {
     // Cert (Recurring tab): Mastercard recurring CIT uses
     // CARDHOLDER_NOT_PRESENT_RECURRING_TRANSACTION.
@@ -934,9 +1061,6 @@ mod golden {
             commercial_card_level: Some(TsysTransitCommercialCardLevel::Level2),
             purchase_order: Some("PO125".to_string()),
             charge_descriptor: None,
-            charge_descriptor_2: None,
-            charge_descriptor_3: None,
-            charge_descriptor_4: None,
             customer_vat_number: None,
             customer_ref_id: None,
             supplier_reference_number: None,
@@ -976,6 +1100,10 @@ mod golden {
             last_registered_change_date: None,
             authorization_indicator: None,
             mit: None,
+            acceptor_customer_service_phone_number: None,
+            acceptor_phone_number: None,
+            acceptor_street_address: None,
+            acceptor_u_r_l_address: None,
         };
 
         let req = TsysTransitAuthorizeRequest::Sale(body);
@@ -1070,7 +1198,11 @@ mod golden {
             cardholder_authentication_entity:
                 TsysTransitCardholderAuthenticationEntity::NotAuthenticated,
             card_data_output_capability: TsysTransitCardDataOutputCapability::None,
-            m_pos_acceptance_device_type: "0".to_string(),
+            m_pos_acceptance_device_type: Some("0".to_string()),
+            acceptor_customer_service_phone_number: None,
+            acceptor_phone_number: None,
+            acceptor_u_r_l_address: None,
+            acceptor_street_address: None,
         };
 
         let xml = generate_xml(&req).expect("serialize");

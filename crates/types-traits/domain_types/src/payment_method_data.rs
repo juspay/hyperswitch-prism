@@ -15,8 +15,109 @@ use utoipa::ToSchema;
 pub use crate::router_data::PazeDecryptedData;
 use crate::{
     errors::{IntegrationError, IntegrationErrorContext},
-    utils::{get_card_issuer, missing_field_err, CardIssuer, Error},
+    utils::{
+        expand_expiry_year_to_four_digits, get_card_issuer, missing_field_err, CardIssuer, Error,
+    },
 };
+
+#[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
+pub struct CardWithNoCvc {
+    pub card_number: cards::CardNumber,
+    pub card_exp_month: Secret<String>,
+    pub card_exp_year: Secret<String>,
+    pub card_issuer: Option<String>,
+    pub card_network: Option<CardNetwork>,
+    pub card_type: Option<String>,
+    pub card_issuing_country: Option<String>,
+    pub bank_code: Option<String>,
+    pub nick_name: Option<Secret<String>>,
+    pub card_holder_name: Option<Secret<String>>,
+    pub co_badged_card_data: Option<CoBadgedCardData>,
+}
+
+impl CardWithNoCvc {
+    pub fn get_card_issuer(&self) -> Result<CardIssuer, error_stack::Report<IntegrationError>> {
+        get_card_issuer(self.card_number.peek())
+    }
+
+    pub fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, IntegrationError> {
+        let binding = self.card_exp_year.clone();
+        let year = binding.peek();
+        match year {
+            y if y.contains("{{") => Ok(Secret::new(y.to_string())),
+            y => Ok(Secret::new(
+                y.get(y.len() - 2..)
+                    .ok_or(IntegrationError::InvalidDataFormat {
+                        field_name: "payment_method_data.card.card_exp_year",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Expected format: YY or YYYY".to_owned()),
+                            ..Default::default()
+                        },
+                    })?
+                    .to_string(),
+            )),
+        }
+    }
+
+    pub fn get_card_expiry_month_2_digit(&self) -> Result<Secret<String>, IntegrationError> {
+        let month_str = self.card_exp_month.peek();
+        match month_str {
+            m if m.contains("{{") => Ok(Secret::new(m.to_string())),
+            m => {
+                let exp_month =
+                    m.parse::<u8>()
+                        .map_err(|_| IntegrationError::InvalidDataFormat {
+                            field_name: "payment_method_data.card.card_exp_month",
+                            context: IntegrationErrorContext {
+                                additional_context: Some("Expected format: MM".to_owned()),
+                                ..Default::default()
+                            },
+                        })?;
+                let month =
+                    cards::validate::CardExpirationMonth::try_from(exp_month).map_err(|_| {
+                        IntegrationError::InvalidDataFormat {
+                            field_name: "payment_method_data.card.card_exp_month",
+                            context: IntegrationErrorContext {
+                                additional_context: Some("Expected format: MM".to_owned()),
+                                ..Default::default()
+                            },
+                        }
+                    })?;
+                Ok(Secret::new(month.two_digits()))
+            }
+        }
+    }
+
+    pub fn get_expiry_year_4_digit(&self) -> Secret<String> {
+        expand_expiry_year_to_four_digits(&self.card_exp_year)
+    }
+
+    pub fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, IntegrationError> {
+        let year = self.get_card_expiry_year_2_digit()?;
+        let month = self.get_card_expiry_month_2_digit()?;
+        Ok(Secret::new(format!("{}{}", month.peek(), year.peek())))
+    }
+
+    pub fn get_expiry_date_as_yyyymm(
+        &self,
+        delimiter: &str,
+    ) -> Result<Secret<String>, IntegrationError> {
+        let year = self.get_expiry_year_4_digit();
+        let month = self.get_card_expiry_month_2_digit()?;
+        Ok(Secret::new(format!(
+            "{}{}{}",
+            year.peek(),
+            delimiter,
+            month.peek()
+        )))
+    }
+
+    pub fn get_cardholder_name(&self) -> Result<Secret<String>, Error> {
+        self.card_holder_name
+            .clone()
+            .ok_or_else(missing_field_err("card.card_holder_name"))
+    }
+}
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
 pub struct Card<T: PaymentMethodDataTypes> {
@@ -163,11 +264,7 @@ impl<T: PaymentMethodDataTypes> Card<T> {
     }
 
     pub fn get_expiry_year_4_digit(&self) -> Secret<String> {
-        let mut year = self.card_exp_year.peek().clone();
-        if year.len() == 2 {
-            year = format!("20{year}");
-        }
-        Secret::new(year)
+        expand_expiry_year_to_four_digits(&self.card_exp_year)
     }
 
     pub fn get_expiry_month_as_i8(&self) -> Result<Secret<i8>, Error> {
@@ -264,6 +361,7 @@ impl Card<DefaultPCIHolder> {
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub enum PaymentMethodData<T: PaymentMethodDataTypes> {
     Card(Card<T>),
+    CardWithNoCvc(CardWithNoCvc),
     CardDetailsForNetworkTransactionId(CardDetailsForNetworkTransactionId),
     DecryptedWalletTokenDetailsForNetworkTransactionId(
         DecryptedWalletTokenDetailsForNetworkTransactionId,
@@ -340,11 +438,7 @@ impl NetworkTokenData {
     }
 
     pub fn get_expiry_year_4_digit(&self) -> Secret<String> {
-        let mut year = self.token_exp_year.peek().clone();
-        if year.len() == 2 {
-            year = format!("20{year}");
-        }
-        Secret::new(year)
+        expand_expiry_year_to_four_digits(&self.token_exp_year)
     }
     pub fn get_token_expiry_year_2_digit(&self) -> Result<Secret<String>, IntegrationError> {
         let binding = self.token_exp_year.clone();
@@ -755,9 +849,6 @@ pub enum WalletData {
     Skrill(SkrillData),
 }
 
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
-pub struct SkrillData {}
-
 impl WalletData {
     pub fn get_wallet_token(&self) -> Result<Secret<String>, Error> {
         match self {
@@ -804,6 +895,9 @@ impl WalletData {
         }
     }
 }
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct SkrillData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct RevolutPayData {}
@@ -1022,20 +1116,19 @@ impl GooglePayDecryptedData {
     pub fn get_four_digit_expiry_year(
         &self,
     ) -> error_stack::Result<Secret<String>, ValidationError> {
-        let mut year = self.card_exp_year.peek().clone();
+        let year = expand_expiry_year_to_four_digits(&self.card_exp_year);
+        let year_len = year.peek().len();
 
-        if year.len() == 2 {
-            year = format!("20{year}");
-        } else if year.len() != 4 {
+        if year_len != 4 {
             return Err(ValidationError::InvalidValue {
                 message: format!(
                     "Invalid expiry year length: {}. Must be 2 or 4 digits",
-                    year.len()
+                    year_len
                 ),
             }
             .into());
         }
-        Ok(Secret::new(year))
+        Ok(year)
     }
 
     pub fn get_two_digit_expiry_year(
@@ -1248,11 +1341,7 @@ impl ApplePayDecryptedData {
 
     /// Get the four-digit expiration year from the Apple Pay pre-decrypt data
     pub fn get_four_digit_expiry_year(&self) -> Secret<String> {
-        let mut year = self.application_expiration_year.peek().clone();
-        if year.len() == 2 {
-            year = format!("20{year}");
-        }
-        Secret::new(year)
+        expand_expiry_year_to_four_digits(&self.application_expiration_year)
     }
 
     /// Get the expiration month from the Apple Pay pre-decrypt data
@@ -1495,11 +1584,7 @@ impl DecryptedWalletTokenDetailsForNetworkTransactionId {
         Secret::new(format!("{month}{delimiter}{year_peek}"))
     }
     pub fn get_expiry_year_4_digit(&self) -> Secret<String> {
-        let mut year = self.token_exp_year.peek().clone();
-        if year.len() == 2 {
-            year = format!("20{year}");
-        }
-        Secret::new(year)
+        expand_expiry_year_to_four_digits(&self.token_exp_year)
     }
     pub fn get_expiry_date_as_yymm(&self) -> Result<Secret<String>, IntegrationError> {
         let year = self.get_card_expiry_year_2_digit()?.expose();
@@ -1604,11 +1689,7 @@ impl CardDetailsForNetworkTransactionId {
         ))
     }
     pub fn get_expiry_year_4_digit(&self) -> Secret<String> {
-        let mut year = self.card_exp_year.peek().clone();
-        if year.len() == 2 {
-            year = format!("20{year}");
-        }
-        Secret::new(year)
+        expand_expiry_year_to_four_digits(&self.card_exp_year)
     }
     pub fn get_expiry_date_as_yymm(&self) -> Result<Secret<String>, IntegrationError> {
         let year = self.get_card_expiry_year_2_digit()?.expose();

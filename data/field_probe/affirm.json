@@ -17,8 +17,37 @@
         "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
       },
       "Affirm": {
-        "status": "error",
-        "error": "Stuck on field: complete_authorize_url. Affirm INITIATE needs complete_authorize_url to build the hosted-checkout user_confirmation_url. — Missing required field: complete_authorize_url. Affirm INITIATE needs complete_authorize_url to build the hosted-checkout user_confirmation_url."
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "affirm": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "last_name": "Doe"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "complete_authorize_url": "https://example.com/complete"
+        },
+        "sample": {
+          "url": "https://sandbox.affirm.com/api/v2/checkout/direct",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"merchant\":{\"public_api_key\":\"probe_user\",\"user_confirmation_url\":\"https://example.com/complete\",\"user_cancel_url\":\"https://example.com/return\"},\"billing\":{\"name\":{\"first\":\"John\",\"last\":\"Doe\",\"full\":\"John Doe\"},\"address\":{}},\"total\":1000,\"order_id\":\"probe_txn_001\"}"
+        }
       },
       "Afterpay": {
         "status": "not_implemented",
@@ -118,7 +147,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Dana": {
         "status": "not_implemented",
@@ -130,7 +159,7 @@
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "EVoucher": {
         "status": "not_implemented",
@@ -166,7 +195,7 @@
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "GoPay": {
         "status": "not_implemented",
@@ -254,7 +283,7 @@
       },
       "MobilePayRedirect": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Momo": {
         "status": "not_implemented",
@@ -298,7 +327,7 @@
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "OpenBankingUk": {
         "status": "not_implemented",
@@ -334,11 +363,11 @@
       },
       "Paysera": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
@@ -502,6 +531,12 @@
         "error": "This feature is not implemented: create_connector_customer flow for affirm"
       }
     },
+    "customer_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: get_connector_customer flow for affirm"
+      }
+    },
     "dispute_accept": {
       "default": {
         "status": "not_supported",
@@ -609,6 +644,11 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: mandate_revoke flow for affirm"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "refund": {

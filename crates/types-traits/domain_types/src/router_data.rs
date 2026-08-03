@@ -381,6 +381,10 @@ pub enum ConnectorSpecificConfig {
         base_url: Option<String>,
         secondary_base_url: Option<String>,
     },
+    Givepayments {
+        api_key: Secret<String>,
+        base_url: Option<String>,
+    },
 
     // --- Two-field connectors ---
     Razorpay {
@@ -712,6 +716,9 @@ pub enum ConnectorSpecificConfig {
         transaction_key: Secret<String>,
         developer_id: Secret<String>,
         base_url: Option<String>,
+        merchant_street_address: Option<Secret<String>>,
+        customer_service_phone_number: Option<Secret<String>>,
+        merchant_url: Option<String>,
     },
     Wellsfargo {
         api_key: Secret<String>,
@@ -863,6 +870,13 @@ pub enum ConnectorSpecificConfig {
     Juspay {
         api_key: Secret<String>,
         merchant_id: Secret<String>,
+        juspay_encryption_public_key: Option<Secret<String>>,
+        response_decryption_private_key: Option<Secret<String>>,
+        card_sync_key_id: Option<Secret<String>>,
+        base_url: Option<String>,
+    },
+    Glomopay {
+        api_key: Secret<String>,
         base_url: Option<String>,
     },
     Payconex {
@@ -904,6 +918,12 @@ pub enum ConnectorSpecificConfig {
         /// Kount OAuth authorization-server id; account/environment specific.
         /// Falls back to the sandbox auth server when `None`.
         auth_server_id: Option<String>,
+        base_url: Option<String>,
+    },
+    Tesouro {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        api_secret: Secret<String>,
         base_url: Option<String>,
     },
 }
@@ -1228,6 +1248,7 @@ impl ConnectorSpecificConfig {
                 api_key,
                 merchant_id
             },
+            Glomopay { api_key },
             Payconex {
                 api_key,
                 account_id
@@ -1235,6 +1256,11 @@ impl ConnectorSpecificConfig {
             Tamara { api_key },
             Kount { api_key },
             Hyperswitch { api_key },
+            Tesouro {
+                api_key,
+                key1,
+                api_secret
+            },
             Imerchantsolutions { api_key },
             Interpayments { api_key },
             TwocTwopPaco {
@@ -1256,6 +1282,7 @@ impl ConnectorSpecificConfig {
                 public_key,
                 private_key
             },
+            Givepayments { api_key },
         )
     }
 
@@ -1670,6 +1697,7 @@ impl ConnectorSpecificConfig {
                     api_key,
                     merchant_id
                 },
+                Glomopay { api_key },
                 Payconex {
                     api_key,
                     account_id
@@ -1677,6 +1705,11 @@ impl ConnectorSpecificConfig {
                 Tamara { api_key },
                 Kount { api_key },
                 Hyperswitch { api_key },
+                Tesouro {
+                    api_key,
+                    key1,
+                    api_secret
+                },
                 Imerchantsolutions { api_key },
                 Interpayments { api_key },
                 TwocTwopPaco {
@@ -1698,6 +1731,7 @@ impl ConnectorSpecificConfig {
                     public_key,
                     private_key
                 },
+                Givepayments { api_key },
             ),
             serde_json::Value::Object(connector_patch),
         );
@@ -2240,6 +2274,9 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             AuthType::Juspay(juspay) => Ok(Self::Juspay {
                 api_key: juspay.api_key.ok_or_else(err)?,
                 merchant_id: juspay.merchant_id.ok_or_else(err)?,
+                juspay_encryption_public_key: juspay.juspay_encryption_public_key,
+                response_decryption_private_key: juspay.response_decryption_private_key,
+                card_sync_key_id: juspay.card_sync_key_id,
                 base_url: juspay.base_url,
             }),
             AuthType::Payconex(payconex) => Ok(Self::Payconex {
@@ -2260,6 +2297,12 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 api_key: hyperswitch.api_key.ok_or_else(err)?,
                 base_url: hyperswitch.base_url,
             }),
+            AuthType::Tesouro(tesouro) => Ok(Self::Tesouro {
+                api_key: tesouro.api_key.ok_or_else(err)?,
+                key1: tesouro.key1.ok_or_else(err)?,
+                api_secret: tesouro.api_secret.ok_or_else(err)?,
+                base_url: tesouro.base_url,
+            }),
             AuthType::Imerchantsolutions(imerchantsolutions) => Ok(Self::Imerchantsolutions {
                 api_key: imerchantsolutions.api_key.ok_or_else(err)?,
                 merchant_id: imerchantsolutions.merchant_id,
@@ -2270,6 +2313,9 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 transaction_key: tsys_transit.transaction_key.ok_or_else(err)?,
                 developer_id: tsys_transit.developer_id.ok_or_else(err)?,
                 base_url: tsys_transit.base_url,
+                merchant_street_address: tsys_transit.merchant_street_address,
+                customer_service_phone_number: tsys_transit.customer_service_phone_number,
+                merchant_url: tsys_transit.merchant_url,
             }),
             AuthType::Interpayments(interpayments) => Ok(Self::Interpayments {
                 api_key: interpayments.api_key.ok_or_else(err)?,
@@ -2327,6 +2373,14 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 public_key: affirm.public_key.ok_or_else(err)?,
                 private_key: affirm.private_key.ok_or_else(err)?,
                 base_url: affirm.base_url,
+            }),
+            AuthType::Glomopay(glomopay) => Ok(Self::Glomopay {
+                api_key: glomopay.api_key.ok_or_else(err)?,
+                base_url: glomopay.base_url,
+            }),
+            AuthType::Givepayments(givepayments) => Ok(Self::Givepayments {
+                api_key: givepayments.api_key.ok_or_else(err)?,
+                base_url: givepayments.base_url,
             }),
         }
     }
@@ -2426,6 +2480,13 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                 },
                 ConnectorEnum::Xendit => match auth {
                     ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Xendit {
+                        api_key: api_key.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Givepayments => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Givepayments {
                         api_key: api_key.clone(),
                         base_url: None,
                     }),
@@ -3396,6 +3457,19 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
+                ConnectorEnum::Tesouro => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Tesouro {
+                        api_key: api_key.clone(),
+                        key1: key1.clone(),
+                        api_secret: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
                 ConnectorEnum::PinelabsOnline => match auth {
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::PinelabsOnline {
                         client_id: api_key.clone(),
@@ -3423,6 +3497,16 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Juspay {
                         api_key: api_key.clone(),
                         merchant_id: key1.clone(),
+                        juspay_encryption_public_key: None,
+                        response_decryption_private_key: None,
+                        card_sync_key_id: None,
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Glomopay => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Glomopay {
+                        api_key: api_key.clone(),
                         base_url: None,
                     }),
                     _ => Err(err().into()),
@@ -3437,6 +3521,9 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         transaction_key: api_key.clone(),
                         developer_id: api_secret.clone(),
                         base_url: None,
+                        merchant_street_address: None,
+                        customer_service_phone_number: None,
+                        merchant_url: None,
                     }),
                     _ => Err(err().into()),
                 },
@@ -3462,6 +3549,13 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                 // is not used for Qwikcilver — configure via the proto
                 // QwikcilverConfig path instead.
                 ConnectorEnum::Qwikcilver => Err(err().into()),
+                // Netcetera is an authentication-only (3DS) no-key connector (mTLS is
+                // handled on the VGS outbound route, merchant fields ride
+                // `connector_feature_data`). Its `connector_config` is set to
+                // `ConnectorSpecificConfig::NoKey` via the `X_AUTH = "NoKey"` shortcut in
+                // `request.rs`, so it never flows through this deprecated auth-credentials
+                // -> config conversion (same opt-out as Qwikcilver above).
+                ConnectorEnum::Netcetera => Err(err().into()),
                 // Flywire requires `recipient_id` (drives currency, payout target
                 // and required institutional fields), which the legacy BodyKey
                 // creds path cannot supply. Configure Flywire via the proto

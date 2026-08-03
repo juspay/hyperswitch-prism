@@ -253,6 +253,11 @@ service PaymentMethodService {
   // Retrieve payment method details from the payment processor.
   rpc Get(PaymentMethodServiceGetRequest) returns (PaymentMethodServiceGetResponse);
 
+  // Refresh a payment method the caller already holds in full. The request carries the
+  // instrument itself, not a reference to it: use Refresh when you own the complete
+  // payment method details and the provider exposes an endpoint that evaluates them.
+  rpc Refresh(PaymentMethodServiceRefreshRequest) returns (PaymentMethodServiceRefreshResponse);
+
   // Recharge a payment method (wallet, gift card, prepaid card) with funds.
   rpc Recharge(PaymentMethodServiceRechargeRequest) returns (PaymentMethodServiceRechargeResponse);
 
@@ -269,8 +274,10 @@ service CustomerService {
   // for future payment operations without re-sending personal information.
   rpc Create(CustomerServiceCreateRequest) returns (CustomerServiceCreateResponse);
 
-  // // Retrieves customer details from the payment processor.
-  // rpc Get(CustomerServiceGetRequest) returns (CustomerServiceGetResponse);
+  // Retrieves customer details from the payment processor. Callers typically use
+  // this before Create to implement get-or-create semantics for connectors that
+  // reject duplicates (e.g. Glomopay).
+  rpc Get(CustomerServiceGetRequest) returns (CustomerServiceGetResponse);
 
   // // Updates customer record in the payment processor system.
   // rpc Update(CustomerServiceUpdateRequest) returns (CustomerServiceUpdateResponse);
