@@ -2079,105 +2079,125 @@ impl PaymentMethodService for PaymentMethod {
                         &metadata_payload.lineage_ids,
                     );
 
-                    if matches!(metadata_payload.connector, ConnectorVariant::Authenticator(_)) {
-                        let result = Box::pin(self.handle_tokenize_authenticator_flow(
-                            &config,
-                            payload,
-                            &metadata_payload,
-                            &request_data.masked_metadata,
-                            &service_name,
-                            request_id,
-                        )).await?;
-                        return Ok(tonic::Response::new(result));
-                    }
-
-                    let payment_method_data_action = PaymentMethodDataAction::get_payment_method_data_action(payload.payment_method.clone().ok_or(ucs_env::error::GrpcError::from(IntegrationError::MissingRequiredField { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() }))?)
-                    .map_err(|err| {
-                        tracing::error!("PAYMENT_AUTHORIZE_FLOW: failed to get payment method data action - error: {:?}", err);
-                        ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() })
-                    })?;
-
-                    let payment_method_tokenize_response = match payment_method_data_action {
-                    PaymentMethodDataAction::CardProxy(proxy_card_details) => {
-                        let token_data = proxy_card_details.to_token_data();
-                        let payment_method_data = payment_method_data::PaymentMethodData::Card(payment_method_data::Card::<VaultTokenHolder>::foreign_try_from(proxy_card_details).map_err(|err| {
-                            tracing::error!("PAYMENT_AUTHORIZE_FLOW: failed to get payment method data action - error: {:?}", err);
-                            ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() })
-                        })?);
-
-                    Box::pin(self.handle_tokenize_internal::<VaultTokenHolder>(
-                        &config,
-                        payload,
-                        metadata_payload.connector.clone(),
-                        metadata_payload.connector_config.clone(),
-                        &request_data.masked_metadata,
-                        &metadata_payload,
-                        &service_name,
-                        request_id,
-                        Some(token_data),
-                        payment_method_data,
-                        ))
-                        .await?
-                    },
-                    PaymentMethodDataAction::Card(card_details) => {
-                        tracing::info!("REGULAR: Processing regular payment authorization (no injector)");
-                        let payment_method_data = payment_method_data::PaymentMethodData::Card(payment_method_data::Card::<DefaultPCIHolder>::foreign_try_from(card_details).map_err(|err| {
-                            tracing::error!("PAYMENT_AUTHORIZE_FLOW: failed to get payment method data action - error: {:?}", err);
-                            ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() })
-                        })?);
-                        Box::pin(self.handle_tokenize_internal::<DefaultPCIHolder>(
-                        &config,
-                        payload,
-                        metadata_payload.connector.clone(),
-                        metadata_payload.connector_config.clone(),
-                        &request_data.masked_metadata,
-                        &metadata_payload,
-                        &service_name,
-                        request_id,
-                        None,
-                        payment_method_data,
-                        )).await?
-                    },
-                    PaymentMethodDataAction::Default => {
-                        let payment_method_data = payment_method_data::PaymentMethodData::convert_to_domain_model_for_non_card_payment_methods(payload.payment_method.clone().ok_or(ucs_env::error::GrpcError::from(IntegrationError::MissingRequiredField { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() }))?)
+                    let response = match &metadata_payload.connector {
+                        ConnectorVariant::Authenticator(_) => {
+                            let result = Box::pin(self.handle_tokenize_authenticator_flow(
+                                &config,
+                                payload,
+                                &metadata_payload,
+                                &request_data.masked_metadata,
+                                &service_name,
+                                request_id,
+                            )).await?;
+                            tonic::Response::new(result)
+                        }
+                        ConnectorVariant::Payment(_) => {
+                            let payment_method_data_action = PaymentMethodDataAction::get_payment_method_data_action(payload.payment_method.clone().ok_or(ucs_env::error::GrpcError::from(IntegrationError::MissingRequiredField { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() }))?)
                             .map_err(|err| {
-                                tracing::error!("Failed to convert payment method data: {:?}", err);
+                                tracing::error!("PAYMENT_AUTHORIZE_FLOW: failed to get payment method data action - error: {:?}", err);
                                 ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() })
                             })?;
-                        Box::pin(self.handle_tokenize_internal::<DefaultPCIHolder>(
-                        &config,
-                        payload,
-                        metadata_payload.connector.clone(),
-                        metadata_payload.connector_config.clone(),
-                        &request_data.masked_metadata,
-                        &metadata_payload,
-                        &service_name,
-                        request_id,
-                        None,
-                        payment_method_data,
-                        )).await?
-                    }
-                    PaymentMethodDataAction::CardWithNoCvc(card_details) => {
-                        tracing::info!("PAYMENT_METHOD_TOKEN_FLOW: Processing tokenize with CardWithNoCvc");
-                        let payment_method_data = payment_method_data::PaymentMethodData::CardWithNoCvc(payment_method_data::CardWithNoCvc::foreign_try_from(card_details).map_err(|err| {
-                            tracing::error!("PAYMENT_METHOD_TOKEN_FLOW: failed to convert CardWithNoCvc - error: {:?}", err);
-                            ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() })
-                        })?);
-                        Box::pin(self.handle_tokenize_internal::<DefaultPCIHolder>(
-                        &config,
-                        payload,
-                        metadata_payload.connector.clone(),
-                        metadata_payload.connector_config.clone(),
-                        &request_data.masked_metadata,
-                        &metadata_payload,
-                        &service_name,
-                        request_id,
-                        None,
-                        payment_method_data,
-                        )).await?
-                    }
-                };
-                Ok(tonic::Response::new(payment_method_tokenize_response))
+
+                            let payment_method_tokenize_response = match payment_method_data_action {
+                                PaymentMethodDataAction::CardProxy(proxy_card_details) => {
+                                    let token_data = proxy_card_details.to_token_data();
+                                    let payment_method_data = payment_method_data::PaymentMethodData::Card(payment_method_data::Card::<VaultTokenHolder>::foreign_try_from(proxy_card_details).map_err(|err| {
+                                        tracing::error!("PAYMENT_AUTHORIZE_FLOW: failed to get payment method data action - error: {:?}", err);
+                                        ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() })
+                                    })?);
+                                    Box::pin(self.handle_tokenize_internal::<VaultTokenHolder>(
+                                        &config,
+                                        payload,
+                                        metadata_payload.connector.clone(),
+                                        metadata_payload.connector_config.clone(),
+                                        &request_data.masked_metadata,
+                                        &metadata_payload,
+                                        &service_name,
+                                        request_id,
+                                        Some(token_data),
+                                        payment_method_data,
+                                    )).await?
+                                }
+                                PaymentMethodDataAction::Card(card_details) => {
+                                    tracing::info!("REGULAR: Processing regular payment authorization (no injector)");
+                                    let payment_method_data = payment_method_data::PaymentMethodData::Card(payment_method_data::Card::<DefaultPCIHolder>::foreign_try_from(card_details).map_err(|err| {
+                                        tracing::error!("PAYMENT_AUTHORIZE_FLOW: failed to get payment method data action - error: {:?}", err);
+                                        ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() })
+                                    })?);
+                                    Box::pin(self.handle_tokenize_internal::<DefaultPCIHolder>(
+                                        &config,
+                                        payload,
+                                        metadata_payload.connector.clone(),
+                                        metadata_payload.connector_config.clone(),
+                                        &request_data.masked_metadata,
+                                        &metadata_payload,
+                                        &service_name,
+                                        request_id,
+                                        None,
+                                        payment_method_data,
+                                    )).await?
+                                }
+                                PaymentMethodDataAction::Default => {
+                                    let payment_method_data = payment_method_data::PaymentMethodData::convert_to_domain_model_for_non_card_payment_methods(payload.payment_method.clone().ok_or(ucs_env::error::GrpcError::from(IntegrationError::MissingRequiredField { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() }))?)
+                                        .map_err(|err| {
+                                            tracing::error!("Failed to convert payment method data: {:?}", err);
+                                            ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() })
+                                        })?;
+                                    Box::pin(self.handle_tokenize_internal::<DefaultPCIHolder>(
+                                        &config,
+                                        payload,
+                                        metadata_payload.connector.clone(),
+                                        metadata_payload.connector_config.clone(),
+                                        &request_data.masked_metadata,
+                                        &metadata_payload,
+                                        &service_name,
+                                        request_id,
+                                        None,
+                                        payment_method_data,
+                                    )).await?
+                                }
+                                PaymentMethodDataAction::CardWithNoCvc(card_details) => {
+                                    tracing::info!("PAYMENT_METHOD_TOKEN_FLOW: Processing tokenize with CardWithNoCvc");
+                                    let payment_method_data = payment_method_data::PaymentMethodData::CardWithNoCvc(payment_method_data::CardWithNoCvc::foreign_try_from(card_details).map_err(|err| {
+                                        tracing::error!("PAYMENT_METHOD_TOKEN_FLOW: failed to convert CardWithNoCvc - error: {:?}", err);
+                                        ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() })
+                                    })?);
+                                    Box::pin(self.handle_tokenize_internal::<DefaultPCIHolder>(
+                                        &config,
+                                        payload,
+                                        metadata_payload.connector.clone(),
+                                        metadata_payload.connector_config.clone(),
+                                        &request_data.masked_metadata,
+                                        &metadata_payload,
+                                        &service_name,
+                                        request_id,
+                                        None,
+                                        payment_method_data,
+                                    )).await?
+                                }
+                            };
+                            tonic::Response::new(payment_method_tokenize_response)
+                        }
+                        ConnectorVariant::Payout(_)
+                        | ConnectorVariant::Frm(_)
+                        | ConnectorVariant::Surcharge(_) => {
+                            return Err(error_stack::Report::new(ucs_env::error::GrpcError::from(
+                                IntegrationError::NotSupported {
+                                    message: "Only Payment and Authenticator connectors support tokenization"
+                                        .to_string(),
+                                    connector: "N/A",
+                                    context: domain_types::errors::IntegrationErrorContext {
+                                        suggested_action: Some(
+                                            "Check connector rollout/configuration and call only flows implemented for this connector"
+                                                .to_string(),
+                                        ),
+                                        ..Default::default()
+                                    },
+                                },
+                            )));
+                        }
+                    };
+                    Ok(response)
                 })
             },
         )
@@ -3045,13 +3065,29 @@ impl MerchantAuthenticationOperational for MerchantAuthentication {
         tonic::Response<MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse>,
         error_stack::Report<ucs_env::error::GrpcError>,
     > {
-        if matches!(
-            request.extracted_metadata.connector,
-            ConnectorVariant::Authenticator(_)
-        ) {
-            self.internal_sdk_session_token_authenticator(request).await
-        } else {
-            self.internal_sdk_session_token_payment(request).await
+        match &request.extracted_metadata.connector {
+            ConnectorVariant::Authenticator(_) => {
+                self.internal_sdk_session_token_authenticator(request).await
+            }
+            ConnectorVariant::Payment(_) => {
+                self.internal_sdk_session_token_payment(request).await
+            }
+            ConnectorVariant::Payout(_)
+            | ConnectorVariant::Frm(_)
+            | ConnectorVariant::Surcharge(_) => Err(error_stack::Report::new(
+                ucs_env::error::GrpcError::from(IntegrationError::NotSupported {
+                    message: "Payout/FRM/Surcharge connectors do not support SDK session tokens"
+                        .to_string(),
+                    connector: "N/A",
+                    context: domain_types::errors::IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Check connector rollout/configuration and call only flows implemented for this connector"
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                }),
+            )),
         }
     }
 }
