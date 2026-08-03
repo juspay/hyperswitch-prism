@@ -66,7 +66,7 @@ message DccQuote {
   Money actual_amount = 1;
 
   // Exchange rate applied for the conversion, represented exactly as provided
-  // by the quote source.
+  // exchnage rate between source and destination currency 
   optional string exchange_rate = 2;
 
   // Quote identifier assigned by the connector or rate provider.
@@ -2670,8 +2670,6 @@ message PaymentServiceAuthorizeResponse {
   // Distinct from connector_transaction_id — e.g. Stripe charge ID (ch_xxx), order codes, invoice numbers.
   optional string connector_reference_id = 24;
 
-  // Dynamic currency conversion decision and quote returned by the connector.
-  optional DynamicCurrencyConversionData dynamic_currency_conversion_data = 25;
 }
 
 // Request message for synchronizing payment status

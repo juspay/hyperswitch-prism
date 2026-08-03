@@ -6392,7 +6392,6 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                     splits: splits.map(|s| {
                         grpc_api_types::payments::ConnectorSplitResponseData::foreign_from(s)
                     }),
-                    dynamic_currency_conversion_data: None,
                 }
             }
             _ => {
@@ -6456,7 +6455,6 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                 connector_response,
                 network_txn_link_id: None,
                 splits: None,
-                dynamic_currency_conversion_data: None,
             }
         }
     };
