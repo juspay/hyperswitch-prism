@@ -16,7 +16,7 @@ serde_json = { workspace = true, features = ["preserve_order"] }
 serde_qs = "0.12.0"
 serde_urlencoded = "0.7.1"
 serde_with = "3.7.0"
-uuid = { version = "1", features = ["v4"] }
+uuid = { version = "1", features = ["v4", "v5"] }
 error-stack = "0.4.0"
 strum = { version = "0.26", features = ["derive"] }
 time = "0.3.35"
