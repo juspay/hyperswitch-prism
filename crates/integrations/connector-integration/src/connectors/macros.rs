@@ -386,6 +386,7 @@ macro_rules! expand_fn_handle_response {
 
             let response_body = bridge.response(response_bytes, res.status_code)?;
             event_builder.map(|i| i.set_connector_response(&response_body));
+            tracing::info!(response=?response_body, "response from connector");
             let response_router_data = ResponseRouterData {
                 response: response_body,
                 router_data: data.clone(),
@@ -410,6 +411,7 @@ macro_rules! expand_fn_handle_response {
             paste::paste! {let bridge = self.[< $flow:snake >];}
             let response_body = bridge.response(res.response, res.status_code)?;
             event_builder.map(|i| i.set_connector_response(&response_body));
+            tracing::info!(response=?response_body, "response from connector");
             let response_router_data = ResponseRouterData {
                 response: response_body,
                 router_data: data.clone(),

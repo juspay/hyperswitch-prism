@@ -661,16 +661,20 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayshapBankTransferPayout>
         Ok(Self {
             bank_name: match payshap.bank_name() {
                 grpc_api_types::payments::BankNames::Unspecified => None,
-                _ => Some(common_enums::BankNames::foreign_try_from(payshap.bank_name())?),
+                _ => Some(common_enums::BankNames::foreign_try_from(
+                    payshap.bank_name(),
+                )?),
             },
             account_holder_name: payshap.account_holder_name,
             bank_account_number: payshap.bank_account_number.ok_or(
-                IntegrationError::InvalidDataFormat { 
-                    field_name: "bank_account_number", 
-                    context: IntegrationErrorContext { 
-                        additional_context: Some("Bank account number is required for Payshap Bank Transfer".to_string()), 
-                        ..Default::default() 
-                    } 
+                IntegrationError::InvalidDataFormat {
+                    field_name: "bank_account_number",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Bank account number is required for Payshap Bank Transfer".to_string(),
+                        ),
+                        ..Default::default()
+                    },
                 },
             )?,
         })

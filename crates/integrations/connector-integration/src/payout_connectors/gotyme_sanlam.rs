@@ -3,8 +3,7 @@ pub mod transformers;
 use common_enums::CurrencyUnit;
 use common_utils::{
     consts::NO_ERROR_CODE, errors::CustomResult, events, ext_traits::ByteSliceExt,
-    request::RequestContent,
-    AmountConvertor, StringMajorUnit, StringMajorUnitForConnector,
+    request::RequestContent, AmountConvertor, StringMajorUnit, StringMajorUnitForConnector,
 };
 use domain_types::{
     connector_flow::{PayoutGet, PayoutTransfer, ServerAuthenticationToken},
@@ -21,7 +20,7 @@ use domain_types::{
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::Connectors,
-    utils::convert_amount
+    utils::convert_amount,
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::{Mask, Maskable, PeekInterface};
@@ -34,13 +33,12 @@ use interfaces::{
 use crate::{connectors::macros, types::ResponseRouterData};
 use transformers::{
     GotymeSanlamAuthType, GotymeSanlamErrorResponse, GotymeSanlamPayoutGetRequest,
-    GotymeSanlamPayoutResponse, GotymeSanlamPayoutTransferRequest,
-    GotymeSanlamPayoutRouterData
+    GotymeSanlamPayoutResponse, GotymeSanlamPayoutRouterData, GotymeSanlamPayoutTransferRequest,
 };
 
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
-    pub(crate) const AUTHORIZATION: &str = "Authorization";
+    pub(crate) const X_API_KEY: &str = "X-Api-Key";
     pub(crate) const PROFILE_ID: &str = "Profile-Id";
 }
 
@@ -100,7 +98,7 @@ impl ConnectorCommon for GotymeSanlamPayouts {
         )?;
         Ok(vec![
             (
-                headers::AUTHORIZATION.to_string(),
+                headers::X_API_KEY.to_string(),
                 auth.api_key.peek().to_owned().into_masked(),
             ),
             (
@@ -232,15 +230,15 @@ impl
             PayoutTransferResponse,
         >,
     ) -> CustomResult<Option<RequestContent>, IntegrationError> {
-            let amount = convert_amount(
-                self.amount_converter,
-                req.request.amount,
-                req.request.source_currency,
-            )?;
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.amount,
+            req.request.source_currency,
+        )?;
 
-            let connector_router_data = GotymeSanlamPayoutRouterData::from((amount, req));
-            let connector_req = GotymeSanlamPayoutTransferRequest::try_from(&connector_router_data)?;
-            Ok(Some(RequestContent::Json(Box::new(connector_req))))
+        let connector_router_data = GotymeSanlamPayoutRouterData::from((amount, req));
+        let connector_req = GotymeSanlamPayoutTransferRequest::try_from(&connector_router_data)?;
+        Ok(Some(RequestContent::Json(Box::new(connector_req))))
     }
 
     fn handle_response_v2(
@@ -265,6 +263,7 @@ impl
             })?;
 
         event_builder.map(|i| i.set_connector_response(&response));
+        tracing::info!(response=?response, "response from connector");
 
         RouterDataV2::try_from(ResponseRouterData {
             response,
@@ -338,6 +337,7 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
             })?;
 
         event_builder.map(|i| i.set_connector_response(&response));
+        tracing::info!(response=?response, "response from connector");
 
         RouterDataV2::try_from(ResponseRouterData {
             response,

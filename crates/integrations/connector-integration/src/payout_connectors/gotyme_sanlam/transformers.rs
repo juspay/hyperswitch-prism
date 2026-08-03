@@ -1,13 +1,13 @@
-use crate::{connectors::sanlam_common::transformers::AbsaSanlamBankNames, types::ResponseRouterData};
+use crate::{
+    connectors::sanlam_common::transformers::AbsaSanlamBankNames, types::ResponseRouterData,
+};
 use common_enums::PayoutStatus;
 use common_utils::types::StringMajorUnit;
 use domain_types::{
     connector_flow::{PayoutGet, PayoutTransfer},
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payouts::{
-        payout_method_data::{
-            Bank, PayoutMethodData,
-        },
+        payout_method_data::{Bank, PayoutMethodData},
         payouts_types::{
             PayoutFlowData, PayoutGetRequest, PayoutGetResponse, PayoutTransferRequest,
             PayoutTransferResponse,
@@ -80,12 +80,17 @@ pub struct GotymeSanlamErrorResponse {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GotymeSanlamPayoutTransferPayload {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub account_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub sa_id: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub account_number: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub bank_name: Option<AbsaSanlamBankNames>,
     pub amount: StringMajorUnit,
     pub idempotency_key: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
 }
 
@@ -117,13 +122,15 @@ pub enum GotymeSanlamPayoutFlow {
 }
 
 impl
-    TryFrom<&GotymeSanlamPayoutRouterData<
-        &RouterDataV2<
-            PayoutTransfer,
-            PayoutFlowData,
-            PayoutTransferRequest,
-            PayoutTransferResponse,
-        >>,
+    TryFrom<
+        &GotymeSanlamPayoutRouterData<
+            &RouterDataV2<
+                PayoutTransfer,
+                PayoutFlowData,
+                PayoutTransferRequest,
+                PayoutTransferResponse,
+            >,
+        >,
     > for GotymeSanlamPayoutTransferRequest
 {
     type Error = error_stack::Report<IntegrationError>;
@@ -135,7 +142,8 @@ impl
                 PayoutFlowData,
                 PayoutTransferRequest,
                 PayoutTransferResponse,
-            >>
+            >,
+        >,
     ) -> Result<Self, Self::Error> {
         let payload = GotymeSanlamPayoutTransferPayload::try_from(req)?;
 
@@ -154,23 +162,26 @@ impl
                 PayoutFlowData,
                 PayoutTransferRequest,
                 PayoutTransferResponse,
-        >>,
+            >,
+        >,
     > for GotymeSanlamPayoutTransferPayload
 {
     type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
         req: &GotymeSanlamPayoutRouterData<
-                &RouterDataV2<
-                    PayoutTransfer,
-                    PayoutFlowData,
-                    PayoutTransferRequest,
-                    PayoutTransferResponse,
-            >>
+            &RouterDataV2<
+                PayoutTransfer,
+                PayoutFlowData,
+                PayoutTransferRequest,
+                PayoutTransferResponse,
+            >,
+        >,
     ) -> Result<Self, Self::Error> {
         match req.router_data.request.payout_method_data.as_ref() {
             Some(PayoutMethodData::Bank(Bank::Payshap(payshap))) => {
-                let bank_name = payshap.bank_name
+                let bank_name = payshap
+                    .bank_name
                     .map(AbsaSanlamBankNames::try_from)
                     .transpose()?;
 
@@ -180,21 +191,27 @@ impl
                     account_number: Some(payshap.bank_account_number.clone()),
                     bank_name,
                     amount: req.amount.clone(),
-                    idempotency_key: req.router_data.resource_common_data.connector_request_reference_id.clone(),
+                    idempotency_key: req
+                        .router_data
+                        .resource_common_data
+                        .connector_request_reference_id
+                        .clone(),
                     description: req.router_data.resource_common_data.description.clone(),
                 })
             }
-            Some(PayoutMethodData::Bank(Bank::PayshapProxy(payshap_proxy))) => {
-                Ok(Self {
-                    account_name: None,
-                    sa_id: payshap_proxy.shap_id.clone(),
-                    account_number: None,
-                    bank_name: None,
-                    amount: req.amount.clone(),
-                    idempotency_key: req.router_data.resource_common_data.connector_request_reference_id.clone(),
-                    description: req.router_data.resource_common_data.description.clone(),
-                })
-            }
+            Some(PayoutMethodData::Bank(Bank::PayshapProxy(payshap_proxy))) => Ok(Self {
+                account_name: None,
+                sa_id: payshap_proxy.shap_id.clone(),
+                account_number: None,
+                bank_name: None,
+                amount: req.amount.clone(),
+                idempotency_key: req
+                    .router_data
+                    .resource_common_data
+                    .connector_request_reference_id
+                    .clone(),
+                description: req.router_data.resource_common_data.description.clone(),
+            }),
             Some(
                 PayoutMethodData::Card(_)
                 | PayoutMethodData::Bank(_)
@@ -207,20 +224,19 @@ impl
                 context: Default::default(),
             })?,
             None => Err(IntegrationError::MissingRequiredField {
-                    field_name: "payout_method_data",
-                    context: IntegrationErrorContext {
-                        additional_context: Some(
-                            "GotymeSanlam payout transfer requires PayShap payout method data"
-                                .to_string(),
-                        ),
-                        suggested_action: Some(
-                            "Provide either `payshap` or `payshap_proxy` as payout method data"
-                                .to_string(),
-                        ),
-                        doc_url: None,
-                    },
-                }
-            )?,
+                field_name: "payout_method_data",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "GotymeSanlam payout transfer requires PayShap payout method data"
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Provide either `payshap` or `payshap_proxy` as payout method data"
+                            .to_string(),
+                    ),
+                    doc_url: None,
+                },
+            })?,
         }
     }
 }

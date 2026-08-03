@@ -11,6 +11,7 @@ use common_utils::{
 use common_utils::{
     ext_traits::AsyncExt,
     lineage,
+    metadata::HeaderMaskingConfig,
     request::{Method, Request, RequestContent},
     request_metrics::ConnectorLatencyTracker,
 };
@@ -310,6 +311,28 @@ fn flow_status_label(flow_status: &domain_types::router_data::FlowStatus) -> Str
     }
 }
 
+fn mask_connector_response_headers(
+    headers: Option<&reqwest::header::HeaderMap>,
+) -> Vec<(String, Maskable<String>)> {
+    let masking_config = HeaderMaskingConfig::default();
+
+    headers
+        .into_iter()
+        .flat_map(reqwest::header::HeaderMap::iter)
+        .map(|(name, value)| {
+            let name = name.as_str().to_string();
+            let value = match value.to_str() {
+                Ok(value) if masking_config.should_unmask(&name) => {
+                    Maskable::Normal(value.to_string())
+                }
+                Ok(value) => Maskable::Masked(Secret::new(value.to_string())),
+                Err(_) => Maskable::Masked(Secret::new("<non-UTF-8 header value>".to_string())),
+            };
+            (name, value)
+        })
+        .collect()
+}
+
 /// Handles the connector response, processing both successful and error responses
 #[allow(clippy::too_many_arguments)]
 pub fn handle_connector_response<F, ResourceCommonData, Req, Resp>(
@@ -335,6 +358,8 @@ where
             let response = match body {
                 Ok(body) => {
                     let status_code = body.status_code;
+                    let masked_response_headers =
+                        mask_connector_response_headers(body.headers.as_ref());
                     tracing::Span::current()
                         .record("status_code", tracing::field::display(status_code));
 
@@ -364,15 +389,17 @@ where
                                 tracing::field::display(response_data.inner()),
                             );
                         }
-
-                        // Log response headers from event (already masked)
-                        tracing::Span::current()
-                            .record("response.headers", tracing::field::debug(&evt.headers));
                     }
+                    tracing::Span::current().record(
+                        "response.headers",
+                        tracing::field::debug(&masked_response_headers),
+                    );
 
                     handle_response_result?
                 }
                 Err(body) => {
+                    let masked_response_headers =
+                        mask_connector_response_headers(body.headers.as_ref());
                     // Record metrics only if event_params is provided
                     if let Some(params) = event_params {
                         metrics::EXTERNAL_SERVICE_API_CALLS_ERRORS
@@ -429,6 +456,10 @@ where
                     tracing::Span::current().record(
                         "response.status_code",
                         tracing::field::display(error_response.status_code),
+                    );
+                    tracing::Span::current().record(
+                        "response.headers",
+                        tracing::field::debug(&masked_response_headers),
                     );
                     // Additive: record the connector flow outcome (FlowStatus) so a
                     // decline is visible even though the gRPC call "succeeded".
@@ -957,8 +988,6 @@ where
                         },
                         external_service_elapsed.as_secs_f64(),
                     );
-                    tracing::info!(?response, "response from connector");
-
                     // Extract status code BEFORE creating event - one liner
                     let status_code = response.as_ref().ok().map(|result| match result {
                         Ok(body) | Err(body) => i32::from(body.status_code),
