@@ -551,6 +551,7 @@ pub struct EventProcessingParams<'a> {
         response.status_code = Empty,
         message_ = "Golden Log Line (outgoing)",
         latency = Empty,
+        api_message = Empty,
     )
 )]
 #[allow(clippy::too_many_arguments)]
@@ -894,6 +895,7 @@ where
                         Err(transport_err) => Err(transport_err),
                     };
 
+                    record_api_message(&event);
                     emit_event_with_config(event, event_params.event_config);
                     result
                 }
@@ -1012,6 +1014,7 @@ where
                         Err(publish_err) => Err(publish_err),
                     };
 
+                    record_api_message(&event);
                     emit_event_with_config(event, event_params.event_config);
                     result
                 }
@@ -1061,6 +1064,27 @@ fn mask_connector_request(request_content: &Option<RequestContent>) -> serde_jso
         },
         None => serde_json::Value::Null,
     }
+}
+
+/// Aggregates all span fields recorded during the connector call into a single
+/// nested `api_message` span field, built from the already-masked event data.
+#[cfg(feature = "injector-client")]
+fn record_api_message(event: &Event) {
+    let api_message = json!({
+        "request": {
+            "url": event.url,
+            "method": event.method,
+            "headers": event.headers,
+            "body": event.request_data,
+        },
+        "response": {
+            "body": event.response_data,
+            "status_code": event.status_code,
+            "error": event.error,
+        },
+        "latency": event.latency_ms,
+    });
+    tracing::Span::current().record("api_message", tracing::field::display(&api_message));
 }
 
 #[cfg(feature = "injector-client")]
