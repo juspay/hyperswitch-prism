@@ -1,0 +1,640 @@
+{
+  "connector": "deutschebank",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_supported",
+        "error": "authenticate flow not supported by deutschebank connector"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "AchBankTransfer": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "Affirm": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "Afterpay": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "Alfamart": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "AliPayRedirect": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "ApplePay": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "Bacs": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "BacsBankTransfer": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "BancontactCard": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "BcaBankTransfer": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "Becs": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "BillDeskRedirect": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "Bizum": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "Blik": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "Bluecode": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "Boleto": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "Card": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "CashappQr": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "CashfreeRedirect": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "ClassicReward": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Dana": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "EVoucher": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "Efecty": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "Eft": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "Eps": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "FamilyMart": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "GCash": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "Giropay": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "GoPay": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "GooglePay": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "Ideal": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "Indomaret": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "InstantBankTransfer": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "Interac": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "KakaoPay": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "Klarna": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "Lawson": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "LazyPayRedirect": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "LocalBankRedirect": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "LocalBankTransfer": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "MbWay": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "Mifinity": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "MiniStop": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Momo": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "Netbanking": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "OpenBanking": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "OpenBankingUk": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "Oxxo": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "PagoEfectivo": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "PayEasy": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "PayURedirect": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "PaypalRedirect": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "PaypalSdk": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "PhonePeRedirect": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "Pix": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "Przelewy24": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "Pse": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "RedCompra": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "RedPagos": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "RevolutPay": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "SamsungPay": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "Satispay": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "Seicomart": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "Sepa": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "SepaBankTransfer": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "SevenEleven": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "Skrill": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "Sofort": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "Swish": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "TouchNGo": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "Trustly": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "Twint": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "UpiCollect": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "UpiIntent": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "UpiQr": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "Vipps": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "WeChatPayQr": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      },
+      "Wero": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "not_supported",
+        "error": "capture flow not supported by deutschebank connector"
+      }
+    },
+    "create_client_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "client_authentication_token flow not supported by deutschebank connector"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_order flow not supported by deutschebank connector"
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "server_authentication_token flow not supported by deutschebank connector"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by deutschebank connector"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by deutschebank connector"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_supported",
+        "error": "get_connector_customer flow not supported by deutschebank connector"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by deutschebank connector"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by deutschebank connector"
+      }
+    },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by deutschebank connector"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by deutschebank connector"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "not_supported",
+        "error": "payment_sync flow not supported by deutschebank connector"
+      }
+    },
+    "handle_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by deutschebank connector"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_supported",
+        "error": "post_authenticate flow not supported by deutschebank connector"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_supported",
+        "error": "pre_authenticate flow not supported by deutschebank connector"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_supported",
+        "error": "setup_mandate flow not supported by deutschebank connector"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_supported",
+        "error": "repeat_payment flow not supported by deutschebank connector"
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_supported",
+        "error": "mandate_revoke flow not supported by deutschebank connector"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "not_supported",
+        "error": "refund flow not supported by deutschebank connector"
+      }
+    },
+    "refund_get": {
+      "default": {
+        "status": "not_supported",
+        "error": "refund_sync flow not supported by deutschebank connector"
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by deutschebank connector"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_supported",
+        "error": "setup_mandate flow not supported by deutschebank connector"
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by deutschebank connector"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_supported",
+        "error": "setup_mandate flow not supported by deutschebank connector"
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by deutschebank connector"
+      }
+    },
+    "verify_redirect": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "not_supported",
+        "error": "void flow not supported by deutschebank connector"
+      }
+    }
+  }
+}

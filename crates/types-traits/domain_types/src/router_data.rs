@@ -867,6 +867,13 @@ pub enum ConnectorSpecificConfig {
         response_audience: Option<Secret<String>>,
         base_url: Option<String>,
     },
+    Deutschebank {
+        customer_identifier: Secret<String>,
+        key_id: Secret<String>,
+        signing_private_key: Secret<String>,
+        client_certificate_bundle: Secret<String>,
+        base_url: Option<String>,
+    },
     Juspay {
         api_key: Secret<String>,
         merchant_id: Secret<String>,
@@ -1267,6 +1274,9 @@ impl ConnectorSpecificConfig {
                 access_token,
                 office_id,
                 paco_kid
+            },
+            Deutschebank {
+                customer_identifier
             },
             Qwikcilver {
                 bootstrap_bearer_token,
@@ -1716,6 +1726,10 @@ impl ConnectorSpecificConfig {
                     access_token,
                     office_id,
                     paco_kid
+                },
+                Deutschebank {
+                    customer_identifier,
+                    base_url
                 },
                 Qwikcilver {
                     bootstrap_bearer_token,
@@ -2355,6 +2369,15 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 merchant_identity_id: finix.merchant_identity_id.ok_or_else(err)?,
                 merchant_id: finix.merchant_id.ok_or_else(err)?,
                 base_url: finix.base_url,
+            }),
+            AuthType::Deutschebank(deutschebank) => Ok(Self::Deutschebank {
+                customer_identifier: deutschebank.customer_identifier.ok_or_else(err)?,
+                key_id: deutschebank.key_id.ok_or_else(err)?,
+                signing_private_key: deutschebank.signing_private_key.ok_or_else(err)?,
+                client_certificate_bundle: deutschebank
+                    .client_certificate_bundle
+                    .ok_or_else(err)?,
+                base_url: deutschebank.base_url,
             }),
             AuthType::Qwikcilver(qwikcilver) => Ok(Self::Qwikcilver {
                 bootstrap_bearer_token: qwikcilver.bootstrap_bearer_token.ok_or_else(err)?,
@@ -3627,6 +3650,21 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         client_secret: key1.clone(),
                         certificates: Some(api_secret.clone()),
                         private_key: Some(key2.clone()),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                PayoutConnectorEnum::Deutschebank => match auth {
+                    ConnectorAuthType::MultiAuthKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                        key2,
+                    } => Ok(Self::Deutschebank {
+                        customer_identifier: api_key.clone(),
+                        key_id: key1.clone(),
+                        signing_private_key: api_secret.clone(),
+                        client_certificate_bundle: key2.clone(),
                         base_url: None,
                     }),
                     _ => Err(err().into()),

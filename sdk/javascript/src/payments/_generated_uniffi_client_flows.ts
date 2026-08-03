@@ -310,6 +310,23 @@ export class UniffiClient extends _UniffiClientBase {
     return this.callRes('payout_create_recipient', responseBytes, requestBytes, optionsBytes);
   }
 
+  /** Build connector HTTP request for payout_eligibility flow. */
+  payoutEligibilityReq(
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callReq('payout_eligibility', requestBytes, optionsBytes);
+  }
+
+  /** Parse connector HTTP response for payout_eligibility flow. */
+  payoutEligibilityRes(
+    responseBytes: Buffer | Uint8Array,
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callRes('payout_eligibility', responseBytes, requestBytes, optionsBytes);
+  }
+
   /** Build connector HTTP request for payout_enroll_disburse_account flow. */
   payoutEnrollDisburseAccountReq(
     requestBytes: Buffer | Uint8Array,
