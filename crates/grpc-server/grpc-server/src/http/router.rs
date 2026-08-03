@@ -40,6 +40,10 @@ pub fn create_router(state: AppState) -> Router {
             "/composite/events/handle",
             post(handlers::composite::events::handle_event),
         )
+        .route(
+            "/composite/events/notify",
+            post(handlers::composite::events::notify),
+        )
         // Composite Payment Method Service routes
         .route(
             "/composite/payment_methods/create",
@@ -52,6 +56,18 @@ pub fn create_router(state: AppState) -> Router {
         .route(
             "/composite/payment_methods/recharge",
             post(handlers::composite::payment_methods::recharge),
+        )
+        .route(
+            "/composite/pre_authenticate",
+            post(handlers::composite::payments::pre_authenticate),
+        )
+        .route(
+            "/composite/frm/pre_risk_check",
+            post(handlers::composite::frm::pre_risk_check),
+        )
+        .route(
+            "/composite/frm/post_risk_check",
+            post(handlers::composite::frm::post_risk_check),
         )
         .route("/payments/authorize", post(handlers::payments::authorize))
         // .route(
@@ -92,6 +108,10 @@ pub fn create_router(state: AppState) -> Router {
         .route(
             "/payments/repeat_everything",
             post(handlers::payments::repeat_everything),
+        )
+        .route(
+            "/payments/revoke_mandate",
+            post(handlers::payments::revoke_mandate),
         )
         .route("/payments/refund", post(handlers::payments::refund))
         // .route("/payments/dispute", post(handlers::payments::dispute))

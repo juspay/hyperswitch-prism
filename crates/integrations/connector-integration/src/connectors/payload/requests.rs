@@ -49,6 +49,9 @@ pub struct PayloadCardsRequestData<T: PaymentMethodDataTypes> {
     /// Free-text context about the purchase shown on receipts / transaction histories
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+    /// Short text that may appear on the customer's card statement (max 32 chars, per card brand rules)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub descriptor: Option<String>,
     /// Flexible JSON object for structured metadata (order IDs, lease references, etc.)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub attrs: Option<serde_json::Value>,
@@ -120,6 +123,14 @@ pub struct PayloadMandateRequestData {
     pub payment_method_id: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<responses::PayloadPaymentStatus>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub processing_id: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub descriptor: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub attrs: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]

@@ -1,10 +1,14 @@
 use std::fmt::Debug;
 
 use domain_types::{
-    connector_types::{ConnectorEnum, PayoutConnectorEnum, SurchargeConnectorEnum},
+    connector_types::{
+        ConnectorEnum, FrmConnectorEnum, PayoutConnectorEnum, SurchargeConnectorEnum,
+    },
     payment_method_data::PaymentMethodDataTypes,
 };
-use interfaces::connector_types::{BoxedConnector, BoxedPayoutConnector, BoxedSurchargeConnector};
+use interfaces::connector_types::{
+    BoxedConnector, BoxedFrmConnector, BoxedPayoutConnector, BoxedSurchargeConnector,
+};
 
 use crate::{connectors, payout_connectors, surcharge_connectors};
 
@@ -51,6 +55,7 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
             ConnectorEnum::Paytm => Box::new(connectors::Paytm::new()),
             ConnectorEnum::Cashtocode => Box::new(connectors::Cashtocode::new()),
             ConnectorEnum::Novalnet => Box::new(connectors::Novalnet::new()),
+            ConnectorEnum::Netcetera => Box::new(connectors::Netcetera::new()),
             ConnectorEnum::Nexinets => Box::new(connectors::Nexinets::new()),
             ConnectorEnum::Noon => Box::new(connectors::Noon::new()),
             ConnectorEnum::Volt => Box::new(connectors::Volt::new()),
@@ -122,10 +127,16 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
             ConnectorEnum::TsysTransit => Box::new(connectors::TsysTransit::new()),
             ConnectorEnum::TwocTwopPaco => Box::new(connectors::TwocTwopPaco::new()),
             ConnectorEnum::Juspay => Box::new(connectors::Juspay::<T>::new()),
+            ConnectorEnum::Glomopay => Box::new(connectors::Glomopay::<T>::new()),
             ConnectorEnum::Payconex => Box::new(connectors::Payconex::<T>::new()),
             ConnectorEnum::Tamara => Box::new(connectors::Tamara::<T>::new()),
             ConnectorEnum::Hyperswitch => Box::new(connectors::Hyperswitch::<T>::new()),
             ConnectorEnum::Qwikcilver => Box::new(connectors::Qwikcilver::<T>::new()),
+            ConnectorEnum::Flywire => Box::new(connectors::Flywire::new()),
+            ConnectorEnum::Affirm => Box::new(connectors::Affirm::<T>::new()),
+            ConnectorEnum::Kount => Box::new(connectors::Kount::<T>::new()),
+            ConnectorEnum::Givepayments => Box::new(connectors::Givepayments::<T>::new()),
+            ConnectorEnum::Tesouro => Box::new(connectors::Tesouro::<T>::new()),
         }
     }
 }
@@ -145,6 +156,40 @@ impl SurchargeConnectorData {
                 Box::new(surcharge_connectors::InterPayments::new())
             }
         }
+    }
+}
+
+#[derive(Clone)]
+pub struct FrmConnectorData {
+    pub connector: BoxedFrmConnector,
+    pub connector_name: FrmConnectorEnum,
+}
+
+impl FrmConnectorData {
+    pub fn get_connector_by_name(connector_name: &FrmConnectorEnum) -> Self {
+        let connector = Self::convert_connector(*connector_name);
+        Self {
+            connector,
+            connector_name: *connector_name,
+        }
+    }
+
+    fn convert_connector(connector_name: FrmConnectorEnum) -> BoxedFrmConnector {
+        match connector_name {
+            FrmConnectorEnum::Kount => Box::new(connectors::Kount::<
+                domain_types::payment_method_data::DefaultPCIHolder,
+            >::new()),
+        }
+    }
+}
+
+impl ConnectorDataProvider for FrmConnectorData {
+    type ConnectorEnumType = FrmConnectorEnum;
+
+    fn from_connector_variant(
+        variant: &domain_types::connector_types::ConnectorVariant,
+    ) -> Option<Self> {
+        variant.as_frm().map(|c| Self::get_connector_by_name(&c))
     }
 }
 

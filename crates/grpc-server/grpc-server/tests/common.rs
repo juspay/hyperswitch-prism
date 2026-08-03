@@ -1,6 +1,7 @@
 use std::{future::Future, sync::Arc};
 
 use grpc_api_types::{
+    frm::fraud_and_risk_management_service_client::FraudAndRiskManagementServiceClient,
     health_check::health_client::HealthClient,
     payments::{
         customer_service_client::CustomerServiceClient,
@@ -113,6 +114,12 @@ impl AutoClient for SurchargeServiceClient<Channel> {
     }
 }
 
+impl AutoClient for FraudAndRiskManagementServiceClient<Channel> {
+    fn new(channel: Channel) -> Self {
+        Self::new(channel)
+    }
+}
+
 /// Builds a gRPC server with all services registered.
 fn build_server(
     service: grpc_server::app::Service,
@@ -179,6 +186,12 @@ fn build_server(
         .add_service(
             grpc_api_types::surcharge::surcharge_service_server::SurchargeServiceServer::with_interceptor(
                 service.surcharges_service,
+                interceptor.clone(),
+            ),
+        )
+        .add_service(
+            grpc_api_types::frm::fraud_and_risk_management_service_server::FraudAndRiskManagementServiceServer::with_interceptor(
+                service.frm_service,
                 interceptor,
             ),
         )

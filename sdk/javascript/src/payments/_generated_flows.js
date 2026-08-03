@@ -33,6 +33,9 @@ const FLOWS = {
   // customer_create: CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information.
   customer_create                            : { request: "CustomerServiceCreateRequest", response: "CustomerServiceCreateResponse" },
 
+  // customer_get: CustomerService.Get — Retrieves customer details from the payment processor. Callers typically use this before Create to implement get-or-create semantics for connectors that reject duplicates (e.g. Glomopay).
+  customer_get                               : { request: "CustomerServiceGetRequest", response: "CustomerServiceGetResponse" },
+
   // defend: DisputeService.Defend — Submit defense with reason code for dispute. Presents formal argument against customer's chargeback claim with supporting documentation.
   defend                                     : { request: "DisputeServiceDefendRequest", response: "DisputeServiceDefendResponse" },
 
@@ -72,8 +75,14 @@ const FLOWS = {
   // post_authenticate: PaymentMethodAuthenticationService.PostAuthenticate — Validate authentication results with the issuing bank. Processes bank's authentication decision to determine if payment can proceed.
   post_authenticate                          : { request: "PaymentMethodAuthenticationServicePostAuthenticateRequest", response: "PaymentMethodAuthenticationServicePostAuthenticateResponse" },
 
+  // post_risk_check: FraudAndRiskManagementService.PostRiskCheck — Evaluate fraud risk after payment processing. Analyzes payment outcomes and post-transaction signals to refine risk models and detect chargeback fraud.
+  post_risk_check                            : { request: "FrmServicePostRiskCheckRequest", response: "FrmServicePostRiskCheckResponse" },
+
   // pre_authenticate: PaymentMethodAuthenticationService.PreAuthenticate — Initiate 3DS flow before payment authorization. Collects device data and prepares authentication context for frictionless or challenge-based verification.
   pre_authenticate                           : { request: "PaymentMethodAuthenticationServicePreAuthenticateRequest", response: "PaymentMethodAuthenticationServicePreAuthenticateResponse" },
+
+  // pre_risk_check: FraudAndRiskManagementService.PreRiskCheck — Evaluate fraud risk before payment processing. Analyzes transaction details, customer behavior, and device fingerprints to determine if the payment should proceed, be rejected, or flagged for manual review.
+  pre_risk_check                             : { request: "FrmServicePreRiskCheckRequest", response: "FrmServicePreRiskCheckResponse" },
 
   // proxy_authorize: PaymentService.ProxyAuthorize — Authorize using vault-aliased card data. Proxy substitutes before connector.
   proxy_authorize                            : { request: "PaymentServiceProxyAuthorizeRequest", response: "PaymentServiceAuthorizeResponse" },
@@ -83,6 +92,9 @@ const FLOWS = {
 
   // recurring_revoke: RecurringPaymentService.Revoke — Cancel an existing recurring payment mandate. Stops future automatic charges on customer's stored consent for subscription cancellations.
   recurring_revoke                           : { request: "RecurringPaymentServiceRevokeRequest", response: "RecurringPaymentServiceRevokeResponse" },
+
+  // refresh: PaymentMethodService.Refresh — Refresh a payment method the caller already holds in full. The request carries the instrument itself, not a reference to it: use Refresh when you own the complete payment method details and the provider exposes an endpoint that evaluates them.
+  refresh                                    : { request: "PaymentMethodServiceRefreshRequest", response: "PaymentMethodServiceRefreshResponse" },
 
   // refund: PaymentService.Refund — Process a partial or full refund for a captured payment. Returns funds to the customer when goods are returned or services are cancelled.
   refund                                     : { request: "PaymentServiceRefundRequest", response: "RefundResponse" },

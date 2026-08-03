@@ -331,7 +331,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Dana": {
         "status": "not_supported",
@@ -343,7 +343,7 @@
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "EVoucher": {
         "status": "not_supported",
@@ -379,7 +379,7 @@
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "GoPay": {
         "status": "not_supported",
@@ -562,7 +562,7 @@
       },
       "MobilePayRedirect": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Momo": {
         "status": "not_supported",
@@ -606,7 +606,7 @@
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "OpenBankingUk": {
         "status": "not_supported",
@@ -626,7 +626,7 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "PayURedirect": {
         "status": "not_supported",
@@ -642,11 +642,11 @@
       },
       "Paysera": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "PermataBankTransfer": {
         "status": "not_supported",
@@ -755,7 +755,7 @@
       },
       "Skrill": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "Sofort": {
         "status": "not_supported",
@@ -858,6 +858,12 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: create_connector_customer flow for cybersource"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: get_connector_customer flow for cybersource"
       }
     },
     "dispute_accept": {
@@ -1132,7 +1138,7 @@
             "v-c-merchant-id": "probe_merchant",
             "via": "HyperSwitch"
           },
-          "body": "{\"processingInformation\":{\"actionList\":null,\"actionTokenTypes\":null,\"authorizationOptions\":{\"initiator\":null,\"merchantInitiatedTransaction\":{\"reason\":null,\"previousTransactionId\":null,\"originalAuthorizedAmount\":null},\"ignoreAvsResult\":null,\"ignoreCvResult\":null},\"commerceIndicator\":\"internet\",\"capture\":true,\"captureOptions\":null,\"paymentSolution\":null},\"paymentInformation\":{\"paymentInstrument\":{\"id\":\"probe-mandate-123\"},\"card\":null},\"orderInformation\":{\"amountDetails\":{\"totalAmount\":\"10.00\",\"currency\":\"USD\"},\"billTo\":null},\"clientReferenceInformation\":{\"code\":\"\"}}"
+          "body": "{\"processingInformation\":{\"actionList\":null,\"actionTokenTypes\":null,\"authorizationOptions\":{\"initiator\":{\"type\":\"merchant\",\"credentialStoredOnFile\":null,\"storedCredentialUsed\":true},\"merchantInitiatedTransaction\":{\"reason\":null,\"previousTransactionId\":null,\"originalAuthorizedAmount\":null},\"ignoreAvsResult\":null,\"ignoreCvResult\":null},\"commerceIndicator\":\"internet\",\"capture\":true,\"captureOptions\":null,\"paymentSolution\":null},\"paymentInformation\":{\"paymentInstrument\":{\"id\":\"probe-mandate-123\"},\"card\":null},\"orderInformation\":{\"amountDetails\":{\"totalAmount\":\"10.00\",\"currency\":\"USD\"},\"billTo\":null},\"clientReferenceInformation\":{\"code\":\"\"}}"
         }
       }
     },
@@ -1158,6 +1164,11 @@
           },
           "body": null
         }
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "refund": {

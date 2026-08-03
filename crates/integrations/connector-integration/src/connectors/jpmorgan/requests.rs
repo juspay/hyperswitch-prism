@@ -89,7 +89,8 @@ pub struct Expiry {
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganMerchant {
     pub merchant_software: JpmorganMerchantSoftware,
-    pub soft_merchant: JpmorganSoftMerchant,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub soft_merchant: Option<JpmorganSoftMerchant>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -3,6 +3,7 @@
 
 use grpc_api_types::payments::{
     CustomerServiceCreateRequest,
+    CustomerServiceGetRequest,
     DisputeServiceAcceptRequest,
     DisputeServiceDefendRequest,
     DisputeServiceSubmitEvidenceRequest,
@@ -13,6 +14,7 @@ use grpc_api_types::payments::{
     PaymentMethodAuthenticationServicePostAuthenticateRequest,
     PaymentMethodAuthenticationServicePreAuthenticateRequest,
     PaymentMethodServiceEligibilityRequest,
+    PaymentMethodServiceRefreshRequest,
     PaymentMethodServiceTokenizeRequest,
     PaymentServiceAuthorizeRequest,
     PaymentServiceCaptureRequest,
@@ -41,6 +43,10 @@ use grpc_api_types::payouts::{
     PayoutServiceTransferRequest,
     PayoutServiceVoidRequest,
 };
+use grpc_api_types::frm::{
+    FrmServicePostRiskCheckRequest,
+    FrmServicePreRiskCheckRequest,
+};
 use grpc_api_types::surcharge::{
     SurchargeServiceCalculateRequest,
 };
@@ -56,6 +62,7 @@ use crate::handlers::payments::{
     create_server_authentication_token_req_handler, create_server_authentication_token_res_handler,
     create_server_session_authentication_token_req_handler, create_server_session_authentication_token_res_handler,
     customer_create_req_handler, customer_create_res_handler,
+    customer_get_req_handler, customer_get_res_handler,
     defend_req_handler, defend_res_handler,
     eligibility_req_handler, eligibility_res_handler,
     get_req_handler, get_res_handler,
@@ -69,10 +76,13 @@ use crate::handlers::payments::{
     payout_transfer_req_handler, payout_transfer_res_handler,
     payout_void_req_handler, payout_void_res_handler,
     post_authenticate_req_handler, post_authenticate_res_handler,
+    post_risk_check_req_handler, post_risk_check_res_handler,
     pre_authenticate_req_handler, pre_authenticate_res_handler,
+    pre_risk_check_req_handler, pre_risk_check_res_handler,
     proxy_authorize_req_handler, proxy_authorize_res_handler,
     proxy_setup_recurring_req_handler, proxy_setup_recurring_res_handler,
     recurring_revoke_req_handler, recurring_revoke_res_handler,
+    refresh_req_handler, refresh_res_handler,
     refund_req_handler, refund_res_handler,
     refund_get_req_handler, refund_get_res_handler,
     reverse_req_handler, reverse_res_handler,
@@ -105,6 +115,8 @@ define_ffi_flow!(create_server_authentication_token, MerchantAuthenticationServi
 define_ffi_flow!(create_server_session_authentication_token, MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest, create_server_session_authentication_token_req_handler, create_server_session_authentication_token_res_handler);
 // customer_create: CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information.
 define_ffi_flow!(customer_create, CustomerServiceCreateRequest, customer_create_req_handler, customer_create_res_handler);
+// customer_get: CustomerService.Get — Retrieves customer details from the payment processor. Callers typically use this before Create to implement get-or-create semantics for connectors that reject duplicates (e.g. Glomopay).
+define_ffi_flow!(customer_get, CustomerServiceGetRequest, customer_get_req_handler, customer_get_res_handler);
 // defend: DisputeService.Defend — Submit defense with reason code for dispute. Presents formal argument against customer's chargeback claim with supporting documentation.
 define_ffi_flow!(defend, DisputeServiceDefendRequest, defend_req_handler, defend_res_handler);
 // eligibility: PaymentMethodService.Eligibility — Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check)
@@ -131,14 +143,20 @@ define_ffi_flow!(payout_transfer, PayoutServiceTransferRequest, payout_transfer_
 define_ffi_flow!(payout_void, PayoutServiceVoidRequest, payout_void_req_handler, payout_void_res_handler);
 // post_authenticate: PaymentMethodAuthenticationService.PostAuthenticate — Validate authentication results with the issuing bank. Processes bank's authentication decision to determine if payment can proceed.
 define_ffi_flow!(post_authenticate, PaymentMethodAuthenticationServicePostAuthenticateRequest, post_authenticate_req_handler, post_authenticate_res_handler);
+// post_risk_check: FraudAndRiskManagementService.PostRiskCheck — Evaluate fraud risk after payment processing. Analyzes payment outcomes and post-transaction signals to refine risk models and detect chargeback fraud.
+define_ffi_flow!(post_risk_check, FrmServicePostRiskCheckRequest, post_risk_check_req_handler, post_risk_check_res_handler);
 // pre_authenticate: PaymentMethodAuthenticationService.PreAuthenticate — Initiate 3DS flow before payment authorization. Collects device data and prepares authentication context for frictionless or challenge-based verification.
 define_ffi_flow!(pre_authenticate, PaymentMethodAuthenticationServicePreAuthenticateRequest, pre_authenticate_req_handler, pre_authenticate_res_handler);
+// pre_risk_check: FraudAndRiskManagementService.PreRiskCheck — Evaluate fraud risk before payment processing. Analyzes transaction details, customer behavior, and device fingerprints to determine if the payment should proceed, be rejected, or flagged for manual review.
+define_ffi_flow!(pre_risk_check, FrmServicePreRiskCheckRequest, pre_risk_check_req_handler, pre_risk_check_res_handler);
 // proxy_authorize: PaymentService.ProxyAuthorize — Authorize using vault-aliased card data. Proxy substitutes before connector.
 define_ffi_flow!(proxy_authorize, PaymentServiceProxyAuthorizeRequest, proxy_authorize_req_handler, proxy_authorize_res_handler);
 // proxy_setup_recurring: PaymentService.ProxySetupRecurring — Setup recurring mandate using vault-aliased card data.
 define_ffi_flow!(proxy_setup_recurring, PaymentServiceProxySetupRecurringRequest, proxy_setup_recurring_req_handler, proxy_setup_recurring_res_handler);
 // recurring_revoke: RecurringPaymentService.Revoke — Cancel an existing recurring payment mandate. Stops future automatic charges on customer's stored consent for subscription cancellations.
 define_ffi_flow!(recurring_revoke, RecurringPaymentServiceRevokeRequest, recurring_revoke_req_handler, recurring_revoke_res_handler);
+// refresh: PaymentMethodService.Refresh — Refresh a payment method the caller already holds in full. The request carries the instrument itself, not a reference to it: use Refresh when you own the complete payment method details and the provider exposes an endpoint that evaluates them.
+define_ffi_flow!(refresh, PaymentMethodServiceRefreshRequest, refresh_req_handler, refresh_res_handler);
 // refund: PaymentService.Refund — Process a partial or full refund for a captured payment. Returns funds to the customer when goods are returned or services are cancelled.
 define_ffi_flow!(refund, PaymentServiceRefundRequest, refund_req_handler, refund_res_handler);
 // refund_get: RefundService.Get — Retrieve refund status from the payment processor. Tracks refund progress through processor settlement for accurate customer communication.

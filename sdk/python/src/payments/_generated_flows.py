@@ -62,10 +62,14 @@ SERVICE_FLOWS = {
     "CustomerClient": {
         # customer_create: CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information.
         "customer_create": "CustomerServiceCreateResponse",
+        # customer_get: CustomerService.Get — Retrieves customer details from the payment processor. Callers typically use this before Create to implement get-or-create semantics for connectors that reject duplicates (e.g. Glomopay).
+        "customer_get": "CustomerServiceGetResponse",
     },
     "PaymentMethodClient": {
         # eligibility: PaymentMethodService.Eligibility — Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check)
         "eligibility": "PaymentMethodServiceEligibilityResponse",
+        # refresh: PaymentMethodService.Refresh — Refresh a payment method the caller already holds in full. The request carries the instrument itself, not a reference to it: use Refresh when you own the complete payment method details and the provider exposes an endpoint that evaluates them.
+        "refresh": "PaymentMethodServiceRefreshResponse",
         # tokenize: PaymentMethodService.Tokenize — Tokenize payment method for secure storage. Replaces raw card details with secure token for one-click payments and recurring billing.
         "tokenize": "PaymentMethodServiceTokenizeResponse",
     },
@@ -86,6 +90,12 @@ SERVICE_FLOWS = {
         "payout_transfer": "PayoutServiceTransferResponse",
         # payout_void: PayoutService.Void — Void a payout.
         "payout_void": "PayoutServiceVoidResponse",
+    },
+    "FraudAndRiskManagementClient": {
+        # post_risk_check: FraudAndRiskManagementService.PostRiskCheck — Evaluate fraud risk after payment processing. Analyzes payment outcomes and post-transaction signals to refine risk models and detect chargeback fraud.
+        "post_risk_check": "FrmServicePostRiskCheckResponse",
+        # pre_risk_check: FraudAndRiskManagementService.PreRiskCheck — Evaluate fraud risk before payment processing. Analyzes transaction details, customer behavior, and device fingerprints to determine if the payment should proceed, be rejected, or flagged for manual review.
+        "pre_risk_check": "FrmServicePreRiskCheckResponse",
     },
     "RefundClient": {
         # refund_get: RefundService.Get — Retrieve refund status from the payment processor. Tracks refund progress through processor settlement for accurate customer communication.

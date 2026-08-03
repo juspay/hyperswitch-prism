@@ -21,8 +21,41 @@
         "error": "payment method affirm is not supported by PPRO is not supported by ppro"
       },
       "Afterpay": {
-        "status": "not_supported",
-        "error": "payment method afterpay_clearpay is not supported by PPRO is not supported by ppro"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "afterpay_clearpay": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {
+              "country_alpha2_code": "US"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook"
+        },
+        "sample": {
+          "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "merchant-id": "probe_merchant",
+            "request-idempotency-key": "probe_txn_001",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"AFTERPAY\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{\"email\":\"test@example.com\",\"country\":\"US\"},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}],\"webhooksUrl\":\"https://example.com/webhook\"}"
+        }
       },
       "Alfamart": {
         "status": "not_supported",
@@ -209,7 +242,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Dana": {
         "status": "not_supported",
@@ -221,7 +254,7 @@
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "EVoucher": {
         "status": "not_supported",
@@ -257,7 +290,7 @@
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "GoPay": {
         "status": "not_supported",
@@ -401,7 +434,7 @@
       },
       "MobilePayRedirect": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Momo": {
         "status": "not_supported",
@@ -445,7 +478,7 @@
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "OpenBankingUk": {
         "status": "not_supported",
@@ -465,7 +498,7 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "payment method pay_safe_card is not supported by PPRO is not supported by ppro"
       },
       "PayURedirect": {
         "status": "not_supported",
@@ -481,11 +514,11 @@
       },
       "Paysera": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "PermataBankTransfer": {
         "status": "not_supported",
@@ -577,7 +610,7 @@
       },
       "Skrill": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "payment method skrill is not supported by PPRO is not supported by ppro"
       },
       "Sofort": {
         "status": "not_supported",
@@ -592,8 +625,39 @@
         "error": "payment method touch_n_go is not supported by PPRO is not supported by ppro"
       },
       "Trustly": {
-        "status": "error",
-        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "trustly": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "connector_customer_id": "cust_probe_123"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook"
+        },
+        "sample": {
+          "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "merchant-id": "probe_merchant",
+            "request-idempotency-key": "probe_txn_001",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"TRUSTLY\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{\"merchantConsumerReference\":\"custprobe123\"},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}],\"webhooksUrl\":\"https://example.com/webhook\"}"
+        }
       },
       "Twint": {
         "status": "not_supported",
@@ -632,7 +696,7 @@
             "request-idempotency-key": "probe_txn_001",
             "via": "HyperSwitch"
           },
-          "body": "{\"paymentMethod\":\"UPI\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}],\"webhooksUrl\":\"https://example.com/webhook\"}"
+          "body": "{\"paymentMethod\":\"UPI\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"APP_INTENT\",\"settings\":{\"mobileIntentUri\":\"https://example.com/return\"}}],\"webhooksUrl\":\"https://example.com/webhook\"}"
         }
       },
       "UpiQr": {
@@ -664,7 +728,7 @@
             "request-idempotency-key": "probe_txn_001",
             "via": "HyperSwitch"
           },
-          "body": "{\"paymentMethod\":\"UPI\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}],\"webhooksUrl\":\"https://example.com/webhook\"}"
+          "body": "{\"paymentMethod\":\"UPI\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"APP_INTENT\",\"settings\":{\"mobileIntentUri\":\"https://example.com/return\"}}],\"webhooksUrl\":\"https://example.com/webhook\"}"
         }
       },
       "Vipps": {
@@ -789,6 +853,12 @@
       "default": {
         "status": "not_supported",
         "error": "create_connector_customer flow not supported by ppro connector"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_supported",
+        "error": "get_connector_customer flow not supported by ppro connector"
       }
     },
     "dispute_accept": {
@@ -962,6 +1032,11 @@
         "error": "This feature is not implemented: mandate_revoke flow for ppro"
       }
     },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "refund": {
       "default": {
         "status": "supported",
@@ -985,7 +1060,7 @@
             "request-idempotency-key": "probe_refund_001",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"refundReason\":\"CUSTOMER_REQUEST\"}"
+          "body": "{\"amount\":1000,\"merchantRefundReference\":\"probe_refund_001\",\"refundReason\":\"CUSTOMER_REQUEST\"}"
         }
       }
     },

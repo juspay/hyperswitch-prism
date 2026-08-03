@@ -46,14 +46,6 @@ pub struct DlocalAddress {
     pub number: Secret<String>,
 }
 
-/// dLocal `wallet` object, used by tokenizable wallet APMs such as GCash
-/// Recurring (RG).
-///
-/// - CIT (enrollment): `save: true` + the shopper's `username`/`email`/`name`
-///   ask dLocal to persist a reusable token. The token itself is NOT returned in
-///   the synchronous response — it arrives later via the IPN webhook
-///   (`wallet.token`) once the shopper completes the redirect.
-/// - MIT (reuse): `token: <wallet_token>` replays a previously saved wallet.
 #[derive(Debug, Default, Eq, PartialEq, Serialize)]
 pub struct Wallet {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -68,6 +60,30 @@ pub struct Wallet {
     pub username: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub email: Option<pii::Email>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum DlocalEnrollmentType {
+    OnDemand,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize, Clone, Eq, PartialEq)]
+pub struct DlocalEnrollment {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub external_id: Option<String>,
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
+    pub enrollment_type: Option<DlocalEnrollmentType>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub notification_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub callback_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<DlocalPaymentStatus>,
 }
 
 /// Builds the dLocal payer `phone` + `address` (both required for GCash
@@ -99,23 +115,6 @@ fn build_payer_phone_and_address(
     (phone, address)
 }
 
-/// Derives the wallet `username` (and reusable display name) for the shopper.
-/// dLocal wants a stable identifier; we prefer the billing full name, falling
-/// back to the email local-part.
-fn wallet_username(name: &Secret<String>, email: &pii::Email) -> String {
-    use hyperswitch_masking::PeekInterface;
-    let name_str = name.peek().trim().to_string();
-    if !name_str.is_empty() {
-        return name_str;
-    }
-    email
-        .peek()
-        .split('@')
-        .next()
-        .unwrap_or("shopper")
-        .to_string()
-}
-
 #[derive(Debug, Default, Eq, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Card<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize> {
     pub holder_name: Option<Secret<String>>,
@@ -138,6 +137,8 @@ pub struct ThreeDSecureReqData {
 pub enum PaymentMethodId {
     #[default]
     Card,
+    #[serde(rename = "OX")]
+    Oxxo,
     #[serde(untagged)]
     Other(String),
 }
@@ -158,13 +159,15 @@ pub struct DlocalPaymentsRequest<
     pub amount: FloatMajorUnit,
     pub currency: common_enums::Currency,
     pub country: common_enums::CountryAlpha2,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub external_id: Option<String>,
     pub payment_method_id: PaymentMethodId,
     pub payment_method_flow: PaymentMethodFlow,
     pub payer: Payer,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub card: Option<Card<T>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub wallet: Option<Wallet>,
+    pub enrollment: Option<DlocalEnrollment>,
     pub order_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub three_dsecure: Option<ThreeDSecureReqData>,
@@ -239,6 +242,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 let payment_request = Self {
                     amount,
                     currency: item.router_data.request.currency,
+                    external_id: None,
                     payment_method_id: PaymentMethodId::Card,
                     payment_method_flow: PaymentMethodFlow::Direct,
                     country,
@@ -260,7 +264,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         // is handled separately via SetupMandate with `save: Some(true)`.
                         save: None,
                     }),
-                    wallet: None,
+                    enrollment: None,
                     order_id,
                     three_dsecure: match item.router_data.resource_common_data.auth_type {
                         common_enums::AuthenticationType::ThreeDs => {
@@ -281,6 +285,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 let payment_request = Self {
                     amount,
                     currency: item.router_data.request.currency,
+                    external_id: None,
                     payment_method_id,
                     payment_method_flow: PaymentMethodFlow::Redirect,
                     country,
@@ -292,7 +297,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         address: None,
                     },
                     card: None,
-                    wallet: None,
+                    enrollment: None,
                     order_id,
                     three_dsecure: None,
                     callback_url,
@@ -310,19 +315,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     wallet_data,
                     payment_method_data::WalletData::GcashRedirect(_)
                 );
-                // GCash Recurring (RG) enrollment via a mandate-creating sale
-                // (setup_future_usage = OffSession): dLocal's "Sale + verify" charges the
-                // customer AND saves a reusable wallet token in a single Authorize. The
-                // reusable token is delivered later via the IPN webhook (see SetupMandate
-                // arm / IncomingWebhook). Non-mandate payments and other wallets keep the
-                // plain one-time redirect (GC) with no `wallet.save`.
                 if is_gcash && item.router_data.request.is_mandate_payment() {
                     let billing = item.router_data.resource_common_data.get_optional_billing();
                     let (phone, payer_address) = build_payer_phone_and_address(billing);
-                    let username = wallet_username(&name, &email);
                     let payment_request = Self {
                         amount,
                         currency: item.router_data.request.currency,
+                        external_id: Some(order_id.clone()),
                         payment_method_id: PaymentMethodId::Other("RG".to_string()),
                         payment_method_flow: PaymentMethodFlow::Redirect,
                         country,
@@ -334,13 +333,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             address: payer_address,
                         },
                         card: None,
-                        wallet: Some(Wallet {
-                            name: Some(name),
-                            save: Some(true),
-                            token: None,
-                            capture: Some(true),
-                            username: Some(username),
-                            email: Some(email),
+                        enrollment: Some(DlocalEnrollment {
+                            external_id: Some(order_id.clone()),
+                            enrollment_type: Some(DlocalEnrollmentType::OnDemand),
+                            description: description.clone(),
+                            notification_url: webhook_url.clone(),
+                            callback_url: callback_url.clone(),
+                            ..Default::default()
                         }),
                         order_id,
                         three_dsecure: None,
@@ -354,6 +353,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     let payment_request = Self {
                         amount,
                         currency: item.router_data.request.currency,
+                        external_id: None,
                         payment_method_id,
                         payment_method_flow: PaymentMethodFlow::Redirect,
                         country,
@@ -365,7 +365,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             address: None,
                         },
                         card: None,
-                        wallet: None,
+                        enrollment: None,
                         order_id,
                         three_dsecure: None,
                         callback_url,
@@ -375,16 +375,23 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     Ok(payment_request)
                 }
             }
-            // Redirect-flow cash vouchers (e.g. OXXO, Boleto, Efecty, PagoEfectivo,
-            // RedPagos, Indomaret).
+            // OXXO uses Direct flow (mirroring hyperswitch dlocal); other cash vouchers
+            // (Boleto, Efecty, PagoEfectivo, RedPagos, Indomaret) are UCS-only and use
+            // Redirect. All vouchers keep notification_url so dLocal can webhook the
+            // merchant when the cash payment is settled out-of-band at the store.
             PaymentMethodData::Voucher(ref voucher_data) => {
                 let payment_method_id = get_voucher_payment_method_id(voucher_data)?;
-                let webhook_url = item.router_data.request.webhook_url.clone();
+                let payment_method_flow = match voucher_data {
+                    payment_method_data::VoucherData::Oxxo => PaymentMethodFlow::Direct,
+                    _ => PaymentMethodFlow::Redirect,
+                };
+                let notification_url = item.router_data.request.webhook_url.clone();
                 let payment_request = Self {
                     amount,
                     currency: item.router_data.request.currency,
+                    external_id: None,
                     payment_method_id,
-                    payment_method_flow: PaymentMethodFlow::Redirect,
+                    payment_method_flow,
                     country,
                     payer: Payer {
                         name,
@@ -394,12 +401,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         address: None,
                     },
                     card: None,
-                    wallet: None,
+                    enrollment: None,
                     order_id,
                     three_dsecure: None,
                     callback_url,
                     description,
-                    notification_url: webhook_url,
+                    notification_url,
                 };
                 Ok(payment_request)
             }
@@ -411,6 +418,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 let payment_request = Self {
                     amount,
                     currency: item.router_data.request.currency,
+                    external_id: None,
                     payment_method_id,
                     payment_method_flow: PaymentMethodFlow::Redirect,
                     country,
@@ -422,7 +430,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         address: None,
                     },
                     card: None,
-                    wallet: None,
+                    enrollment: None,
                     order_id,
                     three_dsecure: None,
                     callback_url,
@@ -438,6 +446,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::GiftCard(_)
@@ -557,13 +566,15 @@ pub struct DlocalRepeatPaymentRequest {
     pub amount: FloatMajorUnit,
     pub currency: common_enums::Currency,
     pub country: common_enums::CountryAlpha2,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub external_id: Option<String>,
     pub payment_method_id: PaymentMethodId,
     pub payment_method_flow: PaymentMethodFlow,
     pub payer: Payer,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub card: Option<DlocalRepeatPaymentCard>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub wallet: Option<Wallet>,
+    pub enrollment: Option<DlocalEnrollment>,
     pub order_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub notification_url: Option<String>,
@@ -598,9 +609,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
 
-        // Extract the connector_mandate_id. For card MIT this is the saved
-        // `card_id`; for GCash Recurring (RG) MIT it is the wallet `token`
-        // delivered earlier via the IPN webhook during the CIT enrollment.
         let connector_mandate_id = match &router_data.request.mandate_reference {
             MandateReferenceId::ConnectorMandateId(connector_mandate_ref) => connector_mandate_ref
                 .get_connector_mandate_id()
@@ -648,11 +656,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .get_customer_document_details()?
             .document_number;
 
-        // GCash Recurring (RG) MIT: replay the saved wallet token instead of a
-        // card. dLocal still requires payer phone + address for RG. We detect
-        // the GCash flow from either the explicit `payment_method_type` or the
-        // `payment_method_data` (a GCash wallet), since callers may supply
-        // either when replaying a wallet-token mandate.
+        // GCash Recurring (RG) MIT: charge the active enrollment with a DIRECT
+        // customer-not-present request. dLocal says `device.type` is only for
+        // user-present REDIRECT flows, so RepeatPayment intentionally has no
+        // device field. We detect GCash from either the explicit
+        // `payment_method_type` or `payment_method_data`, since callers may
+        // supply either when replaying an enrollment mandate.
         let is_gcash = matches!(
             router_data.request.payment_method_type,
             Some(common_enums::PaymentMethodType::Gcash)
@@ -663,14 +672,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         if is_gcash {
             let billing = router_data.resource_common_data.get_optional_billing();
             let (phone, payer_address) = build_payer_phone_and_address(billing);
-            let username = wallet_username(&name, &email);
 
             return Ok(Self {
                 amount,
                 currency: router_data.request.currency,
                 country,
+                external_id: Some(order_id.clone()),
                 payment_method_id: PaymentMethodId::Other("RG".to_string()),
-                payment_method_flow: PaymentMethodFlow::Redirect,
+                payment_method_flow: PaymentMethodFlow::Direct,
                 payer: Payer {
                     name: name.clone(),
                     email: email.clone(),
@@ -679,13 +688,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     address: payer_address,
                 },
                 card: None,
-                wallet: Some(Wallet {
-                    name: None,
-                    save: None,
-                    token: Some(Secret::new(connector_mandate_id)),
-                    capture: Some(should_capture),
-                    username: Some(username),
-                    email: Some(email),
+                enrollment: Some(DlocalEnrollment {
+                    id: Some(connector_mandate_id),
+                    ..Default::default()
                 }),
                 order_id,
                 notification_url: router_data.request.webhook_url.clone(),
@@ -701,6 +706,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             amount,
             currency: router_data.request.currency,
             country,
+            external_id: None,
             payment_method_id: PaymentMethodId::Card,
             payment_method_flow: PaymentMethodFlow::Direct,
             payer: Payer {
@@ -716,7 +722,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 stored_credential_type,
                 stored_credential_usage: StoredCredentialUsage::Used,
             }),
-            wallet: None,
+            enrollment: None,
             order_id,
             notification_url: router_data.request.webhook_url.clone(),
             description: router_data.resource_common_data.description.clone(),
@@ -727,25 +733,25 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 // RepeatPayment response - reuses DlocalPaymentsResponse (generic TryFrom covers this)
 pub type DlocalRepeatPaymentResponse = DlocalPaymentsResponse;
 
-// SetupMandate (CIT) flow: tokenize a card by sending a zero-amount payment with
-// `card.save=true`. dLocal's response includes a `card` object containing the
-// saved `card_id` which is later used in RepeatPayment (MIT) flow.
-
 #[derive(Debug, Serialize)]
 pub struct DlocalSetupMandateRequest<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 > {
-    pub amount: FloatMajorUnit,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub amount: Option<FloatMajorUnit>,
     pub currency: common_enums::Currency,
     pub country: common_enums::CountryAlpha2,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub external_id: Option<String>,
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
+    pub enrollment_type: Option<DlocalEnrollmentType>,
     pub payment_method_id: PaymentMethodId,
     pub payment_method_flow: PaymentMethodFlow,
     pub payer: Payer,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub card: Option<Card<T>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub wallet: Option<Wallet>,
-    pub order_id: String,
+    pub order_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub three_dsecure: Option<ThreeDSecureReqData>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -788,26 +794,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let country = *address.get_country()?;
         let name = address.get_full_name()?;
 
-        // For SetupMandate (CIT), dLocal requires a non-zero authorization amount
-        // alongside `card.save = true` to tokenize the card. dLocal rejects
-        // amounts <= 1.00 with code 5016 "Amount too low", so callers must
-        // provide an appropriate verify amount (e.g. 5.00 BRL). The request
-        // runs with `capture: false` so funds are released immediately after
-        // the authorization.
-        let minor_amount =
-            router_data
-                .request
-                .minor_amount
-                .ok_or(IntegrationError::MissingRequiredField {
-                    field_name: "minor_amount",
-                    context: Default::default(),
-                })?;
-        let amount = utils::convert_amount(
-            item.connector.amount_converter,
-            minor_amount,
-            router_data.request.currency,
-        )?;
-
         let order_id = router_data
             .resource_common_data
             .connector_request_reference_id
@@ -821,72 +807,78 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .document_number;
 
         match &router_data.request.payment_method_data {
-            PaymentMethodData::Card(ccard) => Ok(Self {
-                amount,
-                currency: router_data.request.currency,
-                payment_method_id: PaymentMethodId::Card,
-                payment_method_flow: PaymentMethodFlow::Direct,
-                country,
-                payer: Payer {
-                    name,
-                    email,
-                    document,
-                    phone: None,
-                    address: None,
-                },
-                card: Some(Card {
-                    holder_name: ccard.card_holder_name.clone(),
-                    number: ccard.card_number.clone(),
-                    cvv: ccard.card_cvc.clone(),
-                    expiration_month: ccard.card_exp_month.clone(),
-                    expiration_year: ccard.card_exp_year.clone(),
-                    // Setup mandate is always a verify/no-capture operation
-                    capture: "false".to_string(),
-                    save: Some(true),
-                }),
-                wallet: None,
-                order_id,
-                three_dsecure: None,
-                callback_url,
-                description,
-                notification_url: router_data.request.webhook_url.clone(),
-            }),
-            // CIT — GCash Recurring (RG) wallet enrollment. We send a REDIRECT
-            // payment with `wallet.save = true`; dLocal returns PENDING + a
-            // redirect_url for the shopper to authorise. The reusable wallet
-            // token is NOT in this synchronous response — dLocal delivers it
-            // later via the IPN webhook (`wallet.token`) once the shopper
-            // completes the redirect. The IncomingWebhook handler is therefore
-            // responsible for capturing that token and persisting it as the
-            // mandate reference for the downstream RepeatPayment (MIT) flow;
-            // `mandate_reference` is left `None` here in the sync mapping.
+            PaymentMethodData::Card(ccard) => {
+                // For card SetupMandate (CIT), dLocal requires a non-zero
+                // authorization amount alongside `card.save = true` to tokenize
+                // the card. The request runs with `capture: false`.
+                let minor_amount = router_data.request.minor_amount.ok_or(
+                    IntegrationError::MissingRequiredField {
+                        field_name: "minor_amount",
+                        context: Default::default(),
+                    },
+                )?;
+                let amount = utils::convert_amount(
+                    item.connector.amount_converter,
+                    minor_amount,
+                    router_data.request.currency,
+                )?;
+
+                Ok(Self {
+                    amount: Some(amount),
+                    currency: router_data.request.currency,
+                    country,
+                    external_id: None,
+                    enrollment_type: None,
+                    payment_method_id: PaymentMethodId::Card,
+                    payment_method_flow: PaymentMethodFlow::Direct,
+                    payer: Payer {
+                        name,
+                        email,
+                        document,
+                        phone: None,
+                        address: None,
+                    },
+                    card: Some(Card {
+                        holder_name: ccard.card_holder_name.clone(),
+                        number: ccard.card_number.clone(),
+                        cvv: ccard.card_cvc.clone(),
+                        expiration_month: ccard.card_exp_month.clone(),
+                        expiration_year: ccard.card_exp_year.clone(),
+                        // Setup mandate is always a verify/no-capture operation
+                        capture: "false".to_string(),
+                        save: Some(true),
+                    }),
+                    order_id: Some(order_id),
+                    three_dsecure: None,
+                    callback_url,
+                    description,
+                    notification_url: router_data.request.webhook_url.clone(),
+                })
+            }
+            // CIT — GCash Recurring (RG) wallet enrollment. This uses dLocal
+            // `POST /enrollments`; after the shopper completes the redirect,
+            // dLocal sends an ACTIVE enrollment webhook and that enrollment id is
+            // persisted as the connector mandate id.
             PaymentMethodData::Wallet(payment_method_data::WalletData::GcashRedirect(_)) => {
                 let billing = router_data.resource_common_data.get_optional_billing();
                 let (phone, payer_address) = build_payer_phone_and_address(billing);
-                let username = wallet_username(&name, &email);
                 Ok(Self {
-                    amount,
+                    amount: None,
                     currency: router_data.request.currency,
+                    country,
+                    external_id: Some(order_id),
+                    enrollment_type: Some(DlocalEnrollmentType::OnDemand),
                     payment_method_id: PaymentMethodId::Other("RG".to_string()),
                     payment_method_flow: PaymentMethodFlow::Redirect,
-                    country,
                     payer: Payer {
-                        name: name.clone(),
-                        email: email.clone(),
+                        name,
+                        email,
                         document,
                         phone,
                         address: payer_address,
                     },
                     card: None,
-                    wallet: Some(Wallet {
-                        name: Some(name),
-                        save: Some(true),
-                        token: None,
-                        capture: Some(true),
-                        username: Some(username),
-                        email: Some(email),
-                    }),
-                    order_id,
+                    order_id: None,
                     three_dsecure: None,
                     callback_url,
                     description,
@@ -902,10 +894,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-// SetupMandate response — adds a `card` object with the saved `card_id` on top of
-// the standard payment response fields. Per dLocal's Save-Card API the saved token
-// is returned as `card.card_id` (same field consumed by the RepeatPayment/MIT flow
-// above, see `DlocalRepeatPaymentCard`).
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct DlocalSetupMandateCardData {
     pub card_id: Option<String>,
@@ -915,6 +903,8 @@ pub struct DlocalSetupMandateCardData {
 pub struct DlocalSetupMandateResponse {
     pub status: DlocalPaymentStatus,
     pub id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub external_id: Option<String>,
     pub three_dsecure: Option<ThreeDSecureResData>,
     pub order_id: Option<String>,
     pub redirect_url: Option<url::Url>,
@@ -934,10 +924,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     fn try_from(
         item: ResponseRouterData<DlocalSetupMandateResponse, Self>,
     ) -> Result<Self, Self::Error> {
+        let is_gcash_enrollment = matches!(
+            &item.router_data.request.payment_method_data,
+            PaymentMethodData::Wallet(payment_method_data::WalletData::GcashRedirect(_))
+        );
+
         // For failed payments (Rejected/Cancelled), return ErrorResponse instead
         // of TransactionResponse to capture the failure details.
         if matches!(
-            item.response.status,
+            &item.response.status,
             DlocalPaymentStatus::Rejected | DlocalPaymentStatus::Cancelled
         ) {
             return Ok(Self {
@@ -984,10 +979,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // reference. Fail fast on AUTHORIZED / PAID responses that are missing
         // the token rather than silently completing with `mandate_reference = None`.
         let is_successful = matches!(
-            item.response.status,
+            &item.response.status,
             DlocalPaymentStatus::Authorized | DlocalPaymentStatus::Paid
         );
-        if is_successful && saved_card_id.is_none() {
+        if !is_gcash_enrollment && is_successful && saved_card_id.is_none() {
             return Err(ConnectorError::UnexpectedResponseError {
                 context: ResponseTransformationErrorContext {
                     http_status_code: Some(item.http_code),
@@ -1001,16 +996,30 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .into());
         }
 
-        let mandate_reference = saved_card_id.map(|card_id| MandateReference {
-            connector_mandate_id: Some(card_id),
-            payment_method_id: None,
-            connector_mandate_request_reference_id: None,
-        });
+        let mandate_reference = if is_gcash_enrollment {
+            matches!(&item.response.status, DlocalPaymentStatus::Active).then(|| MandateReference {
+                connector_mandate_id: Some(item.response.id.clone()),
+                payment_method_id: None,
+                connector_mandate_request_reference_id: None,
+                mandate_metadata: None,
+            })
+        } else {
+            saved_card_id.map(|card_id| MandateReference {
+                connector_mandate_id: Some(card_id),
+                payment_method_id: None,
+                connector_mandate_request_reference_id: None,
+                mandate_metadata: None,
+            })
+        };
 
         // A redirect-flow APM (e.g. GCash) returns PENDING + a redirect_url; surface it as
         // AuthenticationPending so HS emits next_action.redirect_to_url rather than just
         // "processing".
-        let status = if redirection_data.is_some() {
+        let status = if is_gcash_enrollment
+            && matches!(&item.response.status, DlocalPaymentStatus::Active)
+        {
+            common_enums::AttemptStatus::Charged
+        } else if redirection_data.is_some() {
             common_enums::AttemptStatus::AuthenticationPending
         } else {
             common_enums::AttemptStatus::from(item.response.status.clone())
@@ -1022,7 +1031,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             connector_metadata: None,
             network_txn_id: None,
             network_txn_link_id: None,
-            connector_response_reference_id: item.response.order_id.clone(),
+            connector_response_reference_id: item
+                .response
+                .order_id
+                .clone()
+                .or_else(|| item.response.external_id.clone()),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
@@ -1074,6 +1087,8 @@ impl TryFrom<&ConnectorSpecificConfig> for DlocalAuthType {
 pub enum DlocalPaymentStatus {
     Authorized,
     Paid,
+    Active,
+    Verified,
     Cancelled,
     #[default]
     Pending,
@@ -1084,20 +1099,15 @@ impl From<DlocalPaymentStatus> for common_enums::AttemptStatus {
     fn from(item: DlocalPaymentStatus) -> Self {
         match item {
             DlocalPaymentStatus::Authorized => Self::Authorized,
-            DlocalPaymentStatus::Paid => Self::Charged,
-            DlocalPaymentStatus::Pending => Self::Pending,
+            DlocalPaymentStatus::Paid | DlocalPaymentStatus::Verified => Self::Charged,
+            DlocalPaymentStatus::Pending | DlocalPaymentStatus::Active => Self::Pending,
             DlocalPaymentStatus::Cancelled => Self::Voided,
             DlocalPaymentStatus::Rejected => Self::Failure,
         }
     }
 }
 
-/// Wallet object echoed back in the dLocal IPN webhook (and payment responses).
-///
-/// For recurring wallet flows (e.g. GCash Recurring "RG"), the reusable
-/// `token` is NOT returned in the synchronous Authorize/CIT response — it only
-/// arrives here, in the IPN, once the shopper completes the redirect. We surface
-/// it as a mandate reference so Hyperswitch can persist the connector mandate id.
+/// Legacy wallet object echoed back in some dLocal payment webhooks.
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct DlocalWebhookWallet {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1106,19 +1116,19 @@ pub struct DlocalWebhookWallet {
     pub username: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub email: Option<pii::Email>,
-    /// Reusable wallet token (the connector mandate id) for recurring flows.
+    /// Legacy reusable wallet token. New GCash recurring flows use enrollment ids.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub token: Option<Secret<String>>,
 }
 
 /// dLocal IPN (Instant Payment Notification) webhook body.
 ///
-/// The IPN payload is the dLocal Payment object as JSON. We only deserialize the
-/// fields needed to build the PSync-shaped status response (status, ids) plus the
-/// optional `wallet.token` for mandate persistence; every other field is ignored.
+/// The IPN payload is the dLocal Payment or Enrollment object as JSON. We only
+/// deserialize the fields needed to build the PSync-shaped status response and
+/// persist ACTIVE enrollment ids; every other field is ignored.
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct DlocalWebhookBody {
-    /// Connector transaction id (the dLocal payment `id`, e.g. "F-...").
+    /// Connector resource id (payment `F-...` or enrollment `E-...`).
     pub id: String,
     pub status: DlocalPaymentStatus,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1128,15 +1138,33 @@ pub struct DlocalWebhookBody {
     /// Merchant-assigned reference echoed back by dLocal.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub order_id: Option<String>,
+    /// Enrollment API merchant-assigned reference echoed back by dLocal.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub external_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_method_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_method_type: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_method_flow: Option<String>,
-    /// Present for wallet flows; carries the reusable `token` (mandate id).
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub wallet: Option<DlocalWebhookWallet>,
+    pub enrollment: Option<DlocalEnrollment>,
+}
+
+impl DlocalWebhookBody {
+    pub fn is_enrollment_webhook(&self) -> bool {
+        self.order_id.is_none() && self.external_id.is_some()
+    }
+
+    pub fn enrollment_id_from_successful_payment(&self) -> Option<String> {
+        (!self.is_enrollment_webhook() && matches!(&self.status, DlocalPaymentStatus::Paid))
+            .then(|| {
+                self.enrollment
+                    .as_ref()
+                    .and_then(|enrollment| enrollment.id.clone())
+            })
+            .flatten()
+    }
 }
 
 /// Maps a parsed dLocal IPN status to the UCS webhook `EventType`.
@@ -1146,13 +1174,18 @@ pub struct DlocalWebhookBody {
 /// webhook event the EventService expects.
 impl From<&DlocalWebhookBody> for domain_types::connector_types::EventType {
     fn from(body: &DlocalWebhookBody) -> Self {
-        match body.status {
-            // PAID(200) -> charged
-            DlocalPaymentStatus::Paid => Self::PaymentIntentSuccess,
+        match &body.status {
+            DlocalPaymentStatus::Active if body.is_enrollment_webhook() => {
+                Self::PaymentIntentSuccess
+            }
+            // PAID(200) / VERIFIED(700) -> success.
+            DlocalPaymentStatus::Paid | DlocalPaymentStatus::Verified => Self::PaymentIntentSuccess,
             // AUTHORIZED -> funds held, capture pending
             DlocalPaymentStatus::Authorized => Self::PaymentIntentAuthorizationSuccess,
             // PENDING(100) -> still processing
-            DlocalPaymentStatus::Pending => Self::PaymentIntentProcessing,
+            DlocalPaymentStatus::Pending | DlocalPaymentStatus::Active => {
+                Self::PaymentIntentProcessing
+            }
             // CANCELLED -> voided
             DlocalPaymentStatus::Cancelled => Self::PaymentIntentCancelled,
             // REJECTED(300) -> failure
@@ -1166,6 +1199,11 @@ pub struct ThreeDSecureResData {
     pub redirect_url: Option<url::Url>,
 }
 
+#[derive(Eq, Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TicketData {
+    pub image_url: Option<url::Url>,
+}
+
 #[derive(Debug, Default, Eq, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DlocalPaymentsResponse {
     status: DlocalPaymentStatus,
@@ -1173,6 +1211,9 @@ pub struct DlocalPaymentsResponse {
     three_dsecure: Option<ThreeDSecureResData>,
     order_id: Option<String>,
     redirect_url: Option<url::Url>,
+    ticket: Option<TicketData>,
+    enrollment: Option<DlocalEnrollment>,
+    external_id: Option<String>,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<DlocalPaymentsResponse, Self>>
@@ -1182,30 +1223,67 @@ impl<F, T> TryFrom<ResponseRouterData<DlocalPaymentsResponse, Self>>
     fn try_from(
         item: ResponseRouterData<DlocalPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        // Check for redirect URL from both 3DS (card) and top-level (bank transfer/APM) responses
+        // Check for redirect URL from 3DS (card), ticket.image_url (vouchers, e.g. OXXO,
+        // mirroring hyperswitch dlocal), and top-level redirect_url (UCS-only APMs such as
+        // bank transfer / wallet).
         let redirection_data = item
             .response
             .three_dsecure
             .and_then(|three_secure_data| three_secure_data.redirect_url)
+            .or_else(|| {
+                item.response
+                    .ticket
+                    .and_then(|ticket_data| ticket_data.image_url)
+            })
             .or(item.response.redirect_url)
             .map(|redirect_url| RedirectForm::from((redirect_url, Method::Get)));
+
+        let is_enrollment_response =
+            item.response.order_id.is_none() && item.response.external_id.is_some();
 
         // A redirect-flow APM (e.g. GCash) returns PENDING + a redirect_url; surface it as
         // AuthenticationPending so HS emits next_action.redirect_to_url rather than just
         // "processing".
-        let status = if redirection_data.is_some() {
+        let status = if is_enrollment_response
+            && matches!(&item.response.status, DlocalPaymentStatus::Active)
+        {
+            common_enums::AttemptStatus::Charged
+        } else if redirection_data.is_some() {
             common_enums::AttemptStatus::AuthenticationPending
         } else {
             common_enums::AttemptStatus::from(item.response.status.clone())
         };
+
+        let connector_mandate_id = if is_enrollment_response {
+            matches!(&item.response.status, DlocalPaymentStatus::Active)
+                .then(|| item.response.id.clone())
+        } else {
+            item.response
+                .enrollment
+                .as_ref()
+                .and_then(|enrollment| enrollment.id.clone())
+        };
+
+        let mandate_reference = connector_mandate_id.map(|connector_mandate_id| MandateReference {
+            connector_mandate_id: Some(connector_mandate_id),
+            payment_method_id: None,
+            connector_mandate_request_reference_id: None,
+            mandate_metadata: None,
+        });
+
         let response = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
             redirection_data: redirection_data.map(Box::new),
-            mandate_reference: None,
+            mandate_reference: mandate_reference.map(Box::new),
             connector_metadata: None,
             network_txn_id: None,
             network_txn_link_id: None,
-            connector_response_reference_id: item.response.order_id.clone(),
+            connector_response_reference_id: item.response.order_id.clone().or_else(|| {
+                item.response
+                    .enrollment
+                    .as_ref()
+                    .and_then(|enrollment| enrollment.external_id.clone())
+            }),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
@@ -1501,7 +1579,7 @@ fn get_voucher_payment_method_id(
     voucher_data: &payment_method_data::VoucherData,
 ) -> Result<PaymentMethodId, error_stack::Report<IntegrationError>> {
     match voucher_data {
-        payment_method_data::VoucherData::Oxxo => Ok(PaymentMethodId::Other("OX".to_string())),
+        payment_method_data::VoucherData::Oxxo => Ok(PaymentMethodId::Oxxo),
         payment_method_data::VoucherData::Boleto(_) => Ok(PaymentMethodId::Other("BL".to_string())),
         payment_method_data::VoucherData::Efecty => Ok(PaymentMethodId::Other("EY".to_string())),
         payment_method_data::VoucherData::PagoEfectivo => {

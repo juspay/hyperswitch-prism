@@ -123,6 +123,7 @@ macros::macro_connector_flow_status_impls!(
         Accept,
         ServerSessionAuthenticationToken,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         PaymentMethodToken,
         ServerAuthenticationToken,
         ClientAuthenticationToken,

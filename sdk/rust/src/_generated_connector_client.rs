@@ -14,14 +14,19 @@ use connector_service_ffi::utils::ffi_headers_to_masked_metadata;
 use domain_types::router_data::ConnectorSpecificConfig;
 use domain_types::router_response_types::Response;
 use domain_types::utils::ForeignTryFrom;
+use grpc_api_types::frm::{
+    FrmServicePostRiskCheckRequest, FrmServicePostRiskCheckResponse, FrmServicePreRiskCheckRequest,
+    FrmServicePreRiskCheckResponse,
+};
 use grpc_api_types::payments::NetworkErrorCode;
 use grpc_api_types::payments::{ConnectorConfig, FfiOptions, RequestConfig};
 use grpc_api_types::payments::{
-    CustomerServiceCreateRequest, CustomerServiceCreateResponse, DisputeServiceAcceptRequest,
-    DisputeServiceAcceptResponse, DisputeServiceDefendRequest, DisputeServiceDefendResponse,
-    DisputeServiceSubmitEvidenceRequest, DisputeServiceSubmitEvidenceResponse,
-    EventServiceHandleRequest, EventServiceHandleResponse, EventServiceParseRequest,
-    EventServiceParseResponse, MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
+    CustomerServiceCreateRequest, CustomerServiceCreateResponse, CustomerServiceGetRequest,
+    CustomerServiceGetResponse, DisputeServiceAcceptRequest, DisputeServiceAcceptResponse,
+    DisputeServiceDefendRequest, DisputeServiceDefendResponse, DisputeServiceSubmitEvidenceRequest,
+    DisputeServiceSubmitEvidenceResponse, EventServiceHandleRequest, EventServiceHandleResponse,
+    EventServiceParseRequest, EventServiceParseResponse,
+    MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
@@ -34,6 +39,7 @@ use grpc_api_types::payments::{
     PaymentMethodAuthenticationServicePreAuthenticateRequest,
     PaymentMethodAuthenticationServicePreAuthenticateResponse,
     PaymentMethodServiceEligibilityRequest, PaymentMethodServiceEligibilityResponse,
+    PaymentMethodServiceRefreshRequest, PaymentMethodServiceRefreshResponse,
     PaymentMethodServiceTokenizeRequest, PaymentMethodServiceTokenizeResponse,
     PaymentServiceAuthorizeRequest, PaymentServiceAuthorizeResponse, PaymentServiceCaptureRequest,
     PaymentServiceCaptureResponse, PaymentServiceCreateOrderRequest,
@@ -279,6 +285,13 @@ impl ConnectorClient {
         customer_create_req_handler,
         customer_create_res_handler
     );
+    impl_flow_method!(
+        customer_get,
+        CustomerServiceGetRequest,
+        CustomerServiceGetResponse,
+        customer_get_req_handler,
+        customer_get_res_handler
+    );
     // ── DisputeService flows ───────────────────────────────────────────────────
     impl_flow_method!(
         accept,
@@ -358,6 +371,21 @@ impl ConnectorClient {
         };
         parse_event_handler(ffi_request, environment).map_err(SdkError::from)
     }
+    // ── FraudAndRiskManagementService flows ───────────────────────────────────────────────────
+    impl_flow_method!(
+        post_risk_check,
+        FrmServicePostRiskCheckRequest,
+        FrmServicePostRiskCheckResponse,
+        post_risk_check_req_handler,
+        post_risk_check_res_handler
+    );
+    impl_flow_method!(
+        pre_risk_check,
+        FrmServicePreRiskCheckRequest,
+        FrmServicePreRiskCheckResponse,
+        pre_risk_check_req_handler,
+        pre_risk_check_res_handler
+    );
     // ── MerchantAuthenticationService flows ───────────────────────────────────────────────────
     impl_flow_method!(
         create_client_authentication_token,
@@ -409,6 +437,13 @@ impl ConnectorClient {
         PaymentMethodServiceEligibilityResponse,
         eligibility_req_handler,
         eligibility_res_handler
+    );
+    impl_flow_method!(
+        refresh,
+        PaymentMethodServiceRefreshRequest,
+        PaymentMethodServiceRefreshResponse,
+        refresh_req_handler,
+        refresh_res_handler
     );
     impl_flow_method!(
         tokenize,

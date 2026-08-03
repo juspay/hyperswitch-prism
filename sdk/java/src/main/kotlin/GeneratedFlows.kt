@@ -7,6 +7,7 @@ import types.Payment.*
 import types.Payouts.*
 import types.PaymentMethods.*
 import types.Surcharge.*
+import types.Frm.*
 
 import uniffi.connector_service_ffi.acceptReqTransformer
 import uniffi.connector_service_ffi.acceptResTransformer
@@ -28,6 +29,8 @@ import uniffi.connector_service_ffi.createServerSessionAuthenticationTokenReqTra
 import uniffi.connector_service_ffi.createServerSessionAuthenticationTokenResTransformer
 import uniffi.connector_service_ffi.customerCreateReqTransformer
 import uniffi.connector_service_ffi.customerCreateResTransformer
+import uniffi.connector_service_ffi.customerGetReqTransformer
+import uniffi.connector_service_ffi.customerGetResTransformer
 import uniffi.connector_service_ffi.defendReqTransformer
 import uniffi.connector_service_ffi.defendResTransformer
 import uniffi.connector_service_ffi.eligibilityReqTransformer
@@ -54,14 +57,20 @@ import uniffi.connector_service_ffi.payoutVoidReqTransformer
 import uniffi.connector_service_ffi.payoutVoidResTransformer
 import uniffi.connector_service_ffi.postAuthenticateReqTransformer
 import uniffi.connector_service_ffi.postAuthenticateResTransformer
+import uniffi.connector_service_ffi.postRiskCheckReqTransformer
+import uniffi.connector_service_ffi.postRiskCheckResTransformer
 import uniffi.connector_service_ffi.preAuthenticateReqTransformer
 import uniffi.connector_service_ffi.preAuthenticateResTransformer
+import uniffi.connector_service_ffi.preRiskCheckReqTransformer
+import uniffi.connector_service_ffi.preRiskCheckResTransformer
 import uniffi.connector_service_ffi.proxyAuthorizeReqTransformer
 import uniffi.connector_service_ffi.proxyAuthorizeResTransformer
 import uniffi.connector_service_ffi.proxySetupRecurringReqTransformer
 import uniffi.connector_service_ffi.proxySetupRecurringResTransformer
 import uniffi.connector_service_ffi.recurringRevokeReqTransformer
 import uniffi.connector_service_ffi.recurringRevokeResTransformer
+import uniffi.connector_service_ffi.refreshReqTransformer
+import uniffi.connector_service_ffi.refreshResTransformer
 import uniffi.connector_service_ffi.refundReqTransformer
 import uniffi.connector_service_ffi.refundResTransformer
 import uniffi.connector_service_ffi.refundGetReqTransformer
@@ -98,6 +107,7 @@ object FlowRegistry {
         "create_server_authentication_token" to ::createServerAuthenticationTokenReqTransformer,
         "create_server_session_authentication_token" to ::createServerSessionAuthenticationTokenReqTransformer,
         "customer_create" to ::customerCreateReqTransformer,
+        "customer_get" to ::customerGetReqTransformer,
         "defend" to ::defendReqTransformer,
         "eligibility" to ::eligibilityReqTransformer,
         "get" to ::getReqTransformer,
@@ -111,10 +121,13 @@ object FlowRegistry {
         "payout_transfer" to ::payoutTransferReqTransformer,
         "payout_void" to ::payoutVoidReqTransformer,
         "post_authenticate" to ::postAuthenticateReqTransformer,
+        "post_risk_check" to ::postRiskCheckReqTransformer,
         "pre_authenticate" to ::preAuthenticateReqTransformer,
+        "pre_risk_check" to ::preRiskCheckReqTransformer,
         "proxy_authorize" to ::proxyAuthorizeReqTransformer,
         "proxy_setup_recurring" to ::proxySetupRecurringReqTransformer,
         "recurring_revoke" to ::recurringRevokeReqTransformer,
+        "refresh" to ::refreshReqTransformer,
         "refund" to ::refundReqTransformer,
         "refund_get" to ::refundGetReqTransformer,
         "reverse" to ::reverseReqTransformer,
@@ -138,6 +151,7 @@ object FlowRegistry {
         "create_server_authentication_token" to ::createServerAuthenticationTokenResTransformer,
         "create_server_session_authentication_token" to ::createServerSessionAuthenticationTokenResTransformer,
         "customer_create" to ::customerCreateResTransformer,
+        "customer_get" to ::customerGetResTransformer,
         "defend" to ::defendResTransformer,
         "eligibility" to ::eligibilityResTransformer,
         "get" to ::getResTransformer,
@@ -151,10 +165,13 @@ object FlowRegistry {
         "payout_transfer" to ::payoutTransferResTransformer,
         "payout_void" to ::payoutVoidResTransformer,
         "post_authenticate" to ::postAuthenticateResTransformer,
+        "post_risk_check" to ::postRiskCheckResTransformer,
         "pre_authenticate" to ::preAuthenticateResTransformer,
+        "pre_risk_check" to ::preRiskCheckResTransformer,
         "proxy_authorize" to ::proxyAuthorizeResTransformer,
         "proxy_setup_recurring" to ::proxySetupRecurringResTransformer,
         "recurring_revoke" to ::recurringRevokeResTransformer,
+        "refresh" to ::refreshResTransformer,
         "refund" to ::refundResTransformer,
         "refund_get" to ::refundGetResTransformer,
         "reverse" to ::reverseResTransformer,
@@ -184,6 +201,10 @@ class CustomerClient(
     // customer_create: CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information.
     fun customer_create(request: CustomerServiceCreateRequest, options: RequestConfig? = null): CustomerServiceCreateResponse =
         executeFlow("customer_create", request.toByteArray(), CustomerServiceCreateResponse.parser(), options)
+
+    // customer_get: CustomerService.Get — Retrieves customer details from the payment processor. Callers typically use this before Create to implement get-or-create semantics for connectors that reject duplicates (e.g. Glomopay).
+    fun customer_get(request: CustomerServiceGetRequest, options: RequestConfig? = null): CustomerServiceGetResponse =
+        executeFlow("customer_get", request.toByteArray(), CustomerServiceGetResponse.parser(), options)
 
 }
 
@@ -218,6 +239,21 @@ class EventClient(
     // parse_event: EventService.ParseEvent — Parse a raw webhook payload without credentials. Returns resource reference and event type — sufficient to resolve secrets or early-exit.
     fun parse_event(request: EventServiceParseRequest, options: RequestConfig? = null): EventServiceParseResponse =
         executeDirect("parse_event", request.toByteArray(), EventServiceParseResponse.parser(), options)
+
+}
+
+class FraudAndRiskManagementClient(
+    config: ConnectorConfig,
+    defaults: RequestConfig = RequestConfig.getDefaultInstance(),
+    libPath: String? = null
+) : ConnectorClient(config, defaults, libPath) {
+    // post_risk_check: FraudAndRiskManagementService.PostRiskCheck — Evaluate fraud risk after payment processing. Analyzes payment outcomes and post-transaction signals to refine risk models and detect chargeback fraud.
+    fun post_risk_check(request: FrmServicePostRiskCheckRequest, options: RequestConfig? = null): FrmServicePostRiskCheckResponse =
+        executeFlow("post_risk_check", request.toByteArray(), FrmServicePostRiskCheckResponse.parser(), options)
+
+    // pre_risk_check: FraudAndRiskManagementService.PreRiskCheck — Evaluate fraud risk before payment processing. Analyzes transaction details, customer behavior, and device fingerprints to determine if the payment should proceed, be rejected, or flagged for manual review.
+    fun pre_risk_check(request: FrmServicePreRiskCheckRequest, options: RequestConfig? = null): FrmServicePreRiskCheckResponse =
+        executeFlow("pre_risk_check", request.toByteArray(), FrmServicePreRiskCheckResponse.parser(), options)
 
 }
 
@@ -267,6 +303,10 @@ class PaymentMethodClient(
     // eligibility: PaymentMethodService.Eligibility — Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check)
     fun eligibility(request: PaymentMethodServiceEligibilityRequest, options: RequestConfig? = null): PaymentMethodServiceEligibilityResponse =
         executeFlow("eligibility", request.toByteArray(), PaymentMethodServiceEligibilityResponse.parser(), options)
+
+    // refresh: PaymentMethodService.Refresh — Refresh a payment method the caller already holds in full. The request carries the instrument itself, not a reference to it: use Refresh when you own the complete payment method details and the provider exposes an endpoint that evaluates them.
+    fun refresh(request: PaymentMethodServiceRefreshRequest, options: RequestConfig? = null): PaymentMethodServiceRefreshResponse =
+        executeFlow("refresh", request.toByteArray(), PaymentMethodServiceRefreshResponse.parser(), options)
 
     // tokenize: PaymentMethodService.Tokenize — Tokenize payment method for secure storage. Replaces raw card details with secure token for one-click payments and recurring billing.
     fun tokenize(request: PaymentMethodServiceTokenizeRequest, options: RequestConfig? = null): PaymentMethodServiceTokenizeResponse =

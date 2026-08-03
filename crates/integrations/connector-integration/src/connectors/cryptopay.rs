@@ -413,6 +413,7 @@ macros::macro_connector_flow_status_impls!(
         Refund,
         SetupMandate,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         MandateRevoke,
         RepeatPayment,
     ],

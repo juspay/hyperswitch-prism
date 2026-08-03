@@ -334,6 +334,14 @@ macro_rules! expand_fn_get_request_body {
                     router_data: req.clone()
 };
                 let request = bridge.request_body(input_data)?;
+                if let Ok(masked_body) = hyperswitch_masking::masked_serialize(&request) {
+                    tracing::info!(
+                        connector = stringify!($connector),
+                        flow = stringify!($flow),
+                        request_body = %masked_body,
+                        "connector request body (pre-encoding)"
+                    );
+                }
                 let json_bytes = serde_json::to_vec(&request).change_context(
                     macro_types::IntegrationError::RequestEncodingFailed {
                         context: domain_types::errors::IntegrationErrorContext {
@@ -1913,6 +1921,17 @@ macro_rules! expand_flow_status_impl {
             response: ::domain_types::connector_types::ConnectorCustomerResponse,
         );
     };
+    (connector: $c:ident, flow: GetConnectorCustomer, status: $st:ident, generic_type: $g:tt, [$($b:tt)*]) => {
+        impl<$g: $($b)*> ::interfaces::connector_types::GetConnectorCustomer for $c<$g> {}
+        $crate::connectors::macros::flow_status_emit!(
+            connector: $c, status: $st, generic_type: $g, [$($b)*],
+            flow: ::domain_types::connector_flow::GetConnectorCustomer,
+            flow_name: "get_connector_customer",
+            flow_common_data: ::domain_types::connector_types::PaymentFlowData,
+            request: ::domain_types::connector_types::ConnectorCustomerData,
+            response: ::domain_types::connector_types::ConnectorCustomerResponse,
+        );
+    };
     (connector: $c:ident, flow: MandateRevoke, status: $st:ident, generic_type: $g:tt, [$($b:tt)*]) => {
         impl<$g: $($b)*> ::interfaces::connector_types::MandateRevokeV2 for $c<$g> {}
         $crate::connectors::macros::flow_status_emit!(
@@ -2187,3 +2206,59 @@ macro_rules! flow_status_emit {
     };
 }
 pub(crate) use flow_status_emit;
+
+/// Emit a `ConnectorIntegrationV2` stub for an FRM flow that a connector does
+/// not implement, so the FRM service surfaces a clear "flow not implemented"
+/// error instead of the connector failing to compile. All FRM flows share
+/// [`FrmFlowData`] as their common data, so this only needs the connector type
+/// (with its generic parameter + bounds) and the flow's request/response types.
+/// Generic over the connector, so any FRM connector can reuse it.
+macro_rules! frm_flow_not_implemented {
+    (
+        connector: $c:ident,
+        generic_type: $g:tt,
+        [$($b:tt)*],
+        flow: $flow:ty,
+        request: $req:ty,
+        response: $resp:ty,
+        flow_name: $name:literal $(,)?
+    ) => {
+        impl<$g: $($b)*>
+            ::interfaces::connector_integration_v2::ConnectorIntegrationV2<
+                $flow,
+                ::domain_types::frm::frm_types::FrmFlowData,
+                $req,
+                $resp,
+            > for $c<$g>
+        {
+            fn get_url(
+                &self,
+                _req: &::domain_types::router_data_v2::RouterDataV2<
+                    $flow,
+                    ::domain_types::frm::frm_types::FrmFlowData,
+                    $req,
+                    $resp,
+                >,
+            ) -> ::common_utils::CustomResult<String, ::domain_types::errors::IntegrationError> {
+                Err(::domain_types::errors::IntegrationError::connector_flow_not_implemented(
+                    ::interfaces::api::ConnectorCommon::id(self),
+                    $name,
+                    ::domain_types::errors::IntegrationErrorContext {
+                        additional_context: Some(format!(
+                            "{} does not implement the `{}` FRM flow",
+                            ::interfaces::api::ConnectorCommon::id(self),
+                            $name
+                        )),
+                        suggested_action: Some(format!(
+                            "Do not route the `{}` FRM flow to this connector",
+                            $name
+                        )),
+                        doc_url: None,
+                    },
+                )
+                .into())
+            }
+        }
+    };
+}
+pub(crate) use frm_flow_not_implemented;

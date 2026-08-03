@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::errors::EventPublisherError;
+use crate::types::ExecutionMode;
 use crate::{
     global_id::{
         customer::GlobalCustomerId,
@@ -219,6 +220,30 @@ fn serialize_method<S: serde::Serializer>(
     serializer.serialize_str(method.as_deref().unwrap_or(""))
 }
 
+/// Deployment / runtime identity carried on every emitted event.
+///
+/// `version` is the compiled build (set once in `main` from `ucs_env::git_describe!()`), so it is
+/// always present. `application_name` / `deployment_id` / `pod_name` are optional and supplied by
+/// the deployment platform via `CS__RUNTIME_METADATA__*` config (e.g. the k8s Downward API:
+/// `metadata.name`, deployment labels). When a platform cannot provide one it is omitted rather
+/// than inferred; missing optional values never fail startup or event creation.
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, config_patch_derive::Patch)]
+pub struct RuntimeMetadata {
+    /// Compiled build version. Set at startup from the binary, never read from config.
+    #[serde(default, skip_deserializing)]
+    #[patch(ignore)]
+    pub version: String,
+    /// Application / microservice name (e.g. `connector-service-http`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub application_name: Option<String>,
+    /// Deployment / rollout identifier.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deployment_id: Option<String>,
+    /// Pod name (`metadata.name`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pod_name: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct Event {
     pub request_id: String,
@@ -230,6 +255,8 @@ pub struct Event {
     #[serde(serialize_with = "serialize_method")]
     pub method: Option<String>,
     pub stage: EventStage,
+    /// Primary execution or shadow mirror.
+    pub execution_mode: ExecutionMode,
     pub latency_ms: Option<u64>,
     pub status_code: Option<i32>,
     pub request_data: Option<MaskedSerdeValue>,
@@ -240,6 +267,9 @@ pub struct Event {
     pub additional_fields: HashMap<String, MaskedSerdeValue>,
     #[serde(flatten)]
     pub lineage_ids: lineage::LineageIds<'static>,
+    /// Deployment / runtime identity, serialized as top-level keys.
+    #[serde(flatten)]
+    pub runtime_metadata: RuntimeMetadata,
 }
 
 impl Event {
@@ -340,6 +370,7 @@ pub enum FlowName {
     ServerAuthenticationToken,
     SurchargeCalculate,
     CreateConnectorCustomer,
+    GetConnectorCustomer,
     PaymentMethodToken,
     PreAuthenticate,
     Authenticate,
@@ -360,6 +391,9 @@ pub enum FlowName {
     Recharge,
     CreatePaymentMethod,
     GetPaymentMethod,
+    RefreshPaymentMethod,
+    PreRiskCheck,
+    PostRiskCheck,
     PaymentMethodEligibility,
 }
 
@@ -387,6 +421,7 @@ impl FlowName {
             Self::ServerSessionAuthenticationToken => "ServerSessionAuthenticationToken",
             Self::ServerAuthenticationToken => "ServerAuthenticationToken",
             Self::CreateConnectorCustomer => "CreateConnectorCustomer",
+            Self::GetConnectorCustomer => "GetConnectorCustomer",
             Self::PreAuthenticate => "PreAuthenticate",
             Self::Authenticate => "Authenticate",
             Self::PostAuthenticate => "PostAuthenticate",
@@ -406,6 +441,9 @@ impl FlowName {
             Self::Recharge => "Recharge",
             Self::CreatePaymentMethod => "CreatePaymentMethod",
             Self::GetPaymentMethod => "GetPaymentMethod",
+            Self::RefreshPaymentMethod => "RefreshPaymentMethod",
+            Self::PreRiskCheck => "PreRiskCheck",
+            Self::PostRiskCheck => "PostRiskCheck",
             Self::PaymentMethodEligibility => "PaymentMethodEligibility",
             Self::Unknown => "Unknown",
         }
@@ -427,13 +465,22 @@ impl EventStage {
     }
 }
 
+/// A Kafka topic plus the payload field whose value is used as its partition key.
+#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq, config_patch_derive::Patch)]
+pub struct KafkaTopicConfig {
+    pub topic: String,
+    pub partition_key_field: String,
+}
+
 /// Configuration for events system
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, config_patch_derive::Patch)]
 pub struct EventConfig {
     pub enabled: bool,
-    pub topic: String,
     pub brokers: Vec<String>,
-    pub partition_key_field: String,
+    /// Outbound connector-call events.
+    pub connector_events: KafkaTopicConfig,
+    /// Inbound request events.
+    pub api_events: KafkaTopicConfig,
     #[serde(default)]
     pub transformations: HashMap<String, String>, // target_path → source_field
     #[serde(default)]
@@ -442,13 +489,23 @@ pub struct EventConfig {
     pub extractions: HashMap<String, String>, // target_path → extraction_path
 }
 
+impl EventConfig {
+    /// Topic + partition key for the given event stage.
+    pub fn topic_config(&self, stage: &EventStage) -> &KafkaTopicConfig {
+        match stage {
+            EventStage::ConnectorCall => &self.connector_events,
+            EventStage::GrpcRequest => &self.api_events,
+        }
+    }
+}
+
 impl Default for EventConfig {
     fn default() -> Self {
         Self {
             enabled: false,
-            topic: "events".to_string(),
             brokers: vec!["localhost:9092".to_string()],
-            partition_key_field: "request_id".to_string(),
+            connector_events: KafkaTopicConfig::default(),
+            api_events: KafkaTopicConfig::default(),
             transformations: HashMap::new(),
             static_values: HashMap::new(),
             extractions: HashMap::new(),
@@ -624,4 +681,99 @@ pub(crate) fn set_nested_value(
     );
 
     result.map(|_| ())
+}
+
+#[cfg(test)]
+#[allow(clippy::expect_used)]
+mod runtime_metadata_tests {
+    use std::collections::HashMap;
+
+    use super::{Event, EventStage, ExecutionMode, FlowName, RuntimeMetadata};
+    use crate::lineage;
+
+    /// Build a minimal event carrying the given runtime metadata (no connector I/O fields set).
+    fn sample_event(runtime_metadata: RuntimeMetadata) -> Event {
+        Event {
+            request_id: "req-1".to_string(),
+            timestamp: 0,
+            flow_type: FlowName::Authorize,
+            connector: "tamara".to_string(),
+            url: None,
+            method: None,
+            stage: EventStage::ConnectorCall,
+            execution_mode: ExecutionMode::from_shadow_flag(false),
+            latency_ms: None,
+            status_code: None,
+            request_data: None,
+            response_data: None,
+            error: None,
+            headers: HashMap::new(),
+            additional_fields: HashMap::new(),
+            lineage_ids: lineage::LineageIds::default(),
+            runtime_metadata,
+        }
+    }
+
+    #[test]
+    fn all_supplied_metadata_reaches_top_level_event_fields() {
+        let rm = RuntimeMetadata {
+            version: "2026.07.21.2".to_string(),
+            application_name: Some("connector-service-http".to_string()),
+            deployment_id: Some("d02a2ba".to_string()),
+            pod_name: Some("connector-service-http-d02a2bac0e-c9d9c4945-h6r4g".to_string()),
+        };
+        let value = serde_json::to_value(sample_event(rm)).expect("event serializes");
+        let obj = value.as_object().expect("event is a JSON object");
+
+        assert_eq!(
+            obj.get("version").and_then(|v| v.as_str()),
+            Some("2026.07.21.2")
+        );
+        assert_eq!(
+            obj.get("application_name").and_then(|v| v.as_str()),
+            Some("connector-service-http")
+        );
+        assert_eq!(
+            obj.get("deployment_id").and_then(|v| v.as_str()),
+            Some("d02a2ba")
+        );
+        assert_eq!(
+            obj.get("pod_name").and_then(|v| v.as_str()),
+            Some("connector-service-http-d02a2bac0e-c9d9c4945-h6r4g")
+        );
+        // Flattened as top-level keys, not nested under a "runtime_metadata" object.
+        assert!(obj.get("runtime_metadata").is_none());
+    }
+
+    #[test]
+    fn absent_optional_metadata_is_omitted_but_version_remains() {
+        let rm = RuntimeMetadata {
+            version: "2026.07.21.2".to_string(),
+            application_name: None,
+            deployment_id: None,
+            pod_name: None,
+        };
+        let value = serde_json::to_value(sample_event(rm)).expect("event serializes");
+        let obj = value.as_object().expect("event is a JSON object");
+
+        assert_eq!(
+            obj.get("version").and_then(|v| v.as_str()),
+            Some("2026.07.21.2")
+        );
+        assert!(!obj.contains_key("application_name"));
+        assert!(!obj.contains_key("deployment_id"));
+        assert!(!obj.contains_key("pod_name"));
+    }
+
+    #[test]
+    fn minimal_metadata_still_creates_and_serializes_with_version() {
+        // Only the compiled version present (all optional identity omitted) — event creation and
+        // serialization must not fail.
+        let rm = RuntimeMetadata {
+            version: "v".to_string(),
+            ..Default::default()
+        };
+        let value = serde_json::to_value(sample_event(rm)).expect("event serializes");
+        assert_eq!(value.get("version").and_then(|v| v.as_str()), Some("v"));
+    }
 }

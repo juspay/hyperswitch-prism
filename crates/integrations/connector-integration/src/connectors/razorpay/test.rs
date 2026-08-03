@@ -59,6 +59,7 @@ mod tests {
             let test_router_data = RouterDataV2 {
                 flow: std::marker::PhantomData,
                 resource_common_data: PaymentFlowData {
+                    raw_connector_status: None,
                     merchant_id: MerchantId::default(),
                     customer_id: None,
                     connector_customer: None,
@@ -117,6 +118,7 @@ mod tests {
 
                     merchant_request_id: None,
                     sender_payment_instrument_id: None,
+                    settlement_status: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
                     api_key: "dummy_api_key".to_string().into(),
@@ -271,6 +273,7 @@ mod tests {
             let test_router_data = RouterDataV2 {
                 flow: std::marker::PhantomData,
                 resource_common_data: PaymentFlowData {
+                    raw_connector_status: None,
                     merchant_id: MerchantId::default(),
                     customer_id: None,
                     connector_customer: None,
@@ -315,6 +318,7 @@ mod tests {
                     amount: None,
                     l2_l3_data: None,
                     sender_payment_instrument_id: None,
+                    settlement_status: None,
                     merchant_request_id: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
@@ -421,6 +425,7 @@ mod tests {
             let test_router_data = RouterDataV2 {
                 flow: std::marker::PhantomData,
                 resource_common_data: PaymentFlowData {
+                    raw_connector_status: None,
                     merchant_id: MerchantId::default(),
                     customer_id: None,
                     connector_customer: None,
@@ -465,6 +470,7 @@ mod tests {
                     amount: None,
                     l2_l3_data: None,
                     sender_payment_instrument_id: None,
+                    settlement_status: None,
                     merchant_request_id: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
@@ -581,6 +587,7 @@ mod tests {
             let data = RouterDataV2 {
                 flow: std::marker::PhantomData,
                 resource_common_data: PaymentFlowData {
+                    raw_connector_status: None,
                     merchant_id: MerchantId::default(),
                     customer_id: None,
                     connector_customer: None,
@@ -638,6 +645,7 @@ mod tests {
                     l2_l3_data: None,
                     merchant_request_id: None,
                     sender_payment_instrument_id: None,
+                    settlement_status: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
                     api_key: "dummy_api_key".to_string().into(),
@@ -951,6 +959,7 @@ mod tests {
         let data = RouterDataV2 {
             flow: std::marker::PhantomData,
             resource_common_data: PaymentFlowData {
+                raw_connector_status: None,
                 merchant_id: MerchantId::default(),
                 customer_id: None,
                 connector_customer: None,
@@ -1007,6 +1016,7 @@ mod tests {
                 minor_amount_capturable: None,
                 l2_l3_data: None,
                 sender_payment_instrument_id: None,
+                settlement_status: None,
                 merchant_request_id: None,
             },
             connector_config: ConnectorSpecificConfig::Razorpay {
@@ -1157,6 +1167,7 @@ mod tests {
         let data = RouterDataV2 {
             flow: std::marker::PhantomData,
             resource_common_data: PaymentFlowData {
+                raw_connector_status: None,
                 merchant_id: MerchantId::default(),
                 customer_id: None,
                 connector_customer: None,
@@ -1214,6 +1225,7 @@ mod tests {
                 l2_l3_data: None,
                 merchant_request_id: None,
                 sender_payment_instrument_id: None,
+                settlement_status: None,
             },
             connector_config: ConnectorSpecificConfig::Razorpay {
                 api_key: "dummy_api_key".to_string().into(),
@@ -1365,6 +1377,7 @@ mod tests {
             let test_router_data = RouterDataV2 {
                 flow: std::marker::PhantomData,
                 resource_common_data: domain_types::connector_types::PaymentFlowData {
+                    raw_connector_status: None,
                     merchant_id: MerchantId::default(),
                     customer_id: None,
                     connector_customer: None,
@@ -1421,6 +1434,7 @@ mod tests {
                     order_details: None,
                     l2_l3_data: None,
                     sender_payment_instrument_id: None,
+                    settlement_status: None,
                     merchant_request_id: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
@@ -1435,6 +1449,7 @@ mod tests {
                     metadata: None,
                     webhook_url: None,
                     payment_method_type: None,
+                    order_details: None,
                 },
                 response: Err(ErrorResponse {
                     code: "HE_00".to_string(),
@@ -1498,6 +1513,7 @@ mod tests {
             let test_router_data = RouterDataV2 {
                 flow: std::marker::PhantomData,
                 resource_common_data: domain_types::connector_types::PaymentFlowData {
+                    raw_connector_status: None,
                     merchant_id: MerchantId::default(),
                     customer_id: None,
                     connector_customer: None,
@@ -1543,6 +1559,7 @@ mod tests {
                     l2_l3_data: None,
                     merchant_request_id: None,
                     sender_payment_instrument_id: None,
+                    settlement_status: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
                     api_key: "dummy_api_key".to_string().into(),
@@ -1556,6 +1573,7 @@ mod tests {
                     metadata: None,
                     webhook_url: None,
                     payment_method_type: None,
+                    order_details: None,
                 },
                 response: Err(ErrorResponse {
                     code: "HE_01".to_string(),
@@ -1622,6 +1640,7 @@ mod tests {
             let test_router_data = RouterDataV2 {
                 flow: std::marker::PhantomData,
                 resource_common_data: PaymentFlowData {
+                    raw_connector_status: None,
                     merchant_id: MerchantId::default(),
                     customer_id: None,
                     connector_customer: None,
@@ -1666,6 +1685,7 @@ mod tests {
                     order_details: None,
                     l2_l3_data: None,
                     sender_payment_instrument_id: None,
+                    settlement_status: None,
                     merchant_request_id: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
@@ -1781,6 +1801,7 @@ mod tests {
         let data = RouterDataV2 {
             flow: std::marker::PhantomData,
             resource_common_data: PaymentFlowData {
+                raw_connector_status: None,
                 merchant_id: MerchantId::default(),
                 customer_id: None,
                 connector_customer: None,
@@ -1838,6 +1859,7 @@ mod tests {
                 l2_l3_data: None,
                 merchant_request_id: None,
                 sender_payment_instrument_id: None,
+                settlement_status: None,
             },
             connector_config: ConnectorSpecificConfig::Razorpay {
                 api_key: "dummy_api_key".to_string().into(),
@@ -1851,6 +1873,7 @@ mod tests {
                 metadata: None,
                 webhook_url: None,
                 payment_method_type: None,
+                order_details: None,
             },
             response: Err(ErrorResponse {
                 code: "HE_00".to_string(),
@@ -1914,6 +1937,7 @@ mod tests {
         let data = RouterDataV2 {
             flow: std::marker::PhantomData,
             resource_common_data: PaymentFlowData {
+                raw_connector_status: None,
                 merchant_id: MerchantId::default(),
                 customer_id: None,
                 connector_customer: None,
@@ -1970,6 +1994,7 @@ mod tests {
                 order_details: None,
                 l2_l3_data: None,
                 sender_payment_instrument_id: None,
+                settlement_status: None,
                 merchant_request_id: None,
             },
             connector_config: ConnectorSpecificConfig::Razorpay {
@@ -1984,6 +2009,7 @@ mod tests {
                 metadata: None,
                 webhook_url: None,
                 payment_method_type: None,
+                order_details: None,
             },
             response: Err(ErrorResponse {
                 code: "HE_00".to_string(),
@@ -2036,6 +2062,7 @@ mod tests {
         let data = RouterDataV2 {
             flow: std::marker::PhantomData,
             resource_common_data: PaymentFlowData {
+                raw_connector_status: None,
                 merchant_id: MerchantId::default(),
                 customer_id: None,
                 connector_customer: None,
@@ -2092,6 +2119,7 @@ mod tests {
                 order_details: None,
                 l2_l3_data: None,
                 sender_payment_instrument_id: None,
+                settlement_status: None,
                 merchant_request_id: None,
             },
             connector_config: ConnectorSpecificConfig::Razorpay {
@@ -2106,6 +2134,7 @@ mod tests {
                 metadata: None,
                 webhook_url: None,
                 payment_method_type: None,
+                order_details: None,
             },
             response: Err(ErrorResponse {
                 code: "HE_00".to_string(),

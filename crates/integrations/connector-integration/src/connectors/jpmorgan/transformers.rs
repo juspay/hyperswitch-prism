@@ -257,32 +257,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
                 let auth = JpmorganAuthType::try_from(&router_data.connector_config)?;
 
-                let merchant =
-                    requests::JpmorganMerchant {
-                        merchant_software: requests::JpmorganMerchantSoftware {
-                            company_name: auth.company_name.clone().ok_or(
-                                IntegrationError::MissingRequiredField {
-                                    field_name: "company_name",
-                                    context: Default::default(),
-                                },
-                            )?,
-                            product_name: auth.product_name.clone().ok_or(
-                                IntegrationError::MissingRequiredField {
-                                    field_name: "product_name",
-                                    context: Default::default(),
-                                },
-                            )?,
-                        },
-                        soft_merchant: requests::JpmorganSoftMerchant {
-                            merchant_purchase_description: auth
-                                .merchant_purchase_description
-                                .clone()
-                                .ok_or(IntegrationError::MissingRequiredField {
-                                    field_name: "merchant_purchase_description",
-                                    context: Default::default(),
-                                })?,
-                        },
-                    };
+                let merchant = requests::JpmorganMerchant::try_from(&auth)?;
 
                 let exp_month_str = card_data.card_exp_month.peek().to_string();
                 let exp_year_str = card_data.get_expiry_year_4_digit().peek().to_string();
@@ -351,32 +326,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
                 let auth = JpmorganAuthType::try_from(&router_data.connector_config)?;
 
-                let merchant =
-                    requests::JpmorganMerchant {
-                        merchant_software: requests::JpmorganMerchantSoftware {
-                            company_name: auth.company_name.clone().ok_or(
-                                IntegrationError::MissingRequiredField {
-                                    field_name: "company_name",
-                                    context: Default::default(),
-                                },
-                            )?,
-                            product_name: auth.product_name.clone().ok_or(
-                                IntegrationError::MissingRequiredField {
-                                    field_name: "product_name",
-                                    context: Default::default(),
-                                },
-                            )?,
-                        },
-                        soft_merchant: requests::JpmorganSoftMerchant {
-                            merchant_purchase_description: auth
-                                .merchant_purchase_description
-                                .clone()
-                                .ok_or(IntegrationError::MissingRequiredField {
-                                    field_name: "merchant_purchase_description",
-                                    context: Default::default(),
-                                })?,
-                        },
-                    };
+                let merchant = requests::JpmorganMerchant::try_from(&auth)?;
 
                 // Extract first name and last name from account holder name or billing info
                 let (first_name, last_name) =
@@ -437,34 +387,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
                 let auth = JpmorganAuthType::try_from(&router_data.connector_config)?;
 
-                let merchant =
-                    requests::JpmorganMerchant {
-                        merchant_software: requests::JpmorganMerchantSoftware {
-                            company_name: auth.company_name.clone().ok_or(
-                                IntegrationError::MissingRequiredField {
-                                    field_name: "company_name",
-                                    context: jpmorgan_missing_field_context("company_name"),
-                                },
-                            )?,
-                            product_name: auth.product_name.clone().ok_or(
-                                IntegrationError::MissingRequiredField {
-                                    field_name: "product_name",
-                                    context: jpmorgan_missing_field_context("product_name"),
-                                },
-                            )?,
-                        },
-                        soft_merchant: requests::JpmorganSoftMerchant {
-                            merchant_purchase_description: auth
-                                .merchant_purchase_description
-                                .clone()
-                                .ok_or(IntegrationError::MissingRequiredField {
-                                    field_name: "merchant_purchase_description",
-                                    context: jpmorgan_missing_field_context(
-                                        "merchant_purchase_description",
-                                    ),
-                                })?,
-                        },
-                    };
+                let merchant = requests::JpmorganMerchant::try_from(&auth)?;
 
                 // For CardToken, the token is passed in the payment_method_type
                 // instead of raw card details
@@ -514,31 +437,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
                             let auth = JpmorganAuthType::try_from(&router_data.connector_config)?;
 
-                            let merchant = requests::JpmorganMerchant {
-                                merchant_software: requests::JpmorganMerchantSoftware {
-                                    company_name: auth.company_name.clone().ok_or(
-                                        IntegrationError::MissingRequiredField {
-                                            field_name: "company_name",
-                                            context: Default::default(),
-                                        },
-                                    )?,
-                                    product_name: auth.product_name.clone().ok_or(
-                                        IntegrationError::MissingRequiredField {
-                                            field_name: "product_name",
-                                            context: Default::default(),
-                                        },
-                                    )?,
-                                },
-                                soft_merchant: requests::JpmorganSoftMerchant {
-                                    merchant_purchase_description: auth
-                                        .merchant_purchase_description
-                                        .clone()
-                                        .ok_or(IntegrationError::MissingRequiredField {
-                                            field_name: "merchant_purchase_description",
-                                            context: Default::default(),
-                                        })?,
-                                },
-                            };
+                            let merchant = requests::JpmorganMerchant::try_from(&auth)?;
 
                             let amount = JpmorganAmountConvertor::convert(
                                 router_data.request.minor_amount,
@@ -867,6 +766,7 @@ impl TryFrom<&responses::JpmorganPaymentsResponse> for PaymentsResponseData {
             connector_mandate_id: Some(item.transaction_id.clone()),
             payment_method_id: None,
             connector_mandate_request_reference_id: None,
+            mandate_metadata: None,
         };
 
         Ok(Self::TransactionResponse {
@@ -1162,24 +1062,21 @@ impl TryFrom<&JpmorganAuthType> for requests::JpmorganMerchant {
                 company_name: auth.company_name.clone().ok_or(
                     IntegrationError::MissingRequiredField {
                         field_name: "company_name",
-                        context: Default::default(),
+                        context: jpmorgan_missing_field_context("company_name"),
                     },
                 )?,
                 product_name: auth.product_name.clone().ok_or(
                     IntegrationError::MissingRequiredField {
                         field_name: "product_name",
-                        context: Default::default(),
+                        context: jpmorgan_missing_field_context("product_name"),
                     },
                 )?,
             },
-            soft_merchant: requests::JpmorganSoftMerchant {
-                merchant_purchase_description: auth.merchant_purchase_description.clone().ok_or(
-                    IntegrationError::MissingRequiredField {
-                        field_name: "merchant_purchase_description",
-                        context: Default::default(),
-                    },
-                )?,
-            },
+            soft_merchant: auth.merchant_purchase_description.clone().map(|d| {
+                requests::JpmorganSoftMerchant {
+                    merchant_purchase_description: d,
+                }
+            }),
         })
     }
 }
@@ -1413,17 +1310,26 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     card: Some(requests::JpmorganMitCardByNti {
                         account_number: card_data.card_number.clone(),
                         expiry,
-                        original_network_transaction_id: nti.clone(),
+                        original_network_transaction_id: nti.network_transaction_id.clone(),
                     }),
                     transaction_reference: None,
                 }
             }
             MandateReferenceId::NetworkTokenWithNTI(_) => {
                 return Err(IntegrationError::NotImplemented(
-                    "NetworkTokenWithNTI mandate reference is not implemented for \
-                     JPMorgan RepeatPayment"
+                    "NetworkTokenWithNTI mandate reference is not implemented for JPMorgan RepeatPayment"
                         .to_string(),
-                    Default::default(),
+                    IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Use ConnectorMandateId for stored JPMorgan transaction_reference repeat payments, or use NetworkMandateId with card data for raw-card NTI MITs. NetworkTokenWithNTI is not mapped for JPMorgan RepeatPayment."
+                                .to_string(),
+                        ),
+                        doc_url: Some(JPMORGAN_GETTING_STARTED_DOC.to_owned()),
+                        additional_context: Some(
+                            "JPMorgan RepeatPayment received a NetworkTokenWithNTI mandate reference. This transformer builds either transaction_reference from connector_mandate_id or card.accountNumber, expiry, and originalNetworkTransactionId from NetworkMandateId; it does not build a JPMorgan MIT payload from network token credentials plus NTI."
+                                .to_string(),
+                        ),
+                    },
                 )
                 .into());
             }

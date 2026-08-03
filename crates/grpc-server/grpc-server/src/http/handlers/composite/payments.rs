@@ -6,7 +6,8 @@ use axum::{
 use grpc_api_types::payments::{
     composite_payment_service_server::CompositePaymentService, CompositeAuthorizeRequest,
     CompositeAuthorizeResponse, CompositeCaptureRequest, CompositeCaptureResponse,
-    CompositeGetRequest, CompositeGetResponse, CompositeRefundRequest, CompositeRefundResponse,
+    CompositeGetRequest, CompositeGetResponse, CompositePreAuthenticateRequest,
+    CompositePreAuthenticateResponse, CompositeRefundRequest, CompositeRefundResponse,
     CompositeVerifyRedirectResponseRequest, CompositeVerifyRedirectResponseResponse,
     CompositeVoidRequest, CompositeVoidResponse,
 };
@@ -24,6 +25,14 @@ http_handler!(
     CompositeAuthorizeRequest,
     CompositeAuthorizeResponse,
     authorize,
+    composite_payments_service
+);
+
+http_handler!(
+    pre_authenticate,
+    CompositePreAuthenticateRequest,
+    CompositePreAuthenticateResponse,
+    pre_authenticate,
     composite_payments_service
 );
 

@@ -1,6 +1,10 @@
 use crate::types::ResponseRouterData;
 use common_enums::{AttemptStatus, CountryAlpha2, CountryAlpha3, Currency, RefundStatus};
-use common_utils::{consts, pii::Email, types::MinorUnit};
+use common_utils::{
+    consts,
+    pii::{Email, SecretSerdeValue},
+    types::MinorUnit,
+};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, CreateConnectorCustomer, PSync, PaymentMethodToken, RSync, Refund,
@@ -266,9 +270,14 @@ pub struct FinixCreatePaymentInstrumentRequest {
     pub tags: Option<FinixTags>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub address: Option<FinixAddress>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    // HS emits these as explicit `null` (no skip_serializing_if) for card payment instruments;
+    // mirror that so the shadow request bodies match. Finix derives card_brand/card_type from the
+    // PAN, so they stay None for cards; merchant_identity/third_party_token carry values only for
+    // wallet (Google/Apple Pay) tokenization.
+    pub card_brand: Option<String>,
+    pub card_type: Option<String>,
+    pub additional_data: Option<HashMap<String, String>>,
     pub merchant_identity: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub third_party_token: Option<Secret<String>>,
     // Bank account specific fields for ACH
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -343,19 +352,28 @@ pub type FinixSetupMandateResponse = FinixInstrumentResponse;
 
 // AUTHORIZE FLOW - REQUEST/RESPONSE
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct FinixPaymentThreeDSecure {
+    pub cardholder_authentication: Secret<String>,
+    pub electronic_commerce_indicator: String,
+    pub transaction_id: Option<String>,
+}
+
 #[derive(Debug, Serialize)]
-pub struct FinixAuthorizeRequest {
+pub struct FinixPaymentsRequest {
     pub amount: MinorUnit,
     pub currency: Currency,
     pub source: String,
     pub merchant: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub idempotency_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub tags: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fraud_session_id: Option<String>,
+    #[serde(rename = "3d_secure_authentication")]
+    pub three_d_secure_authentication: Option<FinixPaymentThreeDSecure>,
+    pub idempotency_id: Option<String>,
     pub statement_descriptor: Option<String>,
 }
+
+pub type FinixAuthorizeRequest = FinixPaymentsRequest;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FinixAuthorizeResponse {
@@ -379,9 +397,8 @@ pub struct FinixNetworkDetails {
     pub authorization_code: Option<String>,
 }
 
-// RepeatPayment (MIT) reuses the Authorize request/response shape.
-// A recurring charge is a POST /transfers (or /authorizations) with `source` set to a
-// previously stored Payment Instrument ID returned by SetupRecurring.
+// RepeatPayment (MIT) uses the same payment-create request shape as Authorize,
+// matching HS's `FinixPaymentsRequest` serialization for both flows.
 pub type FinixRepeatPaymentRequest = FinixAuthorizeRequest;
 pub type FinixRepeatPaymentResponse = FinixAuthorizeResponse;
 
@@ -418,6 +435,41 @@ impl From<&FinixPaymentStatus> for AttemptStatus {
             FinixPaymentStatus::Unknown => Self::Pending,
         }
     }
+}
+
+fn get_finix_three_d_secure(
+    authentication_data: Option<&domain_types::router_request_types::AuthenticationData>,
+) -> Result<Option<FinixPaymentThreeDSecure>, error_stack::Report<IntegrationError>> {
+    authentication_data
+        .map(|auth_data| {
+            Ok(FinixPaymentThreeDSecure {
+                cardholder_authentication: auth_data.cavv.clone().ok_or(
+                    IntegrationError::MissingRequiredField {
+                        field_name: "authentication_data.cavv",
+                        context: IntegrationErrorContext::default(),
+                    },
+                )?,
+                electronic_commerce_indicator: auth_data.eci.clone().ok_or(
+                    IntegrationError::MissingRequiredField {
+                        field_name: "authentication_data.eci",
+                        context: IntegrationErrorContext::default(),
+                    },
+                )?,
+                transaction_id: auth_data.threeds_server_transaction_id.clone(),
+            })
+        })
+        .transpose()
+}
+
+fn get_finix_fraud_session_id(connector_feature_data: Option<&SecretSerdeValue>) -> Option<String> {
+    connector_feature_data.and_then(|feature_data| {
+        feature_data
+            .peek()
+            .get("finix_additional_details")
+            .and_then(|details| details.get("fraud_session_id"))
+            .and_then(|value| value.as_str())
+            .map(ToOwned::to_owned)
+    })
 }
 
 // TRYFROM IMPLEMENTATIONS - AUTHORIZE REQUEST
@@ -475,19 +527,25 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .billing_descriptor
             .clone()
             .and_then(|billing_descriptor| billing_descriptor.statement_descriptor);
+        let three_d_secure_authentication =
+            get_finix_three_d_secure(router_data.request.authentication_data.as_ref())?;
+        let fraud_session_id =
+            get_finix_fraud_session_id(router_data.request.connector_feature_data.as_ref());
 
         Ok(Self {
             amount: router_data.request.amount,
             currency: router_data.request.currency,
             source,
             merchant: merchant_id,
+            tags: None,
+            fraud_session_id,
+            three_d_secure_authentication,
             idempotency_id: Some(
                 router_data
                     .resource_common_data
                     .connector_request_reference_id
                     .clone(),
             ),
-            tags: None,
             statement_descriptor,
         })
     }
@@ -508,81 +566,85 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             convert_to_additional_payment_method_connector_response(&item.response)
                 .map(ConnectorResponseData::with_additional_payment_method_data);
 
-        // Handle error vs success responses
-        match &response.failure_message {
-            Some(_failure_message) => Ok(Self {
-                response: Ok(PaymentsResponseData::TransactionResponse {
-                    resource_id: ResponseId::ConnectorTransactionId(response.id.clone()),
-                    redirection_data: None,
-                    mandate_reference: None,
-                    connector_metadata: None,
-                    network_txn_id: None,
-                    network_txn_link_id: None,
-                    connector_response_reference_id: None,
-                    incremental_authorization_allowed: None,
-                    status_code: item.http_code,
-                    splits: None,
-                }),
-                resource_common_data: PaymentFlowData {
-                    status: AttemptStatus::Failure,
-                    ..item.router_data.resource_common_data.clone()
-                },
-                ..item.router_data
-            }),
-            None => {
-                // Determine status based on ID type (following Hyperswitch pattern):
-                // - Transfer (TR*): Succeeded -> Charged
-                // - Authorization (AU*): Succeeded -> Authorized
-                let finix_id = FinixId::from(response.id.clone());
-                let status = match (&finix_id, &response.state) {
-                    (FinixId::Transfer(_), FinixPaymentStatus::Succeeded) => AttemptStatus::Charged,
-                    (FinixId::Transfer(_), FinixPaymentStatus::Pending) => AttemptStatus::Pending,
-                    (FinixId::Auth(_), FinixPaymentStatus::Succeeded) => AttemptStatus::Authorized,
-                    (FinixId::Auth(_), FinixPaymentStatus::Pending) => {
-                        AttemptStatus::AuthenticationPending
-                    }
-                    (_, FinixPaymentStatus::Failed) => AttemptStatus::Failure,
-                    (_, FinixPaymentStatus::Canceled) => AttemptStatus::Voided,
-                    (_, FinixPaymentStatus::Unknown) => AttemptStatus::Pending,
-                };
+        // Determine status based on ID type, mirroring Hyperswitch's `get_attempt_status`:
+        // - Transfer (TR*): Succeeded -> Charged, failure -> Failure
+        // - Authorization (AU*): Succeeded -> Authorized, failure -> AuthorizationFailed
+        let finix_id = FinixId::from(response.id.clone());
+        let status = match (&finix_id, &response.state) {
+            (FinixId::Transfer(_), FinixPaymentStatus::Succeeded) => AttemptStatus::Charged,
+            (FinixId::Transfer(_), FinixPaymentStatus::Pending) => AttemptStatus::Pending,
+            (FinixId::Transfer(_), _) => AttemptStatus::Failure,
+            (FinixId::Auth(_), FinixPaymentStatus::Succeeded) => AttemptStatus::Authorized,
+            (FinixId::Auth(_), FinixPaymentStatus::Pending) => AttemptStatus::AuthenticationPending,
+            (FinixId::Auth(_), _) => AttemptStatus::AuthorizationFailed,
+        };
 
-                // Determine connector_transaction_id:
-                // - Transfer (TR*): Use the response ID directly (it's already a transfer ID)
-                // - Authorization (AU*): Use transfer field if present (for refunds), else use ID
-                let connector_transaction_id = match &finix_id {
-                    FinixId::Transfer(_) => response.id.clone(),
-                    FinixId::Auth(_) => response
-                        .transfer
-                        .clone()
-                        .unwrap_or_else(|| response.id.clone()),
-                };
+        // Finix reports declines as an HTTP-2xx body with `state: FAILED` (soft decline).
+        // Hyperswitch's Direct path maps any `state.is_failure()` (FAILED/CANCELED/UNKNOWN)
+        // to `response: Err(ErrorResponse)` carrying the connector failure code/message, so
+        // mirror that here for shadow parity (was previously `Ok` with status=Failure).
+        let is_failure = domain_types::utils::is_payment_failure(status);
 
-                Ok(Self {
-                    response: Ok(PaymentsResponseData::TransactionResponse {
-                        resource_id: ResponseId::ConnectorTransactionId(connector_transaction_id),
-                        redirection_data: None,
-                        mandate_reference: Some(Box::new(MandateReference {
-                            connector_mandate_id: response.source.clone().map(|id| id.expose()),
-                            payment_method_id: None,
-                            connector_mandate_request_reference_id: None,
-                        })),
-                        connector_metadata: None,
-                        network_txn_id: None,
-                        network_txn_link_id: None,
-                        connector_response_reference_id: Some(response.id.clone()),
-                        incremental_authorization_allowed: None,
-                        status_code: item.http_code,
-                        splits: None,
-                    }),
-                    resource_common_data: PaymentFlowData {
-                        status,
-                        connector_response: connector_response_data,
-                        ..item.router_data.resource_common_data.clone()
-                    },
-                    ..item.router_data
-                })
-            }
-        }
+        let flow_response = if is_failure {
+            Err(ErrorResponse {
+                code: response
+                    .failure_code
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                message: response
+                    .failure_message
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                reason: None,
+                status_code: item.http_code,
+                attempt_status: Some(FlowStatus::Payment(status)),
+                connector_transaction_id: Some(response.id.clone()),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+            })
+        } else {
+            // Determine connector_transaction_id:
+            // - Transfer (TR*): Use the response ID directly (it's already a transfer ID)
+            // - Authorization (AU*): Use transfer field if present (for refunds), else use ID
+            let connector_transaction_id = match &finix_id {
+                FinixId::Transfer(_) => response.id.clone(),
+                FinixId::Auth(_) => response
+                    .transfer
+                    .clone()
+                    .unwrap_or_else(|| response.id.clone()),
+            };
+
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(connector_transaction_id),
+                redirection_data: None,
+                mandate_reference: Some(Box::new(MandateReference {
+                    connector_mandate_id: response.source.clone().map(|id| id.expose()),
+                    payment_method_id: None,
+                    connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
+                })),
+                connector_metadata: None,
+                network_txn_id: None,
+                network_txn_link_id: None,
+                connector_response_reference_id: Some(response.id.clone()),
+                incremental_authorization_allowed: None,
+                status_code: item.http_code,
+                splits: None,
+            })
+        };
+
+        // `connector_response` (AVS / network details) is set on BOTH success and failure
+        // paths, matching Direct which always populates it from the Finix response body.
+        Ok(Self {
+            response: flow_response,
+            resource_common_data: PaymentFlowData {
+                status,
+                connector_response: connector_response_data,
+                ..item.router_data.resource_common_data.clone()
+            },
+            ..item.router_data
+        })
     }
 }
 
@@ -683,6 +745,7 @@ impl TryFrom<ResponseRouterData<FinixPSyncResponse, Self>>
             connector_mandate_id: response.source.as_ref().map(|s| s.clone().expose()),
             payment_method_id: None,
             connector_mandate_request_reference_id: None,
+            mandate_metadata: None,
         }));
         let connector_response = build_finix_connector_response(response);
 
@@ -781,10 +844,7 @@ impl TryFrom<ResponseRouterData<FinixCaptureResponse, Self>>
 
         let connector_response = build_finix_connector_response(&response);
 
-        let is_failure = matches!(
-            response.state,
-            FinixPaymentStatus::Failed | FinixPaymentStatus::Canceled | FinixPaymentStatus::Unknown
-        );
+        let is_failure = domain_types::utils::is_payment_failure(status);
 
         let flow_response = if is_failure {
             Err(ErrorResponse {
@@ -820,6 +880,7 @@ impl TryFrom<ResponseRouterData<FinixCaptureResponse, Self>>
                     connector_mandate_id: response.source.clone().map(|id| id.expose()),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
                 })),
                 connector_metadata: None,
                 network_txn_id: None,
@@ -1169,6 +1230,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 address: get_billing_address_as_finix_address(
                     &item.router_data.resource_common_data,
                 ),
+                card_brand: None,
+                card_type: None,
+                additional_data: None,
                 merchant_identity: None,
                 third_party_token: None,
                 account_number: None,
@@ -1202,6 +1266,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             identity: customer_id,
                             tags: None,
                             address: None,
+                            card_brand: None,
+                            card_type: None,
+                            additional_data: None,
                             merchant_identity: None,
                             third_party_token: None,
                             account_number: Some(account_number.clone()),
@@ -1242,6 +1309,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             identity: customer_id,
                             tags: None,
                             address: None,
+                            card_brand: None,
+                            card_type: None,
+                            additional_data: None,
                             merchant_identity: Some(Secret::new(merchant_identity)),
                             third_party_token: Some(Secret::new(third_party_token.token.clone())),
                             account_number: None,
@@ -1407,6 +1477,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 address: get_billing_address_as_finix_address(
                     &item.router_data.resource_common_data,
                 ),
+                card_brand: None,
+                card_type: None,
+                additional_data: None,
                 merchant_identity: None,
                 third_party_token: None,
                 account_number: None,
@@ -1440,6 +1513,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             identity: customer_id,
                             tags,
                             address: None,
+                            card_brand: None,
+                            card_type: None,
+                            additional_data: None,
                             merchant_identity: None,
                             third_party_token: None,
                             account_number: Some(account_number.clone()),
@@ -1480,6 +1556,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             identity: customer_id,
                             tags,
                             address: None,
+                            card_brand: None,
+                            card_type: None,
+                            additional_data: None,
                             merchant_identity: Some(Secret::new(merchant_identity)),
                             third_party_token: Some(Secret::new(third_party_token.token.clone())),
                             account_number: None,
@@ -1544,6 +1623,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     connector_mandate_id: Some(id.clone()),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
                 }));
 
                 Ok(Self {
@@ -1652,24 +1732,31 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         };
 
+        let statement_descriptor = router_data
+            .request
+            .billing_descriptor
+            .clone()
+            .and_then(|billing_descriptor| billing_descriptor.statement_descriptor);
+        let three_d_secure_authentication =
+            get_finix_three_d_secure(router_data.request.authentication_data.as_ref())?;
+        let fraud_session_id =
+            get_finix_fraud_session_id(router_data.request.connector_feature_data.as_ref());
+
         Ok(Self {
             amount: router_data.request.minor_amount,
             currency: router_data.request.currency,
             source,
             merchant: merchant_id,
+            tags: None,
+            fraud_session_id,
+            three_d_secure_authentication,
             idempotency_id: Some(
                 router_data
                     .resource_common_data
                     .connector_request_reference_id
                     .clone(),
             ),
-            tags: Some(serde_json::json!({
-                FINIX_REFERENCE_TAG_KEY: router_data
-                    .resource_common_data
-                    .connector_request_reference_id
-                    .clone(),
-            })),
-            statement_descriptor: None,
+            statement_descriptor,
         })
     }
 }
@@ -1685,6 +1772,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let response = &item.response;
 
+        // Finix echoes AVS / network details on failed charges too, and hyperswitch's
+        // `get_finix_response` attaches them outside its success/failure split, so this
+        // must be computed before the failure branch to stay at parity.
+        let connector_response_data =
+            convert_to_additional_payment_method_connector_response(&item.response)
+                .map(ConnectorResponseData::with_additional_payment_method_data);
+
         // Surface explicit Finix failure responses (failure_message present) directly.
         if let Some(failure_message) = response.failure_message.clone() {
             let code = response
@@ -1694,12 +1788,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             return Ok(Self {
                 resource_common_data: PaymentFlowData {
                     status: AttemptStatus::Failure,
+                    connector_response: connector_response_data,
                     ..item.router_data.resource_common_data.clone()
                 },
                 response: Err(ErrorResponse {
                     code,
-                    message: failure_message.clone(),
-                    reason: Some(failure_message),
+                    message: failure_message,
+                    reason: None,
                     status_code: item.http_code,
                     attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: Some(response.id.clone()),
@@ -1726,10 +1821,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Mirror the Authorize flow for shadow parity: surface the charged Payment
         // Instrument (`source`) as the connector mandate id and attach the AVS / network
         // details as the connector_response.
-        let connector_response_data =
-            convert_to_additional_payment_method_connector_response(&item.response)
-                .map(ConnectorResponseData::with_additional_payment_method_data);
-
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
@@ -1743,6 +1834,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     connector_mandate_id: response.source.clone().map(|id| id.expose()),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
                 })),
                 connector_metadata: None,
                 network_txn_id: None,
@@ -1755,4 +1847,515 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             ..item.router_data
         })
     }
+}
+
+// =============================================================================
+// INCOMING WEBHOOKS
+// Ported 1:1 from hyperswitch `crates/hyperswitch_connectors/src/connectors/finix.rs`
+// (`impl IncomingWebhook for Finix`) and `finix/transformers/response.rs`
+// (`FinixWebhookBody::{get_webhook_object_reference_id, get_webhook_event_type,
+// get_dispute_details}`). Hyperswitch (Direct gateway) is the source of truth.
+// =============================================================================
+
+use domain_types::connector_types::{
+    DisputeWebhookDetailsResponse, DisputeWebhookReference, EventType, PaymentWebhookReference,
+    RefundWebhookDetailsResponse, RefundWebhookReference, WebhookDetailsResponse,
+    WebhookResourceReference,
+};
+use domain_types::errors::WebhookError;
+use time::PrimitiveDateTime;
+
+/// Webhook transaction state. Mirrors HS `FinixState` (transformers/request.rs).
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum FinixState {
+    Pending,
+    Succeeded,
+    Failed,
+    Canceled,
+    #[serde(other)]
+    Unknown,
+}
+
+/// Webhook transfer type. Mirrors HS `FinixPaymentType` (transformers/request.rs).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum FinixPaymentType {
+    Debit,
+    Credit,
+    Reversal,
+    Fee,
+    Adjustment,
+    Dispute,
+    Reserve,
+    Settlement,
+    #[serde(other)]
+    Unknown,
+}
+
+/// Mirrors HS `FinixThreeDSecure` (transformers/request.rs).
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct FinixThreeDSecure {
+    pub cardholder_authentication: Secret<String>,
+    pub electronic_commerce_indicator: String,
+    pub transaction_id: Option<String>,
+}
+
+/// Webhook payment resource (authorization or transfer). Mirrors HS
+/// `FinixPaymentsResponse` (transformers/response.rs) field-for-field so that
+/// (de)serialization succeeds/fails on exactly the same payloads.
+/// Named `FinixWebhookPaymentsResponse` because prism already has a different
+/// `FinixPaymentsResponse` for the sync/authorize API responses.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct FinixWebhookPaymentsResponse {
+    pub id: String,
+    pub created_at: Option<String>,
+    pub updated_at: Option<String>,
+    pub application: Option<Secret<String>>,
+    pub amount: MinorUnit,
+    pub captured_amount: Option<MinorUnit>,
+    pub currency: Currency,
+    pub is_void: Option<bool>,
+    pub source: Option<Secret<String>>,
+    pub state: FinixState,
+    pub failure_code: Option<String>,
+    pub messages: Option<Vec<String>>,
+    pub failure_message: Option<String>,
+    pub transfer: Option<String>,
+    pub tags: FinixTags,
+    #[serde(rename = "type")]
+    pub payment_type: Option<FinixPaymentType>,
+    pub three_d_secure: Option<FinixThreeDSecure>,
+    pub address_verification: Option<String>,
+    pub network_details: Option<FinixNetworkDetails>,
+}
+
+/// Mirrors HS `FinixDisputeState` (transformers/response.rs).
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum FinixDisputeState {
+    Inquiry,
+    Pending,
+    Lost,
+    Won,
+}
+
+/// Mirrors HS `FinixDisputes` (transformers/response.rs).
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct FinixDisputes {
+    pub transfer: String,
+    pub reason: Option<String>,
+    pub amount: MinorUnit,
+    pub state: FinixDisputeState,
+    pub currency: Currency,
+    pub id: String,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub created_at: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub updated_at: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub respond_by: Option<PrimitiveDateTime>,
+}
+
+/// Mirrors HS `SingleEventType` (transformers/response.rs).
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SingleEventType<T>(Vec<T>);
+
+impl<T: Clone> SingleEventType<T> {
+    pub fn get_first_event(&self) -> Result<T, error_stack::Report<WebhookError>> {
+        self.0
+            .first()
+            .cloned()
+            .ok_or_else(|| error_stack::report!(WebhookError::WebhookBodyDecodingFailed))
+    }
+}
+
+/// Mirrors HS `FinixEmbedded` (transformers/response.rs). Untagged: variant order
+/// (Authorizations, Transfers, Disputes) matches HS so ambiguous payloads resolve
+/// identically.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum FinixEmbedded {
+    Authorizations {
+        authorizations: SingleEventType<FinixWebhookPaymentsResponse>,
+    },
+    Transfers {
+        transfers: SingleEventType<FinixWebhookPaymentsResponse>,
+    },
+    Disputes {
+        disputes: SingleEventType<FinixDisputes>,
+    },
+}
+
+/// Mirrors HS `FinixWebhookBody` (transformers/response.rs).
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct FinixWebhookBody {
+    #[serde(rename = "type")]
+    pub webhook_type: String,
+    pub entity: String,
+    #[serde(rename = "_embedded")]
+    pub webhook_embedded: FinixEmbedded,
+}
+
+/// Parsed `Finix-Signature` header. Mirrors HS `FinixWebhookSignature`
+/// (`sig` kept as the hex string; hex-decoded at the verification site).
+#[derive(Debug)]
+pub struct FinixWebhookSignature {
+    pub timestamp: String,
+    pub sig: String,
+}
+
+/// HS treats an empty body or a body that trims to `{}` as Finix's
+/// endpoint-verification probe (finix.rs `get_webhook_event_type`). HS's
+/// `SetupWebhook` arm is unreachable there (`is_test_webhook` only matches an
+/// exact `"{}"` body, which this check already catches), so it is not ported.
+pub(super) fn is_endpoint_verification_body(body: &[u8]) -> bool {
+    let trimmed_body = std::str::from_utf8(body)
+        .map(|string| string.trim())
+        .unwrap_or("");
+    body.is_empty() || trimmed_body == "{}"
+}
+
+pub(super) fn parse_finix_webhook_body(
+    body: &[u8],
+) -> Result<FinixWebhookBody, error_stack::Report<WebhookError>> {
+    serde_json::from_slice::<FinixWebhookBody>(body)
+        .change_context(WebhookError::WebhookBodyDecodingFailed)
+        .attach_printable("failed to deserialize the Finix webhook body (FinixWebhookBody)")
+}
+
+/// Parses the comma-separated `key=value` pairs of the `Finix-Signature` header.
+/// Ports HS `decode_finix_signature` (finix.rs); header lookup is
+/// case-insensitive because the gRPC surface transports headers as a plain map.
+pub(super) fn decode_finix_signature(
+    headers: &HashMap<String, String>,
+) -> Result<FinixWebhookSignature, error_stack::Report<WebhookError>> {
+    let security_header = headers
+        .iter()
+        .find(|(name, _)| name.eq_ignore_ascii_case("finix-signature"))
+        .map(|(_, value)| value.as_str())
+        .ok_or_else(|| error_stack::report!(WebhookError::WebhookSignatureNotFound))?;
+
+    let map: HashMap<&str, &str> = security_header
+        .split(',')
+        .map(|kv| {
+            let mut parts = kv.trim().splitn(2, '=');
+            let key = parts
+                .next()
+                .ok_or_else(|| error_stack::report!(WebhookError::WebhookSignatureNotFound))?;
+            let value = parts
+                .next()
+                .ok_or_else(|| error_stack::report!(WebhookError::WebhookSignatureNotFound))?;
+            Ok((key, value))
+        })
+        .collect::<Result<_, error_stack::Report<WebhookError>>>()?;
+
+    let timestamp = map
+        .get("timestamp")
+        .ok_or_else(|| error_stack::report!(WebhookError::WebhookSignatureNotFound))?
+        .to_string();
+
+    let sig = map
+        .get("sig")
+        .ok_or_else(|| error_stack::report!(WebhookError::WebhookSignatureNotFound))?
+        .to_string();
+
+    Ok(FinixWebhookSignature { timestamp, sig })
+}
+
+/// Ports HS `FinixWebhookBody::get_webhook_event_type` arm-for-arm.
+/// HS maps a PENDING reversal to `IncomingWebhookEvent::EventNotSupported`;
+/// the equivalent here is `EventType::IncomingWebhookEventUnspecified`
+/// (proto `WEBHOOK_EVENT_TYPE_UNSPECIFIED` = 0, which the HS UCS client maps
+/// back to `EventNotSupported` in `from_ucs_event_type`).
+pub(super) fn get_finix_webhook_event_type(
+    body: &FinixWebhookBody,
+) -> Result<EventType, error_stack::Report<WebhookError>> {
+    match &body.webhook_embedded {
+        FinixEmbedded::Authorizations { authorizations } => {
+            let authorization = authorizations.get_first_event()?;
+
+            if authorization.is_void == Some(true) {
+                match authorization.state {
+                    FinixState::Failed | FinixState::Canceled | FinixState::Unknown => {
+                        Ok(EventType::PaymentIntentCancelFailure)
+                    }
+                    FinixState::Pending => Ok(EventType::PaymentIntentProcessing),
+                    FinixState::Succeeded => Ok(EventType::PaymentIntentCancelled),
+                }
+            } else {
+                match authorization.state {
+                    FinixState::Pending => Ok(EventType::PaymentIntentProcessing),
+                    FinixState::Succeeded => Ok(EventType::PaymentIntentAuthorizationSuccess),
+                    FinixState::Failed | FinixState::Canceled | FinixState::Unknown => {
+                        Ok(EventType::PaymentIntentAuthorizationFailure)
+                    }
+                }
+            }
+        }
+        FinixEmbedded::Transfers { transfers } => {
+            let transfer = transfers.get_first_event()?;
+
+            if transfer.payment_type == Some(FinixPaymentType::Reversal) {
+                match transfer.state {
+                    FinixState::Succeeded => Ok(EventType::RefundSuccess),
+                    // HS: `EventNotSupported` (see doc comment above).
+                    FinixState::Pending => Ok(EventType::IncomingWebhookEventUnspecified),
+                    FinixState::Failed | FinixState::Canceled | FinixState::Unknown => {
+                        Ok(EventType::RefundFailure)
+                    }
+                }
+            } else {
+                match transfer.state {
+                    FinixState::Pending => Ok(EventType::PaymentIntentProcessing),
+                    FinixState::Succeeded => Ok(EventType::PaymentIntentSuccess),
+                    FinixState::Failed | FinixState::Canceled | FinixState::Unknown => {
+                        Ok(EventType::PaymentIntentFailure)
+                    }
+                }
+            }
+        }
+        FinixEmbedded::Disputes { disputes } => {
+            let dispute = disputes.get_first_event()?;
+
+            match dispute.state {
+                FinixDisputeState::Pending => Ok(EventType::DisputeOpened),
+                FinixDisputeState::Inquiry => Ok(EventType::DisputeChallenged),
+                FinixDisputeState::Lost => Ok(EventType::DisputeLost),
+                FinixDisputeState::Won => Ok(EventType::DisputeWon),
+            }
+        }
+    }
+}
+
+/// Ports HS `FinixWebhookBody::get_webhook_object_reference_id`:
+/// - Authorizations -> `PaymentId(ConnectorTransactionId(authorization.id))`
+/// - Transfers (REVERSAL) -> `RefundId(ConnectorRefundId(transfer.id))`
+/// - Transfers (FEE) -> error (HS: `WebhookEventTypeNotFound`, platform fee ignored)
+/// - Transfers (other) -> `PaymentId(ConnectorTransactionId(transfer.id))`
+/// - Disputes -> HS emits `PaymentId(ConnectorTransactionId(dispute.transfer))`; the
+///   HS reference normaliser maps a prism Dispute reference via
+///   `connector_dispute_id.or(connector_transaction_id)` into exactly that, so
+///   `connector_dispute_id` MUST stay `None` for byte-parity with the Direct gateway.
+pub(super) fn get_finix_webhook_reference(
+    body: &FinixWebhookBody,
+) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
+    match &body.webhook_embedded {
+        FinixEmbedded::Authorizations { authorizations } => {
+            let authorization = authorizations.get_first_event()?;
+
+            Ok(Some(WebhookResourceReference::Payment(
+                PaymentWebhookReference {
+                    connector_transaction_id: Some(authorization.id),
+                    merchant_transaction_id: None,
+                },
+            )))
+        }
+        FinixEmbedded::Transfers { transfers } => {
+            let transfer = transfers.get_first_event()?;
+
+            match transfer.payment_type {
+                Some(FinixPaymentType::Reversal) => Ok(Some(WebhookResourceReference::Refund(
+                    RefundWebhookReference {
+                        connector_refund_id: Some(transfer.id),
+                        merchant_refund_id: None,
+                        connector_transaction_id: None,
+                    },
+                ))),
+                // finix platform fee ignored (HS: Err(WebhookEventTypeNotFound))
+                Some(FinixPaymentType::Fee) => Err(error_stack::report!(
+                    WebhookError::WebhookReferenceIdNotFound
+                )),
+                _ => Ok(Some(WebhookResourceReference::Payment(
+                    PaymentWebhookReference {
+                        connector_transaction_id: Some(transfer.id),
+                        merchant_transaction_id: None,
+                    },
+                ))),
+            }
+        }
+        FinixEmbedded::Disputes { disputes } => {
+            let dispute = disputes.get_first_event()?;
+
+            Ok(Some(WebhookResourceReference::Dispute(
+                DisputeWebhookReference {
+                    connector_dispute_id: None,
+                    connector_transaction_id: Some(dispute.transfer),
+                },
+            )))
+        }
+    }
+}
+
+/// Which HS flow a webhook payment resource belongs to (`FinixFlow` in HS).
+/// Webhooks only ever carry authorizations or transfers, so HS's `Capture` arm
+/// is unreachable from the webhook path and is not ported.
+#[derive(Clone, Copy, Debug)]
+pub(super) enum FinixWebhookFlow {
+    Auth,
+    Transfer,
+}
+
+/// Ports HS `get_attempt_status` (finix/transformers.rs) for the webhook path.
+fn get_finix_webhook_attempt_status(
+    state: &FinixState,
+    flow: FinixWebhookFlow,
+    is_void: Option<bool>,
+) -> AttemptStatus {
+    if is_void == Some(true) {
+        return match state {
+            FinixState::Failed | FinixState::Canceled | FinixState::Unknown => {
+                AttemptStatus::VoidFailed
+            }
+            FinixState::Pending => AttemptStatus::Voided,
+            FinixState::Succeeded => AttemptStatus::Voided,
+        };
+    }
+    match (flow, state) {
+        (FinixWebhookFlow::Auth, FinixState::Pending) => AttemptStatus::AuthenticationPending,
+        (FinixWebhookFlow::Auth, FinixState::Succeeded) => AttemptStatus::Authorized,
+        (
+            FinixWebhookFlow::Auth,
+            FinixState::Failed | FinixState::Canceled | FinixState::Unknown,
+        ) => AttemptStatus::AuthorizationFailed,
+        (FinixWebhookFlow::Transfer, FinixState::Pending) => AttemptStatus::Pending,
+        (FinixWebhookFlow::Transfer, FinixState::Succeeded) => AttemptStatus::Charged,
+        (
+            FinixWebhookFlow::Transfer,
+            FinixState::Failed | FinixState::Canceled | FinixState::Unknown,
+        ) => AttemptStatus::Failure,
+    }
+}
+
+/// Ports HS `impl From<FinixState> for RefundStatus` (finix/transformers.rs).
+fn get_finix_webhook_refund_status(state: &FinixState) -> RefundStatus {
+    match state {
+        FinixState::Pending => RefundStatus::Pending,
+        FinixState::Succeeded => RefundStatus::Success,
+        FinixState::Failed | FinixState::Canceled | FinixState::Unknown => RefundStatus::Failure,
+    }
+}
+
+/// Dispute status per the HS webhook event mapping (PENDING -> DisputeOpened,
+/// INQUIRY -> DisputeChallenged, LOST -> DisputeLost, WON -> DisputeWon).
+fn get_finix_webhook_dispute_status(state: &FinixDisputeState) -> common_enums::DisputeStatus {
+    match state {
+        FinixDisputeState::Pending => common_enums::DisputeStatus::DisputeOpened,
+        FinixDisputeState::Inquiry => common_enums::DisputeStatus::DisputeChallenged,
+        FinixDisputeState::Lost => common_enums::DisputeStatus::DisputeLost,
+        FinixDisputeState::Won => common_enums::DisputeStatus::DisputeWon,
+    }
+}
+
+/// Builds the payment webhook content for authorizations and (non-reversal)
+/// transfers. Status mapping ports HS `get_attempt_status` with
+/// `FinixFlow::Auth` / `FinixFlow::Transfer` respectively.
+pub(super) fn build_finix_payment_webhook_response(
+    body: &FinixWebhookBody,
+    raw_body: &[u8],
+) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
+    let (resource, flow) = match &body.webhook_embedded {
+        FinixEmbedded::Authorizations { authorizations } => {
+            (authorizations.get_first_event()?, FinixWebhookFlow::Auth)
+        }
+        FinixEmbedded::Transfers { transfers } => {
+            (transfers.get_first_event()?, FinixWebhookFlow::Transfer)
+        }
+        FinixEmbedded::Disputes { .. } => {
+            return Err(error_stack::report!(
+                WebhookError::WebhookResourceObjectNotFound
+            ))
+            .attach_printable("expected a payment webhook, but found a dispute webhook");
+        }
+    };
+
+    let status = get_finix_webhook_attempt_status(&resource.state, flow, resource.is_void);
+
+    Ok(WebhookDetailsResponse {
+        resource_id: Some(ResponseId::ConnectorTransactionId(resource.id.clone())),
+        status,
+        connector_response_reference_id: Some(resource.id),
+        mandate_reference: None,
+        error_code: resource.failure_code,
+        error_message: resource.failure_message.clone(),
+        error_reason: resource.failure_message,
+        raw_connector_response: Some(String::from_utf8_lossy(raw_body).to_string()),
+        status_code: 200,
+        response_headers: None,
+        amount_captured: resource
+            .captured_amount
+            .map(|amount| amount.get_amount_as_i64()),
+        minor_amount_captured: resource.captured_amount,
+        network_txn_id: None,
+        payment_method_update: None,
+        sender_payment_instrument_id: None,
+    })
+}
+
+/// Builds the refund webhook content for REVERSAL transfers. Status mapping
+/// ports HS `impl From<FinixState> for RefundStatus`.
+pub(super) fn build_finix_refund_webhook_response(
+    body: &FinixWebhookBody,
+    raw_body: &[u8],
+) -> Result<RefundWebhookDetailsResponse, error_stack::Report<WebhookError>> {
+    let transfer = match &body.webhook_embedded {
+        FinixEmbedded::Transfers { transfers } => transfers.get_first_event()?,
+        FinixEmbedded::Authorizations { .. } | FinixEmbedded::Disputes { .. } => {
+            return Err(error_stack::report!(
+                WebhookError::WebhookResourceObjectNotFound
+            ))
+            .attach_printable("expected a refund (reversal transfer) webhook");
+        }
+    };
+
+    Ok(RefundWebhookDetailsResponse {
+        connector_refund_id: Some(transfer.id),
+        // Finix REVERSAL webhooks only carry connector-side ids — no merchant
+        // reference for the original payment.
+        merchant_transaction_id: None,
+        status: get_finix_webhook_refund_status(&transfer.state),
+        connector_response_reference_id: None,
+        error_code: transfer.failure_code,
+        error_message: transfer.failure_message,
+        raw_connector_response: Some(String::from_utf8_lossy(raw_body).to_string()),
+        status_code: 200,
+        response_headers: None,
+    })
+}
+
+/// Builds the dispute webhook content. Ports HS
+/// `FinixWebhookBody::get_dispute_details`: amount converted with the HS
+/// webhook amount converter (`StringMinorUnitForConnector`), stage is always
+/// `Dispute`, reason surfaced as the dispute message.
+pub(super) fn build_finix_dispute_webhook_response(
+    body: &FinixWebhookBody,
+    raw_body: &[u8],
+) -> Result<DisputeWebhookDetailsResponse, error_stack::Report<WebhookError>> {
+    let dispute = match &body.webhook_embedded {
+        FinixEmbedded::Disputes { disputes } => disputes.get_first_event()?,
+        FinixEmbedded::Authorizations { .. } | FinixEmbedded::Transfers { .. } => {
+            return Err(error_stack::report!(
+                WebhookError::WebhookResourceObjectNotFound
+            ))
+            .attach_printable("expected a dispute webhook, but found other webhooks");
+        }
+    };
+
+    Ok(DisputeWebhookDetailsResponse {
+        amount: domain_types::utils::convert_amount_for_webhook(
+            &common_utils::types::StringMinorUnitForConnector,
+            dispute.amount,
+            dispute.currency,
+        )?,
+        currency: dispute.currency,
+        dispute_id: dispute.id,
+        status: get_finix_webhook_dispute_status(&dispute.state),
+        stage: common_enums::DisputeStage::Dispute,
+        connector_response_reference_id: None,
+        dispute_message: dispute.reason,
+        connector_reason_code: None,
+        raw_connector_response: Some(String::from_utf8_lossy(raw_body).to_string()),
+        status_code: 200,
+        response_headers: None,
+    })
 }

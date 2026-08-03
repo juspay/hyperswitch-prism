@@ -47,6 +47,9 @@ pub struct ServerAuthenticationToken;
 pub struct CreateConnectorCustomer;
 
 #[derive(Debug, Clone)]
+pub struct GetConnectorCustomer;
+
+#[derive(Debug, Clone)]
 pub struct PaymentMethodToken;
 
 #[derive(Debug, Clone)]
@@ -115,6 +118,25 @@ pub struct CreatePaymentMethod;
 #[derive(Debug, Clone)]
 pub struct GetPaymentMethod;
 
+/// Refresh a stored payment method and return what the provider says changed.
+#[derive(Debug, Clone)]
+pub struct RefreshPaymentMethod;
+
+#[derive(Debug, Clone)]
+pub struct PreRiskCheck;
+
+#[derive(Debug, Clone)]
+pub struct PostRiskCheck;
+
+#[derive(Debug, Clone)]
+pub struct FrmPaymentOutcome;
+
+#[derive(Debug, Clone)]
+pub struct FrmRefundProcessed;
+
+#[derive(Debug, Clone)]
+pub struct FrmChargebackReceived;
+
 #[derive(Debug, Clone)]
 pub struct PaymentMethodEligibility;
 
@@ -140,6 +162,7 @@ pub enum FlowName {
     ServerSessionAuthenticationToken,
     ServerAuthenticationToken,
     CreateConnectorCustomer,
+    GetConnectorCustomer,
     PaymentMethodToken,
     PreAuthenticate,
     Authenticate,
@@ -161,5 +184,11 @@ pub enum FlowName {
     Recharge,
     CreatePaymentMethod,
     GetPaymentMethod,
+    RefreshPaymentMethod,
+    PreRiskCheck,
+    PostRiskCheck,
+    FrmPaymentOutcome,
+    FrmRefundProcessed,
+    FrmChargebackReceived,
     PaymentMethodEligibility,
 }

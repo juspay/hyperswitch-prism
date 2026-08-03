@@ -7,6 +7,8 @@ from payments.generated.sdk_config_pb2 import ConnectorConfig, RequestConfig
 from payments.generated.payment_pb2 import (
     CustomerServiceCreateRequest,
     CustomerServiceCreateResponse,
+    CustomerServiceGetRequest,
+    CustomerServiceGetResponse,
     DisputeServiceAcceptRequest,
     DisputeServiceAcceptResponse,
     DisputeServiceDefendRequest,
@@ -17,6 +19,10 @@ from payments.generated.payment_pb2 import (
     EventServiceHandleResponse,
     EventServiceParseRequest,
     EventServiceParseResponse,
+    FrmServicePostRiskCheckRequest,
+    FrmServicePostRiskCheckResponse,
+    FrmServicePreRiskCheckRequest,
+    FrmServicePreRiskCheckResponse,
     MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
@@ -31,6 +37,8 @@ from payments.generated.payment_pb2 import (
     PaymentMethodAuthenticationServicePreAuthenticateResponse,
     PaymentMethodServiceEligibilityRequest,
     PaymentMethodServiceEligibilityResponse,
+    PaymentMethodServiceRefreshRequest,
+    PaymentMethodServiceRefreshResponse,
     PaymentMethodServiceTokenizeRequest,
     PaymentMethodServiceTokenizeResponse,
     PaymentServiceAuthorizeRequest,
@@ -90,6 +98,10 @@ class CustomerClient(_ConnectorClientBase):
         """CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information."""
         ...
 
+    def customer_get(self, request: CustomerServiceGetRequest, options: RequestConfig | None = ...) -> CustomerServiceGetResponse:
+        """CustomerService.Get — Retrieves customer details from the payment processor. Callers typically use this before Create to implement get-or-create semantics for connectors that reject duplicates (e.g. Glomopay)."""
+        ...
+
 
 class DisputeClient(_ConnectorClientBase):
     def accept(self, request: DisputeServiceAcceptRequest, options: RequestConfig | None = ...) -> DisputeServiceAcceptResponse:
@@ -112,6 +124,16 @@ class EventClient(_ConnectorClientBase):
 
     def parse_event(self, request: EventServiceParseRequest, options: RequestConfig | None = ...) -> EventServiceParseResponse:
         """EventService.ParseEvent — Parse a raw webhook payload without credentials. Returns resource reference and event type — sufficient to resolve secrets or early-exit."""
+        ...
+
+
+class FraudAndRiskManagementClient(_ConnectorClientBase):
+    def post_risk_check(self, request: FrmServicePostRiskCheckRequest, options: RequestConfig | None = ...) -> FrmServicePostRiskCheckResponse:
+        """FraudAndRiskManagementService.PostRiskCheck — Evaluate fraud risk after payment processing. Analyzes payment outcomes and post-transaction signals to refine risk models and detect chargeback fraud."""
+        ...
+
+    def pre_risk_check(self, request: FrmServicePreRiskCheckRequest, options: RequestConfig | None = ...) -> FrmServicePreRiskCheckResponse:
+        """FraudAndRiskManagementService.PreRiskCheck — Evaluate fraud risk before payment processing. Analyzes transaction details, customer behavior, and device fingerprints to determine if the payment should proceed, be rejected, or flagged for manual review."""
         ...
 
 
@@ -146,6 +168,10 @@ class PaymentMethodAuthenticationClient(_ConnectorClientBase):
 class PaymentMethodClient(_ConnectorClientBase):
     def eligibility(self, request: PaymentMethodServiceEligibilityRequest, options: RequestConfig | None = ...) -> PaymentMethodServiceEligibilityResponse:
         """PaymentMethodService.Eligibility — Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check)"""
+        ...
+
+    def refresh(self, request: PaymentMethodServiceRefreshRequest, options: RequestConfig | None = ...) -> PaymentMethodServiceRefreshResponse:
+        """PaymentMethodService.Refresh — Refresh a payment method the caller already holds in full. The request carries the instrument itself, not a reference to it: use Refresh when you own the complete payment method details and the provider exposes an endpoint that evaluates them."""
         ...
 
     def tokenize(self, request: PaymentMethodServiceTokenizeRequest, options: RequestConfig | None = ...) -> PaymentMethodServiceTokenizeResponse:

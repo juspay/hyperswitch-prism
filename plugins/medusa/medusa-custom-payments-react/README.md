@@ -15,9 +15,10 @@ React UI components for Hyperswitch Prism payment connectors. Ships two layers o
 | `paypal` | ✅ | ✅ | CAPTURED |
 | `stripe` | — | ✅ | AUTHORIZED |
 | `globalpay` | ✅ | ✅ | CAPTURED |
-| `mollie` | ✅ | ✅ | CAPTURED (after 3DS) |
+| `mollie` | ✅ | ✅ | CAPTURED (Card after 3DS; Klarna after redirect) |
 | `braintree` | ○ | ○ | — |
-| `cybersource` | ○ | ○ | — |
+| `cybersource` | — | — | CAPTURED |
+| `authorizedotnet` | — | — | CAPTURED |
 
 **Legend**
 
@@ -25,11 +26,15 @@ React UI components for Hyperswitch Prism payment connectors. Ships two layers o
 |--------|---------|
 | ✅ | Supported — React component available |
 | ○ | No React component — connector has no client-side UI (wallet / redirect / server-side only) |
-| — | Not in `HyperswitchPrismConnectorPanel`; use `StripeWrapper` directly (Stripe handles its own Elements context) |
+| — | Not in `HyperswitchPrismConnectorPanel` — use the connector's wrapper directly (`StripeWrapper`, `AuthorizedotnetWrapper`) |
 
 > **Authorize result**
 > - **AUTHORIZED** (`adyen`, `stripe`) — funds reserved; Capture or Void available as a next step
-> - **CAPTURED** (`paypal`, `globalpay`) — funds collected immediately at authorize time; only Refund available afterward
+> - **CAPTURED** (`paypal`, `globalpay`, `cybersource`, `authorizedotnet`) — funds collected immediately at authorize time; only Refund available afterward
+
+> **`authorizedotnet`:** uses the standalone `AuthorizedotnetWrapper` (a raw-card form with its own built-in Pay button); it is not wired into `HyperswitchPrismConnectorPanel` / `HyperswitchPrismPaymentButton`.
+>
+> **`cybersource`:** uses the standalone `CybersourceWrapper` (Flex Microform card fields and transient-token persistence); it is not wired into `HyperswitchPrismConnectorPanel` / `HyperswitchPrismPaymentButton`.
 
 > **Note:** All UI flows and connector integrations in this matrix are tested and verified under the **sandbox / test environment** of each connector. Production behavior should be validated separately before go-live.
 
@@ -75,6 +80,10 @@ NEXT_PUBLIC_ADYEN_CLIENT_KEY=test_...
 | `GlobalPayWrapper` | Component | Low-level GlobalPay hosted card fields wrapper |
 | `StripeWrapper` | Component | Low-level Stripe Payment Element wrapper |
 | `MollieWrapper` | Component | Low-level Mollie Components (in-page card tokenization) wrapper |
+| `MollieKlarnaForm` | Component | Klarna (Pay later) billing form for the Mollie redirect flow — collects name/email/postal address (Netherlands test defaults, all fields editable) and submits a `MollieKlarnaBilling`. Pair with a EUR session (Klarna via Mollie is EU-only) |
+| `MollieKlarnaBilling` | Type | Shape of the Klarna billing the form collects: `firstName`, `lastName`, `email`, `line1`, `city`, `postalCode`, `country` (ISO 3166-1 alpha-2) |
+| `CybersourceWrapper` | Component | Low-level Cybersource Flex Microform wrapper (hosted card number/CVV fields, transient-token persistence) |
+| `AuthorizedotnetWrapper` | Component | Low-level Authorize.Net raw-card form (in-page PAN entry, no tokenization; self-contained Pay button) |
 | `StripePaymentButton` | Component | Place-order button for Stripe |
 | `AdyenPaymentButton` | Component | Place-order button for Adyen |
 | `PayPalPaymentButton` | Component | Place-order button for PayPal |
@@ -87,7 +96,7 @@ NEXT_PUBLIC_ADYEN_CLIENT_KEY=test_...
 | `isHyperswitchPrismPaypal` | Utility | Matches PayPal provider IDs |
 | `isHyperswitchPrismGlobalpay` | Utility | Matches GlobalPay provider IDs |
 | `isHyperswitchPrismMollie` | Utility | Matches Mollie provider IDs |
-| `isHyperswitchPrismPanel` | Utility | Matches every Prism connector with a client panel (adyen/paypal/globalpay/mollie — all except Stripe) |
+| `isHyperswitchPrismPanel` | Utility | Matches Prism connectors wired into the high-level panel/button path (adyen/paypal/globalpay/mollie) |
 | `HYPERSWITCH_PRISM_PROVIDER_IDS` | Constant | Map of connector name → canonical provider ID |
 
 > The predicates are also exported from the **server-safe** subpath `@juspay-tech/medusa-custom-payments-react/predicates` — import them from there in Next.js server components.
@@ -165,11 +174,11 @@ import {
   isHyperswitchPrism,
   isHyperswitchPrismStripe,
   isHyperswitchPrismMollie,
-  isHyperswitchPrismPanel, // adyen | paypal | globalpay | mollie (everything except stripe)
+  isHyperswitchPrismPanel, // adyen | paypal | globalpay | mollie
 } from "@juspay-tech/medusa-custom-payments-react/predicates"
 ```
 
-`isHyperswitchPrismPanel` is the union to drive both `HyperswitchPrismConnectorPanel` and `HyperswitchPrismPaymentButton` (all Prism connectors that have a client panel — i.e. all except Stripe, which uses your own Stripe Elements). The predicates match both canonical short IDs (`pp_hyperswitch-prism_stripe`) and legacy long IDs for backward compatibility.
+`isHyperswitchPrismPanel` is the union to drive both `HyperswitchPrismConnectorPanel` and `HyperswitchPrismPaymentButton` for connectors wired into that high-level path. The predicates match both canonical short IDs (`pp_hyperswitch-prism_stripe`) and legacy long IDs for backward compatibility.
 
 ### Mollie (3DS) — panel, button, and return handler
 
