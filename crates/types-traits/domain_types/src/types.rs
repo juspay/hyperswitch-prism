@@ -6,9 +6,9 @@ use crate::{
         CreatePaymentMethod, GetPaymentMethod, MandateRevoke, PaymentMethodEligibility, Recharge,
     },
     connector_types::{
-        self, CaptureSyncResponse, ConnectorEnum, CreatePaymentMethodData,
-        CreatePaymentMethodResponseData, FrmConnectorEnum, GetPaymentMethodData,
-        GetPaymentMethodResponseData, PaymentMethodEligibilityData,
+        self, AuthenticatorConnectorEnum, CaptureSyncResponse, ConnectorEnum,
+        CreatePaymentMethodData, CreatePaymentMethodResponseData, FrmConnectorEnum,
+        GetPaymentMethodData, GetPaymentMethodResponseData, PaymentMethodEligibilityData,
         PaymentMethodEligibilityResponse, PayoutConnectorEnum, RechargeRequestData,
         RechargeResponseData, SurchargeConnectorEnum,
     },
@@ -819,6 +819,24 @@ impl Connectors {
         };
         match connector {
             SurchargeConnectorEnum::Interpayments => patched.interpayments.apply(params_patch),
+        }
+        Ok(patched)
+    }
+
+    pub fn patch_authenticator_connector_urls(
+        &self,
+        connector: &AuthenticatorConnectorEnum,
+        urls: &common_utils::superposition_config::ConnectorUrls,
+    ) -> Result<Self, IntegrationError> {
+        let mut patched = self.clone();
+        let params_patch = ConnectorParamsPatch {
+            base_url: urls.base_url.clone(),
+            dispute_base_url: Some(urls.dispute_base_url.clone()),
+            secondary_base_url: Some(urls.secondary_base_url.clone()),
+            third_base_url: Some(urls.third_base_url.clone()),
+        };
+        match connector {
+            AuthenticatorConnectorEnum::Plaid => patched.plaid.apply(params_patch),
         }
         Ok(patched)
     }
