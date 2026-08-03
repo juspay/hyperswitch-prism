@@ -66,7 +66,6 @@ message CurrencyConversionQuote {
   Money merchant_order_amount = 1;
 
   // Exchange rate applied for the conversion, represented exactly as provided
-  // exchange rate between source and destination currency
   optional string exchange_rate = 2;
 
   // Quote identifier assigned by the connector or rate provider.
@@ -75,7 +74,7 @@ message CurrencyConversionQuote {
   // Exchange-rate identifier required to reference the quoted rate.
   optional string exchange_rate_id = 4;
 
-  // Name of the DCC provider that supplied the quote.
+  // Name of the CC provider that supplied the quote.
   optional string provider = 5;
 
   // Source used by the provider to determine the exchange rate.
@@ -110,22 +109,22 @@ enum CurrencyConversionType {
   CURRENCY_CONVERSION_TYPE_MCC = 3;
 }
 
-// Indicates the customer's decision for a Dynamic Currency Conversion offer.
-enum DccDecision {
-  // DCC decision was not provided or could not be determined.
-  DCC_DECISION_UNSPECIFIED = 0;
-  // The customer accepted the DCC offer.
-  DCC_DECISION_ACCEPTED = 1;
-  // The customer declined the DCC offer.
-  DCC_DECISION_DECLINED = 2;
-  // DCC does not apply to this payment.
-  DCC_DECISION_NOT_APPLICABLE = 3;
+// Indicates the customer's decision for a currency conversion offer.
+enum CurrencyConversionDecision {
+  // Currency conversion decision was not provided or could not be determined.
+  CURRENCY_CONVERSION_DECISION_UNSPECIFIED = 0;
+  // The customer accepted the currency conversion offer.
+  CURRENCY_CONVERSION_DECISION_ACCEPTED = 1;
+  // The customer declined the currency conversion offer.
+  CURRENCY_CONVERSION_DECISION_DECLINED = 2;
+  // Currency conversion does not apply to this payment.
+  CURRENCY_CONVERSION_DECISION_NOT_APPLICABLE = 3;
 }
 
-// Contains the customer's DCC decision and the quote presented to them.
+// Contains the customer's currency conversion decision and the quote presented to them.
 message CurrencyConversionData {
-  // Customer's decision for the DCC offer.
-  DccDecision decision = 1;
+  // Customer's decision for the currency conversion offer.
+  CurrencyConversionDecision decision = 1;
   // Currency conversion quote presented to the customer, when available.
   optional CurrencyConversionQuote quote = 2;
 }

@@ -3777,21 +3777,27 @@ impl ForeignTryFrom<grpc_payment_types::PartnerMerchantIdentifierDetails>
     }
 }
 
-impl ForeignTryFrom<grpc_payment_types::DccDecision> for connector_types::DccDecision {
+impl ForeignTryFrom<grpc_payment_types::CurrencyConversionDecision>
+    for connector_types::CurrencyConversionDecision
+{
     type Error = IntegrationError;
 
     fn foreign_try_from(
-        value: grpc_payment_types::DccDecision,
+        value: grpc_payment_types::CurrencyConversionDecision,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         match value {
-            grpc_payment_types::DccDecision::Accepted => Ok(Self::Accepted),
-            grpc_payment_types::DccDecision::Declined => Ok(Self::Declined),
-            grpc_payment_types::DccDecision::NotApplicable => Ok(Self::NotApplicable),
-            grpc_payment_types::DccDecision::Unspecified => {
+            grpc_payment_types::CurrencyConversionDecision::Accepted => Ok(Self::Accepted),
+            grpc_payment_types::CurrencyConversionDecision::Declined => Ok(Self::Declined),
+            grpc_payment_types::CurrencyConversionDecision::NotApplicable => {
+                Ok(Self::NotApplicable)
+            }
+            grpc_payment_types::CurrencyConversionDecision::Unspecified => {
                 Err(report!(IntegrationError::InvalidDataFormat {
                     field_name: "dynamic_currency_conversion_data.decision",
                     context: IntegrationErrorContext {
-                        additional_context: Some("DCC decision cannot be unspecified".to_string()),
+                        additional_context: Some(
+                            "Currency conversion decision cannot be unspecified".to_string(),
+                        ),
                         ..Default::default()
                     },
                 }))
@@ -3883,21 +3889,22 @@ impl ForeignTryFrom<grpc_payment_types::CurrencyConversionData>
     fn foreign_try_from(
         value: grpc_payment_types::CurrencyConversionData,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
-        let decision = grpc_payment_types::DccDecision::try_from(value.decision).map_err(|_| {
-            report!(IntegrationError::InvalidDataFormat {
-                field_name: "dynamic_currency_conversion_data.decision",
-                context: IntegrationErrorContext {
-                    additional_context: Some(format!(
-                        "Unknown DCC decision discriminant: {}",
-                        value.decision
-                    )),
-                    ..Default::default()
-                },
-            })
-        })?;
+        let decision = grpc_payment_types::CurrencyConversionDecision::try_from(value.decision)
+            .map_err(|_| {
+                report!(IntegrationError::InvalidDataFormat {
+                    field_name: "dynamic_currency_conversion_data.decision",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(format!(
+                            "Unknown currency conversion decision discriminant: {}",
+                            value.decision
+                        )),
+                        ..Default::default()
+                    },
+                })
+            })?;
 
         Ok(Self {
-            decision: connector_types::DccDecision::foreign_try_from(decision)?,
+            decision: connector_types::CurrencyConversionDecision::foreign_try_from(decision)?,
             quote: value
                 .quote
                 .map(connector_types::CurrencyConversionQuote::foreign_try_from)

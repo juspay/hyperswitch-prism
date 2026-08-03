@@ -4307,9 +4307,9 @@ pub struct PartnerMerchantIdentifierDetails {
     pub merchant_details: Option<MerchantApplicationDetails>,
 }
 
-/// A cardholder's decision for a dynamic currency conversion offer.
+/// A cardholder's decision for a currency conversion offer.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub enum DccDecision {
+pub enum CurrencyConversionDecision {
     Accepted,
     Declined,
     NotApplicable,
@@ -4339,10 +4339,10 @@ pub struct CurrencyConversionQuote {
     pub expires_at: Option<i64>,
 }
 
-/// A validated DCC decision and the quote presented to the cardholder.
+/// A validated currency conversion decision and the quote presented to the cardholder.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct CurrencyConversionData {
-    pub decision: DccDecision,
+    pub decision: CurrencyConversionDecision,
     pub quote: Option<CurrencyConversionQuote>,
 }
 
