@@ -308,6 +308,58 @@ impl From<&common_enums::BankHolderType> for FinixAccountType {
     }
 }
 
+// =============================================================================
+// APPLE PAY `third_party_token` PAYLOAD
+// =============================================================================
+// Finix expects the raw PassKit payment token, re-serialized as a JSON *string*
+// in `third_party_token`. Field naming inside the Apple Pay token is camelCase
+// (`paymentData`, `paymentMethod`, `publicKeyHash`, `ephemeralPublicKey`,
+// `transactionId`, `transactionIdentifier`) while the enclosing Finix Payment
+// Instrument body stays snake_case.
+// See https://docs.finix.com/guides/online-payments/digital-wallets/apple-pay/apple-pay-on-ios
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FinixApplePayPaymentToken {
+    pub token: FinixApplePayToken,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FinixApplePayToken {
+    pub payment_data: FinixApplePayEncryptedData,
+    pub payment_method: FinixApplePayPaymentMethod,
+    pub transaction_identifier: String,
+}
+
+/// The `paymentData` object of an Apple Pay token. This is also the shape we
+/// deserialize the decoded PassKit token into, so every field is the cryptogram
+/// material itself and stays `Secret` from construction.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FinixApplePayEncryptedData {
+    pub data: Secret<String>,
+    pub signature: Secret<String>,
+    pub header: FinixApplePayHeader,
+    pub version: Secret<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FinixApplePayHeader {
+    pub public_key_hash: Secret<String>,
+    pub ephemeral_public_key: Secret<String>,
+    pub transaction_id: Secret<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FinixApplePayPaymentMethod {
+    pub display_name: Secret<String>,
+    pub network: Secret<String>,
+    #[serde(rename = "type")]
+    pub method_type: Secret<String>,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub enum FinixPaymentInstrumentType {
     #[serde(rename = "PAYMENT_CARD")]
@@ -378,8 +430,15 @@ pub type FinixAuthorizeRequest = FinixPaymentsRequest;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FinixAuthorizeResponse {
     pub id: String,
-    pub amount: MinorUnit,
-    pub currency: Currency,
+    // Same class as `FinixWebhookPaymentsResponse.amount`/`.currency`: declared but never
+    // read (the attempt amount comes from the request, not the echo), and Finix marks no
+    // field of the `authorization`/`transfer` schema as required. Keeping them mandatory
+    // would fail the whole response decode — and therefore the payment — over a value the
+    // connector does not use.
+    #[serde(default)]
+    pub amount: Option<MinorUnit>,
+    #[serde(default)]
+    pub currency: Option<Currency>,
     pub state: FinixPaymentStatus,
     #[serde(rename = "_links")]
     pub links: Option<FinixLinks>,
@@ -415,23 +474,111 @@ pub struct FinixLink {
     pub href: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+/// Finix resource `state`. This is the single deserialization source of truth for the
+/// Finix `state` field: authorizations, transfers, reversals AND every incoming-webhook
+/// payload read it through this one enum, so the flows cannot drift apart.
+///
+/// `RETURNED` is documented on `GET /transfers/{id}` (ACH-style return of an already
+/// settled transfer) and is modelled explicitly rather than being folded into `Unknown`;
+/// `#[serde(other)]` still keeps any future value decodable instead of failing the whole
+/// response/webhook body.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum FinixPaymentStatus {
     Succeeded,
     Failed,
     Pending,
     Canceled,
+    Returned,
+    #[serde(other)]
     Unknown,
 }
 
-impl From<&FinixPaymentStatus> for AttemptStatus {
+/// Which Finix resource a `state` was read from. Mirrors HS `FinixFlow`: it decides
+/// whether a `SUCCEEDED` is an authorization hold (`AU…`) or a captured charge (`TR…`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FinixFlow {
+    Auth,
+    Transfer,
+    Capture,
+}
+
+impl From<&FinixId> for FinixFlow {
+    fn from(id: &FinixId) -> Self {
+        match id {
+            FinixId::Auth(_) => Self::Auth,
+            FinixId::Transfer(_) => Self::Transfer,
+        }
+    }
+}
+
+/// Canonical Finix `state` -> `AttemptStatus` mapping. Authorize, PSync, Capture, Void,
+/// RepeatPayment and the incoming-webhook path all route through this one function so a
+/// webhook can never report a different status than a sync for the same connector state.
+///
+/// Deliberate departures from the hyperswitch (Direct) `get_attempt_status`, both applied
+/// here once rather than per flow:
+/// * `UNKNOWN` is indeterminate, so it stays `Pending` (re-sync decides) instead of
+///   becoming a terminal `Failure`/`VoidFailed`.
+/// * A `PENDING` void stays `Pending` rather than being reported as `Voided` early.
+///
+/// `CANCELED` is deliberately NOT collapsed into `Voided` globally: it only means "voided"
+/// when a void is actually in flight (`is_void == Some(true)`). On Authorize, Capture,
+/// PSync-without-`is_void` and RepeatPayment there is no void context, so a `CANCELED`
+/// resource is a terminal non-success (expired hold, issuer cancel, already-reversed
+/// authorization) and must stay `AuthorizationFailed` / `Failure` — otherwise
+/// `is_payment_failure` flips to false, the transformer returns
+/// `Ok(PaymentsResponseData::TransactionResponse)` instead of `Err(ErrorResponse)`, and the
+/// connector `failure_code` / `failure_message` are dropped on the floor.
+pub fn get_finix_attempt_status(
+    state: &FinixPaymentStatus,
+    flow: FinixFlow,
+    is_void: Option<bool>,
+) -> AttemptStatus {
+    if is_void == Some(true) {
+        return match state {
+            FinixPaymentStatus::Succeeded | FinixPaymentStatus::Canceled => AttemptStatus::Voided,
+            FinixPaymentStatus::Failed | FinixPaymentStatus::Returned => AttemptStatus::VoidFailed,
+            FinixPaymentStatus::Pending | FinixPaymentStatus::Unknown => AttemptStatus::Pending,
+        };
+    }
+
+    match state {
+        FinixPaymentStatus::Unknown => AttemptStatus::Pending,
+        FinixPaymentStatus::Pending => match flow {
+            FinixFlow::Auth => AttemptStatus::AuthenticationPending,
+            FinixFlow::Transfer | FinixFlow::Capture => AttemptStatus::Pending,
+        },
+        FinixPaymentStatus::Succeeded => match flow {
+            FinixFlow::Auth => AttemptStatus::Authorized,
+            FinixFlow::Transfer => AttemptStatus::Charged,
+            // A SUCCEEDED capture only confirms the authorization update; the funds
+            // movement (transfer) settles asynchronously, so the attempt stays Pending
+            // until a PSync on the transfer id confirms the charge.
+            FinixFlow::Capture => AttemptStatus::Pending,
+        },
+        // No void in flight: CANCELED is a terminal non-success, not a void.
+        FinixPaymentStatus::Failed
+        | FinixPaymentStatus::Canceled
+        | FinixPaymentStatus::Returned => match flow {
+            FinixFlow::Auth => AttemptStatus::AuthorizationFailed,
+            FinixFlow::Transfer | FinixFlow::Capture => AttemptStatus::Failure,
+        },
+    }
+}
+
+/// Canonical Finix `state` -> `RefundStatus` mapping, shared by Refund, RSync and the
+/// REVERSAL-transfer webhook path.
+impl From<&FinixPaymentStatus> for RefundStatus {
     fn from(status: &FinixPaymentStatus) -> Self {
         match status {
-            FinixPaymentStatus::Succeeded => Self::Charged,
-            FinixPaymentStatus::Failed => Self::Failure,
+            FinixPaymentStatus::Succeeded => Self::Success,
+            FinixPaymentStatus::Failed
+            | FinixPaymentStatus::Canceled
+            | FinixPaymentStatus::Returned => Self::Failure,
             FinixPaymentStatus::Pending => Self::Pending,
-            FinixPaymentStatus::Canceled => Self::Voided,
+            // Indeterminate — keep the refund open so RSync retries rather than
+            // reporting a terminal failure.
             FinixPaymentStatus::Unknown => Self::Pending,
         }
     }
@@ -566,18 +713,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             convert_to_additional_payment_method_connector_response(&item.response)
                 .map(ConnectorResponseData::with_additional_payment_method_data);
 
-        // Determine status based on ID type, mirroring Hyperswitch's `get_attempt_status`:
+        // Determine status based on ID type via the canonical mapping:
         // - Transfer (TR*): Succeeded -> Charged, failure -> Failure
         // - Authorization (AU*): Succeeded -> Authorized, failure -> AuthorizationFailed
         let finix_id = FinixId::from(response.id.clone());
-        let status = match (&finix_id, &response.state) {
-            (FinixId::Transfer(_), FinixPaymentStatus::Succeeded) => AttemptStatus::Charged,
-            (FinixId::Transfer(_), FinixPaymentStatus::Pending) => AttemptStatus::Pending,
-            (FinixId::Transfer(_), _) => AttemptStatus::Failure,
-            (FinixId::Auth(_), FinixPaymentStatus::Succeeded) => AttemptStatus::Authorized,
-            (FinixId::Auth(_), FinixPaymentStatus::Pending) => AttemptStatus::AuthenticationPending,
-            (FinixId::Auth(_), _) => AttemptStatus::AuthorizationFailed,
-        };
+        let status = get_finix_attempt_status(&response.state, FinixFlow::from(&finix_id), None);
 
         // Finix reports declines as an HTTP-2xx body with `state: FAILED` (soft decline).
         // Hyperswitch's Direct path maps any `state.is_failure()` (FAILED/CANCELED/UNKNOWN)
@@ -720,17 +860,13 @@ impl TryFrom<ResponseRouterData<FinixPSyncResponse, Self>>
         let response = &item.response;
 
         // Determine status based on ID type (AU* = Auth/Authorized, TR* = Transfer/Charged)
-        // This follows the same pattern as Hyperswitch
+        // through the canonical mapping shared with Authorize, Capture and webhooks.
         let finix_id = FinixId::from(response.id.clone());
-        let status = match (&finix_id, &response.state) {
-            (FinixId::Auth(_), FinixPaymentStatus::Succeeded) => AttemptStatus::Authorized,
-            (FinixId::Auth(_), FinixPaymentStatus::Pending) => AttemptStatus::AuthenticationPending,
-            (FinixId::Transfer(_), FinixPaymentStatus::Succeeded) => AttemptStatus::Charged,
-            (FinixId::Transfer(_), FinixPaymentStatus::Pending) => AttemptStatus::Pending,
-            (_, FinixPaymentStatus::Failed) => AttemptStatus::Failure,
-            (_, FinixPaymentStatus::Canceled) => AttemptStatus::Voided,
-            (_, FinixPaymentStatus::Unknown) => AttemptStatus::Pending,
-        };
+        let status = get_finix_attempt_status(
+            &response.state,
+            FinixFlow::from(&finix_id),
+            response.is_void,
+        );
 
         // For transfers (TR...), use the transfer ID directly
         // For authorizations (AU...), use transfer ID if available for refunds
@@ -821,26 +957,10 @@ impl TryFrom<ResponseRouterData<FinixCaptureResponse, Self>>
 
         // A SUCCEEDED capture only confirms the authorization update; the funds
         // movement (transfer) settles asynchronously, so the attempt stays Pending
-        // until a PSync on the transfer id confirms the charge.
-        let status = if response.is_void == Some(true) {
-            match response.state {
-                FinixPaymentStatus::Pending | FinixPaymentStatus::Succeeded => {
-                    AttemptStatus::Voided
-                }
-                FinixPaymentStatus::Failed
-                | FinixPaymentStatus::Canceled
-                | FinixPaymentStatus::Unknown => AttemptStatus::VoidFailed,
-            }
-        } else {
-            match response.state {
-                FinixPaymentStatus::Pending | FinixPaymentStatus::Succeeded => {
-                    AttemptStatus::Pending
-                }
-                FinixPaymentStatus::Failed
-                | FinixPaymentStatus::Canceled
-                | FinixPaymentStatus::Unknown => AttemptStatus::Failure,
-            }
-        };
+        // until a PSync on the transfer id confirms the charge (canonical mapping,
+        // `FinixFlow::Capture`).
+        let status =
+            get_finix_attempt_status(&response.state, FinixFlow::Capture, response.is_void);
 
         let connector_response = build_finix_connector_response(&response);
 
@@ -940,13 +1060,7 @@ impl TryFrom<ResponseRouterData<FinixRSyncResponse, Self>>
 
     fn try_from(item: ResponseRouterData<FinixRSyncResponse, Self>) -> Result<Self, Self::Error> {
         let response = item.response;
-        let refund_status = match response.state {
-            FinixPaymentStatus::Succeeded => RefundStatus::Success,
-            FinixPaymentStatus::Failed => RefundStatus::Failure,
-            FinixPaymentStatus::Pending => RefundStatus::Pending,
-            FinixPaymentStatus::Canceled => RefundStatus::Failure,
-            FinixPaymentStatus::Unknown => RefundStatus::Pending,
-        };
+        let refund_status = RefundStatus::from(&response.state);
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: response.id,
@@ -989,14 +1103,8 @@ impl TryFrom<ResponseRouterData<FinixVoidResponse, Self>>
 
     fn try_from(item: ResponseRouterData<FinixVoidResponse, Self>) -> Result<Self, Self::Error> {
         let response = item.response;
-        // Void-specific status mapping
-        let status = match response.state {
-            FinixPaymentStatus::Succeeded => AttemptStatus::Voided,
-            FinixPaymentStatus::Failed => AttemptStatus::VoidFailed,
-            FinixPaymentStatus::Pending => AttemptStatus::Pending,
-            FinixPaymentStatus::Canceled => AttemptStatus::Voided,
-            FinixPaymentStatus::Unknown => AttemptStatus::Pending,
-        };
+        // Void-specific status mapping — the canonical mapping's `is_void` branch.
+        let status = get_finix_attempt_status(&response.state, FinixFlow::Auth, Some(true));
 
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -1054,13 +1162,7 @@ impl TryFrom<ResponseRouterData<FinixRefundResponse, Self>>
 
     fn try_from(item: ResponseRouterData<FinixRefundResponse, Self>) -> Result<Self, Self::Error> {
         let response = item.response;
-        let status = match response.state {
-            FinixPaymentStatus::Succeeded => RefundStatus::Success,
-            FinixPaymentStatus::Failed => RefundStatus::Failure,
-            FinixPaymentStatus::Pending => RefundStatus::Pending,
-            FinixPaymentStatus::Canceled => RefundStatus::Failure,
-            FinixPaymentStatus::Unknown => RefundStatus::Pending,
-        };
+        let status = RefundStatus::from(&response.state);
 
         Ok(Self {
             response: Ok(RefundsResponseData {
@@ -1091,6 +1193,214 @@ fn get_billing_address_as_finix_address(
                     .map(CountryAlpha2::from_alpha2_to_alpha3),
             })
         })
+}
+
+/// Finix's `POST /payment_instruments` requires a **four-digit** `expiration_year`
+/// (tech spec §SR-2) and hyperswitch's Direct gateway sends
+/// `get_expiry_year_as_4_digit_i32`. `card_exp_year` may legitimately arrive as `YY`,
+/// so it is expanded through the shared `get_expiry_year_4_digit()` helper before being
+/// parsed — sending the raw two-digit value would store the mandate with an expiry in
+/// year 30 instead of 2030 and make every later MIT charge fail at the network.
+///
+/// Shared by the Tokenize (`PaymentMethodToken`) and `SetupMandate` card arms so the two
+/// paths cannot drift.
+///
+/// `get_expiry_year_4_digit()` only expands a **two**-digit year; any other length passes
+/// straight through, so a three-digit `"203"` would parse cleanly to `203` and be sent to
+/// Finix as `"expiration_year": 203`. The explicit four-digit length check below turns that
+/// into a local `InvalidDataFormat` instead of a connector 4xx.
+pub(super) fn get_finix_expiration_year<T: PaymentMethodDataTypes>(
+    card: &domain_types::payment_method_data::Card<T>,
+) -> Result<Secret<i32>, error_stack::Report<IntegrationError>> {
+    let invalid_expiry_year = || IntegrationError::InvalidDataFormat {
+        field_name: "payment_method_data.card.card_exp_year",
+        context: IntegrationErrorContext {
+            additional_context: Some(
+                "Finix `expiration_year` must be a four-digit year; expected card_exp_year \
+                 in YY or YYYY form"
+                    .to_string(),
+            ),
+            suggested_action: Some("Send card_exp_year as two or four decimal digits".to_string()),
+            doc_url: Some("https://docs.finix.com/api/payment-instruments".to_string()),
+        },
+    };
+
+    let expiry_year = card.get_expiry_year_4_digit();
+    let expiry_year = expiry_year.peek();
+
+    if expiry_year.len() != 4 {
+        return Err(error_stack::report!(invalid_expiry_year())).attach_printable(
+            "card_exp_year is neither two nor four digits, so it cannot be expanded to the \
+             four-digit year Finix requires",
+        );
+    }
+
+    expiry_year
+        .parse::<i32>()
+        .change_context(invalid_expiry_year())
+        .map(Secret::new)
+        .attach_printable(
+            "failed to build the Finix payment-instrument `expiration_year` from card_exp_year",
+        )
+}
+
+/// Builds the Finix `POST /payment_instruments` body for a Google Pay device token.
+///
+/// Shared by the Tokenize (`PaymentMethodToken`) and `SetupMandate` flows — both create the
+/// same Google Pay Payment Instrument — mirroring `build_apple_pay_instrument_request` so the
+/// two paths cannot drift. `name` and `address` are populated exactly as hyperswitch's
+/// `get_token_request` does for wallets: the billing full name (wallets carry no cardholder
+/// name of their own) and the billing address.
+fn build_google_pay_instrument_request(
+    google_pay_data: &domain_types::payment_method_data::GooglePayWalletData,
+    identity: String,
+    merchant_identity_id: Secret<String>,
+    name: Option<Secret<String>>,
+    address: Option<FinixAddress>,
+    tags: Option<FinixTags>,
+) -> Result<FinixCreatePaymentInstrumentRequest, error_stack::Report<IntegrationError>> {
+    let encrypted_token = google_pay_data
+        .tokenization_data
+        .get_encrypted_google_pay_payment_data_mandatory()
+        .change_context(IntegrationError::InvalidWalletToken {
+            wallet_name: "Google Pay".to_string(),
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "Google Pay token must carry the encrypted \
+                     `tokenizationData.token` string (signature, protocolVersion, signedMessage \
+                     and intermediateSigningKey); decrypted Google Pay data is not accepted by \
+                     Finix"
+                        .to_string(),
+                ),
+                suggested_action: Some(
+                    "Forward the unmodified Google Pay \
+                     `paymentMethodData.tokenizationData.token`"
+                        .to_string(),
+                ),
+                doc_url: Some(
+                    "https://docs.finix.com/guides/online-payments/digital-wallets".to_string(),
+                ),
+            },
+        })
+        .attach_printable(
+            "Finix requires the encrypted Google Pay token as the `third_party_token` of the \
+             GOOGLE_PAY payment instrument",
+        )?;
+
+    Ok(FinixCreatePaymentInstrumentRequest {
+        instrument_type: FinixPaymentInstrumentType::GooglePay,
+        name,
+        number: None,
+        security_code: None,
+        expiration_month: None,
+        expiration_year: None,
+        identity,
+        tags,
+        address,
+        card_brand: None,
+        card_type: None,
+        additional_data: None,
+        merchant_identity: Some(merchant_identity_id),
+        third_party_token: Some(Secret::new(encrypted_token.token.clone())),
+        account_number: None,
+        bank_code: None,
+        account_type: None,
+    })
+}
+
+/// Builds the Finix `POST /payment_instruments` body for an Apple Pay device token.
+///
+/// Shared by the Tokenize (`PaymentMethodToken`) and `SetupMandate` flows — both create
+/// the same Apple Pay Payment Instrument, so the token reshaping lives here once and the
+/// two paths cannot drift.
+///
+/// Finix wants the PassKit token re-serialized as a JSON *string* under
+/// `third_party_token`, with `merchant_identity` set to the Identity registered for
+/// Apple Pay. See
+/// https://docs.finix.com/guides/online-payments/digital-wallets/apple-pay/apple-pay-on-ios
+fn build_apple_pay_instrument_request(
+    apple_pay_data: &domain_types::payment_method_data::ApplePayWalletData,
+    identity: String,
+    merchant_identity_id: Secret<String>,
+    name: Option<Secret<String>>,
+    address: Option<FinixAddress>,
+    tags: Option<FinixTags>,
+) -> Result<FinixCreatePaymentInstrumentRequest, error_stack::Report<IntegrationError>> {
+    // Base64-decodes the PassKit token and keeps it inside a `Secret`; the util's own
+    // error already names Apple Pay.
+    let decoded_token = apple_pay_data
+        .get_applepay_decoded_payment_data()
+        .attach_printable(
+            "Apple Pay `payment_data` must carry the base64-encoded PassKit payment token; \
+             pre-decrypted Apple Pay data is not accepted by Finix",
+        )?;
+
+    let apple_pay_payment_data: FinixApplePayEncryptedData = serde_json::from_str(
+        decoded_token.peek(),
+    )
+    .change_context(IntegrationError::InvalidWalletToken {
+        wallet_name: "Apple Pay".to_string(),
+        context: IntegrationErrorContext {
+            additional_context: Some(
+                "Apple Pay token must contain data, signature, version and a header with \
+                 publicKeyHash, ephemeralPublicKey and transactionId"
+                    .to_string(),
+            ),
+            suggested_action: Some(
+                "Forward the unmodified PassKit `paymentData` object, base64-encoded".to_string(),
+            ),
+            doc_url: Some(
+                "https://docs.finix.com/guides/online-payments/digital-wallets/apple-pay/apple-pay-on-ios"
+                    .to_string(),
+            ),
+        },
+    })?;
+
+    let finix_token = FinixApplePayPaymentToken {
+        token: FinixApplePayToken {
+            payment_data: apple_pay_payment_data,
+            payment_method: FinixApplePayPaymentMethod {
+                display_name: Secret::new(apple_pay_data.payment_method.display_name.clone()),
+                network: Secret::new(apple_pay_data.payment_method.network.clone()),
+                method_type: Secret::new(apple_pay_data.payment_method.pm_type.clone()),
+            },
+            transaction_identifier: apple_pay_data.transaction_identifier.clone(),
+        },
+    };
+
+    let third_party_token = serde_json::to_string(&finix_token).change_context(
+        IntegrationError::InvalidWalletToken {
+            wallet_name: "Apple Pay".to_string(),
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "failed to serialize the Apple Pay token (paymentData, paymentMethod, \
+                     transactionIdentifier) into Finix's `third_party_token` string"
+                        .to_string(),
+                ),
+                ..Default::default()
+            },
+        },
+    )?;
+
+    Ok(FinixCreatePaymentInstrumentRequest {
+        instrument_type: FinixPaymentInstrumentType::ApplePay,
+        name,
+        number: None,
+        security_code: None,
+        expiration_month: None,
+        expiration_year: None,
+        identity,
+        tags,
+        address,
+        card_brand: None,
+        card_type: None,
+        additional_data: None,
+        merchant_identity: Some(merchant_identity_id),
+        third_party_token: Some(Secret::new(third_party_token)),
+        account_number: None,
+        bank_code: None,
+        account_type: None,
+    })
 }
 
 // TRYFROM IMPLEMENTATIONS - CREATE CONNECTOR CUSTOMER REQUEST
@@ -1224,7 +1534,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 number: Some(Secret::new(card.card_number.peek().to_string())),
                 security_code: Some(card.card_cvc.clone()),
                 expiration_month: Some(card.get_expiry_month_as_i8()?),
-                expiration_year: Some(card.get_expiry_year_as_i32()?),
+                expiration_year: Some(get_finix_expiration_year(card)?),
                 identity: customer_id,
                 tags: None,
                 address: get_billing_address_as_finix_address(
@@ -1286,48 +1596,51 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentMethodData::Wallet(wallet_data) => {
                 match wallet_data {
                     domain_types::payment_method_data::WalletData::GooglePay(google_pay_data) => {
-                        // Get merchant_identity_id from auth
+                        // Finix requires the Google Pay-registered Identity (merchant_identity)
+                        // alongside the buyer identity for GOOGLE_PAY instruments.
                         let auth = FinixAuthType::try_from(&item.router_data.connector_config)?;
-                        let merchant_identity = auth.merchant_identity_id.peek().to_string();
 
-                        // Extract the encrypted token from Google Pay
-                        let third_party_token = google_pay_data
-                            .tokenization_data
-                            .get_encrypted_google_pay_payment_data_mandatory()
-                            .change_context(IntegrationError::InvalidWalletToken {
-                                wallet_name: "Google Pay".to_string(),
-                                context: Default::default(),
-                            })?;
+                        build_google_pay_instrument_request(
+                            google_pay_data,
+                            customer_id,
+                            auth.merchant_identity_id,
+                            item.router_data
+                                .resource_common_data
+                                .get_optional_billing_full_name(),
+                            get_billing_address_as_finix_address(
+                                &item.router_data.resource_common_data,
+                            ),
+                            None,
+                        )
+                    }
+                    domain_types::payment_method_data::WalletData::ApplePay(apple_pay_data) => {
+                        // Finix requires the Apple Pay-registered Identity (merchant_identity)
+                        // alongside the buyer identity for APPLE_PAY instruments.
+                        let auth = FinixAuthType::try_from(&item.router_data.connector_config)?;
 
-                        Ok(Self {
-                            instrument_type: FinixPaymentInstrumentType::GooglePay,
-                            name: None, // Name is optional for Google Pay tokenization
-                            number: None,
-                            security_code: None,
-                            expiration_month: None,
-                            expiration_year: None,
-                            identity: customer_id,
-                            tags: None,
-                            address: None,
-                            card_brand: None,
-                            card_type: None,
-                            additional_data: None,
-                            merchant_identity: Some(Secret::new(merchant_identity)),
-                            third_party_token: Some(Secret::new(third_party_token.token.clone())),
-                            account_number: None,
-                            bank_code: None,
-                            account_type: None,
-                        })
+                        build_apple_pay_instrument_request(
+                            apple_pay_data,
+                            customer_id,
+                            auth.merchant_identity_id,
+                            item.router_data
+                                .resource_common_data
+                                .get_optional_billing_full_name(),
+                            get_billing_address_as_finix_address(
+                                &item.router_data.resource_common_data,
+                            ),
+                            None,
+                        )
                     }
                     _ => Err(IntegrationError::NotImplemented(
-                        "Only Google Pay wallet tokenization is supported".into(),
+                        "Only Google Pay and Apple Pay wallet tokenization are supported".into(),
                         Default::default(),
                     )
                     .into()),
                 }
             }
             _ => Err(IntegrationError::NotImplemented(
-                "Only card, bank debit, and Google Pay tokenization are supported".into(),
+                "Only card, bank debit, Google Pay, and Apple Pay tokenization are supported"
+                    .into(),
                 Default::default(),
             )
             .into()),
@@ -1355,31 +1668,59 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         Ok(Self {
             response: match (response.id.clone(), response.enabled) {
                 (Some(id), true) => Ok(PaymentMethodTokenResponse { token: id }),
-                _ => Err(disabled_instrument_error(&response, item.http_code)),
+                _ => Err(instrument_not_usable_error(&response, item.http_code)),
             },
             ..item.router_data
         })
     }
 }
 
-// Treat a 2xx that omits `id` or returns `enabled: false` as a payment failure.
-// Surfaces `disabled_code` / `disabled_message` so the caller can act on it.
-fn disabled_instrument_error(
+// Maps a 2xx `POST /payment_instruments` body that is not a usable instrument into a
+// failure. Tech spec §SR-5 lists these as two distinct outcomes and they must not collapse
+// into the same opaque `NO_ERROR_CODE` / `NO_ERROR_MESSAGE` pair:
+//   * `enabled: false` -> Finix stored the instrument but it can never be charged; propagate
+//     `disabled_code` / `disabled_message` verbatim as the connector's own code/message.
+//   * `id` absent      -> malformed response; no Payment Instrument (PI...) reference can be
+//     extracted at all, so say exactly that instead of an empty message.
+// Shared by the Tokenize and SetupMandate response transformers.
+fn instrument_not_usable_error(
     response: &FinixInstrumentResponse,
     status_code: u16,
 ) -> ErrorResponse {
-    let code = response
-        .disabled_code
-        .clone()
-        .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string());
-    let message = response
-        .disabled_message
-        .clone()
-        .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string());
+    let (code, message, reason) = match response.id.as_ref() {
+        // `id` present => the instrument exists but Finix flagged it `enabled: false`.
+        Some(instrument_id) => {
+            let message = response.disabled_message.clone().unwrap_or_else(|| {
+                format!(
+                    "Finix returned payment instrument {instrument_id} with `enabled: false`; \
+                     it cannot be charged"
+                )
+            });
+            (
+                response
+                    .disabled_code
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                message.clone(),
+                Some(message),
+            )
+        }
+        // No `id` => nothing to store as a token or mandate reference.
+        None => (
+            consts::NO_ERROR_CODE.to_string(),
+            "Finix accepted the request but returned no payment instrument id".to_string(),
+            Some(
+                "POST /payment_instruments returned a 2xx body without an `id`, so no Payment \
+                 Instrument (PI...) reference could be extracted for the token / mandate"
+                    .to_string(),
+            ),
+        ),
+    };
+
     ErrorResponse {
         code,
-        message: message.clone(),
-        reason: Some(message),
+        message,
+        reason,
         status_code,
         attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
         connector_transaction_id: response.id.clone(),
@@ -1471,7 +1812,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 number: Some(Secret::new(card.card_number.peek().to_string())),
                 security_code: Some(card.card_cvc.clone()),
                 expiration_month: Some(card.get_expiry_month_as_i8()?),
-                expiration_year: Some(card.get_expiry_year_as_i32()?),
+                expiration_year: Some(get_finix_expiration_year(card)?),
                 identity: customer_id,
                 tags,
                 address: get_billing_address_as_finix_address(
@@ -1533,48 +1874,53 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentMethodData::Wallet(wallet_data) => {
                 match wallet_data {
                     domain_types::payment_method_data::WalletData::GooglePay(google_pay_data) => {
-                        // Get merchant_identity_id from auth for wallet tokenization
+                        // Same Google Pay Payment Instrument as the Tokenize flow — built by the
+                        // shared helper so the two paths cannot drift.
                         let auth = FinixAuthType::try_from(&item.router_data.connector_config)?;
-                        let merchant_identity = auth.merchant_identity_id.peek().to_string();
 
-                        // Extract the encrypted token from Google Pay
-                        let third_party_token = google_pay_data
-                            .tokenization_data
-                            .get_encrypted_google_pay_payment_data_mandatory()
-                            .change_context(IntegrationError::InvalidWalletToken {
-                                wallet_name: "Google Pay".to_string(),
-                                context: Default::default(),
-                            })?;
-
-                        Ok(Self {
-                            instrument_type: FinixPaymentInstrumentType::GooglePay,
-                            name: None,
-                            number: None,
-                            security_code: None,
-                            expiration_month: None,
-                            expiration_year: None,
-                            identity: customer_id,
+                        build_google_pay_instrument_request(
+                            google_pay_data,
+                            customer_id,
+                            auth.merchant_identity_id,
+                            item.router_data
+                                .resource_common_data
+                                .get_optional_billing_full_name(),
+                            get_billing_address_as_finix_address(
+                                &item.router_data.resource_common_data,
+                            ),
                             tags,
-                            address: None,
-                            card_brand: None,
-                            card_type: None,
-                            additional_data: None,
-                            merchant_identity: Some(Secret::new(merchant_identity)),
-                            third_party_token: Some(Secret::new(third_party_token.token.clone())),
-                            account_number: None,
-                            bank_code: None,
-                            account_type: None,
-                        })
+                        )
+                    }
+                    domain_types::payment_method_data::WalletData::ApplePay(apple_pay_data) => {
+                        // Same Apple Pay Payment Instrument as the Tokenize flow — built by the
+                        // shared helper so the two paths cannot drift.
+                        let auth = FinixAuthType::try_from(&item.router_data.connector_config)?;
+
+                        build_apple_pay_instrument_request(
+                            apple_pay_data,
+                            customer_id,
+                            auth.merchant_identity_id,
+                            item.router_data
+                                .resource_common_data
+                                .get_optional_billing_full_name(),
+                            get_billing_address_as_finix_address(
+                                &item.router_data.resource_common_data,
+                            ),
+                            tags,
+                        )
                     }
                     _ => Err(IntegrationError::NotImplemented(
-                        "Only Google Pay wallet is supported for SetupMandate".into(),
+                        "Only Google Pay and Apple Pay wallets are supported for SetupMandate"
+                            .into(),
                         Default::default(),
                     )
                     .into()),
                 }
             }
             _ => Err(IntegrationError::NotImplemented(
-                "Only card, bank debit (ACH), and Google Pay are supported for SetupMandate".into(),
+                "Only card, bank debit (ACH), Google Pay, and Apple Pay are supported for \
+                 SetupMandate"
+                    .into(),
                 Default::default(),
             )
             .into()),
@@ -1651,7 +1997,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     status: AttemptStatus::Failure,
                     ..item.router_data.resource_common_data.clone()
                 },
-                response: Err(disabled_instrument_error(&response, item.http_code)),
+                response: Err(instrument_not_usable_error(&response, item.http_code)),
                 ..item.router_data
             }),
         }
@@ -1806,17 +2152,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             });
         }
 
-        // Reuse Authorize's ID-aware status mapping: TR* → Charged, AU* → Authorized.
+        // Reuse the canonical ID-aware status mapping: TR* → Charged, AU* → Authorized.
         let finix_id = FinixId::from(response.id.clone());
-        let status = match (&finix_id, &response.state) {
-            (FinixId::Transfer(_), FinixPaymentStatus::Succeeded) => AttemptStatus::Charged,
-            (FinixId::Transfer(_), FinixPaymentStatus::Pending) => AttemptStatus::Pending,
-            (FinixId::Auth(_), FinixPaymentStatus::Succeeded) => AttemptStatus::Authorized,
-            (FinixId::Auth(_), FinixPaymentStatus::Pending) => AttemptStatus::AuthenticationPending,
-            (_, FinixPaymentStatus::Failed) => AttemptStatus::Failure,
-            (_, FinixPaymentStatus::Canceled) => AttemptStatus::Voided,
-            (_, FinixPaymentStatus::Unknown) => AttemptStatus::Pending,
-        };
+        let status = get_finix_attempt_status(&response.state, FinixFlow::from(&finix_id), None);
 
         // Mirror the Authorize flow for shadow parity: surface the charged Payment
         // Instrument (`source`) as the connector mandate id and attach the AVS / network
@@ -1865,18 +2203,6 @@ use domain_types::connector_types::{
 use domain_types::errors::WebhookError;
 use time::PrimitiveDateTime;
 
-/// Webhook transaction state. Mirrors HS `FinixState` (transformers/request.rs).
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum FinixState {
-    Pending,
-    Succeeded,
-    Failed,
-    Canceled,
-    #[serde(other)]
-    Unknown,
-}
-
 /// Webhook transfer type. Mirrors HS `FinixPaymentType` (transformers/request.rs).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -1912,17 +2238,28 @@ pub struct FinixWebhookPaymentsResponse {
     pub created_at: Option<String>,
     pub updated_at: Option<String>,
     pub application: Option<Secret<String>>,
-    pub amount: MinorUnit,
+    // `amount` and `currency` are never read on this path — the webhook content builder
+    // uses `captured_amount` for the captured value — but `FinixEmbedded` is
+    // `#[serde(untagged)]`, so a required field that Finix omits (or a `currency` value
+    // `common_enums::Currency` does not model) fails the *whole* `FinixWebhookBody` decode
+    // and takes `get_event_type`, `get_webhook_event_reference` and
+    // `get_webhook_resource_object` down with it. Same treatment as `tags` below.
+    #[serde(default)]
+    pub amount: Option<MinorUnit>,
     pub captured_amount: Option<MinorUnit>,
-    pub currency: Currency,
+    #[serde(default)]
+    pub currency: Option<Currency>,
     pub is_void: Option<bool>,
     pub source: Option<Secret<String>>,
-    pub state: FinixState,
+    pub state: FinixPaymentStatus,
     pub failure_code: Option<String>,
     pub messages: Option<Vec<String>>,
     pub failure_message: Option<String>,
     pub transfer: Option<String>,
-    pub tags: FinixTags,
+    // Optional in the Direct (hyperswitch) model and genuinely omitted by the documented
+    // `authorization` webhook sample — a required field here would reject those events.
+    #[serde(default)]
+    pub tags: Option<FinixTags>,
     #[serde(rename = "type")]
     pub payment_type: Option<FinixPaymentType>,
     pub three_d_secure: Option<FinixThreeDSecure>,
@@ -1930,7 +2267,8 @@ pub struct FinixWebhookPaymentsResponse {
     pub network_details: Option<FinixNetworkDetails>,
 }
 
-/// Mirrors HS `FinixDisputeState` (transformers/response.rs).
+/// Mirrors HS `FinixDisputeState` (transformers/response.rs). `#[serde(other)]` keeps a
+/// future Finix dispute state decodable instead of failing the whole webhook body.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum FinixDisputeState {
@@ -1938,6 +2276,8 @@ pub enum FinixDisputeState {
     Pending,
     Lost,
     Won,
+    #[serde(other)]
+    Unknown,
 }
 
 /// Mirrors HS `FinixDisputes` (transformers/response.rs).
@@ -1945,9 +2285,24 @@ pub enum FinixDisputeState {
 pub struct FinixDisputes {
     pub transfer: String,
     pub reason: Option<String>,
-    pub amount: MinorUnit,
+    // Finix declares `Dispute.amount` as `nullable: true` (OpenAPI
+    // `components.schemas.dispute.properties.amount`), and the Dispute schema marks no
+    // field as required. A non-`Option` field here therefore fails `FinixWebhookBody`
+    // decoding for any dispute delivered without an amount and — because `FinixEmbedded`
+    // is untagged — takes `get_event_type` and `get_webhook_event_reference` down with
+    // it, the same way the missing `currency` key did. The absence is reported only where
+    // the value is actually needed, in `build_finix_dispute_webhook_response`.
+    #[serde(default)]
+    pub amount: Option<MinorUnit>,
     pub state: FinixDisputeState,
-    pub currency: Currency,
+    // The documented Finix Dispute resource (`GET /disputes/{id}`) carries NO `currency`
+    // key, so this must stay optional: a required field would fail `FinixWebhookBody`
+    // decoding for every real dispute event and take `get_event_type` /
+    // `get_webhook_event_reference` down with it (`FinixEmbedded` is untagged). The
+    // absence is only reported where the value is actually needed, in
+    // `build_finix_dispute_webhook_response`.
+    #[serde(default)]
+    pub currency: Option<Currency>,
     pub id: String,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created_at: Option<PrimitiveDateTime>,
@@ -1970,9 +2325,19 @@ impl<T: Clone> SingleEventType<T> {
     }
 }
 
+/// Mirrors HS `FinixEvidence` (transformers/response.rs). `evidence.created` is a
+/// default-on Finix subscription, so the variant exists purely so such a delivery
+/// degrades to "event not supported" instead of `WebhookBodyDecodingFailed`.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct FinixEvidence {
+    pub dispute: String,
+    pub id: String,
+    pub state: String,
+}
+
 /// Mirrors HS `FinixEmbedded` (transformers/response.rs). Untagged: variant order
-/// (Authorizations, Transfers, Disputes) matches HS so ambiguous payloads resolve
-/// identically.
+/// (Authorizations, Transfers, Disputes, Evidences) matches HS so ambiguous payloads
+/// resolve identically.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum FinixEmbedded {
@@ -1984,6 +2349,9 @@ pub enum FinixEmbedded {
     },
     Disputes {
         disputes: SingleEventType<FinixDisputes>,
+    },
+    Evidences {
+        evidences: SingleEventType<FinixEvidence>,
     },
 }
 
@@ -2063,7 +2431,47 @@ pub(super) fn decode_finix_signature(
     Ok(FinixWebhookSignature { timestamp, sig })
 }
 
-/// Ports HS `FinixWebhookBody::get_webhook_event_type` arm-for-arm.
+/// Payment-webhook event type, derived from the **same** `get_finix_attempt_status`
+/// mapping that `build_finix_payment_webhook_response` uses to build the payload status.
+/// Deriving both from one function is what guarantees an event type can never contradict
+/// the status it carries — a hand-maintained second `match` drifted away from the status
+/// mapping and emitted `PaymentIntentCancelFailure` ("the void failed") on a payload whose
+/// status was `Voided` ("the void succeeded").
+///
+/// One deliberate carve-out: `FinixPaymentStatus::Unknown` emits no event at all
+/// (HS `EventNotSupported`) rather than asserting an outcome for an indeterminate state.
+/// That is a non-assertion, so it cannot contradict the `Pending` status the content
+/// builder reports for the same payload.
+pub(super) fn get_finix_webhook_payment_event_type(
+    state: &FinixPaymentStatus,
+    flow: FinixFlow,
+    is_void: Option<bool>,
+) -> EventType {
+    if matches!(state, FinixPaymentStatus::Unknown) {
+        return EventType::IncomingWebhookEventUnspecified;
+    }
+
+    match get_finix_attempt_status(state, flow, is_void) {
+        AttemptStatus::Voided => EventType::PaymentIntentCancelled,
+        AttemptStatus::VoidFailed => EventType::PaymentIntentCancelFailure,
+        AttemptStatus::Authorized => EventType::PaymentIntentAuthorizationSuccess,
+        AttemptStatus::AuthorizationFailed => EventType::PaymentIntentAuthorizationFailure,
+        AttemptStatus::Charged => EventType::PaymentIntentSuccess,
+        AttemptStatus::Failure => EventType::PaymentIntentFailure,
+        AttemptStatus::Pending | AttemptStatus::AuthenticationPending => {
+            EventType::PaymentIntentProcessing
+        }
+        // `get_finix_attempt_status` only ever returns the eight statuses above. Anything
+        // else would be a new arm added there with no matching event type; asserting an
+        // outcome for it would be a guess, so emit no event instead.
+        _ => EventType::IncomingWebhookEventUnspecified,
+    }
+}
+
+/// Ports HS `FinixWebhookBody::get_webhook_event_type`. The payment arms (authorizations
+/// and DEBIT transfers) are derived from `get_finix_attempt_status` via
+/// `get_finix_webhook_payment_event_type` so they stay in lockstep with the webhook
+/// content status.
 /// HS maps a PENDING reversal to `IncomingWebhookEvent::EventNotSupported`;
 /// the equivalent here is `EventType::IncomingWebhookEventUnspecified`
 /// (proto `WEBHOOK_EVENT_TYPE_UNSPECIFIED` = 0, which the HS UCS client maps
@@ -2075,44 +2483,49 @@ pub(super) fn get_finix_webhook_event_type(
         FinixEmbedded::Authorizations { authorizations } => {
             let authorization = authorizations.get_first_event()?;
 
-            if authorization.is_void == Some(true) {
-                match authorization.state {
-                    FinixState::Failed | FinixState::Canceled | FinixState::Unknown => {
-                        Ok(EventType::PaymentIntentCancelFailure)
-                    }
-                    FinixState::Pending => Ok(EventType::PaymentIntentProcessing),
-                    FinixState::Succeeded => Ok(EventType::PaymentIntentCancelled),
-                }
-            } else {
-                match authorization.state {
-                    FinixState::Pending => Ok(EventType::PaymentIntentProcessing),
-                    FinixState::Succeeded => Ok(EventType::PaymentIntentAuthorizationSuccess),
-                    FinixState::Failed | FinixState::Canceled | FinixState::Unknown => {
-                        Ok(EventType::PaymentIntentAuthorizationFailure)
-                    }
-                }
-            }
+            Ok(get_finix_webhook_payment_event_type(
+                &authorization.state,
+                FinixFlow::Auth,
+                authorization.is_void,
+            ))
         }
         FinixEmbedded::Transfers { transfers } => {
             let transfer = transfers.get_first_event()?;
 
-            if transfer.payment_type == Some(FinixPaymentType::Reversal) {
-                match transfer.state {
-                    FinixState::Succeeded => Ok(EventType::RefundSuccess),
+            match transfer.payment_type {
+                Some(FinixPaymentType::Reversal) => match transfer.state {
+                    FinixPaymentStatus::Succeeded => Ok(EventType::RefundSuccess),
                     // HS: `EventNotSupported` (see doc comment above).
-                    FinixState::Pending => Ok(EventType::IncomingWebhookEventUnspecified),
-                    FinixState::Failed | FinixState::Canceled | FinixState::Unknown => {
-                        Ok(EventType::RefundFailure)
-                    }
-                }
-            } else {
-                match transfer.state {
-                    FinixState::Pending => Ok(EventType::PaymentIntentProcessing),
-                    FinixState::Succeeded => Ok(EventType::PaymentIntentSuccess),
-                    FinixState::Failed | FinixState::Canceled | FinixState::Unknown => {
-                        Ok(EventType::PaymentIntentFailure)
-                    }
-                }
+                    FinixPaymentStatus::Pending => Ok(EventType::IncomingWebhookEventUnspecified),
+                    FinixPaymentStatus::Failed
+                    | FinixPaymentStatus::Canceled
+                    | FinixPaymentStatus::Returned => Ok(EventType::RefundFailure),
+                    FinixPaymentStatus::Unknown => Ok(EventType::IncomingWebhookEventUnspecified),
+                },
+                // `is_void` is honoured here for the same reason it is honoured on
+                // authorizations: `build_finix_payment_webhook_response` passes
+                // `resource.is_void` for DEBIT transfers too, so ignoring it here would
+                // emit `PaymentIntentSuccess` on a payload whose status is `Voided`.
+                Some(FinixPaymentType::Debit) => Ok(get_finix_webhook_payment_event_type(
+                    &transfer.state,
+                    FinixFlow::Transfer,
+                    transfer.is_void,
+                )),
+                // CREDIT / FEE / ADJUSTMENT / DISPUTE / RESERVE / SETTLEMENT / UNKNOWN and
+                // an absent `type` are platform-ledger movements, not the merchant's
+                // payment. HS returns `EventNotSupported` for all of them; classifying
+                // them as payment events would apply a settlement or a dispute debit to
+                // the payment attempt.
+                Some(
+                    FinixPaymentType::Credit
+                    | FinixPaymentType::Fee
+                    | FinixPaymentType::Adjustment
+                    | FinixPaymentType::Dispute
+                    | FinixPaymentType::Reserve
+                    | FinixPaymentType::Settlement
+                    | FinixPaymentType::Unknown,
+                )
+                | None => Ok(EventType::IncomingWebhookEventUnspecified),
             }
         }
         FinixEmbedded::Disputes { disputes } => {
@@ -2123,16 +2536,21 @@ pub(super) fn get_finix_webhook_event_type(
                 FinixDisputeState::Inquiry => Ok(EventType::DisputeChallenged),
                 FinixDisputeState::Lost => Ok(EventType::DisputeLost),
                 FinixDisputeState::Won => Ok(EventType::DisputeWon),
+                FinixDisputeState::Unknown => Ok(EventType::IncomingWebhookEventUnspecified),
             }
         }
+        // HS `FinixEmbedded::Evidences` -> `EventNotSupported`.
+        FinixEmbedded::Evidences { .. } => Ok(EventType::IncomingWebhookEventUnspecified),
     }
 }
 
 /// Ports HS `FinixWebhookBody::get_webhook_object_reference_id`:
 /// - Authorizations -> `PaymentId(ConnectorTransactionId(authorization.id))`
 /// - Transfers (REVERSAL) -> `RefundId(ConnectorRefundId(transfer.id))`
-/// - Transfers (FEE) -> error (HS: `WebhookEventTypeNotFound`, platform fee ignored)
-/// - Transfers (other) -> `PaymentId(ConnectorTransactionId(transfer.id))`
+/// - Transfers (DEBIT) -> `PaymentId(ConnectorTransactionId(transfer.id))`
+/// - Transfers (any other `type`, or an absent one) -> `WebhookEventTypeNotFound`: these
+///   are platform-ledger movements (fee, settlement, reserve, dispute debit, …) whose id
+///   is not a payment or a refund the caller can resolve.
 /// - Disputes -> HS emits `PaymentId(ConnectorTransactionId(dispute.transfer))`; the
 ///   HS reference normaliser maps a prism Dispute reference via
 ///   `connector_dispute_id.or(connector_transaction_id)` into exactly that, so
@@ -2162,16 +2580,28 @@ pub(super) fn get_finix_webhook_reference(
                         connector_transaction_id: None,
                     },
                 ))),
-                // finix platform fee ignored (HS: Err(WebhookEventTypeNotFound))
-                Some(FinixPaymentType::Fee) => Err(error_stack::report!(
-                    WebhookError::WebhookReferenceIdNotFound
-                )),
-                _ => Ok(Some(WebhookResourceReference::Payment(
+                Some(FinixPaymentType::Debit) => Ok(Some(WebhookResourceReference::Payment(
                     PaymentWebhookReference {
                         connector_transaction_id: Some(transfer.id),
                         merchant_transaction_id: None,
                     },
                 ))),
+                // Platform-ledger transfers (fee, settlement, reserve, dispute debit,
+                // credit, adjustment) — HS: Err(WebhookEventTypeNotFound).
+                Some(
+                    FinixPaymentType::Credit
+                    | FinixPaymentType::Fee
+                    | FinixPaymentType::Adjustment
+                    | FinixPaymentType::Dispute
+                    | FinixPaymentType::Reserve
+                    | FinixPaymentType::Settlement
+                    | FinixPaymentType::Unknown,
+                )
+                | None => {
+                    Err(error_stack::report!(WebhookError::WebhookEventTypeNotFound)).attach_printable(
+                        "Finix transfer webhook is not a DEBIT or a REVERSAL, so its id is neither a payment nor a refund reference",
+                    )
+                }
             }
         }
         FinixEmbedded::Disputes { disputes } => {
@@ -2184,82 +2614,60 @@ pub(super) fn get_finix_webhook_reference(
                 },
             )))
         }
-    }
-}
-
-/// Which HS flow a webhook payment resource belongs to (`FinixFlow` in HS).
-/// Webhooks only ever carry authorizations or transfers, so HS's `Capture` arm
-/// is unreachable from the webhook path and is not ported.
-#[derive(Clone, Copy, Debug)]
-pub(super) enum FinixWebhookFlow {
-    Auth,
-    Transfer,
-}
-
-/// Ports HS `get_attempt_status` (finix/transformers.rs) for the webhook path.
-fn get_finix_webhook_attempt_status(
-    state: &FinixState,
-    flow: FinixWebhookFlow,
-    is_void: Option<bool>,
-) -> AttemptStatus {
-    if is_void == Some(true) {
-        return match state {
-            FinixState::Failed | FinixState::Canceled | FinixState::Unknown => {
-                AttemptStatus::VoidFailed
-            }
-            FinixState::Pending => AttemptStatus::Voided,
-            FinixState::Succeeded => AttemptStatus::Voided,
-        };
-    }
-    match (flow, state) {
-        (FinixWebhookFlow::Auth, FinixState::Pending) => AttemptStatus::AuthenticationPending,
-        (FinixWebhookFlow::Auth, FinixState::Succeeded) => AttemptStatus::Authorized,
-        (
-            FinixWebhookFlow::Auth,
-            FinixState::Failed | FinixState::Canceled | FinixState::Unknown,
-        ) => AttemptStatus::AuthorizationFailed,
-        (FinixWebhookFlow::Transfer, FinixState::Pending) => AttemptStatus::Pending,
-        (FinixWebhookFlow::Transfer, FinixState::Succeeded) => AttemptStatus::Charged,
-        (
-            FinixWebhookFlow::Transfer,
-            FinixState::Failed | FinixState::Canceled | FinixState::Unknown,
-        ) => AttemptStatus::Failure,
-    }
-}
-
-/// Ports HS `impl From<FinixState> for RefundStatus` (finix/transformers.rs).
-fn get_finix_webhook_refund_status(state: &FinixState) -> RefundStatus {
-    match state {
-        FinixState::Pending => RefundStatus::Pending,
-        FinixState::Succeeded => RefundStatus::Success,
-        FinixState::Failed | FinixState::Canceled | FinixState::Unknown => RefundStatus::Failure,
+        // HS `FinixEmbedded::Evidences` -> Err(WebhookEventTypeNotFound).
+        FinixEmbedded::Evidences { .. } => {
+            Err(error_stack::report!(WebhookError::WebhookEventTypeNotFound))
+                .attach_printable("Finix `evidence` webhooks carry no payment or refund reference")
+        }
     }
 }
 
 /// Dispute status per the HS webhook event mapping (PENDING -> DisputeOpened,
 /// INQUIRY -> DisputeChallenged, LOST -> DisputeLost, WON -> DisputeWon).
-fn get_finix_webhook_dispute_status(state: &FinixDisputeState) -> common_enums::DisputeStatus {
+fn get_finix_webhook_dispute_status(
+    state: &FinixDisputeState,
+) -> Result<common_enums::DisputeStatus, error_stack::Report<WebhookError>> {
     match state {
-        FinixDisputeState::Pending => common_enums::DisputeStatus::DisputeOpened,
-        FinixDisputeState::Inquiry => common_enums::DisputeStatus::DisputeChallenged,
-        FinixDisputeState::Lost => common_enums::DisputeStatus::DisputeLost,
-        FinixDisputeState::Won => common_enums::DisputeStatus::DisputeWon,
+        FinixDisputeState::Pending => Ok(common_enums::DisputeStatus::DisputeOpened),
+        FinixDisputeState::Inquiry => Ok(common_enums::DisputeStatus::DisputeChallenged),
+        FinixDisputeState::Lost => Ok(common_enums::DisputeStatus::DisputeLost),
+        FinixDisputeState::Won => Ok(common_enums::DisputeStatus::DisputeWon),
+        // An unmapped dispute state has no safe DisputeStatus; report it instead of
+        // guessing a terminal outcome.
+        FinixDisputeState::Unknown => {
+            Err(error_stack::report!(WebhookError::WebhookEventTypeNotFound))
+                .attach_printable("unrecognised Finix dispute state on the webhook payload")
+        }
     }
 }
 
-/// Builds the payment webhook content for authorizations and (non-reversal)
-/// transfers. Status mapping ports HS `get_attempt_status` with
-/// `FinixFlow::Auth` / `FinixFlow::Transfer` respectively.
+/// Builds the payment webhook content for authorizations and DEBIT transfers. Status
+/// mapping goes through the canonical `get_finix_attempt_status` shared with Authorize,
+/// PSync, Capture and Void, with `FinixFlow::Auth` / `FinixFlow::Transfer` respectively.
 pub(super) fn build_finix_payment_webhook_response(
     body: &FinixWebhookBody,
     raw_body: &[u8],
 ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
     let (resource, flow) = match &body.webhook_embedded {
         FinixEmbedded::Authorizations { authorizations } => {
-            (authorizations.get_first_event()?, FinixWebhookFlow::Auth)
+            (authorizations.get_first_event()?, FinixFlow::Auth)
         }
         FinixEmbedded::Transfers { transfers } => {
-            (transfers.get_first_event()?, FinixWebhookFlow::Transfer)
+            let transfer = transfers.get_first_event()?;
+            // Only a DEBIT transfer is the merchant's payment. The shared webhook
+            // dispatcher falls back to the payment builder for any event type it does
+            // not recognise, so a REVERSAL, a settlement, a fee, a reserve or a
+            // dispute debit would otherwise be reported as a charge on the payment
+            // attempt. Refuse them here instead of mis-reporting them.
+            if transfer.payment_type != Some(FinixPaymentType::Debit) {
+                return Err(error_stack::report!(
+                    WebhookError::WebhookResourceObjectNotFound
+                ))
+                .attach_printable(
+                    "expected a payment webhook (authorization or DEBIT transfer), but the transfer is not a DEBIT",
+                );
+            }
+            (transfer, FinixFlow::Transfer)
         }
         FinixEmbedded::Disputes { .. } => {
             return Err(error_stack::report!(
@@ -2267,9 +2675,15 @@ pub(super) fn build_finix_payment_webhook_response(
             ))
             .attach_printable("expected a payment webhook, but found a dispute webhook");
         }
+        FinixEmbedded::Evidences { .. } => {
+            return Err(error_stack::report!(
+                WebhookError::WebhookResourceObjectNotFound
+            ))
+            .attach_printable("expected a payment webhook, but found an evidence webhook");
+        }
     };
 
-    let status = get_finix_webhook_attempt_status(&resource.state, flow, resource.is_void);
+    let status = get_finix_attempt_status(&resource.state, flow, resource.is_void);
 
     Ok(WebhookDetailsResponse {
         resource_id: Some(ResponseId::ConnectorTransactionId(resource.id.clone())),
@@ -2292,15 +2706,31 @@ pub(super) fn build_finix_payment_webhook_response(
     })
 }
 
-/// Builds the refund webhook content for REVERSAL transfers. Status mapping
-/// ports HS `impl From<FinixState> for RefundStatus`.
+/// Builds the refund webhook content for REVERSAL transfers. Status mapping goes through
+/// the canonical `impl From<&FinixPaymentStatus> for RefundStatus` shared with Refund and
+/// RSync.
 pub(super) fn build_finix_refund_webhook_response(
     body: &FinixWebhookBody,
     raw_body: &[u8],
 ) -> Result<RefundWebhookDetailsResponse, error_stack::Report<WebhookError>> {
     let transfer = match &body.webhook_embedded {
-        FinixEmbedded::Transfers { transfers } => transfers.get_first_event()?,
-        FinixEmbedded::Authorizations { .. } | FinixEmbedded::Disputes { .. } => {
+        FinixEmbedded::Transfers { transfers } => {
+            let transfer = transfers.get_first_event()?;
+            // A Finix refund is a REVERSAL transfer; nothing else may be reported as a
+            // refund outcome (mirrors the DEBIT guard in the payment builder).
+            if transfer.payment_type != Some(FinixPaymentType::Reversal) {
+                return Err(error_stack::report!(
+                    WebhookError::WebhookResourceObjectNotFound
+                ))
+                .attach_printable(
+                    "expected a refund (reversal transfer) webhook, but the transfer is not a REVERSAL",
+                );
+            }
+            transfer
+        }
+        FinixEmbedded::Authorizations { .. }
+        | FinixEmbedded::Disputes { .. }
+        | FinixEmbedded::Evidences { .. } => {
             return Err(error_stack::report!(
                 WebhookError::WebhookResourceObjectNotFound
             ))
@@ -2313,7 +2743,7 @@ pub(super) fn build_finix_refund_webhook_response(
         // Finix REVERSAL webhooks only carry connector-side ids — no merchant
         // reference for the original payment.
         merchant_transaction_id: None,
-        status: get_finix_webhook_refund_status(&transfer.state),
+        status: RefundStatus::from(&transfer.state),
         connector_response_reference_id: None,
         error_code: transfer.failure_code,
         error_message: transfer.failure_message,
@@ -2333,7 +2763,9 @@ pub(super) fn build_finix_dispute_webhook_response(
 ) -> Result<DisputeWebhookDetailsResponse, error_stack::Report<WebhookError>> {
     let dispute = match &body.webhook_embedded {
         FinixEmbedded::Disputes { disputes } => disputes.get_first_event()?,
-        FinixEmbedded::Authorizations { .. } | FinixEmbedded::Transfers { .. } => {
+        FinixEmbedded::Authorizations { .. }
+        | FinixEmbedded::Transfers { .. }
+        | FinixEmbedded::Evidences { .. } => {
             return Err(error_stack::report!(
                 WebhookError::WebhookResourceObjectNotFound
             ))
@@ -2341,15 +2773,59 @@ pub(super) fn build_finix_dispute_webhook_response(
         }
     };
 
+    // KNOWN GAP — the Finix dispute content path cannot succeed until a core change lands.
+    //
+    // Finix's `dispute` resource has 19 properties and `currency` is not one of them
+    // (OpenAPI `components.schemas.dispute`; the `dispute.created`/`dispute.updated`
+    // webhook payload is a 15-key subset of the same set). `FinixDisputes.currency` is
+    // therefore always `None` and this error always fires. Hyperswitch (Direct) takes the
+    // currency from the payment context instead (`finix.rs get_dispute_details`).
+    //
+    // Why it cannot be fixed inside the connector:
+    //   * `IncomingWebhook::process_dispute_webhook` takes no `EventContext`
+    //     (interfaces/src/connector_types.rs), unlike `process_payment_webhook`; and
+    //   * `EventContext` carries only `capture_method`
+    //     (domain_types/src/connector_types.rs), and the proto `DisputeEventContext`
+    //     message is empty, so plumbing the parameter through would deliver nothing.
+    //   * `dispute.transfer` is a bare `TR…` id; resolving its currency needs an outbound
+    //     `GET /transfers/{id}`, which this synchronous transformer cannot perform.
+    //
+    // Substituting any currency here would be a fabricated value, so the absence is
+    // reported instead. `WebhookMissingRequiredContext` (rather than
+    // `WebhookMissingRequiredField`) is used deliberately: the value is missing from the
+    // UCS *context*, not from the Finix payload, and that is where the fix belongs.
+    let currency = dispute
+        .currency
+        .ok_or_else(|| {
+            error_stack::report!(WebhookError::WebhookMissingRequiredContext {
+                field: "currency",
+                origin: "payment",
+            })
+        })
+        .attach_printable(
+            "the Finix dispute resource carries no currency and UCS exposes no dispute event \
+             context to resolve it from; see the KNOWN GAP note above",
+        )?;
+
+    // `Dispute.amount` is nullable in Finix's schema; report the absence here (where the
+    // value is needed) rather than failing the whole body decode, and never substitute a
+    // fabricated zero.
+    let amount = dispute
+        .amount
+        .ok_or_else(|| {
+            error_stack::report!(WebhookError::WebhookMissingRequiredField { field: "amount" })
+        })
+        .attach_printable("Finix dispute webhook carried no `amount`")?;
+
     Ok(DisputeWebhookDetailsResponse {
         amount: domain_types::utils::convert_amount_for_webhook(
             &common_utils::types::StringMinorUnitForConnector,
-            dispute.amount,
-            dispute.currency,
+            amount,
+            currency,
         )?,
-        currency: dispute.currency,
+        currency,
         dispute_id: dispute.id,
-        status: get_finix_webhook_dispute_status(&dispute.state),
+        status: get_finix_webhook_dispute_status(&dispute.state)?,
         stage: common_enums::DisputeStage::Dispute,
         connector_response_reference_id: None,
         dispute_message: dispute.reason,
