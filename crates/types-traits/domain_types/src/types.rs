@@ -3092,7 +3092,7 @@ pub struct AuthorizationRequest {
     pub partner_merchant_identifier_details:
         Option<grpc_payment_types::PartnerMerchantIdentifierDetails>,
     /// Dynamic currency conversion decision and quote supplied for authorization.
-    pub dynamic_currency_conversion_data: Option<grpc_payment_types::CurrencyConversionData>,
+    pub currency_conversion_data: Option<grpc_payment_types::CurrencyConversionData>,
 }
 
 /// Intermediate setup recurring request that accepts both CardDetails and ProxyCardDetails.
@@ -3197,7 +3197,7 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
             domain_data: req.domain_data,
             split_payments: req.split_payments,
             partner_merchant_identifier_details: req.partner_merchant_identifier_details,
-            dynamic_currency_conversion_data: req.dynamic_currency_conversion_data,
+            currency_conversion_data: req.currency_conversion_data,
         }
     }
 }
@@ -3267,7 +3267,7 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             domain_data: req.domain_data,
             split_payments: None,
             partner_merchant_identifier_details: None,
-            dynamic_currency_conversion_data: None,
+            currency_conversion_data: None,
         }
     }
 }
@@ -3793,7 +3793,7 @@ impl ForeignTryFrom<grpc_payment_types::CurrencyConversionDecision>
             }
             grpc_payment_types::CurrencyConversionDecision::Unspecified => {
                 Err(report!(IntegrationError::InvalidDataFormat {
-                    field_name: "dynamic_currency_conversion_data.decision",
+                    field_name: "currency_conversion_data.decision",
                     context: IntegrationErrorContext {
                         additional_context: Some(
                             "Currency conversion decision cannot be unspecified".to_string(),
@@ -3820,7 +3820,7 @@ impl ForeignTryFrom<grpc_payment_types::CurrencyConversionType>
             grpc_payment_types::CurrencyConversionType::Mcc => Ok(Self::Mcc),
             grpc_payment_types::CurrencyConversionType::Unspecified => {
                 Err(report!(IntegrationError::InvalidDataFormat {
-                    field_name: "dynamic_currency_conversion_data.quote.currency_conversion_type",
+                    field_name: "currency_conversion_data.quote.currency_conversion_type",
                     context: IntegrationErrorContext {
                         additional_context: Some(
                             "Currency conversion type cannot be unspecified".to_string(),
@@ -3863,7 +3863,7 @@ impl ForeignTryFrom<grpc_payment_types::CurrencyConversionQuote>
                         .map_err(|_| {
                             report!(IntegrationError::InvalidDataFormat {
                                 field_name:
-                                    "dynamic_currency_conversion_data.quote.currency_conversion_type",
+                                    "currency_conversion_data.quote.currency_conversion_type",
                                 context: IntegrationErrorContext {
                                     additional_context: Some(format!(
                                         "Unknown currency conversion type discriminant: {currency_conversion_type}"
@@ -3892,7 +3892,7 @@ impl ForeignTryFrom<grpc_payment_types::CurrencyConversionData>
         let decision = grpc_payment_types::CurrencyConversionDecision::try_from(value.decision)
             .map_err(|_| {
                 report!(IntegrationError::InvalidDataFormat {
-                    field_name: "dynamic_currency_conversion_data.decision",
+                    field_name: "currency_conversion_data.decision",
                     context: IntegrationErrorContext {
                         additional_context: Some(format!(
                             "Unknown currency conversion decision discriminant: {}",
@@ -4328,8 +4328,8 @@ impl<
                 .partner_merchant_identifier_details
                 .map(connector_types::PartnerMerchantIdentifierDetails::foreign_try_from)
                 .transpose()?,
-            dynamic_currency_conversion_data: value
-                .dynamic_currency_conversion_data
+            currency_conversion_data: value
+                .currency_conversion_data
                 .map(connector_types::CurrencyConversionData::foreign_try_from)
                 .transpose()?,
         })
@@ -16834,7 +16834,7 @@ pub fn tokenized_authorize_to_base(
         merchant_request_id: None,
         domain_data: None,
         partner_merchant_identifier_details: None,
-        dynamic_currency_conversion_data: None,
+        currency_conversion_data: None,
     }
 }
 
@@ -17013,7 +17013,7 @@ pub fn proxied_authorize_to_base(
         merchant_request_id: None,
         domain_data: None,
         partner_merchant_identifier_details: None,
-        dynamic_currency_conversion_data: None,
+        currency_conversion_data: None,
     })
 }
 

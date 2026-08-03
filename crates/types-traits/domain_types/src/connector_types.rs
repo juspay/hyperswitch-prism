@@ -1621,7 +1621,7 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub partner_merchant_identifier_details: Option<PartnerMerchantIdentifierDetails>,
     /// Dynamic currency conversion decision and quote supplied for authorization.
     /// Connectors that support DCC can consume this when building their request.
-    pub dynamic_currency_conversion_data: Option<CurrencyConversionData>,
+    pub currency_conversion_data: Option<CurrencyConversionData>,
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {

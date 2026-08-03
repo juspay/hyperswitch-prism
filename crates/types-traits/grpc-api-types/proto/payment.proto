@@ -2592,9 +2592,9 @@ message PaymentServiceAuthorizeRequest {
 
   optional PartnerMerchantIdentifierDetails partner_merchant_identifier_details = 50;
 
-  // Dynamic currency conversion quote and decision data passed through the
+  // Currency conversion quote and decision data passed through the
   // authorization flow for future connector-specific processing.
-  optional CurrencyConversionData dynamic_currency_conversion_data = 51;
+  optional CurrencyConversionData currency_conversion_data = 51;
 }
 
 // Partner / external-platform application details.
