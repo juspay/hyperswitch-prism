@@ -411,6 +411,7 @@ pub struct Connectors {
     pub tsys_transit: ConnectorParams,
     pub twoc_twop_paco: ConnectorParams,
     pub interpayments: ConnectorParams,
+    pub deutschebank: ConnectorParamsWithCaBundle,
     pub juspay: ConnectorParams,
     pub glomopay: ConnectorParams,
     pub payconex: ConnectorParams,
@@ -476,6 +477,22 @@ pub struct ConnectorParamsWithMoreUrls {
     pub base_url_bank_redirects: String,
 }
 
+#[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
+pub struct ConnectorParamsWithCaBundle {
+    /// base url
+    #[serde(default)]
+    pub base_url: String,
+    #[serde(default)]
+    pub dispute_base_url: Option<String>,
+    #[serde(default)]
+    pub secondary_base_url: Option<String>,
+    #[serde(default)]
+    pub third_base_url: Option<String>,
+    /// PEM trust anchor for verifying the connector's server certificate
+    #[serde(default)]
+    pub server_ca_bundle: Option<String>,
+}
+
 // Trait to provide access to connectors field
 pub trait HasConnectors {
     fn connectors(&self) -> &Connectors;
@@ -506,6 +523,21 @@ impl HasConnectors for crate::payouts::payouts_types::PayoutFlowData {
 }
 
 impl Connectors {
+    /// Connectors that expose a `server_ca_bundle`, paired with the configured
+    /// PEM, for startup validation.
+    ///
+    /// NOTE: this is an explicit, hand-maintained list — it is *not* automatically
+    /// generic over every connector. A new connector that adds a `server_ca_bundle`
+    /// field must also be registered here, otherwise its CA config silently skips
+    /// startup validation.
+    pub fn server_ca_bundles(&self) -> Vec<(&'static str, &str)> {
+        let mut bundles = Vec::new();
+        if let Some(pem) = self.deutschebank.server_ca_bundle.as_deref() {
+            bundles.push(("deutschebank", pem));
+        }
+        bundles
+    }
+
     /// Patch the specified connector's URL configuration with resolved URLs from superposition.
     ///
     /// This method creates a new `Connectors` instance with the specified connector's
@@ -782,6 +814,19 @@ impl Connectors {
             PayoutConnectorEnum::Itaubank => patched.itaubank.apply(params_patch),
             PayoutConnectorEnum::Worldpayxml => patched.worldpayxml.apply(params_patch),
             PayoutConnectorEnum::Cybersource => patched.cybersource.apply(params_patch),
+            // Deutschebank uses `ConnectorParamsWithCaBundle`, so patch the resolved
+            // URLs while leaving its `server_ca_bundle` untouched.
+            PayoutConnectorEnum::Deutschebank => {
+                patched
+                    .deutschebank
+                    .apply(ConnectorParamsWithCaBundlePatch {
+                        base_url: urls.base_url.clone(),
+                        dispute_base_url: Some(urls.dispute_base_url.clone()),
+                        secondary_base_url: Some(urls.secondary_base_url.clone()),
+                        third_base_url: Some(urls.third_base_url.clone()),
+                        server_ca_bundle: None,
+                    })
+            }
         }
         Ok(patched)
     }

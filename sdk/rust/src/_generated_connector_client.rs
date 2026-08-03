@@ -54,6 +54,7 @@ use grpc_api_types::payments::{
     RecurringPaymentServiceRevokeResponse, RefundResponse, RefundServiceGetRequest,
 };
 use grpc_api_types::payouts::{
+    PayoutMethodEligibilityRequest, PayoutMethodEligibilityResponse,
     PayoutServiceCreateLinkRequest, PayoutServiceCreateLinkResponse,
     PayoutServiceCreateRecipientRequest, PayoutServiceCreateRecipientResponse,
     PayoutServiceCreateRequest, PayoutServiceCreateResponse,
@@ -566,6 +567,13 @@ impl ConnectorClient {
         PayoutServiceCreateRecipientResponse,
         payout_create_recipient_req_handler,
         payout_create_recipient_res_handler
+    );
+    impl_flow_method!(
+        payout_eligibility,
+        PayoutMethodEligibilityRequest,
+        PayoutMethodEligibilityResponse,
+        payout_eligibility_req_handler,
+        payout_eligibility_res_handler
     );
     impl_flow_method!(
         enroll_disburse_account,

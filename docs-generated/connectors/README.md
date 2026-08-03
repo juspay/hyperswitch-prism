@@ -316,7 +316,7 @@ The DisputeService handles chargeback and dispute management operations.
 ### Fiuu
 - **Location**: `backend/connector-integration/src/connectors/fiuu.rs`
 - **Transformers**: `backend/connector-integration/src/connectors/fiuu/transformers.rs`
-- **Tests**: `backend/grpc-server/tests/fiuu_payment_flows_test.rs`
+- **Tests**: `backend/grpc-server/tests/beta_tests/fiuu_payment_flows_test.rs`
 - **Supported Operations**: Authorize, Capture, Void, PSync, Refund, RSync
 
 ### CashToCode
