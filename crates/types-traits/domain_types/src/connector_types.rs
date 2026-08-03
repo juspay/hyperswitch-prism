@@ -1621,8 +1621,7 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub partner_merchant_identifier_details: Option<PartnerMerchantIdentifierDetails>,
     /// Dynamic currency conversion decision and quote supplied for authorization.
     /// Connectors that support DCC can consume this when building their request.
-    pub dynamic_currency_conversion_data:
-        Option<grpc_api_types::payments::DynamicCurrencyConversionData>,
+    pub dynamic_currency_conversion_data: Option<DynamicCurrencyConversionData>,
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {
@@ -4306,6 +4305,45 @@ pub struct MerchantApplicationDetails {
 pub struct PartnerMerchantIdentifierDetails {
     pub partner_details: Option<PartnerApplicationDetails>,
     pub merchant_details: Option<MerchantApplicationDetails>,
+}
+
+/// A cardholder's decision for a dynamic currency conversion offer.
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum DccDecision {
+    Accepted,
+    Declined,
+    NotApplicable,
+}
+
+/// The currency conversion model used for a DCC quote.
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum CurrencyConversionType {
+    Dcc,
+    Mcp,
+    Mcc,
+}
+
+/// Connector-agnostic details of a dynamic currency conversion quote.
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct DccQuote {
+    pub actual_amount: Option<Money>,
+    pub exchange_rate: Option<String>,
+    pub connector_quote_id: Option<String>,
+    pub exchange_rate_id: Option<String>,
+    pub provider: Option<String>,
+    pub rate_source: Option<String>,
+    pub markup_percentage: Option<String>,
+    pub markup_amount: Option<Money>,
+    pub currency_conversion_type: Option<CurrencyConversionType>,
+    pub quoted_at: Option<i64>,
+    pub expires_at: Option<i64>,
+}
+
+/// A validated DCC decision and the quote presented to the cardholder.
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct DynamicCurrencyConversionData {
+    pub decision: DccDecision,
+    pub quote: Option<DccQuote>,
 }
 
 /// Domain-specific data supplied by the merchant (airline today; extensible

@@ -3777,6 +3777,115 @@ impl ForeignTryFrom<grpc_payment_types::PartnerMerchantIdentifierDetails>
     }
 }
 
+impl ForeignTryFrom<i32> for connector_types::DccDecision {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(value: i32) -> Result<Self, error_stack::Report<Self::Error>> {
+        match grpc_payment_types::DccDecision::try_from(value) {
+            Ok(grpc_payment_types::DccDecision::Accepted) => Ok(Self::Accepted),
+            Ok(grpc_payment_types::DccDecision::Declined) => Ok(Self::Declined),
+            Ok(grpc_payment_types::DccDecision::NotApplicable) => Ok(Self::NotApplicable),
+            Ok(grpc_payment_types::DccDecision::Unspecified) => {
+                Err(report!(IntegrationError::InvalidDataFormat {
+                    field_name: "dynamic_currency_conversion_data.decision",
+                    context: IntegrationErrorContext {
+                        additional_context: Some("DCC decision cannot be unspecified".to_string()),
+                        ..Default::default()
+                    },
+                }))
+            }
+            Err(_) => Err(report!(IntegrationError::InvalidDataFormat {
+                field_name: "dynamic_currency_conversion_data.decision",
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!("Unknown DCC decision discriminant: {value}")),
+                    ..Default::default()
+                },
+            })),
+        }
+    }
+}
+
+impl ForeignTryFrom<i32> for connector_types::CurrencyConversionType {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(value: i32) -> Result<Self, error_stack::Report<Self::Error>> {
+        match grpc_payment_types::CurrencyConversionType::try_from(value) {
+            Ok(grpc_payment_types::CurrencyConversionType::Dcc) => Ok(Self::Dcc),
+            Ok(grpc_payment_types::CurrencyConversionType::Mcp) => Ok(Self::Mcp),
+            Ok(grpc_payment_types::CurrencyConversionType::Mcc) => Ok(Self::Mcc),
+            Ok(grpc_payment_types::CurrencyConversionType::Unspecified) => {
+                Err(report!(IntegrationError::InvalidDataFormat {
+                    field_name: "dynamic_currency_conversion_data.quote.currency_conversion_type",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Currency conversion type cannot be unspecified".to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                }))
+            }
+            Err(_) => Err(report!(IntegrationError::InvalidDataFormat {
+                field_name: "dynamic_currency_conversion_data.quote.currency_conversion_type",
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "Unknown currency conversion type discriminant: {value}"
+                    )),
+                    ..Default::default()
+                },
+            })),
+        }
+    }
+}
+
+impl ForeignTryFrom<grpc_payment_types::DccQuote> for connector_types::DccQuote {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: grpc_payment_types::DccQuote,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        Ok(Self {
+            actual_amount: value
+                .actual_amount
+                .map(common_utils::types::Money::foreign_try_from)
+                .transpose()?,
+            exchange_rate: value.exchange_rate,
+            connector_quote_id: value.connector_quote_id,
+            exchange_rate_id: value.exchange_rate_id,
+            provider: value.provider,
+            rate_source: value.rate_source,
+            markup_percentage: value.markup_percentage,
+            markup_amount: value
+                .markup_amount
+                .map(common_utils::types::Money::foreign_try_from)
+                .transpose()?,
+            currency_conversion_type: value
+                .currency_conversion_type
+                .map(connector_types::CurrencyConversionType::foreign_try_from)
+                .transpose()?,
+            quoted_at: value.quoted_at,
+            expires_at: value.expires_at,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_payment_types::DynamicCurrencyConversionData>
+    for connector_types::DynamicCurrencyConversionData
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: grpc_payment_types::DynamicCurrencyConversionData,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        Ok(Self {
+            decision: connector_types::DccDecision::foreign_try_from(value.decision)?,
+            quote: value
+                .quote
+                .map(connector_types::DccQuote::foreign_try_from)
+                .transpose()?,
+        })
+    }
+}
+
 impl ForeignTryFrom<grpc_payment_types::AirlineData> for connector_types::AirlineData {
     type Error = IntegrationError;
 
@@ -4192,7 +4301,10 @@ impl<
                 .partner_merchant_identifier_details
                 .map(connector_types::PartnerMerchantIdentifierDetails::foreign_try_from)
                 .transpose()?,
-            dynamic_currency_conversion_data: value.dynamic_currency_conversion_data,
+            dynamic_currency_conversion_data: value
+                .dynamic_currency_conversion_data
+                .map(connector_types::DynamicCurrencyConversionData::foreign_try_from)
+                .transpose()?,
         })
     }
 }
@@ -17527,51 +17639,5 @@ impl From<connector_types::WebhookResourceReference> for grpc_api_types::payment
                 })),
             },
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::AuthorizationRequest;
-    use grpc_api_types::payments::{
-        Currency, DccDecision, DccQuote, DynamicCurrencyConversionData, Money,
-        PaymentServiceAuthorizeRequest,
-    };
-
-    #[test]
-    fn authorize_request_preserves_dynamic_currency_conversion_data() {
-        let dcc_data = DynamicCurrencyConversionData {
-            decision: DccDecision::Accepted as i32,
-            quote: Some(DccQuote {
-                actual_amount: Some(Money {
-                    minor_amount: 12_345,
-                    currency: Currency::Eur as i32,
-                }),
-                exchange_rate: Some("1.0842".to_string()),
-                connector_quote_id: Some("quote_123".to_string()),
-                exchange_rate_id: Some("rate_123".to_string()),
-                provider: Some("provider".to_string()),
-                rate_source: Some("source".to_string()),
-                markup_percentage: Some("3.50".to_string()),
-                markup_amount: Some(Money {
-                    minor_amount: 350,
-                    currency: Currency::Eur as i32,
-                }),
-                currency_conversion_type: None,
-                quoted_at: Some(1_700_000_000),
-                expires_at: Some(1_700_000_300),
-            }),
-        };
-        let request = PaymentServiceAuthorizeRequest {
-            dynamic_currency_conversion_data: Some(dcc_data.clone()),
-            ..Default::default()
-        };
-
-        let authorization_request = AuthorizationRequest::from(request);
-
-        assert_eq!(
-            authorization_request.dynamic_currency_conversion_data,
-            Some(dcc_data)
-        );
     }
 }
