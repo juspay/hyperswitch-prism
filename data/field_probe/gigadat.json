@@ -385,7 +385,7 @@
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
       },
       "PermataBankTransfer": {
         "status": "not_supported",

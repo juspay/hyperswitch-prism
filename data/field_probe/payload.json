@@ -424,7 +424,7 @@
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "error": "Wallet is not supported by Payload"
       },
       "PermataBankTransfer": {
         "status": "not_supported",

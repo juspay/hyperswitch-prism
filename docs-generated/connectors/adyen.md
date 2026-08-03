@@ -222,8 +222,8 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Revolut Pay | ⚠ |
 | MiFinity | ⚠ |
 | Bluecode | ⚠ |
-| Paze | x |
-| Samsung Pay | ⚠ |
+| Paze | ? |
+| Samsung Pay | ✓ |
 | MB Way | ⚠ |
 | Satispay | ⚠ |
 | Wero | ⚠ |
@@ -445,6 +445,26 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 ```python
 "payment_method": {
   "affirm": {}
+}
+```
+
+##### Samsung Pay
+
+```python
+"payment_method": {
+  "samsung_pay_sdk": {
+    "payment_credential": {
+      "method": "3DS",
+      "recurring_payment": false,
+      "card_brand": "VISA",
+      "card_last_four_digits": "1234",
+      "token_data": {
+        "type": "S",
+        "version": "100",
+        "data": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNhbXN1bmdfcHJvYmVfa2V5XzEyMyJ9.eyJwYXltZW50TWV0aG9kVG9rZW4iOiJwcm9iZV9zYW1zdW5nX3Rva2VuIn0.ZHVtbXlfc2lnbmF0dXJl"
+      }
+    }
+  }
 }
 ```
 

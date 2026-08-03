@@ -337,8 +337,8 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Paze": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
       },
       "PermataBankTransfer": {
         "status": "error",

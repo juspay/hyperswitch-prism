@@ -1391,6 +1391,30 @@ static ADYEN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
         },
     );
 
+    // Wallet - Paze (submitted as a network token pass-through)
+    adyen_supported_payment_methods.add(
+        PaymentMethod::Wallet,
+        PaymentMethodType::Paze,
+        PaymentMethodDetails {
+            mandates: FeatureStatus::Supported,
+            refunds: FeatureStatus::Supported,
+            supported_capture_methods: adyen_supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    // Wallet - Samsung Pay (encrypted SDK token forwarded as `samsungPayToken`)
+    adyen_supported_payment_methods.add(
+        PaymentMethod::Wallet,
+        PaymentMethodType::SamsungPay,
+        PaymentMethodDetails {
+            mandates: FeatureStatus::Supported,
+            refunds: FeatureStatus::Supported,
+            supported_capture_methods: adyen_supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
     adyen_supported_payment_methods
 });
 

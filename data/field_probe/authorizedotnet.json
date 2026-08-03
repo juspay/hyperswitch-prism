@@ -396,7 +396,7 @@
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "error": "Payment method Wallet(Paze(CompleteResponse(*** alloc::string::String ***))) is not supported by authorizedotnet"
       },
       "PermataBankTransfer": {
         "status": "not_supported",

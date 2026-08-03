@@ -337,8 +337,8 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Paze": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "error",
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "PermataBankTransfer": {
         "status": "error",

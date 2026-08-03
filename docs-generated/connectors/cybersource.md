@@ -225,7 +225,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Revolut Pay | x |
 | MiFinity | x |
 | Bluecode | x |
-| Paze | x |
+| Paze | ? |
 | Samsung Pay | ✓ |
 | MB Way | x |
 | Satispay | x |

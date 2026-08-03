@@ -32,12 +32,12 @@ use domain_types::{
     payment_method_data::{
         ApplePayPaymentData, BankDebitData, BankRedirectData, BankTransferData, Card,
         CardRedirectData, DefaultPCIHolder, GiftCardData, GpayTokenizationData, NetworkTokenData,
-        PayLaterData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, VoucherData,
-        VoucherNextStepData, WalletData,
+        PayLaterData, PaymentMethodData, PaymentMethodDataTypes, PazeWalletData, RawCardNumber,
+        VoucherData, VoucherNextStepData, WalletData,
     },
     router_data::{
         ConnectorResponseData, ConnectorSpecificConfig, ErrorResponse,
-        ExtendedAuthorizationResponseData,
+        ExtendedAuthorizationResponseData, PazeDecryptedData,
     },
     router_data_v2::RouterDataV2,
     router_request_types::SyncRequestType,
@@ -181,6 +181,7 @@ pub struct AdyenNetworkTokenData {
     number: NetworkToken,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     holder_name: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     brand: Option<CardBrand>,
@@ -221,6 +222,8 @@ pub enum AdyenPaymentMethod<
     ApplePay(Box<AdyenApplePay>),
     #[serde(rename = "scheme")]
     ApplePayDecrypt(Box<AdyenApplePayDecryptData>),
+    #[serde(rename = "samsungpay")]
+    SamsungPay(Box<AdyenSamsungPay>),
     #[serde(rename = "scheme")]
     BancontactCard(Box<AdyenCard<DefaultPCIHolder>>),
     Bizum,
@@ -1080,6 +1083,18 @@ pub struct AdyenApplePay {
     apple_pay_token: Secret<String>,
 }
 
+/// Adyen `SamsungPayDetails`. Adyen decrypts the wallet token server-side, so the
+/// payload from the Samsung Pay SDK is forwarded verbatim as a single opaque string —
+/// structurally identical to `AdyenGPay` / `AdyenApplePay`.
+///
+/// Note: `SamsungPayDetails` declares `additionalProperties: false`, so no card fields
+/// may be sent alongside `samsungPayToken`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AdyenSamsungPay {
+    #[serde(rename = "samsungPayToken")]
+    samsung_pay_token: Secret<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum PaymentType {
@@ -1202,6 +1217,9 @@ impl TryFrom<&common_enums::PaymentMethodType> for PaymentType {
             | common_enums::PaymentMethodType::MobilePay
             | common_enums::PaymentMethodType::WeChatPay
             | common_enums::PaymentMethodType::SamsungPay
+            // Paze rides the network-token pass-through, so Adyen sees a scheme payment.
+            // Required for RepeatPayment/MIT against a Paze-created mandate.
+            | common_enums::PaymentMethodType::Paze
             | common_enums::PaymentMethodType::Affirm
             | common_enums::PaymentMethodType::AfterpayClearpay
             | common_enums::PaymentMethodType::PayBright
@@ -1441,6 +1459,108 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
+/// Adyen has no Paze-native `paymentMethod.type`. A Paze transaction is submitted through the
+/// network-token pass-through, so the decrypted Paze payload is required.
+fn get_paze_decrypted_data(paze_wallet_data: &PazeWalletData) -> Result<PazeDecryptedData, Error> {
+    match paze_wallet_data {
+        PazeWalletData::Decrypted(paze_decrypted_data) => Ok(*paze_decrypted_data.clone()),
+        PazeWalletData::CompleteResponse(complete_response) => serde_json::from_str::<
+            PazeDecryptedData,
+        >(complete_response.peek())
+        .change_context(IntegrationError::InvalidWalletToken {
+            wallet_name: "Paze".to_string(),
+            context: Default::default(),
+        }),
+    }
+}
+
+/// TAVV cryptogram carried by the decrypted Paze payload. Adyen expects it in
+/// `mpiData.tokenAuthenticationVerificationValue`.
+fn get_paze_token_cryptogram(
+    paze_decrypted_data: &PazeDecryptedData,
+) -> Result<Secret<String>, Error> {
+    paze_decrypted_data
+        .dynamic_data
+        .iter()
+        .find(|dynamic_data| {
+            dynamic_data.dynamic_data_value.is_some()
+                && dynamic_data
+                    .dynamic_data_type
+                    .as_deref()
+                    .is_some_and(|data_type| data_type.eq_ignore_ascii_case("CRYPTOGRAM_3DS"))
+        })
+        .and_then(|dynamic_data| dynamic_data.dynamic_data_value.clone())
+        .ok_or_else(|| {
+            // Deliberately no fallback to "any dynamic_data entry": the list also carries
+            // non-cryptogram values (e.g. a dynamic CVV), and shipping one of those as the
+            // TAVV would send Adyen a silently wrong cryptogram rather than failing here.
+            let present_types = paze_decrypted_data
+                .dynamic_data
+                .iter()
+                .map(|dynamic_data| dynamic_data.dynamic_data_type.as_deref())
+                .collect::<Vec<_>>();
+
+            Error::from(IntegrationError::MissingRequiredField {
+                field_name: "paze_decrypted_data.dynamic_data[CRYPTOGRAM_3DS].dynamic_data_value",
+                context: Default::default(),
+            })
+            .attach_printable(format!(
+                "Paze payload carried no CRYPTOGRAM_3DS dynamic data; present types: {present_types:?}"
+            ))
+        })
+}
+
+/// Builds the Adyen `networkToken` payment method from a decrypted Paze payload.
+///
+/// Shared by the Authorize and SetupMandate (SetupRecurring) flows: Adyen exposes no
+/// Paze-native `paymentMethod.type`, so both flows submit the Paze DPAN through the
+/// self-managed network-token pass-through.
+fn build_paze_network_token_data(
+    paze_decrypted_data: &PazeDecryptedData,
+    resource_common_data: &PaymentFlowData,
+) -> AdyenNetworkTokenData {
+    AdyenNetworkTokenData {
+        number: paze_decrypted_data.token.payment_token.clone(),
+        expiry_month: paze_decrypted_data.token.token_expiration_month.clone(),
+        expiry_year: domain_utils::expand_expiry_year_to_four_digits(
+            &paze_decrypted_data.token.token_expiration_year,
+        ),
+        holder_name: paze_decrypted_data
+            .billing_address
+            .name
+            .clone()
+            .or_else(|| resource_common_data.get_optional_billing_full_name())
+            .or_else(|| Some(paze_decrypted_data.consumer.full_name.clone())),
+        brand: get_adyen_card_network(paze_decrypted_data.payment_card_network.clone()),
+        network_payment_reference: None,
+    }
+}
+
+/// Builds the `mpiData` block that must accompany a Paze network token.
+///
+/// Network-token authorization: TAVV cryptogram plus a fully authenticated
+/// directory/authentication response, as required by Adyen for Paze DPANs. Shared by the
+/// Authorize and SetupMandate (SetupRecurring) flows.
+fn build_paze_mpi_data(paze_decrypted_data: &PazeDecryptedData) -> Result<AdyenMpiData, Error> {
+    Ok(AdyenMpiData {
+        directory_response: common_enums::TransactionStatus::Success,
+        authentication_response: common_enums::TransactionStatus::Success,
+        cavv: None,
+        token_authentication_verification_value: Some(get_paze_token_cryptogram(
+            paze_decrypted_data,
+        )?),
+        // Omitted when the Paze payload carries no ECI. Defaulting would assert an
+        // authentication that never happened (and a liability shift Adyen did not grant);
+        // the hyperswitch reference omits the key for the same reason.
+        eci: paze_decrypted_data.eci.clone(),
+        ds_trans_id: None,
+        three_ds_version: None,
+        challenge_cancel: None,
+        risk_score: None,
+        cavv_algorithm: None,
+    })
+}
+
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<(
         &WalletData,
@@ -1531,6 +1651,26 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 Ok(apple_pay_wallet_data)
             }
 
+            WalletData::SamsungPay(samsung_pay_data) => {
+                // Adyen accepts the Samsung Pay token still encrypted and decrypts it
+                // server-side, so there is no DPAN / expiry / brand extraction and no
+                // separate `mpiData` cryptogram (unlike the Paze path above), and
+                // `mpi_data` is deliberately left `None` for this wallet.
+                //
+                // `SamsungPayWalletData` stores the *decomposed* Samsung Pay SDK
+                // response; the opaque encrypted payment payload produced by the SDK is
+                // carried in `payment_credential.3_d_s.data`. That is the single value
+                // every consumer of `SamsungPayWalletData` in this codebase treats as
+                // "the Samsung Pay token" (cf. `get_samsung_pay_fluid_data_value` in the
+                // Cybersource transformers), so it is what gets forwarded verbatim as
+                // `samsungPayToken`. No re-serialisation or re-encoding of
+                // `payment_credential` is performed.
+                let samsung_pay_data = AdyenSamsungPay {
+                    samsung_pay_token: samsung_pay_data.payment_credential.token_data.data.clone(),
+                };
+
+                Ok(Self::SamsungPay(Box::new(samsung_pay_data)))
+            }
             WalletData::AliPayRedirect(_) => Ok(Self::AliPay),
             WalletData::AliPayHkRedirect(_) => Ok(Self::AliPayHk),
             WalletData::DanaRedirect { .. } => Ok(Self::Dana),
@@ -1548,10 +1688,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             WalletData::VippsRedirect { .. } => Ok(Self::Vipps),
             WalletData::SwishQr(_) => Ok(Self::Swish),
             WalletData::PaypalRedirect(_) => Ok(Self::AdyenPaypal),
+            WalletData::Paze(paze_wallet_data) => {
+                // Adyen exposes no Paze-native payment method type: the decrypted Paze payload
+                // (DPAN + expiry + brand) is submitted as a self-managed network token, with the
+                // TAVV cryptogram sent separately in `mpiData`.
+                let paze_decrypted_data = get_paze_decrypted_data(paze_wallet_data)?;
+                Ok(Self::NetworkToken(Box::new(build_paze_network_token_data(
+                    &paze_decrypted_data,
+                    &item.resource_common_data,
+                ))))
+            }
             WalletData::AmazonPayRedirect(_)
-            | WalletData::Paze(_)
             | WalletData::RevolutPay(_)
-            | WalletData::SamsungPay(_)
             | WalletData::AliPayQr(_)
             | WalletData::ApplePayRedirect(_)
             | WalletData::ApplePayThirdPartySdk(_)
@@ -2511,6 +2659,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 } else {
                     None
                 }
+            }
+            WalletData::Paze(paze_wallet_data) => {
+                let paze_decrypted_data = get_paze_decrypted_data(paze_wallet_data)?;
+                Some(build_paze_mpi_data(&paze_decrypted_data)?)
             }
             _ => None,
         };
@@ -6437,6 +6589,247 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
+/// SetupRecurring (SetupMandate) with a wallet payment method.
+///
+/// Two wallets are supported, and they reach Adyen by structurally different routes:
+///
+/// * **Paze** — Adyen has no Paze-native `paymentMethod.type`, so the decrypted Paze payload
+///   (DPAN + expiry + brand) is submitted as a self-managed network token with the TAVV
+///   cryptogram in `mpiData`, exactly as the Authorize flow does.
+/// * **Samsung Pay** — Adyen *does* have a native `paymentMethod.type` (`samsungpay`,
+///   `SamsungPayDetails`) whose only required field is `samsungPayToken`. Adyen decrypts the
+///   wallet payload server-side, so there is no DPAN/expiry/brand extraction and no separate
+///   `mpiData` — the 3DS cryptogram travels inside the token payload.
+///
+/// In both cases the recurring credential is created as a side effect of this authorization via
+/// `storePaymentMethod` + `shopperReference` + `recurringProcessingModel`. Note that
+/// `POST /storedPaymentMethods` cannot be used for either wallet: its `PaymentMethodToStore`
+/// schema is `additionalProperties: false` and exposes no wallet token field.
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<(
+        AdyenRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+        &WalletData,
+    )> for SetupMandateRequest<T>
+{
+    type Error = Error;
+    fn try_from(
+        value: (
+            AdyenRouterData<
+                RouterDataV2<
+                    SetupMandate,
+                    PaymentFlowData,
+                    SetupMandateRequestData<T>,
+                    PaymentsResponseData,
+                >,
+                T,
+            >,
+            &WalletData,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let (item, wallet_data) = value;
+
+        // `payment_method` and `mpi_data` are the only wallet-specific parts of the request;
+        // everything after this match is shared with the card path.
+        let (payment_method, mpi_data) = match wallet_data {
+            WalletData::Paze(paze_wallet_data) => {
+                let paze_decrypted_data = get_paze_decrypted_data(paze_wallet_data)?;
+                let payment_method = PaymentMethod::AdyenPaymentMethod(Box::new(
+                    AdyenPaymentMethod::NetworkToken(Box::new(build_paze_network_token_data(
+                        &paze_decrypted_data,
+                        &item.router_data.resource_common_data,
+                    ))),
+                ));
+                (
+                    payment_method,
+                    Some(build_paze_mpi_data(&paze_decrypted_data)?),
+                )
+            }
+            WalletData::SamsungPay(samsung_pay_data) => {
+                // Same construction as the Authorize path: the opaque payload produced by the
+                // Samsung Pay SDK is carried in `payment_credential.3_d_s.data` and is
+                // forwarded verbatim as `samsungPayToken`. `SamsungPayDetails` is
+                // `additionalProperties: false`, so nothing else may be nested alongside it,
+                // and `mpiData` stays `None` because the cryptogram is inside the payload.
+                let payment_method = PaymentMethod::AdyenPaymentMethod(Box::new(
+                    AdyenPaymentMethod::SamsungPay(Box::new(AdyenSamsungPay {
+                        samsung_pay_token: samsung_pay_data
+                            .payment_credential
+                            .token_data
+                            .data
+                            .clone(),
+                    })),
+                ));
+                (payment_method, None)
+            }
+            // Enumerated rather than caught by `_` so that adding a wallet variant upstream
+            // is a compile error here instead of a silent NotImplemented at runtime.
+            WalletData::AliPayQr(_)
+            | WalletData::AliPayRedirect(_)
+            | WalletData::AliPayHkRedirect(_)
+            | WalletData::AmazonPayRedirect(_)
+            | WalletData::ApplePay(_)
+            | WalletData::ApplePayRedirect(_)
+            | WalletData::ApplePayThirdPartySdk(_)
+            | WalletData::BillDeskRedirect(_)
+            | WalletData::BluecodeRedirect { .. }
+            | WalletData::CashappQr(_)
+            | WalletData::CashfreeRedirect(_)
+            | WalletData::DanaRedirect { .. }
+            | WalletData::EaseBuzzRedirect(_)
+            | WalletData::GcashRedirect(_)
+            | WalletData::GooglePay(_)
+            | WalletData::GooglePayRedirect(_)
+            | WalletData::GooglePayThirdPartySdk(_)
+            | WalletData::GoPayRedirect(_)
+            | WalletData::KakaoPayRedirect(_)
+            | WalletData::LazyPayRedirect(_)
+            | WalletData::MbWay(_)
+            | WalletData::MbWayRedirect(_)
+            | WalletData::Mifinity(_)
+            | WalletData::MobilePayRedirect(_)
+            | WalletData::MomoRedirect(_)
+            | WalletData::PaypalRedirect(_)
+            | WalletData::PaypalSdk(_)
+            | WalletData::PayURedirect(_)
+            | WalletData::PhonePeRedirect(_)
+            | WalletData::QwikcilverWalletDirect(_)
+            | WalletData::RevolutPay(_)
+            | WalletData::Satispay(_)
+            | WalletData::Skrill(_)
+            | WalletData::SwishQr(_)
+            | WalletData::TouchNGoRedirect(_)
+            | WalletData::TwintRedirect { .. }
+            | WalletData::VippsRedirect { .. }
+            | WalletData::WeChatPayQr(_)
+            | WalletData::WeChatPayRedirect(_)
+            | WalletData::Wero(_) => {
+                return Err(IntegrationError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Adyen"),
+                    Default::default(),
+                )
+                .into())
+            }
+        };
+
+        let amount = get_amount_data_for_setup_mandate(&item);
+        let auth_type = AdyenAuthType::try_from(&item.router_data.connector_config)?;
+        let shopper_interaction = AdyenShopperInteraction::from(&item.router_data);
+        let shopper_reference = match item
+            .router_data
+            .resource_common_data
+            .connector_customer
+            .clone()
+        {
+            Some(connector_customer_id) => Some(connector_customer_id),
+            None => match item.router_data.request.customer_id.clone() {
+                Some(customer_id) => Some(format!(
+                    "{}_{}",
+                    item.router_data
+                        .resource_common_data
+                        .merchant_id
+                        .get_string_repr(),
+                    customer_id.get_string_repr()
+                )),
+                None => None,
+            },
+        };
+        let (recurring_processing_model, store_payment_method, _) =
+            get_recurring_processing_model_for_setup_mandate(&item.router_data)?;
+
+        let return_url = item.router_data.request.router_return_url.clone().ok_or(
+            IntegrationError::MissingRequiredField {
+                field_name: "return_url",
+                context: Default::default(),
+            },
+        )?;
+
+        let billing_address = get_address_info(
+            item.router_data
+                .resource_common_data
+                .address
+                .get_payment_billing(),
+        )
+        .and_then(Result::ok);
+
+        let additional_data = get_additional_data_for_setup_mandate(&item.router_data)?;
+
+        let adyen_metadata =
+            get_adyen_metadata(item.router_data.request.metadata.clone().expose_option());
+        let device_fingerprint = adyen_metadata.device_fingerprint.clone();
+        let platform_chargeback_logic = adyen_metadata.platform_chargeback_logic.clone();
+
+        Ok(Self(AdyenPaymentRequest {
+            amount,
+            merchant_account: auth_type.merchant_account,
+            payment_method,
+            reference: item
+                .router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+            return_url,
+            shopper_interaction,
+            recurring_processing_model,
+            browser_info: get_browser_info_for_setup_mandate(&item.router_data)?,
+            additional_data,
+            mpi_data,
+            telephone_number: item
+                .router_data
+                .resource_common_data
+                .get_optional_billing_phone_number(),
+            shopper_name: get_shopper_name(
+                item.router_data
+                    .resource_common_data
+                    .address
+                    .get_payment_billing(),
+            ),
+            shopper_email: item
+                .router_data
+                .resource_common_data
+                .get_optional_billing_email(),
+            shopper_locale: item.router_data.request.locale.clone(),
+            social_security_number: None,
+            billing_address,
+            delivery_address: get_address_info(
+                item.router_data
+                    .resource_common_data
+                    .get_optional_shipping(),
+            )
+            .and_then(Result::ok),
+            country_code: get_country_code(
+                item.router_data.resource_common_data.get_optional_billing(),
+            ),
+            line_items: None,
+            shopper_reference,
+            store_payment_method,
+            channel: None,
+            shopper_statement: item
+                .router_data
+                .request
+                .billing_descriptor
+                .clone()
+                .and_then(|descriptor| descriptor.statement_descriptor),
+            shopper_ip: item.router_data.request.get_ip_address_as_optional(),
+            merchant_order_reference: item.router_data.request.merchant_order_id.clone(),
+            store: None,
+            splits: None,
+            device_fingerprint,
+            metadata: None,
+            platform_chargeback_logic,
+            session_validity: None,
+            application_info: None,
+        }))
+    }
+}
+
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         AdyenRouterData<
@@ -6476,8 +6869,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .into()),
             None => match item.router_data.request.payment_method_data.clone() {
                 PaymentMethodData::Card(ref card) => Self::try_from((item, card)),
-                PaymentMethodData::Wallet(_)
-                | PaymentMethodData::PayLater(_)
+                PaymentMethodData::Wallet(ref wallet_data) => Self::try_from((item, wallet_data)),
+                PaymentMethodData::PayLater(_)
                 | PaymentMethodData::BankRedirect(_)
                 | PaymentMethodData::BankDebit(_)
                 | PaymentMethodData::BankTransfer(_)
