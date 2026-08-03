@@ -6588,11 +6588,20 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
 /// SetupRecurring (SetupMandate) with a wallet payment method.
 ///
-/// Only Paze is supported: Adyen has no Paze-native `paymentMethod.type`, so the decrypted
-/// Paze payload (DPAN + expiry + brand) is submitted as a self-managed network token with the
-/// TAVV cryptogram in `mpiData`, exactly as the Authorize flow does. The recurring credential
-/// is created as a side effect of this authorization via `storePaymentMethod` +
-/// `shopperReference` + `recurringProcessingModel`.
+/// Two wallets are supported, and they reach Adyen by structurally different routes:
+///
+/// * **Paze** — Adyen has no Paze-native `paymentMethod.type`, so the decrypted Paze payload
+///   (DPAN + expiry + brand) is submitted as a self-managed network token with the TAVV
+///   cryptogram in `mpiData`, exactly as the Authorize flow does.
+/// * **Samsung Pay** — Adyen *does* have a native `paymentMethod.type` (`samsungpay`,
+///   `SamsungPayDetails`) whose only required field is `samsungPayToken`. Adyen decrypts the
+///   wallet payload server-side, so there is no DPAN/expiry/brand extraction and no separate
+///   `mpiData` — the 3DS cryptogram travels inside the token payload.
+///
+/// In both cases the recurring credential is created as a side effect of this authorization via
+/// `storePaymentMethod` + `shopperReference` + `recurringProcessingModel`. Note that
+/// `POST /storedPaymentMethods` cannot be used for either wallet: its `PaymentMethodToStore`
+/// schema is `additionalProperties: false` and exposes no wallet token field.
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<(
         AdyenRouterData<
@@ -6624,8 +6633,39 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let (item, wallet_data) = value;
 
-        let paze_wallet_data = match wallet_data {
-            WalletData::Paze(paze_wallet_data) => paze_wallet_data,
+        // `payment_method` and `mpi_data` are the only wallet-specific parts of the request;
+        // everything after this match is shared with the card path.
+        let (payment_method, mpi_data) = match wallet_data {
+            WalletData::Paze(paze_wallet_data) => {
+                let paze_decrypted_data = get_paze_decrypted_data(paze_wallet_data)?;
+                let payment_method = PaymentMethod::AdyenPaymentMethod(Box::new(
+                    AdyenPaymentMethod::NetworkToken(Box::new(build_paze_network_token_data(
+                        &paze_decrypted_data,
+                        &item.router_data.resource_common_data,
+                    ))),
+                ));
+                (
+                    payment_method,
+                    Some(build_paze_mpi_data(&paze_decrypted_data)?),
+                )
+            }
+            WalletData::SamsungPay(samsung_pay_data) => {
+                // Same construction as the Authorize path: the opaque payload produced by the
+                // Samsung Pay SDK is carried in `payment_credential.3_d_s.data` and is
+                // forwarded verbatim as `samsungPayToken`. `SamsungPayDetails` is
+                // `additionalProperties: false`, so nothing else may be nested alongside it,
+                // and `mpiData` stays `None` because the cryptogram is inside the payload.
+                let payment_method = PaymentMethod::AdyenPaymentMethod(Box::new(
+                    AdyenPaymentMethod::SamsungPay(Box::new(AdyenSamsungPay {
+                        samsung_pay_token: samsung_pay_data
+                            .payment_credential
+                            .token_data
+                            .data
+                            .clone(),
+                    })),
+                ));
+                (payment_method, None)
+            }
             _ => {
                 return Err(IntegrationError::NotImplemented(
                     ("payment method").into(),
@@ -6634,14 +6674,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .into())
             }
         };
-        let paze_decrypted_data = get_paze_decrypted_data(paze_wallet_data)?;
-        let payment_method = PaymentMethod::AdyenPaymentMethod(Box::new(
-            AdyenPaymentMethod::NetworkToken(Box::new(build_paze_network_token_data(
-                &paze_decrypted_data,
-                &item.router_data.resource_common_data,
-            ))),
-        ));
-        let mpi_data = Some(build_paze_mpi_data(&paze_decrypted_data)?);
 
         let amount = get_amount_data_for_setup_mandate(&item);
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_config)?;
