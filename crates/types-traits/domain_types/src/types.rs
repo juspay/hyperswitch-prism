@@ -13024,18 +13024,25 @@ pub fn generate_create_payment_method_token_response<T: PaymentMethodDataTypes>(
     match token_response {
         Ok(response) => {
             let token_clone = response.token.clone();
+            let status_code = router_data_v2
+                .resource_common_data
+                .connector_http_status_code
+                .ok_or_else(|| {
+                    report!(ConnectorError::ResponseHandlingFailed {
+                        context: ResponseTransformationErrorContext {
+                            http_status_code: None,
+                            additional_context: Some(
+                                "connector_http_status_code is missing from a successful payment method token response"
+                                    .to_string(),
+                            ),
+                        },
+                    })
+                })?;
             Ok(
                 grpc_api_types::payments::PaymentMethodServiceTokenizeResponse {
                     payment_method_token: response.token,
                     error: None,
-                    // Report the connector's real HTTP status (Finix returns 201) instead of a
-                    // hardcoded 200, mirroring the Direct gateway's connector_http_status_code.
-                    // Connectors that do not record a status report 0 (the proto3 default).
-                    status_code: router_data_v2
-                        .resource_common_data
-                        .connector_http_status_code
-                        .map(u32::from)
-                        .unwrap_or_default(),
+                    status_code: u32::from(status_code),
                     response_headers: router_data_v2
                         .resource_common_data
                         .get_connector_response_headers_as_map(),
