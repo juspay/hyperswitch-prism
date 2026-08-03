@@ -1168,6 +1168,7 @@ pub async fn call_connector_api(
         proxy_name,
         request.certificate,
         request.certificate_key,
+        request.ca_certificate,
         test_mode,
     )?;
 
@@ -1327,6 +1328,7 @@ pub fn create_client(
     proxy_name: &str,
     client_certificate: Option<Secret<String>>,
     client_certificate_key: Option<Secret<String>>,
+    ca_certificate_pem: Option<Secret<String>>,
     test_mode: bool,
 ) -> CustomResult<Client, ApiClientError> {
     match (client_certificate.clone(), client_certificate_key.clone()) {
@@ -1335,18 +1337,21 @@ pub fn create_client(
                 get_client_builder(proxy_config, should_bypass_proxy, proxy_name, test_mode)?;
 
             let identity = create_identity_from_certificate_and_key(
-                encoded_certificate.clone(),
+                encoded_certificate,
                 encoded_certificate_key,
             )?;
-            let certificate_list = create_certificate(encoded_certificate)?;
-            let client_builder = certificate_list
+            // NOTE: the client identity certificate is no longer registered as a root CA.
+            // Server verification now uses webpki roots plus ca_certificate_pem only.
+            let client_builder = ca_certificate_pem
+                .map(create_certificate)
+                .transpose()?
+                .unwrap_or_default()
                 .into_iter()
-                .fold(client_builder, |client_builder, certificate| {
-                    client_builder.add_root_certificate(certificate)
-                });
+                .fold(
+                    client_builder.identity(identity).use_rustls_tls(),
+                    |b, ca| b.add_root_certificate(ca),
+                );
             client_builder
-                .identity(identity)
-                .use_rustls_tls()
                 .build()
                 .change_context(ApiClientError::ClientConstructionFailed)
                 .attach_printable("Failed to construct client with certificate and certificate key")
@@ -1563,6 +1568,16 @@ pub fn create_identity_from_certificate_and_key(
         .change_context(ApiClientError::CertificateDecodeFailed)
 }
 
+/// Single PEM-bundle parser used by BOTH runtime client construction
+/// ([`create_certificate`]) and config-load validation, so the two can never
+/// drift apart (e.g. one switching to `from_pem` while the other doesn't).
+pub fn parse_ca_pem_bundle(
+    pem: &[u8],
+) -> Result<Vec<reqwest::Certificate>, error_stack::Report<ApiClientError>> {
+    reqwest::Certificate::from_pem_bundle(pem)
+        .change_context(ApiClientError::CertificateDecodeFailed)
+}
+
 pub fn create_certificate(
     encoded_certificate: Secret<String>,
 ) -> Result<Vec<reqwest::Certificate>, error_stack::Report<ApiClientError>> {
@@ -1572,8 +1587,7 @@ pub fn create_certificate(
 
     let certificate = String::from_utf8(decoded_certificate)
         .change_context(ApiClientError::CertificateDecodeFailed)?;
-    reqwest::Certificate::from_pem_bundle(certificate.as_bytes())
-        .change_context(ApiClientError::CertificateDecodeFailed)
+    parse_ca_pem_bundle(certificate.as_bytes())
 }
 
 async fn handle_response(

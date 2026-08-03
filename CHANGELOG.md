@@ -19,6 +19,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.08.03.1
+
+### Features
+
+- **connector:**
+  - [dLocal] Update Recurring payments Flow ([#1880](https://github.com/juspay/connector-service/pull/1880)) ([`276fb8d`](https://github.com/juspay/connector-service/commit/276fb8de5ca2b2e0d36d6768961555e6493a66c1))
+  - Deutschebank payouts ([#1481](https://github.com/juspay/connector-service/pull/1481)) ([`09a01d2`](https://github.com/juspay/connector-service/commit/09a01d203cc92caf3dffa3e8e3ad78bb61799822))
+
+### Refactors
+
+- **config:** [tsys_transit] update production url ([#2049](https://github.com/juspay/connector-service/pull/2049)) ([`03424c4`](https://github.com/juspay/connector-service/commit/03424c4a8fc644b8011a8c88b967820ba9fd6114))
+
+### Miscellaneous Tasks
+
+- Add backward compatibility comments on merchant_*_id fields ([#2048](https://github.com/juspay/connector-service/pull/2048)) ([`e5bc3db`](https://github.com/juspay/connector-service/commit/e5bc3dbc0a7fa1bbe8254be86ff0dd32f8ddcb99))
+
+**Full Changelog:** [`2026.08.03.0...2026.08.03.1`](https://github.com/juspay/connector-service/compare/2026.08.03.0...2026.08.03.1)
+
+- - -
+
+## 2026.08.03.0
+
+### Features
+
+- **connector:** UCS parity batch — worldpay MC auth fields, payload descriptors, airwallex extended auth, nuvei network tokens ([#2013](https://github.com/juspay/connector-service/pull/2013)) ([`45351c2`](https://github.com/juspay/connector-service/commit/45351c251530eec82f4037a53766c1f22a2e2324))
+- **core:** Superposition URL override support for all connector variants (payout, FRM, surcharge) ([#2024](https://github.com/juspay/connector-service/pull/2024)) ([`6df0f32`](https://github.com/juspay/connector-service/commit/6df0f32643a3018e4337eb350eb7c198b249b7fa))
+- **events:** Stamp deployment version metadata on every connector event ([#1994](https://github.com/juspay/connector-service/pull/1994)) ([`777f10a`](https://github.com/juspay/connector-service/commit/777f10a6a9f70d0b63f007a1fe3dd848493f9d57))
+
+### Bug Fixes
+
+- **connector:** Add missing header value in finix connector ([#2027](https://github.com/juspay/connector-service/pull/2027)) ([`6ef277d`](https://github.com/juspay/connector-service/commit/6ef277d6fa3e5821ff76dee2ba440d0177910618))
+- **tsys_transit:** Recurring & installment MIT cert cases + MOTO channel + card-family from PAN ([#1988](https://github.com/juspay/connector-service/pull/1988)) ([`d7d8ebf`](https://github.com/juspay/connector-service/commit/d7d8ebf56ac7da03575808f9f4c8572c08117e01))
+
+**Full Changelog:** [`2026.07.31.0...2026.08.03.0`](https://github.com/juspay/connector-service/compare/2026.07.31.0...2026.08.03.0)
+
+- - -
+
 ## 2026.07.31.0
 
 ### Features
