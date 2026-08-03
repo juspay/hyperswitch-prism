@@ -6271,6 +6271,7 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                     ),
                     network_transaction_id: network_txn_id,
                     connector_reference_id: connector_response_reference_id.clone(),
+                    // Populated for backward compatibility; will be removed once Hyperswitch migrates to connector_reference_id
                     merchant_transaction_id: Some(
                         router_data_v2
                             .resource_common_data
@@ -7282,6 +7283,7 @@ pub fn generate_payment_void_response(
                     ),
                     status: grpc_status.into(),
                     connector_reference_id: connector_response_reference_id,
+                    // Populated for backward compatibility; will be removed once Hyperswitch migrates to connector_reference_id
                     merchant_void_id: Some(
                         router_data_v2
                             .resource_common_data
@@ -7438,6 +7440,7 @@ pub fn generate_payment_void_post_capture_response(
                     ),
                     status: grpc_status.into(),
                     connector_reference_id: connector_response_reference_id,
+                    // Populated for backward compatibility; will be removed once Hyperswitch migrates to connector_reference_id
                     merchant_reverse_id: Some(
                         router_data_v2
                             .resource_common_data
@@ -7475,6 +7478,7 @@ pub fn generate_payment_void_post_capture_response(
                     connector_transaction_id: connector_reference_id.clone().unwrap_or_default(),
                     status: grpc_status.into(),
                     connector_reference_id,
+                    // Populated for backward compatibility; will be removed once Hyperswitch migrates to connector_reference_id
                     merchant_reverse_id: Some(
                         router_data_v2
                             .resource_common_data
@@ -7742,6 +7746,7 @@ pub fn generate_payment_sync_response(
                         &grpc_resource_id,
                     ),
                     connector_reference_id: connector_response_reference_id,
+                    // Populated for backward compatibility; will be removed once Hyperswitch migrates to connector_reference_id
                     merchant_transaction_id: Some(
                         router_data_v2
                             .resource_common_data
@@ -7866,6 +7871,7 @@ pub fn generate_payment_sync_response(
                         .map(ForeignFrom::foreign_from),
                     connector_transaction_id: resource_id.unwrap_or_default(),
                     connector_reference_id: connector_response_reference_id,
+                    // Populated for backward compatibility; will be removed once Hyperswitch migrates to connector_reference_id
                     merchant_transaction_id: Some(
                         router_data_v2
                             .resource_common_data
@@ -8728,6 +8734,7 @@ pub fn generate_refund_sync_response(
                 connector_refund_id: response.connector_refund_id.clone(),
                 status: grpc_status as i32,
                 connector_reference_id: None,
+                // Populated for backward compatibility; will be removed once Hyperswitch migrates to connector_reference_id
                 merchant_refund_id: Some(
                     router_data_v2
                         .resource_common_data
@@ -9137,6 +9144,7 @@ pub fn generate_void_post_refund_response(
                 connector_refund_id: response.connector_refund_id,
                 status: grpc_api_types::payments::RefundStatus::RefundSuccess as i32,
                 connector_reference_id: None,
+                // Populated for backward compatibility; will be removed once Hyperswitch migrates to connector_reference_id
                 merchant_refund_id: Some(
                     router_data_v2
                         .resource_common_data
@@ -10174,6 +10182,7 @@ pub fn generate_refund_response(
                 connector_refund_id: response.connector_refund_id,
                 status: grpc_status as i32,
                 connector_reference_id: None,
+                // Populated for backward compatibility; will be removed once Hyperswitch migrates to connector_reference_id
                 merchant_refund_id: Some(
                     router_data_v2
                         .resource_common_data
@@ -10757,6 +10766,7 @@ pub fn generate_payment_capture_response(
                         &grpc_resource_id,
                     ),
                     connector_reference_id: connector_response_reference_id,
+                    // Populated for backward compatibility; will be removed once Hyperswitch migrates to connector_reference_id
                     merchant_capture_id: Some(
                         router_data_v2
                             .resource_common_data
