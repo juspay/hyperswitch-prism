@@ -366,6 +366,22 @@ impl Config {
         // Validate the environment field
         config.common.validate()?;
 
+        // Fail fast on malformed platform CA config, using the same PEM parser as
+        // runtime client construction. Iterates the hand-maintained list in
+        // `Connectors::server_ca_bundles` — a new connector with a CA bundle must be
+        // registered there to be validated here.
+        for (connector, pem) in config.connectors.server_ca_bundles() {
+            let pem = pem.trim();
+            if !pem.is_empty() {
+                external_services::service::parse_ca_pem_bundle(pem.as_bytes()).map_err(|err| {
+                    config::ConfigError::Message(format!(
+                        "Invalid `connectors.{connector}.server_ca_bundle`: expected a valid PEM \
+                         CA bundle: {err}"
+                    ))
+                })?;
+            }
+        }
+
         Ok(config)
     }
 

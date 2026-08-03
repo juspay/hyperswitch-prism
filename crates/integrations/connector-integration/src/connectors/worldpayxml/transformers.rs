@@ -78,7 +78,8 @@ where
                 &card.card_holder_name,
                 billing_address.and_then(|b| b.address.first_name.clone()),
                 billing_address.and_then(|b| b.address.last_name.clone()),
-            );
+            )
+            .map(crate::utils::normalize_cardholder_name);
 
             let card_data = requests::WorldpayxmlCard {
                 card_number: Secret::new(card.card_number.peek().to_string()),
@@ -154,6 +155,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .address
             .get_payment_billing()
             .and_then(|billing| {
+                let telephone_number = billing.phone.as_ref().and_then(|phone| {
+                    phone
+                        .get_number_with_country_code()
+                        .or_else(|_| phone.get_number())
+                        .ok()
+                });
                 billing
                     .address
                     .as_ref()
@@ -168,6 +175,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             city: addr.city.clone().map(|c| c.expose()),
                             state: addr.state.clone(),
                             country_code: addr.country,
+                            telephone_number,
                         },
                     })
             });
