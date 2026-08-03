@@ -297,6 +297,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             resource_id: Some(ResponseId::ConnectorTransactionId(event.order_id.clone())),
             status: AttemptStatus::from(event.event_type),
             connector_response_reference_id: Some(event.order_id),
+            merchant_transaction_id: None,
             mandate_reference: None,
             error_code: None,
             error_message: None,

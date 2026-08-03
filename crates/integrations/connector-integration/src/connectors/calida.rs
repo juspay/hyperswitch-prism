@@ -121,6 +121,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             status,
             status_code: 200,
             connector_response_reference_id: Some(transaction_id),
+            merchant_transaction_id: None,
             error_code: None,
             error_message: None,
             raw_connector_response: Some(String::from_utf8_lossy(&request_body_copy).to_string()),

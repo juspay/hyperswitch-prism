@@ -1029,6 +1029,7 @@ impl TryFrom<RevolutWebhookBody> for WebhookDetailsResponse {
             error_reason: None,
             status_code: 200,
             connector_response_reference_id: webhook_body.merchant_order_ext_ref,
+            merchant_transaction_id: None,
             mandate_reference: None,
             raw_connector_response: None,
             response_headers: None,

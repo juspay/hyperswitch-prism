@@ -252,6 +252,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             resource_id: Some(ResponseId::ConnectorTransactionId(body.id.clone())),
             status,
             connector_response_reference_id: body.order_id.clone(),
+            merchant_transaction_id: None,
             mandate_reference,
             error_code: is_failure
                 .then(|| body.status_code.as_ref().map(ToString::to_string))

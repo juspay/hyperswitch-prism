@@ -1,10 +1,10 @@
-use common_utils::{types::StringMajorUnit, Method};
+use common_utils::{types::FloatMajorUnit, Method};
 use domain_types::{
     connector_flow::{Authorize, PSync, RSync, Refund, Void},
     connector_types::{
         EventType, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        ResponseId,
+        PaymentsSyncData, RawConnectorStatus, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, ResponseId,
     },
     errors::{self, ConnectorError, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
@@ -84,9 +84,21 @@ pub struct MayaPaymentsRequest {
     pub metadata: Option<serde_json::Value>,
 }
 
+/// `totalAmount` object carried by most Maya request bodies (`value` + `currency`,
+/// value as a JSON number).
 #[derive(Debug, Serialize)]
 pub struct MayaTotalAmount {
-    pub value: StringMajorUnit,
+    pub value: FloatMajorUnit,
+    pub currency: common_enums::Currency,
+}
+
+/// Maya's "Refund Payment via ID" endpoint expects the refund amount under the
+/// `totalAmount.amount` key (rather than the `value` key used elsewhere), also as a
+/// JSON number.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MayaRefundTotalAmount {
+    pub amount: FloatMajorUnit,
     pub currency: common_enums::Currency,
 }
 
@@ -264,8 +276,6 @@ impl MayaWebhookBody {
 #[serde(rename_all = "camelCase")]
 pub struct MayaVoidRequest {
     pub reason: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub request_reference_number: Option<String>,
 }
 
 /// Maya void status values.
@@ -275,6 +285,16 @@ pub enum MayaVoidStatus {
     Success,
     Failed,
     Pending,
+}
+
+impl MayaVoidStatus {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            MayaVoidStatus::Success => "SUCCESS",
+            MayaVoidStatus::Failed => "FAILED",
+            MayaVoidStatus::Pending => "PENDING",
+        }
+    }
 }
 
 impl From<MayaVoidStatus> for common_enums::AttemptStatus {
@@ -292,8 +312,10 @@ impl From<MayaVoidStatus> for common_enums::AttemptStatus {
 #[serde(rename_all = "camelCase")]
 pub struct MayaVoidResponse {
     pub id: String,
-    #[serde(default)]
-    pub status: Option<MayaVoidStatus>,
+    /// `status` is a required field per Maya's void-payment API docs; a
+    /// response without it fails deserialization instead of being
+    /// optimistically treated as a successful void.
+    pub status: MayaVoidStatus,
     #[serde(default)]
     pub reason: Option<String>,
     #[serde(default)]
@@ -317,20 +339,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
-        item: MayaRouterData<
+        _item: MayaRouterData<
             RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let router_data = item.router_data;
-
+        // `reason` is mandatory per Maya's void-payment API; hard-coded. The payment to void
+        // is identified solely by the `{payment_id}` path segment (see `get_url` in maya.rs).
         Ok(Self {
-            reason: "Customer request".to_string(),
-            request_reference_number: Some(
-                router_data
-                    .resource_common_data
-                    .connector_request_reference_id,
-            ),
+            reason: "Customer requested void".to_string(),
         })
     }
 }
@@ -442,10 +459,17 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<MayaPaymentsResponse,
                 network_txn_id: None,
                 connector_response_reference_id,
                 incremental_authorization_allowed: None,
+                network_txn_link_id: None,
+                splits: None,
                 status_code: item.http_code,
             }),
             resource_common_data: PaymentFlowData {
                 status,
+                raw_connector_status: Some(RawConnectorStatus {
+                    code: Some(item.http_code.to_string()),
+                    message: Some("PENDING".to_string()),
+                    reason: None,
+                }),
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
@@ -497,7 +521,7 @@ impl TryFrom<ResponseRouterData<MayaWebhookBody, Self>>
         // what Euler/Juspay uses as `txn_id`.
         let connector_response_reference_id = payment
             .connector_response_reference_id()
-            .unwrap_or(connector_request_reference_id);
+            .unwrap_or(connector_request_reference_id.clone());
 
         // Expose Maya's `canVoid` / `canRefund` flags so downstream services can
         // decide whether void/refund operations are currently allowed.
@@ -525,10 +549,17 @@ impl TryFrom<ResponseRouterData<MayaWebhookBody, Self>>
                 network_txn_id: None,
                 connector_response_reference_id: Some(connector_response_reference_id),
                 incremental_authorization_allowed: None,
+                network_txn_link_id: None,
+                splits: None,
                 status_code: item.http_code,
             }),
             resource_common_data: PaymentFlowData {
                 status,
+                raw_connector_status: Some(RawConnectorStatus {
+                    code: payment.error_code.clone(),
+                    message: Some(effective_status.to_string()),
+                    reason: payment.error_message.clone(),
+                }),
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
@@ -542,11 +573,7 @@ impl TryFrom<ResponseRouterData<MayaVoidResponse, Self>>
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<MayaVoidResponse, Self>) -> Result<Self, Self::Error> {
-        let status = item
-            .response
-            .status
-            .map(common_enums::AttemptStatus::from)
-            .unwrap_or(common_enums::AttemptStatus::Voided);
+        let status = common_enums::AttemptStatus::from(item.response.status.clone());
         let connector_transaction_id = item.router_data.request.connector_transaction_id.clone();
         let void_id = item.response.id;
 
@@ -559,10 +586,17 @@ impl TryFrom<ResponseRouterData<MayaVoidResponse, Self>>
                 network_txn_id: None,
                 connector_response_reference_id: Some(void_id),
                 incremental_authorization_allowed: None,
+                network_txn_link_id: None,
+                splits: None,
                 status_code: item.http_code,
             }),
             resource_common_data: PaymentFlowData {
                 status,
+                raw_connector_status: Some(RawConnectorStatus {
+                    code: Some(item.response.status.as_str().to_string()),
+                    message: item.response.reason.clone(),
+                    reason: None,
+                }),
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
@@ -583,6 +617,16 @@ pub enum MayaRefundStatus {
     Pending,
 }
 
+impl MayaRefundStatus {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            MayaRefundStatus::Success => "SUCCESS",
+            MayaRefundStatus::Failed => "FAILED",
+            MayaRefundStatus::Pending => "PENDING",
+        }
+    }
+}
+
 impl From<MayaRefundStatus> for common_enums::RefundStatus {
     fn from(status: MayaRefundStatus) -> Self {
         match status {
@@ -597,10 +641,8 @@ impl From<MayaRefundStatus> for common_enums::RefundStatus {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MayaRefundRequest {
-    pub total_amount: MayaTotalAmount,
+    pub total_amount: MayaRefundTotalAmount,
     pub reason: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub request_reference_number: Option<String>,
 }
 
 /// Maya "Refund Payment" response body.
@@ -608,8 +650,10 @@ pub struct MayaRefundRequest {
 #[serde(rename_all = "camelCase")]
 pub struct MayaRefundResponse {
     pub id: String,
-    #[serde(default)]
-    pub status: Option<MayaRefundStatus>,
+    /// `status` is a required field per Maya's refund API docs; a response
+    /// without it fails deserialization instead of being optimistically
+    /// treated as a successful refund.
+    pub status: MayaRefundStatus,
     #[serde(default)]
     pub reason: Option<String>,
     #[serde(default)]
@@ -653,22 +697,13 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             })
             .attach_printable("Failed to convert refund amount to Maya major unit")?;
 
-        let reason = router_data
-            .request
-            .reason
-            .unwrap_or_else(|| "Customer request".to_string());
-
         Ok(Self {
-            total_amount: MayaTotalAmount {
-                value,
+            total_amount: MayaRefundTotalAmount {
+                amount: value,
                 currency: router_data.request.currency,
             },
-            reason,
-            request_reference_number: Some(
-                router_data
-                    .resource_common_data
-                    .connector_request_reference_id,
-            ),
+            // `reason` is mandatory per Maya's refund-via-payment-id API; hard-coded.
+            reason: "Customer requested refund".to_string(),
         })
     }
 }
@@ -679,11 +714,13 @@ impl TryFrom<ResponseRouterData<MayaRefundResponse, Self>>
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<MayaRefundResponse, Self>) -> Result<Self, Self::Error> {
-        let refund_status = item
-            .response
-            .status
-            .map(common_enums::RefundStatus::from)
-            .unwrap_or(common_enums::RefundStatus::Success);
+        let refund_status = common_enums::RefundStatus::from(item.response.status.clone());
+
+        let raw_connector_status = RawConnectorStatus {
+            code: Some(item.response.status.as_str().to_string()),
+            message: item.response.reason.clone(),
+            reason: None,
+        };
 
         Ok(Self {
             response: Ok(RefundsResponseData {
@@ -691,6 +728,10 @@ impl TryFrom<ResponseRouterData<MayaRefundResponse, Self>>
                 refund_status,
                 status_code: item.http_code,
             }),
+            resource_common_data: RefundFlowData {
+                raw_connector_status: Some(raw_connector_status),
+                ..item.router_data.resource_common_data
+            },
             ..item.router_data
         })
     }
@@ -704,11 +745,13 @@ impl TryFrom<ResponseRouterData<MayaRefundSyncResponse, Self>>
     fn try_from(
         item: ResponseRouterData<MayaRefundSyncResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let refund_status = item
-            .response
-            .status
-            .map(common_enums::RefundStatus::from)
-            .unwrap_or(common_enums::RefundStatus::Pending);
+        let refund_status = common_enums::RefundStatus::from(item.response.status.clone());
+
+        let raw_connector_status = RawConnectorStatus {
+            code: Some(item.response.status.as_str().to_string()),
+            message: item.response.reason.clone(),
+            reason: None,
+        };
 
         Ok(Self {
             response: Ok(RefundsResponseData {
@@ -716,6 +759,10 @@ impl TryFrom<ResponseRouterData<MayaRefundSyncResponse, Self>>
                 refund_status,
                 status_code: item.http_code,
             }),
+            resource_common_data: RefundFlowData {
+                raw_connector_status: Some(raw_connector_status),
+                ..item.router_data.resource_common_data
+            },
             ..item.router_data
         })
     }
@@ -723,7 +770,126 @@ impl TryFrom<ResponseRouterData<MayaRefundSyncResponse, Self>>
 
 #[cfg(test)]
 mod tests {
-    use super::MayaWebhookBody;
+    use common_utils::types::FloatMajorUnit;
+
+    use super::{
+        MayaPaymentsRequest, MayaRedirectUrl, MayaRefundRequest, MayaRefundResponse,
+        MayaRefundTotalAmount, MayaTotalAmount, MayaWebhookBody,
+    };
+
+    /// Refund Payment via ID expects the amount as a JSON number under
+    /// `totalAmount.amount` (not as a string and not under `value`).
+    /// <https://developers.maya.ph/reference/refundv1paymentviaid-1>
+    #[test]
+    fn refund_request_amount_is_a_json_number() {
+        let request = MayaRefundRequest {
+            total_amount: MayaRefundTotalAmount {
+                amount: FloatMajorUnit(1.0),
+                currency: common_enums::Currency::PHP,
+            },
+            reason: "Customer requested refund".to_string(),
+        };
+
+        assert_eq!(
+            serde_json::to_value(&request).expect("refund request must serialize"),
+            serde_json::json!({
+                "totalAmount": {
+                    "amount": 1.0,
+                    "currency": "PHP"
+                },
+                "reason": "Customer requested refund"
+            })
+        );
+    }
+
+    /// Create Single Payment expects the amount as a JSON number under
+    /// `totalAmount.value`.
+    /// <https://developers.maya.ph/reference/createv2singlepayment>
+    #[test]
+    fn authorize_request_amount_is_a_json_number() {
+        let request = MayaPaymentsRequest {
+            total_amount: MayaTotalAmount {
+                value: FloatMajorUnit(100.0),
+                currency: common_enums::Currency::PHP,
+            },
+            redirect_url: MayaRedirectUrl {
+                success: "https://merchant.example/success".to_string(),
+                failure: "https://merchant.example/failure".to_string(),
+                cancel: "https://merchant.example/cancel".to_string(),
+            },
+            request_reference_number: "5b2a6d60-2265-4bc1-bb0e-1785404982".to_string(),
+            user_id: None,
+            metadata: None,
+        };
+
+        assert_eq!(
+            serde_json::to_value(&request).expect("payments request must serialize"),
+            serde_json::json!({
+                "totalAmount": {
+                    "value": 100.0,
+                    "currency": "PHP"
+                },
+                "redirectUrl": {
+                    "success": "https://merchant.example/success",
+                    "failure": "https://merchant.example/failure",
+                    "cancel": "https://merchant.example/cancel"
+                },
+                "requestReferenceNumber": "5b2a6d60-2265-4bc1-bb0e-1785404982"
+            })
+        );
+    }
+
+    /// The documented successful refund response (which includes the `refundAt`
+    /// timestamp) must deserialize into our refund response struct.
+    #[test]
+    fn refund_response_from_docs_deserializes() {
+        let response: MayaRefundResponse = serde_json::from_value(serde_json::json!({
+            "id": "8969d8a7-7287-4aee-bf43-7516b9385290",
+            "reason": "Item out of stock",
+            "amount": "1",
+            "currency": "PHP",
+            "status": "SUCCESS",
+            "payment": "e29f24d9-ea15-47c4-bca0-46dfe84a773b",
+            "requestReferenceNumber": "466d97e5-ea38-4ee2-bbcb-d2301dfcac5f",
+            "refundAt": "2021-07-09T09:09:52.000Z",
+            "createdAt": "2021-07-09T09:09:52.000Z",
+            "updatedAt": "2021-07-09T09:09:52.000Z"
+        }))
+        .expect("refund response from Maya docs must deserialize");
+
+        assert_eq!(response.id, "8969d8a7-7287-4aee-bf43-7516b9385290");
+    }
+
+    /// `status` is mandatory per Maya's docs: a 2xx refund response without
+    /// it must fail deserialization rather than be treated as a successful
+    /// money movement.
+    #[test]
+    fn refund_response_without_status_fails_to_deserialize() {
+        let result = serde_json::from_value::<MayaRefundResponse>(serde_json::json!({
+            "id": "8969d8a7-7287-4aee-bf43-7516b9385290",
+            "reason": "Item out of stock",
+            "requestReferenceNumber": "466d97e5-ea38-4ee2-bbcb-d2301dfcac5f"
+        }));
+
+        assert!(
+            result.is_err(),
+            "refund response missing `status` must not deserialize"
+        );
+    }
+
+    /// Same contract holds for void responses: no `status`, no successful void.
+    #[test]
+    fn void_response_without_status_fails_to_deserialize() {
+        let result = serde_json::from_value::<super::MayaVoidResponse>(serde_json::json!({
+            "id": "void-123",
+            "reason": "Customer requested void"
+        }));
+
+        assert!(
+            result.is_err(),
+            "void response missing `status` must not deserialize"
+        );
+    }
 
     #[test]
     fn payment_id_and_merchant_reference_remain_distinct() {

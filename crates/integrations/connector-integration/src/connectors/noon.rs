@@ -303,6 +303,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ),
             status,
             connector_response_reference_id: Some(connector_order_id),
+            merchant_transaction_id: None,
             error_code: None,
             error_message: None,
             raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),

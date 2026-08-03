@@ -2513,7 +2513,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
                 Ok(PaymentMethodType::Netbanking)
             }
             grpc_api_types::payments::PaymentMethodType::PayMaya => {
-                Ok(Some(PaymentMethodType::PayMaya))
+                Ok(PaymentMethodType::PayMaya)
             }
             grpc_api_types::payments::PaymentMethodType::Affirm => Ok(PaymentMethodType::Affirm),
             _ => Err(IntegrationError::InvalidDataFormat {
@@ -8774,8 +8774,13 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
                     .transpose()?
                     .unwrap_or_default(),
             ),
-            connector_reference_id: value.connector_response_reference_id,
-            merchant_transaction_id: None,
+            connector_reference_id: value.connector_response_reference_id.clone(),
+            // Prefer the explicit merchant reference echoed by the connector webhook,
+            // falling back to the connector response reference id (same fallback the
+            // sync PSync path uses via `connector_request_reference_id`).
+            merchant_transaction_id: value
+                .merchant_transaction_id
+                .or(value.connector_response_reference_id),
             status: status as i32,
             mandate_reference: mandate_reference_grpc,
             mandate_reference_details,
@@ -8809,7 +8814,7 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
             merchant_order_id: None,
             metadata: None,
             status_code: value.status_code as u32,
-            raw_connector_response: None,
+            raw_connector_response: value.raw_connector_response.map(Secret::new),
             response_headers,
             state: None,
             raw_connector_request: None,
@@ -9390,7 +9395,7 @@ impl ForeignTryFrom<RefundWebhookDetailsResponse> for RefundResponse {
                 }),
                 issuer_details: None,
             }),
-            raw_connector_response: None,
+            raw_connector_response: value.raw_connector_response.map(Secret::new),
             refund_amount: None,
             payment_amount: None,
             refund_reason: None,

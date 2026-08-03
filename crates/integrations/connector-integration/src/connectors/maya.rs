@@ -5,17 +5,18 @@ use std::fmt::Debug;
 use base64::Engine;
 use common_enums::CurrencyUnit;
 use common_utils::{
-    errors::CustomResult, events, ext_traits::ByteSliceExt, types::StringMajorUnit,
+    errors::CustomResult, events, ext_traits::ByteSliceExt, types::FloatMajorUnit,
 };
 use domain_types::{
     connector_flow::{self, Authorize, PSync, RSync, Refund, Void},
     connector_types::*,
     errors,
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
-    router_data::ConnectorSpecificConfig,
-    router_data::ErrorResponse,
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
-    router_response_types::Response,
+    router_request_types::VerifyWebhookSourceRequestData,
+    router_response_types::{Response, VerifyWebhookSourceResponseData},
     types::Connectors,
 };
 use error_stack::ResultExt;
@@ -75,7 +76,7 @@ macros::create_all_prerequisites!(
         )
     ],
     amount_converters: [
-        amount_converter: StringMajorUnit
+        amount_converter: FloatMajorUnit
     ],
     member_functions: {
         pub fn build_headers<F, FCD, Req, Res>(
@@ -157,6 +158,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: maya::MayaErrorResponse = res
             .response
@@ -195,7 +197,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             code: response.code,
             message: response.message,
             reason,
-            attempt_status: Some(common_enums::AttemptStatus::Failure),
+            attempt_status: Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure)),
             connector_transaction_id: None,
             network_decline_code: None,
             network_advice_code: None,
@@ -268,12 +270,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<bool, error_stack::Report<errors::WebhookError>> {
-        // Maya webhooks are unsigned; source verification is handled by source-IP whitelisting at the infrastructure level.
-        //
-        // Maya IP whitelist:
+        // Maya webhooks are unsigned (no HMAC signature / encryption per Maya docs), so the
+        // source cannot be cryptographically verified. Returning false makes Euler fall back
+        // to a mandatory PSync (EC_TXN_SYNC) to fetch authoritative status from the gateway.
+        // Source-IP whitelisting is enforced at the infrastructure level:
         //   Sandbox:    13.229.160.234, 3.1.199.75
         //   Production: 18.138.50.235, 3.1.207.200
-        Ok(true)
+        Ok(false)
     }
 
     fn get_event_type(
@@ -312,11 +315,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let status = common_enums::AttemptStatus::from(maya_payment_status);
 
+        // `requestReferenceNumber` (falling back to `transactionReferenceNumber`) is
+        // the merchant reference Maya echoes back — this is what Juspay sent as
+        // `merchantTransactionId` at payment-create time.
         let connector_response_reference_id = body.connector_response_reference_id();
 
         Ok(WebhookDetailsResponse {
             resource_id: Some(ResponseId::ConnectorTransactionId(body.id)),
             status,
+            merchant_transaction_id: connector_response_reference_id.clone(),
             connector_response_reference_id,
             mandate_reference: None,
             error_code: body.error_code,
@@ -329,6 +336,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             minor_amount_captured: None,
             network_txn_id: None,
             payment_method_update: None,
+            sender_payment_instrument_id: None,
         })
     }
 }
@@ -663,188 +671,236 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::VerifyRedirectResponse for Maya<T>
 {
+    fn verify_redirect_response_source(
+        &self,
+        _request: &RequestDetails,
+        _secrets: Option<interfaces::verification::ConnectorSourceVerificationSecrets>,
+    ) -> CustomResult<bool, errors::IntegrationError> {
+        // Maya does not sign redirect responses; source verification is
+        // performed via webhook signature validation instead.
+        Ok(false)
+    }
+
+    fn process_redirect_response(
+        &self,
+        _request: &RequestDetails,
+    ) -> CustomResult<RedirectDetailsResponse, errors::IntegrationError> {
+        // Maya is a redirect-only connector. The redirect body carries no
+        // meaningful payment state; final status is confirmed via PSync or
+        // webhook. Return an empty success so the redirect flow completes
+        // and the caller proceeds to PSync.
+        Ok(RedirectDetailsResponse {
+            resource_id: None,
+            status: None,
+            connector_response_reference_id: None,
+            error_code: None,
+            error_message: None,
+            error_reason: None,
+            response_amount: None,
+            raw_connector_response: None,
+        })
+    }
 }
 
 // ===== CONNECTOR INTEGRATION V2 IMPLEMENTATIONS =====
+
+// Stub implementations for service-trait bounds that are not exercised by Maya.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        connector_flow::Accept,
-        DisputeFlowData,
-        AcceptDisputeData,
-        DisputeResponseData,
-    > for Maya<T>
+    connector_types::VerifyWebhookSourceV2 for Maya<T>
 {
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        connector_flow::ClientAuthenticationToken,
-        PaymentFlowData,
-        ClientAuthenticationTokenRequestData,
-        PaymentsResponseData,
-    > for Maya<T>
+    connector_types::RefundVoidPostRefundV2 for Maya<T>
 {
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        connector_flow::CreateConnectorCustomer,
-        PaymentFlowData,
-        ConnectorCustomerData,
-        ConnectorCustomerResponse,
-    > for Maya<T>
+    connector_types::GetPaymentMethodV2 for Maya<T>
 {
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        connector_flow::DefendDispute,
-        DisputeFlowData,
-        DisputeDefendData,
-        DisputeResponseData,
-    > for Maya<T>
+    connector_types::CreatePaymentMethodV2 for Maya<T>
 {
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        connector_flow::MandateRevoke,
-        PaymentFlowData,
-        MandateRevokeRequestData,
-        MandateRevokeResponseData,
-    > for Maya<T>
+    connector_types::RechargeV2 for Maya<T>
 {
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        connector_flow::Authenticate,
-        PaymentFlowData,
-        PaymentsAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Maya<T>
+    connector_types::GetConnectorCustomer for Maya<T>
 {
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        connector_flow::Capture,
-        PaymentFlowData,
-        PaymentsCaptureData,
-        PaymentsResponseData,
-    > for Maya<T>
-{
+macro_rules! impl_unsupported_connector_flow {
+    ($flow:ty, $rcd:ty, $req:ty, $resp:ty) => {
+        impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+            ConnectorIntegrationV2<$flow, $rcd, $req, $resp> for Maya<T>
+        {
+            fn get_url(
+                &self,
+                _req: &RouterDataV2<$flow, $rcd, $req, $resp>,
+            ) -> CustomResult<String, errors::IntegrationError> {
+                Err(errors::IntegrationError::connector_flow_not_implemented(
+                    self.id(),
+                    std::any::type_name::<$flow>(),
+                    errors::IntegrationErrorContext::default(),
+                )
+                .into())
+            }
+        }
+    };
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        connector_flow::IncrementalAuthorization,
-        PaymentFlowData,
-        PaymentsIncrementalAuthorizationData,
-        PaymentsResponseData,
-    > for Maya<T>
-{
-}
+impl_unsupported_connector_flow!(
+    connector_flow::Accept,
+    DisputeFlowData,
+    AcceptDisputeData,
+    DisputeResponseData
+);
+impl_unsupported_connector_flow!(
+    connector_flow::ClientAuthenticationToken,
+    MerchantAuthenticationFlowData,
+    ClientAuthenticationTokenRequestData,
+    PaymentsResponseData
+);
+impl_unsupported_connector_flow!(
+    connector_flow::CreateConnectorCustomer,
+    PaymentFlowData,
+    ConnectorCustomerData,
+    ConnectorCustomerResponse
+);
+impl_unsupported_connector_flow!(
+    connector_flow::DefendDispute,
+    DisputeFlowData,
+    DisputeDefendData,
+    DisputeResponseData
+);
+impl_unsupported_connector_flow!(
+    connector_flow::MandateRevoke,
+    PaymentFlowData,
+    MandateRevokeRequestData,
+    MandateRevokeResponseData
+);
+impl_unsupported_connector_flow!(
+    connector_flow::Authenticate,
+    PaymentFlowData,
+    PaymentsAuthenticateData<T>,
+    PaymentsResponseData
+);
+impl_unsupported_connector_flow!(
+    connector_flow::Capture,
+    PaymentFlowData,
+    PaymentsCaptureData,
+    PaymentsResponseData
+);
+impl_unsupported_connector_flow!(
+    connector_flow::IncrementalAuthorization,
+    PaymentFlowData,
+    PaymentsIncrementalAuthorizationData,
+    PaymentsResponseData
+);
+impl_unsupported_connector_flow!(
+    connector_flow::CreateOrder,
+    PaymentFlowData,
+    PaymentCreateOrderData,
+    PaymentCreateOrderResponse
+);
+impl_unsupported_connector_flow!(
+    connector_flow::PostAuthenticate,
+    PaymentFlowData,
+    PaymentsPostAuthenticateData<T>,
+    PaymentsResponseData
+);
+impl_unsupported_connector_flow!(
+    connector_flow::PreAuthenticate,
+    PaymentFlowData,
+    PaymentsPreAuthenticateData<T>,
+    PaymentsResponseData
+);
+impl_unsupported_connector_flow!(
+    connector_flow::PaymentMethodToken,
+    PaymentFlowData,
+    PaymentMethodTokenizationData<T>,
+    PaymentMethodTokenResponse
+);
+impl_unsupported_connector_flow!(
+    connector_flow::VoidPC,
+    PaymentFlowData,
+    PaymentsCancelPostCaptureData,
+    PaymentsResponseData
+);
+impl_unsupported_connector_flow!(
+    connector_flow::RepeatPayment,
+    PaymentFlowData,
+    RepeatPaymentData<T>,
+    PaymentsResponseData
+);
+impl_unsupported_connector_flow!(
+    connector_flow::ServerAuthenticationToken,
+    MerchantAuthenticationFlowData,
+    ServerAuthenticationTokenRequestData,
+    ServerAuthenticationTokenResponseData
+);
+impl_unsupported_connector_flow!(
+    connector_flow::ServerSessionAuthenticationToken,
+    MerchantAuthenticationFlowData,
+    ServerSessionAuthenticationTokenRequestData,
+    ServerSessionAuthenticationTokenResponseData
+);
+impl_unsupported_connector_flow!(
+    connector_flow::SetupMandate,
+    PaymentFlowData,
+    SetupMandateRequestData<T>,
+    PaymentsResponseData
+);
+impl_unsupported_connector_flow!(
+    connector_flow::SubmitEvidence,
+    DisputeFlowData,
+    SubmitEvidenceData,
+    DisputeResponseData
+);
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        connector_flow::CreateOrder,
-        PaymentFlowData,
-        PaymentCreateOrderData,
-        PaymentCreateOrderResponse,
-    > for Maya<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        connector_flow::PostAuthenticate,
-        PaymentFlowData,
-        PaymentsPostAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Maya<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        connector_flow::PreAuthenticate,
-        PaymentFlowData,
-        PaymentsPreAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Maya<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        connector_flow::PaymentMethodToken,
-        PaymentFlowData,
-        PaymentMethodTokenizationData<T>,
-        PaymentMethodTokenResponse,
-    > for Maya<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        connector_flow::VoidPC,
-        PaymentFlowData,
-        PaymentsCancelPostCaptureData,
-        PaymentsResponseData,
-    > for Maya<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        connector_flow::RepeatPayment,
-        PaymentFlowData,
-        RepeatPaymentData<T>,
-        PaymentsResponseData,
-    > for Maya<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        connector_flow::ServerAuthenticationToken,
-        PaymentFlowData,
-        ServerAuthenticationTokenRequestData,
-        ServerAuthenticationTokenResponseData,
-    > for Maya<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        connector_flow::ServerSessionAuthenticationToken,
-        PaymentFlowData,
-        ServerSessionAuthenticationTokenRequestData,
-        ServerSessionAuthenticationTokenResponseData,
-    > for Maya<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        connector_flow::SetupMandate,
-        PaymentFlowData,
-        SetupMandateRequestData<T>,
-        PaymentsResponseData,
-    > for Maya<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        connector_flow::SubmitEvidence,
-        DisputeFlowData,
-        SubmitEvidenceData,
-        DisputeResponseData,
-    > for Maya<T>
-{
-}
+// Additional flows required by ConnectorServiceTrait bounds.
+impl_unsupported_connector_flow!(
+    connector_flow::VerifyWebhookSource,
+    VerifyWebhookSourceFlowData,
+    VerifyWebhookSourceRequestData,
+    VerifyWebhookSourceResponseData
+);
+impl_unsupported_connector_flow!(
+    connector_flow::VoidPostRefund,
+    RefundFlowData,
+    RefundVoidPostRefundData,
+    RefundsResponseData
+);
+impl_unsupported_connector_flow!(
+    connector_flow::GetPaymentMethod,
+    PaymentFlowData,
+    GetPaymentMethodData,
+    GetPaymentMethodResponseData
+);
+impl_unsupported_connector_flow!(
+    connector_flow::CreatePaymentMethod,
+    PaymentFlowData,
+    CreatePaymentMethodData,
+    CreatePaymentMethodResponseData
+);
+impl_unsupported_connector_flow!(
+    connector_flow::Recharge,
+    PaymentFlowData,
+    RechargeRequestData,
+    RechargeResponseData
+);
+impl_unsupported_connector_flow!(
+    connector_flow::GetConnectorCustomer,
+    PaymentFlowData,
+    ConnectorCustomerData,
+    ConnectorCustomerResponse
+);
 
 // ===== SOURCE VERIFICATION IMPLEMENTATION =====
 // Simple non-generic trait for webhook signature verification

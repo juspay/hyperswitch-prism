@@ -984,6 +984,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ),
             status,
             connector_response_reference_id: Some(webhook_payment.order_id),
+            merchant_transaction_id: None,
             error_code: error_code.clone(),
             error_message: error_message.clone(),
             raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
