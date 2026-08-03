@@ -119,10 +119,6 @@ pub enum CardBrand {
 
 const GOOGLE_PAY_BRAND: &str = "googlepay";
 
-/// `mpiData.eci` is mandatory for Adyen network-token authorizations, but the decrypted Paze
-/// payload does not always carry one. Fall back to the fully-authenticated e-commerce indicator.
-const PAZE_DEFAULT_ECI: &str = "05";
-
 impl TryFrom<&domain_utils::CardIssuer> for CardBrand {
     type Error = error_stack::Report<IntegrationError>;
     fn try_from(card_issuer: &domain_utils::CardIssuer) -> Result<Self, Self::Error> {
@@ -185,6 +181,7 @@ pub struct AdyenNetworkTokenData {
     number: NetworkToken,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     holder_name: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     brand: Option<CardBrand>,
@@ -1220,6 +1217,9 @@ impl TryFrom<&common_enums::PaymentMethodType> for PaymentType {
             | common_enums::PaymentMethodType::MobilePay
             | common_enums::PaymentMethodType::WeChatPay
             | common_enums::PaymentMethodType::SamsungPay
+            // Paze rides the network-token pass-through, so Adyen sees a scheme payment.
+            // Required for RepeatPayment/MIT against a Paze-created mandate.
+            | common_enums::PaymentMethodType::Paze
             | common_enums::PaymentMethodType::Affirm
             | common_enums::PaymentMethodType::AfterpayClearpay
             | common_enums::PaymentMethodType::PayBright
@@ -1489,19 +1489,24 @@ fn get_paze_token_cryptogram(
                     .as_deref()
                     .is_some_and(|data_type| data_type.eq_ignore_ascii_case("CRYPTOGRAM_3DS"))
         })
-        .or_else(|| {
-            paze_decrypted_data
-                .dynamic_data
-                .iter()
-                .find(|dynamic_data| dynamic_data.dynamic_data_value.is_some())
-        })
         .and_then(|dynamic_data| dynamic_data.dynamic_data_value.clone())
         .ok_or_else(|| {
-            IntegrationError::MissingRequiredField {
-                field_name: "paze_decrypted_data.dynamic_data.dynamic_data_value",
+            // Deliberately no fallback to "any dynamic_data entry": the list also carries
+            // non-cryptogram values (e.g. a dynamic CVV), and shipping one of those as the
+            // TAVV would send Adyen a silently wrong cryptogram rather than failing here.
+            let present_types = paze_decrypted_data
+                .dynamic_data
+                .iter()
+                .map(|dynamic_data| dynamic_data.dynamic_data_type.as_deref())
+                .collect::<Vec<_>>();
+
+            Error::from(IntegrationError::MissingRequiredField {
+                field_name: "paze_decrypted_data.dynamic_data[CRYPTOGRAM_3DS].dynamic_data_value",
                 context: Default::default(),
-            }
-            .into()
+            })
+            .attach_printable(format!(
+                "Paze payload carried no CRYPTOGRAM_3DS dynamic data; present types: {present_types:?}"
+            ))
         })
 }
 
@@ -1544,12 +1549,10 @@ fn build_paze_mpi_data(paze_decrypted_data: &PazeDecryptedData) -> Result<AdyenM
         token_authentication_verification_value: Some(get_paze_token_cryptogram(
             paze_decrypted_data,
         )?),
-        eci: Some(
-            paze_decrypted_data
-                .eci
-                .clone()
-                .unwrap_or_else(|| PAZE_DEFAULT_ECI.to_string()),
-        ),
+        // Omitted when the Paze payload carries no ECI. Defaulting would assert an
+        // authentication that never happened (and a liability shift Adyen did not grant);
+        // the hyperswitch reference omits the key for the same reason.
+        eci: paze_decrypted_data.eci.clone(),
         ds_trans_id: None,
         three_ds_version: None,
         challenge_cancel: None,
@@ -6666,9 +6669,50 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 ));
                 (payment_method, None)
             }
-            _ => {
+            // Enumerated rather than caught by `_` so that adding a wallet variant upstream
+            // is a compile error here instead of a silent NotImplemented at runtime.
+            WalletData::AliPayQr(_)
+            | WalletData::AliPayRedirect(_)
+            | WalletData::AliPayHkRedirect(_)
+            | WalletData::AmazonPayRedirect(_)
+            | WalletData::ApplePay(_)
+            | WalletData::ApplePayRedirect(_)
+            | WalletData::ApplePayThirdPartySdk(_)
+            | WalletData::BillDeskRedirect(_)
+            | WalletData::BluecodeRedirect { .. }
+            | WalletData::CashappQr(_)
+            | WalletData::CashfreeRedirect(_)
+            | WalletData::DanaRedirect { .. }
+            | WalletData::EaseBuzzRedirect(_)
+            | WalletData::GcashRedirect(_)
+            | WalletData::GooglePay(_)
+            | WalletData::GooglePayRedirect(_)
+            | WalletData::GooglePayThirdPartySdk(_)
+            | WalletData::GoPayRedirect(_)
+            | WalletData::KakaoPayRedirect(_)
+            | WalletData::LazyPayRedirect(_)
+            | WalletData::MbWay(_)
+            | WalletData::MbWayRedirect(_)
+            | WalletData::Mifinity(_)
+            | WalletData::MobilePayRedirect(_)
+            | WalletData::MomoRedirect(_)
+            | WalletData::PaypalRedirect(_)
+            | WalletData::PaypalSdk(_)
+            | WalletData::PayURedirect(_)
+            | WalletData::PhonePeRedirect(_)
+            | WalletData::QwikcilverWalletDirect(_)
+            | WalletData::RevolutPay(_)
+            | WalletData::Satispay(_)
+            | WalletData::Skrill(_)
+            | WalletData::SwishQr(_)
+            | WalletData::TouchNGoRedirect(_)
+            | WalletData::TwintRedirect { .. }
+            | WalletData::VippsRedirect { .. }
+            | WalletData::WeChatPayQr(_)
+            | WalletData::WeChatPayRedirect(_)
+            | WalletData::Wero(_) => {
                 return Err(IntegrationError::NotImplemented(
-                    ("payment method").into(),
+                    utils::get_unimplemented_payment_method_error_message("Adyen"),
                     Default::default(),
                 )
                 .into())
