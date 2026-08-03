@@ -993,6 +993,18 @@ impl ForeignTryFrom<grpc_api_types::payments::CaptureMethod> for CaptureMethod {
     }
 }
 
+impl ForeignFrom<CaptureMethod> for grpc_api_types::payments::CaptureMethod {
+    fn foreign_from(capture_method: CaptureMethod) -> Self {
+        match capture_method {
+            CaptureMethod::Automatic => Self::Automatic,
+            CaptureMethod::Manual => Self::Manual,
+            CaptureMethod::ManualMultiple => Self::ManualMultiple,
+            CaptureMethod::Scheduled => Self::Scheduled,
+            CaptureMethod::SequentialAutomatic => Self::SequentialAutomatic,
+        }
+    }
+}
+
 impl ForeignTryFrom<grpc_api_types::payments::ThreeDsCompletionIndicator>
     for connector_types::ThreeDsCompletionIndicator
 {
@@ -2513,6 +2525,7 @@ impl ForeignTryFrom<grpc_api_types::payments::BankHolderType> for common_enums::
     }
 }
 
+#[allow(deprecated)]
 impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMethodType {
     type Error = IntegrationError;
 
@@ -2534,6 +2547,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             }
             grpc_api_types::payments::PaymentMethodType::Credit => Ok(PaymentMethodType::Card),
             grpc_api_types::payments::PaymentMethodType::Debit => Ok(PaymentMethodType::Card),
+            grpc_api_types::payments::PaymentMethodType::Card => Ok(PaymentMethodType::Card),
             grpc_api_types::payments::PaymentMethodType::UpiCollect => {
                 Ok(PaymentMethodType::UpiCollect)
             }
@@ -8204,6 +8218,7 @@ impl
     }
 }
 
+#[allow(deprecated)]
 impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMethod {
     type Error = IntegrationError;
 
@@ -8213,6 +8228,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
         match value {
             grpc_api_types::payments::PaymentMethodType::Credit => Ok(Self::Card),
             grpc_api_types::payments::PaymentMethodType::Debit => Ok(Self::Card),
+            grpc_api_types::payments::PaymentMethodType::Card => Ok(Self::Card),
 
             grpc_api_types::payments::PaymentMethodType::ApplePay => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::GooglePay => Ok(Self::Wallet),
@@ -12295,6 +12311,10 @@ pub struct PaymentMethodDetails {
     pub supported_capture_methods: Vec<CaptureMethod>,
     /// Payment method specific features
     pub specific_features: Option<PaymentMethodSpecificFeatures>,
+    /// Supported countries
+    pub supported_countries: Vec<CountryAlpha2>,
+    /// Supported currencies
+    pub supported_currencies: Vec<common_enums::Currency>,
 }
 /// The status of the feature
 #[derive(
@@ -12317,6 +12337,20 @@ pub enum FeatureStatus {
 pub type PaymentMethodTypeMetadata = HashMap<PaymentMethodType, PaymentMethodDetails>;
 pub type SupportedPaymentMethods = HashMap<PaymentMethod, PaymentMethodTypeMetadata>;
 
+#[derive(Debug, Clone, Copy, Eq, PartialEq, serde::Serialize, strum::Display)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum IntegrationStatus {
+    /// Connector is integrated and live on production
+    Live,
+    /// Connector is integrated and fully tested on sandbox
+    Sandbox,
+    /// Connector is integrated and partially tested on sandbox
+    Beta,
+    /// Connector is integrated using the online documentation but not tested yet
+    Alpha,
+}
+
 #[derive(Debug, Clone)]
 pub struct ConnectorInfo {
     /// Display name of the Connector
@@ -12325,6 +12359,8 @@ pub struct ConnectorInfo {
     pub description: &'static str,
     /// Connector Type
     pub connector_type: PaymentConnectorCategory,
+    /// Integration maturity for feature matrix consumers.
+    pub integration_status: IntegrationStatus,
 }
 
 /// Required for passing additional details for Recurring payments from initial payments

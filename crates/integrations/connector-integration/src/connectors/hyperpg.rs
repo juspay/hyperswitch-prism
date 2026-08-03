@@ -13,8 +13,8 @@ use domain_types::router_data::ConnectorSpecificConfig;
 use domain_types::{
     connector_flow::{Authorize, PSync, RSync, Refund},
     connector_types::{
-        ConnectorSpecifications, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
         SupportedPaymentMethodsExt,
     },
     payment_method_data::PaymentMethodDataTypes,
@@ -22,8 +22,9 @@ use domain_types::{
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::{
-        CardSpecificFeatures, ConnectorInfo, Connectors, FeatureStatus, PaymentConnectorCategory,
-        PaymentMethodDetails, PaymentMethodSpecificFeatures, SupportedPaymentMethods,
+        CardSpecificFeatures, ConnectorInfo, Connectors, FeatureStatus, IntegrationStatus,
+        PaymentConnectorCategory, PaymentMethodDetails, PaymentMethodSpecificFeatures,
+        SupportedPaymentMethods,
     },
 };
 use error_stack::ResultExt;
@@ -411,6 +412,8 @@ static HYPERPG_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = {
                 mandates: FeatureStatus::Supported,
                 refunds: FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
+                supported_countries: Vec::new(),
+                supported_currencies: Vec::new(),
                 specific_features: Some(PaymentMethodSpecificFeatures::Card({
                     CardSpecificFeatures {
                         three_ds: FeatureStatus::Supported,
@@ -426,15 +429,16 @@ static HYPERPG_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = {
 };
 
 static HYPERPG_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-        display_name: "Hyperpg",
-        description: "Hyperpg is your trusted payment gateway solution. Seamlessly manage transactions, enhance security, and empower your business to thrive in the digital age.",
-        connector_type: PaymentConnectorCategory::PaymentGateway
+    display_name: "Hyperpg",
+    description: "Hyperpg is your trusted payment gateway solution. Seamlessly manage transactions, enhance security, and empower your business to thrive in the digital age.",
+    connector_type: PaymentConnectorCategory::PaymentGateway,
+    integration_status: IntegrationStatus::Beta,
 };
 
 static HYPERPG_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorSpecifications
-    for Hyperpg<T>
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::ConnectorSpecifications for Hyperpg<T>
 {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&HYPERPG_CONNECTOR_INFO)

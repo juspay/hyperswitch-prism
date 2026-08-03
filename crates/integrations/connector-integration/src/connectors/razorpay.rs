@@ -20,13 +20,12 @@ use domain_types::{
         Authorize, Capture, CreateOrder, PSync, RSync, Refund, ServerSessionAuthenticationToken,
     },
     connector_types::{
-        ConnectorSpecifications, ConnectorWebhookSecrets, EventContext, EventType,
-        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundWebhookDetailsResponse, RefundsData, RefundsResponseData,
-        RequestDetails, ResponseId, ServerSessionAuthenticationTokenRequestData,
-        ServerSessionAuthenticationTokenResponseData, SupportedPaymentMethodsExt,
-        WebhookDetailsResponse,
+        ConnectorWebhookSecrets, EventContext, EventType, PaymentCreateOrderData,
+        PaymentCreateOrderResponse, PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData,
+        RefundWebhookDetailsResponse, RefundsData, RefundsResponseData, RequestDetails, ResponseId,
+        ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
+        SupportedPaymentMethodsExt, WebhookDetailsResponse,
     },
     errors::ConnectorError,
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
@@ -35,9 +34,9 @@ use domain_types::{
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::{
-        CardSpecificFeatures, ConnectorInfo, Connectors, FeatureStatus, PaymentConnectorCategory,
-        PaymentMethodDataType, PaymentMethodDetails, PaymentMethodSpecificFeatures,
-        SupportedPaymentMethods,
+        CardSpecificFeatures, ConnectorInfo, Connectors, FeatureStatus, IntegrationStatus,
+        PaymentConnectorCategory, PaymentMethodDataType, PaymentMethodDetails,
+        PaymentMethodSpecificFeatures, SupportedPaymentMethods,
     },
 };
 use error_stack::{report, ResultExt};
@@ -1250,6 +1249,8 @@ static RAZORPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
                 supported_capture_methods: razorpay_supported_capture_methods.clone(),
+                supported_countries: Vec::new(),
+                supported_currencies: Vec::new(),
                 specific_features: Some(PaymentMethodSpecificFeatures::Card(
                     CardSpecificFeatures {
                         three_ds: FeatureStatus::NotSupported,
@@ -1275,6 +1276,8 @@ static RAZORPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                     mandates: FeatureStatus::NotSupported,
                     refunds: FeatureStatus::Supported,
                     supported_capture_methods: vec![CaptureMethod::Automatic],
+                    supported_countries: Vec::new(),
+                    supported_currencies: Vec::new(),
                     specific_features: None,
                 },
             );
@@ -1292,6 +1295,8 @@ static RAZORPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                     mandates: FeatureStatus::NotSupported,
                     refunds: FeatureStatus::NotSupported,
                     supported_capture_methods: vec![CaptureMethod::Automatic],
+                    supported_countries: Vec::new(),
+                    supported_currencies: Vec::new(),
                     specific_features: None,
                 },
             );
@@ -1304,6 +1309,8 @@ static RAZORPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
                 supported_capture_methods: vec![CaptureMethod::Automatic],
+                supported_countries: Vec::new(),
+                supported_currencies: Vec::new(),
                 specific_features: None,
             },
         );
@@ -1314,14 +1321,15 @@ static RAZORPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
 static RAZORPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Razorpay",
     description: "Razorpay is a payment gateway that allows businesses to accept, process, and disburse payments with its product suite.",
-    connector_type: PaymentConnectorCategory::PaymentGateway
+    connector_type: PaymentConnectorCategory::PaymentGateway,
+    integration_status: IntegrationStatus::Beta,
 };
 
 static RAZORPAY_SUPPORTED_WEBHOOK_FLOWS: &[EventClass] =
     &[EventClass::Payments, EventClass::Refunds];
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    ConnectorSpecifications for Razorpay<T>
+    connector_types::ConnectorSpecifications for Razorpay<T>
 {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&RAZORPAY_CONNECTOR_INFO)

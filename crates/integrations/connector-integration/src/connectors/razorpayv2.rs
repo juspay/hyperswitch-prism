@@ -872,7 +872,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    domain_types::connector_types::ConnectorSpecifications for RazorpayV2<T>
+    connector_types::ConnectorSpecifications for RazorpayV2<T>
 {
 }
 

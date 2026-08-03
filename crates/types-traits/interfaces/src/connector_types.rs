@@ -1,22 +1,22 @@
 use std::collections::HashSet;
 use std::str::FromStr;
 
-use common_enums::{AttemptStatus, CaptureMethod, PaymentMethod, PaymentMethodType};
+use common_enums::{AttemptStatus, CaptureMethod, EventClass, PaymentMethod, PaymentMethodType};
 use common_utils::{CustomResult, SecretSerdeValue};
 pub use domain_types::connector_types::WebhookIntegrityCheck;
 use domain_types::{
     connector_flow,
     connector_types::{
         AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
-        ConnectorCustomerResponse, ConnectorEnum, ConnectorSpecifications, ConnectorWebhookSecrets,
-        CreatePaymentMethodData, CreatePaymentMethodResponseData, DisputeDefendData,
-        DisputeFlowData, DisputeResponseData, DisputeWebhookDetailsResponse, EventType,
-        GetPaymentMethodData, GetPaymentMethodResponseData, MandateRevokeRequestData,
-        MandateRevokeResponseData, PaymentCreateOrderData, PaymentCreateOrderResponse,
-        PaymentFlowData, PaymentMethodEligibilityData, PaymentMethodEligibilityResponse,
-        PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
-        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
-        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+        ConnectorCustomerResponse, ConnectorEnum, ConnectorWebhookSecrets, CreatePaymentMethodData,
+        CreatePaymentMethodResponseData, DisputeDefendData, DisputeFlowData, DisputeResponseData,
+        DisputeWebhookDetailsResponse, EventType, GetPaymentMethodData,
+        GetPaymentMethodResponseData, MandateRevokeRequestData, MandateRevokeResponseData,
+        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData,
+        PaymentMethodEligibilityData, PaymentMethodEligibilityResponse, PaymentMethodTokenResponse,
+        PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
+        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
+        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
         PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RechargeRequestData,
         RechargeResponseData, RedirectDetailsResponse, RefreshPaymentMethodData,
         RefreshPaymentMethodFlowData, RefreshPaymentMethodResponseData, RefundFlowData,
@@ -52,7 +52,7 @@ use domain_types::{
         SurchargePaymentSucceededRequest, SurchargePaymentSucceededResponse,
         SurchargeRefundSucceededRequest, SurchargeRefundSucceededResponse,
     },
-    types::{PaymentMethodDataType, PaymentMethodDetails, SupportedPaymentMethods},
+    types::{ConnectorInfo, PaymentMethodDataType, PaymentMethodDetails, SupportedPaymentMethods},
 };
 use error_stack::ResultExt;
 
@@ -91,8 +91,27 @@ pub enum RedirectState {
     RedirectWithoutParams,
 }
 
+/// The trait that provides specifications about the connector
+pub trait ConnectorSpecifications {
+    /// Details related to payment method supported by the connector
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        None
+    }
+
+    /// Supported webhooks flows
+    fn get_supported_webhook_flows(&self) -> Option<&'static [EventClass]> {
+        None
+    }
+
+    /// About the connector
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        None
+    }
+}
+
 pub trait ConnectorServiceTrait<T: PaymentMethodDataTypes>:
     ConnectorCommon
+    + ConnectorSpecifications
     + ValidationTrait
     + PaymentAuthorizeV2<T>
     + PaymentSyncV2

@@ -12,11 +12,10 @@ use domain_types::{
         Authorize, Capture, PSync, RSync, Refund, ServerSessionAuthenticationToken, Void,
     },
     connector_types::{
-        ConnectorSpecifications, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData,
-        ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
-        SupportedPaymentMethodsExt,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, ServerSessionAuthenticationTokenRequestData,
+        ServerSessionAuthenticationTokenResponseData, SupportedPaymentMethodsExt,
     },
     errors::IntegrationError,
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
@@ -25,8 +24,8 @@ use domain_types::{
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::{
-        ConnectorInfo, Connectors, FeatureStatus, PaymentConnectorCategory, PaymentMethodDetails,
-        SupportedPaymentMethods,
+        ConnectorInfo, Connectors, FeatureStatus, IntegrationStatus, PaymentConnectorCategory,
+        PaymentMethodDetails, SupportedPaymentMethods,
     },
 };
 use error_stack::ResultExt;
@@ -791,6 +790,8 @@ static PAYU_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
             mandates: FeatureStatus::NotSupported,
             refunds: FeatureStatus::Supported,
             supported_capture_methods: payu_supported_capture_methods.clone(),
+            supported_countries: Vec::new(),
+            supported_currencies: Vec::new(),
             specific_features: None,
         },
     );
@@ -803,6 +804,8 @@ static PAYU_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
             mandates: FeatureStatus::NotSupported,
             refunds: FeatureStatus::Supported,
             supported_capture_methods: payu_supported_capture_methods.clone(),
+            supported_countries: Vec::new(),
+            supported_currencies: Vec::new(),
             specific_features: None,
         },
     );
@@ -815,6 +818,8 @@ static PAYU_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
             mandates: FeatureStatus::NotSupported,
             refunds: FeatureStatus::Supported,
             supported_capture_methods: payu_supported_capture_methods.clone(),
+            supported_countries: Vec::new(),
+            supported_currencies: Vec::new(),
             specific_features: None,
         },
     );
@@ -827,6 +832,8 @@ static PAYU_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
             mandates: FeatureStatus::NotSupported,
             refunds: FeatureStatus::Supported,
             supported_capture_methods: payu_supported_capture_methods.clone(),
+            supported_countries: Vec::new(),
+            supported_currencies: Vec::new(),
             specific_features: None,
         },
     );
@@ -839,6 +846,8 @@ static PAYU_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
             mandates: FeatureStatus::NotSupported,
             refunds: FeatureStatus::Supported,
             supported_capture_methods: payu_supported_capture_methods.clone(),
+            supported_countries: Vec::new(),
+            supported_currencies: Vec::new(),
             specific_features: None,
         },
     );
@@ -850,10 +859,11 @@ static PAYU_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "PayU",
     description: "PayU is a leading payment gateway for India, supporting UPI, Wallets, Net Banking, and Cards.",
     connector_type: PaymentConnectorCategory::PaymentGateway,
+    integration_status: IntegrationStatus::Beta,
 };
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorSpecifications
-    for Payu<T>
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::ConnectorSpecifications for Payu<T>
 {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&PAYU_CONNECTOR_INFO)

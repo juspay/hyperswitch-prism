@@ -4,6 +4,7 @@ pub mod api;
 pub mod connector_flow;
 pub mod connector_types;
 pub mod errors;
+pub mod feature_matrix;
 pub mod frm;
 pub mod mandates;
 pub mod merchant_authentication_flow_data;

@@ -13,12 +13,12 @@ use domain_types::{
         SetupMandate,
     },
     connector_types::{
-        ConnectorSpecifications, ConnectorWebhookSecrets, EventContext, EventType,
-        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentsAuthorizeData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData,
-        RefundWebhookDetailsResponse, RefundsData, RefundsResponseData, RepeatPaymentData,
-        RequestDetails, ResponseId, ServerAuthenticationTokenRequestData,
-        ServerAuthenticationTokenResponseData, SetupMandateRequestData, WebhookDetailsResponse,
+        ConnectorWebhookSecrets, EventContext, EventType, PaymentCreateOrderData,
+        PaymentCreateOrderResponse, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData,
+        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse,
+        RefundsData, RefundsResponseData, RepeatPaymentData, RequestDetails, ResponseId,
+        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+        SetupMandateRequestData, WebhookDetailsResponse,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
@@ -1041,8 +1041,8 @@ macros::macro_connector_implementation!(
     }
 );
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorSpecifications
-    for Trustpay<T>
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::ConnectorSpecifications for Trustpay<T>
 {
 }
 

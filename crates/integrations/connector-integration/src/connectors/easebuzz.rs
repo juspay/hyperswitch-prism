@@ -10,10 +10,9 @@ use common_utils::{
 use domain_types::{
     connector_flow::{Authorize, Capture, CreateOrder, PSync, RSync, Refund},
     connector_types::{
-        ConnectorSpecifications, PaymentCreateOrderData, PaymentCreateOrderResponse,
-        PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        SupportedPaymentMethodsExt,
+        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentsAuthorizeData,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, SupportedPaymentMethodsExt,
     },
     errors::{self, ConnectorError, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
@@ -21,8 +20,8 @@ use domain_types::{
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::{
-        ConnectorInfo, Connectors, FeatureStatus, PaymentConnectorCategory, PaymentMethodDetails,
-        SupportedPaymentMethods,
+        ConnectorInfo, Connectors, FeatureStatus, IntegrationStatus, PaymentConnectorCategory,
+        PaymentMethodDetails, SupportedPaymentMethods,
     },
 };
 use error_stack::ResultExt;
@@ -63,6 +62,8 @@ static EASEBUZZ_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
                 supported_capture_methods: vec![enums::CaptureMethod::Automatic],
+                supported_countries: Vec::new(),
+                supported_currencies: Vec::new(),
                 specific_features: None,
             },
         );
@@ -75,6 +76,8 @@ static EASEBUZZ_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
                 supported_capture_methods: vec![enums::CaptureMethod::Automatic],
+                supported_countries: Vec::new(),
+                supported_currencies: Vec::new(),
                 specific_features: None,
             },
         );
@@ -87,6 +90,8 @@ static EASEBUZZ_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
                 supported_capture_methods: vec![enums::CaptureMethod::Automatic],
+                supported_countries: Vec::new(),
+                supported_currencies: Vec::new(),
                 specific_features: None,
             },
         );
@@ -99,6 +104,8 @@ static EASEBUZZ_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
                 supported_capture_methods: vec![enums::CaptureMethod::Automatic],
+                supported_countries: Vec::new(),
+                supported_currencies: Vec::new(),
                 specific_features: None,
             },
         );
@@ -111,6 +118,8 @@ static EASEBUZZ_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
                 supported_capture_methods: vec![enums::CaptureMethod::Automatic],
+                supported_countries: Vec::new(),
+                supported_currencies: Vec::new(),
                 specific_features: None,
             },
         );
@@ -122,6 +131,7 @@ static EASEBUZZ_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Easebuzz",
     description: "Easebuzz is an Indian payment gateway providing UPI, Net Banking, Wallet, and Card payment solutions.",
     connector_type: PaymentConnectorCategory::PaymentGateway,
+    integration_status: IntegrationStatus::Beta,
 };
 
 // ============================================================================
@@ -351,8 +361,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 // CONNECTOR SPECIFICATIONS
 // ============================================================================
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorSpecifications
-    for Easebuzz<T>
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::ConnectorSpecifications for Easebuzz<T>
 {
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
         Some(&EASEBUZZ_SUPPORTED_PAYMENT_METHODS)

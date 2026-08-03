@@ -124,6 +124,19 @@ private fun <T : com.google.protobuf.MessageLite> callGrpc(
 // ── Sub-clients (one per proto service) ───────────────────────────────────────
 
 /**
+ * ConnectorCapabilityService — gRPC sub-client.
+ */
+class GrpcConnectorCapabilityClient internal constructor(
+    private val config: GrpcConfig,
+) {
+    /**
+     * ConnectorCapabilityService.GetFeatureMatrix — Returns feature matrix information for the requested connectors.
+     */
+    suspend fun get_feature_matrix(req: FeatureMatrixRequest): FeatureMatrixResponse =
+        callGrpc(config, "connector_capability/get_feature_matrix", req, FeatureMatrixResponse.parser())
+}
+
+/**
  * CustomerService — gRPC sub-client.
  */
 class GrpcCustomerClient internal constructor(
@@ -477,6 +490,8 @@ class GrpcSurchargeClient internal constructor(
 // ── Top-level GrpcClient ──────────────────────────────────────────────────────
 
 class GrpcClient(config: GrpcConfig) {
+    val connector_capability: GrpcConnectorCapabilityClient =
+        GrpcConnectorCapabilityClient(config)
     val customer: GrpcCustomerClient =
         GrpcCustomerClient(config)
     val dispute: GrpcDisputeClient =

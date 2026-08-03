@@ -14,17 +14,18 @@ use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
 use domain_types::{
     connector_flow::{Authorize, Capture, CreateOrder, PSync, RSync, Refund, Void},
     connector_types::{
-        ConnectorSpecifications, PaymentCreateOrderData, PaymentCreateOrderResponse,
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, SupportedPaymentMethodsExt,
+        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        SupportedPaymentMethodsExt,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::{
-        ConnectorInfo, Connectors, FeatureStatus, PaymentMethodDetails, SupportedPaymentMethods,
+        ConnectorInfo, Connectors, FeatureStatus, IntegrationStatus, PaymentMethodDetails,
+        SupportedPaymentMethods,
     },
 };
 use error_stack::ResultExt;
@@ -535,6 +536,8 @@ static CASHFREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
                 supported_capture_methods: cashfree_supported_capture_methods.clone(),
+                supported_countries: Vec::new(),
+                supported_currencies: Vec::new(),
                 specific_features: None,
             },
         );
@@ -547,6 +550,8 @@ static CASHFREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
                 supported_capture_methods: cashfree_supported_capture_methods.clone(),
+                supported_countries: Vec::new(),
+                supported_currencies: Vec::new(),
                 specific_features: None,
             },
         );
@@ -559,6 +564,8 @@ static CASHFREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
                 supported_capture_methods: cashfree_supported_capture_methods.clone(),
+                supported_countries: Vec::new(),
+                supported_currencies: Vec::new(),
                 specific_features: None,
             },
         );
@@ -571,6 +578,8 @@ static CASHFREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
                 supported_capture_methods: cashfree_supported_capture_methods.clone(),
+                supported_countries: Vec::new(),
+                supported_currencies: Vec::new(),
                 specific_features: None,
             },
         );
@@ -583,6 +592,8 @@ static CASHFREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
                 supported_capture_methods: cashfree_supported_capture_methods.clone(),
+                supported_countries: Vec::new(),
+                supported_currencies: Vec::new(),
                 specific_features: None,
             },
         );
@@ -595,6 +606,8 @@ static CASHFREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
                 supported_capture_methods: cashfree_supported_capture_methods.clone(),
+                supported_countries: Vec::new(),
+                supported_currencies: Vec::new(),
                 specific_features: None,
             },
         );
@@ -607,6 +620,8 @@ static CASHFREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
                 supported_capture_methods: cashfree_supported_capture_methods.clone(),
+                supported_countries: Vec::new(),
+                supported_currencies: Vec::new(),
                 specific_features: None,
             },
         );
@@ -619,6 +634,8 @@ static CASHFREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
                 supported_capture_methods: cashfree_supported_capture_methods.clone(),
+                supported_countries: Vec::new(),
+                supported_currencies: Vec::new(),
                 specific_features: None,
             },
         );
@@ -631,6 +648,8 @@ static CASHFREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
                 supported_capture_methods: cashfree_supported_capture_methods.clone(),
+                supported_countries: Vec::new(),
+                supported_currencies: Vec::new(),
                 specific_features: None,
             },
         );
@@ -643,6 +662,8 @@ static CASHFREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
                 supported_capture_methods: cashfree_supported_capture_methods.clone(),
+                supported_countries: Vec::new(),
+                supported_currencies: Vec::new(),
                 specific_features: None,
             },
         );
@@ -655,6 +676,8 @@ static CASHFREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
                 supported_capture_methods: cashfree_supported_capture_methods.clone(),
+                supported_countries: Vec::new(),
+                supported_currencies: Vec::new(),
                 specific_features: None,
             },
         );
@@ -667,6 +690,8 @@ static CASHFREE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
                 supported_capture_methods: cashfree_supported_capture_methods.clone(),
+                supported_countries: Vec::new(),
+                supported_currencies: Vec::new(),
                 specific_features: None,
             },
         );
@@ -678,10 +703,11 @@ static CASHFREE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Cashfree",
     description: "Cashfree Payments is an Indian payment gateway and banking technology company.",
     connector_type: domain_types::types::PaymentConnectorCategory::PaymentGateway,
+    integration_status: IntegrationStatus::Beta,
 };
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorSpecifications
-    for Cashfree<T>
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::ConnectorSpecifications for Cashfree<T>
 {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&CASHFREE_CONNECTOR_INFO)

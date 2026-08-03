@@ -10,14 +10,13 @@ use domain_types::{
         ServerSessionAuthenticationToken, SetupMandate, Void, VoidPC,
     },
     connector_types::{
-        ConnectorCustomerData, ConnectorCustomerResponse, ConnectorSpecifications,
-        ConnectorWebhookSecrets, EventContext, EventType, PaymentFlowData, PaymentVoidData,
-        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData,
-        RefundWebhookDetailsResponse, RefundsData, RefundsResponseData, RepeatPaymentData,
-        RequestDetails, ResponseId, ServerSessionAuthenticationTokenRequestData,
-        ServerSessionAuthenticationTokenResponseData, SetupMandateRequestData,
-        WebhookDetailsResponse,
+        ConnectorCustomerData, ConnectorCustomerResponse, ConnectorWebhookSecrets, EventContext,
+        EventType, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse, RefundsData,
+        RefundsResponseData, RepeatPaymentData, RequestDetails, ResponseId,
+        ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
+        SetupMandateRequestData, WebhookDetailsResponse,
     },
     errors::{ConnectorError, IntegrationError, WebhookError},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
@@ -881,7 +880,7 @@ macros::macro_connector_implementation!(
 );
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    ConnectorSpecifications for Authorizedotnet<T>
+    connector_types::ConnectorSpecifications for Authorizedotnet<T>
 {
 }
 

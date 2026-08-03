@@ -514,6 +514,8 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   SplitPaymentsDetails: { "stripeSplitPayment": "StripeSplitPaymentData", "adyenSplitPayment": "AdyenSplitData" },
   PaymentMethodServiceEligibilityRequest: { "amount": "Money", "customer": "Customer", "address": "PaymentAddress", "orderDetails": "OrderDetailsWithAmount" },
   PaymentMethodServiceEligibilityResponse: { "errorInfo": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
+  FeatureMatrixResponse: { "connectors": "FeatureMatrixConnector" },
+  FeatureMatrixConnector: { "supportedPaymentMethods": "FeatureMatrixPaymentMethod" },
   ConnectorSplitResponseData: { "stripeSplitResponse": "StripeSplitResponseData", "adyenSplitResponse": "AdyenSplitData" },
   FrmServicePreRiskCheckRequest: { "amount": "Money", "customerInfo": "Customer", "paymentMethod": "PaymentMethod", "browserInfo": "BrowserInformation", "orderDetails": "OrderDetailsWithAmount", "address": "Address", "state": "ConnectorState", "mandateDetails": "MandateAmountData", "merchantDetails": "MerchantDetails" },
   FrmServicePreRiskCheckResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
@@ -610,6 +612,17 @@ function callGrpc(ffi: GrpcFfi, config: GrpcConfig, method: string, req: any, Re
 }
 
 // ── Sub-clients (one per proto service) ──────────────────────────────────────
+
+// ConnectorCapabilityService
+export class GrpcConnectorCapabilityClient {
+  constructor(private ffi: GrpcFfi, private config: GrpcConfig) {}
+
+  /** ConnectorCapabilityService.GetFeatureMatrix — Returns feature matrix information for the requested connectors. */
+  async getFeatureMatrix(req: unknown): Promise<unknown> {
+    return callGrpc(this.ffi, this.config, "connector_capability/get_feature_matrix",
+      req, types.FeatureMatrixRequest, types.FeatureMatrixResponse);
+  }
+}
 
 // CustomerService
 export class GrpcCustomerClient {
@@ -941,6 +954,7 @@ export class GrpcSurchargeClient {
 // ── Top-level GrpcClient ──────────────────────────────────────────────────────
 
 export class GrpcClient {
+  public connectorCapability: GrpcConnectorCapabilityClient;
   public customer: GrpcCustomerClient;
   public dispute: GrpcDisputeClient;
   public event: GrpcEventClient;
@@ -956,6 +970,7 @@ export class GrpcClient {
 
   constructor(config: GrpcConfig, libPath?: string) {
     const ffi = loadGrpcFfi(libPath);
+    this.connectorCapability = new GrpcConnectorCapabilityClient(ffi, config);
     this.customer = new GrpcCustomerClient(ffi, config);
     this.dispute = new GrpcDisputeClient(ffi, config);
     this.event = new GrpcEventClient(ffi, config);

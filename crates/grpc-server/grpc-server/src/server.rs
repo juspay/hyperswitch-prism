@@ -1,5 +1,6 @@
 pub mod disputes;
 pub mod events;
+pub mod feature_matrix;
 pub mod frm;
 pub mod health_check;
 pub mod payments;

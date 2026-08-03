@@ -14,11 +14,11 @@ use domain_types::{
         Authorize, Capture, MandateRevoke, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void,
     },
     connector_types::{
-        ConnectorSpecifications, ConnectorWebhookSecrets, EventContext, EventType,
-        MandateRevokeRequestData, MandateRevokeResponseData, PaymentFlowData, PaymentVoidData,
-        PaymentWebhookReference, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        RepeatPaymentData, RequestDetails, SetupMandateRequestData, WebhookResourceReference,
+        ConnectorWebhookSecrets, EventContext, EventType, MandateRevokeRequestData,
+        MandateRevokeResponseData, PaymentFlowData, PaymentVoidData, PaymentWebhookReference,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        RequestDetails, SetupMandateRequestData, WebhookResourceReference,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
@@ -777,8 +777,8 @@ macros::macro_connector_implementation!(
     }
 );
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorSpecifications
-    for Noon<T>
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::ConnectorSpecifications for Noon<T>
 {
 }
 

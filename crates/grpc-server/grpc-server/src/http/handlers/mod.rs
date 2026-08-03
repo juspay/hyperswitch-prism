@@ -1,5 +1,6 @@
 pub mod composite;
 pub mod disputes;
+pub mod feature_matrix;
 pub mod health;
 pub mod macros;
 pub mod payments;

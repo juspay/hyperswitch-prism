@@ -8,12 +8,11 @@ use domain_types::{
         RepeatPayment, ServerSessionAuthenticationToken, SetupMandate, Void,
     },
     connector_types::{
-        ClientAuthenticationTokenRequestData, ConnectorSpecifications, PaymentCreateOrderData,
-        PaymentCreateOrderResponse, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
-        SetupMandateRequestData,
+        ClientAuthenticationTokenRequestData, PaymentCreateOrderData, PaymentCreateOrderResponse,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, RepeatPaymentData, ServerSessionAuthenticationTokenRequestData,
+        ServerSessionAuthenticationTokenResponseData, SetupMandateRequestData,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
@@ -619,8 +618,8 @@ macros::macro_connector_implementation!(
     }
 );
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorSpecifications
-    for Nuvei<T>
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::ConnectorSpecifications for Nuvei<T>
 {
 }
 

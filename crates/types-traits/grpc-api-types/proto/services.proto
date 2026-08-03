@@ -44,6 +44,9 @@
 //   │ EventService                         │ Process asynchronous webhook events from payment processors. Receive        │
 //   │                                      │ real-time updates about payment state changes without polling APIs.         │
 //   ├──────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────┤
+//   │ ConnectorCapabilityService           │ Get connector feature matrix data. Compare supported payment methods,       │
+//   │                                      │ webhook flows, integration status, and other connector capabilities.        │
+//   ├──────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────┤
 //   │ PaymentMethodService                 │ Tokenize and retrieve payment methods. Vault sensitive card data to enable  │
 //   │                                      │ one-click payments and recurring billing without PCI exposure.              │
 //   ├──────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────┤
@@ -98,6 +101,15 @@ service EventService {
 
   // Notify connectors about events (payment succeeded, refund succeeded, refund failed).
   rpc NotifyConnector(NotifyConnectorRequest) returns (NotifyConnectorResponse);
+}
+
+// ============================================================================
+// CONNECTOR CAPABILITY SERVICE — Returns connector capability and feature metadata.
+// ============================================================================
+
+service ConnectorCapabilityService {
+  // Returns feature matrix information for the requested connectors.
+  rpc GetFeatureMatrix(FeatureMatrixRequest) returns (FeatureMatrixResponse);
 }
 
 // ============================================================================
@@ -383,4 +395,3 @@ service FraudAndRiskManagementService {
   // and post-transaction signals to refine risk models and detect chargeback fraud.
   rpc PostRiskCheck(FrmServicePostRiskCheckRequest) returns (FrmServicePostRiskCheckResponse);
 }
-

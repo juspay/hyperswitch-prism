@@ -12,10 +12,10 @@ use common_utils::{
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
     connector_types::{
-        ConnectorSpecifications, ConnectorWebhookSecrets, EventType, PaymentFlowData,
-        PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse,
-        RefundsData, RefundsResponseData, RequestDetails, ResponseId, WebhookDetailsResponse,
+        ConnectorWebhookSecrets, EventType, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse, RefundsData,
+        RefundsResponseData, RequestDetails, ResponseId, WebhookDetailsResponse,
     },
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, UpiData},
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
@@ -865,7 +865,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    ConnectorSpecifications for Phonepe<T>
+    connector_types::ConnectorSpecifications for Phonepe<T>
 {
     fn get_supported_payment_methods(
         &self,

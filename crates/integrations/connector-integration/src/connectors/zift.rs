@@ -17,18 +17,17 @@ use domain_types::errors::IntegrationError;
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, Refund, RepeatPayment, SetupMandate, Void},
     connector_types::{
-        ConnectorSpecifications, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundsData,
-        RefundsResponseData, RepeatPaymentData, SetupMandateRequestData,
-        SupportedPaymentMethodsExt,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundsData, RefundsResponseData,
+        RepeatPaymentData, SetupMandateRequestData, SupportedPaymentMethodsExt,
     },
     payment_method_data::{DefaultPCIHolder, PaymentMethodData, PaymentMethodDataTypes},
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::{
-        self, CardSpecificFeatures, ConnectorInfo, Connectors, FeatureStatus, PaymentMethodDetails,
-        PaymentMethodSpecificFeatures, SupportedPaymentMethods,
+        self, CardSpecificFeatures, ConnectorInfo, Connectors, FeatureStatus, IntegrationStatus,
+        PaymentMethodDetails, PaymentMethodSpecificFeatures, SupportedPaymentMethods,
     },
 };
 use error_stack::ResultExt;
@@ -301,6 +300,8 @@ static ZIFT_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
             mandates: FeatureStatus::Supported,
             refunds: FeatureStatus::Supported,
             supported_capture_methods: zift_supported_capture_methods.clone(),
+            supported_countries: Vec::new(),
+            supported_currencies: Vec::new(),
             specific_features: Some(PaymentMethodSpecificFeatures::Card({
                 CardSpecificFeatures {
                     three_ds: FeatureStatus::NotSupported,
@@ -318,11 +319,14 @@ static ZIFT_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Zift",
     description: "Zift connector",
     connector_type: types::PaymentConnectorCategory::PaymentGateway,
+    integration_status: IntegrationStatus::Beta,
 };
 
 static ZIFT_SUPPORTED_WEBHOOK_FLOWS: [common_enums::EventClass; 0] = [];
 
-impl ConnectorSpecifications for Zift<DefaultPCIHolder> {
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::ConnectorSpecifications for Zift<T>
+{
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&ZIFT_CONNECTOR_INFO)
     }

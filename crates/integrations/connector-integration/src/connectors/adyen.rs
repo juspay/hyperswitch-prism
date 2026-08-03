@@ -26,10 +26,10 @@ use domain_types::{
         VoidPC,
     },
     connector_types::{
-        AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorSpecifications,
-        ConnectorWebhookSecrets, DisputeDefendData, DisputeFlowData, DisputeResponseData,
-        DisputeWebhookReference, EventContext, PaymentCreateOrderData, PaymentCreateOrderResponse,
-        PaymentFlowData, PaymentVoidData, PaymentWebhookReference, PaymentsAuthorizeData,
+        AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorWebhookSecrets,
+        DisputeDefendData, DisputeFlowData, DisputeResponseData, DisputeWebhookReference,
+        EventContext, PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData,
+        PaymentVoidData, PaymentWebhookReference, PaymentsAuthorizeData,
         PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundWebhookDetailsResponse,
         RefundWebhookReference, RefundsData, RefundsResponseData, RepeatPaymentData,
@@ -42,7 +42,7 @@ use domain_types::{
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::{
-        self, CardSpecificFeatures, ConnectorInfo, Connectors, FeatureStatus,
+        self, CardSpecificFeatures, ConnectorInfo, Connectors, FeatureStatus, IntegrationStatus,
         PaymentMethodDataType, PaymentMethodDetails, PaymentMethodSpecificFeatures,
         SupportedPaymentMethods,
     },
@@ -1299,6 +1299,8 @@ static ADYEN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
             mandates: FeatureStatus::Supported,
             refunds: FeatureStatus::Supported,
             supported_capture_methods: adyen_supported_capture_methods.clone(),
+            supported_countries: Vec::new(),
+            supported_currencies: Vec::new(),
             specific_features: Some(PaymentMethodSpecificFeatures::Card(CardSpecificFeatures {
                 three_ds: FeatureStatus::Supported,
                 no_three_ds: FeatureStatus::Supported,
@@ -1315,6 +1317,8 @@ static ADYEN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
             mandates: FeatureStatus::Supported,
             refunds: FeatureStatus::Supported,
             supported_capture_methods: adyen_supported_capture_methods.clone(),
+            supported_countries: Vec::new(),
+            supported_currencies: Vec::new(),
             specific_features: None,
         },
     );
@@ -1327,6 +1331,8 @@ static ADYEN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
             mandates: FeatureStatus::Supported,
             refunds: FeatureStatus::Supported,
             supported_capture_methods: adyen_supported_capture_methods.clone(),
+            supported_countries: Vec::new(),
+            supported_currencies: Vec::new(),
             specific_features: None,
         },
     );
@@ -1339,6 +1345,8 @@ static ADYEN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
             mandates: FeatureStatus::Supported,
             refunds: FeatureStatus::Supported,
             supported_capture_methods: adyen_supported_capture_methods.clone(),
+            supported_countries: Vec::new(),
+            supported_currencies: Vec::new(),
             specific_features: None,
         },
     );
@@ -1351,6 +1359,8 @@ static ADYEN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
             mandates: FeatureStatus::NotSupported,
             refunds: FeatureStatus::Supported,
             supported_capture_methods: adyen_supported_capture_methods.clone(),
+            supported_countries: Vec::new(),
+            supported_currencies: Vec::new(),
             specific_features: None,
         },
     );
@@ -1363,6 +1373,8 @@ static ADYEN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
             mandates: FeatureStatus::NotSupported,
             refunds: FeatureStatus::Supported,
             supported_capture_methods: adyen_supported_capture_methods.clone(),
+            supported_countries: Vec::new(),
+            supported_currencies: Vec::new(),
             specific_features: None,
         },
     );
@@ -1375,6 +1387,8 @@ static ADYEN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
             mandates: FeatureStatus::NotSupported,
             refunds: FeatureStatus::Supported,
             supported_capture_methods: adyen_supported_capture_methods.clone(),
+            supported_countries: Vec::new(),
+            supported_currencies: Vec::new(),
             specific_features: None,
         },
     );
@@ -1387,6 +1401,8 @@ static ADYEN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
             mandates: FeatureStatus::NotSupported,
             refunds: FeatureStatus::Supported,
             supported_capture_methods: adyen_supported_capture_methods.clone(),
+            supported_countries: Vec::new(),
+            supported_currencies: Vec::new(),
             specific_features: None,
         },
     );
@@ -1395,14 +1411,17 @@ static ADYEN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
 });
 
 static ADYEN_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-    display_name: "Adyen", 
+    display_name: "Adyen",
     description: "Adyen is a Dutch payment company with the status of an acquiring bank that allows businesses to accept e-commerce, mobile, and point-of-sale payments. It is listed on the stock exchange Euronext Amsterdam.",
-    connector_type: types::PaymentConnectorCategory::PaymentGateway
+    connector_type: types::PaymentConnectorCategory::PaymentGateway,
+    integration_status: IntegrationStatus::Sandbox,
 };
 
 static ADYEN_SUPPORTED_WEBHOOK_FLOWS: &[EventClass] = &[EventClass::Payments, EventClass::Refunds];
 
-impl ConnectorSpecifications for Adyen<DefaultPCIHolder> {
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::ConnectorSpecifications for Adyen<T>
+{
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&ADYEN_CONNECTOR_INFO)
     }

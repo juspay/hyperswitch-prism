@@ -9,6 +9,10 @@ pub fn create_router(state: AppState) -> Router {
     Router::new()
         .route("/health", get(handlers::health::health))
         .route(
+            "/feature_matrix",
+            get(handlers::feature_matrix::feature_matrix),
+        )
+        .route(
             "/composite/payments/authorize",
             post(handlers::composite::payments::authorize),
         )

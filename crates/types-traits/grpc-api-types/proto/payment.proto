@@ -853,12 +853,12 @@ enum PaymentMethodType {
   CARD_REDIRECT = 21;
   CIMB_VA = 22;
   CLASSIC_REWARD = 23;
-  CREDIT = 24;
+  CREDIT = 24 [deprecated = true]; // Use CARD instead (will be removed in a future release)
   CRYPTO_CURRENCY = 25;
   CASHAPP = 26;
   DANA = 27;
   DANAMON_VA = 28;
-  DEBIT = 29;
+  DEBIT = 29 [deprecated = true]; // Use CARD instead (will be removed in a future release)
   DUIT_NOW = 30;
   EFECTY = 31;
   EFT = 32;
@@ -944,6 +944,14 @@ enum PaymentMethodType {
   OPEN_BANKING = 112;
   QWIKCILVER_WALLET = 113;
   SKRILL = 114;
+  CARD = 115;
+  BLUECODE = 116;
+  KLARNA_PAY_LATER = 117;
+  TAMARA_PAY_LATER = 118;
+  MIFINITY_WALLET = 119;
+  SEPA_GUARANTEED_DEBIT = 120;
+  INDONESIAN_BANK_TRANSFER = 121;
+  PAYSERA = 122;
 }
 
 // Product type enumeration
@@ -6054,6 +6062,65 @@ message PaymentMethodServiceEligibilityResponse {
 
   // Response headers from the connector.
   map<string, string> response_headers = 6;
+}
+
+// ============================================================================
+// CONNECTOR FEATURE MATRIX — Connector capability and feature metadata.
+// ============================================================================
+
+message FeatureMatrixRequest {
+  repeated Connector connectors = 1;
+}
+
+message FeatureMatrixResponse {
+  // Number of connector entries returned in this response.
+  uint32 connector_count = 1;
+  repeated FeatureMatrixConnector connectors = 2;
+}
+
+enum EventClass {
+  EVENT_CLASS_UNSPECIFIED = 0;
+  PAYMENTS = 1;
+  REFUNDS = 2;
+  DISPUTES = 3;
+}
+
+message FeatureMatrixConnector {
+  enum IntegrationStatus {
+    UNSPECIFIED = 0;
+    LIVE = 1;
+    SANDBOX = 2;
+    BETA = 3;
+    ALPHA = 4;
+  }
+
+  Connector connector_name = 1;
+  string display_name = 2;
+  string description = 3;
+  string base_url = 4;
+  string category = 5;
+  IntegrationStatus integration_status = 6;
+  repeated FeatureMatrixPaymentMethod supported_payment_methods = 7;
+  repeated EventClass supported_webhook_flows = 8;
+}
+
+message FeatureMatrixPaymentMethod {
+  PaymentMethodType payment_method_type = 1;
+  string payment_method_type_display_name = 2;
+  FeatureStatus mandates = 3;
+  FeatureStatus refunds = 4;
+  repeated CaptureMethod supported_capture_methods = 5;
+  optional FeatureStatus three_ds = 6;
+  optional FeatureStatus no_three_ds = 7;
+  repeated CardNetwork supported_card_networks = 8;
+  repeated CountryAlpha2 supported_countries = 9;
+  repeated Currency supported_currencies = 10;
+}
+
+enum FeatureStatus {
+  FEATURE_STATUS_UNSPECIFIED = 0;
+  NOT_SUPPORTED = 1;
+  SUPPORTED = 2;
 }
 
 // ============================================================================

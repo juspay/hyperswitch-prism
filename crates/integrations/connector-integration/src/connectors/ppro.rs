@@ -12,19 +12,19 @@ use common_utils::{
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void},
     connector_types::{
-        ConnectorSpecifications, ConnectorWebhookSecrets, EventContext, EventType, PaymentFlowData,
-        PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
-        PaymentsSyncData, RedirectDetailsResponse, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, RepeatPaymentData, RequestDetails, ResponseId,
-        SetupMandateRequestData, SupportedPaymentMethodsExt, WebhookDetailsResponse,
+        ConnectorWebhookSecrets, EventContext, EventType, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
+        RedirectDetailsResponse, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        RepeatPaymentData, RequestDetails, ResponseId, SetupMandateRequestData,
+        SupportedPaymentMethodsExt, WebhookDetailsResponse,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::{
-        ConnectorInfo, FeatureStatus, PaymentConnectorCategory, PaymentMethodDetails,
-        SupportedPaymentMethods,
+        ConnectorInfo, FeatureStatus, IntegrationStatus, PaymentConnectorCategory,
+        PaymentMethodDetails, SupportedPaymentMethods,
     },
 };
 use error_stack::ResultExt;
@@ -446,6 +446,7 @@ static PPRO_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Ppro",
     description: "Ppro is a global provider of local payment infrastructure.",
     connector_type: PaymentConnectorCategory::PaymentGateway,
+    integration_status: IntegrationStatus::Beta,
 };
 
 static PPRO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
@@ -460,6 +461,8 @@ static PPRO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
             mandates: FeatureStatus::NotSupported,
             refunds: FeatureStatus::Supported,
             supported_capture_methods: ppro_bridge_supported_capture_methods.clone(),
+            supported_countries: Vec::new(),
+            supported_currencies: Vec::new(),
             specific_features: None,
         },
     );
@@ -470,6 +473,8 @@ static PPRO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
             mandates: FeatureStatus::NotSupported,
             refunds: FeatureStatus::Supported,
             supported_capture_methods: ppro_bridge_supported_capture_methods.clone(),
+            supported_countries: Vec::new(),
+            supported_currencies: Vec::new(),
             specific_features: None,
         },
     );
@@ -481,6 +486,8 @@ static PPRO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
             mandates: FeatureStatus::NotSupported,
             refunds: FeatureStatus::Supported,
             supported_capture_methods: ppro_bridge_supported_capture_methods.clone(),
+            supported_countries: Vec::new(),
+            supported_currencies: Vec::new(),
             specific_features: None,
         },
     );
@@ -492,6 +499,8 @@ static PPRO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
             mandates: FeatureStatus::NotSupported,
             refunds: FeatureStatus::Supported,
             supported_capture_methods: ppro_bridge_supported_capture_methods.clone(),
+            supported_countries: Vec::new(),
+            supported_currencies: Vec::new(),
             specific_features: None,
         },
     );
@@ -503,6 +512,8 @@ static PPRO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
             mandates: FeatureStatus::NotSupported,
             refunds: FeatureStatus::Supported,
             supported_capture_methods: ppro_bridge_supported_capture_methods.clone(),
+            supported_countries: Vec::new(),
+            supported_currencies: Vec::new(),
             specific_features: None,
         },
     );
@@ -514,6 +525,8 @@ static PPRO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
             mandates: FeatureStatus::NotSupported,
             refunds: FeatureStatus::Supported,
             supported_capture_methods: ppro_bridge_supported_capture_methods.clone(),
+            supported_countries: Vec::new(),
+            supported_currencies: Vec::new(),
             specific_features: None,
         },
     );
@@ -525,6 +538,8 @@ static PPRO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
             mandates: FeatureStatus::NotSupported,
             refunds: FeatureStatus::Supported,
             supported_capture_methods: ppro_bridge_supported_capture_methods.clone(),
+            supported_countries: Vec::new(),
+            supported_currencies: Vec::new(),
             specific_features: None,
         },
     );
@@ -556,6 +571,8 @@ static PPRO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
                 mandates: mandate_support,
                 refunds: FeatureStatus::Supported,
                 supported_capture_methods: ppro_bridge_supported_capture_methods.clone(),
+                supported_countries: Vec::new(),
+                supported_currencies: Vec::new(),
                 specific_features: None,
             },
         );
@@ -568,6 +585,8 @@ static PPRO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
             mandates: FeatureStatus::NotSupported,
             refunds: FeatureStatus::Supported,
             supported_capture_methods: ppro_bridge_supported_capture_methods.clone(),
+            supported_countries: Vec::new(),
+            supported_currencies: Vec::new(),
             specific_features: None,
         },
     );
@@ -580,8 +599,8 @@ static PPRO_SUPPORTED_WEBHOOK_FLOWS: &[common_enums::EventClass] = &[
     common_enums::EventClass::Refunds,
 ];
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorSpecifications
-    for Ppro<T>
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::ConnectorSpecifications for Ppro<T>
 {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&PPRO_CONNECTOR_INFO)

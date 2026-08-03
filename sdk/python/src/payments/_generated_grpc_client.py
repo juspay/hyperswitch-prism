@@ -101,6 +101,21 @@ def _call_grpc(ffi: _GrpcFfi, config: GrpcConfig, method: str, req, res_cls):
 
 # ── Sub-clients (one per proto service) ──────────────────────────────────────
 
+class GrpcConnectorCapabilityClient:
+    """ConnectorCapabilityService — gRPC sub-client."""
+
+    def __init__(self, ffi: _GrpcFfi, config: GrpcConfig) -> None:
+        self._ffi    = ffi
+        self._config = config
+
+    def get_feature_matrix(self, req: payment_pb2.FeatureMatrixRequest) -> payment_pb2.FeatureMatrixResponse:
+        """ConnectorCapabilityService.GetFeatureMatrix — Returns feature matrix information for the requested connectors."""
+        return _call_grpc(
+            self._ffi, self._config,
+            "connector_capability/get_feature_matrix",
+            req, payment_pb2.FeatureMatrixResponse,
+        )
+
 class GrpcCustomerClient:
     """CustomerService — gRPC sub-client."""
 
@@ -570,12 +585,13 @@ class GrpcClient:
             connector = "stripe",
             connector_config = {"config": {"Stripe": {"api_key": "sk_test_..."}}},
         ))
+        res = client.connector_capability.get_feature_matrix(...)
         res = client.customer.customer_create(...)
         res = client.dispute.submit_evidence(...)
         res = client.event.parse_event(...)
-        res = client.fraud_and_risk_management.pre_risk_check(...)
     """
 
+    connector_capability: GrpcConnectorCapabilityClient
     customer: GrpcCustomerClient
     dispute: GrpcDisputeClient
     event: GrpcEventClient
@@ -591,6 +607,7 @@ class GrpcClient:
 
     def __init__(self, config: GrpcConfig, lib_path: Optional[str] = None) -> None:
         ffi = _GrpcFfi(lib_path)
+        self.connector_capability = GrpcConnectorCapabilityClient(ffi, config)
         self.customer = GrpcCustomerClient(ffi, config)
         self.dispute = GrpcDisputeClient(ffi, config)
         self.event = GrpcEventClient(ffi, config)

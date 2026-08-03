@@ -5,6 +5,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use grpc_api_types::payments::{
     // tonic-generated client stubs (one module per service)
+    connector_capability_service_client::ConnectorCapabilityServiceClient,
     customer_service_client::CustomerServiceClient,
     dispute_service_client::DisputeServiceClient,
     event_service_client::EventServiceClient,
@@ -34,6 +35,8 @@ use grpc_api_types::payments::{
     EventServiceHandleResponse,
     EventServiceParseRequest,
     EventServiceParseResponse,
+    FeatureMatrixRequest,
+    FeatureMatrixResponse,
     FrmServicePostRiskCheckRequest,
     FrmServicePostRiskCheckResponse,
     FrmServicePreRiskCheckRequest,
@@ -168,6 +171,18 @@ macro_rules! impl_grpc_client {
 }
 
 // ── Sub-clients (one per proto service) ──────────────────────────────────────
+
+// ConnectorCapabilityService
+impl_grpc_client!(
+    GrpcConnectorCapabilityClient,
+    ConnectorCapabilityServiceClient,
+    (
+        get_feature_matrix,
+        get_feature_matrix,
+        FeatureMatrixRequest,
+        FeatureMatrixResponse
+    ),
+);
 
 // CustomerService
 impl_grpc_client!(
@@ -549,13 +564,14 @@ impl_grpc_client!(
 ///     connector_config: build_connector_config("Stripe", ConnectorSpecificConfig::new("sk_test_...")),
 /// }).await?;
 ///
+/// let _ = client.connector_capability.get_feature_matrix(Default::default()).await;
 /// let _ = client.customer.customer_create(Default::default()).await;
 /// let _ = client.dispute.submit_evidence(Default::default()).await;
 /// let _ = client.event.parse_event(Default::default()).await;
-/// let _ = client.fraud_and_risk_management.pre_risk_check(Default::default()).await;
 /// # Ok(()) }
 /// ```
 pub struct GrpcClient {
+    pub connector_capability: GrpcConnectorCapabilityClient,
     pub customer: GrpcCustomerClient,
     pub dispute: GrpcDisputeClient,
     pub event: GrpcEventClient,
@@ -586,6 +602,10 @@ impl GrpcClient {
             .await?;
 
         Ok(Self {
+            connector_capability: GrpcConnectorCapabilityClient::new(
+                channel.clone(),
+                Arc::clone(&headers),
+            ),
             customer: GrpcCustomerClient::new(channel.clone(), Arc::clone(&headers)),
             dispute: GrpcDisputeClient::new(channel.clone(), Arc::clone(&headers)),
             event: GrpcEventClient::new(channel.clone(), Arc::clone(&headers)),

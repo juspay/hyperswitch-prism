@@ -16,7 +16,7 @@ use common_utils::{errors::CustomResult, events, ext_traits::BytesExt};
 use domain_types::{
     connector_flow::{Authenticate, Authorize, PostAuthenticate, PreAuthenticate},
     connector_types::{
-        ConnectorSpecifications, PaymentFlowData, PaymentsAuthenticateData, PaymentsAuthorizeData,
+        PaymentFlowData, PaymentsAuthenticateData, PaymentsAuthorizeData,
         PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsResponseData,
     },
     errors::{ConnectorError, IntegrationError},
@@ -183,11 +183,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Sour
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> BodyDecoding
-    for Netcetera<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorSpecifications
     for Netcetera<T>
 {
 }
