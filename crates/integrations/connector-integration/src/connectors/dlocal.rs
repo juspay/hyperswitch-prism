@@ -6,7 +6,7 @@ use common_utils::{
     errors::CustomResult,
     events,
     ext_traits::ByteSliceExt,
-    types::FloatMajorUnit,
+    types::{FloatMajorUnit, MinorUnit},
 };
 use domain_types::router_data::ConnectorSpecificConfig;
 use domain_types::{
@@ -25,7 +25,7 @@ use domain_types::{
     types::Connectors,
 };
 use error_stack::{report, ResultExt};
-use hyperswitch_masking::{ExposeInterface, Mask, Maskable, PeekInterface};
+use hyperswitch_masking::{Mask, Maskable, PeekInterface};
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
     decode::BodyDecoding, verification::SourceVerification,
@@ -160,7 +160,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 
     fn sample_webhook_body(&self) -> &'static [u8] {
-        br#"{"id":"F-probe-001","status":"PAID","status_code":"200","order_id":"probe_order_001","payment_method_id":"RG","payment_method_type":"WALLET","payment_method_flow":"REDIRECT"}"#
+        br#"{"id":"E-probe-001","external_id":"probe_order_001","status":"ACTIVE","status_code":"200","payment_method_id":"RG","payment_method_type":"WALLET","payment_method_flow":"REDIRECT"}"#
     }
 
     fn get_event_type(
@@ -186,14 +186,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentWebhookReference {
                 // dLocal payment `id` is the connector transaction id.
                 connector_transaction_id: Some(body.id),
-                // `order_id` is the merchant-assigned reference echoed back.
-                merchant_transaction_id: body.order_id,
+                // `order_id` is used for payment objects; `external_id` is used
+                // for enrollment objects.
+                merchant_transaction_id: body.order_id.or(body.external_id),
             },
         )))
     }
 
-    /// Returns the parsed dLocal Payment object so HS can persist the raw resource
-    /// (including `wallet.token` for mandate flows) alongside the typed event.
     fn get_webhook_resource_object(
         &self,
         request: RequestDetails,
@@ -206,9 +205,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(Box::new(body))
     }
 
-    /// Builds the PSync-shaped status response from the IPN. The wallet token
-    /// (when present) is surfaced as `mandate_reference.connector_mandate_id` so
-    /// HS can persist the connector mandate id for recurring wallet flows.
     fn process_payment_webhook(
         &self,
         request: RequestDetails,
@@ -221,37 +217,45 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .parse_struct("DlocalWebhookBody")
             .change_context(WebhookError::WebhookResourceObjectNotFound)?;
 
-        let status = common_enums::AttemptStatus::from(body.status.clone());
-
+        let is_enrollment_webhook = body.is_enrollment_webhook();
+        let status = if is_enrollment_webhook && matches!(&body.status, DlocalPaymentStatus::Active)
+        {
+            common_enums::AttemptStatus::Charged
+        } else {
+            common_enums::AttemptStatus::from(body.status.clone())
+        };
         // Only surface error details for genuine failures. dLocal sends
         // `status_code`/`status_detail` on success too (PAID -> "200" / "The payment
         // was paid."); copying those into error_* makes HS treat a CHARGED webhook as
         // an errored response (UE_9000) and skip persisting the connector mandate id.
         let is_failure = matches!(
-            body.status,
+            &body.status,
             DlocalPaymentStatus::Rejected | DlocalPaymentStatus::Cancelled
         );
 
-        // dLocal delivers the reusable wallet token only via the IPN (never in the
-        // synchronous authorize/CIT response). Surface it as the connector mandate
-        // id so HS can persist the mandate.
-        let mandate_reference = body
-            .wallet
-            .as_ref()
-            .and_then(|w| w.token.clone())
-            .map(|token| {
-                Box::new(MandateReference {
-                    connector_mandate_id: Some(token.expose()),
-                    payment_method_id: None,
-                    connector_mandate_request_reference_id: None,
-                    mandate_metadata: None,
-                })
-            });
+        let connector_mandate_id =
+            if is_enrollment_webhook && matches!(&body.status, DlocalPaymentStatus::Active) {
+                Some(body.id.clone())
+            } else {
+                body.enrollment_id_from_successful_payment()
+            };
+
+        let mandate_reference = connector_mandate_id.map(|enrollment_id| {
+            Box::new(MandateReference {
+                connector_mandate_id: Some(enrollment_id),
+                payment_method_id: None,
+                connector_mandate_request_reference_id: None,
+                mandate_metadata: None,
+            })
+        });
 
         Ok(WebhookDetailsResponse {
             resource_id: Some(ResponseId::ConnectorTransactionId(body.id.clone())),
             status,
-            connector_response_reference_id: body.order_id.clone(),
+            connector_response_reference_id: body
+                .order_id
+                .clone()
+                .or_else(|| body.external_id.clone()),
             mandate_reference,
             error_code: is_failure
                 .then(|| body.status_code.as_ref().map(ToString::to_string))
@@ -528,14 +532,25 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            Ok(format!(
-                "{}payments/{}/status",
-                self.connector_base_url_payments(req),
-                req.request
+            let connector_transaction_id = req
+                .request
                 .connector_transaction_id
                 .get_connector_transaction_id()
-                .change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })?,
-            ))
+                .change_context(IntegrationError::MissingConnectorTransactionID {
+                    context: Default::default(),
+                })?;
+
+            if req.request.amount == MinorUnit::new(0) {
+                Ok(format!(
+                    "{}enrollments/{connector_transaction_id}",
+                    self.connector_base_url_payments(req),
+                ))
+            } else {
+                Ok(format!(
+                    "{}payments/{connector_transaction_id}/status",
+                    self.connector_base_url_payments(req),
+                ))
+            }
         }
     }
 );
@@ -715,8 +730,10 @@ macros::macro_connector_implementation!(
                 // the card authorize flow with `card.save: true` and a minimal verify
                 // amount (dLocal rejects amounts <= 1.00 with code 5016 "Amount too low").
                 PaymentMethodData::Card(_) => Ok(format!("{base_url}secure_payments")),
-                // Redirect-flow APMs (e.g. GCash Recurring "RG" enrollment) use the
-                // standard /payments endpoint.
+                // GCash recurring setup uses the dLocal Enrollment API directly.
+                PaymentMethodData::Wallet(_) => {
+                    Ok(format!("{base_url}enrollments"))
+                }
                 _ => Ok(format!("{base_url}payments")),
             }
         }
