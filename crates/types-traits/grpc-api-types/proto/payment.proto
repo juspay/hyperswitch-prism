@@ -62,8 +62,8 @@ message Money {
 
 // Quote details associated with a currency conversion decision.
 message CurrencyConversionQuote {
-  // Actual amount for the transaction, expressed in the cardholder currency.
-  Money actual_amount = 1;
+  // Order amount for the transaction, expressed in the merchant's currency.
+  Money merchant_order_amount = 1;
 
   // Exchange rate applied for the conversion, represented exactly as provided
   // exchange rate between source and destination currency

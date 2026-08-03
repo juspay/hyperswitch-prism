@@ -3836,8 +3836,8 @@ impl ForeignTryFrom<grpc_payment_types::CurrencyConversionQuote>
         value: grpc_payment_types::CurrencyConversionQuote,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         Ok(Self {
-            actual_amount: value
-                .actual_amount
+            merchant_order_amount: value
+                .merchant_order_amount
                 .map(common_utils::types::Money::foreign_try_from)
                 .transpose()?,
             exchange_rate: value.exchange_rate,

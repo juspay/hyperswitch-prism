@@ -363,7 +363,7 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   PazeWallet: { "decryptedData": "PazeDecryptedData" },
   PazeConsumer: { "mobileNumber": "PazePhoneNumber" },
   PazeDecryptedData: { "token": "PazeToken", "dynamicData": "PazeDynamicData", "billingAddress": "PazeAddress", "consumer": "PazeConsumer" },
-  CurrencyConversionQuote: { "actualAmount": "Money", "markupAmount": "Money" },
+  CurrencyConversionQuote: { "merchantOrderAmount": "Money", "markupAmount": "Money" },
   CurrencyConversionData: { "quote": "CurrencyConversionQuote" },
   ErrorInfo: { "unifiedDetails": "UnifiedErrorDetails", "issuerDetails": "IssuerErrorDetails", "connectorDetails": "ConnectorErrorDetails" },
   IssuerErrorDetails: { "networkDetails": "NetworkErrorDetails" },

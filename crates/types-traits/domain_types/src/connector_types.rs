@@ -4326,7 +4326,7 @@ pub enum CurrencyConversionType {
 /// Connector-agnostic details of a currency conversion quote.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct CurrencyConversionQuote {
-    pub actual_amount: Option<Money>,
+    pub merchant_order_amount: Option<Money>,
     pub exchange_rate: Option<String>,
     pub connector_quote_id: Option<String>,
     pub exchange_rate_id: Option<String>,
