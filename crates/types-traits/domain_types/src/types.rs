@@ -3777,15 +3777,17 @@ impl ForeignTryFrom<grpc_payment_types::PartnerMerchantIdentifierDetails>
     }
 }
 
-impl ForeignTryFrom<i32> for connector_types::DccDecision {
+impl ForeignTryFrom<grpc_payment_types::DccDecision> for connector_types::DccDecision {
     type Error = IntegrationError;
 
-    fn foreign_try_from(value: i32) -> Result<Self, error_stack::Report<Self::Error>> {
-        match grpc_payment_types::DccDecision::try_from(value) {
-            Ok(grpc_payment_types::DccDecision::Accepted) => Ok(Self::Accepted),
-            Ok(grpc_payment_types::DccDecision::Declined) => Ok(Self::Declined),
-            Ok(grpc_payment_types::DccDecision::NotApplicable) => Ok(Self::NotApplicable),
-            Ok(grpc_payment_types::DccDecision::Unspecified) => {
+    fn foreign_try_from(
+        value: grpc_payment_types::DccDecision,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        match value {
+            grpc_payment_types::DccDecision::Accepted => Ok(Self::Accepted),
+            grpc_payment_types::DccDecision::Declined => Ok(Self::Declined),
+            grpc_payment_types::DccDecision::NotApplicable => Ok(Self::NotApplicable),
+            grpc_payment_types::DccDecision::Unspecified => {
                 Err(report!(IntegrationError::InvalidDataFormat {
                     field_name: "dynamic_currency_conversion_data.decision",
                     context: IntegrationErrorContext {
@@ -3794,26 +3796,23 @@ impl ForeignTryFrom<i32> for connector_types::DccDecision {
                     },
                 }))
             }
-            Err(_) => Err(report!(IntegrationError::InvalidDataFormat {
-                field_name: "dynamic_currency_conversion_data.decision",
-                context: IntegrationErrorContext {
-                    additional_context: Some(format!("Unknown DCC decision discriminant: {value}")),
-                    ..Default::default()
-                },
-            })),
         }
     }
 }
 
-impl ForeignTryFrom<i32> for connector_types::CurrencyConversionType {
+impl ForeignTryFrom<grpc_payment_types::CurrencyConversionType>
+    for connector_types::CurrencyConversionType
+{
     type Error = IntegrationError;
 
-    fn foreign_try_from(value: i32) -> Result<Self, error_stack::Report<Self::Error>> {
-        match grpc_payment_types::CurrencyConversionType::try_from(value) {
-            Ok(grpc_payment_types::CurrencyConversionType::Dcc) => Ok(Self::Dcc),
-            Ok(grpc_payment_types::CurrencyConversionType::Mcp) => Ok(Self::Mcp),
-            Ok(grpc_payment_types::CurrencyConversionType::Mcc) => Ok(Self::Mcc),
-            Ok(grpc_payment_types::CurrencyConversionType::Unspecified) => {
+    fn foreign_try_from(
+        value: grpc_payment_types::CurrencyConversionType,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        match value {
+            grpc_payment_types::CurrencyConversionType::Dcc => Ok(Self::Dcc),
+            grpc_payment_types::CurrencyConversionType::Mcp => Ok(Self::Mcp),
+            grpc_payment_types::CurrencyConversionType::Mcc => Ok(Self::Mcc),
+            grpc_payment_types::CurrencyConversionType::Unspecified => {
                 Err(report!(IntegrationError::InvalidDataFormat {
                     field_name: "dynamic_currency_conversion_data.quote.currency_conversion_type",
                     context: IntegrationErrorContext {
@@ -3824,15 +3823,6 @@ impl ForeignTryFrom<i32> for connector_types::CurrencyConversionType {
                     },
                 }))
             }
-            Err(_) => Err(report!(IntegrationError::InvalidDataFormat {
-                field_name: "dynamic_currency_conversion_data.quote.currency_conversion_type",
-                context: IntegrationErrorContext {
-                    additional_context: Some(format!(
-                        "Unknown currency conversion type discriminant: {value}"
-                    )),
-                    ..Default::default()
-                },
-            })),
         }
     }
 }
@@ -3860,7 +3850,22 @@ impl ForeignTryFrom<grpc_payment_types::DccQuote> for connector_types::DccQuote 
                 .transpose()?,
             currency_conversion_type: value
                 .currency_conversion_type
-                .map(connector_types::CurrencyConversionType::foreign_try_from)
+                .map(|currency_conversion_type| {
+                    grpc_payment_types::CurrencyConversionType::try_from(currency_conversion_type)
+                        .map_err(|_| {
+                            report!(IntegrationError::InvalidDataFormat {
+                                field_name:
+                                    "dynamic_currency_conversion_data.quote.currency_conversion_type",
+                                context: IntegrationErrorContext {
+                                    additional_context: Some(format!(
+                                        "Unknown currency conversion type discriminant: {currency_conversion_type}"
+                                    )),
+                                    ..Default::default()
+                                },
+                            })
+                        })
+                        .and_then(connector_types::CurrencyConversionType::foreign_try_from)
+                })
                 .transpose()?,
             quoted_at: value.quoted_at,
             expires_at: value.expires_at,
@@ -3876,8 +3881,21 @@ impl ForeignTryFrom<grpc_payment_types::DynamicCurrencyConversionData>
     fn foreign_try_from(
         value: grpc_payment_types::DynamicCurrencyConversionData,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let decision = grpc_payment_types::DccDecision::try_from(value.decision).map_err(|_| {
+            report!(IntegrationError::InvalidDataFormat {
+                field_name: "dynamic_currency_conversion_data.decision",
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "Unknown DCC decision discriminant: {}",
+                        value.decision
+                    )),
+                    ..Default::default()
+                },
+            })
+        })?;
+
         Ok(Self {
-            decision: connector_types::DccDecision::foreign_try_from(value.decision)?,
+            decision: connector_types::DccDecision::foreign_try_from(decision)?,
             quote: value
                 .quote
                 .map(connector_types::DccQuote::foreign_try_from)
