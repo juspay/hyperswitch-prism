@@ -19,6 +19,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.08.03.1
+
+### Features
+
+- **connector:**
+  - [dLocal] Update Recurring payments Flow ([#1880](https://github.com/juspay/connector-service/pull/1880)) ([`276fb8d`](https://github.com/juspay/connector-service/commit/276fb8de5ca2b2e0d36d6768961555e6493a66c1))
+  - Deutschebank payouts ([#1481](https://github.com/juspay/connector-service/pull/1481)) ([`09a01d2`](https://github.com/juspay/connector-service/commit/09a01d203cc92caf3dffa3e8e3ad78bb61799822))
+
+### Refactors
+
+- **config:** [tsys_transit] update production url ([#2049](https://github.com/juspay/connector-service/pull/2049)) ([`03424c4`](https://github.com/juspay/connector-service/commit/03424c4a8fc644b8011a8c88b967820ba9fd6114))
+
+### Miscellaneous Tasks
+
+- Add backward compatibility comments on merchant_*_id fields ([#2048](https://github.com/juspay/connector-service/pull/2048)) ([`e5bc3db`](https://github.com/juspay/connector-service/commit/e5bc3dbc0a7fa1bbe8254be86ff0dd32f8ddcb99))
+
+**Full Changelog:** [`2026.08.03.0...2026.08.03.1`](https://github.com/juspay/connector-service/compare/2026.08.03.0...2026.08.03.1)
+
+- - -
+
 ## 2026.08.03.0
 
 ### Features
