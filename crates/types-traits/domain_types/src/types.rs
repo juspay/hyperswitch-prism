@@ -8771,7 +8771,7 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
                     .unwrap_or_default(),
             ),
             connector_reference_id: value.connector_response_reference_id,
-            merchant_transaction_id: None,
+            merchant_transaction_id: value.connector_request_reference_id,
             status: status as i32,
             mandate_reference: mandate_reference_grpc,
             mandate_reference_details,

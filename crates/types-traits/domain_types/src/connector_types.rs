@@ -2657,6 +2657,7 @@ pub struct WebhookDetailsResponse {
     pub resource_id: Option<ResponseId>,
     pub status: AttemptStatus,
     pub connector_response_reference_id: Option<String>,
+    pub connector_request_reference_id: Option<String>,
     pub mandate_reference: Option<Box<MandateReference>>,
     pub error_code: Option<String>,
     pub error_message: Option<String>,

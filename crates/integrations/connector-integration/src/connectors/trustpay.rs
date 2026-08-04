@@ -233,6 +233,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             connector_response_reference_id: webhook_response
                 .payment_information
                 .references
+                .payment_request_id
+                .clone(),
+            connector_request_reference_id: webhook_response
+                .payment_information
+                .references
                 .payment_request_id,
             mandate_reference: None,
             error_code,
