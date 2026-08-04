@@ -1796,6 +1796,8 @@ pub enum StatCode {
     Failure,
     #[serde(rename = "22")]
     Pending,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Serialize, Deserialize, Display, Clone, Copy, PartialEq)]
@@ -1817,7 +1819,7 @@ pub enum StatName {
     ReqChargeback,
     #[serde(rename = "Pending")]
     Pending,
-    #[serde(rename = "Unknown")]
+    #[serde(other)]
     Unknown,
 }
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -2079,6 +2081,7 @@ impl TryFrom<FiuuWebhookStatus> for common_enums::AttemptStatus {
             },
             FiuuPaymentWebhookStatus::Failure => Ok(Self::Failure),
             FiuuPaymentWebhookStatus::Pending => Ok(Self::AuthenticationPending),
+            FiuuPaymentWebhookStatus::Unknown => Ok(Self::Unknown),
         }
     }
 }
@@ -2119,6 +2122,7 @@ impl TryFrom<FiuuSyncStatus> for common_enums::AttemptStatus {
                 Ok(Self::Voided)
             }
             (StatCode::Failure, _) => Ok(Self::Failure),
+            (StatCode::Unknown, _) => Ok(Self::Unknown),
             (other, _) => Err(error_stack::Report::from(
                 ConnectorError::unexpected_response_error_http_status_unknown(),
             )
@@ -2468,6 +2472,8 @@ pub enum RefundStatus {
     Pending,
     Rejected,
     Processing,
+    #[serde(other)]
+    Unknown,
 }
 
 impl<F> TryFrom<ResponseRouterData<FiuuRefundSyncResponse, Self>>
@@ -2545,6 +2551,7 @@ impl From<RefundStatus> for common_enums::RefundStatus {
             RefundStatus::Success => Self::Success,
             RefundStatus::Rejected => Self::Failure,
             RefundStatus::Processing => Self::Pending,
+            RefundStatus::Unknown => Self::Unknown,
         }
     }
 }
@@ -2592,13 +2599,13 @@ pub struct FiuuWebhooksPaymentResponse {
     pub order_id: String,
     #[serde(rename = "tranID")]
     pub tran_id: String,
-    pub nbcb: String,
+    pub nbcb: Option<String>,
     pub amount: StringMajorUnit,
     pub currency: String,
     pub domain: Secret<String>,
     pub appcode: Option<Secret<String>>,
     pub paydate: String,
-    pub channel: String,
+    pub channel: Option<String>,
     pub error_desc: Option<String>,
     pub error_code: Option<String>,
     #[serde(rename = "extraP")]
@@ -2644,6 +2651,8 @@ pub enum FiuuRefundsWebhookStatus {
     #[strum(serialize = "22")]
     #[serde(rename = "22")]
     RefundPending,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, strum::Display)]
@@ -2677,6 +2686,8 @@ pub enum FiuuPaymentWebhookStatus {
     #[strum(serialize = "22")]
     #[serde(rename = "22")]
     Pending,
+    #[serde(other)]
+    Unknown,
 }
 
 impl From<FiuuPaymentWebhookStatus> for StatCode {
@@ -2685,6 +2696,7 @@ impl From<FiuuPaymentWebhookStatus> for StatCode {
             FiuuPaymentWebhookStatus::Success => Self::Success,
             FiuuPaymentWebhookStatus::Failure => Self::Failure,
             FiuuPaymentWebhookStatus::Pending => Self::Pending,
+            FiuuPaymentWebhookStatus::Unknown => Self::Unknown,
         }
     }
 }
@@ -2695,6 +2707,12 @@ impl From<FiuuPaymentWebhookStatus> for interfaces::webhooks::IncomingWebhookEve
             FiuuPaymentWebhookStatus::Success => Self::PaymentIntentSuccess,
             FiuuPaymentWebhookStatus::Failure => Self::PaymentIntentFailure,
             FiuuPaymentWebhookStatus::Pending => Self::PaymentIntentProcessing,
+            FiuuPaymentWebhookStatus::Unknown => {
+                tracing::warn!(
+                    "Unknown fiuu payment webhook status received; acknowledging without processing"
+                );
+                Self::EventNotSupported
+            }
         }
     }
 }
@@ -2705,6 +2723,12 @@ impl From<FiuuRefundsWebhookStatus> for interfaces::webhooks::IncomingWebhookEve
             FiuuRefundsWebhookStatus::RefundSuccess => Self::RefundSuccess,
             FiuuRefundsWebhookStatus::RefundFailure => Self::RefundFailure,
             FiuuRefundsWebhookStatus::RefundPending => Self::EventNotSupported,
+            FiuuRefundsWebhookStatus::Unknown => {
+                tracing::warn!(
+                    "Unknown fiuu refund webhook status received; acknowledging without processing"
+                );
+                Self::EventNotSupported
+            }
         }
     }
 }
@@ -2715,6 +2739,7 @@ impl From<FiuuRefundsWebhookStatus> for common_enums::RefundStatus {
             FiuuRefundsWebhookStatus::RefundFailure => Self::Failure,
             FiuuRefundsWebhookStatus::RefundSuccess => Self::Success,
             FiuuRefundsWebhookStatus::RefundPending => Self::Pending,
+            FiuuRefundsWebhookStatus::Unknown => Self::Unknown,
         }
     }
 }
@@ -2843,6 +2868,7 @@ impl From<FiuuPaymentWebhookStatus> for EventType {
             FiuuPaymentWebhookStatus::Success => Self::PaymentIntentSuccess,
             FiuuPaymentWebhookStatus::Failure => Self::PaymentIntentFailure,
             FiuuPaymentWebhookStatus::Pending => Self::PaymentIntentProcessing,
+            FiuuPaymentWebhookStatus::Unknown => Self::IncomingWebhookEventUnspecified,
         }
     }
 }
@@ -2853,6 +2879,7 @@ impl From<FiuuRefundsWebhookStatus> for EventType {
             FiuuRefundsWebhookStatus::RefundSuccess => Self::RefundSuccess,
             FiuuRefundsWebhookStatus::RefundFailure => Self::RefundFailure,
             FiuuRefundsWebhookStatus::RefundPending => Self::IncomingWebhookEventUnspecified,
+            FiuuRefundsWebhookStatus::Unknown => Self::IncomingWebhookEventUnspecified,
         }
     }
 }

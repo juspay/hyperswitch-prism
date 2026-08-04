@@ -1188,6 +1188,8 @@ pub enum RefundStatus {
     Success,
     #[serde(alias = "TransactionFailure")]
     TransactionFailure,
+    #[serde(alias = "Unknown")]
+    Unknown,
 }
 
 #[derive(

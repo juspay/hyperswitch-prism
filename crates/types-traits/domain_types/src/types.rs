@@ -7088,6 +7088,7 @@ impl ForeignFrom<common_enums::RefundStatus> for grpc_api_types::payments::Refun
             common_enums::RefundStatus::Pending => Self::RefundPending,
             common_enums::RefundStatus::Success => Self::RefundSuccess,
             common_enums::RefundStatus::TransactionFailure => Self::RefundTransactionFailure,
+            common_enums::RefundStatus::Unknown => Self::Unspecified,
         }
     }
 }

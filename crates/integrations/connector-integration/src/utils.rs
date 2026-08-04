@@ -269,7 +269,8 @@ pub fn is_refund_failure(status: enums::RefundStatus) -> bool {
         }
         common_enums::RefundStatus::ManualReview
         | common_enums::RefundStatus::Pending
-        | common_enums::RefundStatus::Success => false,
+        | common_enums::RefundStatus::Success
+        | common_enums::RefundStatus::Unknown => false,
     }
 }
 
