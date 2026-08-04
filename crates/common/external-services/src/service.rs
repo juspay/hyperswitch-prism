@@ -348,8 +348,7 @@ fn record_unmasked_connector_response<ResourceCommonData>(
         return;
     };
 
-    // Looked up by name rather than via `http::header::CONTENT_TYPE`: this `HeaderMap` comes
-    // from reqwest 0.11 (http 0.2), which does not share constants with the http 1.x in scope.
+    // By name: this HeaderMap is reqwest 0.11 (http 0.2), not the http 1.x in scope.
     let content_type = body
         .headers
         .as_ref()

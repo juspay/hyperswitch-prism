@@ -1,13 +1,6 @@
-//! Selective, per-connector masking of the raw connector response.
-//!
-//! `raw_connector_response` is a `Secret<String>`, so any logger collapses the whole body into a
-//! single placeholder. This module produces the sibling `unmasked_connector_response`: the same
-//! body with **every key preserved** and **every value masked** unless that connector's configured
-//! list names it.
-//!
-//! The output is emitted in the **same format** the gateway used — JSON in, JSON out; XML in, XML
-//! out; form-encoded in, form-encoded out. The only thing the three paths share is the
-//! per-connector key set.
+//! Builds `unmasked_connector_response`: the connector's reply with every key preserved and every
+//! value masked unless that connector's configured list names it. Emitted in the same format the
+//! gateway used — JSON, XML or form-encoded.
 
 use std::collections::{HashMap, HashSet};
 
@@ -24,15 +17,9 @@ use crate::connector_types::ConnectorEnum;
 /// Replacement written in place of a masked value.
 pub const MASKED: &str = "***";
 
-// ---------------------------------------------------------------------------
-// Configuration
-// ---------------------------------------------------------------------------
-
 /// Per-connector configuration controlling which response keys keep their value.
 ///
-/// There is deliberately no global key list: a field name that is safe on one gateway is not
-/// necessarily safe on another. A connector with no entry gets every value masked, with every key
-/// still visible.
+/// No global list: a field name safe on one gateway is not necessarily safe on another.
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct ConnectorResponseMaskingConfig {
@@ -41,14 +28,8 @@ pub struct ConnectorResponseMaskingConfig {
 
     /// Connector -> comma-separated list of keys whose values stay visible.
     ///
-    /// Keyed by [`ConnectorEnum`] so an unknown name in TOML or env aborts startup naming the bad
-    /// key, rather than silently masking everything.
-    ///
-    /// The *value* stays a comma-separated string because it is the only shape that can be set per
-    /// connector from the environment: env vars are always text, and the config crate only splits
-    /// a key it has been told about by literal path — which cannot be done for an open-ended set
-    /// of connectors. This is plain deserialized TOML, not a cache; nothing is derived ahead of
-    /// time.
+    /// Comma-separated rather than a list because that is the only shape settable per connector
+    /// from the environment.
     #[serde(
         deserialize_with = "deserialize_connector_keys",
         serialize_with = "serialize_connector_keys"
@@ -56,14 +37,8 @@ pub struct ConnectorResponseMaskingConfig {
     pub connector_keys: HashMap<ConnectorEnum, String>,
 }
 
-/// Parse map keys through `ConnectorEnum`'s `FromStr` rather than its serde derive.
-///
-/// `#[strum(serialize_all = "snake_case")]` governs `FromStr`/`Display`; serde would instead expect
-/// the PascalCase variant names. Two reasons that matters: config files spell connectors in
-/// lowercase, and the config crate lowercases environment-variable keys, so
-/// `CS__…__CONNECTOR_KEYS__ADYEN` arrives as `adyen` and could never match `Adyen`.
-///
-/// This is the same route `WebhookSourceVerificationCall` takes (`deserialize_hashset`).
+/// Parse map keys via `FromStr`, not the serde derive: strum's `snake_case` applies to `FromStr`
+/// only, and the config crate lowercases env-var keys. Same route as `WebhookSourceVerificationCall`.
 fn deserialize_connector_keys<'de, D>(
     deserializer: D,
 ) -> Result<HashMap<ConnectorEnum, String>, D::Error>
@@ -99,13 +74,8 @@ where
 }
 
 impl ConnectorResponseMaskingConfig {
-    /// Build the set of keys whose values stay visible for `connector`.
-    ///
-    /// Called once per request, for the single connector in play — a split plus a handful of small
-    /// allocations, against a gateway call measured in hundreds of milliseconds. Building on demand
-    /// rather than caching means a runtime config patch can never leave a stale set behind.
-    ///
-    /// A connector with no entry yields an empty set: every value masked, every key still visible.
+    /// Keys whose values stay visible for `connector`. Built per request rather than cached, so a
+    /// runtime config patch can never leave a stale set behind. No entry yields an empty set.
     pub fn keys_for(&self, connector: &ConnectorEnum) -> HashSet<Box<str>> {
         self.connector_keys
             .get(connector)
@@ -152,13 +122,8 @@ impl Patch<ConnectorResponseMaskingConfigPatch> for ConnectorResponseMaskingConf
     }
 }
 
-// ---------------------------------------------------------------------------
-// Key policy
-// ---------------------------------------------------------------------------
-
-/// Keys never revealed whatever the configuration says, matched as a **substring** after stripping
-/// non-alphanumerics — so `card_number`, `cardNumber`, `card-number` and `ssl_card_number` all
-/// match `cardnumber`. Every entry here must be safe to match mid-word.
+/// Never revealed regardless of config. Substring match after stripping non-alphanumerics, so
+/// `card_number`, `cardNumber` and `ssl_card_number` all match `cardnumber`.
 const ALWAYS_MASKED_SUBSTRING: &[&str] = &[
     "cardnumber",
     "cardnum",
@@ -176,12 +141,8 @@ const ALWAYS_MASKED_SUBSTRING: &[&str] = &[
     "apikey",
 ];
 
-/// Keys never revealed, matched **exactly**.
-///
-/// `authorization` is here rather than above because substring-matching it would also block
-/// `authorizationCode` — a routine, non-sensitive field that connectors return and operators will
-/// legitimately want visible. Blocking it would be unfixable from config, and would present as the
-/// same "I configured it but it is still `***`" confusion this feature exists to remove.
+/// Never revealed, matched **exactly**. `authorization` is here rather than above so it does not
+/// also block `authorizationCode`, which operators legitimately reveal.
 const ALWAYS_MASKED_EXACT: &[&str] = &["authorization"];
 
 /// Normalise a key for comparison: lowercase, alphanumerics only.
@@ -211,8 +172,7 @@ fn allowed(keys: &HashSet<Box<str>>, key: &str) -> bool {
     if keys.contains(key.to_ascii_lowercase().as_str()) {
         return true;
     }
-    // XML names may be prefixed (`s:authCode`); configuring the local name is what a
-    // reader expects, so accept that too.
+    // XML names may be prefixed (`s:authCode`); accept the local name too.
     key.rsplit_once(':')
         .is_some_and(|(_, local)| keys.contains(local.to_ascii_lowercase().as_str()))
 }
@@ -223,15 +183,8 @@ fn is_namespace_declaration(name: &str) -> bool {
     name == "xmlns" || name.starts_with("xmlns:")
 }
 
-// ---------------------------------------------------------------------------
-// JSON — mask while serializing, never mutate the tree
-// ---------------------------------------------------------------------------
-
-/// Serializes a [`Value`], substituting `"***"` for scalars whose key is not allowed.
-///
-/// `mask` carries the decision made about the *parent key*, which is what lets array elements
-/// inherit it — masking a tree in place would leave array scalars untouched, because they reach
-/// the walker with no key in scope.
+/// Serializes a [`Value`], substituting `"***"` for scalars whose key is not allowed. `mask`
+/// carries the parent key's decision so array elements inherit it.
 struct Masked<'a> {
     value: &'a Value,
     keys: &'a HashSet<Box<str>>,
@@ -288,12 +241,8 @@ fn mask_json(body: &[u8], keys: &HashSet<Box<str>>) -> Option<String> {
     .ok()
 }
 
-// ---------------------------------------------------------------------------
-// XML — copy the event stream, rewrite only values
-// ---------------------------------------------------------------------------
-
-/// Rebuild a start/empty tag with the same name, masking attribute values whose name is not
-/// allowed. Values are unescaped before being pushed back, because `push_attribute` re-escapes.
+/// Rebuild a tag, masking attribute values whose name is not allowed. Values are unescaped first
+/// because `push_attribute` re-escapes.
 fn mask_attributes(tag: &BytesStart<'_>, keys: &HashSet<Box<str>>) -> BytesStart<'static> {
     let name = String::from_utf8_lossy(tag.name().as_ref()).into_owned();
     let mut rebuilt = BytesStart::new(name);
@@ -338,8 +287,7 @@ fn mask_xml(body: &[u8], keys: &HashSet<Box<str>>) -> Option<String> {
                 writer.write_event(Event::End(tag)).ok()?;
             }
             Event::Text(text) => {
-                // Whitespace between elements is layout, not data — never mask it, or
-                // pretty-printed XML turns into a wall of markers.
+                // Whitespace between elements is layout, not data — never mask it.
                 let keep = text.iter().all(u8::is_ascii_whitespace)
                     || current.as_deref().is_some_and(|name| allowed(keys, name));
                 if keep {
@@ -369,10 +317,6 @@ fn mask_xml(body: &[u8], keys: &HashSet<Box<str>>) -> Option<String> {
     String::from_utf8(writer.into_inner()).ok()
 }
 
-// ---------------------------------------------------------------------------
-// Form-urlencoded
-// ---------------------------------------------------------------------------
-
 fn mask_form(body: &[u8], keys: &HashSet<Box<str>>) -> Option<String> {
     // A Vec rather than a map so repeated keys survive.
     let pairs: Vec<(String, String)> = serde_urlencoded::from_bytes(body).ok()?;
@@ -388,10 +332,6 @@ fn mask_form(body: &[u8], keys: &HashSet<Box<str>>) -> Option<String> {
         .collect::<Vec<_>>();
     serde_urlencoded::to_string(masked).ok()
 }
-
-// ---------------------------------------------------------------------------
-// Entry point
-// ---------------------------------------------------------------------------
 
 /// Wire format of a connector response body.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -438,8 +378,6 @@ pub fn mask_connector_response(
         return None;
     }
 
-    // Built here, for this connector only. Empty if it has no configured list, which still shows
-    // every key with every value masked.
     let keys = config.keys_for(connector);
 
     let masked = match detect(content_type, body) {
