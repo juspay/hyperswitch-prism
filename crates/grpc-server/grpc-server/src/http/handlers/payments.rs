@@ -11,6 +11,8 @@ use grpc_api_types::payments::{
     recurring_payment_service_server::RecurringPaymentService, CustomerServiceCreateRequest,
     CustomerServiceCreateResponse, EventServiceHandleRequest, EventServiceHandleResponse,
     EventServiceParseRequest, EventServiceParseResponse,
+    MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
+    MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
     MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest,
@@ -30,7 +32,8 @@ use grpc_api_types::payments::{
     PaymentServiceSetupRecurringRequest, PaymentServiceSetupRecurringResponse,
     PaymentServiceVerifyRedirectResponseRequest, PaymentServiceVerifyRedirectResponseResponse,
     PaymentServiceVoidRequest, PaymentServiceVoidResponse, RecurringPaymentServiceChargeRequest,
-    RecurringPaymentServiceChargeResponse, RefundResponse,
+    RecurringPaymentServiceChargeResponse, RecurringPaymentServiceRevokeRequest,
+    RecurringPaymentServiceRevokeResponse, RefundResponse,
 };
 use std::sync::Arc;
 
@@ -40,6 +43,7 @@ use crate::http::{
     transfer_config_to_grpc_request, utils::ValidatedJson,
 };
 use ucs_env::configs::Config;
+
 http_handler!(
     authorize,
     PaymentServiceAuthorizeRequest,
@@ -139,6 +143,13 @@ http_handler!(
     recurring_payment_service
 );
 http_handler!(
+    revoke_mandate,
+    RecurringPaymentServiceRevokeRequest,
+    RecurringPaymentServiceRevokeResponse,
+    revoke,
+    recurring_payment_service
+);
+http_handler!(
     refund,
     PaymentServiceRefundRequest,
     RefundResponse,
@@ -171,6 +182,13 @@ http_handler!(
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
     create_server_authentication_token,
+    merchant_authentication_service
+);
+http_handler!(
+    client_authentication_token,
+    MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
+    MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
+    create_client_authentication_token,
     merchant_authentication_service
 );
 http_handler!(

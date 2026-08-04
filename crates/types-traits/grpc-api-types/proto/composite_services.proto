@@ -12,6 +12,9 @@ service CompositePaymentService {
   // Runs composite authorize flow.
   rpc Authorize(CompositeAuthorizeRequest) returns (CompositeAuthorizeResponse);
 
+  // Runs composite pre-authenticate flow with access token bootstrapping.
+  rpc PreAuthenticate(CompositePreAuthenticateRequest) returns (CompositePreAuthenticateResponse);
+
   // Runs composite get flow.
   rpc Get(CompositeGetRequest) returns (CompositeGetResponse);
 

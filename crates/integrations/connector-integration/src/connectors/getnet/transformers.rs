@@ -1978,6 +1978,12 @@ fn build_threeds_authentication_data(response: &GetnetThreeDsResponse) -> Authen
         transaction_id: response.xid.clone(),
         network_params: None,
         exemption_indicator: None,
+        created_at: None,
+        challenge_code: None,
+        challenge_cancel: None,
+        challenge_code_reason: None,
+        message_extension: None,
+        authentication_type: None,
     }
 }
 
@@ -2221,6 +2227,8 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         Ok(Self {
             response: Ok(PaymentMethodTokenResponse {
                 token: item.response.number_token.expose(),
+                connector_payment_method_id: None,
+                status_code: item.http_code,
             }),
             ..item.router_data
         })

@@ -51,6 +51,8 @@ pub(crate) mod headers {
 }
 
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
+const FINIX_REFERRER_SOURCE_HEADER: &str = "X-Finix-Referrer-Source";
+const FINIX_REFERRER_SOURCE_VALUE: &str = "PLUGIN_HYPERSWITCH";
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorCommon
     for Finix<T>
@@ -424,7 +426,11 @@ macros::create_all_prerequisites!(
                 (
                     headers::CONTENT_TYPE.to_string(),
                     "application/json".to_string().into(),
-                )
+                ),
+                (
+                FINIX_REFERRER_SOURCE_HEADER.to_string(),
+                FINIX_REFERRER_SOURCE_VALUE.to_string().into(),
+                ),
             ];
             let mut auth_headers = self.get_auth_header(&req.connector_config)?;
             headers.append(&mut auth_headers);
@@ -773,6 +779,7 @@ macros::macro_connector_flow_status_impls!(
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     not_implemented: [
+        GetConnectorCustomer,
         Accept,
         DefendDispute,
         VoidPC,

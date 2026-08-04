@@ -35,9 +35,9 @@ use interfaces::{
 use serde::Serialize;
 use transformers::{
     self as airwallex, AirwallexAccessTokenRequest, AirwallexAccessTokenResponse,
-    AirwallexCaptureRequest, AirwallexCaptureResponse, AirwallexCustomerRequest,
-    AirwallexCustomerResponse, AirwallexIntentRequest, AirwallexIntentResponse,
-    AirwallexPaymentRequest, AirwallexPaymentsResponse, AirwallexRefundRequest,
+    AirwallexAuthorizeRequest, AirwallexCaptureRequest, AirwallexCaptureResponse,
+    AirwallexCustomerRequest, AirwallexCustomerResponse, AirwallexIntentRequest,
+    AirwallexIntentResponse, AirwallexPaymentsResponse, AirwallexRefundRequest,
     AirwallexRefundResponse, AirwallexRefundSyncResponse, AirwallexRepeatPaymentRequest,
     AirwallexRepeatPaymentResponse, AirwallexSetupMandateRequest, AirwallexSetupMandateResponse,
     AirwallexSyncResponse, AirwallexVoidRequest, AirwallexVoidResponse,
@@ -157,7 +157,7 @@ macros::create_all_prerequisites!(
     api: [
         (
             flow: Authorize,
-            request_body: AirwallexPaymentRequest,
+            request_body: AirwallexAuthorizeRequest,
             response_body: AirwallexPaymentsResponse,
             router_data: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ),
@@ -252,7 +252,7 @@ macros::macro_connector_payout_implementation!(
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Airwallex,
-    curl_request: Json(AirwallexPaymentRequest),
+    curl_request: Json(AirwallexAuthorizeRequest),
     curl_response: AirwallexPaymentsResponse,
     flow_name: Authorize,
     resource_common_data: PaymentFlowData,
@@ -274,15 +274,24 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            // 2-step flow: Authorize always confirms the payment intent created by CreateOrder
-            // Get order_id from reference_id (stored after CreateOrder via set_order_reference_id)
+            // 2-step flow: Authorize confirms the payment intent created by CreateOrder.
+            // Get order_id from reference_id (stored after CreateOrder via set_order_reference_id).
             let order_id = req.resource_common_data.connector_order_id
                 .as_ref()
                 .ok_or(IntegrationError::MissingRequiredField { field_name: "connector_order_id", context: Default::default() })?;
+            // When HS re-invokes Authorize after a card 3DS redirect, finish the payment on the
+            // same intent via `confirm_continue` instead of `confirm`. Same gate as the request
+            // body builder in transformers.rs, so the URL and the body cannot disagree.
+            let endpoint = if transformers::is_card_three_ds_continue(&req.request) {
+                "confirm_continue"
+            } else {
+                "confirm"
+            };
             Ok(format!(
-                "{}/pa/payment_intents/{}/confirm",
+                "{}/pa/payment_intents/{}/{}",
                 req.resource_common_data.connectors.airwallex.base_url,
-                order_id
+                order_id,
+                endpoint
             ))
         }
     }
@@ -791,6 +800,7 @@ macros::macro_connector_flow_status_impls!(
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     not_implemented: [
+        GetConnectorCustomer,
         ClientAuthenticationToken,
         MandateRevoke,
         ServerSessionAuthenticationToken,

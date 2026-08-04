@@ -23,8 +23,11 @@ connector_request_timeout = 30
 bypass_urls = ["localhost", "local"]
 
 [connectors]
+tesouro.base_url = "https://api.sandbox.tesouro.com"
 kount.base_url = "https://api-sandbox.kount.com"
 kount.secondary_base_url = "https://login.kount.com"
+plaid.base_url = "https://sandbox.plaid.com"
+glomopay.base_url = "https://api.glomopay.com/api/v1/"
 hyperswitch.base_url = "https://sandbox.hyperswitch.io"
 payconex.base_url = "https://cert.payconex.net"
 affirm.base_url = "https://sandbox.affirm.com"
@@ -129,6 +132,8 @@ zift.base_url = "https://sandbox-secure.zift.io/"
 truelayer.base_url = "https://api.truelayer-sandbox.com"
 truelayer.secondary_base_url = "https://auth.truelayer-sandbox.com"
 itaubank.base_url = "https://sandbox.devportal.itau.com.br"
+deutschebank.base_url = "https://api.sbx.baas.db.com"
+deutschebank.server_ca_bundle = ""
 santander.base_url = "https://trust-sandbox.api.santander.com.br"
 santander.secondary_base_url = "https://trust-sandbox.api.santander.com.br"
 trustly.base_url = "https://test.trustly.com/api/1"
@@ -141,6 +146,7 @@ tsys_transit.base_url = "https://stagegw.transnox.com/servlets/TransNox_API_Serv
 # the TODO(netcetera) in connectors/netcetera.rs base_url for prefix resolution.
 netcetera.base_url = "https://{{merchant_endpoint_prefix}}.3ds-server.prev.netcetera-cloud-payment.ch"
 flywire.base_url = "https://api-platform-sandbox.flywire.com"
+givepayments.base_url = "https://api-sandbox.givepayments.com"
 
 # Generic Events Configuration
 [events]

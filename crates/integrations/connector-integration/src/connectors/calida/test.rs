@@ -43,6 +43,7 @@ mod tests {
             > = RouterDataV2 {
                 flow: PhantomData::<Authorize>,
                 resource_common_data: PaymentFlowData {
+                    raw_connector_status: None,
                     vault_headers: None,
                     merchant_id: common_utils::id_type::MerchantId::default(),
                     customer_id: None,
@@ -117,6 +118,7 @@ mod tests {
                     customer_document_details: None,
                     authentication_data: None,
                     connector_testing_data: None,
+                    currency_conversion_data: None,
                     access_token: None,
                     payment_method_data: PaymentMethodData::Wallet(WalletData::BluecodeRedirect {}),
                     amount: MinorUnit::new(1000),
@@ -228,6 +230,7 @@ mod tests {
             > = RouterDataV2 {
                 flow: PhantomData::<Authorize>,
                 resource_common_data: PaymentFlowData {
+                    raw_connector_status: None,
                     vault_headers: None,
                     merchant_id: common_utils::id_type::MerchantId::default(),
                     customer_id: None,
@@ -286,6 +289,7 @@ mod tests {
                     payment_method_data: PaymentMethodData::Wallet(WalletData::BluecodeRedirect {}),
                     authentication_data: None,
                     connector_testing_data: None,
+                    currency_conversion_data: None,
                     access_token: None,
                     amount: MinorUnit::new(1000),
                     order_tax_amount: None,

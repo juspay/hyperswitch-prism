@@ -708,6 +708,9 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             transaction_key: k(),
             developer_id: s(),
             base_url: None,
+            merchant_street_address: None,
+            customer_service_phone_number: None,
+            merchant_url: None,
         },
         ConnectorEnum::TwocTwopPaco => ConnectorSpecificConfig::TwocTwopPaco {
             access_token: s(),
@@ -723,6 +726,13 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
         ConnectorEnum::Juspay => ConnectorSpecificConfig::Juspay {
             api_key: k(),
             merchant_id: m(),
+            juspay_encryption_public_key: Some(s()),
+            response_decryption_private_key: Some(s()),
+            card_sync_key_id: Some(s()),
+            base_url: None,
+        },
+        ConnectorEnum::Glomopay => ConnectorSpecificConfig::Glomopay {
+            api_key: k(),
             base_url: None,
         },
         ConnectorEnum::Payconex => ConnectorSpecificConfig::Payconex {
@@ -760,6 +770,16 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
         ConnectorEnum::Kount => ConnectorSpecificConfig::Kount {
             api_key: k(),
             auth_server_id: None,
+            base_url: None,
+        },
+        ConnectorEnum::Givepayments => ConnectorSpecificConfig::Givepayments {
+            api_key: k(),
+            base_url: None,
+        },
+        ConnectorEnum::Tesouro => ConnectorSpecificConfig::Tesouro {
+            api_key: k(),
+            key1: k(),
+            api_secret: k(),
             base_url: None,
         },
     }

@@ -141,6 +141,7 @@ impl
                     city: Some(city),
                     state: router_data.request.get_optional_billing_state(),
                     country_code: Some(country),
+                    telephone_number: None,
                 })
             }
             _ => None,

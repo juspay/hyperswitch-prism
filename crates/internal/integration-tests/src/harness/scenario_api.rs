@@ -2880,9 +2880,15 @@ fn normalize_request_common(connector: &str, suite: &str, scenario: &str, value:
     // directly to current proto request shapes used by tonic serde.
     // Drop or adjust known mismatches here so scenarios remain unchanged.
     if let Value::Object(map) = value {
+        // `order_details` is a proto3 `repeated` field, so prost generates a
+        // plain `Vec<_>` with no serde default — a scenario that omits it fails
+        // to deserialize. Default it to an empty list for every suite whose
+        // request message carries it.
         if matches!(
             effective_suite,
-            "PaymentService/Authorize" | "PaymentService/CompleteAuthorize"
+            "PaymentService/Authorize"
+                | "PaymentService/CompleteAuthorize"
+                | "PaymentService/CreateOrder"
         ) {
             map.entry("order_details".to_string())
                 .or_insert_with(|| Value::Array(Vec::new()));
@@ -4871,6 +4877,9 @@ mod tests {
             >(connector, suite, scenario, grpc_req),
             "CustomerService/Create" => validate_tonic_payload_shape::<
                 payments::CustomerServiceCreateRequest,
+            >(connector, suite, scenario, grpc_req),
+            "CustomerService/Get" => validate_tonic_payload_shape::<
+                payments::CustomerServiceGetRequest,
             >(connector, suite, scenario, grpc_req),
             "PaymentMethodAuthenticationService/PreAuthenticate" => validate_tonic_payload_shape::<
                 payments::PaymentMethodAuthenticationServicePreAuthenticateRequest,

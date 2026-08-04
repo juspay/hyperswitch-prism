@@ -4,6 +4,8 @@
 use grpc_api_types::payments::{
     CustomerServiceCreateRequest,
     CustomerServiceCreateResponse,
+    CustomerServiceGetRequest,
+    CustomerServiceGetResponse,
     DisputeServiceAcceptRequest,
     DisputeServiceAcceptResponse,
     DisputeServiceDefendRequest,
@@ -24,6 +26,8 @@ use grpc_api_types::payments::{
     PaymentMethodAuthenticationServicePreAuthenticateResponse,
     PaymentMethodServiceEligibilityRequest,
     PaymentMethodServiceEligibilityResponse,
+    PaymentMethodServiceRefreshRequest,
+    PaymentMethodServiceRefreshResponse,
     PaymentMethodServiceTokenizeRequest,
     PaymentMethodServiceTokenizeResponse,
     PaymentServiceAuthorizeRequest,
@@ -55,6 +59,8 @@ use grpc_api_types::payments::{
     RefundServiceGetRequest,
 };
 use grpc_api_types::payouts::{
+    PayoutMethodEligibilityRequest,
+    PayoutMethodEligibilityResponse,
     PayoutServiceCreateLinkRequest,
     PayoutServiceCreateLinkResponse,
     PayoutServiceCreateRecipientRequest,
@@ -94,6 +100,7 @@ use crate::services::payments::{
     create_server_authentication_token_req_transformer, create_server_authentication_token_res_transformer,
     create_server_session_authentication_token_req_transformer, create_server_session_authentication_token_res_transformer,
     customer_create_req_transformer, customer_create_res_transformer,
+    customer_get_req_transformer, customer_get_res_transformer,
     defend_req_transformer, defend_res_transformer,
     eligibility_req_transformer, eligibility_res_transformer,
     get_req_transformer, get_res_transformer,
@@ -103,6 +110,7 @@ use crate::services::payments::{
     proxy_authorize_req_transformer, proxy_authorize_res_transformer,
     proxy_setup_recurring_req_transformer, proxy_setup_recurring_res_transformer,
     recurring_revoke_req_transformer, recurring_revoke_res_transformer,
+    refresh_req_transformer, refresh_res_transformer,
     refund_req_transformer, refund_res_transformer,
     refund_get_req_transformer, refund_get_res_transformer,
     reverse_req_transformer, reverse_res_transformer,
@@ -117,6 +125,7 @@ use crate::services::payouts::{
     payout_create_req_transformer, payout_create_res_transformer,
     payout_create_link_req_transformer, payout_create_link_res_transformer,
     payout_create_recipient_req_transformer, payout_create_recipient_res_transformer,
+    payout_eligibility_req_transformer, payout_eligibility_res_transformer,
     payout_enroll_disburse_account_req_transformer, payout_enroll_disburse_account_res_transformer,
     payout_get_req_transformer, payout_get_res_transformer,
     payout_stage_req_transformer, payout_stage_res_transformer,
@@ -151,6 +160,8 @@ impl_flow_handlers!(create_server_authentication_token, MerchantAuthenticationSe
 impl_flow_handlers!(create_server_session_authentication_token, MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest, MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse, create_server_session_authentication_token_req_transformer, create_server_session_authentication_token_res_transformer, domain_types::connector_types::ConnectorEnum);
 // customer_create: CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information.
 impl_flow_handlers!(customer_create, CustomerServiceCreateRequest, CustomerServiceCreateResponse, customer_create_req_transformer, customer_create_res_transformer, domain_types::connector_types::ConnectorEnum);
+// customer_get: CustomerService.Get — Retrieves customer details from the payment processor. Callers typically use this before Create to implement get-or-create semantics for connectors that reject duplicates (e.g. Glomopay).
+impl_flow_handlers!(customer_get, CustomerServiceGetRequest, CustomerServiceGetResponse, customer_get_req_transformer, customer_get_res_transformer, domain_types::connector_types::ConnectorEnum);
 // defend: DisputeService.Defend — Submit defense with reason code for dispute. Presents formal argument against customer's chargeback claim with supporting documentation.
 impl_flow_handlers!(defend, DisputeServiceDefendRequest, DisputeServiceDefendResponse, defend_req_transformer, defend_res_transformer, domain_types::connector_types::ConnectorEnum);
 // eligibility: PaymentMethodService.Eligibility — Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check)
@@ -165,6 +176,8 @@ impl_flow_handlers!(payout_create, PayoutServiceCreateRequest, PayoutServiceCrea
 impl_flow_handlers!(payout_create_link, PayoutServiceCreateLinkRequest, PayoutServiceCreateLinkResponse, payout_create_link_req_transformer, payout_create_link_res_transformer, domain_types::connector_types::PayoutConnectorEnum);
 // payout_create_recipient: PayoutService.CreateRecipient — Create payout recipient.
 impl_flow_handlers!(payout_create_recipient, PayoutServiceCreateRecipientRequest, PayoutServiceCreateRecipientResponse, payout_create_recipient_req_transformer, payout_create_recipient_res_transformer, domain_types::connector_types::PayoutConnectorEnum);
+// payout_eligibility: PayoutService.Eligibility — Check eligibility of a payout before initiating it (e.g. SEPA VoP / payee verification).
+impl_flow_handlers!(payout_eligibility, PayoutMethodEligibilityRequest, PayoutMethodEligibilityResponse, payout_eligibility_req_transformer, payout_eligibility_res_transformer, domain_types::connector_types::PayoutConnectorEnum);
 // payout_enroll_disburse_account: PayoutService.EnrollDisburseAccount — Enroll disburse account.
 impl_flow_handlers!(payout_enroll_disburse_account, PayoutServiceEnrollDisburseAccountRequest, PayoutServiceEnrollDisburseAccountResponse, payout_enroll_disburse_account_req_transformer, payout_enroll_disburse_account_res_transformer, domain_types::connector_types::PayoutConnectorEnum);
 // payout_get: PayoutService.Get — Retrieve payout details.
@@ -189,6 +202,8 @@ impl_flow_handlers!(proxy_authorize, PaymentServiceProxyAuthorizeRequest, Paymen
 impl_flow_handlers!(proxy_setup_recurring, PaymentServiceProxySetupRecurringRequest, PaymentServiceSetupRecurringResponse, proxy_setup_recurring_req_transformer, proxy_setup_recurring_res_transformer, domain_types::connector_types::ConnectorEnum);
 // recurring_revoke: RecurringPaymentService.Revoke — Cancel an existing recurring payment mandate. Stops future automatic charges on customer's stored consent for subscription cancellations.
 impl_flow_handlers!(recurring_revoke, RecurringPaymentServiceRevokeRequest, RecurringPaymentServiceRevokeResponse, recurring_revoke_req_transformer, recurring_revoke_res_transformer, domain_types::connector_types::ConnectorEnum);
+// refresh: PaymentMethodService.Refresh — Refresh a payment method the caller already holds in full. The request carries the instrument itself, not a reference to it: use Refresh when you own the complete payment method details and the provider exposes an endpoint that evaluates them.
+impl_flow_handlers!(refresh, PaymentMethodServiceRefreshRequest, PaymentMethodServiceRefreshResponse, refresh_req_transformer, refresh_res_transformer, domain_types::connector_types::ConnectorEnum);
 // refund: PaymentService.Refund — Process a partial or full refund for a captured payment. Returns funds to the customer when goods are returned or services are cancelled.
 impl_flow_handlers!(refund, PaymentServiceRefundRequest, RefundResponse, refund_req_transformer, refund_res_transformer, domain_types::connector_types::ConnectorEnum);
 // refund_get: RefundService.Get — Retrieve refund status from the payment processor. Tracks refund progress through processor settlement for accurate customer communication.

@@ -6,7 +6,7 @@ use domain_types::{
     connector_flow::{Authenticate, Authorize, PSync, Refund},
     connector_types::{
         EventType, PaymentFlowData, PaymentsAuthenticateData, PaymentsAuthorizeData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData,
+        PaymentsResponseData, PaymentsSyncData, RawConnectorStatus, RefundFlowData, RefundSyncData,
         RefundWebhookDetailsResponse, RefundsData, RefundsResponseData, ResponseId,
         WebhookDetailsResponse,
     },
@@ -426,6 +426,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 status: AttemptStatus::Pending,
                 connector_order_id: Some(session_id),
                 raw_connector_response: raw_response,
+                raw_connector_status: None,
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
@@ -502,6 +503,11 @@ impl TryFrom<ResponseRouterData<FlywirePayment, Self>>
         let response = item.response;
         let status = response.status.to_attempt_status();
         let raw_response = serde_json::to_string(&response).ok().map(Secret::new);
+        let raw_connector_status = Some(RawConnectorStatus {
+            code: flywire_status_to_wire_string(&response.status),
+            message: response.status_detail.clone(),
+            reason: None,
+        });
 
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -519,6 +525,7 @@ impl TryFrom<ResponseRouterData<FlywirePayment, Self>>
             resource_common_data: PaymentFlowData {
                 status,
                 raw_connector_response: raw_response,
+                raw_connector_status,
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
@@ -633,6 +640,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 // report success on a payment that could still fail.
                 status: AttemptStatus::Pending,
                 raw_connector_response: raw_response,
+                raw_connector_status: None,
                 ..item.router_data.resource_common_data
             },
             request: PaymentsAuthorizeData {
@@ -700,6 +708,15 @@ impl FlywireRefundStatus {
     }
 }
 
+/// Serializes a Flywire status enum to its lower-cased wire string.
+/// Returns `None` if serialization fails or the value is not a string
+/// (e.g. the `serde(other)` catch-all variant, which serde cannot round-trip).
+fn flywire_status_to_wire_string<T: Serialize>(status: &T) -> Option<String> {
+    serde_json::to_value(status)
+        .ok()
+        .and_then(|value| value.as_str().map(String::from))
+}
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         FlywireRouterData<
@@ -748,6 +765,11 @@ impl<F> TryFrom<ResponseRouterData<FlywireRefundResponse, Self>>
             }),
             resource_common_data: RefundFlowData {
                 raw_connector_response: raw_response,
+                raw_connector_status: Some(RawConnectorStatus {
+                    code: flywire_status_to_wire_string(&response.status),
+                    message: None,
+                    reason: None,
+                }),
                 ..router_data.resource_common_data
             },
             ..router_data
@@ -774,6 +796,11 @@ impl<F> TryFrom<ResponseRouterData<FlywireRefundResponse, Self>>
             }),
             resource_common_data: RefundFlowData {
                 raw_connector_response: raw_response,
+                raw_connector_status: Some(RawConnectorStatus {
+                    code: flywire_status_to_wire_string(&response.status),
+                    message: None,
+                    reason: None,
+                }),
                 ..router_data.resource_common_data
             },
             ..router_data
@@ -800,6 +827,11 @@ impl<F> TryFrom<ResponseRouterData<FlywirePayment, Self>>
             }),
             resource_common_data: RefundFlowData {
                 raw_connector_response: raw_response,
+                raw_connector_status: Some(RawConnectorStatus {
+                    code: flywire_status_to_wire_string(&response.status),
+                    message: response.status_detail.clone(),
+                    reason: None,
+                }),
                 ..router_data.resource_common_data
             },
             ..router_data

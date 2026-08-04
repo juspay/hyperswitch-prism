@@ -624,6 +624,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Crypto(_)
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
@@ -1628,6 +1629,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
@@ -1732,6 +1734,8 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                             .id
                             .expose()
                             .clone(),
+                        connector_payment_method_id: None,
+                        status_code: item.http_code,
                     })
                 }
             },
@@ -2662,6 +2666,7 @@ fn get_braintree_redirect_form<
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
@@ -2990,6 +2995,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Crypto(_)
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
@@ -3351,6 +3357,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)

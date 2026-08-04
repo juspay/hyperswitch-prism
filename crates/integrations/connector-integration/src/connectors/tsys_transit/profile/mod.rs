@@ -33,12 +33,11 @@ use domain_types::{
 use hyperswitch_masking::PeekInterface;
 use serde::Serialize;
 
+use super::transformers::{TsysTransitCardDataSource, TsysTransitCommercialCardLevel};
 pub use acceptance::{AcceptanceProfile, TerminalDataBlock};
 pub use card_family::CardFamily;
 pub use cof_phase::{CofPhase, MitIntent, MitKind};
 pub use commercial::CommercialLevel;
-
-use super::transformers::TsysTransitCardDataSource;
 
 /// Map the acceptance channel to the `cardDataSource` wire value. This is an
 /// axis ORTHOGONAL to the recurring/terminal semantics: a recurring MOTO
@@ -106,21 +105,33 @@ impl TxProfile {
             PaymentsAuthorizeData<T>,
             PaymentsResponseData,
         >,
+        commercial_card_context: Option<TsysTransitCommercialCardLevel>,
     ) -> Self
     where
         T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
     {
         let request = &router_data.request;
-        let card_network = match &request.payment_method_data {
-            PaymentMethodData::Card(card) => card.card_network.clone(),
-            PaymentMethodData::CardDetailsForNetworkTransactionId(nti) => nti.card_network.clone(),
-            _ => None,
+        let (card_network, card_number) = match &request.payment_method_data {
+            PaymentMethodData::Card(card) => (
+                card.card_network.clone(),
+                Some(card.card_number.peek().to_string()),
+            ),
+            PaymentMethodData::CardDetailsForNetworkTransactionId(nti) => (
+                nti.card_network.clone(),
+                Some(nti.card_number.peek().to_string()),
+            ),
+            _ => (None, None),
         };
         let acceptance = AcceptanceProfile::derive(
             request.payment_channel.clone(),
             request.mit_category.clone(),
         );
-        let card_family = CardFamily::from_network(card_network.as_ref());
+        // A MIT card fetched from the locker can arrive without a network; fall
+        // back to BIN detection so cert-critical Visa fields still fire.
+        let card_family = match card_number.as_deref() {
+            Some(number) => CardFamily::from_network_or_number(card_network.as_ref(), number),
+            None => CardFamily::from_network(card_network.as_ref()),
+        };
         let cof_phase = CofPhase::derive(
             request.mandate_id.as_ref(),
             request.mit_category.clone(),
@@ -128,31 +139,11 @@ impl TxProfile {
             request.off_session,
         );
 
-        // Commercial level — look at the same signals the original
-        // `compute_commercial_card_context` used: L2L3 line items / tax /
-        // shipping / duty either on the request or in resource_common_data.
-        let l2_l3 = router_data.resource_common_data.l2_l3_data.as_deref();
-        let has_order_details = l2_l3
-            .and_then(|d| d.get_order_details())
-            .map(|details| !details.is_empty())
-            .unwrap_or_else(|| {
-                router_data
-                    .resource_common_data
-                    .order_details
-                    .as_ref()
-                    .is_some_and(|d| !d.is_empty())
-            });
-        let has_tax_amount = l2_l3.and_then(|d| d.get_order_tax_amount()).is_some()
-            || request.order_tax_amount.is_some();
-        let has_shipping_charges =
-            l2_l3.and_then(|d| d.get_shipping_cost()).is_some() || request.shipping_cost.is_some();
-        let has_duty_charges = l2_l3.and_then(|d| d.get_duty_amount()).is_some();
-        let commercial_level = CommercialLevel::derive(
-            has_order_details,
-            has_tax_amount,
-            has_shipping_charges,
-            has_duty_charges,
-        );
+        let commercial_level = match commercial_card_context {
+            Some(TsysTransitCommercialCardLevel::Level2) => CommercialLevel::L2,
+            Some(TsysTransitCommercialCardLevel::Level3) => CommercialLevel::L3,
+            None => CommercialLevel::None,
+        };
 
         let three_ds = match request
             .authentication_data

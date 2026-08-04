@@ -59,6 +59,7 @@ mod tests {
             let test_router_data = RouterDataV2 {
                 flow: std::marker::PhantomData,
                 resource_common_data: PaymentFlowData {
+                    raw_connector_status: None,
                     merchant_id: MerchantId::default(),
                     customer_id: None,
                     connector_customer: None,
@@ -129,6 +130,7 @@ mod tests {
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
+                    currency_conversion_data: None,
                     payment_method_data: PaymentMethodData::Card(Card {
                         card_number: RawCardNumber(
                             CardNumber::from_str("5123456789012346").unwrap(),
@@ -272,6 +274,7 @@ mod tests {
             let test_router_data = RouterDataV2 {
                 flow: std::marker::PhantomData,
                 resource_common_data: PaymentFlowData {
+                    raw_connector_status: None,
                     merchant_id: MerchantId::default(),
                     customer_id: None,
                     connector_customer: None,
@@ -329,6 +332,7 @@ mod tests {
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
+                    currency_conversion_data: None,
                     payment_method_data: PaymentMethodData::Card(Card {
                         card_number: RawCardNumber(CardNumber::from_str("").unwrap_or_default()),
                         card_exp_month: "".to_string().into(),
@@ -423,6 +427,7 @@ mod tests {
             let test_router_data = RouterDataV2 {
                 flow: std::marker::PhantomData,
                 resource_common_data: PaymentFlowData {
+                    raw_connector_status: None,
                     merchant_id: MerchantId::default(),
                     customer_id: None,
                     connector_customer: None,
@@ -480,6 +485,7 @@ mod tests {
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
+                    currency_conversion_data: None,
                     payment_method_data: PaymentMethodData::Card(Card {
                         card_number: RawCardNumber(CardNumber::from_str("123").unwrap_or_default()),
                         card_exp_month: "99".to_string().into(),
@@ -584,6 +590,7 @@ mod tests {
             let data = RouterDataV2 {
                 flow: std::marker::PhantomData,
                 resource_common_data: PaymentFlowData {
+                    raw_connector_status: None,
                     merchant_id: MerchantId::default(),
                     customer_id: None,
                     connector_customer: None,
@@ -653,6 +660,7 @@ mod tests {
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
+                    currency_conversion_data: None,
                     payment_method_data: PaymentMethodData::Card(Card {
                         card_number: RawCardNumber(
                             CardNumber::from_str("5123450000000008").unwrap(),
@@ -955,6 +963,7 @@ mod tests {
         let data = RouterDataV2 {
             flow: std::marker::PhantomData,
             resource_common_data: PaymentFlowData {
+                raw_connector_status: None,
                 merchant_id: MerchantId::default(),
                 customer_id: None,
                 connector_customer: None,
@@ -1024,6 +1033,7 @@ mod tests {
                 payment_channel: None,
                 authentication_data: None,
                 connector_testing_data: None,
+                currency_conversion_data: None,
                 payment_method_data: PaymentMethodData::Card(Card {
                     card_number: RawCardNumber(CardNumber::from_str("5123450000000008").unwrap()),
                     card_exp_month: "12".to_string().into(),
@@ -1162,6 +1172,7 @@ mod tests {
         let data = RouterDataV2 {
             flow: std::marker::PhantomData,
             resource_common_data: PaymentFlowData {
+                raw_connector_status: None,
                 merchant_id: MerchantId::default(),
                 customer_id: None,
                 connector_customer: None,
@@ -1231,6 +1242,7 @@ mod tests {
                 payment_channel: None,
                 authentication_data: None,
                 connector_testing_data: None,
+                currency_conversion_data: None,
                 payment_method_data: PaymentMethodData::Card(Card {
                     card_number: RawCardNumber(CardNumber::from_str("5123450000000008").unwrap()),
                     card_exp_month: "12".to_string().into(),
@@ -1371,6 +1383,7 @@ mod tests {
             let test_router_data = RouterDataV2 {
                 flow: std::marker::PhantomData,
                 resource_common_data: domain_types::connector_types::PaymentFlowData {
+                    raw_connector_status: None,
                     merchant_id: MerchantId::default(),
                     customer_id: None,
                     connector_customer: None,
@@ -1442,6 +1455,7 @@ mod tests {
                     metadata: None,
                     webhook_url: None,
                     payment_method_type: None,
+                    order_details: None,
                 },
                 response: Err(ErrorResponse {
                     code: "HE_00".to_string(),
@@ -1505,6 +1519,7 @@ mod tests {
             let test_router_data = RouterDataV2 {
                 flow: std::marker::PhantomData,
                 resource_common_data: domain_types::connector_types::PaymentFlowData {
+                    raw_connector_status: None,
                     merchant_id: MerchantId::default(),
                     customer_id: None,
                     connector_customer: None,
@@ -1564,6 +1579,7 @@ mod tests {
                     metadata: None,
                     webhook_url: None,
                     payment_method_type: None,
+                    order_details: None,
                 },
                 response: Err(ErrorResponse {
                     code: "HE_01".to_string(),
@@ -1630,6 +1646,7 @@ mod tests {
             let test_router_data = RouterDataV2 {
                 flow: std::marker::PhantomData,
                 resource_common_data: PaymentFlowData {
+                    raw_connector_status: None,
                     merchant_id: MerchantId::default(),
                     customer_id: None,
                     connector_customer: None,
@@ -1687,6 +1704,7 @@ mod tests {
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
+                    currency_conversion_data: None,
                     payment_method_data: PaymentMethodData::Card(Card {
                         card_number: Default::default(),
                         card_exp_month: "".to_string().into(),
@@ -1790,6 +1808,7 @@ mod tests {
         let data = RouterDataV2 {
             flow: std::marker::PhantomData,
             resource_common_data: PaymentFlowData {
+                raw_connector_status: None,
                 merchant_id: MerchantId::default(),
                 customer_id: None,
                 connector_customer: None,
@@ -1861,6 +1880,7 @@ mod tests {
                 metadata: None,
                 webhook_url: None,
                 payment_method_type: None,
+                order_details: None,
             },
             response: Err(ErrorResponse {
                 code: "HE_00".to_string(),
@@ -1924,6 +1944,7 @@ mod tests {
         let data = RouterDataV2 {
             flow: std::marker::PhantomData,
             resource_common_data: PaymentFlowData {
+                raw_connector_status: None,
                 merchant_id: MerchantId::default(),
                 customer_id: None,
                 connector_customer: None,
@@ -1995,6 +2016,7 @@ mod tests {
                 metadata: None,
                 webhook_url: None,
                 payment_method_type: None,
+                order_details: None,
             },
             response: Err(ErrorResponse {
                 code: "HE_00".to_string(),
@@ -2047,6 +2069,7 @@ mod tests {
         let data = RouterDataV2 {
             flow: std::marker::PhantomData,
             resource_common_data: PaymentFlowData {
+                raw_connector_status: None,
                 merchant_id: MerchantId::default(),
                 customer_id: None,
                 connector_customer: None,
@@ -2118,6 +2141,7 @@ mod tests {
                 metadata: None,
                 webhook_url: None,
                 payment_method_type: None,
+                order_details: None,
             },
             response: Err(ErrorResponse {
                 code: "HE_00".to_string(),

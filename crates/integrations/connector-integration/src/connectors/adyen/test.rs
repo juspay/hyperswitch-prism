@@ -38,6 +38,7 @@ mod tests {
             > = RouterDataV2 {
                 flow: PhantomData::<Authorize>,
                 resource_common_data: PaymentFlowData {
+                    raw_connector_status: None,
                     merchant_id: common_utils::id_type::MerchantId::default(),
                     customer_id: None,
                     connector_customer: Some("conn_cust_987654".to_string()),
@@ -100,6 +101,7 @@ mod tests {
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
+                    currency_conversion_data: None,
                     payment_method_data: PaymentMethodData::Card(
                         domain_types::payment_method_data::Card {
                             card_number: RawCardNumber(cards::CardNumber::from_str(
@@ -243,6 +245,7 @@ mod tests {
             > = RouterDataV2 {
                 flow: PhantomData::<Authorize>,
                 resource_common_data: PaymentFlowData {
+                    raw_connector_status: None,
                     merchant_id: common_utils::id_type::MerchantId::default(),
                     customer_id: None,
                     connector_customer: None,
@@ -305,6 +308,7 @@ mod tests {
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
+                    currency_conversion_data: None,
                     payment_method_data: PaymentMethodData::Card(Default::default()),
                     amount: MinorUnit::new(1000),
                     order_tax_amount: None,

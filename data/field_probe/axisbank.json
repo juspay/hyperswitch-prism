@@ -10,443 +10,443 @@
     "authorize": {
       "Ach": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "AchBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "Affirm": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "Afterpay": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "Alfamart": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "AliPayRedirect": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "AmazonPayRedirect": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "ApplePay": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "ApplePayDecrypted": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "ApplePayThirdPartySdk": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "Bacs": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "BacsBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "BancontactCard": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "BcaBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "Becs": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "BillDeskRedirect": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "Bizum": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "Blik": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "Bluecode": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "BniVaBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "Boleto": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "BriVaBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "Card": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "CashappQr": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "CashfreeRedirect": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "CimbVaBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "ClassicReward": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Dana": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "DanamonVaBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "EVoucher": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "EaseBuzzRedirect": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "Efecty": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "Eft": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "Eps": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "FamilyMart": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "GCash": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "Giropay": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "GoPay": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "GooglePay": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "GooglePayDecrypted": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "GooglePayThirdPartySdk": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "Ideal": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "Indomaret": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "IndonesianBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "InstantBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "InstantBankTransferFinland": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "InstantBankTransferPoland": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "Interac": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "KakaoPay": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "Klarna": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "Lawson": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "LazyPayRedirect": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "LocalBankRedirect": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "LocalBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "MandiriVaBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "MbWay": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "Mifinity": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "MiniStop": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "MobilePayRedirect": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Momo": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "MultibancoBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "Netbanking": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "OnlineBankingCzechRepublic": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "OnlineBankingFinland": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "OnlineBankingFpx": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "OnlineBankingPoland": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "OnlineBankingSlovakia": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "OnlineBankingThailand": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "OpenBanking": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "OpenBankingUk": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "Oxxo": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "PagoEfectivo": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "PayEasy": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "PaySafeCard": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "PayURedirect": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "PaypalRedirect": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "PaypalSdk": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "Paysera": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "PermataBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "PhonePeRedirect": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "Pix": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "Przelewy24": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "Pse": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "RedCompra": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "RedPagos": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "RevolutPay": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "SamsungPay": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "Satispay": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "Seicomart": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "Sepa": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "SepaBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "SepaGuaranteedDebit": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "SevenEleven": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "Skrill": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "Sofort": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "Swish": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "TouchNGo": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "Trustly": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "Twint": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "UpiCollect": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "UpiIntent": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "UpiQr": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "Vipps": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "WeChatPayQr": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       },
       "Wero": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       }
     },
     "capture": {
@@ -483,6 +483,12 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: create_connector_customer flow for axisbank"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: get_connector_customer flow for axisbank"
       }
     },
     "dispute_accept": {
@@ -556,7 +562,7 @@
     "proxy_authorize": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       }
     },
     "proxy_setup_recurring": {
@@ -575,6 +581,11 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: mandate_revoke flow for axisbank"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "refund": {
@@ -604,7 +615,7 @@
     "token_authorize": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
       }
     },
     "token_setup_recurring": {
