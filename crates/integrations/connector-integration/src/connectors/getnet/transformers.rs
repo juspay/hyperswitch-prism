@@ -2227,6 +2227,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         Ok(Self {
             response: Ok(PaymentMethodTokenResponse {
                 token: item.response.number_token.expose(),
+                connector_payment_method_id: None,
             }),
             ..item.router_data
         })

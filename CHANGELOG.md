@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.08.04.0
+
+### Bug Fixes
+
+- **finix:** Surface RepeatPayment failures as response.Err by connector state ([#1803](https://github.com/juspay/connector-service/pull/1803)) ([`55d142e`](https://github.com/juspay/connector-service/commit/55d142ea17012592ff91947f72f89443d8cd4020))
+
+**Full Changelog:** [`2026.08.03.1...2026.08.04.0`](https://github.com/juspay/connector-service/compare/2026.08.03.1...2026.08.04.0)
+
+- - -
+
 ## 2026.08.03.1
 
 ### Features

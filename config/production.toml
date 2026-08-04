@@ -26,6 +26,7 @@ bypass_urls = ["localhost", "local"]
 tesouro.base_url = "https://api.tesouro.com"
 kount.base_url = "https://api.kount.com"
 kount.secondary_base_url = "https://login.kount.com"
+plaid.base_url = "https://production.plaid.com"
 glomopay.base_url = "https://api.glomopay.com/api/v1/"
 hyperswitch.base_url = "https://api.hyperswitch.io"
 payconex.base_url = "https://secure.payconex.net"
