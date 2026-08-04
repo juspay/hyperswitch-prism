@@ -328,8 +328,20 @@ fn mask_xml(body: &[u8], keys: &HashSet<Box<str>>) -> Option<String> {
 }
 
 fn mask_form(body: &[u8], keys: &HashSet<Box<str>>) -> Option<String> {
+    // Some connectors (Fiuu) separate pairs with newlines rather than `&`. Left as-is, urlencoded
+    // parsing folds the entire body into the first pair's value, so an allowlisted first key would
+    // reveal every later line. Only literal newline bytes are rewritten, so a percent-encoded
+    // `%0A` inside a genuine form value is untouched.
+    let normalised: Vec<u8> = body
+        .iter()
+        .map(|byte| match byte {
+            b'\n' | b'\r' => b'&',
+            other => *other,
+        })
+        .collect();
+
     // A Vec rather than a map so repeated keys survive.
-    let pairs: Vec<(String, String)> = serde_urlencoded::from_bytes(body).ok()?;
+    let pairs: Vec<(String, String)> = serde_urlencoded::from_bytes(&normalised).ok()?;
     let masked = pairs
         .into_iter()
         .map(|(key, value)| {
@@ -387,6 +399,12 @@ pub fn mask_connector_response(
     if !config.enabled || body.is_empty() {
         return None;
     }
+
+    // Some connectors (Authorize.Net) prefix responses with a UTF-8 BOM, which every parser below
+    // rejects. The connector strips it in `preprocess_response_bytes`, but that runs inside
+    // `handle_response_v2` — after this point. Must precede `detect`: a BOM makes the first
+    // meaningful byte `0xEF`, so sniffing would misroute before reaching the `{`.
+    let body = body.strip_prefix(&[0xEF, 0xBB, 0xBF]).unwrap_or(body);
 
     let keys = config.keys_for(connector);
 
