@@ -3156,6 +3156,8 @@ pub struct AuthorizationRequest {
     /// Partner / merchant application identifiers (e.g. Adyen applicationInfo).
     pub partner_merchant_identifier_details:
         Option<grpc_payment_types::PartnerMerchantIdentifierDetails>,
+    /// Dynamic currency conversion decision and quote supplied for authorization.
+    pub currency_conversion_data: Option<grpc_payment_types::CurrencyConversionData>,
 }
 
 /// Intermediate setup recurring request that accepts both CardDetails and ProxyCardDetails.
@@ -3260,6 +3262,7 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
             domain_data: req.domain_data,
             split_payments: req.split_payments,
             partner_merchant_identifier_details: req.partner_merchant_identifier_details,
+            currency_conversion_data: req.currency_conversion_data,
         }
     }
 }
@@ -3329,6 +3332,7 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             domain_data: req.domain_data,
             split_payments: None,
             partner_merchant_identifier_details: None,
+            currency_conversion_data: None,
         }
     }
 }
@@ -3838,6 +3842,142 @@ impl ForeignTryFrom<grpc_payment_types::PartnerMerchantIdentifierDetails>
     }
 }
 
+impl ForeignTryFrom<grpc_payment_types::CurrencyConversionDecision>
+    for connector_types::CurrencyConversionDecision
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: grpc_payment_types::CurrencyConversionDecision,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        match value {
+            grpc_payment_types::CurrencyConversionDecision::Accepted => Ok(Self::Accepted),
+            grpc_payment_types::CurrencyConversionDecision::Declined => Ok(Self::Declined),
+            grpc_payment_types::CurrencyConversionDecision::NotApplicable => {
+                Ok(Self::NotApplicable)
+            }
+            grpc_payment_types::CurrencyConversionDecision::Unspecified => {
+                Err(report!(IntegrationError::InvalidDataFormat {
+                    field_name: "currency_conversion_data.decision",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Currency conversion decision cannot be unspecified".to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                }))
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<grpc_payment_types::CurrencyConversionType>
+    for connector_types::CurrencyConversionType
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: grpc_payment_types::CurrencyConversionType,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        match value {
+            grpc_payment_types::CurrencyConversionType::Dcc => Ok(Self::Dcc),
+            grpc_payment_types::CurrencyConversionType::Mcp => Ok(Self::Mcp),
+            grpc_payment_types::CurrencyConversionType::Mcc => Ok(Self::Mcc),
+            grpc_payment_types::CurrencyConversionType::Unspecified => {
+                Err(report!(IntegrationError::InvalidDataFormat {
+                    field_name: "currency_conversion_data.quote.currency_conversion_type",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Currency conversion type cannot be unspecified".to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                }))
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<grpc_payment_types::CurrencyConversionQuote>
+    for connector_types::CurrencyConversionQuote
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: grpc_payment_types::CurrencyConversionQuote,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        Ok(Self {
+            merchant_order_amount: value
+                .merchant_order_amount
+                .map(common_utils::types::Money::foreign_try_from)
+                .transpose()?,
+            exchange_rate: value.exchange_rate,
+            connector_quote_id: value.connector_quote_id,
+            exchange_rate_id: value.exchange_rate_id,
+            provider: value.provider,
+            rate_source: value.rate_source,
+            markup_percentage: value.markup_percentage,
+            markup_amount: value
+                .markup_amount
+                .map(common_utils::types::Money::foreign_try_from)
+                .transpose()?,
+            currency_conversion_type: value
+                .currency_conversion_type
+                .map(|currency_conversion_type| {
+                    grpc_payment_types::CurrencyConversionType::try_from(currency_conversion_type)
+                        .map_err(|_| {
+                            report!(IntegrationError::InvalidDataFormat {
+                                field_name:
+                                    "currency_conversion_data.quote.currency_conversion_type",
+                                context: IntegrationErrorContext {
+                                    additional_context: Some(format!(
+                                        "Unknown currency conversion type discriminant: {currency_conversion_type}"
+                                    )),
+                                    ..Default::default()
+                                },
+                            })
+                        })
+                        .and_then(connector_types::CurrencyConversionType::foreign_try_from)
+                })
+                .transpose()?,
+            quoted_at: value.quoted_at,
+            expires_at: value.expires_at,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_payment_types::CurrencyConversionData>
+    for connector_types::CurrencyConversionData
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: grpc_payment_types::CurrencyConversionData,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let decision = grpc_payment_types::CurrencyConversionDecision::try_from(value.decision)
+            .map_err(|_| {
+                report!(IntegrationError::InvalidDataFormat {
+                    field_name: "currency_conversion_data.decision",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(format!(
+                            "Unknown currency conversion decision discriminant: {}",
+                            value.decision
+                        )),
+                        ..Default::default()
+                    },
+                })
+            })?;
+
+        Ok(Self {
+            decision: connector_types::CurrencyConversionDecision::foreign_try_from(decision)?,
+            quote: value
+                .quote
+                .map(connector_types::CurrencyConversionQuote::foreign_try_from)
+                .transpose()?,
+        })
+    }
+}
+
 impl ForeignTryFrom<grpc_payment_types::AirlineData> for connector_types::AirlineData {
     type Error = IntegrationError;
 
@@ -4252,6 +4392,10 @@ impl<
             partner_merchant_identifier_details: value
                 .partner_merchant_identifier_details
                 .map(connector_types::PartnerMerchantIdentifierDetails::foreign_try_from)
+                .transpose()?,
+            currency_conversion_data: value
+                .currency_conversion_data
+                .map(connector_types::CurrencyConversionData::foreign_try_from)
                 .transpose()?,
         })
     }
@@ -16777,6 +16921,7 @@ pub fn tokenized_authorize_to_base(
         merchant_request_id: None,
         domain_data: None,
         partner_merchant_identifier_details: None,
+        currency_conversion_data: None,
     }
 }
 
@@ -16955,6 +17100,7 @@ pub fn proxied_authorize_to_base(
         merchant_request_id: None,
         domain_data: None,
         partner_merchant_identifier_details: None,
+        currency_conversion_data: None,
     })
 }
 

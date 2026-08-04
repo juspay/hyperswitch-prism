@@ -356,6 +356,7 @@ impl
             domain_data: item.domain_data.clone(),
             split_payments: item.split_payments.clone(),
             partner_merchant_identifier_details: item.partner_merchant_identifier_details.clone(),
+            currency_conversion_data: item.currency_conversion_data.clone(),
         }
     }
 }
@@ -1155,6 +1156,7 @@ impl
             partner_merchant_identifier_details: request
                 .partner_merchant_identifier_details
                 .clone(),
+            currency_conversion_data: request.currency_conversion_data.clone(),
         }
     }
 }
