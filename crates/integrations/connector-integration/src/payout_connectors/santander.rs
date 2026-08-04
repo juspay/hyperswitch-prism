@@ -100,9 +100,9 @@ impl ConnectorCommon for SantanderPayouts {
                 event_builder.map(|i| i.set_connector_response(&error_res));
                 Ok(ErrorResponse {
                     status_code: res.status_code,
-                    code: error_res.error_code(res.status_code),
-                    message: error_res.error_message(res.status_code),
-                    reason: error_res.error_reason(),
+                    code: error_res.code,
+                    message: error_res.message,
+                    reason: error_res.details,
                     attempt_status: None,
                     connector_transaction_id: None,
                     network_decline_code: None,
