@@ -2275,7 +2275,6 @@ pub(super) fn build_finix_payment_webhook_response(
         resource_id: Some(ResponseId::ConnectorTransactionId(resource.id.clone())),
         status,
         connector_response_reference_id: Some(resource.id),
-        merchant_transaction_id: None,
         mandate_reference: None,
         error_code: resource.failure_code,
         error_message: resource.failure_message.clone(),

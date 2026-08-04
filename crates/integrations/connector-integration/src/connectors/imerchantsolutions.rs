@@ -240,7 +240,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             )),
             status,
             connector_response_reference_id: Some(webhook_body.payment_id),
-            merchant_transaction_id: None,
             mandate_reference: None,
             error_code,
             error_message,

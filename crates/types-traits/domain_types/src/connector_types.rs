@@ -2656,11 +2656,6 @@ pub struct WebhookDetailsResponse {
     pub resource_id: Option<ResponseId>,
     pub status: AttemptStatus,
     pub connector_response_reference_id: Option<String>,
-    /// Merchant reference echoed by the connector in the webhook (e.g. Maya
-    /// `requestReferenceNumber`, Adyen `merchantReference`, Stripe `metadata.order_id`).
-    /// Populating this prevents `merchant_transaction_id` from being emitted as null
-    /// on the gRPC webhook response sent to Euler.
-    pub merchant_transaction_id: Option<String>,
     pub mandate_reference: Option<Box<MandateReference>>,
     pub error_code: Option<String>,
     pub error_message: Option<String>,

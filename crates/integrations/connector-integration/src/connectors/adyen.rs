@@ -961,7 +961,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             )),
             status: transformers::get_adyen_payment_webhook_event(notif.event_code, notif.success)?,
             connector_response_reference_id: Some(notif.psp_reference),
-            merchant_transaction_id: None,
             error_code,
             mandate_reference,
             error_message,

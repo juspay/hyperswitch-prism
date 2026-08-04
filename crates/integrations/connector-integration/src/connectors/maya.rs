@@ -323,7 +323,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(WebhookDetailsResponse {
             resource_id: Some(ResponseId::ConnectorTransactionId(body.id)),
             status,
-            merchant_transaction_id: connector_response_reference_id.clone(),
             connector_response_reference_id,
             mandate_reference: None,
             error_code: body.error_code,
@@ -671,6 +670,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::VerifyRedirectResponse for Maya<T>
 {
+    fn decode_redirect_response_body(
+        &self,
+        request: &RequestDetails,
+        _secrets: Option<interfaces::verification::ConnectorSourceVerificationSecrets>,
+    ) -> CustomResult<Vec<u8>, errors::IntegrationError> {
+        // Maya does not encode/sign redirect bodies; pass through unchanged.
+        Ok(request.body.clone())
+    }
+
     fn verify_redirect_response_source(
         &self,
         _request: &RequestDetails,

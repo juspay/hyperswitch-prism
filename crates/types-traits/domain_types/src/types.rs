@@ -8774,13 +8774,8 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
                     .transpose()?
                     .unwrap_or_default(),
             ),
-            connector_reference_id: value.connector_response_reference_id.clone(),
-            // Prefer the explicit merchant reference echoed by the connector webhook,
-            // falling back to the connector response reference id (same fallback the
-            // sync PSync path uses via `connector_request_reference_id`).
-            merchant_transaction_id: value
-                .merchant_transaction_id
-                .or(value.connector_response_reference_id),
+            connector_reference_id: value.connector_response_reference_id,
+            merchant_transaction_id: None,
             status: status as i32,
             mandate_reference: mandate_reference_grpc,
             mandate_reference_details,

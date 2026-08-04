@@ -245,7 +245,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             )),
             status,
             connector_response_reference_id: None,
-            merchant_transaction_id: None,
             mandate_reference: None,
             error_code: None,
             error_message: None,

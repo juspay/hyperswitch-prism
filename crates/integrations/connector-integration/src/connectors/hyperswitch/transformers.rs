@@ -461,7 +461,6 @@ pub fn build_webhook_payment_response(
         )),
         status,
         connector_response_reference_id: Some(payment.payment_id),
-        merchant_transaction_id: None,
         mandate_reference: None,
         error_code: payment.error_code,
         error_message: payment.error_message.clone(),

@@ -4,7 +4,7 @@ use domain_types::{
     connector_types::{
         EventType, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsResponseData,
         PaymentsSyncData, RawConnectorStatus, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId,
+        RefundsResponseData, ResponseId, SettlementStatus,
     },
     errors::{self, ConnectorError, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
@@ -267,6 +267,21 @@ impl MayaWebhookBody {
     }
 }
 
+/// Derive Maya's settlement phase from the operation flags returned by payment inquiry.
+///
+/// `canVoid` takes precedence. A payment is considered settled only when Maya explicitly disables
+/// void and enables refund.
+fn maya_settlement_status(
+    can_void: Option<bool>,
+    can_refund: Option<bool>,
+) -> Option<SettlementStatus> {
+    match (can_void, can_refund) {
+        (Some(true), _) => Some(SettlementStatus::NotSettled),
+        (Some(false), Some(true)) => Some(SettlementStatus::Settled),
+        _ => None,
+    }
+}
+
 // =============================================================================
 // VOID FLOW TYPES AND TRANSFORMERS
 // =============================================================================
@@ -499,6 +514,8 @@ impl TryFrom<ResponseRouterData<MayaWebhookBody, Self>>
 
         let payment = item.response;
 
+        let settlement_status = maya_settlement_status(payment.can_void, payment.can_refund);
+
         // Effective status: prefer `paymentStatus`, fall back to `status`
         // (same logic as the webhook body).
         let effective_status = payment.payment_status().unwrap_or("PAYMENT_FAILED");
@@ -555,6 +572,7 @@ impl TryFrom<ResponseRouterData<MayaWebhookBody, Self>>
             }),
             resource_common_data: PaymentFlowData {
                 status,
+                settlement_status,
                 raw_connector_status: Some(RawConnectorStatus {
                     code: payment.error_code.clone(),
                     message: Some(effective_status.to_string()),
@@ -773,9 +791,39 @@ mod tests {
     use common_utils::types::FloatMajorUnit;
 
     use super::{
-        MayaPaymentsRequest, MayaRedirectUrl, MayaRefundRequest, MayaRefundResponse,
-        MayaRefundTotalAmount, MayaTotalAmount, MayaWebhookBody,
+        maya_settlement_status, MayaPaymentsRequest, MayaRedirectUrl, MayaRefundRequest,
+        MayaRefundResponse, MayaRefundTotalAmount, MayaTotalAmount, MayaWebhookBody,
     };
+    use domain_types::connector_types::SettlementStatus;
+
+    #[test]
+    fn settlement_status_prefers_can_void_when_both_operations_are_allowed() {
+        assert_eq!(
+            maya_settlement_status(Some(true), Some(true)),
+            Some(SettlementStatus::NotSettled)
+        );
+    }
+
+    #[test]
+    fn settlement_status_is_settled_only_when_void_is_disabled_and_refund_is_allowed() {
+        assert_eq!(
+            maya_settlement_status(Some(false), Some(true)),
+            Some(SettlementStatus::Settled)
+        );
+    }
+
+    #[test]
+    fn settlement_status_is_absent_for_inconclusive_operation_flags() {
+        for flags in [
+            (Some(false), Some(false)),
+            (Some(false), None),
+            (None, Some(true)),
+            (None, Some(false)),
+            (None, None),
+        ] {
+            assert_eq!(maya_settlement_status(flags.0, flags.1), None);
+        }
+    }
 
     /// Refund Payment via ID expects the amount as a JSON number under
     /// `totalAmount.amount` (not as a string and not under `value`).

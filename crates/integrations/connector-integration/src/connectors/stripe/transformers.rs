@@ -4197,7 +4197,6 @@ pub(crate) fn build_webhook_payment_response(
         resource_id: connector_transaction_id.map(ResponseId::ConnectorTransactionId),
         status,
         connector_response_reference_id,
-        merchant_transaction_id: None,
         mandate_reference: None,
         error_code,
         error_message,

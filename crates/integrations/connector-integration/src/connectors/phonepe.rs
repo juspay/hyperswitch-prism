@@ -224,7 +224,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             )),
             status,
             connector_response_reference_id: Some(payload.merchant_transaction_id),
-            merchant_transaction_id: None,
             mandate_reference: None,
             error_code,
             error_message,

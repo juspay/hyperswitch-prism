@@ -234,7 +234,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .payment_information
                 .references
                 .payment_request_id,
-            merchant_transaction_id: None,
             mandate_reference: None,
             error_code,
             error_message,
