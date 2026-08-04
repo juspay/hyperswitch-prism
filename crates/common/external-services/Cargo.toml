@@ -38,6 +38,7 @@ tracing-subscriber = { version = "0.3.18", default-features = true, features = [
     "registry",
 ] }
 tracing-attributes = "0.1.27"
+log_utils = { git = "https://github.com/AmitsinghTanwar007/framework-libs-rs", rev = "8cc2e171e42ec831fd0def4cccdf1bfafacdb89a", package = "log_utils", features = ["tracing"] }
 tonic = { workspace = true }
 prometheus = "0.13.4"
 tower = "0.5.2"

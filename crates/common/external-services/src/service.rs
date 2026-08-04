@@ -1084,7 +1084,7 @@ fn record_api_message(event: &Event) {
         },
         "latency": event.latency_ms,
     });
-    tracing::Span::current().record("api_message", tracing::field::display(&api_message));
+    log_utils::record_json("api_message", api_message);
 }
 
 #[cfg(feature = "injector-client")]
