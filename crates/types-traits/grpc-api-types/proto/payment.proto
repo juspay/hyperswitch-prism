@@ -2186,8 +2186,8 @@ message RevolutClientAuthenticationResponse {
 
 // Plaid Link SDK initialization data — link_token for Plaid Link initialization
 message PlaidClientAuthenticationResponse {
-  string link_token = 1;                          // Required: The Plaid Link token
-  optional int64 expires_in_seconds = 2;          // Expiration timestamp (seconds since epoch)
+  SecretString link_token = 1;                    // Required: The Plaid Link token
+  optional int64 expires_in_seconds = 2;          // Seconds until the link_token expires
   optional string hosted_link_url = 3;            // Hosted Link URL (if enabled)
 }
 
@@ -4447,7 +4447,7 @@ message BankAccountDetails {
 
 // Individual bank account credential with routing details
 message BankAccount {
-  string account_name = 1;                       // Account display name
+  SecretString account_name = 1;                  // Account display name
   SecretString account_id = 2;                   // Unique account identifier
   optional BankType bank_type = 3;               // Account type: checking, savings
   optional BankHolderType bank_holder_type = 4;  // Bank holder type
@@ -5364,6 +5364,16 @@ message FlywireConfig {
   optional string base_url = 50;
 }
 
+message PlaidConfig {
+  // Plaid client_id — used as `client_id` in every API request body.
+  SecretString client_id = 1;
+  // Plaid secret — used as `secret` in every API request body.
+  SecretString secret = 2;
+  // Application name displayed to users in the Plaid Link UI.
+  optional string client_name = 3;
+  optional string base_url = 50;
+}
+
 message AffirmConfig {
   // Affirm public API key — used as the HTTP Basic auth username.
   SecretString public_key = 1;
@@ -5755,15 +5765,17 @@ message ConnectorSpecificConfig {
     AffirmConfig affirm = 135;
     // FLYWIRE = 129
     FlywireConfig flywire = 136;
-    // GLOMOPAY = 130
+    // GLOMOPAY = 137
     GlomopayConfig glomopay = 137;
-    // GIVEPAYMENTS = 131
+    // GIVEPAYMENTS = 138
     GivepaymentsConfig givepayments = 138;
 
-    // TESOURO = 132
+    // TESOURO = 139
     TesouroConfig tesouro = 139;
-    // DEUTSCHEBANK = 24
+    // DEUTSCHEBANK = 140
     DeutschebankConfig deutschebank = 140;
+    // PLAID = 141
+    PlaidConfig plaid = 141;
   }
 }
 
