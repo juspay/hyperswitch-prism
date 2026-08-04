@@ -33,7 +33,7 @@ pub const MASKED: &str = "***";
 /// There is deliberately no global key list: a field name that is safe on one gateway is not
 /// necessarily safe on another. A connector with no entry gets every value masked, with every key
 /// still visible.
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct ConnectorResponseMaskingConfig {
     /// Whether to populate `unmasked_connector_response` at all.
@@ -96,15 +96,6 @@ where
         .map(|(connector, keys)| (connector.to_string(), keys))
         .collect::<HashMap<_, _>>()
         .serialize(serializer)
-}
-
-impl Default for ConnectorResponseMaskingConfig {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            connector_keys: HashMap::new(),
-        }
-    }
 }
 
 impl ConnectorResponseMaskingConfig {
@@ -459,7 +450,5 @@ pub fn mask_connector_response(
     };
 
     // Emitted whole: the full body is the point, so there is no truncation.
-    Some(
-        masked.unwrap_or_else(|| format!(r#"{{"_format":"unparseable","_bytes":{}}}"#, body.len())),
-    )
+    Some(masked.unwrap_or_else(|| format!(r#"{{"_format":"unparsable","_bytes":{}}}"#, body.len())))
 }
