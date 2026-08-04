@@ -136,9 +136,8 @@ pub struct SepaBankTransfer {
     pub bic: Option<Secret<String>>,
 }
 
-#[derive(Default, Eq, PartialEq, Clone, Debug)]
+#[derive(Eq, PartialEq, Clone, Debug)]
 pub enum PixBankAccountType {
-    #[default]
     Checking,
     Savings,
     Salary,
