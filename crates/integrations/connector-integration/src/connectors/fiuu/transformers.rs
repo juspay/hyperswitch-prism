@@ -1216,24 +1216,24 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct PaymentsResponse {
-    pub reference_no: String,
+    pub reference_no: Option<String>,
     #[serde(rename = "TxnID")]
     pub txn_id: String,
-    pub txn_type: TxnType,
-    pub txn_currency: Currency,
-    pub txn_amount: StringMajorUnit,
-    pub txn_channel: String,
+    pub txn_type: Option<String>,
+    pub txn_currency: Option<Currency>,
+    pub txn_amount: Option<StringMajorUnit>,
+    pub txn_channel: Option<String>,
     pub txn_data: TxnData,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct DuitNowQrCodeResponse {
-    pub reference_no: String,
-    pub txn_type: TxnType,
-    pub txn_currency: Currency,
-    pub txn_amount: StringMajorUnit,
-    pub txn_channel: String,
+    pub reference_no: Option<String>,
+    pub txn_type: Option<String>,
+    pub txn_currency: Option<Currency>,
+    pub txn_amount: Option<StringMajorUnit>,
+    pub txn_channel: Option<String>,
     #[serde(rename = "TxnID")]
     pub txn_id: String,
     pub txn_data: QrTxnData,
@@ -1263,7 +1263,7 @@ pub enum FiuuPaymentsResponse {
 pub struct FiuuRecurringResponse {
     status: FiuuRecurringStautus,
     #[serde(rename = "orderid")]
-    order_id: String,
+    order_id: Option<String>,
     #[serde(rename = "tranID")]
     tran_id: Option<String>,
     reason: Option<String>,
@@ -1273,6 +1273,8 @@ pub struct FiuuRecurringResponse {
 pub enum FiuuRecurringStautus {
     Accepted,
     Failed,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -1280,16 +1282,9 @@ pub enum FiuuRecurringStautus {
 pub struct TxnData {
     #[serde(rename = "RequestURL")]
     pub request_url: String,
-    pub request_type: RequestType,
+    pub request_type: Option<String>,
     pub request_data: RequestData,
     pub request_method: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "UPPERCASE")]
-pub enum RequestType {
-    Redirect,
-    Response,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -1587,6 +1582,7 @@ impl From<FiuuRecurringStautus> for common_enums::AttemptStatus {
         match status {
             FiuuRecurringStautus::Accepted => Self::Charged,
             FiuuRecurringStautus::Failed => Self::Failure,
+            FiuuRecurringStautus::Unknown => Self::Unknown,
         }
     }
 }
