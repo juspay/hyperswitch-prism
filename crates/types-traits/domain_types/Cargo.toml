@@ -47,10 +47,6 @@ tracing = { workspace = true }
 tonic = { workspace = true }
 
 
-[dev-dependencies]
-# Already in the lockfile; used to prove the config section parses in its real format.
-toml = "0.8"
-
 [features]
 default = ["actix-web"]
 actix-web = ["dep:actix-web"]
