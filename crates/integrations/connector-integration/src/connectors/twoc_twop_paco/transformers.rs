@@ -59,6 +59,55 @@ pub enum PacoDeviceCategory {
     P,
 }
 
+#[derive(Debug, Clone, Copy, Serialize)]
+pub enum PacoCurrencyConversionType {
+    None,
+    #[serde(rename = "DCC")]
+    Dcc,
+    #[serde(rename = "MCC")]
+    Mcc,
+    #[serde(rename = "MCP")]
+    Mcp,
+}
+
+impl From<Option<connector_types::CurrencyConversionType>> for PacoCurrencyConversionType {
+    fn from(value: Option<connector_types::CurrencyConversionType>) -> Self {
+        match value {
+            Some(connector_types::CurrencyConversionType::Dcc) => Self::Dcc,
+            Some(connector_types::CurrencyConversionType::Mcc) => Self::Mcc,
+            Some(connector_types::CurrencyConversionType::Mcp) => Self::Mcp,
+            None => Self::None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PacoCurrencyConversionDetails {
+    pub enabled_flag: bool,
+    pub conversion_type: PacoCurrencyConversionType,
+    pub message_id: String,
+}
+
+impl From<&connector_types::CurrencyConversionData> for PacoCurrencyConversionDetails {
+    fn from(value: &connector_types::CurrencyConversionData) -> Self {
+        let quote = value.quote.as_ref();
+        Self {
+            enabled_flag: matches!(
+                value.decision,
+                connector_types::CurrencyConversionDecision::Accepted
+            ),
+            conversion_type: quote
+                .and_then(|quote| quote.currency_conversion_type)
+                .into(),
+            // PACO calls the connector's quote identifier `messageId`.
+            message_id: quote
+                .and_then(|quote| quote.connector_quote_id.clone())
+                .unwrap_or_default(),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct TwocTwopPacoAuthType {
     pub access_token: Secret<String>,
@@ -369,6 +418,8 @@ pub struct TwocTwopPacoCardAuthorizeRequest {
     pub order_no: String,
     pub product_description: String,
     pub payment_type: PacoPaymentType,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub original_transaction_amount: Option<PacoTransactionAmount>,
     pub transaction_amount: PacoTransactionAmount,
     #[serde(rename = "notificationURLs")]
     pub notification_urls: PacoNotificationUrls,
@@ -383,6 +434,8 @@ pub struct TwocTwopPacoCardAuthorizeRequest {
     pub billing_address: Option<PacoBillingAddress>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub shipping_address: Option<PacoShippingAddress>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub currency_conversion_details: Option<PacoCurrencyConversionDetails>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub airline_data: Option<PacoAirlineData>,
 }
@@ -427,6 +480,8 @@ pub struct TwocTwopPacoWalletAuthorizeRequest {
     pub order_no: String,
     pub product_description: String,
     pub payment_type: PacoPaymentType,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub original_transaction_amount: Option<PacoTransactionAmount>,
     pub transaction_amount: PacoTransactionAmount,
     #[serde(rename = "notificationURLs")]
     pub notification_urls: PacoNotificationUrls,
@@ -435,6 +490,8 @@ pub struct TwocTwopPacoWalletAuthorizeRequest {
     pub billing_address: Option<PacoBillingAddress>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub shipping_address: Option<PacoShippingAddress>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub currency_conversion_details: Option<PacoCurrencyConversionDetails>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub airline_data: Option<PacoAirlineData>,
 }
@@ -894,6 +951,19 @@ where
         cancellation_url: item.request.router_return_url.clone(),
         backend_url: item.request.webhook_url.clone(),
     };
+    let currency_conversion_details = item
+        .request
+        .currency_conversion_data
+        .as_ref()
+        .map(PacoCurrencyConversionDetails::from);
+    let original_transaction_amount = item
+        .request
+        .currency_conversion_data
+        .as_ref()
+        .and_then(|conversion_data| conversion_data.quote.as_ref())
+        .and_then(|quote| quote.merchant_order_amount.as_ref())
+        .map(PacoTransactionAmount::try_from)
+        .transpose()?;
 
     let common = &item.resource_common_data;
     let paco_billing_address = common
@@ -987,6 +1057,7 @@ where
                 order_no,
                 product_description: description,
                 payment_type: PacoPaymentType::CC,
+                original_transaction_amount: original_transaction_amount.clone(),
                 transaction_amount: amount,
                 notification_urls,
                 credit_card_details: PacoCreditCardDetails {
@@ -1001,6 +1072,7 @@ where
                 device_details,
                 billing_address: paco_billing_address,
                 shipping_address: paco_shipping_address,
+                currency_conversion_details: currency_conversion_details.clone(),
                 airline_data: airline_data.clone(),
             };
             Ok(TwocTwopPacoAuthorizeRequest::Card(body))
@@ -1022,11 +1094,13 @@ where
                 order_no,
                 product_description: description,
                 payment_type: PacoPaymentType::WalletGcash,
+                original_transaction_amount,
                 transaction_amount: amount,
                 notification_urls,
                 device_details,
                 billing_address: paco_billing_address,
                 shipping_address: paco_shipping_address,
+                currency_conversion_details,
                 airline_data,
             };
             Ok(TwocTwopPacoAuthorizeRequest::Wallet(body))
@@ -2760,5 +2834,90 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoRefundResponse, Self>>
             },
             ..router_data
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn serializes_paco_currency_conversion_details() {
+        let conversion_data = connector_types::CurrencyConversionData {
+            decision: connector_types::CurrencyConversionDecision::Accepted,
+            quote: Some(connector_types::CurrencyConversionQuote {
+                merchant_order_amount: None,
+                exchange_rate: Some("36.42".to_string()),
+                connector_quote_id: Some("dcc-message-id".to_string()),
+                exchange_rate_id: None,
+                provider: None,
+                rate_source: None,
+                markup_percentage: None,
+                markup_amount: None,
+                currency_conversion_type: Some(connector_types::CurrencyConversionType::Dcc),
+                quoted_at: None,
+                expires_at: None,
+            }),
+        };
+
+        let serialized =
+            serde_json::to_value(PacoCurrencyConversionDetails::from(&conversion_data))
+                .expect("currency conversion details should serialize");
+
+        assert_eq!(
+            serialized,
+            serde_json::json!({
+                "enabledFlag": true,
+                "conversionType": "DCC",
+                "messageId": "dcc-message-id"
+            })
+        );
+    }
+
+    #[test]
+    fn serializes_missing_quote_as_disabled_conversion() {
+        let conversion_data = connector_types::CurrencyConversionData {
+            decision: connector_types::CurrencyConversionDecision::NotApplicable,
+            quote: None,
+        };
+
+        let serialized =
+            serde_json::to_value(PacoCurrencyConversionDetails::from(&conversion_data))
+                .expect("currency conversion details should serialize");
+
+        assert_eq!(
+            serialized,
+            serde_json::json!({
+                "enabledFlag": false,
+                "conversionType": "None",
+                "messageId": ""
+            })
+        );
+    }
+
+    #[test]
+    fn does_not_use_exchange_rate_id_as_paco_message_id() {
+        let conversion_data = connector_types::CurrencyConversionData {
+            decision: connector_types::CurrencyConversionDecision::Accepted,
+            quote: Some(connector_types::CurrencyConversionQuote {
+                merchant_order_amount: None,
+                exchange_rate: Some("36.42".to_string()),
+                connector_quote_id: None,
+                exchange_rate_id: Some("exchange-rate-id".to_string()),
+                provider: None,
+                rate_source: None,
+                markup_percentage: None,
+                markup_amount: None,
+                currency_conversion_type: Some(connector_types::CurrencyConversionType::Dcc),
+                quoted_at: None,
+                expires_at: None,
+            }),
+        };
+
+        let serialized =
+            serde_json::to_value(PacoCurrencyConversionDetails::from(&conversion_data))
+                .expect("currency conversion details should serialize");
+
+        assert_eq!(serialized["messageId"], "");
     }
 }
