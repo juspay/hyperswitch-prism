@@ -24,8 +24,9 @@ router_derive = { git = "https://github.com/juspay/hyperswitch", tag = "2026.06.
 thiserror = { workspace = true }
 strum = { version = "0.26", features = ["derive"] }
 serde = { workspace = true }
-serde_json = { workspace = true }
+serde_json = { workspace = true, features = ["preserve_order"] }
 serde_urlencoded = "0.7"
+quick-xml = { version = "0.31.0", features = ["serialize"] }
 error-stack = "0.4.1"
 base64 = "0.21"
 rand = "0.8.5"
@@ -45,6 +46,10 @@ actix-web = { version = "4.11.0", optional = true }
 tracing = { workspace = true }
 tonic = { workspace = true }
 
+
+[dev-dependencies]
+# Already in the lockfile; used to prove the config section parses in its real format.
+toml = "0.8"
 
 [features]
 default = ["actix-web"]

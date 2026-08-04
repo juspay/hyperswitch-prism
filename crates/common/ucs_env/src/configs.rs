@@ -11,6 +11,9 @@ use common_utils::{
     SuperpositionConfig,
 };
 use domain_types::{
+    connector_response_masking::{
+        ConnectorResponseMaskingConfig, ConnectorResponseMaskingConfigPatch,
+    },
     connector_types::ConnectorEnum,
     types::{Connectors, ConnectorsPatch, ProxyConfig, ProxyConfigPatch},
 };
@@ -34,6 +37,10 @@ pub struct Config {
     pub lineage: LineageConfig,
     #[serde(default)]
     pub unmasked_headers: HeaderMaskingConfig,
+    /// Per-connector key lists controlling which response values stay visible in
+    /// `unmasked_connector_response`.
+    #[serde(default)]
+    pub connector_response_masking: ConnectorResponseMaskingConfig,
     #[serde(default)]
     pub test: TestConfig,
     #[serde(default)]

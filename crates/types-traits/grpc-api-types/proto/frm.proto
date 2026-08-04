@@ -91,6 +91,10 @@ message FrmServicePreRiskCheckResponse {
 
   // Raw response from the connector for debugging
   optional SecretString raw_connector_response = 8;
+  // Selectively-masked view of the connector response: every key preserved,
+  // values masked unless the connector's configured list names them. Already
+  // sanitized, hence `string` and not `SecretString`.
+  optional string unmasked_connector_response = 10;
 
   // Response headers from the connector
   map<string, string> response_headers = 9;
@@ -160,6 +164,10 @@ message FrmServicePostRiskCheckResponse {
 
   // Raw response from the connector for debugging
   optional SecretString raw_connector_response = 8;
+  // Selectively-masked view of the connector response: every key preserved,
+  // values masked unless the connector's configured list names them. Already
+  // sanitized, hence `string` and not `SecretString`.
+  optional string unmasked_connector_response = 10;
 
   // Response headers from the connector
   map<string, string> response_headers = 9;

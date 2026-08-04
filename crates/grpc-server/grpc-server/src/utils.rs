@@ -706,6 +706,7 @@ macro_rules! implement_connector_operation {
                 tenant_id: &metadata_payload.tenant_id,
                 merchant_id: metadata_payload.merchant_id.as_str(),
                 return_raw_connector_data: config.common.return_raw_connector_data,
+                connector_response_masking: &config.connector_response_masking,
                 connector_latency: metadata_payload.connector_latency.clone(),
             };
 
@@ -1067,6 +1068,7 @@ macro_rules! implement_connector_operation {
                 tenant_id: &metadata_payload.tenant_id,
                 merchant_id: metadata_payload.merchant_id.as_str(),
                 return_raw_connector_data: config.common.return_raw_connector_data,
+                connector_response_masking: &config.connector_response_masking,
                 connector_latency: metadata_payload.connector_latency.clone(),
             };
             let call_connector_action = connector_integration.get_call_connector_action();

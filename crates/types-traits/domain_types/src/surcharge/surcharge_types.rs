@@ -13,6 +13,8 @@ pub struct SurchargeFlowData {
     pub connector_request_reference_id: String,
     pub connectors: Connectors,
     pub raw_connector_response: Option<Secret<String>>,
+    /// Same body, values masked per the connector's config. Already sanitized — not a `Secret`.
+    pub unmasked_connector_response: Option<String>,
     pub raw_connector_request: Option<Secret<String>>,
     pub connector_response_headers: Option<http::HeaderMap>,
 }
@@ -24,6 +26,14 @@ impl RawConnectorRequestResponse for SurchargeFlowData {
 
     fn get_raw_connector_response(&self) -> Option<Secret<String>> {
         self.raw_connector_response.clone()
+    }
+
+    fn set_unmasked_connector_response(&mut self, response: Option<String>) {
+        self.unmasked_connector_response = response;
+    }
+
+    fn get_unmasked_connector_response(&self) -> Option<String> {
+        self.unmasked_connector_response.clone()
     }
 
     fn get_raw_connector_request(&self) -> Option<Secret<String>> {

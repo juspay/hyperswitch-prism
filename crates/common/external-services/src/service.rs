@@ -327,6 +327,49 @@ fn flow_status_label(flow_status: &domain_types::router_data::FlowStatus) -> Str
     }
 }
 
+/// Build the selectively-masked view of a connector response and stash it on the flow data.
+///
+/// Reads the untouched response bytes, so this works whether or not `raw_connector_response`
+/// is being captured — the safe view can be on in production with raw capture off.
+fn record_unmasked_connector_response<ResourceCommonData>(
+    resource_common_data: &mut ResourceCommonData,
+    body: &Response,
+    connector_name: &str,
+    config: &domain_types::connector_response_masking::ConnectorResponseMaskingConfig,
+) where
+    ResourceCommonData: RawConnectorRequestResponse,
+{
+    use std::str::FromStr;
+
+    // `connector_name` came from `ConnectorEnum::get_connector_name()`, and the enum derives
+    // `EnumString` with snake_case, so this always round-trips.
+    let Ok(connector) = domain_types::connector_types::ConnectorEnum::from_str(connector_name)
+    else {
+        return;
+    };
+
+    // Looked up by name rather than via `http::header::CONTENT_TYPE`: this `HeaderMap` comes
+    // from reqwest 0.11 (http 0.2), which does not share constants with the http 1.x in scope.
+    let content_type = body
+        .headers
+        .as_ref()
+        .and_then(|headers| headers.get("content-type"))
+        .and_then(|value| value.to_str().ok());
+
+    let masked = domain_types::connector_response_masking::mask_connector_response(
+        &body.response,
+        content_type,
+        &connector,
+        config,
+    );
+
+    if let Some(masked) = masked.as_deref() {
+        tracing::Span::current().record("response.unmasked_body", tracing::field::display(masked));
+    }
+
+    resource_common_data.set_unmasked_connector_response(masked);
+}
+
 /// Handles the connector response, processing both successful and error responses
 #[allow(clippy::too_many_arguments)]
 pub fn handle_connector_response<F, ResourceCommonData, Req, Resp>(
@@ -365,6 +408,18 @@ where
                         updated_router_data
                             .resource_common_data
                             .set_connector_response_headers(body.headers.clone());
+                    }
+
+                    // Independent of `return_raw_connector_data`: this view is already sanitized.
+                    if let Some(params) =
+                        event_params.filter(|p| p.connector_response_masking.enabled)
+                    {
+                        record_unmasked_connector_response(
+                            &mut updated_router_data.resource_common_data,
+                            &body,
+                            params.connector_name,
+                            params.connector_response_masking,
+                        );
                     }
 
                     let handle_response_result = connector.handle_response_v2(
@@ -422,6 +477,18 @@ where
                         updated_router_data
                             .resource_common_data
                             .set_connector_response_headers(body.headers.clone());
+                    }
+
+                    // A 4xx/5xx body is exactly when the masked view is most useful.
+                    if let Some(params) =
+                        event_params.filter(|p| p.connector_response_masking.enabled)
+                    {
+                        record_unmasked_connector_response(
+                            &mut updated_router_data.resource_common_data,
+                            &body,
+                            params.connector_name,
+                            params.connector_response_masking,
+                        );
                     }
 
                     let error_response = match body.status_code {
@@ -533,6 +600,10 @@ pub struct EventProcessingParams<'a> {
     pub tenant_id: &'a str,
     pub merchant_id: &'a str,
     pub return_raw_connector_data: bool,
+    /// Per-connector key lists driving `unmasked_connector_response`. Gated by its own
+    /// `enabled` flag, deliberately independent of `return_raw_connector_data`.
+    pub connector_response_masking:
+        &'a domain_types::connector_response_masking::ConnectorResponseMaskingConfig,
     pub connector_latency: ConnectorLatencyTracker,
 }
 
@@ -546,6 +617,7 @@ pub struct EventProcessingParams<'a> {
         request.url = Empty,
         request.method = Empty,
         response.body = Empty,
+        response.unmasked_body = Empty,
         response.headers = Empty,
         response.error_message = Empty,
         response.status_code = Empty,

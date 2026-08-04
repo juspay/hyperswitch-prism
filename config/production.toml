@@ -177,3 +177,22 @@ keys = ["x-request-id","x-merchant-id","x-lineage-ids","x-reference-id","x-conne
 # Connectors that require an external API call for webhook source verification
 [webhook_source_verification_call] # comma-separated list of connector names (case-insensitive)
 connectors_with_webhook_source_verification_call = "paypal, truelayer"
+
+# Selectively-masked view of the connector response, exposed as
+# `unmasked_connector_response`. Every key is preserved; a value is shown only if
+# that connector's list below names it. Gated separately from
+# `common.return_raw_connector_data`, so this can stay on where raw capture is off.
+[connector_response_masking]
+enabled = true
+max_bytes = 8192
+
+# Per-connector unmask lists, comma-separated and case-insensitive.
+# A connector with no entry gets every value masked (keys still visible).
+# Never list card/CVV/token-like keys: those stay masked regardless.
+[connector_response_masking.connector_keys]
+paysafe = "id,status,txntime,merchantrefnum,authcode,currencycode,amount,errorcode,message"
+adyen = "pspreference,resultcode,merchantreference,refusalreason,eventcode,success"
+cybersource = "id,status,submittimeutc,reconciliationid,clientreferenceinformation,code,message,reason"
+stripe = "id,object,status,amount,currency,created,livemode,failure_code,failure_message"
+razorpay = "id,entity,status,amount,currency,method,created_at,error_code,error_description"
+checkout = "id,status,amount,currency,response_code,response_summary,processed_on,reference"

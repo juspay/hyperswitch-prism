@@ -184,6 +184,7 @@ impl DisputeService for Disputes {
                         tenant_id: &tenant_id,
                         merchant_id: merchant_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
+                        connector_response_masking: &config.connector_response_masking,
                         connector_latency,
                     };
 
@@ -424,6 +425,7 @@ impl DisputeService for Disputes {
                         tenant_id: &tenant_id,
                         merchant_id: merchant_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
+                        connector_response_masking: &config.connector_response_masking,
                         connector_latency,
                     };
 

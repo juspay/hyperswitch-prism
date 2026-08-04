@@ -87,6 +87,7 @@ impl
             .transpose()?;
 
         Ok(Self {
+            unmasked_connector_response: None,
             merchant_id,
             connectors,
             access_token,
@@ -123,6 +124,7 @@ impl
             .transpose()?;
 
         Ok(Self {
+            unmasked_connector_response: None,
             merchant_id,
             connectors,
             access_token,
@@ -159,6 +161,7 @@ impl
             .transpose()?;
 
         Ok(Self {
+            unmasked_connector_response: None,
             merchant_id,
             connectors,
             access_token,
@@ -856,6 +859,9 @@ pub fn generate_pre_risk_check_response(
     let raw_connector_response = router_data_v2
         .resource_common_data
         .get_raw_connector_response();
+    let unmasked_connector_response = router_data_v2
+        .resource_common_data
+        .get_unmasked_connector_response();
     let raw_connector_request = router_data_v2
         .resource_common_data
         .get_raw_connector_request();
@@ -884,6 +890,7 @@ pub fn generate_pre_risk_check_response(
                 error: None,
                 raw_connector_request,
                 raw_connector_response,
+                unmasked_connector_response,
                 response_headers,
             }
         }
@@ -906,6 +913,7 @@ pub fn generate_pre_risk_check_response(
             }),
             raw_connector_request,
             raw_connector_response,
+            unmasked_connector_response,
             response_headers,
         },
     };
@@ -926,6 +934,9 @@ pub fn generate_post_risk_check_response(
     let raw_connector_response = router_data_v2
         .resource_common_data
         .get_raw_connector_response();
+    let unmasked_connector_response = router_data_v2
+        .resource_common_data
+        .get_unmasked_connector_response();
     let raw_connector_request = router_data_v2
         .resource_common_data
         .get_raw_connector_request();
@@ -954,6 +965,7 @@ pub fn generate_post_risk_check_response(
                 error: None,
                 raw_connector_request,
                 raw_connector_response,
+                unmasked_connector_response,
                 response_headers,
             }
         }
@@ -976,6 +988,7 @@ pub fn generate_post_risk_check_response(
             }),
             raw_connector_request,
             raw_connector_response,
+            unmasked_connector_response,
             response_headers,
         },
     };

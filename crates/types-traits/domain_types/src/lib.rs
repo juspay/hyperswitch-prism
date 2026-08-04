@@ -2,6 +2,7 @@
 
 pub mod api;
 pub mod connector_flow;
+pub mod connector_response_masking;
 pub mod connector_types;
 pub mod errors;
 pub mod frm;
