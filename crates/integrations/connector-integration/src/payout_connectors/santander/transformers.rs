@@ -1,9 +1,10 @@
 use crate::types::ResponseRouterData;
-use common_utils::types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, StringMajorUnit, StringMajorUnitForConnector};
+use common_utils::types::{
+    AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, StringMajorUnit,
+    StringMajorUnitForConnector,
+};
 use domain_types::{
-    connector_flow::{
-        PayoutCreate, PayoutGet, PayoutTransfer, ServerAuthenticationToken,
-    },
+    connector_flow::{PayoutCreate, PayoutGet, PayoutTransfer, ServerAuthenticationToken},
     connector_types::{
         ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
     },
@@ -92,7 +93,6 @@ pub struct SantanderErrorDetail {
     #[serde(alias = "_message")]
     pub message: Option<String>,
 }
-
 
 // ===== ACCESS TOKEN REQUEST/RESPONSE =====
 
@@ -263,25 +263,13 @@ pub struct SantanderCreateRequest {
     pub beneficiary: Option<SantanderBeneficiary>,
 }
 
-impl
-    TryFrom<
-        &RouterDataV2<
-            PayoutCreate,
-            PayoutFlowData,
-            PayoutCreateRequest,
-            PayoutCreateResponse,
-        >,
-    > for SantanderCreateRequest
+impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>>
+    for SantanderCreateRequest
 {
     type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
-        req: &RouterDataV2<
-            PayoutCreate,
-            PayoutFlowData,
-            PayoutCreateRequest,
-            PayoutCreateResponse,
-        >,
+        req: &RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>,
     ) -> Result<Self, Self::Error> {
         let converter = FloatMajorUnitForConnector;
         let payment_value = converter
@@ -310,12 +298,13 @@ impl
                     account_holder_name,
                     ..
                 }))) => {
-                    let bank_branch = bank_branch
-                        .as_deref()
-                        .ok_or(IntegrationError::MissingRequiredField {
-                            field_name: "payout_method_data.bank_branch",
-                            context: Default::default(),
-                        })?;
+                    let bank_branch =
+                        bank_branch
+                            .as_deref()
+                            .ok_or(IntegrationError::MissingRequiredField {
+                                field_name: "payout_method_data.bank_branch",
+                                context: Default::default(),
+                            })?;
                     let branch = bank_branch.to_string();
 
                     let number = bank_account_number.clone().expose();
@@ -338,9 +327,10 @@ impl
                             context: Default::default(),
                         })?;
 
-                    let ispb_str = ispb.clone().expose_option().map(|s| {
-                        s.chars().filter(|c| c.is_ascii_digit()).collect::<String>()
-                    });
+                    let ispb_str = ispb
+                        .clone()
+                        .expose_option()
+                        .map(|s| s.chars().filter(|c| c.is_ascii_digit()).collect::<String>());
 
                     let name = account_holder_name
                         .ok_or(IntegrationError::MissingRequiredField {
@@ -357,12 +347,12 @@ impl
                     let beneficiary = SantanderBeneficiary {
                         branch,
                         number,
-                        account_type: bank_type
-                            .map(SantanderAccountType::from)
-                            .ok_or(IntegrationError::MissingRequiredField {
+                        account_type: bank_type.map(SantanderAccountType::from).ok_or(
+                            IntegrationError::MissingRequiredField {
                                 field_name: "payout_method_data.bank_type",
                                 context: Default::default(),
-                            })?,
+                            },
+                        )?,
                         document_type,
                         document_number,
                         name,
@@ -451,10 +441,8 @@ impl
                 })?;
                 let branch = parse_digits_i64(&bank_branch, "source_bank_data.bank_branch")?;
                 let bank_account_number = bank_account_number.expose();
-                let number = parse_digits_i64(
-                    &bank_account_number,
-                    "source_bank_data.bank_account_number",
-                )?;
+                let number =
+                    parse_digits_i64(&bank_account_number, "source_bank_data.bank_account_number")?;
 
                 Some(SantanderDebitAccount { branch, number })
             }
@@ -511,9 +499,9 @@ impl SantanderPayoutStatus {
     pub fn get_payout_status(&self) -> common_enums::PayoutStatus {
         match self {
             Self::Started => common_enums::PayoutStatus::Initiated,
-            Self::PendingValidation
-            | Self::Authorized
-            | Self::PendingConfirmation => common_enums::PayoutStatus::Pending,
+            Self::PendingValidation | Self::Authorized | Self::PendingConfirmation => {
+                common_enums::PayoutStatus::Pending
+            }
             Self::ReadyToPay => common_enums::PayoutStatus::RequiresFulfillment,
             Self::Payed => common_enums::PayoutStatus::Success,
             Self::Rejected | Self::Error => common_enums::PayoutStatus::Failure,
@@ -625,4 +613,3 @@ impl
         })
     }
 }
-

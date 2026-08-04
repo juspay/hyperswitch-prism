@@ -1,0 +1,645 @@
+{
+  "connector": "santander",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_supported",
+        "error": "authenticate flow not supported by santander connector"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "AchBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "Affirm": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "Afterpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "Alfamart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "AliPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "ApplePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "Bacs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "BacsBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "BancontactCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "BcaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "Becs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "Bizum": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "Blik": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "Bluecode": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "Boleto": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "Card": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "CashappQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "ClassicReward": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Dana": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "Efecty": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "Eft": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "Eps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "FamilyMart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "GCash": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "Giropay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "GoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "GooglePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "Ideal": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "Indomaret": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "InstantBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "Interac": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "KakaoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "Klarna": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "Lawson": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "LocalBankRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "LocalBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "MbWay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "Mifinity": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "MiniStop": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Momo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "Netbanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "OpenBanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "OpenBankingUk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "Oxxo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "PagoEfectivo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "PayEasy": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "PaySafeCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "PaypalRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "PaypalSdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "PhonePeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "Pix": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "Przelewy24": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "Pse": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "RedCompra": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "RedPagos": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "RevolutPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "SamsungPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "Satispay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "Seicomart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "Sepa": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "SepaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "SevenEleven": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "Skrill": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "Sofort": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "Swish": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "TouchNGo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "Trustly": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "Twint": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "UpiCollect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "UpiIntent": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "UpiQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "Vipps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "WeChatPayQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      },
+      "Wero": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "not_supported",
+        "error": "capture flow not supported by santander connector"
+      }
+    },
+    "create_client_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "client_authentication_token flow not supported by santander connector"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_order flow not supported by santander connector"
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "server_authentication_token flow not supported by santander connector"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by santander connector"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by santander connector"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_supported",
+        "error": "get_connector_customer flow not supported by santander connector"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by santander connector"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by santander connector"
+      }
+    },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by santander connector"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by santander connector"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_sync flow for santander"
+      }
+    },
+    "handle_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by santander connector"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_supported",
+        "error": "post_authenticate flow not supported by santander connector"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_supported",
+        "error": "pre_authenticate flow not supported by santander connector"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for santander"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: repeat_payment flow for santander"
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_supported",
+        "error": "mandate_revoke flow not supported by santander connector"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: refund flow for santander"
+      }
+    },
+    "refund_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: refund_sync flow for santander"
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by santander connector"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for santander"
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for santander"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for santander"
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by santander connector"
+      }
+    },
+    "verify_redirect": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "not_supported",
+        "error": "void flow not supported by santander connector"
+      }
+    }
+  }
+}

@@ -18,10 +18,10 @@ use domain_types::{
     payouts::payouts_types::{
         PayoutCreateLinkRequest, PayoutCreateLinkResponse, PayoutCreateRecipientRequest,
         PayoutCreateRecipientResponse, PayoutCreateRequest, PayoutCreateResponse,
-        PayoutEligibilityRequest, PayoutEligibilityResponse,
-        PayoutEnrollDisburseAccountRequest, PayoutEnrollDisburseAccountResponse, PayoutFlowData,
-        PayoutGetRequest, PayoutGetResponse, PayoutStageRequest, PayoutStageResponse,
-        PayoutTransferRequest, PayoutTransferResponse, PayoutVoidRequest, PayoutVoidResponse,
+        PayoutEligibilityRequest, PayoutEligibilityResponse, PayoutEnrollDisburseAccountRequest,
+        PayoutEnrollDisburseAccountResponse, PayoutFlowData, PayoutGetRequest, PayoutGetResponse,
+        PayoutStageRequest, PayoutStageResponse, PayoutTransferRequest, PayoutTransferResponse,
+        PayoutVoidRequest, PayoutVoidResponse,
     },
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -134,7 +134,6 @@ impl ConnectorCommon for SantanderPayouts {
         }
     }
 }
-
 
 fn get_workspace_id(auth: &SantanderAuthType) -> String {
     auth.workspace_id.clone().expose()
@@ -384,12 +383,7 @@ impl ConnectorIntegrationV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, P
 
     fn get_url(
         &self,
-        req: &RouterDataV2<
-            PayoutCreate,
-            PayoutFlowData,
-            PayoutCreateRequest,
-            PayoutCreateResponse,
-        >,
+        req: &RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>,
     ) -> CustomResult<String, IntegrationError> {
         let base_url = self.base_url(&req.resource_common_data.connectors);
         let auth = SantanderAuthType::try_from(&req.connector_config)?;
@@ -418,7 +412,12 @@ impl ConnectorIntegrationV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, P
 
     fn handle_response_v2(
         &self,
-        data: &RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>,
+        data: &RouterDataV2<
+            PayoutCreate,
+            PayoutFlowData,
+            PayoutCreateRequest,
+            PayoutCreateResponse,
+        >,
         event_builder: Option<&mut events::Event>,
         res: Response,
     ) -> CustomResult<

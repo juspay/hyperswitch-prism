@@ -1,9 +1,7 @@
 use common_enums::CurrencyUnit;
 use common_utils::errors::CustomResult;
 use domain_types::{
-    errors,
-    payment_method_data::PaymentMethodDataTypes,
-    router_data::ConnectorSpecificConfig,
+    errors, payment_method_data::PaymentMethodDataTypes, router_data::ConnectorSpecificConfig,
     types::Connectors,
 };
 use hyperswitch_masking::Maskable;
