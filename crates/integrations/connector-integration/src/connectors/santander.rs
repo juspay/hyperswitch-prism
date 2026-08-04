@@ -1,12 +1,9 @@
-pub mod transformers;
-
 use common_enums::CurrencyUnit;
-use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
+use common_utils::errors::CustomResult;
 use domain_types::{
-    errors::{self},
+    errors,
     payment_method_data::PaymentMethodDataTypes,
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
-    router_response_types::Response,
+    router_data::{ConnectorSpecificConfig},
     types::Connectors,
 };
 use hyperswitch_masking::Maskable;
@@ -18,7 +15,6 @@ use interfaces::{
 };
 use serde::Serialize;
 
-use self::transformers::SantanderErrorResponse;
 use std::fmt::Debug;
 
 use super::macros;
@@ -57,52 +53,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         _auth_type: &ConnectorSpecificConfig,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
         Ok(vec![])
-    }
-
-    fn build_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut events::Event>,
-        _connector_config: &ConnectorSpecificConfig,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: Result<SantanderErrorResponse, _> =
-            res.response.parse_struct("SantanderErrorResponse");
-
-        match response {
-            Ok(error_res) => {
-                event_builder.map(|i| i.set_connector_response(&error_res));
-                Ok(ErrorResponse {
-                    status_code: res.status_code,
-                    code: error_res.error_code(res.status_code),
-                    message: error_res.error_message(res.status_code),
-                    reason: error_res.error_reason(),
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                    network_decline_code: None,
-                    network_advice_code: None,
-                    network_error_message: None,
-                })
-            }
-            Err(error) => {
-                tracing::error!(
-                    "Failed to parse error response from Santander. Status: {}, Error: {:?}, Raw: {:?}",
-                    res.status_code,
-                    error,
-                    res.response
-                );
-                Ok(ErrorResponse {
-                    status_code: res.status_code,
-                    code: res.status_code.to_string(),
-                    message: "Failed to parse error response from connector".to_string(),
-                    reason: Some(format!("Raw response: {:?}", res.response)),
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                    network_decline_code: None,
-                    network_advice_code: None,
-                    network_error_message: None,
-                })
-            }
-        }
     }
 }
 

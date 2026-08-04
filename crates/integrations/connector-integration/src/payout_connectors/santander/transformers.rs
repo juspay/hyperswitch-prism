@@ -2,7 +2,7 @@ use crate::types::ResponseRouterData;
 use common_utils::types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, StringMajorUnit, StringMajorUnitForConnector};
 use domain_types::{
     connector_flow::{
-        PayoutCreate, PayoutGet, PayoutTransfer, PayoutVoid, ServerAuthenticationToken,
+        PayoutCreate, PayoutGet, PayoutTransfer, ServerAuthenticationToken,
     },
     connector_types::{
         ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
@@ -16,8 +16,7 @@ use domain_types::{
         },
         payouts_types::{
             PayoutCreateRequest, PayoutCreateResponse, PayoutFlowData, PayoutGetRequest,
-            PayoutGetResponse, PayoutTransferRequest, PayoutTransferResponse, PayoutVoidRequest,
-            PayoutVoidResponse,
+            PayoutGetResponse, PayoutTransferRequest, PayoutTransferResponse,
         },
     },
     router_data::ConnectorSpecificConfig,
@@ -222,48 +221,8 @@ impl
 pub struct SantanderAccessTokenResponse {
     pub access_token: String,
     pub token_type: Option<String>,
-    // Santander returns expires_in as a string "900", not an integer.
-    #[serde(default, deserialize_with = "deserialize_expires_in")]
+    #[serde(default)]
     pub expires_in: Option<i64>,
-}
-
-fn deserialize_expires_in<'de, D>(deserializer: D) -> Result<Option<i64>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    use serde::de::{self, Visitor};
-
-    struct StringOrI64;
-
-    impl<'de> Visitor<'de> for StringOrI64 {
-        type Value = Option<i64>;
-
-        fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            f.write_str("a string or integer representing seconds")
-        }
-
-        fn visit_str<E: de::Error>(self, v: &str) -> Result<Self::Value, E> {
-            v.parse::<i64>().map(Some).map_err(de::Error::custom)
-        }
-
-        fn visit_i64<E: de::Error>(self, v: i64) -> Result<Self::Value, E> {
-            Ok(Some(v))
-        }
-
-        fn visit_u64<E: de::Error>(self, v: u64) -> Result<Self::Value, E> {
-            Ok(Some(v as i64))
-        }
-
-        fn visit_none<E: de::Error>(self) -> Result<Self::Value, E> {
-            Ok(None)
-        }
-
-        fn visit_unit<E: de::Error>(self) -> Result<Self::Value, E> {
-            Ok(None)
-        }
-    }
-
-    deserializer.deserialize_any(StringOrI64)
 }
 
 // ===== PIX KEY TYPE DETECTION =====
@@ -361,12 +320,10 @@ pub struct SantanderBeneficiary {
     pub account_type: SantanderAccountType,
     pub document_type: String,
     pub document_number: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub name: Option<String>,
+    pub name: String,
+    pub bank_code: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ispb: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub bank_code: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -470,6 +427,18 @@ impl
                         s.chars().filter(|c| c.is_ascii_digit()).collect::<String>()
                     });
 
+                    let name = account_holder_name
+                        .ok_or(IntegrationError::MissingRequiredField {
+                            field_name: "payout_method_data.account_holder_name",
+                            context: Default::default(),
+                        })?
+                        .expose();
+
+                    let bank_code = bank_code.ok_or(IntegrationError::MissingRequiredField {
+                        field_name: "payout_method_data.bank_code",
+                        context: Default::default(),
+                    })?;
+
                     let beneficiary = SantanderBeneficiary {
                         branch,
                         number,
@@ -481,14 +450,19 @@ impl
                             })?,
                         document_type,
                         document_number,
-                        name: account_holder_name.map(|n| n.expose()),
-                        ispb: ispb_str,
+                        name,
                         bank_code,
+                        ispb: ispb_str,
                     };
 
                     (None, None, None, Some(beneficiary))
                 }
-                _ => (None, None, None, None),
+                _ => {
+                    return Err(IntegrationError::MismatchedPaymentData {
+                        context: Default::default(),
+                    }
+                    .into())
+                }
             };
 
         Ok(Self {
@@ -600,13 +574,6 @@ pub struct SantanderPayoutResponse {
     pub payment_value: Option<String>,
 }
 
-// ===== PAYOUT VOID (CANCEL) REQUEST =====
-
-#[derive(Debug, Serialize)]
-pub struct SantanderVoidRequest {
-    pub status: String,
-}
-
 // ===== PAYOUT STATUS =====
 
 #[derive(Debug, Deserialize, Serialize, Clone, Copy)]
@@ -620,12 +587,6 @@ pub enum SantanderPayoutStatus {
     #[serde(alias = "PAID")]
     Payed,
     Rejected,
-    PendenteAutorizacao,
-    Autorizada,
-    Liquidada,
-    Cancelada,
-    Devolvida,
-    Rejeitada,
     Error,
     #[serde(other)]
     Unknown,
@@ -637,15 +598,10 @@ impl SantanderPayoutStatus {
             Self::Started => common_enums::PayoutStatus::Initiated,
             Self::PendingValidation
             | Self::Authorized
-            | Self::PendingConfirmation
-            | Self::Autorizada => common_enums::PayoutStatus::Pending,
-            Self::ReadyToPay | Self::PendenteAutorizacao => {
-                common_enums::PayoutStatus::RequiresFulfillment
-            }
-            Self::Payed | Self::Liquidada => common_enums::PayoutStatus::Success,
-            Self::Cancelada => common_enums::PayoutStatus::Cancelled,
-            Self::Devolvida => common_enums::PayoutStatus::Reversed,
-            Self::Rejected | Self::Rejeitada | Self::Error => common_enums::PayoutStatus::Failure,
+            | Self::PendingConfirmation => common_enums::PayoutStatus::Pending,
+            Self::ReadyToPay => common_enums::PayoutStatus::RequiresFulfillment,
+            Self::Payed => common_enums::PayoutStatus::Success,
+            Self::Rejected | Self::Error => common_enums::PayoutStatus::Failure,
             Self::Unknown => common_enums::PayoutStatus::Pending,
         }
     }
@@ -755,31 +711,3 @@ impl
     }
 }
 
-impl
-    TryFrom<
-        ResponseRouterData<
-            SantanderStatusResponse,
-            RouterDataV2<PayoutVoid, PayoutFlowData, PayoutVoidRequest, PayoutVoidResponse>,
-        >,
-    > for RouterDataV2<PayoutVoid, PayoutFlowData, PayoutVoidRequest, PayoutVoidResponse>
-{
-    type Error = error_stack::Report<ConnectorError>;
-
-    fn try_from(
-        item: ResponseRouterData<SantanderStatusResponse, Self>,
-    ) -> Result<Self, Self::Error> {
-        let response = &item.response;
-        let router_data = &item.router_data;
-
-        Ok(Self {
-            resource_common_data: router_data.resource_common_data.clone(),
-            response: Ok(PayoutVoidResponse {
-                merchant_payout_id: router_data.request.merchant_payout_id.clone(),
-                payout_status: response.status.get_payout_status(),
-                connector_payout_id: Some(response.id.clone()),
-                status_code: item.http_code,
-            }),
-            ..router_data.clone()
-        })
-    }
-}

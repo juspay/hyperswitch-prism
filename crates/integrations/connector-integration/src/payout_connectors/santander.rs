@@ -42,7 +42,7 @@ use crate::types::ResponseRouterData;
 use transformers::{
     SantanderAccessTokenRequest, SantanderAccessTokenResponse, SantanderAuthType,
     SantanderCreateRequest, SantanderErrorResponse, SantanderPayoutResponse,
-    SantanderStatusResponse, SantanderTransferRequest, SantanderVoidRequest,
+    SantanderStatusResponse, SantanderTransferRequest,
 };
 
 pub(crate) mod headers {
@@ -564,104 +564,23 @@ impl
     }
 }
 
-// ===== PAYOUT VOID (PATCH — cancel with status=CANCELADA) =====
+// ===== PAYOUT VOID — not supported by Santander =====
 
 impl PayoutVoidV2 for SantanderPayouts {}
 
 impl ConnectorIntegrationV2<PayoutVoid, PayoutFlowData, PayoutVoidRequest, PayoutVoidResponse>
     for SantanderPayouts
 {
-    fn get_http_method(&self) -> common_utils::request::Method {
-        common_utils::request::Method::Patch
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        "application/json"
-    }
-
-    fn get_certificate(
-        &self,
-        req: &RouterDataV2<PayoutVoid, PayoutFlowData, PayoutVoidRequest, PayoutVoidResponse>,
-    ) -> CustomResult<Option<hyperswitch_masking::Secret<String>>, IntegrationError> {
-        let auth = SantanderAuthType::try_from(&req.connector_config)?;
-        Ok(auth.certificates)
-    }
-
-    fn get_certificate_key(
-        &self,
-        req: &RouterDataV2<PayoutVoid, PayoutFlowData, PayoutVoidRequest, PayoutVoidResponse>,
-    ) -> CustomResult<Option<hyperswitch_masking::Secret<String>>, IntegrationError> {
-        let auth = SantanderAuthType::try_from(&req.connector_config)?;
-        Ok(auth.private_key)
-    }
-
     fn get_url(
         &self,
-        req: &RouterDataV2<PayoutVoid, PayoutFlowData, PayoutVoidRequest, PayoutVoidResponse>,
-    ) -> CustomResult<String, IntegrationError> {
-        let secondary_base_url = get_secondary_base_url(&req.resource_common_data.connectors)?;
-        let auth = SantanderAuthType::try_from(&req.connector_config)?;
-        let workspace_id = get_workspace_id(&auth);
-        let connector_payout_id = req.request.connector_payout_id.clone().ok_or(
-            IntegrationError::MissingConnectorTransactionID {
-                context: Default::default(),
-            },
-        )?;
-        Ok(format!(
-            "{secondary_base_url}/management_payments_partners/v1/workspaces/{workspace_id}/pix_payments/{connector_payout_id}"
-        ))
-    }
-
-    fn get_headers(
-        &self,
-        req: &RouterDataV2<PayoutVoid, PayoutFlowData, PayoutVoidRequest, PayoutVoidResponse>,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-        let access_token = req.resource_common_data.get_access_token()?;
-        let auth = SantanderAuthType::try_from(&req.connector_config)?;
-        Ok(get_api_headers(&access_token, &auth.client_id.expose()))
-    }
-
-    fn get_request_body(
-        &self,
         _req: &RouterDataV2<PayoutVoid, PayoutFlowData, PayoutVoidRequest, PayoutVoidResponse>,
-    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
-        Ok(Some(RequestContent::Json(Box::new(SantanderVoidRequest {
-            status: "CANCELADA".to_string(),
-        }))))
-    }
-
-    fn handle_response_v2(
-        &self,
-        data: &RouterDataV2<PayoutVoid, PayoutFlowData, PayoutVoidRequest, PayoutVoidResponse>,
-        event_builder: Option<&mut events::Event>,
-        res: Response,
-    ) -> CustomResult<
-        RouterDataV2<PayoutVoid, PayoutFlowData, PayoutVoidRequest, PayoutVoidResponse>,
-        ConnectorError,
-    > {
-        let response: SantanderStatusResponse = res
-            .response
-            .parse_struct("SantanderStatusResponse")
-            .change_context(ConnectorError::ResponseDeserializationFailed {
-                context: Default::default(),
-            })?;
-
-        event_builder.map(|i| i.set_connector_response(&response));
-
-        RouterDataV2::try_from(ResponseRouterData {
-            response,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response_v2(
-        &self,
-        res: Response,
-        event_builder: Option<&mut events::Event>,
-        connector_config: &ConnectorSpecificConfig,
-    ) -> CustomResult<ErrorResponse, ConnectorError> {
-        self.build_error_response(res, event_builder, connector_config)
+    ) -> CustomResult<String, IntegrationError> {
+        Err(IntegrationError::connector_flow_not_implemented(
+            self.id(),
+            "payout_void",
+            Default::default(),
+        )
+        .into())
     }
 }
 
