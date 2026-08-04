@@ -1,5 +1,5 @@
 use crate::types::ResponseRouterData;
-use common_utils::types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector};
+use common_utils::types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, StringMajorUnit, StringMajorUnitForConnector};
 use domain_types::{
     connector_flow::{
         PayoutCreate, PayoutGet, PayoutTransfer, PayoutVoid, ServerAuthenticationToken,
@@ -11,7 +11,8 @@ use domain_types::{
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payouts::{
         payout_method_data::{
-            Bank, PayoutMethodData, PixBankTransfer, PixEmvBankTransfer, PixKeyBankTransfer,
+            Bank, PayoutMethodData, PixBankAccountType, PixBankTransfer, PixEmvBankTransfer,
+            PixKeyBankTransfer,
         },
         payouts_types::{
             PayoutCreateRequest, PayoutCreateResponse, PayoutFlowData, PayoutGetRequest,
@@ -329,24 +330,49 @@ fn parse_digits_i64(
 // ===== PAYOUT CREATE REQUEST =====
 
 #[derive(Debug, Serialize)]
+pub enum SantanderAccountType {
+    #[serde(rename = "CONTA_CORRENTE")]
+    ContaCorrente,
+    #[serde(rename = "CONTA_POUPANCA")]
+    ContaPoupanca,
+    #[serde(rename = "CONTA_SALARIO")]
+    ContaSalario,
+    #[serde(rename = "CONTA_PAGAMENTO")]
+    ContaPagamento,
+}
+
+impl From<PixBankAccountType> for SantanderAccountType {
+    fn from(account_type: PixBankAccountType) -> Self {
+        match account_type {
+            PixBankAccountType::Checking => Self::ContaCorrente,
+            PixBankAccountType::Savings => Self::ContaPoupanca,
+            PixBankAccountType::Salary => Self::ContaSalario,
+            PixBankAccountType::Payment => Self::ContaPagamento,
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SantanderBeneficiary {
-    pub branch: i64,
-    pub number: i64,
+    pub branch: String,
+    pub number: String,
     #[serde(rename = "type")]
-    pub account_type: String,
+    pub account_type: SantanderAccountType,
     pub document_type: String,
-    pub document_number: i64,
+    pub document_number: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub ispb: Option<i64>,
+    pub ispb: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bank_code: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SantanderCreateRequest {
-    pub payment_value: StringMajorUnit,
+    pub payment_value: FloatMajorUnit,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub dict_code: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -385,7 +411,7 @@ impl
             PayoutCreateResponse,
         >,
     ) -> Result<Self, Self::Error> {
-        let converter = StringMajorUnitForConnector;
+        let converter = FloatMajorUnitForConnector;
         let payment_value = converter
             .convert(req.request.amount, req.request.source_currency)
             .change_context(IntegrationError::RequestEncodingFailed {
@@ -407,6 +433,9 @@ impl
                     bank_account_number,
                     tax_id,
                     ispb,
+                    bank_code,
+                    bank_type,
+                    account_holder_name,
                     ..
                 }))) => {
                     let bank_branch = bank_branch
@@ -415,16 +444,9 @@ impl
                             field_name: "payout_method_data.bank_branch",
                             context: Default::default(),
                         })?;
-                    let branch = parse_digits_i64(
-                        bank_branch,
-                        "payout_method_data.bank_branch",
-                    )?;
+                    let branch = bank_branch.to_string();
 
-                    let bank_account_number = bank_account_number.clone().expose();
-                    let number = parse_digits_i64(
-                        &bank_account_number,
-                        "payout_method_data.bank_account_number",
-                    )?;
+                    let number = bank_account_number.clone().expose();
 
                     let (document_type, document_number) = tax_id
                         .clone()
@@ -437,30 +459,31 @@ impl
                             } else {
                                 "CNPJ".to_string()
                             };
-                            parse_digits_i64(&only_digits, "payout_method_data.tax_id")
-                                .map(|doc_num| (doc_type, doc_num))
+                            (doc_type, only_digits)
                         })
                         .ok_or(IntegrationError::MissingRequiredField {
                             field_name: "payout_method_data.tax_id",
                             context: Default::default(),
-                        })??;
+                        })?;
 
-                    let ispb_num = ispb.clone().expose_option().and_then(|s| {
-                        s.chars()
-                            .filter(|c| c.is_ascii_digit())
-                            .collect::<String>()
-                            .parse::<i64>()
-                            .ok()
+                    let ispb_str = ispb.clone().expose_option().map(|s| {
+                        s.chars().filter(|c| c.is_ascii_digit()).collect::<String>()
                     });
 
                     let beneficiary = SantanderBeneficiary {
                         branch,
                         number,
-                        account_type: "CONTA_CORRENTE".to_string(),
+                        account_type: bank_type
+                            .map(SantanderAccountType::from)
+                            .ok_or(IntegrationError::MissingRequiredField {
+                                field_name: "payout_method_data.bank_type",
+                                context: Default::default(),
+                            })?,
                         document_type,
                         document_number,
-                        name: None,
-                        ispb: ispb_num,
+                        name: account_holder_name.map(|n| n.expose()),
+                        ispb: ispb_str,
+                        bank_code,
                     };
 
                     (None, None, None, Some(beneficiary))

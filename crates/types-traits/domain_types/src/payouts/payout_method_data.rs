@@ -137,6 +137,15 @@ pub struct SepaBankTransfer {
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug)]
+pub enum PixBankAccountType {
+    #[default]
+    Checking,
+    Savings,
+    Salary,
+    Payment,
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug)]
 pub struct PixBankTransfer {
     /// Bank name
     pub bank_name: Option<common_enums::BankNames>,
@@ -152,6 +161,15 @@ pub struct PixBankTransfer {
 
     /// An 8-digit routing code that uniquely identifies the specific bank, fintech, or payment institution
     pub ispb: Option<Secret<String>>,
+
+    /// The bank code (COMPE code) used to identify the bank
+    pub bank_code: Option<String>,
+
+    /// The bank account type
+    pub bank_type: Option<PixBankAccountType>,
+
+    /// The account holder name
+    pub account_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug)]
