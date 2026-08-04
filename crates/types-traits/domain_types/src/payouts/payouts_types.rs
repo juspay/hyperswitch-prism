@@ -140,6 +140,7 @@ pub struct PayoutTransferRequest {
     pub source_bank_data: Option<Bank>,
     pub customer: Option<PayoutCustomer>,
     pub connector_eligibility_reference_id: Option<String>,
+    pub payout_connector_metadata: Option<common_utils::pii::SecretSerdeValue>,
 }
 
 impl PayoutTransferRequest {
@@ -392,6 +393,60 @@ pub struct PayoutCreateRecipientRequest {
     pub source_currency: common_enums::Currency,
     pub payout_method_data: Option<PayoutMethodData>,
     pub recipient_type: common_enums::PayoutRecipientType,
+    pub customer: Option<PayoutCustomer>,
+    pub address: Option<PayoutAddress>,
+}
+
+impl PayoutCreateRecipientRequest {
+    pub fn get_optional_billing_address(&self) -> Option<&crate::payment_address::AddressDetails> {
+        self.address
+            .as_ref()
+            .and_then(|a| a.billing_address.as_ref())
+            .and_then(|b| b.address.as_ref())
+    }
+
+    pub fn get_optional_billing_first_name(&self) -> Option<Secret<String>> {
+        self.get_optional_billing_address()
+            .and_then(|addr| addr.first_name.clone())
+    }
+
+    pub fn get_optional_billing_last_name(&self) -> Option<Secret<String>> {
+        self.get_optional_billing_address()
+            .and_then(|addr| addr.last_name.clone())
+    }
+
+    pub fn get_optional_billing_line1(&self) -> Option<Secret<String>> {
+        self.get_optional_billing_address()
+            .and_then(|addr| addr.line1.clone())
+    }
+
+    pub fn get_optional_billing_line2(&self) -> Option<Secret<String>> {
+        self.get_optional_billing_address()
+            .and_then(|addr| addr.line2.clone())
+    }
+
+    pub fn get_optional_billing_city(&self) -> Option<String> {
+        self.get_optional_billing_address()
+            .and_then(|addr| addr.city.as_ref())
+            .map(|c| c.peek().clone())
+    }
+
+    pub fn get_optional_billing_zip(&self) -> Option<Secret<String>> {
+        self.get_optional_billing_address()
+            .and_then(|addr| addr.zip.clone())
+    }
+
+    pub fn get_optional_billing_country(&self) -> Option<common_enums::CountryAlpha2> {
+        self.get_optional_billing_address()
+            .and_then(|addr| addr.country)
+    }
+
+    pub fn get_optional_billing_email(&self) -> Option<common_utils::pii::Email> {
+        self.address
+            .as_ref()
+            .and_then(|a| a.billing_address.as_ref())
+            .and_then(|b| b.email.clone())
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -400,6 +455,7 @@ pub struct PayoutCreateRecipientResponse {
     pub payout_status: common_enums::PayoutStatus,
     pub connector_payout_id: Option<String>,
     pub status_code: u16,
+    pub payout_connector_metadata: Option<common_utils::pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone)]

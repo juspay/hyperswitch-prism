@@ -16,7 +16,7 @@ const _dirname = __dirname;
  * Connection configuration for the gRPC client.
  * Field names must be snake_case — they are serialised to JSON and sent to the
  * Rust FFI layer which deserialises them into GrpcConfigInput.
- * 
+ *
  * The connector_config field should contain the connector-specific authentication
  * and configuration in the format expected by the server:
  * {"config": {"ConnectorName": {"api_key": "...", ...}}}
@@ -343,6 +343,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   PixBankTransferPayout: ["bankAccountNumber", "taxId", "ispb", "accountHolderName"],
   PixKeyBankTransferPayout: ["pixKey"],
   PixEmvBankTransferPayout: ["emv"],
+  TrustlyBankTransferPayout: ["iban", "bankAccountNumber", "bankNumber"],
   ApplePayDecrypt: ["dpan", "expiryMonth", "expiryYear", "cardHolderName"],
   Paypal: ["email", "telephoneNumber", "paypalId"],
   Venmo: ["telephoneNumber"],
@@ -351,12 +352,13 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   OpenBankingPayout: ["accountHolderName", "iban"],
   Passthrough: ["pspCustomerId"],
   PayoutServiceCreateRequest: ["connectorFeatureData", "accessToken"],
-  PayoutServiceTransferRequest: ["accessToken"],
+  PayoutServiceTransferRequest: ["accessToken", "payoutConnectorMetadata"],
   PayoutServiceStageRequest: ["accessToken"],
   PayoutServiceGetRequest: ["accessToken"],
   PayoutServiceVoidRequest: ["connectorFeatureData", "accessToken"],
   PayoutServiceCreateLinkRequest: ["connectorFeatureData", "accessToken"],
   PayoutServiceCreateRecipientRequest: ["accessToken"],
+  PayoutServiceCreateRecipientResponse: ["connectorMetadata"],
   PayoutServiceEnrollDisburseAccountRequest: ["accessToken"],
   PayoutMethodEligibilityRequest: ["connectorFeatureData", "accessToken"],
   PayoutMethodEligibilityResponse: ["connectorMetadata"],
@@ -539,7 +541,7 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   CompositeFrmPreRiskCheckResponse: { "preRiskCheckResponse": "FrmServicePreRiskCheckResponse", "accessTokenResponse": "MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse" },
   CompositeFrmPostRiskCheckResponse: { "postRiskCheckResponse": "FrmServicePostRiskCheckResponse", "accessTokenResponse": "MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse" },
   PayoutAddress: { "shippingAddress": "Address", "billingAddress": "Address" },
-  PayoutMethod: { "card": "CardPayout", "ach": "AchBankTransferPayout", "bacs": "BacsBankTransferPayout", "sepa": "SepaBankTransferPayout", "pix": "PixBankTransferPayout", "applePayDecrypt": "ApplePayDecrypt", "paypal": "Paypal", "venmo": "Venmo", "interac": "InteracPayout", "openBankingUk": "OpenBankingUkPayout", "passthrough": "Passthrough", "pixKey": "PixKeyBankTransferPayout", "pixEmv": "PixEmvBankTransferPayout", "openBanking": "OpenBankingPayout" },
+  PayoutMethod: { "card": "CardPayout", "ach": "AchBankTransferPayout", "bacs": "BacsBankTransferPayout", "sepa": "SepaBankTransferPayout", "pix": "PixBankTransferPayout", "applePayDecrypt": "ApplePayDecrypt", "paypal": "Paypal", "venmo": "Venmo", "interac": "InteracPayout", "openBankingUk": "OpenBankingUkPayout", "passthrough": "Passthrough", "pixKey": "PixKeyBankTransferPayout", "pixEmv": "PixEmvBankTransferPayout", "openBanking": "OpenBankingPayout", "trustly": "TrustlyBankTransferPayout" },
   SourceBankData: { "ach": "AchBankTransferPayout", "bacs": "BacsBankTransferPayout", "sepa": "SepaBankTransferPayout", "pix": "PixBankTransferPayout", "pixKey": "PixKeyBankTransferPayout", "pixEmv": "PixEmvBankTransferPayout" },
   PayoutServiceCreateRequest: { "address": "PayoutAddress", "payoutMethodData": "PayoutMethod", "amount": "Money", "customer": "Customer", "browserInfo": "BrowserInformation", "sourceBankData": "SourceBankData" },
   PayoutServiceCreateResponse: { "error": "ErrorInfo" },
