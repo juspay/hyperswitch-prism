@@ -189,7 +189,8 @@ enabled = true
 
 # Per-connector unmask lists, comma-separated and case-insensitive.
 # A connector with no entry gets every value masked (keys still visible).
-# Never list card/CVV/token-like keys: those stay masked regardless.
+# Full PAN, CVV, expiry and credentials stay masked regardless of what is listed here.
+# Truncated values (cardSummary, last4, cardBin) are not covered — name them if needed.
 #
 # Only one entry is seeded, as a worked example for testing. Add a line per
 # connector as you need its fields visible; an unknown connector name here will

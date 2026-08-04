@@ -124,6 +124,11 @@ impl Patch<ConnectorResponseMaskingConfigPatch> for ConnectorResponseMaskingConf
 
 /// Never revealed regardless of config. Substring match after stripping non-alphanumerics, so
 /// `card_number`, `cardNumber` and `ssl_card_number` all match `cardnumber`.
+///
+/// Scope is full PAN, CVV, expiry and credentials — **not** every card-derived field. Truncated
+/// values such as `cardSummary`, `last4` and `cardBin` are deliberately absent: they are not PAN,
+/// they appear on receipts, and a connector that needs them for reconciliation can name them in
+/// its own list.
 const ALWAYS_MASKED_SUBSTRING: &[&str] = &[
     "cardnumber",
     "cardnum",
@@ -164,17 +169,22 @@ fn is_always_masked(key: &str) -> bool {
             .any(|needle| normalized.contains(needle))
 }
 
+/// Whether the connector's configured list names this key.
+fn in_allowlist(keys: &HashSet<Box<str>>, key: &str) -> bool {
+    keys.contains(key.to_ascii_lowercase().as_str())
+        // XML names may be prefixed (`s:authCode`); accept the local name too.
+        || key
+            .rsplit_once(':')
+            .is_some_and(|(_, local)| keys.contains(local.to_ascii_lowercase().as_str()))
+}
+
 /// Whether this key's scalar value keeps its value.
+///
+/// Allowlist first: the denylist only ever overrides a key the allowlist would have revealed, so
+/// the keys it rejects are masked either way. Checking membership first skips the substring scan
+/// for the large majority of fields.
 fn allowed(keys: &HashSet<Box<str>>, key: &str) -> bool {
-    if is_always_masked(key) {
-        return false;
-    }
-    if keys.contains(key.to_ascii_lowercase().as_str()) {
-        return true;
-    }
-    // XML names may be prefixed (`s:authCode`); accept the local name too.
-    key.rsplit_once(':')
-        .is_some_and(|(_, local)| keys.contains(local.to_ascii_lowercase().as_str()))
+    in_allowlist(keys, key) && !is_always_masked(key)
 }
 
 /// Namespace declarations are structural: masking them would break prefix resolution, and they
