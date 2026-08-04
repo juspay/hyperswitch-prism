@@ -23,10 +23,14 @@ macro_rules! http_handler {
         pub async fn $fn_name(
             Extension(config): Extension<Arc<Config>>,
             State(state): State<AppState>,
+            method: axum::http::Method,
             headers: HeaderMap,
             ValidatedJson(payload): ValidatedJson<$req_type>,
         ) -> Result<Json<$resp_type>, HttpError> {
             let mut grpc_request = tonic::Request::new(payload);
+            // Carry the real HTTP method through to the golden-log-line assembly (the
+            // `:method` pseudo-header is not visible once transcoded to a tonic request).
+            grpc_request.extensions_mut().insert(method);
             transfer_config_to_grpc_request(&config, &mut grpc_request);
             let grpc_metadata =
                 http_headers_to_grpc_metadata(&headers).map_err(|status| HttpError {

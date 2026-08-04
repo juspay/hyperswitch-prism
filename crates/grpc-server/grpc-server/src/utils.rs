@@ -291,6 +291,8 @@ pub fn log_after_initialization<T>(
     request_body: &Option<MaskedSerdeValue>,
     req_headers: &HashMap<String, String>,
     latency_ms: u128,
+    // Real HTTP method (HTTP server); `None` for native gRPC, where it is always POST.
+    http_method: Option<&str>,
 ) where
     T: serde::Serialize + std::fmt::Debug + hyperswitch_masking::ErasedMaskSerialize,
 {
@@ -341,7 +343,8 @@ pub fn log_after_initialization<T>(
     // logger's `json_value_keys` renders the JSON string as a nested object. The flat incoming
     // fields (`request_body`, `response_body`, …) remain for hyperswitch compatibility.
     let api_details = serde_json::json!({
-        "method": "POST",
+        // Real HTTP method under the HTTP server; POST for native gRPC (its only transport verb).
+        "method": http_method.unwrap_or("POST"),
         "req_type": "INTERNAL",
         "req_headers": req_headers,
         "req_body": request_body,
@@ -381,6 +384,12 @@ where
     let start_time = tokio::time::Instant::now();
     let masked_request_data =
         MaskedSerdeValue::from_masked_optional(request.get_ref(), "grpc_request");
+    // Real HTTP method when running under the HTTP server (inserted by the http handler macro);
+    // absent for native gRPC, where the transport method is always POST.
+    let http_method = request
+        .extensions()
+        .get::<axum::http::Method>()
+        .map(|m| m.to_string());
     let mut event_metadata_payload = None;
     let mut event_headers = HashMap::new();
 
@@ -404,6 +413,7 @@ where
         &masked_request_data,
         &event_headers,
         start_time.elapsed().as_millis(),
+        http_method.as_deref(),
     );
 
     #[cfg(feature = "otel")]
@@ -450,6 +460,12 @@ where
     let start_time = tokio::time::Instant::now();
     let masked_request_data =
         MaskedSerdeValue::from_masked_optional(request.get_ref(), "grpc_request");
+    // Real HTTP method when running under the HTTP server (inserted by the http handler macro);
+    // absent for native gRPC, where the transport method is always POST.
+    let http_method = request
+        .extensions()
+        .get::<axum::http::Method>()
+        .map(|m| m.to_string());
     let mut event_metadata_payload = None;
     let mut event_headers = HashMap::new();
 
@@ -473,6 +489,7 @@ where
         &masked_request_data,
         &event_headers,
         start_time.elapsed().as_millis(),
+        http_method.as_deref(),
     );
 
     #[cfg(feature = "otel")]
