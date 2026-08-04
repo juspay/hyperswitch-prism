@@ -66,8 +66,8 @@ message CurrencyConversionQuote {
   Money merchant_order_amount = 1;
 
   // Decimal exchange rate for this currency conversion quote.
-  // It converts merchant_order_amount.currency to PaymentServiceAuthorizeRequest.amount.currency.
-  // For an accepted DCC offer, PaymentServiceAuthorizeRequest.amount is the payable amount in the cardholder currency.
+  // It converts merchant_order_amount.currency to PaymentServiceAuthorizeRequest.amount.currency.
+  // For an accepted DCC offer, PaymentServiceAuthorizeRequest.amount is the payable amount in the cardholder currency.
   optional string exchange_rate = 2;
 
   // Quote identifier assigned by the connector or rate provider.
