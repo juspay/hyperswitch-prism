@@ -982,6 +982,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<MollieCardTokenRespon
             response: Ok(PaymentMethodTokenResponse {
                 token: item.response.card_token.expose(), // Return tkn_ token
                 connector_payment_method_id: None,
+                status_code: item.http_code,
             }),
             resource_common_data: PaymentFlowData {
                 status: common_enums::AttemptStatus::Charged, // Tokenization successful

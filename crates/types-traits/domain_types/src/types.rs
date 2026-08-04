@@ -13228,7 +13228,7 @@ pub fn generate_create_payment_method_token_response<T: PaymentMethodDataTypes>(
                 grpc_api_types::payments::PaymentMethodServiceTokenizeResponse {
                     payment_method_token: response.token,
                     error: None,
-                    status_code: 200,
+                    status_code: u32::from(response.status_code),
                     response_headers,
                     merchant_payment_method_id: Some(token_clone),
                     state: None,

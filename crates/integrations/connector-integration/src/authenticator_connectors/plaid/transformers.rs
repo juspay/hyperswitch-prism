@@ -371,6 +371,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static>
             response: Ok(PaymentMethodTokenResponse {
                 token: res.access_token.expose(),
                 connector_payment_method_id: Some(res.item_id),
+                status_code: item.http_code,
             }),
             ..item.router_data
         })

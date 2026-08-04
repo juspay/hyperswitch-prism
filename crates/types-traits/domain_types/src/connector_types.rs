@@ -2071,6 +2071,7 @@ pub struct PaymentMethodTokenizationData<T: PaymentMethodDataTypes> {
 pub struct PaymentMethodTokenResponse {
     pub token: String,
     pub connector_payment_method_id: Option<String>,
+    pub status_code: u16,
 }
 
 #[derive(Debug, Clone)]

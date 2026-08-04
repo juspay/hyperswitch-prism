@@ -5912,6 +5912,7 @@ impl<F, T> TryFrom<ResponseRouterData<StripeTokenResponse, Self>>
             response: Ok(PaymentMethodTokenResponse {
                 token,
                 connector_payment_method_id: None,
+                status_code: item.http_code,
             }),
             ..item.router_data
         })

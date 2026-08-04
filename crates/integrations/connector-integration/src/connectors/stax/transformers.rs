@@ -1138,6 +1138,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StaxTokenResponse, Se
             response: Ok(PaymentMethodTokenResponse {
                 token: item.response.id.expose(),
                 connector_payment_method_id: None,
+                status_code: item.http_code,
             }),
             ..item.router_data
         })

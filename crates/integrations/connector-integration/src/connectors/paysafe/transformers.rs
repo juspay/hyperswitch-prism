@@ -1562,6 +1562,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaysafePaymentMethodT
             response: Ok(PaymentMethodTokenResponse {
                 token: item.response.payment_handle_token.peek().to_string(),
                 connector_payment_method_id: None,
+                status_code: item.http_code,
             }),
             ..router_data
         })
