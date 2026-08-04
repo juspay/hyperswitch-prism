@@ -1582,7 +1582,12 @@ impl From<FiuuRecurringStautus> for common_enums::AttemptStatus {
         match status {
             FiuuRecurringStautus::Accepted => Self::Charged,
             FiuuRecurringStautus::Failed => Self::Failure,
-            FiuuRecurringStautus::Unknown => Self::Unknown,
+            FiuuRecurringStautus::Unknown => {
+                tracing::warn!(
+                    "Unknown fiuu recurring payment status received; mapping to unknown attempt status"
+                );
+                Self::Unknown
+            }
         }
     }
 }
@@ -2081,7 +2086,12 @@ impl TryFrom<FiuuWebhookStatus> for common_enums::AttemptStatus {
             },
             FiuuPaymentWebhookStatus::Failure => Ok(Self::Failure),
             FiuuPaymentWebhookStatus::Pending => Ok(Self::AuthenticationPending),
-            FiuuPaymentWebhookStatus::Unknown => Ok(Self::Unknown),
+            FiuuPaymentWebhookStatus::Unknown => {
+                tracing::warn!(
+                    "Unknown fiuu payment webhook status received; mapping to unknown attempt status"
+                );
+                Ok(Self::Unknown)
+            }
         }
     }
 }
@@ -2122,7 +2132,12 @@ impl TryFrom<FiuuSyncStatus> for common_enums::AttemptStatus {
                 Ok(Self::Voided)
             }
             (StatCode::Failure, _) => Ok(Self::Failure),
-            (StatCode::Unknown, _) => Ok(Self::Unknown),
+            (StatCode::Unknown, _) => {
+                tracing::warn!(
+                    "Unknown fiuu payment sync status code received; mapping to unknown attempt status"
+                );
+                Ok(Self::Unknown)
+            }
             (other, _) => Err(error_stack::Report::from(
                 ConnectorError::unexpected_response_error_http_status_unknown(),
             )
@@ -2551,7 +2566,12 @@ impl From<RefundStatus> for common_enums::RefundStatus {
             RefundStatus::Success => Self::Success,
             RefundStatus::Rejected => Self::Failure,
             RefundStatus::Processing => Self::Pending,
-            RefundStatus::Unknown => Self::Unknown,
+            RefundStatus::Unknown => {
+                tracing::warn!(
+                    "Unknown fiuu refund status received; mapping to unknown refund status"
+                );
+                Self::Unknown
+            }
         }
     }
 }
@@ -2696,7 +2716,12 @@ impl From<FiuuPaymentWebhookStatus> for StatCode {
             FiuuPaymentWebhookStatus::Success => Self::Success,
             FiuuPaymentWebhookStatus::Failure => Self::Failure,
             FiuuPaymentWebhookStatus::Pending => Self::Pending,
-            FiuuPaymentWebhookStatus::Unknown => Self::Unknown,
+            FiuuPaymentWebhookStatus::Unknown => {
+                tracing::warn!(
+                    "Unknown fiuu payment webhook status received; mapping to unknown status code"
+                );
+                Self::Unknown
+            }
         }
     }
 }
@@ -2739,7 +2764,12 @@ impl From<FiuuRefundsWebhookStatus> for common_enums::RefundStatus {
             FiuuRefundsWebhookStatus::RefundFailure => Self::Failure,
             FiuuRefundsWebhookStatus::RefundSuccess => Self::Success,
             FiuuRefundsWebhookStatus::RefundPending => Self::Pending,
-            FiuuRefundsWebhookStatus::Unknown => Self::Unknown,
+            FiuuRefundsWebhookStatus::Unknown => {
+                tracing::warn!(
+                    "Unknown fiuu refund webhook status received; mapping to unknown refund status"
+                );
+                Self::Unknown
+            }
         }
     }
 }
@@ -2868,7 +2898,12 @@ impl From<FiuuPaymentWebhookStatus> for EventType {
             FiuuPaymentWebhookStatus::Success => Self::PaymentIntentSuccess,
             FiuuPaymentWebhookStatus::Failure => Self::PaymentIntentFailure,
             FiuuPaymentWebhookStatus::Pending => Self::PaymentIntentProcessing,
-            FiuuPaymentWebhookStatus::Unknown => Self::IncomingWebhookEventUnspecified,
+            FiuuPaymentWebhookStatus::Unknown => {
+                tracing::warn!(
+                    "Unknown fiuu payment webhook status received; acknowledging without processing"
+                );
+                Self::IncomingWebhookEventUnspecified
+            }
         }
     }
 }
@@ -2879,7 +2914,12 @@ impl From<FiuuRefundsWebhookStatus> for EventType {
             FiuuRefundsWebhookStatus::RefundSuccess => Self::RefundSuccess,
             FiuuRefundsWebhookStatus::RefundFailure => Self::RefundFailure,
             FiuuRefundsWebhookStatus::RefundPending => Self::IncomingWebhookEventUnspecified,
-            FiuuRefundsWebhookStatus::Unknown => Self::IncomingWebhookEventUnspecified,
+            FiuuRefundsWebhookStatus::Unknown => {
+                tracing::warn!(
+                    "Unknown fiuu refund webhook status received; acknowledging without processing"
+                );
+                Self::IncomingWebhookEventUnspecified
+            }
         }
     }
 }
