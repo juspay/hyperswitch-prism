@@ -50,7 +50,6 @@ use super::super::transformers::{
 ///   • **Mastercard / AMEX** — never; they signal the stored credential via
 ///     `mitStatusIndicator` / `citStatusIndicator` instead.
 pub fn card_on_file(profile: &TxProfile) -> Option<TsysTransitCardOnFile> {
-
     match (profile.card_family, profile.cof_phase) {
         (CardFamily::Visa, CofPhase::CitSetup { .. }) => Some(TsysTransitCardOnFile::Y),
         (family, CofPhase::Mit(MitKind::Recurring | MitKind::Installment))
