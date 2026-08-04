@@ -1374,6 +1374,7 @@ impl<F> TryFrom<ResponseRouterData<NovalnetRefundResponse, Self>>
                         connector_refund_id: refund_id,
                         refund_status: common_enums::RefundStatus::from(transaction_status),
                         status_code: item.http_code,
+                        refund_arn: None,
                     }),
                     ..item.router_data
                 })
@@ -1732,6 +1733,7 @@ impl<F> TryFrom<ResponseRouterData<NovalnetRefundSyncResponse, Self>>
                         connector_refund_id: refund_id,
                         refund_status: common_enums::RefundStatus::from(transaction_status),
                         status_code: item.http_code,
+                        refund_arn: None,
                     }),
                     ..item.router_data
                 })

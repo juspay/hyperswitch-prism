@@ -1770,6 +1770,7 @@ impl<F> TryFrom<ResponseRouterData<AciRefundResponse, Self>>
                 connector_refund_id: item.response.id,
                 refund_status,
                 status_code: item.http_code,
+                refund_arn: None,
             })
         };
         Ok(Self {

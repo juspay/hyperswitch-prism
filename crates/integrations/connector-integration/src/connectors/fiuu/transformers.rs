@@ -1746,6 +1746,7 @@ impl<F> TryFrom<ResponseRouterData<FiuuRefundResponse, Self>>
                             connector_refund_id: refund_data.refund_id.clone().to_string(),
                             refund_status,
                             status_code: item.http_code,
+                            refund_arn: None,
                         }),
                         ..router_data
                     })
@@ -2524,6 +2525,7 @@ impl<F> TryFrom<ResponseRouterData<FiuuRefundSyncResponse, Self>>
                         connector_refund_id: refund.refund_id.clone(),
                         refund_status: common_enums::RefundStatus::from(refund.status.clone()),
                         status_code: item.http_code,
+                        refund_arn: None,
                     }),
                     ..router_data
                 })
@@ -2535,6 +2537,7 @@ impl<F> TryFrom<ResponseRouterData<FiuuRefundSyncResponse, Self>>
                         fiuu_webhooks_refund_response.status.clone(),
                     ),
                     status_code: item.http_code,
+                    refund_arn: None,
                 }),
                 ..router_data
             }),

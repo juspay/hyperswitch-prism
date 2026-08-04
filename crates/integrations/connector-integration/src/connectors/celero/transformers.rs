@@ -931,6 +931,7 @@ impl TryFrom<ResponseRouterData<CeleroRefundResponse, Self>>
             connector_refund_id,
             refund_status,
             status_code: item.http_code,
+            refund_arn: None,
         };
 
         Ok(Self {
@@ -999,6 +1000,7 @@ impl TryFrom<ResponseRouterData<CeleroRefundSyncResponse, Self>>
                         connector_refund_id,
                         refund_status: RefundStatus::Success,
                         status_code: item.http_code,
+                        refund_arn: None,
                     }),
                     ..router_data.clone()
                 })

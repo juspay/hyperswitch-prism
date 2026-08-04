@@ -1210,6 +1210,7 @@ impl<F> TryFrom<ResponseRouterData<WorldpayPaymentsResponse, Self>>
             connector_refund_id: item.router_data.request.refund_id.clone(),
             refund_status,
             status_code: item.http_code,
+            refund_arn: None,
         });
 
         Ok(Self {
@@ -1239,6 +1240,7 @@ impl<F> TryFrom<ResponseRouterData<WorldpayEventResponse, Self>>
                 .clone(),
             refund_status,
             status_code: item.http_code,
+            refund_arn: None,
         });
 
         Ok(Self {

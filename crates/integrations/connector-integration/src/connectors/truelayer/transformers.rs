@@ -773,6 +773,7 @@ impl TryFrom<ResponseRouterData<TruelayerRefundResponse, Self>>
                 connector_refund_id: item.response.id.to_string(),
                 refund_status: common_enums::RefundStatus::Pending,
                 status_code: item.http_code,
+                refund_arn: None,
             }),
             ..item.router_data
         })
@@ -841,6 +842,7 @@ impl TryFrom<ResponseRouterData<TruelayerRsyncResponse, Self>>
                         connector_refund_id: rsync_response.id,
                         refund_status: status,
                         status_code: item.http_code,
+                        refund_arn: None,
                     })
                 };
 
@@ -883,6 +885,7 @@ impl TryFrom<ResponseRouterData<TruelayerRsyncResponse, Self>>
                         })?,
                         refund_status: status,
                         status_code: item.http_code,
+                        refund_arn: None,
                     })
                 };
 

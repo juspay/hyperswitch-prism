@@ -856,6 +856,7 @@ impl TryFrom<ResponseRouterData<NexixpayRefundResponse, Self>>
                 connector_refund_id: item.response.operation_id.clone(),
                 refund_status: RefundStatus::Pending, // CRITICAL: NOT Success!
                 status_code: item.http_code,
+                refund_arn: None,
             }),
             ..item.router_data
         })
@@ -1078,6 +1079,7 @@ impl TryFrom<ResponseRouterData<NexixpayRSyncResponse, Self>>
                 connector_refund_id: item.response.operation_id,
                 refund_status,
                 status_code: item.http_code,
+                refund_arn: None,
             }),
             ..item.router_data
         })

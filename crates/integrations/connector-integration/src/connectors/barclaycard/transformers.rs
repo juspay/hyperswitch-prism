@@ -1228,6 +1228,7 @@ impl TryFrom<ResponseRouterData<responses::BarclaycardRefundResponse, Self>>
                 connector_refund_id: item.response.id,
                 refund_status,
                 status_code: item.http_code,
+                refund_arn: None,
             })
         };
 
@@ -1289,6 +1290,7 @@ impl TryFrom<ResponseRouterData<responses::BarclaycardRsyncResponse, Self>>
                         connector_refund_id: item.response.id,
                         refund_status,
                         status_code: item.http_code,
+                        refund_arn: None,
                     })
                 }
             }
@@ -1299,6 +1301,7 @@ impl TryFrom<ResponseRouterData<responses::BarclaycardRsyncResponse, Self>>
                     Err(_) => common_enums::RefundStatus::Pending,
                 },
                 status_code: item.http_code,
+                refund_arn: None,
             }),
         };
 

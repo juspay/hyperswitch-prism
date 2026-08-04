@@ -513,6 +513,7 @@ impl
             connector_refund_id: response.id,
             refund_status: status,
             status_code: _status_code,
+            refund_arn: None,
         };
 
         Ok(Self {
@@ -556,6 +557,7 @@ impl
             connector_refund_id: response.id,
             refund_status: status,
             status_code: _status_code,
+            refund_arn: None,
         };
 
         Ok(Self {

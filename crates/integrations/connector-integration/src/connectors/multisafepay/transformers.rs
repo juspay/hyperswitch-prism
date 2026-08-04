@@ -1097,6 +1097,7 @@ impl<F> TryFrom<ResponseRouterData<MultisafepayRefundResponse, Self>>
                 connector_refund_id: item.response.data.refund_id.to_string(),
                 refund_status: refund_status.into(),
                 status_code: item.http_code,
+                refund_arn: None,
             }),
             ..item.router_data
         })
@@ -1123,6 +1124,7 @@ impl TryFrom<ResponseRouterData<MultisafepayRefundResponse, Self>>
                 connector_refund_id: item.response.data.refund_id.to_string(),
                 refund_status: refund_status.into(),
                 status_code: item.http_code,
+                refund_arn: None,
             }),
             ..item.router_data
         })

@@ -1226,6 +1226,7 @@ impl<F> TryFrom<ResponseRouterData<ElavonRefundResponse, Self>>
                 connector_refund_id: payment_resp_struct.ssl_txn_id.clone(),
                 refund_status,
                 status_code: http_code,
+                refund_arn: None,
             }),
             (_, Some(err_resp)) => Err(err_resp),
             (ElavonResult::Error(error_payload), None) => Err(ErrorResponse {
@@ -1384,6 +1385,7 @@ impl<F> TryFrom<ResponseRouterData<ElavonRSyncResponse, Self>>
             connector_refund_id: response.ssl_txn_id.clone(),
             refund_status,
             status_code: value.http_code,
+            refund_arn: None,
         };
 
         Ok(Self {

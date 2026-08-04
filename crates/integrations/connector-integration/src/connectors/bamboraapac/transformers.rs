@@ -983,6 +983,7 @@ impl TryFrom<ResponseRouterData<BamboraapacRefundResponse, Self>>
             connector_refund_id: response.receipt.clone(),
             refund_status,
             status_code: item.http_code,
+            refund_arn: None,
         };
 
         Ok(Self {
@@ -1116,6 +1117,7 @@ impl TryFrom<ResponseRouterData<BamboraapacSyncResponse, Self>>
             connector_refund_id: response.receipt.clone(),
             refund_status,
             status_code: item.http_code,
+            refund_arn: None,
         };
 
         Ok(Self {

@@ -901,6 +901,7 @@ impl TryFrom<ResponseRouterData<HipayRefundResponse, Self>>
                 connector_refund_id: item.response.transaction_reference.clone(),
                 refund_status,
                 status_code: item.http_code,
+                refund_arn: None,
             }),
             ..item.router_data
         })
@@ -933,6 +934,7 @@ impl TryFrom<ResponseRouterData<HipayRSyncResponse, Self>>
                 connector_refund_id: item.response.id.to_string(),
                 refund_status,
                 status_code: item.http_code,
+                refund_arn: None,
             }),
             ..item.router_data
         })

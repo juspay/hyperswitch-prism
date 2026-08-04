@@ -828,13 +828,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         };
 
-        let callback_url = Some(
-            router_data
-                .resource_common_data
-                .return_url
-                .clone()
-                .ok_or_else(crate::utils::missing_field_err("return_url"))?,
-        );
+        // Glomopay rejects non-HTTPS callback URLs. Local euler-api-txns setups
+        // send an `http://` return URL, which would fail Glomopay's validation.
+        // Substitute a placeholder HTTPS URL so the request goes through in
+        // local testing; production return URLs are already HTTPS so this is a
+        // no-op there.
+        let return_url = router_data
+            .resource_common_data
+            .return_url
+            .clone()
+            .ok_or_else(crate::utils::missing_field_err("return_url"))?;
+        let callback_url = Some(if return_url.starts_with("https://") {
+            return_url
+        } else {
+            "https://google.com".to_string()
+        });
 
         Ok(Self {
             order_id,
@@ -1099,6 +1107,7 @@ impl TryFrom<ResponseRouterData<GlomopayRefundResponse, Self>>
                 connector_refund_id: response.id,
                 refund_status,
                 status_code: item.http_code,
+                refund_arn: None,
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,
@@ -1118,6 +1127,7 @@ pub struct GlomopayRefundSyncItem {
     pub id: String,
     pub status: GlomopayRefundStatus,
     pub amount: Option<MinorUnit>,
+    pub utr: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -1142,9 +1152,13 @@ impl TryFrom<ResponseRouterData<GlomopayRefundSyncResponse, Self>>
         // If RSync returns no matching refund, default to Pending so the
         // next sync retries rather than prematurely marking Success/Failure
         // — Glomopay's list endpoint may lag due to eventual consistency.
-        let (refund_status, resolved_refund_id) = match refund_entry {
-            Some(entry) => (RefundStatus::from(entry.status), entry.id.clone()),
-            None => (RefundStatus::Pending, connector_refund_id),
+        let (refund_status, resolved_refund_id, refund_arn) = match refund_entry {
+            Some(entry) => (
+                RefundStatus::from(entry.status),
+                entry.id.clone(),
+                entry.utr.clone(),
+            ),
+            None => (RefundStatus::Pending, connector_refund_id, None),
         };
 
         Ok(Self {
@@ -1152,6 +1166,7 @@ impl TryFrom<ResponseRouterData<GlomopayRefundSyncResponse, Self>>
                 connector_refund_id: resolved_refund_id,
                 refund_status,
                 status_code: item.http_code,
+                refund_arn,
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,

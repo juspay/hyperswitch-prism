@@ -547,6 +547,7 @@ impl TryFrom<ResponseRouterData<QwikcilverCancelRedeemResponse, Self>>
                 connector_refund_id: body.transaction_id.to_string(),
                 refund_status: CANCEL_REDEEM_SUCCESS_STATUS,
                 status_code: item.http_code,
+                refund_arn: None,
             }),
             _ => Err(error_response_from_qc(
                 (&body).into(),

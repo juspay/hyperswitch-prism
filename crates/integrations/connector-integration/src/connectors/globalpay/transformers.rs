@@ -973,6 +973,7 @@ impl TryFrom<ResponseRouterData<GlobalpayRefundResponse, Self>>
                 connector_refund_id: item.response.id.clone(),
                 refund_status,
                 status_code: item.http_code,
+                refund_arn: None,
             }),
             ..item.router_data
         })
@@ -995,6 +996,7 @@ impl TryFrom<ResponseRouterData<GlobalpayRefundResponse, Self>>
                 connector_refund_id: item.response.id.clone(),
                 refund_status,
                 status_code: item.http_code,
+                refund_arn: None,
             }),
             ..item.router_data
         })

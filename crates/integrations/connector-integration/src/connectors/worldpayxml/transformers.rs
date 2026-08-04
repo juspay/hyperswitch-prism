@@ -1037,6 +1037,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlRefundResponse, Self>>
             connector_refund_id: refund_received.order_code.clone(),
             refund_status: RefundStatus::Pending,
             status_code: item.http_code,
+            refund_arn: None,
         };
 
         Ok(Self {
@@ -1091,6 +1092,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlRsyncResponse, Self>>
                             connector_refund_id: order_status.order_code.clone(),
                             refund_status: RefundStatus::Pending,
                             status_code: item.http_code,
+                            refund_arn: None,
                         };
 
                         return Ok(Self {
@@ -1135,6 +1137,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlRsyncResponse, Self>>
                     connector_refund_id: order_status.order_code.clone(),
                     refund_status,
                     status_code: item.http_code,
+                    refund_arn: None,
                 };
 
                 Ok(Self {
@@ -1170,6 +1173,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlRsyncResponse, Self>>
                     connector_refund_id: order_code,
                     refund_status,
                     status_code: item.http_code,
+                    refund_arn: None,
                 };
 
                 Ok(Self {

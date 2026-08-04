@@ -957,6 +957,7 @@ impl TryFrom<ResponseRouterData<PayloadRefundResponse, Self>>
                 connector_refund_id: item.response.transaction_id.to_string(),
                 refund_status: enums::RefundStatus::from(item.response.status),
                 status_code: item.http_code,
+                refund_arn: None,
             }),
             ..item.router_data
         })
@@ -989,6 +990,7 @@ impl TryFrom<ResponseRouterData<PayloadRefundResponse, Self>>
                 connector_refund_id: item.response.transaction_id.to_string(),
                 refund_status: enums::RefundStatus::from(item.response.status),
                 status_code: item.http_code,
+                refund_arn: None,
             }),
             ..item.router_data
         })

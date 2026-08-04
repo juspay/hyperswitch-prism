@@ -750,6 +750,7 @@ pub fn handle_refund_response(
             .unwrap_or_default(),
         refund_status: status,
         status_code: http_code,
+        refund_arn: None,
     };
 
     Ok(RouterDataV2 {
@@ -795,6 +796,7 @@ pub fn handle_rsync_response(
             .unwrap_or_default(),
         refund_status: status,
         status_code: http_code,
+        refund_arn: None,
     };
 
     Ok(RouterDataV2 {

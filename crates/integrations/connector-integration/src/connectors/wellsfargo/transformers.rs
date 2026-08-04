@@ -1509,6 +1509,7 @@ impl TryFrom<ResponseRouterData<WellsfargoPaymentsResponse, Self>>
                 connector_refund_id: response.id.clone(),
                 refund_status: status,
                 status_code: item.http_code,
+                refund_arn: None,
             })
         } else {
             // Build error response using helper function
@@ -1597,6 +1598,7 @@ impl TryFrom<ResponseRouterData<WellsfargoRSyncResponse, Self>>
                         connector_refund_id: response.id.clone(),
                         refund_status: status,
                         status_code: item.http_code,
+                        refund_arn: None,
                     })
                 }
             }

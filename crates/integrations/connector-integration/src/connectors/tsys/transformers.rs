@@ -974,6 +974,7 @@ impl TryFrom<ResponseRouterData<RefundResponse, Self>>
                 connector_refund_id: return_response.transaction_id,
                 refund_status: common_enums::enums::RefundStatus::from(return_response.status),
                 status_code: item.http_code,
+                refund_arn: None,
             }),
             TsysResponseTypes::ErrorResponse(error_response) => {
                 Err(get_error_response(&error_response, item.http_code))
@@ -1043,6 +1044,7 @@ impl TryFrom<ResponseRouterData<TsysRSyncResponse, Self>>
                     search_response.transaction_details,
                 ),
                 status_code: item.http_code,
+                refund_arn: None,
             }),
             SearchResponseTypes::ErrorResponse(error_response) => {
                 Err(get_error_response(&error_response, item.http_code))
