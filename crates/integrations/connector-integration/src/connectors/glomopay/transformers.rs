@@ -828,21 +828,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         };
 
-        // Glomopay rejects non-HTTPS callback URLs. Local euler-api-txns setups
-        // send an `http://` return URL, which would fail Glomopay's validation.
-        // Substitute a placeholder HTTPS URL so the request goes through in
-        // local testing; production return URLs are already HTTPS so this is a
-        // no-op there.
-        let return_url = router_data
-            .resource_common_data
-            .return_url
-            .clone()
-            .ok_or_else(crate::utils::missing_field_err("return_url"))?;
-        let callback_url = Some(if return_url.starts_with("https://") {
-            return_url
-        } else {
-            "https://google.com".to_string()
-        });
+        let callback_url = Some(
+            router_data
+                .resource_common_data
+                .return_url
+                .clone()
+                .ok_or_else(crate::utils::missing_field_err("return_url"))?,
+        );
 
         Ok(Self {
             order_id,
