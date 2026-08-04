@@ -17498,6 +17498,7 @@ impl ForeignFrom<payment_method_data::PaymentMethodDetails>
                                             }
                                         }
                                     }),
+                                    bank_name: acct.bank_name,
                                 })
                                 .collect(),
                         },
