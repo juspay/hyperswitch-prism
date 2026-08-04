@@ -69,28 +69,15 @@ impl TryFrom<&ConnectorSpecificConfig> for SantanderAuthType {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SantanderErrorResponse {
-    #[serde(
-        default,
-        alias = "code",
-        alias = "errorCode",
-        alias = "_errorCode",
-        deserialize_with = "deserialize_optional_string"
-    )]
+    #[serde(alias = "_errorCode")]
     pub code: Option<String>,
-    #[serde(alias = "message", alias = "errorMessage", alias = "_message")]
+    #[serde(alias = "_message")]
     pub message: Option<String>,
-    #[serde(alias = "httpStatus")]
-    pub http_status: Option<String>,
-    #[serde(alias = "details", alias = "_details")]
+    #[serde(alias = "_details")]
     pub details: Option<String>,
-    #[serde(
-        default,
-        alias = "timestamp",
-        alias = "_timestamp",
-        deserialize_with = "deserialize_optional_string"
-    )]
+    #[serde(alias = "_timestamp")]
     pub timestamp: Option<String>,
-    #[serde(alias = "traceId", alias = "_traceId", alias = "trackingId")]
+    #[serde(alias = "_traceId")]
     pub trace_id: Option<String>,
     #[serde(default, alias = "_errors")]
     pub errors: Vec<SantanderErrorDetail>,
@@ -98,17 +85,11 @@ pub struct SantanderErrorResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SantanderErrorDetail {
-    #[serde(
-        default,
-        alias = "code",
-        alias = "_code",
-        alias = "errorCode",
-        deserialize_with = "deserialize_optional_string"
-    )]
+    #[serde(alias = "_code")]
     pub code: Option<String>,
-    #[serde(alias = "field", alias = "_field")]
+    #[serde(alias = "_field")]
     pub field: Option<String>,
-    #[serde(alias = "message", alias = "_message", alias = "errorMessage")]
+    #[serde(alias = "_message")]
     pub message: Option<String>,
 }
 
