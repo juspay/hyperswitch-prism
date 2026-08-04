@@ -6,8 +6,9 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        PayoutCreate, PayoutCreateLink, PayoutCreateRecipient, PayoutEnrollDisburseAccount,
-        PayoutGet, PayoutStage, PayoutTransfer, PayoutVoid, ServerAuthenticationToken,
+        PayoutCreate, PayoutCreateLink, PayoutCreateRecipient, PayoutEligibility,
+        PayoutEnrollDisburseAccount, PayoutGet, PayoutStage, PayoutTransfer, PayoutVoid,
+        ServerAuthenticationToken,
     },
     connector_types::{
         ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
@@ -17,6 +18,7 @@ use domain_types::{
     payouts::payouts_types::{
         PayoutCreateLinkRequest, PayoutCreateLinkResponse, PayoutCreateRecipientRequest,
         PayoutCreateRecipientResponse, PayoutCreateRequest, PayoutCreateResponse,
+        PayoutEligibilityRequest, PayoutEligibilityResponse,
         PayoutEnrollDisburseAccountRequest, PayoutEnrollDisburseAccountResponse, PayoutFlowData,
         PayoutGetRequest, PayoutGetResponse, PayoutStageRequest, PayoutStageResponse,
         PayoutTransferRequest, PayoutTransferResponse, PayoutVoidRequest, PayoutVoidResponse,
@@ -32,9 +34,9 @@ use interfaces::{
     api::ConnectorCommon,
     connector_integration_v2::ConnectorIntegrationV2,
     connector_types::{
-        PayoutCreateLinkV2, PayoutCreateRecipientV2, PayoutCreateV2, PayoutEnrollDisburseAccountV2,
-        PayoutGetV2, PayoutServiceTrait, PayoutStageV2, PayoutTransferV2, PayoutVoidV2,
-        ServerAuthentication,
+        PayoutCreateLinkV2, PayoutCreateRecipientV2, PayoutCreateV2, PayoutEligibilityV2,
+        PayoutEnrollDisburseAccountV2, PayoutGetV2, PayoutServiceTrait, PayoutStageV2,
+        PayoutTransferV2, PayoutVoidV2, ServerAuthentication,
     },
 };
 
@@ -133,14 +135,6 @@ impl ConnectorCommon for SantanderPayouts {
     }
 }
 
-fn get_secondary_base_url(connectors: &Connectors) -> Result<&str, IntegrationError> {
-    connectors.santander.secondary_base_url.as_deref().ok_or(
-        IntegrationError::MissingRequiredField {
-            field_name: "secondary_base_url",
-            context: Default::default(),
-        },
-    )
-}
 
 fn get_workspace_id(auth: &SantanderAuthType) -> String {
     auth.workspace_id.clone().expose()
@@ -222,8 +216,8 @@ impl
             ServerAuthenticationTokenResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        let secondary_base_url = get_secondary_base_url(&req.resource_common_data.connectors)?;
-        Ok(format!("{secondary_base_url}/auth/oauth/v2/token"))
+        let base_url = self.base_url(&req.resource_common_data.connectors);
+        Ok(format!("{base_url}/auth/oauth/v2/token"))
     }
 
     fn get_headers(
@@ -327,6 +321,34 @@ impl
 
 // ===== PAYOUT SERVICE TRAIT =====
 
+impl PayoutEligibilityV2 for SantanderPayouts {}
+
+impl
+    ConnectorIntegrationV2<
+        PayoutEligibility,
+        PayoutFlowData,
+        PayoutEligibilityRequest,
+        PayoutEligibilityResponse,
+    > for SantanderPayouts
+{
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            PayoutEligibility,
+            PayoutFlowData,
+            PayoutEligibilityRequest,
+            PayoutEligibilityResponse,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(IntegrationError::connector_flow_not_implemented(
+            self.id(),
+            "payout_eligibility",
+            Default::default(),
+        )
+        .into())
+    }
+}
+
 impl PayoutServiceTrait for SantanderPayouts {}
 
 // ===== PAYOUT CREATE (POST — create payout with recipient) =====
@@ -369,11 +391,11 @@ impl ConnectorIntegrationV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, P
             PayoutCreateResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        let secondary_base_url = get_secondary_base_url(&req.resource_common_data.connectors)?;
+        let base_url = self.base_url(&req.resource_common_data.connectors);
         let auth = SantanderAuthType::try_from(&req.connector_config)?;
         let workspace_id = get_workspace_id(&auth);
         Ok(format!(
-            "{secondary_base_url}/management_payments_partners/v1/workspaces/{workspace_id}/pix_payments"
+            "{base_url}/management_payments_partners/v1/workspaces/{workspace_id}/pix_payments"
         ))
     }
 
@@ -484,7 +506,7 @@ impl
             PayoutTransferResponse,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        let secondary_base_url = get_secondary_base_url(&req.resource_common_data.connectors)?;
+        let base_url = self.base_url(&req.resource_common_data.connectors);
         let auth = SantanderAuthType::try_from(&req.connector_config)?;
         let workspace_id = get_workspace_id(&auth);
         let connector_payout_id = req.request.connector_payout_id.clone().ok_or(
@@ -493,7 +515,7 @@ impl
             },
         )?;
         Ok(format!(
-            "{secondary_base_url}/management_payments_partners/v1/workspaces/{workspace_id}/pix_payments/{connector_payout_id}"
+            "{base_url}/management_payments_partners/v1/workspaces/{workspace_id}/pix_payments/{connector_payout_id}"
         ))
     }
 
@@ -619,7 +641,7 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
         &self,
         req: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
     ) -> CustomResult<String, IntegrationError> {
-        let secondary_base_url = get_secondary_base_url(&req.resource_common_data.connectors)?;
+        let base_url = self.base_url(&req.resource_common_data.connectors);
         let auth = SantanderAuthType::try_from(&req.connector_config)?;
         let workspace_id = get_workspace_id(&auth);
         let connector_payout_id = req.request.connector_payout_id.clone().ok_or(
@@ -628,7 +650,7 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
             },
         )?;
         Ok(format!(
-            "{secondary_base_url}/management_payments_partners/v1/workspaces/{workspace_id}/pix_payments/{connector_payout_id}"
+            "{base_url}/management_payments_partners/v1/workspaces/{workspace_id}/pix_payments/{connector_payout_id}"
         ))
     }
 

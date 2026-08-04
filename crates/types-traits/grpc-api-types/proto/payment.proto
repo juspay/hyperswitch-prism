@@ -896,7 +896,7 @@ enum Connector {
   GLOMOPAY = 130;
   GIVEPAYMENTS = 131;
   TESOURO = 132;
-  SANTANDER = 130;
+  SANTANDER = 133;
 }
 
 // Payment method types
@@ -5228,7 +5228,6 @@ message SantanderConfig {
   optional SecretString certificates = 4;
   optional SecretString private_key = 5;
   optional string base_url = 50;
-  optional string secondary_base_url = 51;
 }
 
 message GigadatConfig {
@@ -5863,8 +5862,8 @@ message ConnectorSpecificConfig {
     DeutschebankConfig deutschebank = 140;
     // PLAID = 141
     PlaidConfig plaid = 141;
-    // SANTANDER = 130
-    SantanderConfig santander = 137;
+    // SANTANDER = 142
+    SantanderConfig santander = 142;
   }
 }
 

@@ -3,7 +3,7 @@ use common_utils::errors::CustomResult;
 use domain_types::{
     errors,
     payment_method_data::PaymentMethodDataTypes,
-    router_data::{ConnectorSpecificConfig},
+    router_data::ConnectorSpecificConfig,
     types::Connectors,
 };
 use hyperswitch_masking::Maskable;
@@ -121,5 +121,6 @@ macros::macro_connector_flow_status_impls!(
         SubmitEvidence,
         DefendDispute,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
     ],
 );

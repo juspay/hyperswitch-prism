@@ -678,7 +678,6 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             certificates: None,
             private_key: None,
             base_url: None,
-            secondary_base_url: None,
         },
         ConnectorEnum::PinelabsOnline => ConnectorSpecificConfig::PinelabsOnline {
             client_id: id(),

@@ -1035,6 +1035,7 @@ default_impl_refresh_payment_method_v2!(
     Redsys,
     Revolut,
     Revolv3,
+    Santander,
     Shift4,
     Silverflow,
     Stax,

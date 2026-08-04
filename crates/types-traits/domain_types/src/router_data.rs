@@ -927,7 +927,6 @@ pub enum ConnectorSpecificConfig {
         certificates: Option<Secret<String>>,
         private_key: Option<Secret<String>>,
         base_url: Option<String>,
-        secondary_base_url: Option<String>,
     },
     Kount {
         api_key: Secret<String>,
@@ -1364,9 +1363,6 @@ impl ConnectorSpecificConfig {
                 secondary_base_url, ..
             }
             | Self::Easebuzz {
-                secondary_base_url, ..
-            }
-            | Self::Santander {
                 secondary_base_url, ..
             } => {
                 if let Some(secondary_base_url) = secondary_base_url {
@@ -2448,7 +2444,6 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 certificates: santander.certificates,
                 private_key: santander.private_key,
                 base_url: santander.base_url,
-                secondary_base_url: santander.secondary_base_url,
             }),
         }
     }
@@ -3641,7 +3636,6 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         certificates: None,
                         private_key: None,
                         base_url: None,
-                        secondary_base_url: None,
                     }),
                     _ => Err(err().into()),
                 },
@@ -3783,7 +3777,6 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         certificates: None,
                         private_key: None,
                         base_url: None,
-                        secondary_base_url: None,
                     }),
                     _ => Err(err().into()),
                 },
