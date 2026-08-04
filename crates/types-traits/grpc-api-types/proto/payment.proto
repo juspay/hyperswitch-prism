@@ -4914,6 +4914,14 @@ message LoonioConfig {
   optional string base_url = 50;
 }
 
+message DeutschebankConfig {
+  SecretString customer_identifier = 1;
+  SecretString key_id = 2;
+  SecretString signing_private_key = 3;
+  SecretString client_certificate_bundle = 4;
+  optional string base_url = 50;
+}
+
 message PaysafeConfig {
   SecretString username = 1;
   SecretString password = 2;
@@ -5742,6 +5750,7 @@ message ConnectorSpecificConfig {
 
     // PAYCONEX = 124
     PayconexConfig payconex = 129;
+
     // QWIKCILVER = 125
     QwikcilverConfig qwikcilver = 130;
     // CHECKOUT = 126
@@ -5763,8 +5772,10 @@ message ConnectorSpecificConfig {
 
     // TESOURO = 139
     TesouroConfig tesouro = 139;
-    // PLAID = 140
-    PlaidConfig plaid = 140;
+    // DEUTSCHEBANK = 140
+    DeutschebankConfig deutschebank = 140;
+    // PLAID = 141
+    PlaidConfig plaid = 141;
   }
 }
 

@@ -64,6 +64,8 @@ from payments.generated.payment_pb2 import (
     PaymentServiceVerifyRedirectResponseResponse,
     PaymentServiceVoidRequest,
     PaymentServiceVoidResponse,
+    PayoutMethodEligibilityRequest,
+    PayoutMethodEligibilityResponse,
     PayoutServiceCreateLinkRequest,
     PayoutServiceCreateLinkResponse,
     PayoutServiceCreateRecipientRequest,
@@ -248,6 +250,10 @@ class PayoutClient(_ConnectorClientBase):
 
     def payout_create_recipient(self, request: PayoutServiceCreateRecipientRequest, options: RequestConfig | None = ...) -> PayoutServiceCreateRecipientResponse:
         """PayoutService.CreateRecipient — Create payout recipient."""
+        ...
+
+    def payout_eligibility(self, request: PayoutMethodEligibilityRequest, options: RequestConfig | None = ...) -> PayoutMethodEligibilityResponse:
+        """PayoutService.Eligibility — Check eligibility of a payout before initiating it (e.g. SEPA VoP / payee verification)."""
         ...
 
     def payout_enroll_disburse_account(self, request: PayoutServiceEnrollDisburseAccountRequest, options: RequestConfig | None = ...) -> PayoutServiceEnrollDisburseAccountResponse:

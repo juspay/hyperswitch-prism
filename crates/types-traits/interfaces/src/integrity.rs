@@ -24,8 +24,8 @@ use domain_types::frm::frm_types::{
 };
 use domain_types::payouts::payouts_types::{
     PayoutCreateLinkRequest, PayoutCreateRecipientRequest, PayoutCreateRequest,
-    PayoutEnrollDisburseAccountRequest, PayoutGetRequest, PayoutStageRequest,
-    PayoutTransferRequest, PayoutVoidRequest,
+    PayoutEligibilityRequest, PayoutEnrollDisburseAccountRequest, PayoutGetRequest,
+    PayoutStageRequest, PayoutTransferRequest, PayoutVoidRequest,
 };
 use domain_types::router_request_types::VerifyWebhookSourceRequestData;
 use domain_types::surcharge::surcharge_types::{
@@ -37,9 +37,9 @@ use domain_types::{
     payment_method_data::PaymentMethodDataTypes,
     payouts::router_request_types::{
         PayoutCreateIntegrityObject, PayoutCreateLinkIntegrityObject,
-        PayoutCreateRecipientIntegrityObject, PayoutEnrollDisburseAccountIntegrityObject,
-        PayoutGetIntegrityObject, PayoutStageIntegrityObject, PayoutTransferIntegrityObject,
-        PayoutVoidIntegrityObject,
+        PayoutCreateRecipientIntegrityObject, PayoutEligibilityIntegrityObject,
+        PayoutEnrollDisburseAccountIntegrityObject, PayoutGetIntegrityObject,
+        PayoutStageIntegrityObject, PayoutTransferIntegrityObject, PayoutVoidIntegrityObject,
     },
     router_request_types::{
         AcceptDisputeIntegrityObject, AccessTokenIntegrityObject, AuthenticateIntegrityObject,
@@ -209,6 +209,7 @@ impl_check_integrity!(PayoutCreateRecipientRequest);
 impl_check_integrity!(PayoutEnrollDisburseAccountRequest);
 impl_check_integrity!(PayoutGetRequest);
 impl_check_integrity!(PayoutVoidRequest);
+impl_check_integrity!(PayoutEligibilityRequest);
 impl_check_integrity!(SurchargeCalculateRequest);
 impl_check_integrity!(SurchargePaymentSucceededRequest);
 impl_check_integrity!(SurchargeRefundSucceededRequest);
@@ -1460,6 +1461,19 @@ impl GetIntegrityObject<PayoutVoidIntegrityObject> for PayoutVoidRequest {
     }
 }
 
+impl GetIntegrityObject<PayoutEligibilityIntegrityObject> for PayoutEligibilityRequest {
+    fn get_response_integrity_object(&self) -> Option<PayoutEligibilityIntegrityObject> {
+        None
+    }
+
+    fn get_request_integrity_object(&self) -> PayoutEligibilityIntegrityObject {
+        PayoutEligibilityIntegrityObject {
+            amount: self.amount.amount,
+            currency: self.amount.currency,
+        }
+    }
+}
+
 impl GetIntegrityObject<SurchargeCalculateIntegrityObject> for SurchargeCalculateRequest {
     fn get_response_integrity_object(&self) -> Option<SurchargeCalculateIntegrityObject> {
         None // Surcharge calculation responses don't have integrity objects
@@ -1779,6 +1793,36 @@ impl FlowIntegrity for PayoutVoidIntegrityObject {
                     .clone()
                     .unwrap_or_default(),
                 &res_integrity_object.merchant_payout_id.unwrap_or_default(),
+            ));
+        }
+
+        check_integrity_result(mismatched_fields, connector_transaction_id)
+    }
+}
+
+impl FlowIntegrity for PayoutEligibilityIntegrityObject {
+    type IntegrityObject = Self;
+
+    fn compare(
+        req_integrity_object: Self,
+        res_integrity_object: Self,
+        connector_transaction_id: Option<String>,
+    ) -> Result<(), IntegrityCheckError> {
+        let mut mismatched_fields = Vec::new();
+
+        if req_integrity_object.amount != res_integrity_object.amount {
+            mismatched_fields.push(format_mismatch(
+                "amount",
+                &req_integrity_object.amount.to_string(),
+                &res_integrity_object.amount.to_string(),
+            ));
+        }
+
+        if req_integrity_object.currency != res_integrity_object.currency {
+            mismatched_fields.push(format_mismatch(
+                "currency",
+                &req_integrity_object.currency.to_string(),
+                &res_integrity_object.currency.to_string(),
             ));
         }
 
