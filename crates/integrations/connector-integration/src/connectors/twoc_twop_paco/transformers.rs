@@ -2861,16 +2861,15 @@ mod tests {
         };
 
         let serialized =
-            serde_json::to_value(PacoCurrencyConversionDetails::from(&conversion_data))
-                .expect("currency conversion details should serialize");
+            serde_json::to_value(PacoCurrencyConversionDetails::from(&conversion_data)).ok();
 
         assert_eq!(
             serialized,
-            serde_json::json!({
+            Some(serde_json::json!({
                 "enabledFlag": true,
                 "conversionType": "DCC",
                 "messageId": "dcc-message-id"
-            })
+            }))
         );
     }
 
@@ -2882,16 +2881,15 @@ mod tests {
         };
 
         let serialized =
-            serde_json::to_value(PacoCurrencyConversionDetails::from(&conversion_data))
-                .expect("currency conversion details should serialize");
+            serde_json::to_value(PacoCurrencyConversionDetails::from(&conversion_data)).ok();
 
         assert_eq!(
             serialized,
-            serde_json::json!({
+            Some(serde_json::json!({
                 "enabledFlag": false,
                 "conversionType": "None",
                 "messageId": ""
-            })
+            }))
         );
     }
 
@@ -2915,9 +2913,15 @@ mod tests {
         };
 
         let serialized =
-            serde_json::to_value(PacoCurrencyConversionDetails::from(&conversion_data))
-                .expect("currency conversion details should serialize");
+            serde_json::to_value(PacoCurrencyConversionDetails::from(&conversion_data)).ok();
 
-        assert_eq!(serialized["messageId"], "");
+        assert_eq!(
+            serialized,
+            Some(serde_json::json!({
+                "enabledFlag": true,
+                "conversionType": "DCC",
+                "messageId": ""
+            }))
+        );
     }
 }
