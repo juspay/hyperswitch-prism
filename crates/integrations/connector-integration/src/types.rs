@@ -5,7 +5,7 @@ use domain_types::{
         AuthenticatorConnectorEnum, ConnectorEnum, FrmConnectorEnum, PayoutConnectorEnum,
         SurchargeConnectorEnum,
     },
-    payment_method_data::{DefaultPCIHolder, PaymentMethodDataTypes},
+    payment_method_data::PaymentMethodDataTypes,
 };
 use interfaces::connector_types::{
     BoxedAuthenticatorConnector, BoxedConnector, BoxedFrmConnector, BoxedPayoutConnector,
@@ -178,7 +178,9 @@ impl FrmConnectorData {
 
     fn convert_connector(connector_name: FrmConnectorEnum) -> BoxedFrmConnector {
         match connector_name {
-            FrmConnectorEnum::Kount => Box::new(connectors::Kount::<DefaultPCIHolder>::new()),
+            FrmConnectorEnum::Kount => Box::new(connectors::Kount::<
+                domain_types::payment_method_data::DefaultPCIHolder,
+            >::new()),
         }
     }
 }
@@ -300,9 +302,9 @@ impl AuthenticatorConnectorData {
         connector_name: AuthenticatorConnectorEnum,
     ) -> BoxedAuthenticatorConnector {
         match connector_name {
-            AuthenticatorConnectorEnum::Plaid => {
-                Box::new(authenticator_connectors::Plaid::<DefaultPCIHolder>::new())
-            }
+            AuthenticatorConnectorEnum::Plaid => Box::new(authenticator_connectors::Plaid::<
+                domain_types::payment_method_data::DefaultPCIHolder,
+            >::new()),
         }
     }
 }
