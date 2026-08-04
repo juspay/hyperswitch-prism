@@ -60,6 +60,77 @@ message Money {
   Currency currency = 2; // ISO 4217 currency code (e.g., "USD", "EUR")
 }
 
+// Quote details associated with a currency conversion decision.
+message CurrencyConversionQuote {
+  // Order amount for the transaction, expressed in the merchant's currency.
+  Money merchant_order_amount = 1;
+
+  // Decimal exchange rate for this currency conversion quote.
+  // It converts merchant_order_amount.currency to PaymentServiceAuthorizeRequest.amount.currency.
+  // For an accepted DCC offer, PaymentServiceAuthorizeRequest.amount is the payable amount in the cardholder currency.
+  optional string exchange_rate = 2;
+
+  // Quote identifier assigned by the connector or rate provider.
+  optional string connector_quote_id = 3;
+
+  // Exchange-rate identifier required to reference the quoted rate.
+  optional string exchange_rate_id = 4;
+
+  // Name of the CC provider that supplied the quote.
+  optional string provider = 5;
+
+  // Source used by the provider to determine the exchange rate.
+  optional string rate_source = 6;
+
+  // Percentage markup included in the exchange rate, represented exactly as
+  // supplied by the provider (for example, "3.50").
+  optional string markup_percentage = 7;
+
+  // Monetary amount of the markup included in the quote.
+  optional Money markup_amount = 8;
+
+  // Type of currency conversion: DCC, MCP, or MCC.
+  optional CurrencyConversionType currency_conversion_type = 9;
+
+  // Time when the quote was created, in Unix epoch seconds.
+  optional int64 quoted_at = 10;
+
+  // Time when the quote expires, in Unix epoch seconds.
+  optional int64 expires_at = 11;
+}
+
+// Identifies the currency conversion model used for the payment.
+enum CurrencyConversionType {
+  // Currency conversion type was not provided or could not be determined.
+  CURRENCY_CONVERSION_TYPE_UNSPECIFIED = 0;
+  // Dynamic Currency Conversion (DCC).
+  CURRENCY_CONVERSION_TYPE_DCC = 1;
+  // Multi-Currency Pricing (MCP).
+  CURRENCY_CONVERSION_TYPE_MCP = 2;
+  // Merchant Currency Conversion (MCC).
+  CURRENCY_CONVERSION_TYPE_MCC = 3;
+}
+
+// Indicates the customer's decision for a currency conversion offer.
+enum CurrencyConversionDecision {
+  // Currency conversion decision was not provided or could not be determined.
+  CURRENCY_CONVERSION_DECISION_UNSPECIFIED = 0;
+  // The customer accepted the currency conversion offer.
+  CURRENCY_CONVERSION_DECISION_ACCEPTED = 1;
+  // The customer declined the currency conversion offer.
+  CURRENCY_CONVERSION_DECISION_DECLINED = 2;
+  // Currency conversion does not apply to this payment.
+  CURRENCY_CONVERSION_DECISION_NOT_APPLICABLE = 3;
+}
+
+// Contains the customer's currency conversion decision and the quote presented to them.
+message CurrencyConversionData {
+  // Customer's decision for the currency conversion offer.
+  CurrencyConversionDecision decision = 1;
+  // Currency conversion quote presented to the customer, when available.
+  optional CurrencyConversionQuote quote = 2;
+}
+
 // Permissions wraps a repeated string field to allow optional presence
 // Used for fields like permissions where absence is semantically different from empty
 message Permissions {
@@ -2186,8 +2257,8 @@ message RevolutClientAuthenticationResponse {
 
 // Plaid Link SDK initialization data — link_token for Plaid Link initialization
 message PlaidClientAuthenticationResponse {
-  string link_token = 1;                          // Required: The Plaid Link token
-  optional int64 expires_in_seconds = 2;          // Expiration timestamp (seconds since epoch)
+  SecretString link_token = 1;                    // Required: The Plaid Link token
+  optional int64 expires_in_seconds = 2;          // Seconds until the link_token expires
   optional string hosted_link_url = 3;            // Hosted Link URL (if enabled)
 }
 
@@ -2522,6 +2593,10 @@ message PaymentServiceAuthorizeRequest {
   optional Money surcharge_amount = 49;
 
   optional PartnerMerchantIdentifierDetails partner_merchant_identifier_details = 50;
+
+  // Currency conversion quote and decision data passed through the
+  // authorization flow for future connector-specific processing.
+  optional CurrencyConversionData currency_conversion_data = 51;
 }
 
 // Partner / external-platform application details.
@@ -2595,6 +2670,7 @@ message PaymentServiceAuthorizeResponse {
   // Another reference for the connector's transaction, returned in the connector's response.
   // Distinct from connector_transaction_id — e.g. Stripe charge ID (ch_xxx), order codes, invoice numbers.
   optional string connector_reference_id = 24;
+
 }
 
 // Request message for synchronizing payment status
@@ -4447,7 +4523,7 @@ message BankAccountDetails {
 
 // Individual bank account credential with routing details
 message BankAccount {
-  string account_name = 1;                       // Account display name
+  SecretString account_name = 1;                  // Account display name
   SecretString account_id = 2;                   // Unique account identifier
   optional BankType bank_type = 3;               // Account type: checking, savings
   optional BankHolderType bank_holder_type = 4;  // Bank holder type
@@ -5364,6 +5440,16 @@ message FlywireConfig {
   optional string base_url = 50;
 }
 
+message PlaidConfig {
+  // Plaid client_id — used as `client_id` in every API request body.
+  SecretString client_id = 1;
+  // Plaid secret — used as `secret` in every API request body.
+  SecretString secret = 2;
+  // Application name displayed to users in the Plaid Link UI.
+  optional string client_name = 3;
+  optional string base_url = 50;
+}
+
 message AffirmConfig {
   // Affirm public API key — used as the HTTP Basic auth username.
   SecretString public_key = 1;
@@ -5755,15 +5841,17 @@ message ConnectorSpecificConfig {
     AffirmConfig affirm = 135;
     // FLYWIRE = 129
     FlywireConfig flywire = 136;
-    // GLOMOPAY = 130
+    // GLOMOPAY = 137
     GlomopayConfig glomopay = 137;
-    // GIVEPAYMENTS = 131
+    // GIVEPAYMENTS = 138
     GivepaymentsConfig givepayments = 138;
 
-    // TESOURO = 132
+    // TESOURO = 139
     TesouroConfig tesouro = 139;
-    // DEUTSCHEBANK = 24
+    // DEUTSCHEBANK = 140
     DeutschebankConfig deutschebank = 140;
+    // PLAID = 141
+    PlaidConfig plaid = 141;
   }
 }
 

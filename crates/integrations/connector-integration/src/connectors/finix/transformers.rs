@@ -1351,15 +1351,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     fn try_from(
         item: ResponseRouterData<FinixInstrumentResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let response = item.response;
         let http_code = item.http_code;
+        let response = item.response;
         let mut router_data = item.router_data;
         // Finix `/payment_instruments` returns HTTP 201. Preserve the real status code so
         // the proto response reports it (was hardcoded 200 → connector_http_status_code diff).
         router_data.resource_common_data.connector_http_status_code = Some(http_code);
         Ok(Self {
             response: match (response.id.clone(), response.enabled) {
-                (Some(id), true) => Ok(PaymentMethodTokenResponse { token: id }),
+                (Some(id), true) => Ok(PaymentMethodTokenResponse {
+                    token: id,
+                    connector_payment_method_id: None,
+                    status_code: http_code,
+                }),
                 _ => Err(disabled_instrument_error(&response, http_code)),
             },
             ..router_data
@@ -1783,34 +1787,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let connector_response_data =
             convert_to_additional_payment_method_connector_response(&item.response)
                 .map(ConnectorResponseData::with_additional_payment_method_data);
-
-        // Surface explicit Finix failure responses (failure_message present) directly.
-        if let Some(failure_message) = response.failure_message.clone() {
-            let code = response
-                .failure_code
-                .clone()
-                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string());
-            return Ok(Self {
-                resource_common_data: PaymentFlowData {
-                    status: AttemptStatus::Failure,
-                    connector_response: connector_response_data,
-                    ..item.router_data.resource_common_data.clone()
-                },
-                response: Err(ErrorResponse {
-                    code,
-                    message: failure_message,
-                    reason: None,
-                    status_code: item.http_code,
-                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
-                    connector_transaction_id: Some(response.id.clone()),
-                    network_decline_code: None,
-                    network_advice_code: None,
-                    network_error_message: None,
-                }),
-                ..item.router_data
-            });
-        }
-
         // Reuse Authorize's ID-aware status mapping: TR* → Charged, AU* → Authorized.
         let finix_id = FinixId::from(response.id.clone());
         let status = match (&finix_id, &response.state) {
@@ -1823,16 +1799,34 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             (_, FinixPaymentStatus::Unknown) => AttemptStatus::Pending,
         };
 
-        // Mirror the Authorize flow for shadow parity: surface the charged Payment
-        // Instrument (`source`) as the connector mandate id and attach the AVS / network
-        // details as the connector_response.
-        Ok(Self {
-            resource_common_data: PaymentFlowData {
-                status,
-                connector_response: connector_response_data,
-                ..item.router_data.resource_common_data.clone()
-            },
-            response: Ok(PaymentsResponseData::TransactionResponse {
+        // Mirror HS `get_finix_response` (which every finix MIT/repeat charge is routed
+        // through on the HS side, via the Authorize flow): any FAILED/CANCELED/UNKNOWN
+        // state is a failure, not only when Finix happens to echo a failure_message.
+        let is_failure = matches!(
+            response.state,
+            FinixPaymentStatus::Failed | FinixPaymentStatus::Canceled | FinixPaymentStatus::Unknown
+        );
+
+        let flow_response = if is_failure {
+            Err(ErrorResponse {
+                code: response
+                    .failure_code
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                message: response
+                    .failure_message
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                reason: None,
+                status_code: item.http_code,
+                attempt_status: Some(FlowStatus::Payment(status)),
+                connector_transaction_id: Some(response.id.clone()),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+            })
+        } else {
+            Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(response.id.clone()),
                 redirection_data: None,
                 mandate_reference: Some(Box::new(MandateReference {
@@ -1848,7 +1842,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
-            }),
+            })
+        };
+
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status,
+                connector_response: connector_response_data,
+                ..item.router_data.resource_common_data.clone()
+            },
+            response: flow_response,
             ..item.router_data
         })
     }

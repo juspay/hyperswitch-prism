@@ -199,6 +199,25 @@ pub enum FrmConnectorEnum {
     Kount,
 }
 
+/// Enum representing connectors that support authenticator flows (account linking, identity verification)
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Display,
+    EnumIter,
+    EnumString,
+    serde::Deserialize,
+    Eq,
+    Hash,
+    PartialEq,
+    Serialize,
+)]
+#[strum(serialize_all = "snake_case")]
+pub enum AuthenticatorConnectorEnum {
+    Plaid,
+}
+
 /// Enum representing connectors that support payout flows
 #[derive(
     Clone,
@@ -309,13 +328,35 @@ impl ForeignTryFrom<AuthType> for FrmConnectorEnum {
     }
 }
 
-/// Unified connector enum that can represent either payment, surcharge, or payout connectors
+impl ForeignTryFrom<AuthType> for AuthenticatorConnectorEnum {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(config: AuthType) -> Result<Self, error_stack::Report<Self::Error>> {
+        match config {
+            AuthType::Plaid(_) => Ok(Self::Plaid),
+            _ => Err(error_stack::Report::new(
+                IntegrationError::InvalidDataFormat {
+                    field_name: "connector",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Connector is not supported for authenticator flows".to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                },
+            )),
+        }
+    }
+}
+
+/// Unified connector enum that can represent either payment, surcharge, payout, FRM, or authenticator connectors
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ConnectorVariant {
     Payment(ConnectorEnum),
     Surcharge(SurchargeConnectorEnum),
     Payout(PayoutConnectorEnum),
     Frm(FrmConnectorEnum),
+    Authenticator(AuthenticatorConnectorEnum),
 }
 
 impl ConnectorVariant {
@@ -351,12 +392,21 @@ impl ConnectorVariant {
         }
     }
 
+    /// Get the authenticator connector if this is an authenticator variant
+    pub fn as_authenticator(&self) -> Option<AuthenticatorConnectorEnum> {
+        match self {
+            ConnectorVariant::Authenticator(conn) => Some(*conn),
+            _ => None,
+        }
+    }
+
     pub fn get_connector_name(&self) -> String {
         match self {
             ConnectorVariant::Payment(conn) => conn.to_string(),
             ConnectorVariant::Surcharge(conn) => conn.to_string(),
             ConnectorVariant::Payout(conn) => conn.to_string(),
             ConnectorVariant::Frm(conn) => conn.to_string(),
+            ConnectorVariant::Authenticator(conn) => conn.to_string(),
         }
     }
 }
@@ -764,6 +814,10 @@ pub struct PaymentFlowData {
 impl PaymentFlowData {
     pub fn set_status(&mut self, status: AttemptStatus) {
         self.status = status;
+    }
+
+    pub fn get_currency(&self) -> Option<common_enums::Currency> {
+        self.amount.as_ref().map(|money| money.currency)
     }
 
     pub fn get_merchant_request_id(&self) -> Result<String, Error> {
@@ -1621,6 +1675,9 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub domain_data: Option<DomainData>,
     /// Partner / merchant application identifiers (e.g. Adyen applicationInfo).
     pub partner_merchant_identifier_details: Option<PartnerMerchantIdentifierDetails>,
+    /// Dynamic currency conversion decision and quote supplied for authorization.
+    /// Connectors that support DCC can consume this when building their request.
+    pub currency_conversion_data: Option<CurrencyConversionData>,
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {
@@ -2007,11 +2064,14 @@ pub struct PaymentMethodTokenizationData<T: PaymentMethodDataTypes> {
     pub integrity_object: Option<PaymentMethodTokenIntegrityObject>,
     pub split_payments: Option<SplitPaymentsDetails>,
     pub connector_feature_data: Option<common_utils::pii::SecretSerdeValue>,
+    pub metadata: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone)]
 pub struct PaymentMethodTokenResponse {
     pub token: String,
+    pub connector_payment_method_id: Option<String>,
+    pub status_code: u16,
 }
 
 #[derive(Debug, Clone)]
@@ -2068,6 +2128,7 @@ pub struct GetPaymentMethodData {
     pub customer: Option<CustomerInfo>,
     pub payment_method_type: PaymentMethodType,
     pub connector_feature_data: Option<common_utils::pii::SecretSerdeValue>,
+    pub payment_method_token: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone)]
@@ -2262,13 +2323,14 @@ pub struct ClientAuthenticationTokenRequestData {
     pub currency: Currency,
     pub country: Option<common_enums::CountryAlpha2>,
     pub order_details: Option<Vec<payment_address::OrderDetailsWithAmount>>,
-    pub email: Option<Email>,
-    pub customer_name: Option<Secret<String>>,
-    pub customer_id: Option<CustomerId>,
+    pub customer: Option<CustomerInfo>,
     pub order_tax_amount: Option<MinorUnit>,
     pub shipping_cost: Option<MinorUnit>,
     /// The specific payment method type for which the session token is being generated
     pub payment_method_type: Option<PaymentMethodType>,
+    pub webhook_url: Option<String>,
+    pub country_codes: Vec<common_enums::CountryAlpha2>,
+    pub locale: Option<String>,
     /// Connector-specific permissions for client authentication token
     /// e.g., ["PMT_POST_Create_Single"] for GlobalPay hosted fields
     pub permissions: Option<Vec<String>>,
@@ -4306,6 +4368,45 @@ pub struct PartnerMerchantIdentifierDetails {
     pub merchant_details: Option<MerchantApplicationDetails>,
 }
 
+/// A cardholder's decision for a currency conversion offer.
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum CurrencyConversionDecision {
+    Accepted,
+    Declined,
+    NotApplicable,
+}
+
+/// The currency conversion model used for a conversion quote.
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum CurrencyConversionType {
+    Dcc,
+    Mcp,
+    Mcc,
+}
+
+/// Connector-agnostic details of a currency conversion quote.
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct CurrencyConversionQuote {
+    pub merchant_order_amount: Option<Money>,
+    pub exchange_rate: Option<String>,
+    pub connector_quote_id: Option<String>,
+    pub exchange_rate_id: Option<String>,
+    pub provider: Option<String>,
+    pub rate_source: Option<String>,
+    pub markup_percentage: Option<String>,
+    pub markup_amount: Option<Money>,
+    pub currency_conversion_type: Option<CurrencyConversionType>,
+    pub quoted_at: Option<i64>,
+    pub expires_at: Option<i64>,
+}
+
+/// A validated currency conversion decision and the quote presented to the cardholder.
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct CurrencyConversionData {
+    pub decision: CurrencyConversionDecision,
+    pub quote: Option<CurrencyConversionQuote>,
+}
+
 /// Domain-specific data supplied by the merchant (airline today; extensible
 /// to other verticals). Mirrors the proto `DomainData`.
 #[derive(Debug, Clone, Default)]
@@ -4458,6 +4559,12 @@ pub struct CustomerInfo {
 }
 
 impl CustomerInfo {
+    pub fn get_customer_id(&self) -> Result<&CustomerId, Error> {
+        self.customer_id
+            .as_ref()
+            .ok_or_else(missing_field_err("customer.customer_id"))
+    }
+
     pub fn get_phone_number(&self) -> Result<Secret<String>, Error> {
         self.customer_phone_number
             .clone()
@@ -4713,6 +4820,8 @@ pub enum ClientAuthenticationTokenData {
     ApplePay(Box<ApplepayClientAuthenticationResponse>),
     /// Generic connector-specific SDK initialization data
     ConnectorSpecific(Box<ConnectorSpecificClientAuthenticationResponse>),
+    /// Plaid Link token for bank account linking via Plaid Link SDK
+    Plaid(Box<PlaidClientAuthenticationResponse>),
 }
 
 /// Per-connector SDK initialization data — discriminated by connector
@@ -4772,6 +4881,17 @@ pub enum ConnectorSpecificClientAuthenticationResponse {
     Nexixpay(NexixpayClientAuthenticationResponse),
     /// Revolut SDK initialization data — order_id and token for Revolut Pay widget initialization
     Revolut(RevolutClientAuthenticationResponse),
+}
+
+/// Plaid Link token for client-side bank account linking via Plaid Link SDK
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PlaidClientAuthenticationResponse {
+    /// The Plaid Link token used to initialize Plaid Link
+    pub link_token: Secret<String>,
+    /// Seconds until the link_token expires (relative to when it was issued)
+    pub expires_in_seconds: Option<i64>,
+    /// Hosted Link URL if Plaid hosted Link is enabled
+    pub hosted_link_url: Option<String>,
 }
 
 /// Stripe's client_secret for browser-side stripe.confirmPayment()
@@ -5445,6 +5565,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Tamara(_) => Ok(Self::Payment(ConnectorEnum::Tamara)),
             AuthType::Flywire(_) => Ok(Self::Payment(ConnectorEnum::Flywire)),
             AuthType::Affirm(_) => Ok(Self::Payment(ConnectorEnum::Affirm)),
+            AuthType::Plaid(_) => Ok(Self::Authenticator(AuthenticatorConnectorEnum::Plaid)),
             AuthType::Givepayments(_) => Ok(Self::Payment(ConnectorEnum::Givepayments)),
         }
     }

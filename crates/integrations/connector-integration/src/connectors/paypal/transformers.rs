@@ -4121,8 +4121,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let customer_id = item
             .router_data
             .request
-            .customer_id
+            .customer
             .as_ref()
+            .and_then(|c| c.customer_id.as_ref())
             .map(|id| id.get_string_repr().to_string());
 
         Ok(Self { customer_id })

@@ -191,6 +191,11 @@ pub trait PaymentMethodEligibilityV2:
 {
 }
 
+pub trait AuthenticatorServiceTrait<T: PaymentMethodDataTypes>:
+    ConnectorCommon + ValidationTrait + ClientAuthentication + PaymentTokenV2<T> + GetPaymentMethodV2
+{
+}
+
 pub type BoxedConnector<T> = Box<&'static (dyn ConnectorServiceTrait<T> + Sync)>;
 
 pub type BoxedSurchargeConnector = Box<&'static (dyn SurchargeServiceTrait + Sync)>;
@@ -198,6 +203,11 @@ pub type BoxedSurchargeConnector = Box<&'static (dyn SurchargeServiceTrait + Syn
 pub type BoxedFrmConnector = Box<&'static (dyn FrmServiceTrait + Sync)>;
 
 pub type BoxedPayoutConnector = Box<&'static (dyn PayoutServiceTrait + Sync)>;
+
+pub type BoxedAuthenticatorConnector = Box<
+    &'static (dyn AuthenticatorServiceTrait<domain_types::payment_method_data::DefaultPCIHolder>
+                  + Sync),
+>;
 
 pub trait ValidationTrait: ConnectorCommon {
     fn should_do_order_create(&self) -> bool {
