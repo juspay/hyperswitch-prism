@@ -185,15 +185,13 @@ connectors_with_webhook_source_verification_call = "paypal, truelayer"
 # `common.return_raw_connector_data`, so this can stay on where raw capture is off.
 [connector_response_masking]
 enabled = true
-max_bytes = 8192
 
 # Per-connector unmask lists, comma-separated and case-insensitive.
 # A connector with no entry gets every value masked (keys still visible).
 # Never list card/CVV/token-like keys: those stay masked regardless.
+#
+# Only one entry is seeded, as a worked example for testing. Add a line per
+# connector as you need its fields visible; an unknown connector name here will
+# abort startup rather than be ignored.
 [connector_response_masking.connector_keys]
-paysafe = "id,status,txntime,merchantrefnum,authcode,currencycode,amount,errorcode,message"
 adyen = "pspreference,resultcode,merchantreference,refusalreason,eventcode,success"
-cybersource = "id,status,submittimeutc,reconciliationid,clientreferenceinformation,code,message,reason"
-stripe = "id,object,status,amount,currency,created,livemode,failure_code,failure_message"
-razorpay = "id,entity,status,amount,currency,method,created_at,error_code,error_description"
-checkout = "id,status,amount,currency,response_code,response_summary,processed_on,reference"

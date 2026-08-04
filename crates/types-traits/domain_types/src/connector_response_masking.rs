@@ -24,12 +24,6 @@ use crate::connector_types::ConnectorEnum;
 /// Replacement written in place of a masked value.
 pub const MASKED: &str = "***";
 
-/// Default cap on the emitted string, in bytes.
-const DEFAULT_MAX_BYTES: usize = 8192;
-
-/// Marker appended when the emitted string is capped.
-const TRUNCATION_MARKER: &str = "…[truncated]";
-
 // ---------------------------------------------------------------------------
 // Configuration
 // ---------------------------------------------------------------------------
@@ -44,9 +38,6 @@ const TRUNCATION_MARKER: &str = "…[truncated]";
 pub struct ConnectorResponseMaskingConfig {
     /// Whether to populate `unmasked_connector_response` at all.
     pub enabled: bool,
-
-    /// Cap on the emitted string in bytes. `0` means no cap.
-    pub max_bytes: usize,
 
     /// Connector -> comma-separated list of keys whose values stay visible.
     ///
@@ -111,7 +102,6 @@ impl Default for ConnectorResponseMaskingConfig {
     fn default() -> Self {
         Self {
             enabled: false,
-            max_bytes: DEFAULT_MAX_BYTES,
             connector_keys: HashMap::new(),
         }
     }
@@ -145,8 +135,6 @@ impl ConnectorResponseMaskingConfig {
 pub struct ConnectorResponseMaskingConfigPatch {
     /// See [`ConnectorResponseMaskingConfig::enabled`].
     pub enabled: Option<bool>,
-    /// See [`ConnectorResponseMaskingConfig::max_bytes`].
-    pub max_bytes: Option<usize>,
     /// See [`ConnectorResponseMaskingConfig::connector_keys`].
     #[serde(default, deserialize_with = "deserialize_optional_connector_keys")]
     pub connector_keys: Option<HashMap<ConnectorEnum, String>>,
@@ -165,9 +153,6 @@ impl Patch<ConnectorResponseMaskingConfigPatch> for ConnectorResponseMaskingConf
     fn apply(&mut self, patch: ConnectorResponseMaskingConfigPatch) {
         if let Some(enabled) = patch.enabled {
             self.enabled = enabled;
-        }
-        if let Some(max_bytes) = patch.max_bytes {
-            self.max_bytes = max_bytes;
         }
         if let Some(connector_keys) = patch.connector_keys {
             self.connector_keys = connector_keys;
@@ -448,21 +433,6 @@ fn detect(content_type: Option<&str>, body: &[u8]) -> Option<Format> {
     }
 }
 
-/// Cap the emitted string without splitting a UTF-8 character.
-fn cap(mut output: String, max_bytes: usize) -> String {
-    if max_bytes == 0 || output.len() <= max_bytes {
-        return output;
-    }
-    // Reserve room for the marker so the result honours the cap rather than overshooting it.
-    let mut boundary = max_bytes.saturating_sub(TRUNCATION_MARKER.len());
-    while boundary > 0 && !output.is_char_boundary(boundary) {
-        boundary -= 1;
-    }
-    output.truncate(boundary);
-    output.push_str(TRUNCATION_MARKER);
-    output
-}
-
 /// Mask `body` for `connector` and re-emit it in the same format.
 ///
 /// Returns `None` when masking is disabled or the body is empty. A body that cannot be parsed
@@ -488,8 +458,8 @@ pub fn mask_connector_response(
         None => None,
     };
 
-    Some(cap(
+    // Emitted whole: the full body is the point, so there is no truncation.
+    Some(
         masked.unwrap_or_else(|| format!(r#"{{"_format":"unparseable","_bytes":{}}}"#, body.len())),
-        config.max_bytes,
-    ))
+    )
 }

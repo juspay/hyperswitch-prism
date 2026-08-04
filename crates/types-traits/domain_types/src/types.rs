@@ -17535,6 +17535,7 @@ pub fn generate_refresh_payment_method_response<T: PaymentMethodDataTypes>(
                 })?;
             proto.response_headers = response_headers;
             proto.raw_connector_response = raw_connector_response;
+            proto.unmasked_connector_response = unmasked_connector_response;
             proto.raw_connector_request = raw_connector_request;
             Ok(proto)
         }
@@ -17547,6 +17548,7 @@ pub fn generate_refresh_payment_method_response<T: PaymentMethodDataTypes>(
                 ));
             proto.response_headers = response_headers;
             proto.raw_connector_response = raw_connector_response;
+            proto.unmasked_connector_response = unmasked_connector_response;
             proto.raw_connector_request = raw_connector_request;
             Ok(proto)
         }
