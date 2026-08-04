@@ -40,10 +40,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
+    // euler-schema constants stamped on every log line: `env` (always), plus `cluster` / `cell_id`
+    // when the deployment supplies them via `CS__RUNTIME_METADATA__*`.
+    let mut euler_static_fields = std::collections::HashMap::from_iter([(
+        "env".to_string(),
+        serde_json::json!(config.common.environment.to_string()),
+    )]);
+    if let Some(cluster) = &config.runtime_metadata.cluster {
+        euler_static_fields.insert("cluster".to_string(), serde_json::json!(cluster));
+    }
+    if let Some(cell_id) = &config.runtime_metadata.cell_id {
+        euler_static_fields.insert("cell_id".to_string(), serde_json::json!(cell_id));
+    }
+
     let _guard = logger::setup(
         &config.log,
         ucs_env::service_name!(),
         [ucs_env::service_name!(), "grpc_server", "tower_http"],
+        euler_static_fields,
     );
 
     // Optionally push metrics over OTLP to an OpenTelemetry Collector (mirrors the

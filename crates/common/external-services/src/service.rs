@@ -551,6 +551,7 @@ pub struct EventProcessingParams<'a> {
         response.status_code = Empty,
         message_ = "Golden Log Line (outgoing)",
         latency = Empty,
+        api_details = Empty,
     )
 )]
 #[allow(clippy::too_many_arguments)]
@@ -894,6 +895,7 @@ where
                         Err(transport_err) => Err(transport_err),
                     };
 
+                    record_api_details(&event);
                     emit_event_with_config(event, event_params.event_config);
                     result
                 }
@@ -1012,6 +1014,7 @@ where
                         Err(publish_err) => Err(publish_err),
                     };
 
+                    record_api_details(&event);
                     emit_event_with_config(event, event_params.event_config);
                     result
                 }
@@ -1061,6 +1064,27 @@ fn mask_connector_request(request_content: &Option<RequestContent>) -> serde_jso
         },
         None => serde_json::Value::Null,
     }
+}
+
+/// Assembles the euler-shaped `api_details` object (equivalent to euler's nested `message`) from the
+/// already-masked `Event` data and records it as a JSON string on the current span. The logger
+/// (`json_value_keys`) emits it as a nested object. The flat `request.*` / `response.*` fields are
+/// still recorded separately for hyperswitch compatibility, so the detail appears in both places.
+#[cfg(feature = "injector-client")]
+fn record_api_details(event: &Event) {
+    let api_details = json!({
+        "url": event.url,
+        "method": event.method,
+        "req_headers": event.headers,
+        "req_body": event.request_data,
+        "res_body": event.response_data,
+        "res_code": event.status_code,
+        "latency": event.latency_ms,
+        "error": event.error,
+        // Outbound connector call; euler reserves INTERNAL for service-to-service hops.
+        "req_type": "EXTERNAL",
+    });
+    tracing::Span::current().record("api_details", api_details.to_string().as_str());
 }
 
 #[cfg(feature = "injector-client")]

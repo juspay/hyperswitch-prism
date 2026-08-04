@@ -286,13 +286,17 @@ where
     Ok(())
 }
 
-pub fn log_after_initialization<T>(result: &Result<tonic::Response<T>, tonic::Status>)
-where
-    T: serde::Serialize + std::fmt::Debug,
+pub fn log_after_initialization<T>(
+    result: &Result<tonic::Response<T>, tonic::Status>,
+    request_body: &Option<MaskedSerdeValue>,
+    req_headers: &HashMap<String, String>,
+    latency_ms: u128,
+) where
+    T: serde::Serialize + std::fmt::Debug + hyperswitch_masking::ErasedMaskSerialize,
 {
     let current_span = tracing::Span::current();
 
-    match &result {
+    let (res_body, res_code) = match &result {
         Ok(response) => {
             current_span.record("response_body", tracing::field::debug(response.get_ref()));
 
@@ -317,13 +321,35 @@ where
             } else {
                 tracing::warn!("Could not serialize response to JSON to extract status");
             }
+
+            let masked_res = MaskedSerdeValue::from_masked_optional(res_ref, "grpc_response_body")
+                .map(|m| m.inner().clone());
+            (masked_res, 200)
         }
         Err(status) => {
             current_span.record("error_message", status.message());
             current_span.record("status_code", status.code().to_string());
+            (
+                Some(serde_json::json!({ "error": status.message() })),
+                i32::from(status.code()),
+            )
         }
-    }
-    tracing::info!("Golden Log Line (incoming - response)");
+    };
+
+    // euler-shaped nested `api_details` (equivalent to euler's `message`) for the incoming call.
+    // Emitted as an event field so the ~40 handler instruments don't each need to declare it; the
+    // logger's `json_value_keys` renders the JSON string as a nested object. The flat incoming
+    // fields (`request_body`, `response_body`, …) remain for hyperswitch compatibility.
+    let api_details = serde_json::json!({
+        "method": "POST",
+        "req_type": "INTERNAL",
+        "req_headers": req_headers,
+        "req_body": request_body,
+        "res_body": res_body,
+        "res_code": res_code,
+        "latency": latency_ms,
+    });
+    tracing::info!(api_details = %api_details, "Golden Log Line (incoming - response)");
 }
 
 /// Generic gRPC logging wrapper that accepts a custom parser function.
@@ -373,7 +399,12 @@ where
     .await;
 
     let grpc_response = handler_result.into_grpc_status();
-    log_after_initialization(&grpc_response);
+    log_after_initialization(
+        &grpc_response,
+        &masked_request_data,
+        &event_headers,
+        start_time.elapsed().as_millis(),
+    );
 
     #[cfg(feature = "otel")]
     observe_internal_latency(
@@ -437,7 +468,12 @@ where
     .await;
 
     let grpc_response = handler_result.into_grpc_status();
-    log_after_initialization(&grpc_response);
+    log_after_initialization(
+        &grpc_response,
+        &masked_request_data,
+        &event_headers,
+        start_time.elapsed().as_millis(),
+    );
 
     #[cfg(feature = "otel")]
     observe_internal_latency(
