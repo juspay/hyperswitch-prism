@@ -111,6 +111,11 @@ message PaymentMethod {
     CashappQrWallet cashapp_qr = 178;                     // Cash App
     WeChatPayQrWallet we_chat_pay_qr = 179;               // WeChat Pay QR
     SwishQrWallet swish_qr = 180;                         // Swish QR
+    SatispayQr satispay_qr = 187;                         // Satispay QR (scan-to-pay)
+
+    // --- DEEPLINK / INTENT WALLETS ---
+    // User redirects to wallet's app to complete payment
+    SatispayIntent satispay_intent = 186;                 // Satispay Intent (app-to-app)
 
     // UPI METHODS (30-39) - Direct variants
     UpiCollect upi_collect = 30;                        // UPI Collect
@@ -614,6 +619,14 @@ message MBWay {
 // Satispay - Italian mobile payment solution
 message Satispay {
   // Fields will be added as needed for Satispay integration
+}
+
+// Satispay Intent - native app-to-app handoff flow
+message SatispayIntent {
+}
+
+// Satispay QR - scan-to-pay flow
+message SatispayQr {
 }
 
 // Wero - European digital wallet payment solution

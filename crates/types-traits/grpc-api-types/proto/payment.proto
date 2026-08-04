@@ -1015,6 +1015,8 @@ enum PaymentMethodType {
   OPEN_BANKING = 112;
   QWIKCILVER_WALLET = 113;
   SKRILL = 114;
+  SATISPAY_INTENT = 115;
+  SATISPAY_QR = 116;
 }
 
 // Product type enumeration
@@ -1604,6 +1606,10 @@ message RedirectForm {
     // Generic hosted-iframe redirection: load `endpoint` in an iframe and
     // attach the connector-built `events` postMessage listener.
     HostedIframeData hosted_iframe = 7;
+
+    // QR-code data for QR-initiated payment methods, distinct from
+    // intent-initiated flows (which continue to populate `uri` above).
+    QrData qr_data = 8;
   }
 }
 
@@ -1683,6 +1689,30 @@ message NmiData {
 
   // URL to redirect to after 3DS completion
   string continue_redirection_url = 5;
+}
+
+// Represents QR-code data for QR-initiated payment methods.
+message QrData {
+  // Raw QR payload string intended to be rendered into a QR code
+  // client-side (e.g. a `upi://pay?...` intent string or some payload
+  // required for a wallet).
+  optional string payload = 1;
+
+  // Base64-encoded QR image bytes, already rendered server-side by the
+  // connector.
+  optional string image_base64 = 2;
+
+  // Hosted URL to a QR image, when the connector serves the image itself
+  // rather than returning bytes or a raw payload.
+  optional string image_url = 3;
+
+  // Browser-fallback URL if the payer's app/wallet can't act on the QR
+  // content directly.
+  optional string fallback_url = 4;
+
+  // Absolute expiry timestamp for this QR code, as sent by the gateway,
+  // if present.
+  optional int64 expires_at = 5;
 }
 
 // Details of an HTTP request, typically for incoming webhooks

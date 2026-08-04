@@ -682,6 +682,8 @@ fn wallet_to_juspay(
         | WalletData::RevolutPay(_)
         | WalletData::MbWay(_)
         | WalletData::Satispay(_)
+        | WalletData::SatispayIntent(_)
+        | WalletData::SatispayQr(_)
         | WalletData::Wero(_)
         | WalletData::Paze(_)
         | WalletData::QwikcilverWalletDirect(_)

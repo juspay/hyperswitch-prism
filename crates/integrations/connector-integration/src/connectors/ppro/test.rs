@@ -736,6 +736,7 @@ mod tests {
 mod transformer_tests {
     use super::super::transformers::*;
     use common_utils::MinorUnit;
+    use domain_types::router_response_types::RedirectForm;
 
     macro_rules! ensure_eq {
         ($left:expr, $right:expr $(,)?) => {{
@@ -843,7 +844,8 @@ mod transformer_tests {
         Ok(())
     }
 
-    /// A captured response carries the instrument_id for mandate storage.
+    /// A captured charge response carries the instrument_id. It is deserialized but
+    /// deliberately not surfaced as a mandate reference -- see PproPaymentsResponse.
     #[test]
     fn test_authorize_response_captured_with_instrument_id(
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -1012,7 +1014,12 @@ mod transformer_tests {
         ensure_eq!(
             resp.instrument_id.as_deref(),
             Some("instr_mandate_001"),
-            "instrumentId should be stored as mandate reference"
+            "instrumentId should be deserialized"
+        );
+        ensure_eq!(
+            resp.id,
+            "agr_xyz456",
+            "the agreement id -- not instrumentId -- is what becomes connector_mandate_id"
         );
         Ok(())
     }
@@ -1042,6 +1049,476 @@ mod transformer_tests {
         let resp: PproErrorResponse = serde_json::from_str(json)?;
         ensure_eq!(resp.status, 422);
         ensure_eq!(resp.failure_message, "Validation failed");
+        Ok(())
+    }
+
+    // ── build_auth_redirect: Satispay's 3-way auth flow resolution ───────────
+
+    fn auth_response(
+        r#type: PproAuthenticationType,
+        details: Option<PproAuthDetailsResponse>,
+    ) -> PproAuthenticationResponse {
+        PproAuthenticationResponse { r#type, details }
+    }
+
+    fn empty_details() -> PproAuthDetailsResponse {
+        PproAuthDetailsResponse {
+            request_url: None,
+            request_method: None,
+            code_type: None,
+            code_image: None,
+            code_payload: None,
+            code_document: None,
+            scan_by: None,
+            mobile_intent_uri: None,
+        }
+    }
+
+    #[test]
+    fn test_build_auth_redirect_satispay_intent_builds_uri(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let methods = vec![auth_response(
+            PproAuthenticationType::AppIntent,
+            Some(PproAuthDetailsResponse {
+                mobile_intent_uri: Some("satispay://intent/xyz".to_string()),
+                ..empty_details()
+            }),
+        )];
+        let redirect = build_auth_redirect(
+            &methods,
+            Some(common_enums::PaymentMethodType::SatispayIntent),
+        );
+        match redirect {
+            Some(RedirectForm::Uri { uri }) => {
+                ensure_eq!(uri, "satispay://intent/xyz".to_string())
+            }
+            other => return Err(format!("expected RedirectForm::Uri, got {other:?}").into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_build_auth_redirect_satispay_qr_builds_qr_form(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let methods = vec![auth_response(
+            PproAuthenticationType::ScanCode,
+            Some(PproAuthDetailsResponse {
+                code_payload: Some("qr_payload_abc".to_string()),
+                code_image: Some("https://images.ppro.com/qr/abc.png".to_string()),
+                scan_by: Some("2026-07-23T12:00:00Z".to_string()),
+                ..empty_details()
+            }),
+        )];
+        let redirect =
+            build_auth_redirect(&methods, Some(common_enums::PaymentMethodType::SatispayQr));
+        match redirect {
+            Some(RedirectForm::Qr {
+                payload,
+                image_base64,
+                image_url,
+                expires_at,
+                ..
+            }) => {
+                ensure_eq!(payload, Some("qr_payload_abc".to_string()));
+                // PPRO returns `codeImage` as a hosted URL, not base64.
+                ensure_eq!(image_base64, None);
+                ensure_eq!(
+                    image_url,
+                    Some("https://images.ppro.com/qr/abc.png".to_string())
+                );
+                ensure!(expires_at.is_some(), "expires_at should have parsed");
+            }
+            other => return Err(format!("expected RedirectForm::Qr, got {other:?}").into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_build_auth_redirect_satispay_plain_still_uses_uri_redirect(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        // Plain Satispay (PPRO's normal REDIRECT flow) is unaffected by the new variants.
+        let methods = vec![auth_response(
+            PproAuthenticationType::Redirect,
+            Some(PproAuthDetailsResponse {
+                request_url: Some("https://redirect.ppro.com/satispay".to_string()),
+                ..empty_details()
+            }),
+        )];
+        let redirect =
+            build_auth_redirect(&methods, Some(common_enums::PaymentMethodType::Satispay));
+        match redirect {
+            Some(RedirectForm::Uri { uri }) => {
+                ensure_eq!(uri, "https://redirect.ppro.com/satispay".to_string())
+            }
+            other => return Err(format!("expected RedirectForm::Uri, got {other:?}").into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_build_auth_redirect_satispay_intent_no_match_returns_none(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        // Only an unrelated auth type is present; SatispayIntent should not match it.
+        let methods = vec![auth_response(PproAuthenticationType::ScanCode, None)];
+        let redirect = build_auth_redirect(
+            &methods,
+            Some(common_enums::PaymentMethodType::SatispayIntent),
+        );
+        ensure!(redirect.is_none(), "expected no redirect to be built");
+        Ok(())
+    }
+
+    /// Regression: UPI Intent's pre-existing `Uri`-based behavior must be unaffected by
+    /// the addition of Satispay's `SatispayIntent`/`SatispayQr` variants.
+    #[test]
+    fn test_build_auth_redirect_upi_intent_still_builds_uri(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let methods = vec![auth_response(
+            PproAuthenticationType::AppIntent,
+            Some(PproAuthDetailsResponse {
+                mobile_intent_uri: Some("upi://pay?xyz".to_string()),
+                ..empty_details()
+            }),
+        )];
+        let redirect =
+            build_auth_redirect(&methods, Some(common_enums::PaymentMethodType::UpiIntent));
+        match redirect {
+            Some(RedirectForm::Uri { uri }) => ensure_eq!(uri, "upi://pay?xyz".to_string()),
+            other => return Err(format!("expected RedirectForm::Uri, got {other:?}").into()),
+        }
+        Ok(())
+    }
+
+    /// UPI QR now shares Satispay QR's `Qr` form: `code_payload` lands in `payload`
+    /// instead of the old `Uri`-from-`code_payload` shape.
+    #[test]
+    fn test_build_auth_redirect_upi_qr_builds_qr_form() -> Result<(), Box<dyn std::error::Error>> {
+        let methods = vec![auth_response(
+            PproAuthenticationType::ScanCode,
+            Some(PproAuthDetailsResponse {
+                code_payload: Some("upi_qr_payload".to_string()),
+                ..empty_details()
+            }),
+        )];
+        let redirect = build_auth_redirect(&methods, Some(common_enums::PaymentMethodType::UpiQr));
+        match redirect {
+            Some(RedirectForm::Qr {
+                payload,
+                image_base64,
+                expires_at,
+                ..
+            }) => {
+                ensure_eq!(payload, Some("upi_qr_payload".to_string()));
+                ensure_eq!(image_base64, None);
+                ensure_eq!(expires_at, None);
+            }
+            other => return Err(format!("expected RedirectForm::Qr, got {other:?}").into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_build_auth_redirect_upi_intent_unaffected_by_satispay_change(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        // UPI Intent must still only match AppIntent, not ScanCode.
+        let methods = vec![auth_response(
+            PproAuthenticationType::ScanCode,
+            Some(PproAuthDetailsResponse {
+                code_payload: Some("should_not_match".to_string()),
+                ..empty_details()
+            }),
+        )];
+        let redirect =
+            build_auth_redirect(&methods, Some(common_enums::PaymentMethodType::UpiIntent));
+        ensure!(
+            redirect.is_none(),
+            "UPI Intent should not match a ScanCode entry"
+        );
+        Ok(())
+    }
+}
+
+// ── Satispay authentication_settings selection (request builder) ─────────────
+//
+// These tests exercise `PproPaymentsRequest::try_from` directly, covering the
+// 3-way flow-selection logic driven by `PaymentMethodType::{Satispay, SatispayIntent,
+// SatispayQr}` -- mirroring the pre-existing `UpiIntent`/`UpiQr` precedent exactly.
+#[cfg(test)]
+mod satispay_request_tests {
+    use std::marker::PhantomData;
+
+    use common_utils::types::MinorUnit;
+    use domain_types::{
+        connector_flow::Authorize,
+        connector_types::{PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData},
+        payment_address::PaymentAddress,
+        payment_method_data::{DefaultPCIHolder, PaymentMethodData, SatispayData, WalletData},
+        router_data::{ConnectorSpecificConfig, ErrorResponse},
+        router_data_v2::RouterDataV2,
+        types::{ConnectorParams, Connectors},
+    };
+    use hyperswitch_masking::Secret;
+
+    use super::super::transformers::{PproAuthenticationType, PproPaymentsRequest};
+    use super::super::PproRouterData;
+    use crate::connectors::Ppro;
+
+    macro_rules! ensure_eq {
+        ($left:expr, $right:expr $(,)?) => {{
+            let left = &$left;
+            let right = &$right;
+            if left != right {
+                return Err(format!("assertion failed: {left:?} != {right:?}").into());
+            }
+        }};
+    }
+
+    macro_rules! ensure {
+        ($cond:expr $(,)?) => {{
+            if !($cond) {
+                return Err(concat!("assertion failed: ", stringify!($cond)).into());
+            }
+        }};
+        ($cond:expr, $($msg:tt)+) => {{
+            if !($cond) {
+                return Err(format!($($msg)+).into());
+            }
+        }};
+    }
+
+    fn base_router_data(
+        payment_method_type: common_enums::PaymentMethodType,
+        router_return_url: Option<String>,
+    ) -> RouterDataV2<
+        Authorize,
+        PaymentFlowData,
+        PaymentsAuthorizeData<DefaultPCIHolder>,
+        PaymentsResponseData,
+    > {
+        RouterDataV2 {
+            flow: PhantomData::<Authorize>,
+            resource_common_data: PaymentFlowData {
+                raw_connector_status: None,
+                vault_headers: None,
+                merchant_id: common_utils::id_type::MerchantId::default(),
+                customer_id: None,
+                connector_customer: None,
+                payment_id: "pay_satispay_test".to_string(),
+                attempt_id: "attempt_satispay_test".to_string(),
+                status: common_enums::AttemptStatus::Pending,
+                payment_method: common_enums::PaymentMethod::Wallet,
+                description: None,
+                return_url: router_return_url.clone(),
+                order_details: None,
+                address: PaymentAddress::new(None, None, None, None),
+                auth_type: common_enums::AuthenticationType::NoThreeDs,
+                connector_feature_data: None,
+                amount_captured: None,
+                minor_amount_captured: None,
+                minor_amount_authorized: None,
+                access_token: None,
+                session_token: None,
+                reference_id: None,
+                connector_order_id: None,
+                preprocessing_id: None,
+                connector_api_version: None,
+                connector_request_reference_id: "conn_ref_satispay_test".to_string(),
+                test_mode: None,
+                connector_http_status_code: None,
+                connectors: Connectors {
+                    ppro: ConnectorParams {
+                        base_url: "https://api.sandbox.eu.ppro.com/".to_string(),
+                        dispute_base_url: None,
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                },
+                external_latency: None,
+                connector_response_headers: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                minor_amount_capturable: None,
+                amount: None,
+                connector_response: None,
+                recurring_mandate_payment_data: None,
+                l2_l3_data: None,
+                merchant_request_id: None,
+                sender_payment_instrument_id: None,
+                settlement_status: None,
+            },
+            connector_config: ConnectorSpecificConfig::Ppro {
+                api_key: Secret::new("test_api_key".to_string()),
+                merchant_id: Secret::new("test_merchant_id".to_string()),
+                base_url: None,
+            },
+            request: PaymentsAuthorizeData {
+                customer_document_details: None,
+                authentication_data: None,
+                connector_testing_data: None,
+                access_token: None,
+                payment_method_data: PaymentMethodData::Wallet(WalletData::Satispay(
+                    SatispayData {},
+                )),
+                amount: MinorUnit::new(1000),
+                order_tax_amount: None,
+                surcharge_amount: None,
+                email: None,
+                customer_name: None,
+                currency: common_enums::Currency::EUR,
+                confirm: true,
+                capture_method: None,
+                integrity_object: None,
+                router_return_url,
+                webhook_url: Some("https://example.com/webhook".to_string()),
+                complete_authorize_url: None,
+                mandate_id: None,
+                setup_future_usage: None,
+                off_session: None,
+                browser_info: None,
+                order_category: None,
+                session_token: None,
+                enrolled_for_3ds: Some(false),
+                related_transaction_id: None,
+                payment_experience: None,
+                payment_method_type: Some(payment_method_type),
+                customer_id: None,
+                request_incremental_authorization: Some(false),
+                metadata: None,
+                minor_amount: MinorUnit::new(1000),
+                merchant_order_id: None,
+                shipping_cost: None,
+                merchant_account_id: None,
+                merchant_config_currency: None,
+                all_keys_required: None,
+                customer_acceptance: None,
+                split_payments: None,
+                request_extended_authorization: None,
+                setup_mandate_details: None,
+                enable_overcapture: None,
+                connector_feature_data: None,
+                billing_descriptor: None,
+                enable_partial_authorization: None,
+                locale: None,
+                continue_redirection_url: None,
+                redirect_response: None,
+                threeds_method_comp_ind: None,
+                tokenization: None,
+                mit_category: None,
+                payment_channel: None,
+                domain_data: None,
+                partner_merchant_identifier_details: None,
+            },
+            response: Err(ErrorResponse::default()),
+        }
+    }
+
+    fn build_request(
+        payment_method_type: common_enums::PaymentMethodType,
+        router_return_url: Option<String>,
+    ) -> Result<PproPaymentsRequest, Box<dyn std::error::Error>> {
+        let router_data = base_router_data(payment_method_type, router_return_url);
+        let ppro_router_data = PproRouterData {
+            connector: (*Ppro::<DefaultPCIHolder>::new()).clone(),
+            router_data,
+        };
+        PproPaymentsRequest::try_from(ppro_router_data)
+            .map_err(|err| format!("Satispay request should build successfully: {err:?}").into())
+    }
+
+    /// `PaymentMethodType::SatispayIntent` selects PPRO's `APP_INTENT` auth type, sourcing
+    /// `mobileIntentUri` from the generic `router_return_url` -- exactly like `UpiIntent`.
+    #[test]
+    fn test_satispay_intent_selects_app_intent() -> Result<(), Box<dyn std::error::Error>> {
+        let req = build_request(
+            common_enums::PaymentMethodType::SatispayIntent,
+            Some("https://example.com/return".to_string()),
+        )?;
+        let settings = req
+            .authentication_settings
+            .as_ref()
+            .and_then(|v| v.first())
+            .ok_or("expected authentication_settings to be present")?;
+        ensure_eq!(settings.r#type, PproAuthenticationType::AppIntent);
+        let details = settings
+            .settings
+            .as_ref()
+            .ok_or("expected settings details")?;
+        ensure_eq!(
+            details.mobile_intent_uri,
+            Some("https://example.com/return".to_string())
+        );
+        Ok(())
+    }
+
+    /// `PaymentMethodType::SatispayQr` selects PPRO's `SCAN_CODE` auth type with no extra
+    /// settings payload -- exactly like `UpiQr`.
+    #[test]
+    fn test_satispay_qr_selects_scan_code() -> Result<(), Box<dyn std::error::Error>> {
+        let req = build_request(common_enums::PaymentMethodType::SatispayQr, None)?;
+        let settings = req
+            .authentication_settings
+            .as_ref()
+            .and_then(|v| v.first())
+            .ok_or("expected authentication_settings to be present")?;
+        ensure_eq!(settings.r#type, PproAuthenticationType::ScanCode);
+        ensure!(
+            settings.settings.is_none(),
+            "SatispayQr should not carry a settings payload, matching UpiQr"
+        );
+        Ok(())
+    }
+
+    /// Plain `PaymentMethodType::Satispay` is untouched: it still falls into the generic
+    /// `_` catch-all and resolves to `REDIRECT` via `router_return_url`.
+    #[test]
+    fn test_satispay_plain_falls_back_to_redirect() -> Result<(), Box<dyn std::error::Error>> {
+        let req = build_request(
+            common_enums::PaymentMethodType::Satispay,
+            Some("https://example.com/return".to_string()),
+        )?;
+        let settings = req
+            .authentication_settings
+            .as_ref()
+            .and_then(|v| v.first())
+            .ok_or("expected authentication_settings to be present")?;
+        ensure_eq!(settings.r#type, PproAuthenticationType::Redirect);
+        let details = settings
+            .settings
+            .as_ref()
+            .ok_or("expected settings details")?;
+        ensure_eq!(
+            details.return_url,
+            Some("https://example.com/return".to_string())
+        );
+        Ok(())
+    }
+
+    /// Regression: `UpiIntent`'s existing `authentication_settings` behavior is unaffected.
+    #[test]
+    fn test_upi_intent_still_selects_app_intent() -> Result<(), Box<dyn std::error::Error>> {
+        let req = build_request(
+            common_enums::PaymentMethodType::UpiIntent,
+            Some("https://example.com/upi-return".to_string()),
+        )?;
+        let settings = req
+            .authentication_settings
+            .as_ref()
+            .and_then(|v| v.first())
+            .ok_or("expected authentication_settings to be present")?;
+        ensure_eq!(settings.r#type, PproAuthenticationType::AppIntent);
+        Ok(())
+    }
+
+    /// Regression: `UpiQr`'s existing `authentication_settings` behavior is unaffected.
+    #[test]
+    fn test_upi_qr_still_selects_scan_code() -> Result<(), Box<dyn std::error::Error>> {
+        let req = build_request(common_enums::PaymentMethodType::UpiQr, None)?;
+        let settings = req
+            .authentication_settings
+            .as_ref()
+            .and_then(|v| v.first())
+            .ok_or("expected authentication_settings to be present")?;
+        ensure_eq!(settings.r#type, PproAuthenticationType::ScanCode);
         Ok(())
     }
 }

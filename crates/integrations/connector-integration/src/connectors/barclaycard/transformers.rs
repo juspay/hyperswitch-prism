@@ -195,6 +195,8 @@ fn wallet_data_label(wallet_data: &WalletData) -> &'static str {
         WalletData::RevolutPay(_) => "revolut_pay",
         WalletData::MbWay(_) => "mb_way",
         WalletData::Satispay(_) => "satispay",
+        WalletData::SatispayIntent(_) => "satispay_intent",
+        WalletData::SatispayQr(_) => "satispay_qr",
         WalletData::Wero(_) => "wero",
         WalletData::LazyPayRedirect(_) => "lazy_pay_redirect",
         WalletData::PhonePeRedirect(_) => "phone_pe_redirect",

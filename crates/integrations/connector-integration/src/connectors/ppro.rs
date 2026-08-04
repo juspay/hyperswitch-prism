@@ -496,6 +496,30 @@ static PPRO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
         },
     );
 
+    // Satispay's APP_INTENT flow (native app-to-app handoff), mirroring UpiIntent.
+    ppro_supported_payment_methods.add(
+        common_enums::PaymentMethod::Wallet,
+        common_enums::PaymentMethodType::SatispayIntent,
+        PaymentMethodDetails {
+            mandates: FeatureStatus::NotSupported,
+            refunds: FeatureStatus::Supported,
+            supported_capture_methods: ppro_bridge_supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    // Satispay's SCAN_CODE (QR) flow, mirroring UpiQr.
+    ppro_supported_payment_methods.add(
+        common_enums::PaymentMethod::Wallet,
+        common_enums::PaymentMethodType::SatispayQr,
+        PaymentMethodDetails {
+            mandates: FeatureStatus::NotSupported,
+            refunds: FeatureStatus::Supported,
+            supported_capture_methods: ppro_bridge_supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
     ppro_supported_payment_methods.add(
         common_enums::PaymentMethod::Wallet,
         common_enums::PaymentMethodType::Wero,
