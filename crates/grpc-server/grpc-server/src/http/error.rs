@@ -188,27 +188,36 @@ fn extract_error_details_from_status(status: &tonic::Status) -> Option<ErrorDeta
 }
 
 // Convert tonic::Status to HTTP error
+/// Maps a gRPC status code to the HTTP status the client receives over the HTTP server.
+///
+/// Shared by `From<tonic::Status> for HttpError` (the actual response) and the golden log line's
+/// `status_code`, so the logged code matches what the caller (e.g. euler over HTTP) actually gets
+/// instead of the raw gRPC code.
+pub fn http_status_for_grpc_code(code: tonic::Code) -> StatusCode {
+    match code {
+        tonic::Code::Ok => StatusCode::OK,
+        tonic::Code::Cancelled => StatusCode::REQUEST_TIMEOUT,
+        tonic::Code::Unknown => StatusCode::INTERNAL_SERVER_ERROR,
+        tonic::Code::InvalidArgument => StatusCode::BAD_REQUEST,
+        tonic::Code::DeadlineExceeded => StatusCode::GATEWAY_TIMEOUT,
+        tonic::Code::NotFound => StatusCode::NOT_FOUND,
+        tonic::Code::AlreadyExists => StatusCode::CONFLICT,
+        tonic::Code::PermissionDenied => StatusCode::FORBIDDEN,
+        tonic::Code::ResourceExhausted => StatusCode::TOO_MANY_REQUESTS,
+        tonic::Code::FailedPrecondition => StatusCode::PRECONDITION_FAILED,
+        tonic::Code::Aborted => StatusCode::CONFLICT,
+        tonic::Code::OutOfRange => StatusCode::RANGE_NOT_SATISFIABLE,
+        tonic::Code::Unimplemented => StatusCode::NOT_IMPLEMENTED,
+        tonic::Code::Internal => StatusCode::INTERNAL_SERVER_ERROR,
+        tonic::Code::Unavailable => StatusCode::SERVICE_UNAVAILABLE,
+        tonic::Code::DataLoss => StatusCode::INTERNAL_SERVER_ERROR,
+        tonic::Code::Unauthenticated => StatusCode::UNAUTHORIZED,
+    }
+}
+
 impl From<tonic::Status> for HttpError {
     fn from(status: tonic::Status) -> Self {
-        let http_status = match status.code() {
-            tonic::Code::Ok => StatusCode::OK,
-            tonic::Code::Cancelled => StatusCode::REQUEST_TIMEOUT,
-            tonic::Code::Unknown => StatusCode::INTERNAL_SERVER_ERROR,
-            tonic::Code::InvalidArgument => StatusCode::BAD_REQUEST,
-            tonic::Code::DeadlineExceeded => StatusCode::GATEWAY_TIMEOUT,
-            tonic::Code::NotFound => StatusCode::NOT_FOUND,
-            tonic::Code::AlreadyExists => StatusCode::CONFLICT,
-            tonic::Code::PermissionDenied => StatusCode::FORBIDDEN,
-            tonic::Code::ResourceExhausted => StatusCode::TOO_MANY_REQUESTS,
-            tonic::Code::FailedPrecondition => StatusCode::PRECONDITION_FAILED,
-            tonic::Code::Aborted => StatusCode::CONFLICT,
-            tonic::Code::OutOfRange => StatusCode::RANGE_NOT_SATISFIABLE,
-            tonic::Code::Unimplemented => StatusCode::NOT_IMPLEMENTED,
-            tonic::Code::Internal => StatusCode::INTERNAL_SERVER_ERROR,
-            tonic::Code::Unavailable => StatusCode::SERVICE_UNAVAILABLE,
-            tonic::Code::DataLoss => StatusCode::INTERNAL_SERVER_ERROR,
-            tonic::Code::Unauthenticated => StatusCode::UNAUTHORIZED,
-        };
+        let http_status = http_status_for_grpc_code(status.code());
 
         let message = status.message().to_string();
 

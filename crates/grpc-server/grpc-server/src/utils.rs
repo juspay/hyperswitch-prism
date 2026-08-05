@@ -382,16 +382,19 @@ pub fn log_after_initialization<T>(
                 tracing::warn!("Could not serialize response to JSON to extract status");
             }
 
-            let masked_res = MaskedSerdeValue::from_masked_optional(res_ref, "grpc_response_body")
+            let masked_res = MaskedSerdeValue::from_masked_optional(res_ref, "response_body")
                 .map(|m| m.inner().clone());
-            (masked_res, 200, metadata_to_json(response.metadata()))
+            (masked_res, 200u16, metadata_to_json(response.metadata()))
         }
         Err(status) => {
+            // Map the gRPC status to the HTTP status the caller actually receives (the HTTP server
+            // transcodes tonic errors), so `status_code` matches euler's `resp_code` for HTTP.
+            let http_status = crate::http::error::http_status_for_grpc_code(status.code()).as_u16();
             current_span.record("error_message", status.message());
-            current_span.record("status_code", status.code().to_string());
+            current_span.record("status_code", http_status);
             (
                 Some(serde_json::json!({ "error": status.message() })),
-                i32::from(status.code()),
+                http_status,
                 metadata_to_json(status.metadata()),
             )
         }
@@ -457,7 +460,7 @@ where
     let current_span = tracing::Span::current();
     let start_time = tokio::time::Instant::now();
     let masked_request_data =
-        MaskedSerdeValue::from_masked_optional(request.get_ref(), "grpc_request");
+        MaskedSerdeValue::from_masked_optional(request.get_ref(), "request_body");
     // Real HTTP method when running under the HTTP server (inserted by the http handler macro);
     // absent for native gRPC, where the transport method is always POST.
     let http_method = request
@@ -533,7 +536,7 @@ where
     let current_span = tracing::Span::current();
     let start_time = tokio::time::Instant::now();
     let masked_request_data =
-        MaskedSerdeValue::from_masked_optional(request.get_ref(), "grpc_request");
+        MaskedSerdeValue::from_masked_optional(request.get_ref(), "request_body");
     // Real HTTP method when running under the HTTP server (inserted by the http handler macro);
     // absent for native gRPC, where the transport method is always POST.
     let http_method = request
