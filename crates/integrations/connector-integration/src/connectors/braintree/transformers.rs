@@ -1734,6 +1734,8 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                             .id
                             .expose()
                             .clone(),
+                        connector_payment_method_id: None,
+                        status_code: item.http_code,
                     })
                 }
             },

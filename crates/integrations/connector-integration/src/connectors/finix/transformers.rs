@@ -1351,13 +1351,22 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     fn try_from(
         item: ResponseRouterData<FinixInstrumentResponse, Self>,
     ) -> Result<Self, Self::Error> {
+        let http_code = item.http_code;
         let response = item.response;
+        let mut router_data = item.router_data;
+        // Finix `/payment_instruments` returns HTTP 201. Preserve the real status code so
+        // the proto response reports it (was hardcoded 200 → connector_http_status_code diff).
+        router_data.resource_common_data.connector_http_status_code = Some(http_code);
         Ok(Self {
             response: match (response.id.clone(), response.enabled) {
-                (Some(id), true) => Ok(PaymentMethodTokenResponse { token: id }),
-                _ => Err(disabled_instrument_error(&response, item.http_code)),
+                (Some(id), true) => Ok(PaymentMethodTokenResponse {
+                    token: id,
+                    connector_payment_method_id: None,
+                    status_code: http_code,
+                }),
+                _ => Err(disabled_instrument_error(&response, http_code)),
             },
-            ..item.router_data
+            ..router_data
         })
     }
 }

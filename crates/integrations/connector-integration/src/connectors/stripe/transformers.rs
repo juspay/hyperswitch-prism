@@ -5909,7 +5909,11 @@ impl<F, T> TryFrom<ResponseRouterData<StripeTokenResponse, Self>>
     fn try_from(item: ResponseRouterData<StripeTokenResponse, Self>) -> Result<Self, Self::Error> {
         let token = item.response.id.clone().expose();
         Ok(Self {
-            response: Ok(PaymentMethodTokenResponse { token }),
+            response: Ok(PaymentMethodTokenResponse {
+                token,
+                connector_payment_method_id: None,
+                status_code: item.http_code,
+            }),
             ..item.router_data
         })
     }
