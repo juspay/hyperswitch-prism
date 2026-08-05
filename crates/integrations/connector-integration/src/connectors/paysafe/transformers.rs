@@ -1685,9 +1685,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     router_data.request.payment_method_type,
                     Some(enums::PaymentMethodType::GooglePay)
                         | Some(enums::PaymentMethodType::ApplePay)
-                ) && !router_data
-                    .request
-                    .is_customer_initiated_mandate_payment() =>
+                ) && !router_data.request.is_customer_initiated_mandate_payment() =>
             {
                 None
             }
