@@ -287,7 +287,7 @@ where
 }
 
 /// Flattens gRPC response metadata (ASCII entries) into a JSON object for the incoming golden log
-/// line's `api_details.res_headers`, matching euler's nested `res_headers`.
+/// line's `api_details.response_headers`.
 fn metadata_to_json(metadata: &tonic::metadata::MetadataMap) -> serde_json::Value {
     let mut map = serde_json::Map::new();
     for entry in metadata.iter() {
@@ -303,14 +303,15 @@ fn metadata_to_json(metadata: &tonic::metadata::MetadataMap) -> serde_json::Valu
     serde_json::Value::Object(map)
 }
 
-/// Extracts euler's `udf_order_id` / `udf_customer_id` from the incoming request body.
+/// Extracts the `merchant_order_id` / `customer_id` from the incoming request body.
 ///
 /// Euler sends these identifiers in the request *payload* (not as headers): the order id as
 /// `merchant_order_id` (= `orderReference.orderId`) and the customer id as `customer.id`
 /// (= `customer._id` / `orderReference.customerId`). Both are plain id strings, so they read
 /// directly off the masked body `Value`. Returns `(order_id, customer_id)`; either is `None` when
-/// the field is absent (e.g. non-euler callers or flows that omit it).
-fn udf_ids_from_request(
+/// the field is absent (e.g. non-euler callers or flows that omit it). Emitted top-level under the
+/// UCS-native names `merchant_order_id` / `customer_id` (Vector maps them to euler's `udf_*`).
+fn order_and_customer_ids_from_request(
     request_body: &Option<MaskedSerdeValue>,
 ) -> (Option<String>, Option<String>) {
     let Some(body) = request_body.as_ref().map(MaskedSerdeValue::inner) else {
@@ -335,19 +336,19 @@ pub fn log_after_initialization<T>(
     latency_ms: u128,
     // Real HTTP method (HTTP server); `None` for native gRPC, where it is always POST.
     http_method: Option<&str>,
-    // Upstream-supplied api tag (euler's `x-api-tag`); `None` when the caller doesn't send one.
+    // Upstream-supplied api tag (euler's `x-ucs-api-tag`); `None` when the caller doesn't send one.
     api_tag: Option<&str>,
 ) where
     T: serde::Serialize + std::fmt::Debug + hyperswitch_masking::ErasedMaskSerialize,
 {
     let current_span = tracing::Span::current();
 
-    // euler's top-level `udf_order_id` / `udf_customer_id` come from the request payload itself, not
-    // from headers: euler sends the order id as `merchant_order_id` (= orderReference.orderId) and
-    // the customer id as `customer.id` (= customer._id / orderReference.customerId). `x-reference-id`
-    // is the *txn* id (merchant_transaction_id), so it is deliberately not used here. Both ids are
-    // plain (unmasked) strings, so they read straight off the masked request body.
-    let (udf_order_id, udf_customer_id) = udf_ids_from_request(request_body);
+    // Top-level `merchant_order_id` / `customer_id` come from the request payload itself, not from
+    // headers: euler sends the order id as `merchant_order_id` (= orderReference.orderId) and the
+    // customer id as `customer.id` (= customer._id / orderReference.customerId). `x-reference-id` is
+    // the *txn* id (merchant_transaction_id), so it is deliberately not used here. Both ids are plain
+    // (unmasked) strings, so they read straight off the masked request body.
+    let (order_id, customer_id) = order_and_customer_ids_from_request(request_body);
 
     let (res_body, res_code, res_headers) = match &result {
         Ok(response) => {
@@ -390,34 +391,36 @@ pub fn log_after_initialization<T>(
         }
     };
 
-    // euler-shaped nested `api_details` (equivalent to euler's `message`) for the incoming call.
-    // Recorded as a real JSON object via `log_utils::record_json`, which writes the value straight
-    // into the current span's storage (no stringify/reparse), so the sessionizer reads an object
-    // rather than a string. The current span is the handler `#[instrument]` span that already carries
-    // `message_ = "Golden Log Line (incoming)"` and `response_time`; this mirrors the outgoing side
-    // (`record_api_details`). The golden-line event below is emitted under that same span, so it
-    // picks up `api_details` from span storage. The flat incoming fields (`request_body`,
-    // `response_body`, …) remain for hyperswitch compatibility.
+    // Nested `api_details` object (euler's `message` equivalent) for the incoming call. Fields use
+    // UCS-native names (`request_*` / `response_*` / `status_code`); Vector renames them to euler's
+    // schema (`req_body`, `res_code`, …) on the euler-bound stream. Recorded as a real JSON object
+    // via `log_utils::record_json`, which writes the value straight into the current span's storage
+    // (no stringify/reparse). The current span is the handler `#[instrument]` span that already
+    // carries `message_ = "Golden Log Line (incoming)"` and `response_time`; this mirrors the
+    // outgoing side (`record_api_details`). The golden-line event below is emitted under that same
+    // span, so it picks up `api_details` from span storage. The flat incoming fields
+    // (`request_body`, `response_body`, …) remain for hyperswitch compatibility.
     let api_details = serde_json::json!({
         // Real HTTP method under the HTTP server; POST for native gRPC (its only transport verb).
-        "method": http_method.unwrap_or("POST"),
-        "req_type": "INTERNAL",
-        "req_headers": req_headers,
-        "req_body": request_body,
-        "res_body": res_body,
-        "res_headers": res_headers,
-        "res_code": res_code,
+        "request_method": http_method.unwrap_or("POST"),
+        "request_type": "INTERNAL",
+        "request_headers": req_headers,
+        "request_body": request_body,
+        "response_body": res_body,
+        "response_headers": res_headers,
+        "status_code": res_code,
         "latency": latency_ms,
-        // Upstream api tag (euler's ApiTag, e.g. GW_INIT_TXN) when the caller sends `x-api-tag`.
+        // Upstream api tag (euler's ApiTag, e.g. GW_INIT_TXN) when the caller sends `x-ucs-api-tag`.
         "api_tag": api_tag,
     });
     log_utils::record_json("api_details", api_details);
     tracing::info!(
-        category = "INCOMING_API",
-        // Top-level euler fields the sessionizer reads directly (no nested fallback).
-        entity = api_tag.unwrap_or(""),
-        udf_order_id = udf_order_id.as_deref().unwrap_or(""),
-        udf_customer_id = udf_customer_id.as_deref().unwrap_or(""),
+        api_direction = "INCOMING_API",
+        // Top-level identifiers the euler sessionizer reads directly; UCS-native names here,
+        // Vector maps them to euler's `entity` / `udf_order_id` / `udf_customer_id`.
+        api_tag = api_tag.unwrap_or(""),
+        merchant_order_id = order_id.as_deref().unwrap_or(""),
+        customer_id = customer_id.as_deref().unwrap_or(""),
         "Golden Log Line (incoming - response)"
     );
 }
@@ -457,11 +460,11 @@ where
         .extensions()
         .get::<axum::http::Method>()
         .map(|m| m.to_string());
-    // api_tag supplied by the upstream caller (e.g. euler sends its ApiTag as `x-api-tag`); shown
+    // api_tag supplied by the upstream caller (e.g. euler sends its ApiTag as `x-ucs-api-tag`); shown
     // verbatim in the golden log line's api_details. Absent when the caller does not provide it.
     let upstream_api_tag = request
         .metadata()
-        .get(common_utils::consts::X_API_TAG)
+        .get(common_utils::consts::X_UCS_API_TAG)
         .and_then(|v| v.to_str().ok())
         .map(str::to_string);
     let mut event_metadata_payload = None;
@@ -541,11 +544,11 @@ where
         .extensions()
         .get::<axum::http::Method>()
         .map(|m| m.to_string());
-    // api_tag supplied by the upstream caller (e.g. euler sends its ApiTag as `x-api-tag`); shown
+    // api_tag supplied by the upstream caller (e.g. euler sends its ApiTag as `x-ucs-api-tag`); shown
     // verbatim in the golden log line's api_details. Absent when the caller does not provide it.
     let upstream_api_tag = request
         .metadata()
-        .get(common_utils::consts::X_API_TAG)
+        .get(common_utils::consts::X_UCS_API_TAG)
         .and_then(|v| v.to_str().ok())
         .map(str::to_string);
     let mut event_metadata_payload = None;
@@ -1285,7 +1288,9 @@ mod golden_log_json_tests {
             serde_json::ser::CompactFormatter,
         )
         .unwrap();
-        let subscriber = tracing_subscriber::registry().with(storage).with(formatting);
+        let subscriber = tracing_subscriber::registry()
+            .with(storage)
+            .with(formatting);
         tracing::subscriber::with_default(subscriber, emit);
         let out = String::from_utf8(buf.lock().unwrap().clone()).unwrap();
         let line = out
@@ -1306,25 +1311,28 @@ mod golden_log_json_tests {
 
         let req_headers: HashMap<String, String> = HashMap::from_iter([
             ("x-request-id".to_string(), "req-123".to_string()),
-            ("x-ucs-api-tag".to_string(), api_tag.unwrap_or("").to_string()),
+            (
+                "x-ucs-api-tag".to_string(),
+                api_tag.unwrap_or("").to_string(),
+            ),
         ]);
         let api_details = json!({
-            "method": "POST",
-            "req_type": "INTERNAL",
-            "req_headers": req_headers,
-            "req_body": { "merchant_order_id": order_id, "customer": { "id": customer_id } },
-            "res_body": { "status": "CHARGED" },
-            "res_headers": { "content-type": "application/grpc" },
-            "res_code": 200,
+            "request_method": "POST",
+            "request_type": "INTERNAL",
+            "request_headers": req_headers,
+            "request_body": { "merchant_order_id": order_id, "customer": { "id": customer_id } },
+            "response_body": { "status": "CHARGED" },
+            "response_headers": { "content-type": "application/grpc" },
+            "status_code": 200,
             "latency": 42u128,
             "api_tag": api_tag,
         });
         log_utils::record_json("api_details", api_details);
         tracing::info!(
-            category = "INCOMING_API",
-            entity = api_tag.unwrap_or(""),
-            udf_order_id = order_id,
-            udf_customer_id = customer_id,
+            api_direction = "INCOMING_API",
+            api_tag = api_tag.unwrap_or(""),
+            merchant_order_id = order_id,
+            customer_id = customer_id,
             "Golden Log Line (incoming - response)"
         );
     }
@@ -1341,24 +1349,34 @@ mod golden_log_json_tests {
 
         // CORE FIX: api_details must be a real object, NOT a stringified blob.
         let md = &line["api_details"];
-        assert!(md.is_object(), "api_details must be a JSON object, got: {md}");
+        assert!(
+            md.is_object(),
+            "api_details must be a JSON object, got: {md}"
+        );
         for k in [
-            "method", "req_type", "req_headers", "req_body", "res_body", "res_headers", "res_code",
-            "latency", "api_tag",
+            "request_method",
+            "request_type",
+            "request_headers",
+            "request_body",
+            "response_body",
+            "response_headers",
+            "status_code",
+            "latency",
+            "api_tag",
         ] {
             assert!(md.get(k).is_some(), "api_details.{k} missing");
         }
-        // Deep keys the sessionizer digs for live inside req_body/res_body as real nested values.
-        assert!(md["req_body"].is_object(), "req_body nested object");
-        assert_eq!(md["req_body"]["merchant_order_id"], "ord_1785320050");
-        assert_eq!(md["res_body"]["status"], "CHARGED");
+        // Deep keys the sessionizer digs for live inside request_body/response_body as real objects.
+        assert!(md["request_body"].is_object(), "request_body nested object");
+        assert_eq!(md["request_body"]["merchant_order_id"], "ord_1785320050");
+        assert_eq!(md["response_body"]["status"], "CHARGED");
         assert_eq!(md["api_tag"], "GW_INIT_TXN");
 
-        // Required top-level euler fields the sessionizer reads directly.
-        assert_eq!(line["category"], "INCOMING_API");
-        assert_eq!(line["entity"], "GW_INIT_TXN");
-        assert_eq!(line["udf_order_id"], "ord_1785320050");
-        assert_eq!(line["udf_customer_id"], "cust_42");
+        // Required top-level identifiers (UCS-native names; Vector maps to euler's entity/udf_*).
+        assert_eq!(line["api_direction"], "INCOMING_API");
+        assert_eq!(line["api_tag"], "GW_INIT_TXN");
+        assert_eq!(line["merchant_order_id"], "ord_1785320050");
+        assert_eq!(line["customer_id"], "cust_42");
         // Static top-level fields (JSON-mode injected).
         assert_eq!(line["schema_version"], "V2");
         assert_eq!(line["env"], "sandbox");
@@ -1381,7 +1399,7 @@ mod golden_log_json_tests {
     }
 
     #[test]
-    fn udf_ids_sourced_from_request_body_not_reference_id() {
+    fn order_customer_ids_sourced_from_request_body_not_reference_id() {
         // euler sends order id as `merchant_order_id` and customer id as `customer.id` in the BODY.
         let body = MaskedSerdeValue::from_masked(&json!({
             "merchant_order_id": "ord_1785320050",
@@ -1389,13 +1407,16 @@ mod golden_log_json_tests {
             "customer": { "id": "cust_42", "name": "Jane" }
         }))
         .unwrap();
-        let (order, customer) = udf_ids_from_request(&Some(body));
+        let (order, customer) = order_and_customer_ids_from_request(&Some(body));
         assert_eq!(order.as_deref(), Some("ord_1785320050"));
         assert_eq!(customer.as_deref(), Some("cust_42"));
 
         // Absent when the caller omits them (non-euler callers).
         let empty = MaskedSerdeValue::from_masked(&json!({ "foo": "bar" })).unwrap();
-        assert_eq!(udf_ids_from_request(&Some(empty)), (None, None));
-        assert_eq!(udf_ids_from_request(&None), (None, None));
+        assert_eq!(
+            order_and_customer_ids_from_request(&Some(empty)),
+            (None, None)
+        );
+        assert_eq!(order_and_customer_ids_from_request(&None), (None, None));
     }
 }

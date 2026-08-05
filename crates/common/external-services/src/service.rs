@@ -552,7 +552,7 @@ pub struct EventProcessingParams<'a> {
         message_ = "Golden Log Line (outgoing)",
         latency = Empty,
         api_details = Empty,
-        category = "OUTGOING_API",
+        api_direction = "OUTGOING_API",
     )
 )]
 #[allow(clippy::too_many_arguments)]
@@ -1075,17 +1075,19 @@ fn mask_connector_request(request_content: &Option<RequestContent>) -> serde_jso
 /// recorded separately for hyperswitch compatibility, so the detail appears in both places.
 #[cfg(feature = "injector-client")]
 fn record_api_details(event: &Event) {
+    // UCS-native field names (`request_*` / `response_*` / `status_code`); Vector renames them to
+    // euler's schema (`req_body`, `res_code`, …) on the euler-bound stream.
     let api_details = json!({
-        "url": event.url,
-        "method": event.method,
-        "req_headers": event.headers,
-        "req_body": event.request_data,
-        "res_body": event.response_data,
-        "res_code": event.status_code,
+        "request_url": event.url,
+        "request_method": event.method,
+        "request_headers": event.headers,
+        "request_body": event.request_data,
+        "response_body": event.response_data,
+        "status_code": event.status_code,
         "latency": event.latency_ms,
         "error": event.error,
         // Outbound connector call; euler reserves INTERNAL for service-to-service hops.
-        "req_type": "EXTERNAL",
+        "request_type": "EXTERNAL",
     });
     log_utils::record_json("api_details", api_details);
 }
