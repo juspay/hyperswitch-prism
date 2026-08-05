@@ -161,10 +161,7 @@ pub fn detect_dict_code_type(key: &str) -> SantanderDictCodeType {
         .collect();
 
     let all_cpf_cnpj_chars = key.chars().all(|character| {
-        character.is_ascii_digit()
-            || character == '.'
-            || character == '-'
-            || character == '/'
+        character.is_ascii_digit() || character == '.' || character == '-' || character == '/'
     });
 
     let mut dict_code_type = SantanderDictCodeType::Evp;
@@ -295,118 +292,137 @@ impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Pa
                 },
             })?;
 
-        let (dict_code, dict_code_type, qr_code, beneficiary) =
-            match req.request.payout_method_data.clone() {
-                Some(PayoutMethodData::Bank(Bank::PixKey(PixKeyBankTransfer { pix_key }))) => {
-                    let key_str = pix_key.clone().expose();
-                    let code_type = detect_dict_code_type(&key_str);
-                    (Some(pix_key), Some(code_type), None, None)
-                }
-                Some(PayoutMethodData::Bank(Bank::PixEmv(PixEmvBankTransfer { emv }))) => {
-                    (None, None, Some(emv), None)
-                }
-                Some(PayoutMethodData::Bank(Bank::Pix(PixBankTransfer {
-                    bank_branch,
-                    bank_account_number,
-                    tax_id,
-                    ispb,
-                    bank_code,
-                    bank_account_type,
-                    account_holder_name,
-                    document_type,
-                    ..
-                }))) => {
-                    let bank_branch =
-                        bank_branch
-                            .as_deref()
-                            .ok_or(IntegrationError::MissingRequiredField {
-                                field_name: "payout_method_data.bank_branch",
-                                context: IntegrationErrorContext {
-                                    additional_context: Some("missing required field: bank_branch".to_string()),
-                                    ..Default::default()
-                                },
-                            })?;
-                    let branch = bank_branch.to_string();
+        let (dict_code, dict_code_type, qr_code, beneficiary) = match req
+            .request
+            .payout_method_data
+            .clone()
+        {
+            Some(PayoutMethodData::Bank(Bank::PixKey(PixKeyBankTransfer { pix_key }))) => {
+                let key_str = pix_key.clone().expose();
+                let code_type = detect_dict_code_type(&key_str);
+                (Some(pix_key), Some(code_type), None, None)
+            }
+            Some(PayoutMethodData::Bank(Bank::PixEmv(PixEmvBankTransfer { emv }))) => {
+                (None, None, Some(emv), None)
+            }
+            Some(PayoutMethodData::Bank(Bank::Pix(PixBankTransfer {
+                bank_branch,
+                bank_account_number,
+                tax_id,
+                ispb,
+                bank_code,
+                bank_account_type,
+                account_holder_name,
+                document_type,
+                ..
+            }))) => {
+                let bank_branch =
+                    bank_branch
+                        .as_deref()
+                        .ok_or(IntegrationError::MissingRequiredField {
+                            field_name: "payout_method_data.bank_branch",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "missing required field: bank_branch".to_string(),
+                                ),
+                                ..Default::default()
+                            },
+                        })?;
+                let branch = bank_branch.to_string();
 
-                    let number = bank_account_number.clone();
+                let number = bank_account_number.clone();
 
-                    let document_type = document_type.ok_or(IntegrationError::MissingRequiredField {
+                let document_type =
+                    document_type.ok_or(IntegrationError::MissingRequiredField {
                         field_name: "payout_method_data.document_type",
                         context: IntegrationErrorContext {
-                            additional_context: Some("missing required field: document_type".to_string()),
-                            ..Default::default()
-                        },
-                    })?;
-
-                    let document_number = tax_id
-                        .clone()
-                        .expose_option()
-                        .map(|id| Secret::new(id.chars().filter(|ch| ch.is_ascii_digit()).collect::<String>()))
-                        .ok_or(IntegrationError::MissingRequiredField {
-                            field_name: "payout_method_data.tax_id",
-                            context: IntegrationErrorContext {
-                                additional_context: Some("missing required field: tax_id".to_string()),
-                                ..Default::default()
-                            },
-                        })?;
-
-                    let ispb_str = ispb
-                        .clone()
-                        .expose_option()
-                        .map(|ispb_raw| Secret::new(ispb_raw.chars().filter(|ch| ch.is_ascii_digit()).collect::<String>()));
-
-                    let name = account_holder_name
-                        .ok_or(IntegrationError::MissingRequiredField {
-                            field_name: "payout_method_data.account_holder_name",
-                            context: IntegrationErrorContext {
-                                additional_context: Some("missing required field: account_holder_name".to_string()),
-                                ..Default::default()
-                            },
-                        })?;
-
-                    let bank_code = bank_code.ok_or(IntegrationError::MissingRequiredField {
-                        field_name: "payout_method_data.bank_code",
-                        context: IntegrationErrorContext {
-                            additional_context: Some("missing required field: bank_code".to_string()),
-                            ..Default::default()
-                        },
-                    })?;
-
-                    let beneficiary = SantanderBeneficiary {
-                        branch,
-                        number,
-                        account_type: bank_account_type.map(SantanderAccountType::from).ok_or(
-                            IntegrationError::MissingRequiredField {
-                                field_name: "payout_method_data.bank_account_type",
-                                context: IntegrationErrorContext {
-                                    additional_context: Some("missing required field: bank_account_type".to_string()),
-                                    ..Default::default()
-                                },
-                            },
-                        )?,
-                        document_type,
-                        document_number,
-                        name,
-                        bank_code,
-                        ispb: ispb_str,
-                    };
-
-                    (None, None, None, Some(beneficiary))
-                }
-                _ => {
-                    return Err(IntegrationError::NotSupported {
-                        message: "payout method not supported".to_string(),
-                        connector: "santander",
-                        context: IntegrationErrorContext {
                             additional_context: Some(
-                                "unsupported payout method type".to_string(),
+                                "missing required field: document_type".to_string(),
                             ),
                             ..Default::default()
                         },
-                    }
-                    .into())
+                    })?;
+
+                let document_number = tax_id
+                    .clone()
+                    .expose_option()
+                    .map(|id| {
+                        Secret::new(
+                            id.chars()
+                                .filter(|ch| ch.is_ascii_digit())
+                                .collect::<String>(),
+                        )
+                    })
+                    .ok_or(IntegrationError::MissingRequiredField {
+                        field_name: "payout_method_data.tax_id",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("missing required field: tax_id".to_string()),
+                            ..Default::default()
+                        },
+                    })?;
+
+                let ispb_str = ispb.clone().expose_option().map(|ispb_raw| {
+                    Secret::new(
+                        ispb_raw
+                            .chars()
+                            .filter(|ch| ch.is_ascii_digit())
+                            .collect::<String>(),
+                    )
+                });
+
+                let name = account_holder_name.ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "payout_method_data.account_holder_name",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "missing required field: account_holder_name".to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                })?;
+
+                let bank_code = bank_code.ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "payout_method_data.bank_code",
+                    context: IntegrationErrorContext {
+                        additional_context: Some("missing required field: bank_code".to_string()),
+                        ..Default::default()
+                    },
+                })?;
+
+                let beneficiary = SantanderBeneficiary {
+                    branch,
+                    number,
+                    account_type: bank_account_type.map(SantanderAccountType::from).ok_or(
+                        IntegrationError::MissingRequiredField {
+                            field_name: "payout_method_data.bank_account_type",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "missing required field: bank_account_type".to_string(),
+                                ),
+                                ..Default::default()
+                            },
+                        },
+                    )?,
+                    document_type,
+                    document_number,
+                    name,
+                    bank_code,
+                    ispb: ispb_str,
+                };
+
+                (None, None, None, Some(beneficiary))
+            }
+            _ => {
+                return Err(IntegrationError::NotSupported {
+                    message: "payout method not supported".to_string(),
+                    connector: "santander",
+                    context: IntegrationErrorContext {
+                        additional_context: Some("unsupported payout method type".to_string()),
+                        ..Default::default()
+                    },
                 }
-            };
+                .into())
+            }
+        };
 
         Ok(Self {
             payment_value,
@@ -651,8 +667,7 @@ impl
     }
 }
 
-impl
-    TryFrom<ResponseRouterData<SantanderPayoutResponse, Self>>
+impl TryFrom<ResponseRouterData<SantanderPayoutResponse, Self>>
     for RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>
 {
     type Error = error_stack::Report<ConnectorError>;
@@ -669,8 +684,7 @@ impl
     }
 }
 
-impl
-    TryFrom<ResponseRouterData<SantanderPayoutResponse, Self>>
+impl TryFrom<ResponseRouterData<SantanderPayoutResponse, Self>>
     for RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>
 {
     type Error = error_stack::Report<ConnectorError>;
@@ -687,8 +701,7 @@ impl
     }
 }
 
-impl
-    TryFrom<ResponseRouterData<SantanderStatusResponse, Self>>
+impl TryFrom<ResponseRouterData<SantanderStatusResponse, Self>>
     for RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>
 {
     type Error = error_stack::Report<ConnectorError>;
