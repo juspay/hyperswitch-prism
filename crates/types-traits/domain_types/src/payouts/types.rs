@@ -605,23 +605,29 @@ impl ForeignTryFrom<grpc_api_types::payouts::PixBankTransferPayout>
             ispb: pix.ispb,
             bank_code: pix.bank_code,
             bank_account_type: pix.bank_account_type.and_then(|bank_type_raw| {
-                grpc_api_types::payouts::PixBankAccountType::try_from(bank_type_raw)
+                grpc_api_types::payment_methods::BankType::try_from(bank_type_raw)
                     .ok()
-                    .and_then(|bank_account_type| payouts::payout_method_data::PixBankAccountType::try_from(bank_account_type).ok())
+                    .and_then(|bank_type| common_enums::BankType::foreign_try_from(bank_type.as_str_name()).ok())
             }),
             account_holder_name: pix.account_holder_name,
             document_type: pix.tax_id.as_ref().map(|tax_id| {
-                let only_digits: String = tax_id.peek().chars().filter(|ch| ch.is_ascii_digit()).collect();
-                if cpf_cnpj::cpf::validate(&only_digits) {
-                    Ok("CPF".to_string())
-                } else if cpf_cnpj::cnpj::validate(&only_digits) {
-                    Ok("CNPJ".to_string())
+                let raw = tax_id.peek();
+                if cpf_cnpj::cpf::validate(raw) {
+                    Ok(payouts::payout_method_data::DocumentType::Cpf)
+                } else if cpf_cnpj::cnpj::validate(raw) {
+                    Ok(payouts::payout_method_data::DocumentType::Cnpj)
                 } else {
                     Err(error_stack::report!(IntegrationError::InvalidDataFormat {
                         field_name: "payout_method_data.tax_id",
                         context: IntegrationErrorContext {
-                            additional_context: Some("tax_id failed CPF and CNPJ validation".to_string()),
-                            ..Default::default()
+                            additional_context: Some(
+                                "tax_id failed CPF and CNPJ validation".to_string(),
+                            ),
+                            suggested_action: Some(
+                                "Provide a valid 11-digit CPF or 14-digit CNPJ as tax_id"
+                                    .to_string(),
+                            ),
+                            doc_url: None,
                         },
                     }))
                 }

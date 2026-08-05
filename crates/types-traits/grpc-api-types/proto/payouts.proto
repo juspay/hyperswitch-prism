@@ -55,13 +55,6 @@ message PayoutEnums {
 
 }
 
-enum PixBankAccountType {
-  PIX_BANK_ACCOUNT_TYPE_UNSPECIFIED = 0;
-  CHECKING = 1;
-  SAVINGS = 2;
-  SALARY = 3;
-  PAYMENT = 4;
-}
 
 // ============================================================================
 // DEPENDENT MESSAGES
@@ -147,7 +140,7 @@ message PixBankTransferPayout {
   // The bank code (COMPE code)
   optional string bank_code = 6;
   // The bank account type
-  optional PixBankAccountType bank_account_type = 7;
+  optional BankType bank_account_type = 7;
   // The account holder name
   optional SecretString account_holder_name = 8;
 }

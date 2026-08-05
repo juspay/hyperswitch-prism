@@ -47,7 +47,7 @@ use crate::types::ResponseRouterData;
 use transformers::{
     SantanderAccessTokenRequest, SantanderAccessTokenResponse, SantanderAuthType,
     SantanderCreateRequest, SantanderErrorResponse, SantanderPayoutResponse,
-    SantanderStatusResponse, SantanderTransferRequest,
+    SantanderStatusResponse, SantanderTransferRequest, SANTANDER_PIX_DOCS_URL,
 };
 
 pub(crate) mod headers {
@@ -345,7 +345,15 @@ impl
         Err(IntegrationError::connector_flow_not_implemented(
             self.id(),
             "payout_eligibility",
-            Default::default(),
+            IntegrationErrorContext {
+                additional_context: Some(
+                    "Santander does not support payout eligibility checks".to_string(),
+                ),
+                suggested_action: Some(
+                    "Skip eligibility check; Santander validates recipient details during payout create".to_string(),
+                ),
+                doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
+            },
         )
         .into())
     }
@@ -520,9 +528,14 @@ impl
             IntegrationError::MissingConnectorTransactionID {
                 context: IntegrationErrorContext {
                     additional_context: Some(
-                        "missing required field: connector_payout_id".to_string(),
+                        "connector_payout_id is required to authorize a payout transfer"
+                            .to_string(),
                     ),
-                    ..Default::default()
+                    suggested_action: Some(
+                        "Ensure the payout create step succeeded and returned a connector_payout_id"
+                            .to_string(),
+                    ),
+                    doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
                 },
             },
         )?;
@@ -617,7 +630,16 @@ impl ConnectorIntegrationV2<PayoutVoid, PayoutFlowData, PayoutVoidRequest, Payou
         Err(IntegrationError::connector_flow_not_implemented(
             self.id(),
             "payout_void",
-            Default::default(),
+            IntegrationErrorContext {
+                additional_context: Some(
+                    "Santander does not support voiding Pix payouts".to_string(),
+                ),
+                suggested_action: Some(
+                    "Contact Santander support to cancel a payout after it has been authorized"
+                        .to_string(),
+                ),
+                doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
+            },
         )
         .into())
     }
@@ -665,9 +687,13 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
             IntegrationError::MissingConnectorTransactionID {
                 context: IntegrationErrorContext {
                     additional_context: Some(
-                        "missing required field: connector_payout_id".to_string(),
+                        "connector_payout_id is required to fetch payout status".to_string(),
                     ),
-                    ..Default::default()
+                    suggested_action: Some(
+                        "Ensure the payout create step succeeded and returned a connector_payout_id"
+                            .to_string(),
+                    ),
+                    doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
                 },
             },
         )?;
@@ -739,7 +765,15 @@ impl ConnectorIntegrationV2<PayoutStage, PayoutFlowData, PayoutStageRequest, Pay
         Err(IntegrationError::connector_flow_not_implemented(
             self.id(),
             "payout_stage",
-            Default::default(),
+            IntegrationErrorContext {
+                additional_context: Some(
+                    "Santander does not support staged payout flows".to_string(),
+                ),
+                suggested_action: Some(
+                    "Use the payout create and transfer flows directly".to_string(),
+                ),
+                doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
+            },
         )
         .into())
     }
@@ -767,7 +801,15 @@ impl
         Err(IntegrationError::connector_flow_not_implemented(
             self.id(),
             "payout_create_link",
-            Default::default(),
+            IntegrationErrorContext {
+                additional_context: Some(
+                    "Santander does not support creating payout links".to_string(),
+                ),
+                suggested_action: Some(
+                    "Use Pix direct bank transfer instead of payout links".to_string(),
+                ),
+                doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
+            },
         )
         .into())
     }
@@ -795,7 +837,15 @@ impl
         Err(IntegrationError::connector_flow_not_implemented(
             self.id(),
             "payout_create_recipient",
-            Default::default(),
+            IntegrationErrorContext {
+                additional_context: Some(
+                    "Santander does not support a separate recipient creation step".to_string(),
+                ),
+                suggested_action: Some(
+                    "Provide recipient details directly in the payout create request".to_string(),
+                ),
+                doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
+            },
         )
         .into())
     }
@@ -823,7 +873,16 @@ impl
         Err(IntegrationError::connector_flow_not_implemented(
             self.id(),
             "payout_enroll_disburse_account",
-            Default::default(),
+            IntegrationErrorContext {
+                additional_context: Some(
+                    "Santander does not support enrolling disburse accounts".to_string(),
+                ),
+                suggested_action: Some(
+                    "Configure the debit account via source_bank_data in the transfer request"
+                        .to_string(),
+                ),
+                doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
+            },
         )
         .into())
     }

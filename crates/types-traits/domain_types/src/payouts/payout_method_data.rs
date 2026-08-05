@@ -140,26 +140,11 @@ pub struct SepaBankTransfer {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
-pub enum PixBankAccountType {
-    Checking,
-    Savings,
-    Salary,
-    Payment,
+pub enum DocumentType {
+    Cpf,
+    Cnpj,
 }
 
-impl TryFrom<grpc_api_types::payouts::PixBankAccountType> for PixBankAccountType {
-    type Error = ();
-
-    fn try_from(value: grpc_api_types::payouts::PixBankAccountType) -> Result<Self, Self::Error> {
-        match value {
-            grpc_api_types::payouts::PixBankAccountType::Checking => Ok(Self::Checking),
-            grpc_api_types::payouts::PixBankAccountType::Savings => Ok(Self::Savings),
-            grpc_api_types::payouts::PixBankAccountType::Salary => Ok(Self::Salary),
-            grpc_api_types::payouts::PixBankAccountType::Payment => Ok(Self::Payment),
-            grpc_api_types::payouts::PixBankAccountType::Unspecified => Err(()),
-        }
-    }
-}
 
 #[derive(Default, Eq, PartialEq, Clone, Debug)]
 pub struct PixBankTransfer {
@@ -182,13 +167,13 @@ pub struct PixBankTransfer {
     pub bank_code: Option<String>,
 
     /// The bank account type
-    pub bank_account_type: Option<PixBankAccountType>,
+    pub bank_account_type: Option<common_enums::BankType>,
 
     /// The account holder name
     pub account_holder_name: Option<Secret<String>>,
 
     /// The document type derived from tax_id (CPF for individuals, CNPJ for companies)
-    pub document_type: Option<String>,
+    pub document_type: Option<DocumentType>,
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug)]

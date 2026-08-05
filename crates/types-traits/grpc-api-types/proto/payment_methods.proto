@@ -1867,6 +1867,8 @@ enum BankType {
   BANK_TYPE_CURRENT = 4;
   BANK_TYPE_BOND = 5;
   BANK_TYPE_SUBSCRIPTION_SHARE = 6;
+  BANK_TYPE_SALARY = 7;
+  BANK_TYPE_PAYMENT = 8;
 }
 
 enum BankHolderType {

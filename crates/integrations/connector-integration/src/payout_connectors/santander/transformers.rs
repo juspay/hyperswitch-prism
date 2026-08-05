@@ -12,7 +12,7 @@ use domain_types::{
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payouts::{
         payout_method_data::{
-            Bank, PayoutMethodData, PixBankAccountType, PixBankTransfer, PixEmvBankTransfer,
+            Bank, DocumentType, PayoutMethodData, PixBankTransfer, PixEmvBankTransfer,
             PixKeyBankTransfer,
         },
         payouts_types::{
@@ -26,6 +26,9 @@ use domain_types::{
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, ExposeOptionInterface, Secret};
 use serde::{Deserialize, Serialize};
+
+pub(super) const SANTANDER_PIX_DOCS_URL: &str =
+    "https://developer.santander.com.br/api/user-guide/transfers-pix";
 
 // ===== AUTH TYPE =====
 
@@ -59,7 +62,8 @@ impl TryFrom<&ConnectorSpecificConfig> for SantanderAuthType {
             _ => Err(IntegrationError::FailedToObtainAuthType {
                 context: IntegrationErrorContext {
                     additional_context: Some("invalid or missing auth credentials".to_string()),
-                    ..Default::default()
+                    suggested_action: Some("verify connector auth configuration".to_string()),
+                    doc_url: None,
                 },
             }
             .into()),
@@ -191,7 +195,10 @@ fn parse_digits_i64(
             field_name,
             context: IntegrationErrorContext {
                 additional_context: Some(format!("Field '{field_name}' contained no digits")),
-                ..Default::default()
+                suggested_action: Some(format!(
+                    "Provide a non-empty numeric value for '{field_name}'"
+                )),
+                doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
             },
         }
         .into());
@@ -205,7 +212,10 @@ fn parse_digits_i64(
                 additional_context: Some(format!(
                     "Field '{field_name}' could not be parsed as an integer"
                 )),
-                ..Default::default()
+                suggested_action: Some(format!(
+                    "Ensure '{field_name}' contains only numeric characters"
+                )),
+                doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
             },
         })
 }
@@ -224,13 +234,44 @@ pub enum SantanderAccountType {
     ContaPagamento,
 }
 
-impl From<PixBankAccountType> for SantanderAccountType {
-    fn from(account_type: PixBankAccountType) -> Self {
-        match account_type {
-            PixBankAccountType::Checking => Self::ContaCorrente,
-            PixBankAccountType::Savings => Self::ContaPoupanca,
-            PixBankAccountType::Salary => Self::ContaSalario,
-            PixBankAccountType::Payment => Self::ContaPagamento,
+impl TryFrom<common_enums::BankType> for SantanderAccountType {
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(bank_type: common_enums::BankType) -> Result<Self, Self::Error> {
+        match bank_type {
+            common_enums::BankType::Checking => Ok(Self::ContaCorrente),
+            common_enums::BankType::Savings => Ok(Self::ContaPoupanca),
+            common_enums::BankType::Salary => Ok(Self::ContaSalario),
+            common_enums::BankType::Payment => Ok(Self::ContaPagamento),
+            _ => Err(error_stack::report!(IntegrationError::NotSupported {
+                message: "unsupported bank account type".to_string(),
+                connector: "santander",
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "bank_account_type {bank_type:?} is not supported by Santander"
+                    )),
+                    suggested_action: Some(
+                        "Use one of: Checking, Savings, Salary, or Payment bank account types"
+                            .to_string(),
+                    ),
+                    doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
+                },
+            })),
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub enum SantanderDocumentType {
+    CPF,
+    CNPJ,
+}
+
+impl From<DocumentType> for SantanderDocumentType {
+    fn from(doc_type: DocumentType) -> Self {
+        match doc_type {
+            DocumentType::Cpf => Self::CPF,
+            DocumentType::Cnpj => Self::CNPJ,
         }
     }
 }
@@ -242,7 +283,7 @@ pub struct SantanderBeneficiary {
     pub number: Secret<String>,
     #[serde(rename = "type")]
     pub account_type: SantanderAccountType,
-    pub document_type: String,
+    pub document_type: SantanderDocumentType,
     pub document_number: Secret<String>,
     pub name: Secret<String>,
     pub bank_code: String,
@@ -288,7 +329,10 @@ impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Pa
                     additional_context: Some(
                         "Failed to convert payout amount to float major unit".to_string(),
                     ),
-                    ..Default::default()
+                    suggested_action: Some(
+                        "Verify the payout amount and currency are valid".to_string(),
+                    ),
+                    doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
                 },
             })?;
 
@@ -325,7 +369,10 @@ impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Pa
                                 additional_context: Some(
                                     "missing required field: bank_branch".to_string(),
                                 ),
-                                ..Default::default()
+                                suggested_action: Some(
+                                    "Provide the bank branch in payout_method_data for Pix bank transfers".to_string(),
+                                ),
+                                doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
                             },
                         })?;
                 let branch = bank_branch.to_string();
@@ -339,7 +386,10 @@ impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Pa
                             additional_context: Some(
                                 "missing required field: document_type".to_string(),
                             ),
-                            ..Default::default()
+                            suggested_action: Some(
+                                "Provide a valid tax_id (CPF or CNPJ) so document_type can be determined".to_string(),
+                            ),
+                            doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
                         },
                     })?;
 
@@ -357,7 +407,11 @@ impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Pa
                         field_name: "payout_method_data.tax_id",
                         context: IntegrationErrorContext {
                             additional_context: Some("missing required field: tax_id".to_string()),
-                            ..Default::default()
+                            suggested_action: Some(
+                                "Provide a valid CPF or CNPJ tax_id in payout_method_data"
+                                    .to_string(),
+                            ),
+                            doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
                         },
                     })?;
 
@@ -376,7 +430,11 @@ impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Pa
                         additional_context: Some(
                             "missing required field: account_holder_name".to_string(),
                         ),
-                        ..Default::default()
+                        suggested_action: Some(
+                            "Provide the beneficiary account holder name in payout_method_data"
+                                .to_string(),
+                        ),
+                        doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
                     },
                 })?;
 
@@ -384,25 +442,34 @@ impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Pa
                     field_name: "payout_method_data.bank_code",
                     context: IntegrationErrorContext {
                         additional_context: Some("missing required field: bank_code".to_string()),
-                        ..Default::default()
+                        suggested_action: Some(
+                            "Provide the COMPE bank code in payout_method_data for Pix bank transfers".to_string(),
+                        ),
+                        doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
                     },
                 })?;
 
                 let beneficiary = SantanderBeneficiary {
                     branch,
                     number,
-                    account_type: bank_account_type.map(SantanderAccountType::from).ok_or(
-                        IntegrationError::MissingRequiredField {
-                            field_name: "payout_method_data.bank_account_type",
-                            context: IntegrationErrorContext {
-                                additional_context: Some(
-                                    "missing required field: bank_account_type".to_string(),
-                                ),
-                                ..Default::default()
+                    account_type: {
+                        let bank_type = bank_account_type.ok_or(
+                            IntegrationError::MissingRequiredField {
+                                field_name: "payout_method_data.bank_account_type",
+                                context: IntegrationErrorContext {
+                                    additional_context: Some(
+                                        "missing required field: bank_account_type".to_string(),
+                                    ),
+                                    suggested_action: Some(
+                                        "Provide a valid bank_account_type (Checking, Savings, Salary, or Payment)".to_string(),
+                                    ),
+                                    doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
+                                },
                             },
-                        },
-                    )?,
-                    document_type,
+                        )?;
+                        SantanderAccountType::try_from(bank_type)?
+                    },
+                    document_type: SantanderDocumentType::from(document_type),
                     document_number,
                     name,
                     bank_code,
@@ -417,7 +484,11 @@ impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Pa
                     connector: "santander",
                     context: IntegrationErrorContext {
                         additional_context: Some("unsupported payout method type".to_string()),
-                        ..Default::default()
+                        suggested_action: Some(
+                            "Use Pix (bank transfer, pix key, or pix EMV) as the payout method"
+                                .to_string(),
+                        ),
+                        doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
                     },
                 }
                 .into())
@@ -490,7 +561,10 @@ impl
                     additional_context: Some(
                         "Failed to convert payout amount to string major unit".to_string(),
                     ),
-                    ..Default::default()
+                    suggested_action: Some(
+                        "Verify the payout amount and currency are valid".to_string(),
+                    ),
+                    doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
                 },
             })?;
 
@@ -504,7 +578,10 @@ impl
                     field_name: "source_bank_data.bank_branch",
                     context: IntegrationErrorContext {
                         additional_context: Some("missing required field: bank_branch".to_string()),
-                        ..Default::default()
+                        suggested_action: Some(
+                            "Provide the source bank branch in source_bank_data".to_string(),
+                        ),
+                        doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
                     },
                 })?;
                 let branch = parse_digits_i64(&bank_branch, "source_bank_data.bank_branch")?;
@@ -520,7 +597,10 @@ impl
                     connector: "santander",
                     context: IntegrationErrorContext {
                         additional_context: Some("unsupported source bank data type".to_string()),
-                        ..Default::default()
+                        suggested_action: Some(
+                            "Use Pix bank transfer as the source bank data type".to_string(),
+                        ),
+                        doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
                     },
                 }
                 .into());
@@ -556,8 +636,6 @@ pub enum SantanderPayoutStatus {
     PendingConfirmation,
     Payed,
     Rejected,
-    #[serde(other)]
-    Unknown,
 }
 
 impl SantanderPayoutStatus {
@@ -567,7 +645,6 @@ impl SantanderPayoutStatus {
             Self::ReadyToPay => common_enums::PayoutStatus::RequiresFulfillment,
             Self::Payed => common_enums::PayoutStatus::Success,
             Self::Rejected => common_enums::PayoutStatus::Failure,
-            Self::Unknown => common_enums::PayoutStatus::Pending,
         }
     }
 }
