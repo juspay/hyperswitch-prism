@@ -303,19 +303,22 @@ fn metadata_to_json(metadata: &tonic::metadata::MetadataMap) -> serde_json::Valu
     serde_json::Value::Object(map)
 }
 
-/// Extracts the `merchant_order_id` / `customer_id` from the incoming request body.
+/// Extracts the `merchant_order_id` / `customer_id` / `merchant_transaction_id` from the incoming
+/// request body.
 ///
 /// Euler sends these identifiers in the request *payload* (not as headers): the order id as
-/// `merchant_order_id` (= `orderReference.orderId`) and the customer id as `customer.id`
-/// (= `customer._id` / `orderReference.customerId`). Both are plain id strings, so they read
-/// directly off the masked body `Value`. Returns `(order_id, customer_id)`; either is `None` when
-/// the field is absent (e.g. non-euler callers or flows that omit it). Emitted top-level under the
-/// UCS-native names `merchant_order_id` / `customer_id` (Vector maps them to euler's `udf_*`).
-fn order_and_customer_ids_from_request(
+/// `merchant_order_id` (= `orderReference.orderId`), the customer id as `customer.id`
+/// (= `customer._id` / `orderReference.customerId`), and the txn id as `merchant_transaction_id`
+/// (= `txnDetail.txnId`; also mirrored to the `x-reference-id` header). All are plain id strings, so
+/// they read directly off the masked body `Value`. Returns `(order_id, customer_id, txn_id)`; each is
+/// `None` when its field is absent (e.g. non-euler callers or flows that omit it). Emitted top-level
+/// under the UCS-native names `merchant_order_id` / `customer_id` / `merchant_transaction_id` (Vector
+/// maps them to euler's `udf_order_id` / `udf_customer_id` / `udf_txn_uuid`).
+fn identifiers_from_request(
     request_body: &Option<MaskedSerdeValue>,
-) -> (Option<String>, Option<String>) {
+) -> (Option<String>, Option<String>, Option<String>) {
     let Some(body) = request_body.as_ref().map(MaskedSerdeValue::inner) else {
-        return (None, None);
+        return (None, None, None);
     };
     let order_id = body
         .get("merchant_order_id")
@@ -326,7 +329,11 @@ fn order_and_customer_ids_from_request(
         .and_then(|customer| customer.get("id"))
         .and_then(Value::as_str)
         .map(str::to_owned);
-    (order_id, customer_id)
+    let txn_id = body
+        .get("merchant_transaction_id")
+        .and_then(Value::as_str)
+        .map(str::to_owned);
+    (order_id, customer_id, txn_id)
 }
 
 pub fn log_after_initialization<T>(
@@ -343,12 +350,13 @@ pub fn log_after_initialization<T>(
 {
     let current_span = tracing::Span::current();
 
-    // Top-level `merchant_order_id` / `customer_id` come from the request payload itself, not from
-    // headers: euler sends the order id as `merchant_order_id` (= orderReference.orderId) and the
-    // customer id as `customer.id` (= customer._id / orderReference.customerId). `x-reference-id` is
-    // the *txn* id (merchant_transaction_id), so it is deliberately not used here. Both ids are plain
-    // (unmasked) strings, so they read straight off the masked request body.
-    let (order_id, customer_id) = order_and_customer_ids_from_request(request_body);
+    // Top-level `merchant_order_id` / `customer_id` / `merchant_transaction_id` come from the request
+    // payload itself, not from headers: euler sends the order id as `merchant_order_id`
+    // (= orderReference.orderId), the customer id as `customer.id` (= customer._id /
+    // orderReference.customerId), and the txn id as `merchant_transaction_id` (= txnDetail.txnId; also
+    // mirrored to the `x-reference-id` header). All are plain (unmasked) strings, so they read
+    // straight off the masked request body.
+    let (order_id, customer_id, txn_id) = identifiers_from_request(request_body);
 
     let (res_body, res_code, res_headers) = match &result {
         Ok(response) => {
@@ -417,10 +425,11 @@ pub fn log_after_initialization<T>(
     tracing::info!(
         api_direction = "INCOMING_API",
         // Top-level identifiers the euler sessionizer reads directly; UCS-native names here,
-        // Vector maps them to euler's `entity` / `udf_order_id` / `udf_customer_id`.
+        // Vector maps them to euler's `entity` / `udf_order_id` / `udf_customer_id` / `udf_txn_uuid`.
         api_tag = api_tag.unwrap_or(""),
         merchant_order_id = order_id.as_deref().unwrap_or(""),
         customer_id = customer_id.as_deref().unwrap_or(""),
+        merchant_transaction_id = txn_id.as_deref().unwrap_or(""),
         "Golden Log Line (incoming - response)"
     );
 }
@@ -1303,7 +1312,12 @@ mod golden_log_json_tests {
     /// Reproduces the exact emission in `log_after_initialization` (incoming response path), run
     /// under a simulated handler `#[instrument]` span that carries `message_` — exactly as prod does
     /// (`record_json` records onto that ambient span; no dedicated span is created).
-    fn emit_incoming_golden(api_tag: Option<&str>, order_id: &str, customer_id: &str) {
+    fn emit_incoming_golden(
+        api_tag: Option<&str>,
+        order_id: &str,
+        customer_id: &str,
+        txn_id: &str,
+    ) {
         // Stand-in for the handler's `#[instrument(fields(message_ = "Golden Log Line (incoming)"))]`.
         let handler_span =
             tracing::info_span!("payment_authorize", message_ = "Golden Log Line (incoming)");
@@ -1320,7 +1334,11 @@ mod golden_log_json_tests {
             "request_method": "POST",
             "request_type": "INTERNAL",
             "request_headers": req_headers,
-            "request_body": { "merchant_order_id": order_id, "customer": { "id": customer_id } },
+            "request_body": {
+                "merchant_order_id": order_id,
+                "merchant_transaction_id": txn_id,
+                "customer": { "id": customer_id }
+            },
             "response_body": { "status": "CHARGED" },
             "response_headers": { "content-type": "application/grpc" },
             "status_code": 200,
@@ -1333,6 +1351,7 @@ mod golden_log_json_tests {
             api_tag = api_tag.unwrap_or(""),
             merchant_order_id = order_id,
             customer_id = customer_id,
+            merchant_transaction_id = txn_id,
             "Golden Log Line (incoming - response)"
         );
     }
@@ -1340,7 +1359,7 @@ mod golden_log_json_tests {
     #[test]
     fn api_details_is_nested_object_with_all_required_fields() {
         let line = render_json_mode(|| {
-            emit_incoming_golden(Some("GW_INIT_TXN"), "ord_1785320050", "cust_42")
+            emit_incoming_golden(Some("GW_INIT_TXN"), "ord_1785320050", "cust_42", "txn_9988")
         });
         println!(
             "\n=== rendered golden log line (JSON mode) ===\n{}\n",
@@ -1377,6 +1396,7 @@ mod golden_log_json_tests {
         assert_eq!(line["api_tag"], "GW_INIT_TXN");
         assert_eq!(line["merchant_order_id"], "ord_1785320050");
         assert_eq!(line["customer_id"], "cust_42");
+        assert_eq!(line["merchant_transaction_id"], "txn_9988");
         // Static top-level fields (JSON-mode injected).
         assert_eq!(line["schema_version"], "V2");
         assert_eq!(line["env"], "sandbox");
@@ -1399,24 +1419,23 @@ mod golden_log_json_tests {
     }
 
     #[test]
-    fn order_customer_ids_sourced_from_request_body_not_reference_id() {
-        // euler sends order id as `merchant_order_id` and customer id as `customer.id` in the BODY.
+    fn identifiers_sourced_from_request_body() {
+        // euler sends order id as `merchant_order_id`, customer id as `customer.id`, and txn id as
+        // `merchant_transaction_id` in the BODY.
         let body = MaskedSerdeValue::from_masked(&json!({
             "merchant_order_id": "ord_1785320050",
-            "merchant_transaction_id": "txn_abc",   // this is the txn id (x-reference-id), NOT order
+            "merchant_transaction_id": "txn_abc",
             "customer": { "id": "cust_42", "name": "Jane" }
         }))
         .unwrap();
-        let (order, customer) = order_and_customer_ids_from_request(&Some(body));
+        let (order, customer, txn) = identifiers_from_request(&Some(body));
         assert_eq!(order.as_deref(), Some("ord_1785320050"));
         assert_eq!(customer.as_deref(), Some("cust_42"));
+        assert_eq!(txn.as_deref(), Some("txn_abc"));
 
         // Absent when the caller omits them (non-euler callers).
         let empty = MaskedSerdeValue::from_masked(&json!({ "foo": "bar" })).unwrap();
-        assert_eq!(
-            order_and_customer_ids_from_request(&Some(empty)),
-            (None, None)
-        );
-        assert_eq!(order_and_customer_ids_from_request(&None), (None, None));
+        assert_eq!(identifiers_from_request(&Some(empty)), (None, None, None));
+        assert_eq!(identifiers_from_request(&None), (None, None, None));
     }
 }
