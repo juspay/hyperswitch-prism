@@ -17,6 +17,9 @@ const _defaultConfig: types.IConnectorConfig = {
         juspay: {
             apiKey: { value: 'YOUR_API_KEY' },
             merchantId: { value: 'YOUR_MERCHANT_ID' },
+            juspayEncryptionPublicKey: { value: 'YOUR_JUSPAY_ENCRYPTION_PUBLIC_KEY' },
+            responseDecryptionPrivateKey: { value: 'YOUR_RESPONSE_DECRYPTION_PRIVATE_KEY' },
+            cardSyncKeyId: { value: 'YOUR_CARD_SYNC_KEY_ID' },
             baseUrl: 'YOUR_BASE_URL',
         }
     },

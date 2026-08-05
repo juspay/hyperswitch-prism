@@ -1,5 +1,5 @@
 # Connector Service — LLM Navigation Index
-# Connectors: 100
+# Connectors: 102
 #
 # This file helps AI coding assistants navigate connector-service documentation.
 # Each connector block lists: doc path, scenarios, supported payment methods,
@@ -8,7 +8,7 @@
 # Usage: fetch this file first, then fetch the specific connector doc or example.
 
 overview:
-  total_connectors: 100
+  total_connectors: 102
   docs_root: docs-generated/connectors/
   examples_root: examples/
   all_connectors_matrix: docs-generated/all_connector.md
@@ -205,6 +205,14 @@ scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_paymen
 payment_methods: Card
 flows: authorize, capture, create_client_authentication_token, get, proxy_authorize, proxy_setup_recurring, refund, refund_get, reverse, setup_recurring, token_authorize, void
 examples_python: examples/datatrans/datatrans.py
+
+## Deutschebank
+connector_id: deutschebank
+doc: docs/connectors/deutschebank.md
+scenarios: none
+payment_methods: none
+flows: 
+examples_python: none
 
 ## dLocal
 connector_id: dlocal
@@ -700,6 +708,14 @@ doc: docs/connectors/tamara.md
 scenarios: none
 payment_methods: none
 flows: capture, get, handle_event, parse_event, refund, refund_get, verify_redirect, void
+examples_python: none
+
+## Tesouro
+connector_id: tesouro
+doc: docs/connectors/tesouro.md
+scenarios: none
+payment_methods: none
+flows: create_server_authentication_token
 examples_python: none
 
 ## Truelayer

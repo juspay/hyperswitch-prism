@@ -98,7 +98,6 @@ pub fn apply_url_overrides(
     environment: Option<&str>,
 ) -> CustomResult<domain_types::types::Connectors, IntegrationError> {
     use domain_types::errors::IntegrationErrorContext;
-    use std::str::FromStr;
 
     let connector_name = connector.get_connector_name();
 
@@ -121,33 +120,34 @@ pub fn apply_url_overrides(
             ) {
                 Some(urls) => {
                     tracing::info!("resolved URLs from superposition for environment: {}", env);
-                    match connector_types::ConnectorEnum::from_str(&connector_name) {
-                        Ok(payment_connector) => {
-                            let patched_connectors = config
-                                .connectors
-                                .patch_connector_urls(&payment_connector, &urls)
-                                .map_err(|e| {
-                                    Report::new(IntegrationError::ConfigurationError {
-                                        code: "URL_PATCHING_FAILED".to_string(),
-                                        message: format!("URL patching failed: {e}"),
-                                        context: IntegrationErrorContext::default(),
-                                    })
-                                })?;
-                            connectors_with_connector_config_overrides_on_connectors(
-                                connector_config,
-                                patched_connectors,
-                            )
+                    let patch_result = match connector {
+                        connector_types::ConnectorVariant::Payment(c) => {
+                            config.connectors.patch_connector_urls(c, &urls)
                         }
-                        // TODO: add superpositon support for payout, FRM, and surcharge connectors. For now, log a warning and fall back to static config.
-                        Err(_) => {
-                            tracing::warn!(
-                                connector = %connector_name,
-                                "connector not found in ConnectorEnum for URL patching, \
-                                 falling back to static config with overrides"
-                            );
-                            connectors_with_connector_config_overrides(connector_config, config)
+                        connector_types::ConnectorVariant::Payout(c) => {
+                            config.connectors.patch_payout_connector_urls(c, &urls)
                         }
-                    }
+                        connector_types::ConnectorVariant::Frm(c) => {
+                            config.connectors.patch_frm_connector_urls(c, &urls)
+                        }
+                        connector_types::ConnectorVariant::Surcharge(c) => {
+                            config.connectors.patch_surcharge_connector_urls(c, &urls)
+                        }
+                        connector_types::ConnectorVariant::Authenticator(c) => config
+                            .connectors
+                            .patch_authenticator_connector_urls(c, &urls),
+                    };
+                    let patched_connectors = patch_result.map_err(|e| {
+                        Report::new(IntegrationError::ConfigurationError {
+                            code: "URL_PATCHING_FAILED".to_string(),
+                            message: format!("URL patching failed: {e}"),
+                            context: IntegrationErrorContext::default(),
+                        })
+                    })?;
+                    connectors_with_connector_config_overrides_on_connectors(
+                        connector_config,
+                        patched_connectors,
+                    )
                 }
                 None => {
                     tracing::info!(
@@ -525,6 +525,7 @@ fn create_and_emit_grpc_event<R>(
         additional_fields: HashMap::new(),
         lineage_ids: metadata_payload
             .map_or_else(|| LineageIds::empty(""), |md| md.lineage_ids.clone()),
+        runtime_metadata: config.runtime_metadata.clone(),
     };
 
     grpc_event
@@ -698,6 +699,7 @@ macro_rules! implement_connector_operation {
                 service_type: $crate::utils::service_type_str(&config.server.type_),
                 flow_name,
                 event_config: &config.events,
+                runtime_metadata: &config.runtime_metadata,
                 request_id: &request_id,
                 lineage_ids: &metadata_payload.lineage_ids,
                 reference_id: &metadata_payload.reference_id,
@@ -1058,6 +1060,7 @@ macro_rules! implement_connector_operation {
                 service_type: $crate::utils::service_type_str(&config.server.type_),
                 flow_name,
                 event_config: &config.events,
+                runtime_metadata: &config.runtime_metadata,
                 request_id: &request_id,
                 lineage_ids: &metadata_payload.lineage_ids,
                 reference_id: &metadata_payload.reference_id,

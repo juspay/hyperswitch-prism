@@ -14,9 +14,9 @@ use domain_types::connector_types::{
     PaymentVoidData, PaymentsAuthenticateData, PaymentsAuthorizeData,
     PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
     PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsSyncData,
-    RechargeRequestData, RefundSyncData, RefundVoidPostRefundData, RefundsData, RepeatPaymentData,
-    ServerAuthenticationTokenRequestData, ServerSessionAuthenticationTokenRequestData,
-    SetupMandateRequestData, SubmitEvidenceData,
+    RechargeRequestData, RefreshPaymentMethodData, RefundSyncData, RefundVoidPostRefundData,
+    RefundsData, RepeatPaymentData, ServerAuthenticationTokenRequestData,
+    ServerSessionAuthenticationTokenRequestData, SetupMandateRequestData, SubmitEvidenceData,
 };
 use domain_types::frm::frm_types::{
     FrmChargebackReceivedRequest, FrmPaymentOutcomeRequest, FrmRefundProcessedRequest,
@@ -24,8 +24,8 @@ use domain_types::frm::frm_types::{
 };
 use domain_types::payouts::payouts_types::{
     PayoutCreateLinkRequest, PayoutCreateRecipientRequest, PayoutCreateRequest,
-    PayoutEnrollDisburseAccountRequest, PayoutGetRequest, PayoutStageRequest,
-    PayoutTransferRequest, PayoutVoidRequest,
+    PayoutEligibilityRequest, PayoutEnrollDisburseAccountRequest, PayoutGetRequest,
+    PayoutStageRequest, PayoutTransferRequest, PayoutVoidRequest,
 };
 use domain_types::router_request_types::VerifyWebhookSourceRequestData;
 use domain_types::surcharge::surcharge_types::{
@@ -37,9 +37,9 @@ use domain_types::{
     payment_method_data::PaymentMethodDataTypes,
     payouts::router_request_types::{
         PayoutCreateIntegrityObject, PayoutCreateLinkIntegrityObject,
-        PayoutCreateRecipientIntegrityObject, PayoutEnrollDisburseAccountIntegrityObject,
-        PayoutGetIntegrityObject, PayoutStageIntegrityObject, PayoutTransferIntegrityObject,
-        PayoutVoidIntegrityObject,
+        PayoutCreateRecipientIntegrityObject, PayoutEligibilityIntegrityObject,
+        PayoutEnrollDisburseAccountIntegrityObject, PayoutGetIntegrityObject,
+        PayoutStageIntegrityObject, PayoutTransferIntegrityObject, PayoutVoidIntegrityObject,
     },
     router_request_types::{
         AcceptDisputeIntegrityObject, AccessTokenIntegrityObject, AuthenticateIntegrityObject,
@@ -52,9 +52,10 @@ use domain_types::{
         PaymentMethodTokenIntegrityObject, PaymentSynIntegrityObject, PaymentVoidIntegrityObject,
         PaymentVoidPostCaptureIntegrityObject, PostAuthenticateIntegrityObject,
         PostRiskCheckIntegrityObject, PreAuthenticateIntegrityObject, PreRiskCheckIntegrityObject,
-        RechargeIntegrityObject, RefundIntegrityObject, RefundSyncIntegrityObject,
-        RepeatPaymentIntegrityObject, SessionTokenIntegrityObject, SetupMandateIntegrityObject,
-        SubmitEvidenceIntegrityObject, VerifyWebhookSourceIntegrityObject,
+        RechargeIntegrityObject, RefreshPaymentMethodIntegrityObject, RefundIntegrityObject,
+        RefundSyncIntegrityObject, RepeatPaymentIntegrityObject, SessionTokenIntegrityObject,
+        SetupMandateIntegrityObject, SubmitEvidenceIntegrityObject,
+        VerifyWebhookSourceIntegrityObject,
     },
 };
 
@@ -208,12 +209,14 @@ impl_check_integrity!(PayoutCreateRecipientRequest);
 impl_check_integrity!(PayoutEnrollDisburseAccountRequest);
 impl_check_integrity!(PayoutGetRequest);
 impl_check_integrity!(PayoutVoidRequest);
+impl_check_integrity!(PayoutEligibilityRequest);
 impl_check_integrity!(SurchargeCalculateRequest);
 impl_check_integrity!(SurchargePaymentSucceededRequest);
 impl_check_integrity!(SurchargeRefundSucceededRequest);
 impl_check_integrity!(RechargeRequestData);
 impl_check_integrity!(CreatePaymentMethodData);
 impl_check_integrity!(GetPaymentMethodData);
+impl_check_integrity!(RefreshPaymentMethodData<S>);
 impl_check_integrity!(PreRiskCheckRequest);
 impl_check_integrity!(PostRiskCheckRequest);
 impl_check_integrity!(FrmPaymentOutcomeRequest);
@@ -442,6 +445,18 @@ impl GetIntegrityObject<PaymentMethodEligibilityIntegrityObject> for PaymentMeth
 
     fn get_request_integrity_object(&self) -> PaymentMethodEligibilityIntegrityObject {
         PaymentMethodEligibilityIntegrityObject {}
+    }
+}
+
+impl<T: PaymentMethodDataTypes> GetIntegrityObject<RefreshPaymentMethodIntegrityObject>
+    for RefreshPaymentMethodData<T>
+{
+    fn get_response_integrity_object(&self) -> Option<RefreshPaymentMethodIntegrityObject> {
+        None
+    }
+
+    fn get_request_integrity_object(&self) -> RefreshPaymentMethodIntegrityObject {
+        RefreshPaymentMethodIntegrityObject {}
     }
 }
 
@@ -1015,6 +1030,18 @@ impl FlowIntegrity for PaymentMethodEligibilityIntegrityObject {
     }
 }
 
+impl FlowIntegrity for RefreshPaymentMethodIntegrityObject {
+    type IntegrityObject = Self;
+
+    fn compare(
+        _req_integrity_object: Self,
+        _res_integrity_object: Self,
+        _connector_transaction_id: Option<String>,
+    ) -> Result<(), IntegrityCheckError> {
+        Ok(())
+    }
+}
+
 impl FlowIntegrity for VerifyWebhookSourceIntegrityObject {
     type IntegrityObject = Self;
 
@@ -1434,6 +1461,19 @@ impl GetIntegrityObject<PayoutVoidIntegrityObject> for PayoutVoidRequest {
     }
 }
 
+impl GetIntegrityObject<PayoutEligibilityIntegrityObject> for PayoutEligibilityRequest {
+    fn get_response_integrity_object(&self) -> Option<PayoutEligibilityIntegrityObject> {
+        None
+    }
+
+    fn get_request_integrity_object(&self) -> PayoutEligibilityIntegrityObject {
+        PayoutEligibilityIntegrityObject {
+            amount: self.amount.amount,
+            currency: self.amount.currency,
+        }
+    }
+}
+
 impl GetIntegrityObject<SurchargeCalculateIntegrityObject> for SurchargeCalculateRequest {
     fn get_response_integrity_object(&self) -> Option<SurchargeCalculateIntegrityObject> {
         None // Surcharge calculation responses don't have integrity objects
@@ -1753,6 +1793,36 @@ impl FlowIntegrity for PayoutVoidIntegrityObject {
                     .clone()
                     .unwrap_or_default(),
                 &res_integrity_object.merchant_payout_id.unwrap_or_default(),
+            ));
+        }
+
+        check_integrity_result(mismatched_fields, connector_transaction_id)
+    }
+}
+
+impl FlowIntegrity for PayoutEligibilityIntegrityObject {
+    type IntegrityObject = Self;
+
+    fn compare(
+        req_integrity_object: Self,
+        res_integrity_object: Self,
+        connector_transaction_id: Option<String>,
+    ) -> Result<(), IntegrityCheckError> {
+        let mut mismatched_fields = Vec::new();
+
+        if req_integrity_object.amount != res_integrity_object.amount {
+            mismatched_fields.push(format_mismatch(
+                "amount",
+                &req_integrity_object.amount.to_string(),
+                &res_integrity_object.amount.to_string(),
+            ));
+        }
+
+        if req_integrity_object.currency != res_integrity_object.currency {
+            mismatched_fields.push(format_mismatch(
+                "currency",
+                &req_integrity_object.currency.to_string(),
+                &res_integrity_object.currency.to_string(),
             ));
         }
 

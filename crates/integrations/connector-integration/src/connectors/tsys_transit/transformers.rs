@@ -953,32 +953,6 @@ pub struct TsysTransitTransactionInquiryResponse {
     #[serde(rename = "responseMessage", default)]
     pub response_message: Option<String>,
 }
-#[derive(Debug, Default, Deserialize, Clone)]
-struct TsysTransitMerchantMetadata {
-    #[serde(default)]
-    tsys_transit: Option<TsysTransitMerchantMetadataInner>,
-}
-
-impl TsysTransitMerchantMetadata {
-    fn into_inner(self) -> TsysTransitMerchantMetadataInner {
-        self.tsys_transit.unwrap_or_default()
-    }
-}
-
-#[derive(Debug, Default, Deserialize, Clone)]
-struct TsysTransitMerchantMetadataInner {
-    /// Channel override for the RepeatPayment / MIT-via-NTID flow only.
-    /// The `RecurringPaymentServiceChargeRequest` proto does NOT carry
-    /// `payment_channel`, so HS' MIT execution loses the MOTO-vs-Ecom
-    /// signal. Setting `payment_channel` in this merchant metadata block
-    /// (alongside `commercial_card`) lets the caller inject that signal
-    /// back on the MIT request. Accepts the strings `"telephone_order"`,
-    /// `"mail_order"`, `"ecommerce"`. Ignored when the flow already carries
-    /// an explicit channel. terminalData is NEVER taken from metadata — it
-    /// is derived entirely from the profile/rules layer.
-    #[serde(default)]
-    payment_channel: Option<String>,
-}
 
 #[derive(Debug, Default, Clone, Deserialize)]
 struct TsysTransitPaymentRequestMetadata {
@@ -986,17 +960,21 @@ struct TsysTransitPaymentRequestMetadata {
     ship_from_zip: Option<String>,
     customer_vat_number: Option<String>,
     summary_commodity_code: Option<String>,
-}
-#[derive(Debug, Default, Deserialize, Clone)]
-struct TsysTransitMandateMetadata {
+    /// Channel override for the RepeatPayment / MIT flow. The
+    /// `RecurringPaymentServiceChargeRequest` proto does not carry
+    /// `payment_channel`, so this lets the caller re-inject the MOTO-vs-Ecom
+    /// signal. Accepts `"telephone_order"` / `"mail_order"` / `"ecommerce"`.
+    #[serde(default)]
+    payment_channel: Option<String>,
+    /// Installment schedule. TSYS needs both the total number of installments
+    /// (`paymentCount`) and the 1-indexed position of this charge
+    /// (`currentPaymentCount`); HS' `installment_data` only carries the total
+    /// and is not forwarded on the RepeatPayment/MIT flow, so both come from
+    /// here.
     #[serde(default)]
     payment_count: Option<u32>,
     #[serde(default)]
     current_payment_count: Option<u32>,
-    #[serde(default)]
-    mc_subtype: Option<String>,
-    #[serde(default)]
-    installment_variant: Option<String>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -1089,6 +1067,7 @@ fn compute_recurring_context(
     mit_category: Option<MitCategory>,
     recurring_data: Option<&RecurringMandatePaymentData>,
     card_network: Option<&CardNetwork>,
+    payment_meta: Option<&TsysTransitPaymentRequestMetadata>,
 ) -> Result<RecurringContext, Report<IntegrationError>> {
     let (is_recurring_flag, billing_type) = match mit_category.as_ref() {
         Some(MitCategory::Recurring) => (Some(TsysTransitIsRecurring::Y), None),
@@ -1100,28 +1079,27 @@ fn compute_recurring_context(
             return Ok(RecurringContext::default())
         }
     };
-    let mm = match recurring_data.and_then(|d| d.mandate_metadata.as_ref()) {
-        Some(raw) => serde_json::from_value::<TsysTransitMandateMetadata>(raw.peek().clone())
-            .change_context(IntegrationError::InvalidDataFormat {
-                field_name: "recurring_mandate_payment_data.mandate_metadata",
-                context: Default::default(),
-            })?,
-        None => TsysTransitMandateMetadata::default(),
-    };
+    // The installment schedule (paymentCount / currentPaymentCount), MC
+    // recurring subtype and Discover installment variant come from the payment
+    // metadata (`connector_metadata.tsys_transit`). The RepeatPayment / MIT flow
+    // does not reliably carry `recurring_mandate_payment_data.mandate_metadata`,
+    // so that source is intentionally not consulted here.
+    let payment_count = payment_meta.and_then(|m| m.payment_count);
+    let current_payment_count = payment_meta.and_then(|m| m.current_payment_count);
     if matches!(mit_category.as_ref(), Some(MitCategory::Installment))
-        && (mm.payment_count.is_none() || mm.current_payment_count.is_none())
+        && (payment_count.is_none() || current_payment_count.is_none())
     {
         return Err(error_stack::report!(IntegrationError::MissingRequiredField {
-            field_name: "recurring_mandate_payment_data.mandate_metadata.{payment_count,current_payment_count}",
+            field_name: "connector_metadata.tsys_transit.{payment_count,current_payment_count}",
             context: Default::default(),
         })
         .attach_printable(
             "tsys_transit: installment MIT requires both `paymentCount` (total number of \
-             scheduled installments, e.g. 12) and `currentPaymentCount` (1-indexed position \
+             scheduled installments, e.g. 8) and `currentPaymentCount` (1-indexed position \
              of this charge in the schedule, e.g. 3) on the TransIT Sale/Auth request — \
              without them TSYS rejects the transaction at the gateway. Populate \
-             `recurring_mandate_payment_data.mandate_metadata.payment_count` and \
-             `.current_payment_count` upstream, or pick a non-Installment `mit_category`. \
+             `connector_metadata.tsys_transit.payment_count` and `.current_payment_count` \
+             in the payment metadata, or pick a non-Installment `mit_category`. \
              See: https://developerportal.transit-pass.com/developerportal/resources/dist/#/api-specs/./assets/build/api/API3.0/UseCases/index.html",
         ));
     }
@@ -1140,38 +1118,15 @@ fn compute_recurring_context(
             | Some(CardNetwork::JCB)
             | Some(CardNetwork::DinersClub)
             | Some(CardNetwork::UnionPay),
-        ) => Some(
-            if mm
-                .installment_variant
-                .as_deref()
-                .is_some_and(|s| s.eq_ignore_ascii_case("t"))
-            {
-                TsysTransitMitIndicator::T
-            } else {
-                TsysTransitMitIndicator::S
-            },
-        ),
+        ) => Some(TsysTransitMitIndicator::S),
         _ => None,
     };
     let (mc_cit_status_indicator, mc_mit_status_indicator) =
         match (mit_category.as_ref(), card_network) {
-            (Some(MitCategory::Recurring), Some(CardNetwork::Mastercard)) => {
-                let is_subscription = mm
-                    .mc_subtype
-                    .as_deref()
-                    .is_some_and(|s| s.eq_ignore_ascii_case("subscription"));
-                if is_subscription {
-                    (
-                        Some(TsysTransitMcCitStatusIndicator::C103),
-                        Some(TsysTransitMitIndicator::M103),
-                    )
-                } else {
-                    (
-                        Some(TsysTransitMcCitStatusIndicator::C102),
-                        Some(TsysTransitMitIndicator::M102),
-                    )
-                }
-            }
+            (Some(MitCategory::Recurring), Some(CardNetwork::Mastercard)) => (
+                Some(TsysTransitMcCitStatusIndicator::C102),
+                Some(TsysTransitMitIndicator::M102),
+            ),
             (Some(MitCategory::Installment), Some(CardNetwork::Mastercard)) => (
                 Some(TsysTransitMcCitStatusIndicator::C104),
                 Some(TsysTransitMitIndicator::M104),
@@ -1186,8 +1141,8 @@ fn compute_recurring_context(
         enabled: true,
         is_recurring_flag,
         billing_type,
-        payment_count: mm.payment_count,
-        current_payment_count: mm.current_payment_count,
+        payment_count,
+        current_payment_count,
         mc_cit_status_indicator,
         mit_status_indicator: mc_mit_status_indicator.or(discover_family_mit_indicator),
         original_recurring_amount,
@@ -2030,6 +1985,16 @@ fn extract_for_authorize<T: PaymentMethodDataTypes + Debug + Sync + Send + 'stat
     let card_network = card
         .and_then(|c| c.card_network.clone())
         .or_else(|| nti_card_opt.and_then(|n| n.card_network.clone()));
+    // Recurring / installment scheduling (payment_channel, paymentCount,
+    // currentPaymentCount) is read from `connector_metadata.tsys_transit`.
+    let request_metadata = router_data
+        .request
+        .metadata
+        .as_ref()
+        .and_then(|m| {
+            serde_json::from_value::<TsysTransitPaymentRequestMetadata>(m.clone().expose()).ok()
+        })
+        .unwrap_or_default();
     let recurring_context = compute_recurring_context(
         router_data.request.mit_category.clone(),
         router_data
@@ -2037,6 +2002,7 @@ fn extract_for_authorize<T: PaymentMethodDataTypes + Debug + Sync + Send + 'stat
             .recurring_mandate_payment_data
             .as_ref(),
         card_network.as_ref(),
+        Some(&request_metadata),
     )?;
     let commercial_card_context =
         compute_commercial_card_context(router_data, card_network.as_ref(), &auth)?;
@@ -3750,17 +3716,18 @@ fn repeat_payment_data_to_authorize<T: PaymentMethodDataTypes>(
     };
 
     // The RecurringPaymentServiceChargeRequest proto doesn't carry
-    // payment_channel — recover it from the TSYS merchant metadata's
-    // optional `payment_channel` override so MOTO MIT executions still
-    // produce CARDHOLDER_NOT_PRESENT_PHONE_TRANSACTION etc. instead of
-    // the e-com default.
+    // payment_channel — recover it from the TSYS merchant metadata's optional
+    // `payment_channel` override. When it is absent the transaction defaults to
+    // MOTO/PHONE (tsys_transit is a MOTO connector; legacy stored cards have no
+    // channel on file), so MOTO merchant-initiated transactions produce
+    // CARDHOLDER_NOT_PRESENT_PHONE_TRANSACTION instead of the e-com default.
     let payment_channel_from_metadata = req
         .metadata
         .as_ref()
         .and_then(|m| {
-            serde_json::from_value::<TsysTransitMerchantMetadata>(m.clone().expose()).ok()
+            serde_json::from_value::<TsysTransitPaymentRequestMetadata>(m.clone().expose()).ok()
         })
-        .and_then(|m| m.into_inner().payment_channel)
+        .and_then(|m| m.payment_channel)
         .and_then(|s| match s.to_ascii_lowercase().as_str() {
             "telephone_order" | "phone" => Some(PaymentChannel::TelephoneOrder),
             "mail_order" | "mail" => Some(PaymentChannel::MailOrder),
@@ -3812,7 +3779,14 @@ fn repeat_payment_data_to_authorize<T: PaymentMethodDataTypes>(
         setup_mandate_details: None,
         connector_feature_data: req.connector_feature_data.clone(),
         connector_testing_data: req.connector_testing_data.clone(),
-        payment_channel: payment_channel_from_metadata,
+        // Precedence: the request's own `payment_channel` (now carried on the
+        // charge), then the metadata override, then the MOTO/PHONE default
+        // (tsys_transit is a MOTO connector; stored cards carry no channel).
+        payment_channel: req
+            .payment_channel
+            .clone()
+            .or(payment_channel_from_metadata)
+            .or(Some(PaymentChannel::TelephoneOrder)),
         enable_partial_authorization: req.enable_partial_authorization,
         locale: req.locale.clone(),
         redirect_response: None,
@@ -3822,6 +3796,7 @@ fn repeat_payment_data_to_authorize<T: PaymentMethodDataTypes>(
         mit_category: req.mit_category.clone(),
         domain_data: None,
         partner_merchant_identifier_details: None,
+        currency_conversion_data: None,
     }
 }
 

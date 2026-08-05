@@ -2,15 +2,17 @@ use std::fmt::Debug;
 
 use domain_types::{
     connector_types::{
-        ConnectorEnum, FrmConnectorEnum, PayoutConnectorEnum, SurchargeConnectorEnum,
+        AuthenticatorConnectorEnum, ConnectorEnum, FrmConnectorEnum, PayoutConnectorEnum,
+        SurchargeConnectorEnum,
     },
     payment_method_data::PaymentMethodDataTypes,
 };
 use interfaces::connector_types::{
-    BoxedConnector, BoxedFrmConnector, BoxedPayoutConnector, BoxedSurchargeConnector,
+    BoxedAuthenticatorConnector, BoxedConnector, BoxedFrmConnector, BoxedPayoutConnector,
+    BoxedSurchargeConnector,
 };
 
-use crate::{connectors, payout_connectors, surcharge_connectors};
+use crate::{authenticator_connectors, connectors, payout_connectors, surcharge_connectors};
 
 #[derive(Clone)]
 pub struct ConnectorData<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static> {
@@ -136,6 +138,7 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
             ConnectorEnum::Affirm => Box::new(connectors::Affirm::<T>::new()),
             ConnectorEnum::Kount => Box::new(connectors::Kount::<T>::new()),
             ConnectorEnum::Givepayments => Box::new(connectors::Givepayments::<T>::new()),
+            ConnectorEnum::Tesouro => Box::new(connectors::Tesouro::<T>::new()),
         }
     }
 }
@@ -212,6 +215,11 @@ impl PayoutConnectorData {
             PayoutConnectorEnum::Loonio => Box::new(payout_connectors::LoonioPayouts::new()),
             PayoutConnectorEnum::Paypal => Box::new(payout_connectors::PaypalPayouts::new()),
             PayoutConnectorEnum::Itaubank => Box::new(payout_connectors::ItaubankPayouts::new()),
+            PayoutConnectorEnum::Deutschebank => {
+                Box::new(payout_connectors::DeutschebankPayouts::<
+                    domain_types::payment_method_data::DefaultPCIHolder,
+                >::new())
+            }
             PayoutConnectorEnum::Worldpayxml => {
                 Box::new(payout_connectors::WorldpayxmlPayouts::new())
             }
@@ -271,6 +279,44 @@ impl ConnectorDataProvider for PayoutConnectorData {
                     .as_payment()
                     .and_then(|c| PayoutConnectorEnum::try_from(c).ok())
             })
+            .map(|c| Self::get_connector_by_name(&c))
+    }
+}
+
+#[derive(Clone)]
+pub struct AuthenticatorConnectorData {
+    pub connector: BoxedAuthenticatorConnector,
+    pub connector_name: AuthenticatorConnectorEnum,
+}
+
+impl AuthenticatorConnectorData {
+    pub fn get_connector_by_name(connector_name: &AuthenticatorConnectorEnum) -> Self {
+        let connector = Self::convert_connector(*connector_name);
+        Self {
+            connector,
+            connector_name: *connector_name,
+        }
+    }
+
+    fn convert_connector(
+        connector_name: AuthenticatorConnectorEnum,
+    ) -> BoxedAuthenticatorConnector {
+        match connector_name {
+            AuthenticatorConnectorEnum::Plaid => Box::new(authenticator_connectors::Plaid::<
+                domain_types::payment_method_data::DefaultPCIHolder,
+            >::new()),
+        }
+    }
+}
+
+impl ConnectorDataProvider for AuthenticatorConnectorData {
+    type ConnectorEnumType = AuthenticatorConnectorEnum;
+
+    fn from_connector_variant(
+        variant: &domain_types::connector_types::ConnectorVariant,
+    ) -> Option<Self> {
+        variant
+            .as_authenticator()
             .map(|c| Self::get_connector_by_name(&c))
     }
 }

@@ -23,8 +23,10 @@ connector_request_timeout = 30
 bypass_urls = ["localhost", "local"]
 
 [connectors]
+tesouro.base_url = "https://api.sandbox.tesouro.com"
 kount.base_url = "https://api-sandbox.kount.com"
 kount.secondary_base_url = "https://login.kount.com"
+plaid.base_url = "https://sandbox.plaid.com"
 glomopay.base_url = "https://api.glomopay.com/api/v1/"
 hyperswitch.base_url = "https://sandbox.hyperswitch.io"
 payconex.base_url = "https://cert.payconex.net"
@@ -130,6 +132,8 @@ zift.base_url = "https://sandbox-secure.zift.io/"
 truelayer.base_url = "https://api.truelayer-sandbox.com"
 truelayer.secondary_base_url = "https://auth.truelayer-sandbox.com"
 itaubank.base_url = "https://sandbox.devportal.itau.com.br"
+deutschebank.base_url = "https://api.sbx.baas.db.com"
+deutschebank.server_ca_bundle = ""
 trustly.base_url = "https://test.trustly.com/api/1"
 pinelabs_online.base_url = "https://pluraluat.v2.pinepg.in/api/pay/v1"
 easebuzz.base_url = "https://testpay.easebuzz.in"

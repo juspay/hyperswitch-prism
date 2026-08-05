@@ -41,11 +41,12 @@ use grpc_api_types::payments::{
     PaymentMethodAuthenticationServiceAuthenticateRequest,
     PaymentMethodAuthenticationServicePostAuthenticateRequest,
     PaymentMethodAuthenticationServicePreAuthenticateRequest,
-    PaymentMethodServiceEligibilityRequest, PaymentMethodServiceTokenizeRequest,
-    PaymentServiceAuthorizeRequest, PaymentServiceCaptureRequest, PaymentServiceCreateOrderRequest,
-    PaymentServiceGetRequest, PaymentServiceIncrementalAuthorizationRequest,
-    PaymentServiceProxyAuthorizeRequest, PaymentServiceProxySetupRecurringRequest,
-    PaymentServiceRefundRequest, PaymentServiceReverseRequest, PaymentServiceSetupRecurringRequest,
+    PaymentMethodServiceEligibilityRequest, PaymentMethodServiceRefreshRequest,
+    PaymentMethodServiceTokenizeRequest, PaymentServiceAuthorizeRequest,
+    PaymentServiceCaptureRequest, PaymentServiceCreateOrderRequest, PaymentServiceGetRequest,
+    PaymentServiceIncrementalAuthorizationRequest, PaymentServiceProxyAuthorizeRequest,
+    PaymentServiceProxySetupRecurringRequest, PaymentServiceRefundRequest,
+    PaymentServiceReverseRequest, PaymentServiceSetupRecurringRequest,
     PaymentServiceTokenAuthorizeRequest, PaymentServiceTokenSetupRecurringRequest,
     PaymentServiceVerifyRedirectResponseRequest, PaymentServiceVoidRequest, ProxyCardDetails,
     RecurringPaymentServiceChargeRequest, RecurringPaymentServiceRevokeRequest,
@@ -53,7 +54,7 @@ use grpc_api_types::payments::{
 };
 use hyperswitch_masking::Secret;
 
-use crate::sample_data::{card_payment_method, usd_money};
+use crate::sample_data::{card_payment_method, card_with_no_cvc_payment_method, usd_money};
 
 pub(crate) fn base_authorize_request_with_meta(
     pm: PaymentMethod,
@@ -249,6 +250,12 @@ pub(crate) fn base_tokenize_request() -> PaymentMethodServiceTokenizeRequest {
             shipping_address: None,
         }),
         ..Default::default()
+    }
+}
+
+pub(crate) fn base_refresh_request() -> PaymentMethodServiceRefreshRequest {
+    PaymentMethodServiceRefreshRequest {
+        payment_method: Some(card_with_no_cvc_payment_method()),
     }
 }
 

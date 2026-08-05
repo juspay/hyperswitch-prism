@@ -27,6 +27,9 @@ message PayoutEnums {
     REQUIRES_PAYOUT_METHOD_DATA = 11;
     REQUIRES_FULFILLMENT = 12;
     REQUIRES_VENDOR_ACCOUNT_CREATION = 13;
+    // Terminal refusal by the processor (e.g. Verification-of-Payee no-match /
+    // could-not-verify). Distinct from INELIGIBLE, which is non-terminal.
+    NOT_PERMITTED = 14;
   }
 
   enum PayoutRecipientType {
@@ -116,6 +119,10 @@ message SepaBankTransferPayout {
   SecretString iban = 4;
   // The Bank Identifier Code (BIC)
   optional SecretString bic = 5;
+  // The name of the account holder. For a debtor (source) account this is the
+  // ordering party; connectors that populate the ISO 20022 Dbtr/Nm need it here
+  // rather than falling back to the payee's name.
+  optional SecretString account_holder_name = 6;
 }
 
 message PixBankTransferPayout {
@@ -370,6 +377,10 @@ message PayoutServiceGetRequest {
   optional string connector_payout_id = 2;
   // access token
   optional SecretString access_token = 3;
+  // Source (debtor) bank data. Some connectors (e.g. Deutsche Bank) require the
+  // debtor account details to perform a status enquiry, so they must be carried
+  // on the Get request rather than smuggled inside connector_payout_id.
+  optional SourceBankData source_bank_data = 4;
 }
 
 // Response message for fetching a payout
@@ -542,6 +553,12 @@ message PayoutMethodEligibilityRequest {
   Currency destination_currency = 6;
   // access token
   optional SecretString access_token = 7;
+  // Address Information
+  optional PayoutAddress address = 8;
+  // Customer Details
+  optional Customer customer = 9;
+  // Source Bank Data
+  optional SourceBankData source_bank_data = 10;
 }
 
 // Response message for checking payout eligibility
@@ -556,5 +573,7 @@ message PayoutMethodEligibilityResponse {
   optional ErrorInfo error = 4;
   // HTTP status code from the connector
   uint32 status_code = 5;
+  // Whether the payout is eligible
+  optional bool payout_eligible = 6;
 }
 

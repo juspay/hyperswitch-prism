@@ -6,7 +6,7 @@ use std::sync::Arc;
 use common_utils::{
     connector_request_kafka::{ConnectorRequestKafkaConfig, ConnectorRequestKafkaConfigPatch},
     consts,
-    events::{EventConfig, EventConfigPatch},
+    events::{EventConfig, EventConfigPatch, RuntimeMetadata, RuntimeMetadataPatch},
     metadata::{HeaderMaskingConfig, HeaderMaskingConfigPatch},
     SuperpositionConfig,
 };
@@ -42,6 +42,12 @@ pub struct Config {
     pub webhook_source_verification_call: WebhookSourceVerificationCall,
     #[serde(default)]
     pub connector_request_kafka: ConnectorRequestKafkaConfig,
+    /// Deployment / runtime identity stamped on every event. `application_name` / `deployment_id` /
+    /// `pod_name` come from `CS__RUNTIME_METADATA__*` (optional; deployment-provided via the k8s
+    /// Downward API). `version` is not read from config — it is set in `main` from the compiled
+    /// build. Absent optional values are simply omitted and never fail startup.
+    #[serde(default)]
+    pub runtime_metadata: RuntimeMetadata,
     /// Superposition configuration for connector URL resolution
     /// This is loaded at startup from config/superposition.toml
     #[serde(skip)]
@@ -359,6 +365,22 @@ impl Config {
 
         // Validate the environment field
         config.common.validate()?;
+
+        // Fail fast on malformed platform CA config, using the same PEM parser as
+        // runtime client construction. Iterates the hand-maintained list in
+        // `Connectors::server_ca_bundles` — a new connector with a CA bundle must be
+        // registered there to be validated here.
+        for (connector, pem) in config.connectors.server_ca_bundles() {
+            let pem = pem.trim();
+            if !pem.is_empty() {
+                external_services::service::parse_ca_pem_bundle(pem.as_bytes()).map_err(|err| {
+                    config::ConfigError::Message(format!(
+                        "Invalid `connectors.{connector}.server_ca_bundle`: expected a valid PEM \
+                         CA bundle: {err}"
+                    ))
+                })?;
+            }
+        }
 
         Ok(config)
     }

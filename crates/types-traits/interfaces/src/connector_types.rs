@@ -18,12 +18,14 @@ use domain_types::{
         PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
         PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
         PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RechargeRequestData,
-        RechargeResponseData, RedirectDetailsResponse, RefundFlowData, RefundSyncData,
-        RefundVoidPostRefundData, RefundWebhookDetailsResponse, RefundsData, RefundsResponseData,
-        RepeatPaymentData, RequestDetails, ServerAuthenticationTokenRequestData,
-        ServerAuthenticationTokenResponseData, ServerSessionAuthenticationTokenRequestData,
-        ServerSessionAuthenticationTokenResponseData, SetupMandateRequestData, SubmitEvidenceData,
-        VerifyWebhookSourceFlowData, WebhookDetailsResponse, WebhookResourceReference,
+        RechargeResponseData, RedirectDetailsResponse, RefreshPaymentMethodData,
+        RefreshPaymentMethodFlowData, RefreshPaymentMethodResponseData, RefundFlowData,
+        RefundSyncData, RefundVoidPostRefundData, RefundWebhookDetailsResponse, RefundsData,
+        RefundsResponseData, RepeatPaymentData, RequestDetails,
+        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+        ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
+        SetupMandateRequestData, SubmitEvidenceData, VerifyWebhookSourceFlowData,
+        WebhookDetailsResponse, WebhookResourceReference,
     },
     errors::WebhookError,
     frm::frm_types::{
@@ -37,9 +39,10 @@ use domain_types::{
     payouts::payouts_types::{
         PayoutCreateLinkRequest, PayoutCreateLinkResponse, PayoutCreateRecipientRequest,
         PayoutCreateRecipientResponse, PayoutCreateRequest, PayoutCreateResponse,
-        PayoutEnrollDisburseAccountRequest, PayoutEnrollDisburseAccountResponse, PayoutFlowData,
-        PayoutGetRequest, PayoutGetResponse, PayoutStageRequest, PayoutStageResponse,
-        PayoutTransferRequest, PayoutTransferResponse, PayoutVoidRequest, PayoutVoidResponse,
+        PayoutEligibilityRequest, PayoutEligibilityResponse, PayoutEnrollDisburseAccountRequest,
+        PayoutEnrollDisburseAccountResponse, PayoutFlowData, PayoutGetRequest, PayoutGetResponse,
+        PayoutStageRequest, PayoutStageResponse, PayoutTransferRequest, PayoutTransferResponse,
+        PayoutVoidRequest, PayoutVoidResponse,
     },
     router_data::ConnectorSpecificConfig,
     router_request_types::VerifyWebhookSourceRequestData,
@@ -102,6 +105,7 @@ pub trait ConnectorServiceTrait<T: PaymentMethodDataTypes>:
     + RechargeV2
     + CreatePaymentMethodV2
     + GetPaymentMethodV2
+    + RefreshPaymentMethodV2<T>
     + PaymentVoidV2
     + PaymentVoidPostCaptureV2
     + IncomingWebhook
@@ -158,6 +162,7 @@ pub trait PayoutServiceTrait:
     + PayoutCreateLinkV2
     + PayoutCreateRecipientV2
     + PayoutEnrollDisburseAccountV2
+    + PayoutEligibilityV2
 {
 }
 
@@ -186,6 +191,11 @@ pub trait PaymentMethodEligibilityV2:
 {
 }
 
+pub trait AuthenticatorServiceTrait<T: PaymentMethodDataTypes>:
+    ConnectorCommon + ValidationTrait + ClientAuthentication + PaymentTokenV2<T> + GetPaymentMethodV2
+{
+}
+
 pub type BoxedConnector<T> = Box<&'static (dyn ConnectorServiceTrait<T> + Sync)>;
 
 pub type BoxedSurchargeConnector = Box<&'static (dyn SurchargeServiceTrait + Sync)>;
@@ -193,6 +203,11 @@ pub type BoxedSurchargeConnector = Box<&'static (dyn SurchargeServiceTrait + Syn
 pub type BoxedFrmConnector = Box<&'static (dyn FrmServiceTrait + Sync)>;
 
 pub type BoxedPayoutConnector = Box<&'static (dyn PayoutServiceTrait + Sync)>;
+
+pub type BoxedAuthenticatorConnector = Box<
+    &'static (dyn AuthenticatorServiceTrait<domain_types::payment_method_data::DefaultPCIHolder>
+                  + Sync),
+>;
 
 pub trait ValidationTrait: ConnectorCommon {
     fn should_do_order_create(&self) -> bool {
@@ -354,6 +369,16 @@ pub trait GetPaymentMethodV2:
     PaymentFlowData,
     GetPaymentMethodData,
     GetPaymentMethodResponseData,
+>
+{
+}
+
+pub trait RefreshPaymentMethodV2<T: PaymentMethodDataTypes>:
+    ConnectorIntegrationV2<
+    connector_flow::RefreshPaymentMethod,
+    RefreshPaymentMethodFlowData,
+    RefreshPaymentMethodData<T>,
+    RefreshPaymentMethodResponseData,
 >
 {
 }
@@ -900,6 +925,16 @@ pub trait PayoutEnrollDisburseAccountV2:
     PayoutFlowData,
     PayoutEnrollDisburseAccountRequest,
     PayoutEnrollDisburseAccountResponse,
+>
+{
+}
+
+pub trait PayoutEligibilityV2:
+    ConnectorIntegrationV2<
+    connector_flow::PayoutEligibility,
+    PayoutFlowData,
+    PayoutEligibilityRequest,
+    PayoutEligibilityResponse,
 >
 {
 }

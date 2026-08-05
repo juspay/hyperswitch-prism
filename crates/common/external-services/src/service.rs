@@ -122,6 +122,18 @@ impl ConnectorRequestReference for domain_types::connector_types::VerifyWebhookS
     }
 }
 
+impl ConnectorRequestReference for domain_types::connector_types::RefreshPaymentMethodFlowData {
+    fn get_connector_request_reference_id(&self) -> &str {
+        &self.connector_request_reference_id
+    }
+}
+
+impl AdditionalHeaders for domain_types::connector_types::RefreshPaymentMethodFlowData {
+    fn get_vault_headers(&self) -> Option<&HashMap<String, Secret<String>>> {
+        None
+    }
+}
+
 impl AdditionalHeaders for domain_types::connector_types::VerifyWebhookSourceFlowData {
     fn get_vault_headers(&self) -> Option<&HashMap<String, Secret<String>>> {
         None
@@ -211,7 +223,7 @@ impl AdditionalHeaders for domain_types::frm::frm_types::FrmFlowData {
         None
     }
 }
-use common_utils::events::{Event, EventConfig, FlowName};
+use common_utils::events::{Event, EventConfig, FlowName, RuntimeMetadata};
 #[cfg(feature = "injector-client")]
 use common_utils::types::ExecutionMode;
 #[cfg(feature = "injector-client")]
@@ -266,6 +278,11 @@ impl GetFlowStatus for domain_types::connector_types::RefundFlowData {
     }
 }
 impl GetFlowStatus for domain_types::connector_types::DisputeFlowData {
+    fn flow_status(&self) -> Option<domain_types::router_data::FlowStatus> {
+        None
+    }
+}
+impl GetFlowStatus for domain_types::connector_types::RefreshPaymentMethodFlowData {
     fn flow_status(&self) -> Option<domain_types::router_data::FlowStatus> {
         None
     }
@@ -504,6 +521,8 @@ pub struct EventProcessingParams<'a> {
     pub service_type: &'a str,
     pub flow_name: FlowName,
     pub event_config: &'a EventConfig,
+    /// Deployment/runtime identity threaded from application state, stamped onto every event.
+    pub runtime_metadata: &'a RuntimeMetadata,
     pub request_id: &'a str,
     pub lineage_ids: &'a lineage::LineageIds<'a>,
     pub reference_id: &'a Option<String>,
@@ -1077,6 +1096,9 @@ fn create_event(
         headers: event_headers,
         additional_fields: HashMap::new(),
         lineage_ids: event_params.lineage_ids.to_owned(),
+        // Deployment/runtime identity (compiled version + optional app/deployment/pod), threaded
+        // from application state; serialized as top-level event fields.
+        runtime_metadata: event_params.runtime_metadata.clone(),
     };
 
     event.add_reference_id(event_params.reference_id.as_deref());
@@ -1115,6 +1137,7 @@ pub async fn call_connector_api(
         proxy_name,
         request.certificate,
         request.certificate_key,
+        request.ca_certificate,
         test_mode,
     )?;
 
@@ -1274,6 +1297,7 @@ pub fn create_client(
     proxy_name: &str,
     client_certificate: Option<Secret<String>>,
     client_certificate_key: Option<Secret<String>>,
+    ca_certificate_pem: Option<Secret<String>>,
     test_mode: bool,
 ) -> CustomResult<Client, ApiClientError> {
     match (client_certificate.clone(), client_certificate_key.clone()) {
@@ -1282,18 +1306,21 @@ pub fn create_client(
                 get_client_builder(proxy_config, should_bypass_proxy, proxy_name, test_mode)?;
 
             let identity = create_identity_from_certificate_and_key(
-                encoded_certificate.clone(),
+                encoded_certificate,
                 encoded_certificate_key,
             )?;
-            let certificate_list = create_certificate(encoded_certificate)?;
-            let client_builder = certificate_list
+            // NOTE: the client identity certificate is no longer registered as a root CA.
+            // Server verification now uses webpki roots plus ca_certificate_pem only.
+            let client_builder = ca_certificate_pem
+                .map(create_certificate)
+                .transpose()?
+                .unwrap_or_default()
                 .into_iter()
-                .fold(client_builder, |client_builder, certificate| {
-                    client_builder.add_root_certificate(certificate)
-                });
+                .fold(
+                    client_builder.identity(identity).use_rustls_tls(),
+                    |b, ca| b.add_root_certificate(ca),
+                );
             client_builder
-                .identity(identity)
-                .use_rustls_tls()
                 .build()
                 .change_context(ApiClientError::ClientConstructionFailed)
                 .attach_printable("Failed to construct client with certificate and certificate key")
@@ -1510,6 +1537,16 @@ pub fn create_identity_from_certificate_and_key(
         .change_context(ApiClientError::CertificateDecodeFailed)
 }
 
+/// Single PEM-bundle parser used by BOTH runtime client construction
+/// ([`create_certificate`]) and config-load validation, so the two can never
+/// drift apart (e.g. one switching to `from_pem` while the other doesn't).
+pub fn parse_ca_pem_bundle(
+    pem: &[u8],
+) -> Result<Vec<reqwest::Certificate>, error_stack::Report<ApiClientError>> {
+    reqwest::Certificate::from_pem_bundle(pem)
+        .change_context(ApiClientError::CertificateDecodeFailed)
+}
+
 pub fn create_certificate(
     encoded_certificate: Secret<String>,
 ) -> Result<Vec<reqwest::Certificate>, error_stack::Report<ApiClientError>> {
@@ -1519,8 +1556,7 @@ pub fn create_certificate(
 
     let certificate = String::from_utf8(decoded_certificate)
         .change_context(ApiClientError::CertificateDecodeFailed)?;
-    reqwest::Certificate::from_pem_bundle(certificate.as_bytes())
-        .change_context(ApiClientError::CertificateDecodeFailed)
+    parse_ca_pem_bundle(certificate.as_bytes())
 }
 
 async fn handle_response(
