@@ -897,6 +897,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn requires_authorize_post_redirect(&self) -> bool {
         true
     }
+
+    fn merchant_order_id_source(&self) -> connector_types::MerchantOrderIdSource {
+        connector_types::MerchantOrderIdSource::TransactionId
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

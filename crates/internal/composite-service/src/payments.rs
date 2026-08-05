@@ -1386,8 +1386,7 @@ where
         tonic::Response<grpc_api_types::payments::CompositeVerifyRedirectResponseResponse>,
         tonic::Status,
     > {
-        self.process_composite_verify_redirect_response(request)
-            .await
+        Box::pin(self.process_composite_verify_redirect_response(request)).await
     }
 }
 

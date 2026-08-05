@@ -831,6 +831,7 @@ impl TryFrom<ConnectorResponseData<GrabpayRefundResponse, Self>>
                 connector_refund_id: item.router_data.request.refund_id.clone(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,
@@ -869,6 +870,7 @@ impl TryFrom<ConnectorResponseData<GrabpayRefundSyncResponse, Self>>
                 connector_refund_id: item.router_data.request.connector_refund_id.clone(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,
