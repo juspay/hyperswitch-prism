@@ -152,8 +152,12 @@ impl
         });
 
         let merchant_order_id = match merchant_order_id_source {
-            interfaces::connector_types::MerchantOrderIdSource::OrderId => item.merchant_order_id.clone(),
-            interfaces::connector_types::MerchantOrderIdSource::TransactionId => item.merchant_transaction_id.clone(),
+            interfaces::connector_types::MerchantOrderIdSource::OrderId => {
+                item.merchant_order_id.clone()
+            }
+            interfaces::connector_types::MerchantOrderIdSource::TransactionId => {
+                item.merchant_transaction_id.clone()
+            }
         };
 
         Self {
