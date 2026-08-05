@@ -449,6 +449,7 @@ mod tests {
                 numbers,
                 item: PlaidItem {
                     item_id: "item_001".to_owned(),
+                    institution_name: Some("Test Bank".to_owned()),
                 },
                 request_id: "req_001".to_owned(),
             };

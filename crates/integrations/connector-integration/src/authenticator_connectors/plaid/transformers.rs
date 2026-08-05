@@ -459,6 +459,7 @@ pub struct PlaidAuthGetResponse {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PlaidItem {
     pub item_id: String,
+    pub institution_name: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -536,6 +537,7 @@ impl TryFrom<ResponseRouterData<PlaidAuthGetResponse, Self>>
         let res = item.response;
         let request_currency = item.router_data.resource_common_data.get_currency();
 
+        let institution_name = res.item.institution_name.clone();
         let (numbers, accounts_info) = (res.numbers, res.accounts);
         let id_to_account: std::collections::HashMap<String, _> = accounts_info
             .into_iter()
@@ -600,6 +602,7 @@ impl TryFrom<ResponseRouterData<PlaidAuthGetResponse, Self>>
                         account_number: ach.account,
                         routing_number: ach.routing,
                     })),
+                    bank_name: institution_name.clone(),
                 });
             }
         });
@@ -627,6 +630,7 @@ impl TryFrom<ResponseRouterData<PlaidAuthGetResponse, Self>>
                             sort_code: bacs.sort_code,
                         },
                     )),
+                    bank_name: institution_name.clone(),
                 });
             }
         });
@@ -654,6 +658,7 @@ impl TryFrom<ResponseRouterData<PlaidAuthGetResponse, Self>>
                             bic: sepa.bic,
                         },
                     )),
+                    bank_name: institution_name.clone(),
                 });
             }
         });

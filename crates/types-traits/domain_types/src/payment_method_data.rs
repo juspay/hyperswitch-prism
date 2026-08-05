@@ -1969,6 +1969,7 @@ pub struct BankAccount {
     pub balance: Option<common_utils::types::Money>,
     pub available_balance: Option<common_utils::types::Money>,
     pub account_details: Option<BankAccountRoutingDetails>,
+    pub bank_name: Option<String>,
 }
 
 /// A collection of bank accounts returned by a bank-linking flow (matches proto `BankAccountDetails`)
