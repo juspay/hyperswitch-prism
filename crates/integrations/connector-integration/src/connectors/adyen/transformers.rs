@@ -6161,6 +6161,7 @@ impl<F, Req> TryFrom<ResponseRouterData<AdyenRefundResponse, Self>>
             connector_refund_id: response.psp_reference,
             refund_status: status,
             status_code: http_code,
+            acquirer_reference_number: None,
         };
 
         Ok(Self {

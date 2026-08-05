@@ -857,6 +857,7 @@ impl<F> TryFrom<ResponseRouterData<RevolutRefundResponse, Self>>
                 connector_refund_id: response.id.clone(),
                 refund_status: status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -885,6 +886,7 @@ impl<F> TryFrom<ResponseRouterData<RevolutRefundResponse, Self>>
                 connector_refund_id: response.id.clone(),
                 refund_status: status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })

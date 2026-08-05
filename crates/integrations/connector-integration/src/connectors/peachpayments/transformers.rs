@@ -661,6 +661,7 @@ impl TryFrom<ResponseRouterData<responses::PeachpaymentsRefundResponse, Self>>
                 connector_refund_id: item.response.transaction_id.clone(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -682,6 +683,7 @@ impl TryFrom<ResponseRouterData<responses::PeachpaymentsRefundSyncResponse, Self
                 connector_refund_id: item.response.transaction_id.clone(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })

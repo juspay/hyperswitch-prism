@@ -8902,7 +8902,10 @@ pub fn generate_refund_sync_response(
                 response_headers,
                 state: None,
                 raw_connector_request,
-                acquirer_reference_number: None,
+                acquirer_reference_number: response
+                    .acquirer_reference_number
+                    .clone()
+                    .map(hyperswitch_masking::Secret::new),
                 state_metadata: None,
             })
         }

@@ -1087,6 +1087,7 @@ impl<F> TryFrom<ResponseRouterData<PinelabsOnlineRefundResponse, Self>>
                     connector_refund_id: connector_refund_id.unwrap_or_default(),
                     refund_status,
                     status_code: item.http_code,
+                    acquirer_reference_number: None,
                 });
 
                 Ok(Self {
@@ -1139,6 +1140,7 @@ impl TryFrom<ResponseRouterData<PinelabsOnlineRSyncResponse, Self>>
                     connector_refund_id: connector_refund_id.unwrap_or_default(),
                     refund_status,
                     status_code: item.http_code,
+                    acquirer_reference_number: None,
                 });
 
                 Ok(Self {
