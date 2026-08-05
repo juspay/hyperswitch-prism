@@ -610,16 +610,23 @@ impl ForeignTryFrom<grpc_api_types::payouts::PixBankTransferPayout>
                     .and_then(|bank_account_type| payouts::payout_method_data::PixBankAccountType::try_from(bank_account_type).ok())
             }),
             account_holder_name: pix.account_holder_name,
-            document_type: pix.tax_id.as_ref().and_then(|tax_id| {
+            document_type: pix.tax_id.as_ref().map(|tax_id| {
                 let only_digits: String = tax_id.peek().chars().filter(|ch| ch.is_ascii_digit()).collect();
                 if cpf_cnpj::cpf::validate(&only_digits) {
-                    Some("CPF".to_string())
+                    Ok("CPF".to_string())
                 } else if cpf_cnpj::cnpj::validate(&only_digits) {
-                    Some("CNPJ".to_string())
+                    Ok("CNPJ".to_string())
                 } else {
-                    None
+                    Err(error_stack::report!(IntegrationError::InvalidRequestData {
+                        message: "invalid CPF or CNPJ".to_string(),
+                        context: IntegrationErrorContext {
+                            additional_context: Some("tax_id failed CPF and CNPJ validation".to_string()),
+                            ..Default::default()
+                        },
+                    }))
                 }
-            }),
+            })
+            .transpose()?,
         })
     }
 }
