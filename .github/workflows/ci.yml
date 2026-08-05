@@ -54,6 +54,7 @@ jobs:
       sdk: ${{ steps.filter.outputs.sdk }}
       proto: ${{ steps.filter.outputs.proto }}
       docs-trigger: ${{ steps.filter.outputs.docs-trigger }}
+      stripe: ${{ steps.filter.outputs.stripe }}
       any-rs: ${{ steps.filter.outputs.any-rs }}
       ci: ${{ steps.filter.outputs.ci }}
       connector-names: ${{ steps.connector-names.outputs.list }}
@@ -109,7 +110,6 @@ jobs:
               - '**/*.rs'
             ci:
               - '.github/**'
-
       - name: Extract changed connector names
         id: connector-names
         if: steps.filter.outputs.connector == 'true'
@@ -386,6 +386,10 @@ jobs:
 
     env:
       RUSTFLAGS: "-D warnings"
+      # Same as the test job: minimal debug info keeps target/ within the hosted
+      # runner's disk when a base-crate change forces a full-workspace rebuild.
+      CARGO_PROFILE_DEV_DEBUG: "line-tables-only"
+      CARGO_PROFILE_TEST_DEBUG: "line-tables-only"
 
     steps:
       - name: Checkout code
@@ -543,6 +547,7 @@ jobs:
             done
             echo "🔍 Connector-only PR — scoping tests to: $CONNECTOR_NAMES"
             cargo nextest run \
+              --features grpc-server/connector-request-kafka \
               --config-file .nextest.toml \
               --profile ci \
               --no-tests=warn \
@@ -550,6 +555,7 @@ jobs:
           else
             echo "🔍 Running full test suite (event=$EVENT)"
             cargo nextest run \
+              --features grpc-server/connector-request-kafka \
               --config-file .nextest.toml \
               --profile ci \
               -E "$SCHEMA_EXCLUDE"
@@ -758,4 +764,3 @@ jobs:
             fi
           done
           echo "✅ All CI checks passed (or were skipped due to path filtering)"
-

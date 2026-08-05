@@ -227,5 +227,11 @@ pub enum PaysafeAuthorizeResponse {
 
 // Type aliases for flows
 pub type PaysafePaymentMethodTokenResponse = PaysafePaymentHandleResponse;
+/// PreAuthenticate returns a payment-handle body; distinct type name so the macro doesn't collide
+/// with Authorize's.
+pub type PaysafePreAuthenticateResponse = PaysafeAuthorizeResponse;
+/// Authenticate re-fetches the payment handle (same shape as PSync); distinct type name so the
+/// macro doesn't collide with PSync's.
+pub type PaysafeAuthenticateResponse = PaysafeSyncResponse;
 pub type PaysafeCaptureResponse = PaysafeSettlementResponse;
 pub type PaysafeRepeatPaymentResponse = PaysafePaymentsResponse;

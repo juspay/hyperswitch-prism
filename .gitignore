@@ -424,6 +424,7 @@ sdk/**/dist/
 sdk/**/build/
 sdk/java/smoke-test/gradle*
 sdk/java/bin
+*.hprof
 
 artifacts/
 sdk/tests/client_sanity/artifacts/

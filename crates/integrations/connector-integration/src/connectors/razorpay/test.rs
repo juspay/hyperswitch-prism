@@ -59,6 +59,7 @@ mod tests {
             let test_router_data = RouterDataV2 {
                 flow: std::marker::PhantomData,
                 resource_common_data: PaymentFlowData {
+                    raw_connector_status: None,
                     merchant_id: MerchantId::default(),
                     customer_id: None,
                     connector_customer: None,
@@ -273,6 +274,7 @@ mod tests {
             let test_router_data = RouterDataV2 {
                 flow: std::marker::PhantomData,
                 resource_common_data: PaymentFlowData {
+                    raw_connector_status: None,
                     merchant_id: MerchantId::default(),
                     customer_id: None,
                     connector_customer: None,
@@ -425,6 +427,7 @@ mod tests {
             let test_router_data = RouterDataV2 {
                 flow: std::marker::PhantomData,
                 resource_common_data: PaymentFlowData {
+                    raw_connector_status: None,
                     merchant_id: MerchantId::default(),
                     customer_id: None,
                     connector_customer: None,
@@ -587,6 +590,7 @@ mod tests {
             let data = RouterDataV2 {
                 flow: std::marker::PhantomData,
                 resource_common_data: PaymentFlowData {
+                    raw_connector_status: None,
                     merchant_id: MerchantId::default(),
                     customer_id: None,
                     connector_customer: None,
@@ -959,6 +963,7 @@ mod tests {
         let data = RouterDataV2 {
             flow: std::marker::PhantomData,
             resource_common_data: PaymentFlowData {
+                raw_connector_status: None,
                 merchant_id: MerchantId::default(),
                 customer_id: None,
                 connector_customer: None,
@@ -1167,6 +1172,7 @@ mod tests {
         let data = RouterDataV2 {
             flow: std::marker::PhantomData,
             resource_common_data: PaymentFlowData {
+                raw_connector_status: None,
                 merchant_id: MerchantId::default(),
                 customer_id: None,
                 connector_customer: None,
@@ -1377,6 +1383,7 @@ mod tests {
             let test_router_data = RouterDataV2 {
                 flow: std::marker::PhantomData,
                 resource_common_data: domain_types::connector_types::PaymentFlowData {
+                    raw_connector_status: None,
                     merchant_id: MerchantId::default(),
                     customer_id: None,
                     connector_customer: None,
@@ -1449,6 +1456,7 @@ mod tests {
                     metadata: None,
                     webhook_url: None,
                     payment_method_type: None,
+                    order_details: None,
                 },
                 response: Err(ErrorResponse {
                     code: "HE_00".to_string(),
@@ -1512,6 +1520,7 @@ mod tests {
             let test_router_data = RouterDataV2 {
                 flow: std::marker::PhantomData,
                 resource_common_data: domain_types::connector_types::PaymentFlowData {
+                    raw_connector_status: None,
                     merchant_id: MerchantId::default(),
                     customer_id: None,
                     connector_customer: None,
@@ -1572,6 +1581,7 @@ mod tests {
                     metadata: None,
                     webhook_url: None,
                     payment_method_type: None,
+                    order_details: None,
                 },
                 response: Err(ErrorResponse {
                     code: "HE_01".to_string(),
@@ -1638,6 +1648,7 @@ mod tests {
             let test_router_data = RouterDataV2 {
                 flow: std::marker::PhantomData,
                 resource_common_data: PaymentFlowData {
+                    raw_connector_status: None,
                     merchant_id: MerchantId::default(),
                     customer_id: None,
                     connector_customer: None,
@@ -1799,6 +1810,7 @@ mod tests {
         let data = RouterDataV2 {
             flow: std::marker::PhantomData,
             resource_common_data: PaymentFlowData {
+                raw_connector_status: None,
                 merchant_id: MerchantId::default(),
                 customer_id: None,
                 connector_customer: None,
@@ -1871,6 +1883,7 @@ mod tests {
                 metadata: None,
                 webhook_url: None,
                 payment_method_type: None,
+                order_details: None,
             },
             response: Err(ErrorResponse {
                 code: "HE_00".to_string(),
@@ -1934,6 +1947,7 @@ mod tests {
         let data = RouterDataV2 {
             flow: std::marker::PhantomData,
             resource_common_data: PaymentFlowData {
+                raw_connector_status: None,
                 merchant_id: MerchantId::default(),
                 customer_id: None,
                 connector_customer: None,
@@ -2006,6 +2020,7 @@ mod tests {
                 metadata: None,
                 webhook_url: None,
                 payment_method_type: None,
+                order_details: None,
             },
             response: Err(ErrorResponse {
                 code: "HE_00".to_string(),
@@ -2058,6 +2073,7 @@ mod tests {
         let data = RouterDataV2 {
             flow: std::marker::PhantomData,
             resource_common_data: PaymentFlowData {
+                raw_connector_status: None,
                 merchant_id: MerchantId::default(),
                 customer_id: None,
                 connector_customer: None,
@@ -2130,6 +2146,7 @@ mod tests {
                 metadata: None,
                 webhook_url: None,
                 payment_method_type: None,
+                order_details: None,
             },
             response: Err(ErrorResponse {
                 code: "HE_00".to_string(),

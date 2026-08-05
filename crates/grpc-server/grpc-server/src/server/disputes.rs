@@ -28,14 +28,17 @@ use grpc_api_types::payments::{
 };
 use interfaces::connector_integration_v2::BoxedConnectorIntegrationV2;
 use tracing::info;
-use ucs_env::error::{IntoGrpcStatus, ResultExtGrpc};
+use ucs_env::error::{ReportExtGrpcError, ResultExtGrpc, ResultExtGrpcError};
 
 // Helper trait for dispute operations
 trait DisputeOperationsInternal {
     async fn internal_defend(
         &self,
         request: RequestData<DisputeServiceDefendRequest>,
-    ) -> Result<tonic::Response<DisputeServiceDefendResponse>, tonic::Status>;
+    ) -> Result<
+        tonic::Response<DisputeServiceDefendResponse>,
+        error_stack::Report<ucs_env::error::GrpcError>,
+    >;
 }
 
 #[derive(Clone)]
@@ -87,7 +90,7 @@ impl DisputeService for Disputes {
         request: tonic::Request<DisputeServiceSubmitEvidenceRequest>,
     ) -> Result<tonic::Response<DisputeServiceSubmitEvidenceResponse>, tonic::Status> {
         info!("DISPUTE_FLOW: initiated");
-        let config = get_config_from_request(&request)?;
+        let config = get_config_from_request(&request).into_grpc_status()?;
         let service_name = request
             .extensions()
             .get::<String>()
@@ -114,11 +117,20 @@ impl DisputeService for Disputes {
                         tenant_id,
                         merchant_id,
                         connector_latency,
+                        environment,
                         ..
                     } = request_data.extracted_metadata;
                     let connector_data: ConnectorData<DefaultPCIHolder> =
                         ConnectorData::from_connector_variant(&connector).ok_or_else(|| {
-                            tonic::Status::invalid_argument("Invalid Connector Received")
+                            ucs_env::error::GrpcError::from(
+                                domain_types::errors::IntegrationError::InvalidDataFormat {
+                                    field_name: "connector",
+                                    context: domain_types::errors::IntegrationErrorContext {
+                                        suggested_action: Some("Check connector rollout/configuration and call only flows implemented for this connector".to_string()),
+                                        ..Default::default()
+                                    },
+                                },
+                            )
                         })?;
 
                     let connector_integration: BoxedConnectorIntegrationV2<
@@ -130,17 +142,19 @@ impl DisputeService for Disputes {
                     > = connector_data.connector.get_connector_integration_v2();
 
                     let dispute_data = SubmitEvidenceData::foreign_try_from(payload.clone())
-                        .map_err(|e| e.into_grpc_status())?;
+                        .map_err(|e| e.to_grpc_error())?;
 
-                    let connectors = utils::connectors_with_connector_config_overrides(
-                        &connector_config,
+                    let connectors = utils::apply_url_overrides(
                         &config,
+                        &connector,
+                        &connector_config,
+                        environment.as_deref(),
                     )
-                    .into_grpc_status()?;
+                    .to_grpc_error()?;
 
                     let dispute_flow_data =
                         DisputeFlowData::foreign_try_from((payload.clone(), connectors))
-                            .map_err(|e| e.into_grpc_status())?;
+                            .map_err(|e| e.to_grpc_error())?;
 
                     let router_data: RouterDataV2<
                         SubmitEvidence,
@@ -186,10 +200,10 @@ impl DisputeService for Disputes {
                         ),
                     )
                     .await
-                    .into_grpc_status()?;
+                    .to_grpc_error()?;
 
                     let dispute_response = generate_submit_evidence_response(response)
-                        .map_err(|e| e.into_grpc_status())?;
+                        .map_err(|e| e.to_grpc_error())?;
 
                     Ok(tonic::Response::new(dispute_response))
                 }
@@ -225,7 +239,7 @@ impl DisputeService for Disputes {
     ) -> Result<tonic::Response<DisputeResponse>, tonic::Status> {
         // For now, return a basic dispute response
         // This will need proper implementation based on domain logic
-        let config = get_config_from_request(&request)?;
+        let config = get_config_from_request(&request).into_grpc_status()?;
         let service_name = request
             .extensions()
             .get::<String>()
@@ -277,7 +291,7 @@ impl DisputeService for Disputes {
             .get::<String>()
             .cloned()
             .unwrap_or_else(|| "DisputeService".to_string());
-        let config = get_config_from_request(&request)?;
+        let config = get_config_from_request(&request).into_grpc_status()?;
         grpc_logging_wrapper(
             request,
             &service_name,
@@ -314,7 +328,7 @@ impl DisputeService for Disputes {
         request: tonic::Request<DisputeServiceAcceptRequest>,
     ) -> Result<tonic::Response<DisputeServiceAcceptResponse>, tonic::Status> {
         info!("DISPUTE_FLOW: initiated");
-        let config = get_config_from_request(&request)?;
+        let config = get_config_from_request(&request).into_grpc_status()?;
         let service_name = request
             .extensions()
             .get::<String>()
@@ -341,11 +355,20 @@ impl DisputeService for Disputes {
                         tenant_id,
                         merchant_id,
                         connector_latency,
+                        environment,
                         ..
                     } = request_data.extracted_metadata;
                     let connector_data: ConnectorData<DefaultPCIHolder> =
                         ConnectorData::from_connector_variant(&connector).ok_or_else(|| {
-                            tonic::Status::invalid_argument("Invalid Connector Received")
+                            ucs_env::error::GrpcError::from(
+                                domain_types::errors::IntegrationError::InvalidDataFormat {
+                                    field_name: "connector",
+                                    context: domain_types::errors::IntegrationErrorContext {
+                                        suggested_action: Some("Check connector rollout/configuration and call only flows implemented for this connector".to_string()),
+                                        ..Default::default()
+                                    },
+                                },
+                            )
                         })?;
 
                     let connector_integration: BoxedConnectorIntegrationV2<
@@ -357,17 +380,19 @@ impl DisputeService for Disputes {
                     > = connector_data.connector.get_connector_integration_v2();
 
                     let dispute_data = AcceptDisputeData::foreign_try_from(payload.clone())
-                        .map_err(|e| e.into_grpc_status())?;
+                        .map_err(|e| e.to_grpc_error())?;
 
-                    let connectors = utils::connectors_with_connector_config_overrides(
-                        &connector_config,
+                    let connectors = utils::apply_url_overrides(
                         &config,
+                        &connector,
+                        &connector_config,
+                        environment.as_deref(),
                     )
-                    .into_grpc_status()?;
+                    .to_grpc_error()?;
 
                     let dispute_flow_data =
                         DisputeFlowData::foreign_try_from((payload.clone(), connectors))
-                            .map_err(|e| e.into_grpc_status())?;
+                            .map_err(|e| e.to_grpc_error())?;
 
                     let router_data: RouterDataV2<
                         Accept,
@@ -414,10 +439,10 @@ impl DisputeService for Disputes {
                         ),
                     )
                     .await
-                    .into_grpc_status()?;
+                    .to_grpc_error()?;
 
                     let dispute_response = generate_accept_dispute_response(response)
-                        .map_err(|e| e.into_grpc_status())?;
+                        .map_err(|e| e.to_grpc_error())?;
 
                     Ok(tonic::Response::new(dispute_response))
                 }

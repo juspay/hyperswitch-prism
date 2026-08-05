@@ -43,6 +43,12 @@ type ResponseError = error_stack::Report<ConnectorError>;
 const MAX_ID_LENGTH: usize = 20;
 const ADDRESS_MAX_LENGTH: usize = 60; // Authorize.Net address field max length
 
+// Authorize.Net transient server-side error codes: returned (HTTP 200) with no
+// transaction record while the underlying payment is unchanged. On a psync poll
+// these are not a payment failure, so we keep the existing state (mirroring HS).
+const TRANSIENT_ERROR_SERVER_BUSY: &str = "E00053"; // "server too busy"
+const TRANSIENT_ERROR_MAINTENANCE: &str = "E00104"; // "server in maintenance"
+
 // Helper function for concatenating address lines with length constraints
 fn get_address_line(
     address_line1: &Option<Secret<String>>,
@@ -293,7 +299,13 @@ impl ForeignTryFrom<serde_json::Value> for Vec<UserField> {
         let mut vector = Self::new();
 
         if let serde_json::Value::Object(obj) = metadata {
-            for (key, value) in obj {
+            // Sort keys alphabetically so the outbound userField order is deterministic
+            // and matches hyperswitch's native authorizedotnet request (which parses
+            // metadata into a BTreeMap<String, Value> for the same purpose), regardless
+            // of the insertion/storage order the metadata JSON arrived in.
+            let sorted: std::collections::BTreeMap<String, serde_json::Value> =
+                obj.into_iter().collect();
+            for (key, value) in sorted {
                 vector.push(UserField {
                     name: key,
                     value: match value {
@@ -610,13 +622,9 @@ fn create_regular_transaction_request<
     let payment_details = match &item.router_data.request.payment_method_data {
         PaymentMethodData::Card(card) => {
             let expiry_month = card.card_exp_month.peek().clone();
-            let year = card.card_exp_year.peek().clone();
-            let expiry_year = if year.len() == 2 {
-                format!("20{year}")
-            } else {
-                year
-            };
-            let expiration_date = format!("{expiry_year}-{expiry_month}");
+            let expiry_year =
+                domain_types::utils::expand_expiry_year_to_four_digits(&card.card_exp_year);
+            let expiration_date = format!("{}-{expiry_month}", expiry_year.peek());
 
             let credit_card_details = CreditCardDetails {
                 card_number: card.card_number.clone(),
@@ -2283,6 +2291,28 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetRefundResponse, Self>>
     }
 }
 
+/// Build an `ErrorResponse` from Authorize.Net's `ResponseMessages`, mirroring
+/// hyperswitch's `get_err_response`: use the first message's code/text and leave
+/// `attempt_status: None` so the caller preserves the prior attempt status.
+fn get_err_response(status_code: u16, messages: ResponseMessages) -> ErrorResponse {
+    let first = messages.message.first();
+    ErrorResponse {
+        code: first
+            .map(|m| m.code.clone())
+            .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+        message: first
+            .map(|m| m.text.clone())
+            .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+        reason: first.map(|m| m.text.clone()),
+        status_code,
+        attempt_status: None,
+        connector_transaction_id: None,
+        network_decline_code: None,
+        network_advice_code: None,
+        network_error_message: None,
+    }
+}
+
 // Implementation for PSync flow
 impl<F> TryFrom<ResponseRouterData<AuthorizedotnetPSyncResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
@@ -2330,49 +2360,20 @@ impl<F> TryFrom<ResponseRouterData<AuthorizedotnetPSyncResponse, Self>>
                 Ok(new_router_data)
             }
             None => {
-                // Handle missing transaction response
-                let status = match response.messages.result_code {
-                    ResultCode::Error => AttemptStatus::Failure,
-                    ResultCode::Ok => AttemptStatus::Pending,
-                };
-
-                let error_response = ErrorResponse {
-                    status_code: http_code,
-                    code: response
-                        .messages
-                        .message
-                        .first()
-                        .map(|m| m.code.clone())
-                        .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-                    message: response
-                        .messages
-                        .message
-                        .first()
-                        .map(|m| m.text.clone())
-                        .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-                    reason: Some(
-                        response
-                            .messages
-                            .message
-                            .first()
-                            .map(|m| m.text.clone())
-                            .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-                    ),
-                    attempt_status: Some(FlowStatus::Payment(status)),
-                    connector_transaction_id: None,
-                    network_decline_code: None,
-                    network_advice_code: None,
-                    network_error_message: None,
-                };
-
-                // Update router data with status and error response
-                let mut new_router_data = router_data;
-                let mut resource_common_data = new_router_data.resource_common_data.clone();
-                resource_common_data.status = status;
-                new_router_data.resource_common_data = resource_common_data;
-                new_router_data.response = Err(error_response);
-
-                Ok(new_router_data)
+                // A psync response with no transaction record. Transient server-side
+                // conditions (server busy / maintenance) are not a payment failure, so
+                // mirror hyperswitch and keep the existing router data unchanged;
+                // otherwise surface the connector error while preserving the prior
+                // attempt status (as hyperswitch's `get_err_response` does).
+                match response.messages.message.iter().find(|m| {
+                    m.code == TRANSIENT_ERROR_SERVER_BUSY || m.code == TRANSIENT_ERROR_MAINTENANCE
+                }) {
+                    Some(_) => Ok(router_data),
+                    None => Ok(Self {
+                        response: Err(get_err_response(http_code, response.messages)),
+                        ..router_data
+                    }),
+                }
             }
         }
     }
@@ -3029,13 +3030,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // Create expiry date manually since we can't use the trait method generically
         let expiry_month = ccard.card_exp_month.peek().clone();
-        let year = ccard.card_exp_year.peek().clone();
-        let expiry_year = if year.len() == 2 {
-            format!("20{year}")
-        } else {
-            year
-        };
-        let expiration_date = format!("{expiry_year}-{expiry_month}");
+        let expiry_year =
+            domain_types::utils::expand_expiry_year_to_four_digits(&ccard.card_exp_year);
+        let expiration_date = format!("{}-{expiry_month}", expiry_year.peek());
 
         let payment_profile = PaymentProfile {
             bill_to,

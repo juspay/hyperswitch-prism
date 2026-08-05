@@ -268,6 +268,9 @@ pub use self::twoc_twop_paco::TwocTwopPaco;
 pub mod juspay;
 pub use self::juspay::Juspay;
 
+pub mod glomopay;
+pub use self::glomopay::Glomopay;
+
 pub mod payconex;
 pub use self::payconex::Payconex;
 pub mod tamara;
@@ -285,3 +288,8 @@ pub use self::affirm::Affirm;
 
 pub mod kount;
 pub use self::kount::Kount;
+
+pub mod givepayments;
+pub use self::givepayments::Givepayments;
+pub mod tesouro;
+pub use self::tesouro::Tesouro;

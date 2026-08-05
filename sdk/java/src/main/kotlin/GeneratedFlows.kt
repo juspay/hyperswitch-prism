@@ -29,6 +29,8 @@ import uniffi.connector_service_ffi.createServerSessionAuthenticationTokenReqTra
 import uniffi.connector_service_ffi.createServerSessionAuthenticationTokenResTransformer
 import uniffi.connector_service_ffi.customerCreateReqTransformer
 import uniffi.connector_service_ffi.customerCreateResTransformer
+import uniffi.connector_service_ffi.customerGetReqTransformer
+import uniffi.connector_service_ffi.customerGetResTransformer
 import uniffi.connector_service_ffi.defendReqTransformer
 import uniffi.connector_service_ffi.defendResTransformer
 import uniffi.connector_service_ffi.eligibilityReqTransformer
@@ -67,6 +69,8 @@ import uniffi.connector_service_ffi.proxySetupRecurringReqTransformer
 import uniffi.connector_service_ffi.proxySetupRecurringResTransformer
 import uniffi.connector_service_ffi.recurringRevokeReqTransformer
 import uniffi.connector_service_ffi.recurringRevokeResTransformer
+import uniffi.connector_service_ffi.refreshReqTransformer
+import uniffi.connector_service_ffi.refreshResTransformer
 import uniffi.connector_service_ffi.refundReqTransformer
 import uniffi.connector_service_ffi.refundResTransformer
 import uniffi.connector_service_ffi.refundGetReqTransformer
@@ -103,6 +107,7 @@ object FlowRegistry {
         "create_server_authentication_token" to ::createServerAuthenticationTokenReqTransformer,
         "create_server_session_authentication_token" to ::createServerSessionAuthenticationTokenReqTransformer,
         "customer_create" to ::customerCreateReqTransformer,
+        "customer_get" to ::customerGetReqTransformer,
         "defend" to ::defendReqTransformer,
         "eligibility" to ::eligibilityReqTransformer,
         "get" to ::getReqTransformer,
@@ -122,6 +127,7 @@ object FlowRegistry {
         "proxy_authorize" to ::proxyAuthorizeReqTransformer,
         "proxy_setup_recurring" to ::proxySetupRecurringReqTransformer,
         "recurring_revoke" to ::recurringRevokeReqTransformer,
+        "refresh" to ::refreshReqTransformer,
         "refund" to ::refundReqTransformer,
         "refund_get" to ::refundGetReqTransformer,
         "reverse" to ::reverseReqTransformer,
@@ -145,6 +151,7 @@ object FlowRegistry {
         "create_server_authentication_token" to ::createServerAuthenticationTokenResTransformer,
         "create_server_session_authentication_token" to ::createServerSessionAuthenticationTokenResTransformer,
         "customer_create" to ::customerCreateResTransformer,
+        "customer_get" to ::customerGetResTransformer,
         "defend" to ::defendResTransformer,
         "eligibility" to ::eligibilityResTransformer,
         "get" to ::getResTransformer,
@@ -164,6 +171,7 @@ object FlowRegistry {
         "proxy_authorize" to ::proxyAuthorizeResTransformer,
         "proxy_setup_recurring" to ::proxySetupRecurringResTransformer,
         "recurring_revoke" to ::recurringRevokeResTransformer,
+        "refresh" to ::refreshResTransformer,
         "refund" to ::refundResTransformer,
         "refund_get" to ::refundGetResTransformer,
         "reverse" to ::reverseResTransformer,
@@ -193,6 +201,10 @@ class CustomerClient(
     // customer_create: CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information.
     fun customer_create(request: CustomerServiceCreateRequest, options: RequestConfig? = null): CustomerServiceCreateResponse =
         executeFlow("customer_create", request.toByteArray(), CustomerServiceCreateResponse.parser(), options)
+
+    // customer_get: CustomerService.Get — Retrieves customer details from the payment processor. Callers typically use this before Create to implement get-or-create semantics for connectors that reject duplicates (e.g. Glomopay).
+    fun customer_get(request: CustomerServiceGetRequest, options: RequestConfig? = null): CustomerServiceGetResponse =
+        executeFlow("customer_get", request.toByteArray(), CustomerServiceGetResponse.parser(), options)
 
 }
 
@@ -291,6 +303,10 @@ class PaymentMethodClient(
     // eligibility: PaymentMethodService.Eligibility — Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check)
     fun eligibility(request: PaymentMethodServiceEligibilityRequest, options: RequestConfig? = null): PaymentMethodServiceEligibilityResponse =
         executeFlow("eligibility", request.toByteArray(), PaymentMethodServiceEligibilityResponse.parser(), options)
+
+    // refresh: PaymentMethodService.Refresh — Refresh a payment method the caller already holds in full. The request carries the instrument itself, not a reference to it: use Refresh when you own the complete payment method details and the provider exposes an endpoint that evaluates them.
+    fun refresh(request: PaymentMethodServiceRefreshRequest, options: RequestConfig? = null): PaymentMethodServiceRefreshResponse =
+        executeFlow("refresh", request.toByteArray(), PaymentMethodServiceRefreshResponse.parser(), options)
 
     // tokenize: PaymentMethodService.Tokenize — Tokenize payment method for secure storage. Replaces raw card details with secure token for one-click payments and recurring billing.
     fun tokenize(request: PaymentMethodServiceTokenizeRequest, options: RequestConfig? = null): PaymentMethodServiceTokenizeResponse =

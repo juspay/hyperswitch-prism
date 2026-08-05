@@ -14,6 +14,14 @@ export class CustomerClient extends _ConnectorClientBase {
     return this._executeFlow('customer_create', requestMsg, options, 'CustomerServiceCreateRequest', 'CustomerServiceCreateResponse') as Promise<types.CustomerServiceCreateResponse>;
   }
 
+  /** CustomerService.Get — Retrieves customer details from the payment processor. Callers typically use this before Create to implement get-or-create semantics for connectors that reject duplicates (e.g. Glomopay). */
+  async customerGet(
+    requestMsg: types.ICustomerServiceGetRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.CustomerServiceGetResponse> {
+    return this._executeFlow('customer_get', requestMsg, options, 'CustomerServiceGetRequest', 'CustomerServiceGetResponse') as Promise<types.CustomerServiceGetResponse>;
+  }
+
 }
 
 export class DisputeClient extends _ConnectorClientBase {
@@ -142,6 +150,14 @@ export class PaymentMethodClient extends _ConnectorClientBase {
     options?: types.IRequestConfig | null
   ): Promise<types.PaymentMethodServiceEligibilityResponse> {
     return this._executeFlow('eligibility', requestMsg, options, 'PaymentMethodServiceEligibilityRequest', 'PaymentMethodServiceEligibilityResponse') as Promise<types.PaymentMethodServiceEligibilityResponse>;
+  }
+
+  /** PaymentMethodService.Refresh — Refresh a payment method the caller already holds in full. The request carries the instrument itself, not a reference to it: use Refresh when you own the complete payment method details and the provider exposes an endpoint that evaluates them. */
+  async refresh(
+    requestMsg: types.IPaymentMethodServiceRefreshRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.PaymentMethodServiceRefreshResponse> {
+    return this._executeFlow('refresh', requestMsg, options, 'PaymentMethodServiceRefreshRequest', 'PaymentMethodServiceRefreshResponse') as Promise<types.PaymentMethodServiceRefreshResponse>;
   }
 
   /** PaymentMethodService.Tokenize — Tokenize payment method for secure storage. Replaces raw card details with secure token for one-click payments and recurring billing. */

@@ -163,6 +163,7 @@ fn get_order_type_from_payment_method<T: PaymentMethodDataTypes>(
         | PaymentMethodData::Crypto(_)
         | PaymentMethodData::Reward
         | PaymentMethodData::RealTimePayment(_)
+        | PaymentMethodData::CardWithNoCvc(_)
         | PaymentMethodData::MobilePayment(_)
         | PaymentMethodData::Upi(_)
         | PaymentMethodData::Voucher(_)
@@ -357,6 +358,7 @@ fn get_gateway_from_payment_method<T: PaymentMethodDataTypes>(
         | PaymentMethodData::Crypto(_)
         | PaymentMethodData::Reward
         | PaymentMethodData::RealTimePayment(_)
+        | PaymentMethodData::CardWithNoCvc(_)
         | PaymentMethodData::MobilePayment(_)
         | PaymentMethodData::Upi(_)
         | PaymentMethodData::Voucher(_)
