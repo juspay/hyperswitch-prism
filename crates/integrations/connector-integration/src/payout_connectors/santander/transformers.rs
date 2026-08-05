@@ -586,7 +586,7 @@ impl
     TryFrom<
         &ResponseRouterData<
             SantanderPayoutResponse,
-            RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>,
+            RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Self>,
         >,
     > for PayoutCreateResponse
 {
