@@ -360,21 +360,19 @@ impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Pa
                 document_type,
                 ..
             }))) => {
-                let bank_branch =
-                    bank_branch
-                        .as_deref()
-                        .ok_or(IntegrationError::MissingRequiredField {
-                            field_name: "payout_method_data.bank_branch",
-                            context: IntegrationErrorContext {
-                                additional_context: Some(
-                                    "missing required field: bank_branch".to_string(),
-                                ),
-                                suggested_action: Some(
-                                    "Provide the bank branch in payout_method_data for Pix bank transfers".to_string(),
-                                ),
-                                doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
-                            },
-                        })?;
+                let bank_branch = bank_branch
+                    .as_deref()
+                    .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "payout_method_data.bank_branch",
+                    context: IntegrationErrorContext {
+                        additional_context: Some("missing required field: bank_branch".to_string()),
+                        suggested_action: Some(
+                            "Provide the bank branch in payout_method_data for Pix bank transfers"
+                                .to_string(),
+                        ),
+                        doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
+                    },
+                })?;
                 let branch = bank_branch.to_string();
 
                 let number = bank_account_number.clone();

@@ -145,7 +145,6 @@ pub enum DocumentType {
     Cnpj,
 }
 
-
 #[derive(Default, Eq, PartialEq, Clone, Debug)]
 pub struct PixBankTransfer {
     /// Bank name

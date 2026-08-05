@@ -524,21 +524,22 @@ impl
         let base_url = self.base_url(&req.resource_common_data.connectors);
         let auth = SantanderAuthType::try_from(&req.connector_config)?;
         let workspace_id = get_workspace_id(&auth);
-        let connector_payout_id = req.request.connector_payout_id.clone().ok_or(
-            IntegrationError::MissingConnectorTransactionID {
-                context: IntegrationErrorContext {
-                    additional_context: Some(
-                        "connector_payout_id is required to authorize a payout transfer"
-                            .to_string(),
-                    ),
-                    suggested_action: Some(
-                        "Ensure the payout create step succeeded and returned a connector_payout_id"
-                            .to_string(),
-                    ),
-                    doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
-                },
+        let connector_payout_id = req
+            .request
+            .connector_payout_id
+            .clone()
+            .ok_or(IntegrationError::MissingConnectorTransactionID {
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "connector_payout_id is required to authorize a payout transfer".to_string(),
+                ),
+                suggested_action: Some(
+                    "Ensure the payout create step succeeded and returned a connector_payout_id"
+                        .to_string(),
+                ),
+                doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
             },
-        )?;
+        })?;
         Ok(format!(
             "{base_url}/management_payments_partners/v1/workspaces/{workspace_id}/pix_payments/{connector_payout_id}"
         ))
@@ -683,20 +684,22 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
         let base_url = self.base_url(&req.resource_common_data.connectors);
         let auth = SantanderAuthType::try_from(&req.connector_config)?;
         let workspace_id = get_workspace_id(&auth);
-        let connector_payout_id = req.request.connector_payout_id.clone().ok_or(
-            IntegrationError::MissingConnectorTransactionID {
-                context: IntegrationErrorContext {
-                    additional_context: Some(
-                        "connector_payout_id is required to fetch payout status".to_string(),
-                    ),
-                    suggested_action: Some(
-                        "Ensure the payout create step succeeded and returned a connector_payout_id"
-                            .to_string(),
-                    ),
-                    doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
-                },
+        let connector_payout_id = req
+            .request
+            .connector_payout_id
+            .clone()
+            .ok_or(IntegrationError::MissingConnectorTransactionID {
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "connector_payout_id is required to fetch payout status".to_string(),
+                ),
+                suggested_action: Some(
+                    "Ensure the payout create step succeeded and returned a connector_payout_id"
+                        .to_string(),
+                ),
+                doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
             },
-        )?;
+        })?;
         Ok(format!(
             "{base_url}/management_payments_partners/v1/workspaces/{workspace_id}/pix_payments/{connector_payout_id}"
         ))
