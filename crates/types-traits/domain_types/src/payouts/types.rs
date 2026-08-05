@@ -617,8 +617,8 @@ impl ForeignTryFrom<grpc_api_types::payouts::PixBankTransferPayout>
                 } else if cpf_cnpj::cnpj::validate(&only_digits) {
                     Ok("CNPJ".to_string())
                 } else {
-                    Err(error_stack::report!(IntegrationError::InvalidRequestData {
-                        message: "invalid CPF or CNPJ".to_string(),
+                    Err(error_stack::report!(IntegrationError::InvalidDataFormat {
+                        field_name: "payout_method_data.tax_id",
                         context: IntegrationErrorContext {
                             additional_context: Some("tax_id failed CPF and CNPJ validation".to_string()),
                             ..Default::default()
