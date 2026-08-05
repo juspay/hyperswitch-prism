@@ -735,6 +735,9 @@ impl TryFrom<common_enums::CardNetwork> for requests::CardNetworkLowercase {
             common_enums::CardNetwork::Pulse => Ok(Self::Pulse),
             common_enums::CardNetwork::Accel => Ok(Self::Accel),
             common_enums::CardNetwork::Nyce => Ok(Self::Nyce),
+            common_enums::CardNetwork::Prop => Ok(Self::Prop),
+            common_enums::CardNetwork::PrivateLabel => Ok(Self::PrivateLabel),
+            common_enums::CardNetwork::Dinacard => Ok(Self::Dinacard),
         }
     }
 }
