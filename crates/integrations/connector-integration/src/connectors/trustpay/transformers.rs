@@ -1998,7 +1998,7 @@ fn handle_cards_refund_response(
         connector_refund_id: response.instance_id,
         refund_status,
         status_code,
-        refund_arn: None,
+        acquirer_reference_number: None,
     };
     Ok((error, refund_response_data))
 }
@@ -2047,7 +2047,7 @@ pub fn handle_webhooks_refund_response(
         },
         refund_status,
         status_code,
-        refund_arn: None,
+        acquirer_reference_number: None,
     };
     Ok((error, refund_response_data))
 }
@@ -2097,7 +2097,7 @@ pub fn handle_webhooks_refund_response_incoming_webhook(
             .ok_or_else(|| report!(WebhookError::WebhookProcessingFailed))?,
         refund_status,
         status_code,
-        refund_arn: None,
+        acquirer_reference_number: None,
     };
     Ok((error, refund_response_data))
 }
@@ -2126,7 +2126,7 @@ fn handle_bank_redirects_refund_response(
         connector_refund_id: response.payment_request_id.to_string(),
         refund_status,
         status_code,
-        refund_arn: None,
+        acquirer_reference_number: None,
     };
     (error, refund_response_data)
 }
@@ -2168,7 +2168,7 @@ fn handle_bank_redirects_refund_sync_response(
         connector_refund_id: response.payment_information.references.payment_request_id,
         refund_status,
         status_code,
-        refund_arn: None,
+        acquirer_reference_number: None,
     };
     (error, refund_response_data)
 }
@@ -2197,7 +2197,7 @@ fn handle_bank_redirects_refund_sync_error_response(
         connector_refund_id: "".to_string(),
         refund_status: enums::RefundStatus::Failure,
         status_code,
-        refund_arn: None,
+        acquirer_reference_number: None,
     };
     (error, refund_response_data)
 }

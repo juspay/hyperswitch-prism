@@ -485,7 +485,7 @@ impl TryFrom<ResponseRouterData<TamaraRSyncResponse, Self>>
                 connector_refund_id: item.response.order_id.clone(),
                 refund_status,
                 status_code: item.http_code,
-                refund_arn: None,
+                acquirer_reference_number: None,
             }),
             ..item.router_data.clone()
         })
@@ -773,7 +773,7 @@ impl TryFrom<ResponseRouterData<TamaraRefundResponse, Self>>
                 connector_refund_id: item.response.refund_id,
                 refund_status,
                 status_code: item.http_code,
-                refund_arn: None,
+                acquirer_reference_number: None,
             }),
             ..item.router_data.clone()
         })

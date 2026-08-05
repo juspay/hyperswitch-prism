@@ -2067,7 +2067,7 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
                 connector_refund_id,
                 refund_status,
                 status_code: http_code,
-                refund_arn: None,
+                acquirer_reference_number: None,
             }),
             ..router_data
         })
@@ -2342,7 +2342,7 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoInquiryResponse, Self>>
                 connector_refund_id,
                 refund_status,
                 status_code: http_code,
-                refund_arn: None,
+                acquirer_reference_number: None,
             }),
             ..router_data
         })

@@ -685,7 +685,7 @@ impl TryFrom<ResponseRouterData<TrustlyRefundResponse, Self>>
                     connector_refund_id: response.result.data.orderid,
                     refund_status: common_enums::RefundStatus::from(response.result.data.result),
                     status_code: item.http_code,
-                    refund_arn: None,
+                    acquirer_reference_number: None,
                 }),
                 ..item.router_data
             }),

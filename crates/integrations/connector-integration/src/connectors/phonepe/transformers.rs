@@ -1907,7 +1907,7 @@ impl TryFrom<ResponseRouterData<PhonepeRefundResponse, Self>>
                 connector_refund_id,
                 refund_status,
                 status_code: item.http_code,
-                refund_arn: None,
+                acquirer_reference_number: None,
             });
             Ok(router_data)
         } else {
@@ -2178,7 +2178,7 @@ impl TryFrom<ResponseRouterData<PhonepeRefundSyncResponse, Self>>
                 connector_refund_id,
                 refund_status,
                 status_code: item.http_code,
-                refund_arn: None,
+                acquirer_reference_number: None,
             });
             Ok(router_data)
         } else {

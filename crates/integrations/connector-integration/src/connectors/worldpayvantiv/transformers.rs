@@ -2087,7 +2087,7 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
                 connector_refund_id: credit_response.cnp_txn_id.clone(),
                 refund_status: status,
                 status_code: item.http_code,
-                refund_arn: None,
+                acquirer_reference_number: None,
             };
 
             Ok(Self {
@@ -2143,7 +2143,7 @@ impl TryFrom<ResponseRouterData<VantivSyncResponse, Self>>
                 .unwrap_or_else(|| "unknown".to_string()),
             refund_status: status,
             status_code: item.http_code,
-            refund_arn: None,
+            acquirer_reference_number: None,
         };
 
         Ok(Self {

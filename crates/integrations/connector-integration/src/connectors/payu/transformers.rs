@@ -1777,7 +1777,7 @@ impl TryFrom<ResponseRouterData<PayuRefundResponse, Self>>
                 connector_refund_id,
                 refund_status,
                 status_code: item.http_code,
-                refund_arn: None,
+                acquirer_reference_number: None,
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,
@@ -1930,7 +1930,7 @@ impl TryFrom<ResponseRouterData<PayuRefundSyncResponse, Self>>
                                 connector_refund_id,
                                 refund_status,
                                 status_code: item.http_code,
-                                refund_arn: None,
+                                acquirer_reference_number: None,
                             }),
                             resource_common_data: RefundFlowData {
                                 status: refund_status,
@@ -1948,7 +1948,7 @@ impl TryFrom<ResponseRouterData<PayuRefundSyncResponse, Self>>
                                 connector_refund_id,
                                 refund_status: RefundStatus::Pending,
                                 status_code: item.http_code,
-                                refund_arn: None,
+                                acquirer_reference_number: None,
                             }),
                             resource_common_data: RefundFlowData {
                                 status: RefundStatus::Pending,

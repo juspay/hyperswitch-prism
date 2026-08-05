@@ -739,7 +739,7 @@ impl TryFrom<ResponseRouterData<SilverflowRefundResponse, Self>>
                 connector_refund_id: item.response.key,
                 refund_status,
                 status_code: item.http_code,
-                refund_arn: None,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -801,7 +801,7 @@ impl TryFrom<ResponseRouterData<SilverflowRefundSyncResponse, Self>>
                 connector_refund_id: item.response.key,
                 refund_status,
                 status_code: item.http_code,
-                refund_arn: None,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })

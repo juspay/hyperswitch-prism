@@ -1120,7 +1120,7 @@ impl TryFrom<ResponseRouterData<StandardResponse, Self>>
                 connector_refund_id: response.orderid.clone(),
                 refund_status: status,
                 status_code: item.http_code,
-                refund_arn: None,
+                acquirer_reference_number: None,
             }),
             resource_common_data: RefundFlowData {
                 status,
@@ -1206,7 +1206,7 @@ impl TryFrom<ResponseRouterData<SyncResponse, Self>>
                 connector_refund_id,
                 refund_status: status,
                 status_code: item.http_code,
-                refund_arn: None,
+                acquirer_reference_number: None,
             }),
             resource_common_data: RefundFlowData {
                 status,

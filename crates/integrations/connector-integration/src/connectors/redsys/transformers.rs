@@ -2043,7 +2043,7 @@ impl TryFrom<ResponseRouterData<responses::RedsysResponse, Self>>
                     connector_refund_id: response_data.ds_order,
                     refund_status,
                     status_code: item.http_code,
-                    refund_arn: None,
+                    acquirer_reference_number: None,
                 })
             }
             responses::RedsysResponse::RedsysErrorResponse(ref err) => {
@@ -2101,14 +2101,14 @@ impl TryFrom<ResponseRouterData<responses::RedsysSyncResponse, Self>>
                             connector_refund_id: latest_response.ds_order,
                             refund_status,
                             status_code: item.http_code,
-                            refund_arn: None,
+                            acquirer_reference_number: None,
                         })
                     } else {
                         Ok(RefundsResponseData {
                             connector_refund_id: latest_response.ds_order,
                             refund_status: common_enums::RefundStatus::Pending,
                             status_code: item.http_code,
-                            refund_arn: None,
+                            acquirer_reference_number: None,
                         })
                     }
                 } else {

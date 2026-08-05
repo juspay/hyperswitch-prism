@@ -1216,7 +1216,7 @@ impl TryFrom<ResponseRouterData<FiservcommercehubRefundResponse, Self>>
                 connector_refund_id: txn.transaction_id.clone(),
                 refund_status,
                 status_code: item.http_code,
-                refund_arn: None,
+                acquirer_reference_number: None,
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,
@@ -1316,7 +1316,7 @@ impl TryFrom<ResponseRouterData<FiservcommercehubRSyncResponse, Self>>
                 connector_refund_id,
                 refund_status,
                 status_code: item.http_code,
-                refund_arn: None,
+                acquirer_reference_number: None,
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,

@@ -8639,7 +8639,7 @@ pub fn generate_refund_sync_response(
                 state: None,
                 raw_connector_request,
                 acquirer_reference_number: response
-                    .refund_arn
+                    .acquirer_reference_number
                     .clone()
                     .map(hyperswitch_masking::Secret::new),
                 state_metadata: None,

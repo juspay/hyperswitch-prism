@@ -1342,7 +1342,7 @@ impl TryFrom<ResponseRouterData<CashfreeRefundResponse, Self>>
                 connector_refund_id: response.refund_id,
                 refund_status,
                 status_code: item.http_code,
-                refund_arn: None,
+                acquirer_reference_number: None,
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,
@@ -1382,7 +1382,7 @@ impl TryFrom<ResponseRouterData<CashfreeRefundSyncResponse, Self>>
                 connector_refund_id: response.refund_id,
                 refund_status,
                 status_code: item.http_code,
-                refund_arn: None,
+                acquirer_reference_number: None,
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,

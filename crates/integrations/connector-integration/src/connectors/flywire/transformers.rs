@@ -762,7 +762,7 @@ impl<F> TryFrom<ResponseRouterData<FlywireRefundResponse, Self>>
                 connector_refund_id: response.refund_id.clone(),
                 refund_status: response.status.to_refund_status(),
                 status_code: item.http_code,
-                refund_arn: None,
+                acquirer_reference_number: None,
             }),
             resource_common_data: RefundFlowData {
                 raw_connector_response: raw_response,
@@ -794,7 +794,7 @@ impl<F> TryFrom<ResponseRouterData<FlywireRefundResponse, Self>>
                 connector_refund_id: response.refund_id.clone(),
                 refund_status: response.status.to_refund_status(),
                 status_code: item.http_code,
-                refund_arn: None,
+                acquirer_reference_number: None,
             }),
             resource_common_data: RefundFlowData {
                 raw_connector_response: raw_response,
@@ -826,7 +826,7 @@ impl<F> TryFrom<ResponseRouterData<FlywirePayment, Self>>
                 connector_refund_id: response.payment_id.clone(),
                 refund_status: response.status.to_refund_status(),
                 status_code: item.http_code,
-                refund_arn: None,
+                acquirer_reference_number: None,
             }),
             resource_common_data: RefundFlowData {
                 raw_connector_response: raw_response,

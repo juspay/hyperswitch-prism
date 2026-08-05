@@ -880,7 +880,7 @@ impl TryFrom<ResponseRouterData<AirwallexRefundResponse, Self>>
                 connector_refund_id: item.response.id,
                 refund_status: status,
                 status_code: item.http_code,
-                refund_arn: None,
+                acquirer_reference_number: None,
             }),
             resource_common_data: RefundFlowData {
                 status,
@@ -912,7 +912,7 @@ impl TryFrom<ResponseRouterData<AirwallexRefundSyncResponse, Self>>
                 connector_refund_id: item.response.id,
                 refund_status: status,
                 status_code: item.http_code,
-                refund_arn: None,
+                acquirer_reference_number: None,
             }),
             resource_common_data: RefundFlowData {
                 status,

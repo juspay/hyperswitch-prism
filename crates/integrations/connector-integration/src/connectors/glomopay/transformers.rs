@@ -1099,7 +1099,7 @@ impl TryFrom<ResponseRouterData<GlomopayRefundResponse, Self>>
                 connector_refund_id: response.id,
                 refund_status,
                 status_code: item.http_code,
-                refund_arn: None,
+                acquirer_reference_number: None,
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,
@@ -1144,7 +1144,7 @@ impl TryFrom<ResponseRouterData<GlomopayRefundSyncResponse, Self>>
         // If RSync returns no matching refund, default to Pending so the
         // next sync retries rather than prematurely marking Success/Failure
         // — Glomopay's list endpoint may lag due to eventual consistency.
-        let (refund_status, resolved_refund_id, refund_arn) = match refund_entry {
+        let (refund_status, resolved_refund_id, acquirer_reference_number) = match refund_entry {
             Some(entry) => (
                 RefundStatus::from(entry.status),
                 entry.id.clone(),
@@ -1158,7 +1158,7 @@ impl TryFrom<ResponseRouterData<GlomopayRefundSyncResponse, Self>>
                 connector_refund_id: resolved_refund_id,
                 refund_status,
                 status_code: item.http_code,
-                refund_arn,
+                acquirer_reference_number,
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,

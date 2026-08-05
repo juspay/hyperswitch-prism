@@ -769,7 +769,7 @@ impl TryFrom<ResponseRouterData<MollieRefundResponse, Self>>
                 connector_refund_id: item.response.id.clone(),
                 refund_status: item.response.status.to_refund_status(),
                 status_code: item.http_code,
-                refund_arn: None,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -788,7 +788,7 @@ impl TryFrom<ResponseRouterData<MollieRefundResponse, Self>>
                 connector_refund_id: item.response.id.clone(),
                 refund_status: item.response.status.to_refund_status(),
                 status_code: item.http_code,
-                refund_arn: None,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })

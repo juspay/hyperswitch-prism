@@ -2981,7 +2981,7 @@ impl TryFrom<ResponseRouterData<TsysTransitReturnResponse, Self>>
             connector_refund_id,
             refund_status,
             status_code: item.http_code,
-            refund_arn: None,
+            acquirer_reference_number: None,
         };
 
         Ok(Self {
@@ -3117,7 +3117,7 @@ impl TryFrom<ResponseRouterData<TsysTransitTransactionInquiryResponse, Self>>
             connector_refund_id,
             refund_status,
             status_code: item.http_code,
-            refund_arn: None,
+            acquirer_reference_number: None,
         };
 
         Ok(Self {
@@ -3246,7 +3246,7 @@ impl TryFrom<ResponseRouterData<TsysTransitVoidPostRefundResponse, Self>>
                 connector_refund_id,
                 refund_status: void_post_refund_status,
                 status_code: item.http_code,
-                refund_arn: None,
+                acquirer_reference_number: None,
             }),
             ..router_data.clone()
         })

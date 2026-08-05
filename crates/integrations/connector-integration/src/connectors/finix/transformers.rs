@@ -952,7 +952,7 @@ impl TryFrom<ResponseRouterData<FinixRSyncResponse, Self>>
                 connector_refund_id: response.id,
                 refund_status,
                 status_code: item.http_code,
-                refund_arn: None,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -1068,7 +1068,7 @@ impl TryFrom<ResponseRouterData<FinixRefundResponse, Self>>
                 connector_refund_id: response.id,
                 refund_status: status,
                 status_code: item.http_code,
-                refund_arn: None,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })

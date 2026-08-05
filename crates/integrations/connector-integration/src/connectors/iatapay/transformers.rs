@@ -664,7 +664,7 @@ impl TryFrom<ResponseRouterData<IatapayRefundResponse, Self>>
                 connector_refund_id: response.iata_refund_id.clone(),
                 refund_status,
                 status_code: item.http_code,
-                refund_arn: None,
+                acquirer_reference_number: None,
             })
         };
 
@@ -710,7 +710,7 @@ impl TryFrom<ResponseRouterData<IatapayRefundSyncResponse, Self>>
                 connector_refund_id: response.iata_refund_id.clone(),
                 refund_status,
                 status_code: item.http_code,
-                refund_arn: None,
+                acquirer_reference_number: None,
             })
         };
 

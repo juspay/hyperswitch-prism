@@ -797,7 +797,7 @@ impl TryFrom<ResponseRouterData<PaymeRefundResponse, Self>>
                 connector_refund_id,
                 refund_status,
                 status_code: item.http_code,
-                refund_arn: None,
+                acquirer_reference_number: None,
             };
 
             Ok(Self {
@@ -900,7 +900,7 @@ impl TryFrom<ResponseRouterData<PaymeRSyncResponse, Self>>
             connector_refund_id: transaction_item.payme_transaction_id.clone(),
             refund_status,
             status_code: item.http_code,
-            refund_arn: None,
+            acquirer_reference_number: None,
         };
 
         Ok(Self {

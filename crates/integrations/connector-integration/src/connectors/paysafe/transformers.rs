@@ -2643,7 +2643,7 @@ impl TryFrom<ResponseRouterData<PaysafeRefundResponse, Self>>
                 connector_refund_id: item.response.id.clone(),
                 refund_status: enums::RefundStatus::from(item.response.status),
                 status_code: item.http_code,
-                refund_arn: None,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -2663,7 +2663,7 @@ impl TryFrom<ResponseRouterData<PaysafeRSyncResponse, Self>>
                 connector_refund_id: item.response.id.clone(),
                 refund_status: enums::RefundStatus::from(item.response.status),
                 status_code: item.http_code,
-                refund_arn: None,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })

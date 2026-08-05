@@ -1597,7 +1597,7 @@ impl TryFrom<ResponseRouterData<ImerchantsolutionsRefundResponseData, Self>>
                 connector_refund_id: item.response.psp_reference.to_string(),
                 refund_status,
                 status_code: item.http_code,
-                refund_arn: None,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -1661,7 +1661,7 @@ impl TryFrom<ResponseRouterData<ImerchantsolutionsRefundSyncResponse, Self>>
                         connector_refund_id,
                         refund_status,
                         status_code: http_code,
-                        refund_arn: None,
+                        acquirer_reference_number: None,
                     }),
                     ..router_data
                 })
@@ -1702,7 +1702,7 @@ impl TryFrom<ResponseRouterData<ImerchantsolutionsRefundSyncResponse, Self>>
                             connector_refund_id,
                             refund_status,
                             status_code: http_code,
-                            refund_arn: None,
+                            acquirer_reference_number: None,
                         }),
                         ..router_data
                     })

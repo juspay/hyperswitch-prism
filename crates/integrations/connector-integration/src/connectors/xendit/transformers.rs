@@ -820,7 +820,7 @@ impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
                 connector_refund_id: response.id,
                 refund_status: common_enums::RefundStatus::from(response.status),
                 status_code: http_code,
-                refund_arn: None,
+                acquirer_reference_number: None,
             }),
             request: RefundsData {
                 integrity_object: response_integrity_object,
@@ -856,7 +856,7 @@ impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
                 connector_refund_id: response.id,
                 refund_status: common_enums::RefundStatus::from(response.status),
                 status_code: http_code,
-                refund_arn: None,
+                acquirer_reference_number: None,
             }),
             ..router_data
         })

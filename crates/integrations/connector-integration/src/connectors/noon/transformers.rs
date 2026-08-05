@@ -968,7 +968,7 @@ impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
                 connector_refund_id: item.response.result.transaction.id,
                 refund_status,
                 status_code: item.http_code,
-                refund_arn: None,
+                acquirer_reference_number: None,
             })
         };
         Ok(Self {
@@ -1037,7 +1037,7 @@ impl<F> TryFrom<ResponseRouterData<RefundSyncResponse, Self>>
                 connector_refund_id: noon_transaction.id.to_owned(),
                 refund_status,
                 status_code: item.http_code,
-                refund_arn: None,
+                acquirer_reference_number: None,
             })
         };
         Ok(Self {

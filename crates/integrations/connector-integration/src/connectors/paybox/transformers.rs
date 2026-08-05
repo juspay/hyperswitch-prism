@@ -975,7 +975,7 @@ impl TryFrom<ResponseRouterData<PayboxRefundResponse, Self>>
                     connector_refund_id: item.response.paybox_order_id.clone(),
                     refund_status: RefundStatus::Success,
                     status_code: item.http_code,
-                    refund_arn: None,
+                    acquirer_reference_number: None,
                 }),
                 resource_common_data: RefundFlowData {
                     status: RefundStatus::Success,
@@ -1092,7 +1092,7 @@ impl TryFrom<ResponseRouterData<PayboxRSyncResponse, Self>>
                 connector_refund_id: item.response.paybox_order_id.clone(),
                 refund_status,
                 status_code: item.http_code,
-                refund_arn: None,
+                acquirer_reference_number: None,
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,
