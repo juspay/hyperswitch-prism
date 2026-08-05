@@ -1,0 +1,661 @@
+{
+  "connector": "grabpay",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for grabpay"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "AchBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "Affirm": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "Afterpay": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "Alfamart": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "AliPayRedirect": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "AmazonPayRedirect": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "ApplePay": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "ApplePayDecrypted": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "Bacs": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "BacsBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "BancontactCard": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "BcaBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "Becs": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "BillDeskRedirect": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "Bizum": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "Blik": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "Bluecode": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "BniVaBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "Boleto": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "BriVaBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "Card": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "CashappQr": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "CashfreeRedirect": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "CimbVaBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "ClassicReward": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Dana": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "EVoucher": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "EaseBuzzRedirect": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "Efecty": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "Eft": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "Eps": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "FamilyMart": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "GCash": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "Giropay": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "GoPay": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "GooglePay": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "GooglePayDecrypted": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "Ideal": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "Indomaret": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "IndonesianBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "InstantBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "InstantBankTransferFinland": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "InstantBankTransferPoland": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "Interac": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "KakaoPay": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "Klarna": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "Lawson": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "LazyPayRedirect": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "LocalBankRedirect": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "LocalBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "MbWay": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "Mifinity": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "MiniStop": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Momo": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "MultibancoBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "Netbanking": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "OnlineBankingFinland": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "OnlineBankingFpx": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "OnlineBankingPoland": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "OnlineBankingThailand": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "OpenBanking": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "OpenBankingUk": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "Oxxo": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "PagoEfectivo": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "PayEasy": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "PaySafeCard": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "PayURedirect": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "PaypalRedirect": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "PaypalSdk": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "PermataBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "PhonePeRedirect": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "Pix": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "Przelewy24": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "Pse": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "RedCompra": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "RedPagos": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "RevolutPay": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "SamsungPay": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "Satispay": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "Seicomart": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "Sepa": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "SepaBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "SevenEleven": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "Skrill": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "Sofort": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "Swish": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "TouchNGo": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "Trustly": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "Twint": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "UpiCollect": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "UpiIntent": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "UpiQr": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "Vipps": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "WeChatPayQr": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      },
+      "Wero": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "not_supported",
+        "error": "capture flow not supported by grabpay connector"
+      }
+    },
+    "create_client_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: client_authentication_token flow for grabpay"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_order_id": "probe_order_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/init",
+          "method": "Post",
+          "headers": {
+            "authorization": "probe_key:cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "date": "Wed, 05 Aug 2026 08:37:11 GMT",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"partnerGroupTxID\":\"probe_order_001\",\"partnerTxID\":\"probe_order_001\",\"currency\":\"USD\",\"amount\":1000,\"merchantID\":\"probe_key\"}"
+        }
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_session_authentication_token flow for grabpay"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for grabpay"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: get_connector_customer flow for grabpay"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: accept_dispute flow for grabpay"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: defend_dispute flow for grabpay"
+      }
+    },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: submit_evidence flow for grabpay"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: eligibility flow for grabpay"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay OAuth token exchange requires connector_feature_data.access_token — Missing required field: access_token. GrabPay OAuth token exchange requires connector_feature_data.access_token"
+      }
+    },
+    "handle_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: incremental_authorization flow for grabpay"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for grabpay"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for grabpay"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for grabpay"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: repeat_payment flow for grabpay"
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for grabpay"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay OAuth token exchange requires connector_feature_data.access_token — Missing required field: access_token. GrabPay OAuth token exchange requires connector_feature_data.access_token"
+      }
+    },
+    "refund_get": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.currency. GrabPay RSync requires either refund_amount.currency or connector_feature_data.currency — Missing required field: connector_feature_data.currency. GrabPay RSync requires either refund_amount.currency or connector_feature_data.currency"
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void_post_capture flow for grabpay"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for grabpay"
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for grabpay"
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for grabpay"
+      }
+    },
+    "verify_redirect": {
+      "default": {
+        "status": "supported"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "not_supported",
+        "error": "void flow not supported by grabpay connector"
+      }
+    }
+  }
+}
