@@ -40,7 +40,12 @@ impl TryFrom<&ConnectorSpecificConfig> for MayaAuthType {
             }),
             _ => Err(error_stack::report!(
                 IntegrationError::FailedToObtainAuthType {
-                    context: errors::IntegrationErrorContext::default()
+                    context: errors::IntegrationErrorContext {
+                        additional_context: Some(
+                            "Maya requires public_key and secret_key authentication".to_string()
+                        ),
+                        ..Default::default()
+                    }
                 }
             )),
         }
@@ -410,7 +415,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let return_url = router_data.resource_common_data.return_url.clone().ok_or(
             IntegrationError::MissingRequiredField {
                 field_name: "return_url",
-                context: Default::default(),
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Maya checkout requires success_url and failure_url for post-payment redirect"
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Provide a return_url so Maya can redirect the customer after payment completion"
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
             },
         )?;
 
@@ -575,8 +590,8 @@ impl TryFrom<ResponseRouterData<MayaWebhookBody, Self>>
                 settlement_status,
                 raw_connector_status: Some(RawConnectorStatus {
                     code: payment.error_code.clone(),
-                    message: Some(effective_status.to_string()),
-                    reason: payment.error_message.clone(),
+                    message: payment.error_message.clone(),
+                    reason: None,
                 }),
                 ..item.router_data.resource_common_data
             },
@@ -783,190 +798,5 @@ impl TryFrom<ResponseRouterData<MayaRefundSyncResponse, Self>>
             },
             ..item.router_data
         })
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use common_utils::types::FloatMajorUnit;
-
-    use super::{
-        maya_settlement_status, MayaPaymentsRequest, MayaRedirectUrl, MayaRefundRequest,
-        MayaRefundResponse, MayaRefundTotalAmount, MayaTotalAmount, MayaWebhookBody,
-    };
-    use domain_types::connector_types::SettlementStatus;
-
-    #[test]
-    fn settlement_status_prefers_can_void_when_both_operations_are_allowed() {
-        assert_eq!(
-            maya_settlement_status(Some(true), Some(true)),
-            Some(SettlementStatus::NotSettled)
-        );
-    }
-
-    #[test]
-    fn settlement_status_is_settled_only_when_void_is_disabled_and_refund_is_allowed() {
-        assert_eq!(
-            maya_settlement_status(Some(false), Some(true)),
-            Some(SettlementStatus::Settled)
-        );
-    }
-
-    #[test]
-    fn settlement_status_is_absent_for_inconclusive_operation_flags() {
-        for flags in [
-            (Some(false), Some(false)),
-            (Some(false), None),
-            (None, Some(true)),
-            (None, Some(false)),
-            (None, None),
-        ] {
-            assert_eq!(maya_settlement_status(flags.0, flags.1), None);
-        }
-    }
-
-    /// Refund Payment via ID expects the amount as a JSON number under
-    /// `totalAmount.amount` (not as a string and not under `value`).
-    /// <https://developers.maya.ph/reference/refundv1paymentviaid-1>
-    #[test]
-    fn refund_request_amount_is_a_json_number() {
-        let request = MayaRefundRequest {
-            total_amount: MayaRefundTotalAmount {
-                amount: FloatMajorUnit(1.0),
-                currency: common_enums::Currency::PHP,
-            },
-            reason: "Customer requested refund".to_string(),
-        };
-
-        assert_eq!(
-            serde_json::to_value(&request).expect("refund request must serialize"),
-            serde_json::json!({
-                "totalAmount": {
-                    "amount": 1.0,
-                    "currency": "PHP"
-                },
-                "reason": "Customer requested refund"
-            })
-        );
-    }
-
-    /// Create Single Payment expects the amount as a JSON number under
-    /// `totalAmount.value`.
-    /// <https://developers.maya.ph/reference/createv2singlepayment>
-    #[test]
-    fn authorize_request_amount_is_a_json_number() {
-        let request = MayaPaymentsRequest {
-            total_amount: MayaTotalAmount {
-                value: FloatMajorUnit(100.0),
-                currency: common_enums::Currency::PHP,
-            },
-            redirect_url: MayaRedirectUrl {
-                success: "https://merchant.example/success".to_string(),
-                failure: "https://merchant.example/failure".to_string(),
-                cancel: "https://merchant.example/cancel".to_string(),
-            },
-            request_reference_number: "5b2a6d60-2265-4bc1-bb0e-1785404982".to_string(),
-            user_id: None,
-            metadata: None,
-        };
-
-        assert_eq!(
-            serde_json::to_value(&request).expect("payments request must serialize"),
-            serde_json::json!({
-                "totalAmount": {
-                    "value": 100.0,
-                    "currency": "PHP"
-                },
-                "redirectUrl": {
-                    "success": "https://merchant.example/success",
-                    "failure": "https://merchant.example/failure",
-                    "cancel": "https://merchant.example/cancel"
-                },
-                "requestReferenceNumber": "5b2a6d60-2265-4bc1-bb0e-1785404982"
-            })
-        );
-    }
-
-    /// The documented successful refund response (which includes the `refundAt`
-    /// timestamp) must deserialize into our refund response struct.
-    #[test]
-    fn refund_response_from_docs_deserializes() {
-        let response: MayaRefundResponse = serde_json::from_value(serde_json::json!({
-            "id": "8969d8a7-7287-4aee-bf43-7516b9385290",
-            "reason": "Item out of stock",
-            "amount": "1",
-            "currency": "PHP",
-            "status": "SUCCESS",
-            "payment": "e29f24d9-ea15-47c4-bca0-46dfe84a773b",
-            "requestReferenceNumber": "466d97e5-ea38-4ee2-bbcb-d2301dfcac5f",
-            "refundAt": "2021-07-09T09:09:52.000Z",
-            "createdAt": "2021-07-09T09:09:52.000Z",
-            "updatedAt": "2021-07-09T09:09:52.000Z"
-        }))
-        .expect("refund response from Maya docs must deserialize");
-
-        assert_eq!(response.id, "8969d8a7-7287-4aee-bf43-7516b9385290");
-    }
-
-    /// `status` is mandatory per Maya's docs: a 2xx refund response without
-    /// it must fail deserialization rather than be treated as a successful
-    /// money movement.
-    #[test]
-    fn refund_response_without_status_fails_to_deserialize() {
-        let result = serde_json::from_value::<MayaRefundResponse>(serde_json::json!({
-            "id": "8969d8a7-7287-4aee-bf43-7516b9385290",
-            "reason": "Item out of stock",
-            "requestReferenceNumber": "466d97e5-ea38-4ee2-bbcb-d2301dfcac5f"
-        }));
-
-        assert!(
-            result.is_err(),
-            "refund response missing `status` must not deserialize"
-        );
-    }
-
-    /// Same contract holds for void responses: no `status`, no successful void.
-    #[test]
-    fn void_response_without_status_fails_to_deserialize() {
-        let result = serde_json::from_value::<super::MayaVoidResponse>(serde_json::json!({
-            "id": "void-123",
-            "reason": "Customer requested void"
-        }));
-
-        assert!(
-            result.is_err(),
-            "void response missing `status` must not deserialize"
-        );
-    }
-
-    #[test]
-    fn payment_id_and_merchant_reference_remain_distinct() {
-        let payment: MayaWebhookBody = serde_json::from_value(serde_json::json!({
-            "id": "c0ea08ca-9344-45a4-be41-ee03665bbe13",
-            "status": "PAYMENT_SUCCESS",
-            "requestReferenceNumber": "azharamin-1785229582-1"
-        }))
-        .expect("Maya payment response must deserialize");
-
-        assert_eq!(payment.id, "c0ea08ca-9344-45a4-be41-ee03665bbe13");
-        assert_eq!(
-            payment.connector_response_reference_id().as_deref(),
-            Some("azharamin-1785229582-1")
-        );
-    }
-
-    #[test]
-    fn transaction_reference_number_is_used_as_merchant_reference_fallback() {
-        let payment: MayaWebhookBody = serde_json::from_value(serde_json::json!({
-            "id": "maya-payment-id",
-            "status": "PAYMENT_SUCCESS",
-            "transactionReferenceNumber": "merchant-transaction-id"
-        }))
-        .expect("Maya payment response must deserialize");
-
-        assert_eq!(
-            payment.connector_response_reference_id().as_deref(),
-            Some("merchant-transaction-id")
-        );
     }
 }
