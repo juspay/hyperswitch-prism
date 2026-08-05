@@ -313,6 +313,7 @@ impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Pa
                     bank_code,
                     bank_account_type,
                     account_holder_name,
+                    document_type,
                     ..
                 }))) => {
                     let bank_branch =
@@ -329,26 +330,22 @@ impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Pa
 
                     let number = bank_account_number.clone();
 
-                    let (document_type, document_number) = tax_id
+                    let document_type = document_type.ok_or(IntegrationError::MissingRequiredField {
+                        field_name: "payout_method_data.document_type",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("missing required field: document_type".to_string()),
+                            ..Default::default()
+                        },
+                    })?;
+
+                    let document_number = tax_id
                         .clone()
                         .expose_option()
-                        .map(|id| {
-                            let only_digits: String =
-                                id.chars().filter(|ch| ch.is_ascii_digit()).collect();
-                            let doc_type = if only_digits.len() == 11 {
-                                "CPF".to_string()
-                            } else {
-                                "CNPJ".to_string()
-                            };
-                            (doc_type, Secret::new(only_digits))
-                        })
+                        .map(|id| Secret::new(id.chars().filter(|ch| ch.is_ascii_digit()).collect::<String>()))
                         .ok_or(IntegrationError::MissingRequiredField {
                             field_name: "payout_method_data.tax_id",
                             context: IntegrationErrorContext {
-                                additional_context: Some(
-                                    "tax_id is required to determine CPF/CNPJ document type"
-                                        .to_string(),
-                                ),
+                                additional_context: Some("missing required field: tax_id".to_string()),
                                 ..Default::default()
                             },
                         })?;

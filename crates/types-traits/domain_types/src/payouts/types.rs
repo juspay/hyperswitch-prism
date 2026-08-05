@@ -601,7 +601,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PixBankTransferPayout>
                     },
                 })
             })?,
-            tax_id: pix.tax_id,
+            tax_id: pix.tax_id.clone(),
             ispb: pix.ispb,
             bank_code: pix.bank_code,
             bank_account_type: pix.bank_account_type.and_then(|bank_type_raw| {
@@ -610,6 +610,16 @@ impl ForeignTryFrom<grpc_api_types::payouts::PixBankTransferPayout>
                     .and_then(|bank_account_type| payouts::payout_method_data::PixBankAccountType::try_from(bank_account_type).ok())
             }),
             account_holder_name: pix.account_holder_name,
+            document_type: pix.tax_id.as_ref().and_then(|tax_id| {
+                let only_digits: String = tax_id.peek().chars().filter(|ch| ch.is_ascii_digit()).collect();
+                if cpf_cnpj::cpf::validate(&only_digits) {
+                    Some("CPF".to_string())
+                } else if cpf_cnpj::cnpj::validate(&only_digits) {
+                    Some("CNPJ".to_string())
+                } else {
+                    None
+                }
+            }),
         })
     }
 }

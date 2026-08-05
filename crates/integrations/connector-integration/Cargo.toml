@@ -49,7 +49,6 @@ html-escape = "0.2"
 josekit = "0.8.7"
 async-trait = "0.1.88"
 openssl = {version = "0.10.70"}
-cpf_cnpj = "0.3"
 
 [lints]
 workspace = true

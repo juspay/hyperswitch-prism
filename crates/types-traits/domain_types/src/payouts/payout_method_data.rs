@@ -186,6 +186,9 @@ pub struct PixBankTransfer {
 
     /// The account holder name
     pub account_holder_name: Option<Secret<String>>,
+
+    /// The document type derived from tax_id (CPF for individuals, CNPJ for companies)
+    pub document_type: Option<String>,
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug)]
