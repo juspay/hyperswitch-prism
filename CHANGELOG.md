@@ -19,6 +19,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.08.05.0
+
+### Features
+
+- **connector:** [PLAID] add Plaid as authenticator connector ([#1975](https://github.com/juspay/connector-service/pull/1975)) ([`423af1e`](https://github.com/juspay/connector-service/commit/423af1e0d7247a9ec02e6154e975672a59b8e9da))
+- **proto:** Add currency conversion support ([#2026](https://github.com/juspay/connector-service/pull/2026)) ([`2d194e3`](https://github.com/juspay/connector-service/commit/2d194e323e3ccceb0e89e10378f6198606b04a39))
+
+### Bug Fixes
+
+- **connector:** [paypal] populate sender_payment_instrument_id from payer response ([#2052](https://github.com/juspay/connector-service/pull/2052)) ([`0ee9a68`](https://github.com/juspay/connector-service/commit/0ee9a686d92830a1c4733d41bf1160b78dcd3bd5))
+- **finix:** Report real HTTP status code for payment_method_token ([#17012](https://github.com/juspay/connector-service/pull/17012)) ([#1659](https://github.com/juspay/connector-service/pull/1659)) ([`8333132`](https://github.com/juspay/connector-service/commit/833313267390043646b0f39c13b652fec52d1c79))
+
+**Full Changelog:** [`2026.08.04.0...2026.08.05.0`](https://github.com/juspay/connector-service/compare/2026.08.04.0...2026.08.05.0)
+
+- - -
+
 ## 2026.08.04.0
 
 ### Bug Fixes
