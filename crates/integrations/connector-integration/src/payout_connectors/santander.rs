@@ -13,7 +13,7 @@ use domain_types::{
     connector_types::{
         ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
     },
-    errors::{ConnectorError, IntegrationError, ResponseTransformationErrorContext},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext, ResponseTransformationErrorContext},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payouts::payouts_types::{
         PayoutCreateLinkRequest, PayoutCreateLinkResponse, PayoutCreateRecipientRequest,
@@ -515,7 +515,10 @@ impl
         let workspace_id = get_workspace_id(&auth);
         let connector_payout_id = req.request.connector_payout_id.clone().ok_or(
             IntegrationError::MissingConnectorTransactionID {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some("missing required field: connector_payout_id".to_string()),
+                    ..Default::default()
+                },
             },
         )?;
         Ok(format!(
@@ -655,7 +658,10 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
         let workspace_id = get_workspace_id(&auth);
         let connector_payout_id = req.request.connector_payout_id.clone().ok_or(
             IntegrationError::MissingConnectorTransactionID {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some("missing required field: connector_payout_id".to_string()),
+                    ..Default::default()
+                },
             },
         )?;
         Ok(format!(
