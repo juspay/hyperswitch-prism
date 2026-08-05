@@ -522,12 +522,8 @@ pub struct SantanderStatusResponse {
 // ===== RESPONSE TRANSFORMER IMPLS =====
 
 impl
-    TryFrom<
-        ResponseRouterData<
-            SantanderPayoutResponse,
-            RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>,
-        >,
-    > for RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>
+    TryFrom<ResponseRouterData<SantanderPayoutResponse, Self>>
+    for RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>
 {
     type Error = error_stack::Report<ConnectorError>;
 
@@ -551,17 +547,7 @@ impl
 }
 
 impl
-    TryFrom<
-        ResponseRouterData<
-            SantanderPayoutResponse,
-            RouterDataV2<
-                PayoutTransfer,
-                PayoutFlowData,
-                PayoutTransferRequest,
-                PayoutTransferResponse,
-            >,
-        >,
-    >
+    TryFrom<ResponseRouterData<SantanderPayoutResponse, Self>>
     for RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>
 {
     type Error = error_stack::Report<ConnectorError>;
@@ -586,12 +572,8 @@ impl
 }
 
 impl
-    TryFrom<
-        ResponseRouterData<
-            SantanderStatusResponse,
-            RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
-        >,
-    > for RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>
+    TryFrom<ResponseRouterData<SantanderStatusResponse, Self>>
+    for RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>
 {
     type Error = error_stack::Report<ConnectorError>;
 
