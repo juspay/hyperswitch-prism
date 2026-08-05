@@ -477,7 +477,7 @@
           "headers": {
             "authorization": "probe_key:cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
             "content-type": "application/json",
-            "date": "Wed, 05 Aug 2026 10:30:47 GMT",
+            "date": "Wed, 05 Aug 2026 10:38:02 GMT",
             "via": "HyperSwitch"
           },
           "body": "{\"partnerGroupTxID\":\"probe_order_001\",\"partnerTxID\":\"probe_order_001\",\"currency\":\"USD\",\"amount\":1000,\"merchantID\":\"probe_key\"}"
