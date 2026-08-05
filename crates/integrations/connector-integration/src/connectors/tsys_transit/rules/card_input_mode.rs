@@ -40,7 +40,7 @@ pub fn card_data_input_mode(
         return ManuallyEnteredWithKeyedCidAmexJcb;
     }
 
-    // 2. CIT-setup that stores credentials for future use (Visa / Mastercard)
+    // 2. CIT-setup that stores credentials for future use of Visa card
     if profile.cof_phase.is_cit_setup() && profile.card_family.is_visa() {
         return MerchantInitiatedTransactionCardCredentialStoredOnFile;
     }
