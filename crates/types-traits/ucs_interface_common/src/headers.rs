@@ -43,6 +43,7 @@ const HEADERS: &[&str] = &[
     consts::X_CONNECTOR_CONFIG,
     consts::X_RESOURCE_ID,
     consts::X_ENVIRONMENT,
+    consts::X_UCS_API_TAG,
 ];
 
 fn to_metadata_value(key: &str, value: &str) -> Result<MetadataValue<Ascii>, InterfaceError> {
