@@ -2495,6 +2495,8 @@ impl ForeignTryFrom<grpc_api_types::payments::BankType> for common_enums::BankTy
             grpc_api_types::payments::BankType::Transmission => {
                 Ok(common_enums::BankType::Transmission)
             }
+            grpc_api_types::payments::BankType::Salary => Ok(common_enums::BankType::Salary),
+            grpc_api_types::payments::BankType::Payment => Ok(common_enums::BankType::Payment),
             grpc_api_types::payments::BankType::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "unknown",
@@ -17399,6 +17401,8 @@ impl ForeignFrom<common_enums::BankType> for grpc_api_types::payments::BankType 
             common_enums::BankType::Bond => Self::Bond,
             common_enums::BankType::SubscriptionShare => Self::SubscriptionShare,
             common_enums::BankType::Transmission => Self::Transmission,
+            common_enums::BankType::Salary => Self::Salary,
+            common_enums::BankType::Payment => Self::Payment,
         }
     }
 }

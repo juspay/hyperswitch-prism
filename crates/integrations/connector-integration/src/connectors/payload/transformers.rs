@@ -288,7 +288,9 @@ fn build_payload_bank_account_request_data<T: PaymentMethodDataTypes>(
                 Some(enums::BankType::Transmission)
                 | Some(enums::BankType::Current)
                 | Some(enums::BankType::Bond)
-                | Some(enums::BankType::SubscriptionShare) => {
+                | Some(enums::BankType::SubscriptionShare)
+                | Some(enums::BankType::Salary)
+                | Some(enums::BankType::Payment) => {
                     Err(error_stack::report!(IntegrationError::NotSupported {
                         message: format!(
                             "Bank type {:?} is not supported for ACH bank debit",

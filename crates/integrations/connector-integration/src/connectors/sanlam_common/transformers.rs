@@ -230,8 +230,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             },
                         })?;
 
-                    let bank_type = bank_type.map(AbsaSanlamBankType::from).ok_or(
-                        IntegrationError::MissingRequiredField {
+                    let raw_bank_type =
+                        bank_type.ok_or(error_stack::report!(IntegrationError::MissingRequiredField {
                             field_name: "bank_type",
                             context: IntegrationErrorContext {
                                 additional_context: Some(
@@ -242,8 +242,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 ),
                                 doc_url: None,
                             },
-                        },
-                    )?;
+                        }))?;
+                    let bank_type = AbsaSanlamBankType::try_from(raw_bank_type)?;
 
                     Ok(AbsaSanlamPaymentMethod::EftDebitOrder(EftDebitOrder {
                         homing_account: account_number.clone(),
@@ -362,15 +362,32 @@ impl TryFrom<BankNames> for AbsaSanlamBankNames {
     }
 }
 
-impl From<BankType> for AbsaSanlamBankType {
-    fn from(value: BankType) -> Self {
+impl TryFrom<BankType> for AbsaSanlamBankType {
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(value: BankType) -> Result<Self, Self::Error> {
         match value {
-            BankType::Checking => Self::Cheque,
-            BankType::Savings => Self::Savings,
-            BankType::Current => Self::Current,
-            BankType::Bond => Self::Bond,
-            BankType::Transmission => Self::Transmission,
-            BankType::SubscriptionShare => Self::SubscriptionShare,
+            BankType::Checking => Ok(Self::Cheque),
+            BankType::Savings => Ok(Self::Savings),
+            BankType::Current => Ok(Self::Current),
+            BankType::Bond => Ok(Self::Bond),
+            BankType::Transmission => Ok(Self::Transmission),
+            BankType::SubscriptionShare => Ok(Self::SubscriptionShare),
+            BankType::Salary | BankType::Payment => {
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: format!("Bank type {value:?} is not supported by AbsaSanlam"),
+                    connector: "AbsaSanlam",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(format!(
+                            "BankType::{value:?} is a Pix-specific account type not supported for EFT debit orders"
+                        )),
+                        suggested_action: Some(
+                            "Use Checking, Savings, Current, Bond, Transmission, or SubscriptionShare".to_string(),
+                        ),
+                        doc_url: None,
+                    },
+                }))
+            }
         }
     }
 }

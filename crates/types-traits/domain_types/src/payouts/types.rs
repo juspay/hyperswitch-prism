@@ -605,9 +605,11 @@ impl ForeignTryFrom<grpc_api_types::payouts::PixBankTransferPayout>
             ispb: pix.ispb,
             bank_code: pix.bank_code,
             bank_account_type: pix.bank_account_type.and_then(|bank_type_raw| {
-                grpc_api_types::payment_methods::BankType::try_from(bank_type_raw)
+                grpc_api_types::payouts::BankType::try_from(bank_type_raw)
                     .ok()
-                    .and_then(|bank_type| common_enums::BankType::foreign_try_from(bank_type.as_str_name()).ok())
+                    .and_then(|bank_type: grpc_api_types::payouts::BankType| {
+                        common_enums::BankType::foreign_try_from(bank_type).ok()
+                    })
             }),
             account_holder_name: pix.account_holder_name,
             document_type: pix.tax_id.as_ref().map(|tax_id| {
