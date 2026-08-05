@@ -51,9 +51,9 @@ use super::super::transformers::{
 ///     `mitStatusIndicator` / `citStatusIndicator` instead.
 pub fn card_on_file(profile: &TxProfile) -> Option<TsysTransitCardOnFile> {
     match (profile.card_family, profile.cof_phase) {
-        (CardFamily::Visa, CofPhase::CitSetup { .. }) => Some(TsysTransitCardOnFile::Y),
+        (CardFamily::Visa, CofPhase::CitSetup { .. } | CofPhase::Mit(..)) => Some(TsysTransitCardOnFile::Y),
         (family, CofPhase::Mit(MitKind::Recurring | MitKind::Installment))
-            if is_discover_family(family) || family.is_visa() =>
+            if is_discover_family(family)  =>
         {
             Some(TsysTransitCardOnFile::Y)
         }
