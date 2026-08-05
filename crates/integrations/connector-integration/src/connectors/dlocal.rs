@@ -256,6 +256,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .order_id
                 .clone()
                 .or_else(|| body.external_id.clone()),
+            connector_request_reference_id: body
+                .order_id
+                .clone()
+                .or_else(|| body.external_id.clone()),
             mandate_reference,
             error_code: is_failure
                 .then(|| body.status_code.as_ref().map(ToString::to_string))

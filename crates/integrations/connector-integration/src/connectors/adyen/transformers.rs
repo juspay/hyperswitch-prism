@@ -1390,7 +1390,10 @@ fn get_adyen_card_network(card_network: common_enums::CardNetwork) -> Option<Car
         common_enums::CardNetwork::Accel => Some(CardBrand::Accel),
         common_enums::CardNetwork::Pulse => Some(CardBrand::Pulse),
         common_enums::CardNetwork::Nyce => Some(CardBrand::Nyce),
-        common_enums::CardNetwork::Interac => None,
+        common_enums::CardNetwork::Interac
+        | common_enums::CardNetwork::Prop
+        | common_enums::CardNetwork::PrivateLabel
+        | common_enums::CardNetwork::Dinacard => None,
     }
 }
 
@@ -6159,6 +6162,7 @@ impl<F, Req> TryFrom<ResponseRouterData<AdyenRefundResponse, Self>>
             connector_refund_id: response.psp_reference,
             refund_status: status,
             status_code: http_code,
+            acquirer_reference_number: None,
         };
 
         Ok(Self {

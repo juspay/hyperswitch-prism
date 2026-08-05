@@ -120,22 +120,6 @@ impl ForeignFrom<(&CompositeAuthorizeRequest, &ConnectorEnum)>
     }
 }
 
-impl ForeignFrom<&CompositeAuthorizeRequest> for PaymentServiceCreateOrderRequest {
-    fn foreign_from(item: &CompositeAuthorizeRequest) -> Self {
-        Self {
-            merchant_order_id: item.merchant_transaction_id.clone(),
-            amount: item.amount,
-            webhook_url: item.webhook_url.clone(),
-            metadata: item.metadata.clone(),
-            connector_feature_data: item.connector_feature_data.clone(),
-            state: item.state.clone(),
-            test_mode: item.test_mode,
-            payment_method_type: None,
-            order_details: item.order_details.clone(),
-        }
-    }
-}
-
 // Tuple variant: threads the freshly-created connector_customer_id from
 // `create_customer_response` into the outgoing state. Required for connectors
 // that do not cache the connector-side customer id externally (e.g. Glomopay),
@@ -145,12 +129,14 @@ impl
     ForeignFrom<(
         &CompositeAuthorizeRequest,
         Option<&CustomerServiceCreateResponse>,
+        interfaces::connector_types::MerchantOrderIdSource,
     )> for PaymentServiceCreateOrderRequest
 {
     fn foreign_from(
-        (item, create_customer_response): (
+        (item, create_customer_response, merchant_order_id_source): (
             &CompositeAuthorizeRequest,
             Option<&CustomerServiceCreateResponse>,
+            interfaces::connector_types::MerchantOrderIdSource,
         ),
     ) -> Self {
         let connector_customer_id_from_req = item
@@ -165,8 +151,17 @@ impl
             connector_customer_id,
         });
 
+        let merchant_order_id = match merchant_order_id_source {
+            interfaces::connector_types::MerchantOrderIdSource::OrderId => {
+                item.merchant_order_id.clone()
+            }
+            interfaces::connector_types::MerchantOrderIdSource::TransactionId => {
+                item.merchant_transaction_id.clone()
+            }
+        };
+
         Self {
-            merchant_order_id: item.merchant_transaction_id.clone(),
+            merchant_order_id,
             amount: item.amount,
             webhook_url: item.webhook_url.clone(),
             metadata: item.metadata.clone(),

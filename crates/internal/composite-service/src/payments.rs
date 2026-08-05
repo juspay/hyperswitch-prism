@@ -560,6 +560,7 @@ where
             );
 
         let should_execute_create_order = connector_data.connector.should_do_order_create();
+        let merchant_order_id_source = connector_data.connector.merchant_order_id_source();
 
         let create_order_response = match should_execute_create_order {
             true => {
@@ -570,6 +571,7 @@ where
                 let create_order_payload = PaymentServiceCreateOrderRequest::foreign_from((
                     payload,
                     create_customer_response,
+                    merchant_order_id_source,
                 ));
                 let mut create_order_request = tonic::Request::new(create_order_payload);
                 *create_order_request.metadata_mut() = metadata.clone();

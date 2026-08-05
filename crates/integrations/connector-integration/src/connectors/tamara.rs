@@ -296,7 +296,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(domain_types::connector_types::WebhookDetailsResponse {
             resource_id: Some(ResponseId::ConnectorTransactionId(event.order_id.clone())),
             status: AttemptStatus::from(event.event_type),
-            connector_response_reference_id: Some(event.order_id),
+            connector_response_reference_id: Some(event.order_id.clone()),
+            connector_request_reference_id: Some(event.order_id),
             mandate_reference: None,
             error_code: None,
             error_message: None,
