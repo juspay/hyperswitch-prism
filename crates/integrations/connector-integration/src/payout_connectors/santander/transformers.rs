@@ -595,7 +595,7 @@ impl
     fn try_from(
         item: &ResponseRouterData<
             SantanderPayoutResponse,
-            RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>,
+            RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Self>,
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
@@ -611,12 +611,7 @@ impl
     TryFrom<
         &ResponseRouterData<
             SantanderPayoutResponse,
-            RouterDataV2<
-                PayoutTransfer,
-                PayoutFlowData,
-                PayoutTransferRequest,
-                PayoutTransferResponse,
-            >,
+            RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, Self>,
         >,
     > for PayoutTransferResponse
 {
@@ -625,12 +620,7 @@ impl
     fn try_from(
         item: &ResponseRouterData<
             SantanderPayoutResponse,
-            RouterDataV2<
-                PayoutTransfer,
-                PayoutFlowData,
-                PayoutTransferRequest,
-                PayoutTransferResponse,
-            >,
+            RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, Self>,
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
@@ -646,7 +636,7 @@ impl
     TryFrom<
         &ResponseRouterData<
             SantanderStatusResponse,
-            RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
+            RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, Self>,
         >,
     > for PayoutGetResponse
 {
@@ -655,7 +645,7 @@ impl
     fn try_from(
         item: &ResponseRouterData<
             SantanderStatusResponse,
-            RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
+            RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, Self>,
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
