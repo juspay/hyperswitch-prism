@@ -1670,6 +1670,27 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Match on the payment-method enum (not payment_method_data) because the settle
         // leg carries PaymentMethodData::PaymentMethodToken for cards too.
         let account_id = match router_data.resource_common_data.payment_method {
+            // A connector-tokenized wallet settle reaches this match as `Card`, because the
+            // gRPC `token` payment method maps to Card — the wallet identity survives only in
+            // `payment_method_type`. Falling through to the Card arm below resolves a
+            // card three_ds/no_three_ds account, but the Tokenize leg minted the handle on the
+            // apple_pay/google_pay account, so Paysafe rejects the settle with
+            // 5068 "Value does not correspond with the accountId in payment handle"
+            // (reproduced on sandbox with auth_type=three_ds: handle on the wallet account,
+            // settle sent card.<CUR>.three_ds). Wallets follow the rule stated above — the
+            // handle already carries its account binding, so send NO accountId. The CIT arm
+            // below still applies, since a vaulted CONVERTED handle has no binding.
+            enums::PaymentMethod::Card
+                if matches!(
+                    router_data.request.payment_method_type,
+                    Some(enums::PaymentMethodType::GooglePay)
+                        | Some(enums::PaymentMethodType::ApplePay)
+                ) && !router_data
+                    .request
+                    .is_customer_initiated_mandate_payment() =>
+            {
+                None
+            }
             enums::PaymentMethod::Card => {
                 if router_data.resource_common_data.is_three_ds() {
                     Some(account_id.get_account_id(
