@@ -1091,6 +1091,7 @@ impl ConnectorSpecifications for Grabpay<domain_types::payment_method_data::Defa
 }
 
 #[cfg(test)]
+#[allow(clippy::indexing_slicing, clippy::panic_in_result_fn)]
 mod tests {
     use base64::Engine;
     use common_enums::{AttemptStatus, RefundStatus};

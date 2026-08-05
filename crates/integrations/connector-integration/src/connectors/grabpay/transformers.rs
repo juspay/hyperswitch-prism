@@ -551,18 +551,7 @@ impl
     }
 }
 
-impl
-    TryFrom<
-        ConnectorResponseData<
-            GrabpayServerAuthenticationTokenResponse,
-            RouterDataV2<
-                ServerAuthenticationToken,
-                MerchantAuthenticationFlowData,
-                ServerAuthenticationTokenRequestData,
-                ServerAuthenticationTokenResponseData,
-            >,
-        >,
-    >
+impl TryFrom<ConnectorResponseData<GrabpayServerAuthenticationTokenResponse, Self>>
     for RouterDataV2<
         ServerAuthenticationToken,
         MerchantAuthenticationFlowData,
@@ -573,15 +562,7 @@ impl
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        item: ConnectorResponseData<
-            GrabpayServerAuthenticationTokenResponse,
-            RouterDataV2<
-                ServerAuthenticationToken,
-                MerchantAuthenticationFlowData,
-                ServerAuthenticationTokenRequestData,
-                ServerAuthenticationTokenResponseData,
-            >,
-        >,
+        item: ConnectorResponseData<GrabpayServerAuthenticationTokenResponse, Self>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(ServerAuthenticationTokenResponseData {
