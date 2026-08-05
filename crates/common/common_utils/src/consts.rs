@@ -90,9 +90,6 @@ pub const X_SESSION_ID: &str = "x-session-id";
 pub const X_API_URL: &str = "x-api-url";
 /// Header key for API tag (test mode)
 pub const X_API_TAG: &str = "x-api-tag";
-/// Header key for the upstream gateway-operation api tag (euler's ApiTag, e.g. `GW_INIT_TXN`),
-/// emitted on the golden log line. Distinct from `x-api-tag`, which is reserved for test mode.
-pub const X_UCS_API_TAG: &str = "x-ucs-api-tag";
 
 // =============================================================================
 // Authentication Headers (Internal)

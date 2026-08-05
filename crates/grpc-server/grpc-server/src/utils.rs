@@ -343,8 +343,6 @@ pub fn log_after_initialization<T>(
     latency_ms: u128,
     // Real HTTP method (HTTP server); `None` for native gRPC, where it is always POST.
     http_method: Option<&str>,
-    // Upstream-supplied api tag (euler's `x-ucs-api-tag`); `None` when the caller doesn't send one.
-    api_tag: Option<&str>,
 ) where
     T: serde::Serialize + std::fmt::Debug + hyperswitch_masking::ErasedMaskSerialize,
 {
@@ -418,15 +416,12 @@ pub fn log_after_initialization<T>(
         "response_headers": res_headers,
         "status_code": res_code,
         "latency": latency_ms,
-        // Upstream api tag (euler's ApiTag, e.g. GW_INIT_TXN) when the caller sends `x-ucs-api-tag`.
-        "api_tag": api_tag,
     });
     log_utils::record_json("api_details", api_details);
     tracing::info!(
         api_direction = "INCOMING_API",
         // Top-level identifiers the euler sessionizer reads directly; UCS-native names here,
-        // Vector maps them to euler's `entity` / `udf_order_id` / `udf_customer_id` / `udf_txn_uuid`.
-        api_tag = api_tag.unwrap_or(""),
+        // Vector maps them to euler's `udf_order_id` / `udf_customer_id` / `udf_txn_uuid`.
         merchant_order_id = order_id.as_deref().unwrap_or(""),
         customer_id = customer_id.as_deref().unwrap_or(""),
         merchant_transaction_id = txn_id.as_deref().unwrap_or(""),
@@ -469,13 +464,6 @@ where
         .extensions()
         .get::<axum::http::Method>()
         .map(|m| m.to_string());
-    // api_tag supplied by the upstream caller (e.g. euler sends its ApiTag as `x-ucs-api-tag`); shown
-    // verbatim in the golden log line's api_details. Absent when the caller does not provide it.
-    let upstream_api_tag = request
-        .metadata()
-        .get(common_utils::consts::X_UCS_API_TAG)
-        .and_then(|v| v.to_str().ok())
-        .map(str::to_string);
     let mut event_metadata_payload = None;
     let mut event_headers = HashMap::new();
 
@@ -500,7 +488,6 @@ where
         &event_headers,
         start_time.elapsed().as_millis(),
         http_method.as_deref(),
-        upstream_api_tag.as_deref(),
     );
 
     #[cfg(feature = "otel")]
@@ -553,13 +540,6 @@ where
         .extensions()
         .get::<axum::http::Method>()
         .map(|m| m.to_string());
-    // api_tag supplied by the upstream caller (e.g. euler sends its ApiTag as `x-ucs-api-tag`); shown
-    // verbatim in the golden log line's api_details. Absent when the caller does not provide it.
-    let upstream_api_tag = request
-        .metadata()
-        .get(common_utils::consts::X_UCS_API_TAG)
-        .and_then(|v| v.to_str().ok())
-        .map(str::to_string);
     let mut event_metadata_payload = None;
     let mut event_headers = HashMap::new();
 
@@ -584,7 +564,6 @@ where
         &event_headers,
         start_time.elapsed().as_millis(),
         http_method.as_deref(),
-        upstream_api_tag.as_deref(),
     );
 
     #[cfg(feature = "otel")]
@@ -1312,24 +1291,14 @@ mod golden_log_json_tests {
     /// Reproduces the exact emission in `log_after_initialization` (incoming response path), run
     /// under a simulated handler `#[instrument]` span that carries `message_` — exactly as prod does
     /// (`record_json` records onto that ambient span; no dedicated span is created).
-    fn emit_incoming_golden(
-        api_tag: Option<&str>,
-        order_id: &str,
-        customer_id: &str,
-        txn_id: &str,
-    ) {
+    fn emit_incoming_golden(order_id: &str, customer_id: &str, txn_id: &str) {
         // Stand-in for the handler's `#[instrument(fields(message_ = "Golden Log Line (incoming)"))]`.
         let handler_span =
             tracing::info_span!("payment_authorize", message_ = "Golden Log Line (incoming)");
         let _h = handler_span.enter();
 
-        let req_headers: HashMap<String, String> = HashMap::from_iter([
-            ("x-request-id".to_string(), "req-123".to_string()),
-            (
-                "x-ucs-api-tag".to_string(),
-                api_tag.unwrap_or("").to_string(),
-            ),
-        ]);
+        let req_headers: HashMap<String, String> =
+            HashMap::from_iter([("x-request-id".to_string(), "req-123".to_string())]);
         let api_details = json!({
             "request_method": "POST",
             "request_type": "INTERNAL",
@@ -1343,12 +1312,10 @@ mod golden_log_json_tests {
             "response_headers": { "content-type": "application/grpc" },
             "status_code": 200,
             "latency": 42u128,
-            "api_tag": api_tag,
         });
         log_utils::record_json("api_details", api_details);
         tracing::info!(
             api_direction = "INCOMING_API",
-            api_tag = api_tag.unwrap_or(""),
             merchant_order_id = order_id,
             customer_id = customer_id,
             merchant_transaction_id = txn_id,
@@ -1358,9 +1325,8 @@ mod golden_log_json_tests {
 
     #[test]
     fn api_details_is_nested_object_with_all_required_fields() {
-        let line = render_json_mode(|| {
-            emit_incoming_golden(Some("GW_INIT_TXN"), "ord_1785320050", "cust_42", "txn_9988")
-        });
+        let line =
+            render_json_mode(|| emit_incoming_golden("ord_1785320050", "cust_42", "txn_9988"));
         println!(
             "\n=== rendered golden log line (JSON mode) ===\n{}\n",
             serde_json::to_string_pretty(&line).unwrap()
@@ -1381,7 +1347,6 @@ mod golden_log_json_tests {
             "response_headers",
             "status_code",
             "latency",
-            "api_tag",
         ] {
             assert!(md.get(k).is_some(), "api_details.{k} missing");
         }
@@ -1389,11 +1354,9 @@ mod golden_log_json_tests {
         assert!(md["request_body"].is_object(), "request_body nested object");
         assert_eq!(md["request_body"]["merchant_order_id"], "ord_1785320050");
         assert_eq!(md["response_body"]["status"], "CHARGED");
-        assert_eq!(md["api_tag"], "GW_INIT_TXN");
 
-        // Required top-level identifiers (UCS-native names; Vector maps to euler's entity/udf_*).
+        // Required top-level identifiers (UCS-native names; Vector maps to euler's udf_*).
         assert_eq!(line["api_direction"], "INCOMING_API");
-        assert_eq!(line["api_tag"], "GW_INIT_TXN");
         assert_eq!(line["merchant_order_id"], "ord_1785320050");
         assert_eq!(line["customer_id"], "cust_42");
         assert_eq!(line["merchant_transaction_id"], "txn_9988");
