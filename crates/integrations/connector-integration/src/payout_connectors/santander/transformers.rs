@@ -57,7 +57,10 @@ impl TryFrom<&ConnectorSpecificConfig> for SantanderAuthType {
                 private_key: private_key.clone(),
             }),
             _ => Err(IntegrationError::FailedToObtainAuthType {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some("invalid or missing auth credentials".to_string()),
+                    ..Default::default()
+                },
             }
             .into()),
         }
@@ -184,12 +187,15 @@ fn parse_digits_i64(
     value: &str,
     field_name: &'static str,
 ) -> Result<i64, error_stack::Report<IntegrationError>> {
-    let digits: String = value.chars().filter(|c| c.is_ascii_digit()).collect();
+    let digits: String = value.chars().filter(|ch| ch.is_ascii_digit()).collect();
 
     if digits.is_empty() {
         return Err(IntegrationError::MissingRequiredField {
             field_name,
-            context: Default::default(),
+            context: IntegrationErrorContext {
+                additional_context: Some(format!("Field '{field_name}' contained no digits")),
+                ..Default::default()
+            },
         }
         .into());
     }
@@ -198,7 +204,12 @@ fn parse_digits_i64(
         .parse::<i64>()
         .change_context(IntegrationError::InvalidDataFormat {
             field_name,
-            context: Default::default(),
+            context: IntegrationErrorContext {
+                additional_context: Some(format!(
+                    "Field '{field_name}' could not be parsed as an integer"
+                )),
+                ..Default::default()
+            },
         })
 }
 
@@ -300,7 +311,7 @@ impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Pa
                     tax_id,
                     ispb,
                     bank_code,
-                    bank_type,
+                    bank_account_type,
                     account_holder_name,
                     ..
                 }))) => {
@@ -309,7 +320,10 @@ impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Pa
                             .as_deref()
                             .ok_or(IntegrationError::MissingRequiredField {
                                 field_name: "payout_method_data.bank_branch",
-                                context: Default::default(),
+                                context: IntegrationErrorContext {
+                                    additional_context: Some("missing required field: bank_branch".to_string()),
+                                    ..Default::default()
+                                },
                             })?;
                     let branch = bank_branch.to_string();
 
@@ -320,7 +334,7 @@ impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Pa
                         .expose_option()
                         .map(|id| {
                             let only_digits: String =
-                                id.chars().filter(|c| c.is_ascii_digit()).collect();
+                                id.chars().filter(|ch| ch.is_ascii_digit()).collect();
                             let doc_type = if only_digits.len() == 11 {
                                 "CPF".to_string()
                             } else {
@@ -330,32 +344,47 @@ impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Pa
                         })
                         .ok_or(IntegrationError::MissingRequiredField {
                             field_name: "payout_method_data.tax_id",
-                            context: Default::default(),
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "tax_id is required to determine CPF/CNPJ document type"
+                                        .to_string(),
+                                ),
+                                ..Default::default()
+                            },
                         })?;
 
                     let ispb_str = ispb
                         .clone()
                         .expose_option()
-                        .map(|s| Secret::new(s.chars().filter(|c| c.is_ascii_digit()).collect::<String>()));
+                        .map(|ispb_raw| Secret::new(ispb_raw.chars().filter(|ch| ch.is_ascii_digit()).collect::<String>()));
 
                     let name = account_holder_name
                         .ok_or(IntegrationError::MissingRequiredField {
                             field_name: "payout_method_data.account_holder_name",
-                            context: Default::default(),
+                            context: IntegrationErrorContext {
+                                additional_context: Some("missing required field: account_holder_name".to_string()),
+                                ..Default::default()
+                            },
                         })?;
 
                     let bank_code = bank_code.ok_or(IntegrationError::MissingRequiredField {
                         field_name: "payout_method_data.bank_code",
-                        context: Default::default(),
+                        context: IntegrationErrorContext {
+                            additional_context: Some("missing required field: bank_code".to_string()),
+                            ..Default::default()
+                        },
                     })?;
 
                     let beneficiary = SantanderBeneficiary {
                         branch,
                         number,
-                        account_type: bank_type.map(SantanderAccountType::from).ok_or(
+                        account_type: bank_account_type.map(SantanderAccountType::from).ok_or(
                             IntegrationError::MissingRequiredField {
-                                field_name: "payout_method_data.bank_type",
-                                context: Default::default(),
+                                field_name: "payout_method_data.bank_account_type",
+                                context: IntegrationErrorContext {
+                                    additional_context: Some("missing required field: bank_account_type".to_string()),
+                                    ..Default::default()
+                                },
                             },
                         )?,
                         document_type,
@@ -368,8 +397,15 @@ impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Pa
                     (None, None, None, Some(beneficiary))
                 }
                 _ => {
-                    return Err(IntegrationError::MismatchedPaymentData {
-                        context: Default::default(),
+                    return Err(IntegrationError::NotSupported {
+                        message: "payout method not supported".to_string(),
+                        connector: "santander",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "unsupported payout method type".to_string(),
+                            ),
+                            ..Default::default()
+                        },
                     }
                     .into())
                 }
@@ -453,7 +489,10 @@ impl
             })) => {
                 let bank_branch = bank_branch.ok_or(IntegrationError::MissingRequiredField {
                     field_name: "source_bank_data.bank_branch",
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        additional_context: Some("missing required field: bank_branch".to_string()),
+                        ..Default::default()
+                    },
                 })?;
                 let branch = parse_digits_i64(&bank_branch, "source_bank_data.bank_branch")?;
                 let bank_account_number = bank_account_number.expose();
@@ -464,10 +503,12 @@ impl
             }
             Some(_) => {
                 return Err(IntegrationError::NotSupported {
-                    message: "Santander payout transfer supports only Pix source bank data"
-                        .to_string(),
+                    message: "source bank data type not supported".to_string(),
                     connector: "santander",
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        additional_context: Some("unsupported source bank data type".to_string()),
+                        ..Default::default()
+                    },
                 }
                 .into());
             }

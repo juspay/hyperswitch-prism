@@ -147,7 +147,7 @@ message PixBankTransferPayout {
   // The bank code (COMPE code)
   optional string bank_code = 6;
   // The bank account type
-  optional PixBankAccountType bank_type = 7;
+  optional PixBankAccountType bank_account_type = 7;
   // The account holder name
   optional SecretString account_holder_name = 8;
 }

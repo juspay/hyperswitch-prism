@@ -604,10 +604,10 @@ impl ForeignTryFrom<grpc_api_types::payouts::PixBankTransferPayout>
             tax_id: pix.tax_id,
             ispb: pix.ispb,
             bank_code: pix.bank_code,
-            bank_type: pix.bank_type.and_then(|bt| {
-                grpc_api_types::payouts::PixBankAccountType::try_from(bt)
+            bank_account_type: pix.bank_account_type.and_then(|bank_type_raw| {
+                grpc_api_types::payouts::PixBankAccountType::try_from(bank_type_raw)
                     .ok()
-                    .and_then(|t| payouts::payout_method_data::PixBankAccountType::try_from(t).ok())
+                    .and_then(|bank_account_type| payouts::payout_method_data::PixBankAccountType::try_from(bank_account_type).ok())
             }),
             account_holder_name: pix.account_holder_name,
         })

@@ -182,7 +182,7 @@ pub struct PixBankTransfer {
     pub bank_code: Option<String>,
 
     /// The bank account type
-    pub bank_type: Option<PixBankAccountType>,
+    pub bank_account_type: Option<PixBankAccountType>,
 
     /// The account holder name
     pub account_holder_name: Option<Secret<String>>,
