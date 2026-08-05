@@ -147,6 +147,20 @@ pub enum PixBankAccountType {
     Payment,
 }
 
+impl TryFrom<grpc_api_types::payouts::PixBankAccountType> for PixBankAccountType {
+    type Error = ();
+
+    fn try_from(value: grpc_api_types::payouts::PixBankAccountType) -> Result<Self, Self::Error> {
+        match value {
+            grpc_api_types::payouts::PixBankAccountType::Checking => Ok(Self::Checking),
+            grpc_api_types::payouts::PixBankAccountType::Savings => Ok(Self::Savings),
+            grpc_api_types::payouts::PixBankAccountType::Salary => Ok(Self::Salary),
+            grpc_api_types::payouts::PixBankAccountType::Payment => Ok(Self::Payment),
+            grpc_api_types::payouts::PixBankAccountType::Unspecified => Err(()),
+        }
+    }
+}
+
 #[derive(Default, Eq, PartialEq, Clone, Debug)]
 pub struct PixBankTransfer {
     /// Bank name

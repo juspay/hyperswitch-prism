@@ -428,7 +428,12 @@ impl ConnectorIntegrationV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, P
             .response
             .parse_struct("SantanderPayoutResponse")
             .change_context(ConnectorError::ResponseDeserializationFailed {
-                context: Default::default(),
+                context: ResponseTransformationErrorContext {
+                    additional_context: Some(
+                        "Failed to deserialize Santander payout response".to_string(),
+                    ),
+                    ..Default::default()
+                },
             })?;
 
         event_builder.map(|i| i.set_connector_response(&response));
@@ -563,7 +568,12 @@ impl
             .response
             .parse_struct("SantanderPayoutResponse")
             .change_context(ConnectorError::ResponseDeserializationFailed {
-                context: Default::default(),
+                context: ResponseTransformationErrorContext {
+                    additional_context: Some(
+                        "Failed to deserialize Santander payout response".to_string(),
+                    ),
+                    ..Default::default()
+                },
             })?;
 
         event_builder.map(|i| i.set_connector_response(&response));
@@ -675,7 +685,12 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
             .response
             .parse_struct("SantanderStatusResponse")
             .change_context(ConnectorError::ResponseDeserializationFailed {
-                context: Default::default(),
+                context: ResponseTransformationErrorContext {
+                    additional_context: Some(
+                        "Failed to deserialize Santander payout response".to_string(),
+                    ),
+                    ..Default::default()
+                },
             })?;
 
         event_builder.map(|i| i.set_connector_response(&response));

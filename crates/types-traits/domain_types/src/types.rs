@@ -779,9 +779,6 @@ impl Connectors {
             ConnectorEnum::Givepayments => {
                 patched.givepayments.apply(params_patch);
             }
-            ConnectorEnum::Santander => {
-                patched.santander.apply(params_patch);
-            }
             _ => {
                 // Connector not supported for URL patching - return error
                 return Err(IntegrationError::InvalidDataFormat {

@@ -8,7 +8,7 @@ use domain_types::{
     connector_types::{
         ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
     },
-    errors::{ConnectorError, IntegrationError},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payouts::{
         payout_method_data::{
@@ -26,8 +26,6 @@ use domain_types::{
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, ExposeOptionInterface, Secret};
 use serde::{Deserialize, Serialize};
-
-const CLIENT_CREDENTIALS_GRANT_TYPE: &str = "client_credentials";
 
 // ===== AUTH TYPE =====
 
@@ -125,7 +123,7 @@ impl
     ) -> Result<Self, Self::Error> {
         let auth = SantanderAuthType::try_from(&req.connector_config)?;
         Ok(Self {
-            grant_type: CLIENT_CREDENTIALS_GRANT_TYPE.to_string(),
+            grant_type: req.request.grant_type.clone(),
             client_id: auth.client_id,
             client_secret: auth.client_secret,
         })
@@ -136,7 +134,6 @@ impl
 pub struct SantanderAccessTokenResponse {
     pub access_token: String,
     pub token_type: Option<String>,
-    #[serde(default)]
     pub expires_in: Option<i64>,
 }
 
@@ -155,30 +152,34 @@ pub enum SantanderDictCodeType {
 pub fn detect_dict_code_type(key: &str) -> SantanderDictCodeType {
     let key = key.trim();
 
-    if key.contains('@') {
-        return SantanderDictCodeType::Email;
-    }
-
-    if key.starts_with('+') {
-        return SantanderDictCodeType::Cellular;
-    }
-
-    let digits: String = key.chars().filter(|c| c.is_ascii_digit()).collect();
-    let all_cpf_cnpj_chars = key
+    let digits: String = key
         .chars()
-        .all(|c| c.is_ascii_digit() || c == '.' || c == '-' || c == '/');
+        .filter(|character| character.is_ascii_digit())
+        .collect();
 
-    if all_cpf_cnpj_chars {
-        match digits.len() {
-            11 => return SantanderDictCodeType::Cpf,
-            14 => return SantanderDictCodeType::Cnpj,
-            _ => {}
-        }
+    let all_cpf_cnpj_chars = key.chars().all(|character| {
+        character.is_ascii_digit()
+            || character == '.'
+            || character == '-'
+            || character == '/'
+    });
+
+    let mut dict_code_type = SantanderDictCodeType::Evp;
+
+    if key.contains('@') {
+        dict_code_type = SantanderDictCodeType::Email;
+    } else if key.starts_with('+') {
+        dict_code_type = SantanderDictCodeType::Cellular;
+    } else if all_cpf_cnpj_chars {
+        dict_code_type = match digits.len() {
+            11 => SantanderDictCodeType::Cpf,
+            14 => SantanderDictCodeType::Cnpj,
+            _ => SantanderDictCodeType::Evp,
+        };
     }
 
-    SantanderDictCodeType::Evp
+    dict_code_type
 }
-
 fn parse_digits_i64(
     value: &str,
     field_name: &'static str,
@@ -230,15 +231,15 @@ impl From<PixBankAccountType> for SantanderAccountType {
 #[serde(rename_all = "camelCase")]
 pub struct SantanderBeneficiary {
     pub branch: String,
-    pub number: String,
+    pub number: Secret<String>,
     #[serde(rename = "type")]
     pub account_type: SantanderAccountType,
     pub document_type: String,
-    pub document_number: String,
-    pub name: String,
+    pub document_number: Secret<String>,
+    pub name: Secret<String>,
     pub bank_code: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub ispb: Option<String>,
+    pub ispb: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -275,7 +276,12 @@ impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Pa
         let payment_value = converter
             .convert(req.request.amount, req.request.source_currency)
             .change_context(IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to convert payout amount to float major unit".to_string(),
+                    ),
+                    ..Default::default()
+                },
             })?;
 
         let (dict_code, dict_code_type, qr_code, beneficiary) =
@@ -307,7 +313,7 @@ impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Pa
                             })?;
                     let branch = bank_branch.to_string();
 
-                    let number = bank_account_number.clone().expose();
+                    let number = bank_account_number.clone();
 
                     let (document_type, document_number) = tax_id
                         .clone()
@@ -320,7 +326,7 @@ impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Pa
                             } else {
                                 "CNPJ".to_string()
                             };
-                            (doc_type, only_digits)
+                            (doc_type, Secret::new(only_digits))
                         })
                         .ok_or(IntegrationError::MissingRequiredField {
                             field_name: "payout_method_data.tax_id",
@@ -330,14 +336,13 @@ impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Pa
                     let ispb_str = ispb
                         .clone()
                         .expose_option()
-                        .map(|s| s.chars().filter(|c| c.is_ascii_digit()).collect::<String>());
+                        .map(|s| Secret::new(s.chars().filter(|c| c.is_ascii_digit()).collect::<String>()));
 
                     let name = account_holder_name
                         .ok_or(IntegrationError::MissingRequiredField {
                             field_name: "payout_method_data.account_holder_name",
                             context: Default::default(),
-                        })?
-                        .expose();
+                        })?;
 
                     let bank_code = bank_code.ok_or(IntegrationError::MissingRequiredField {
                         field_name: "payout_method_data.bank_code",
@@ -394,12 +399,18 @@ pub struct SantanderDebitAccount {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum SantanderTransferStatus {
+    Authorized,
+}
+
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SantanderTransferRequest {
     pub payment_value: StringMajorUnit,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub debit_account: Option<SantanderDebitAccount>,
-    pub status: String,
+    pub status: SantanderTransferStatus,
 }
 
 impl
@@ -426,7 +437,12 @@ impl
         let payment_value = converter
             .convert(req.request.amount, req.request.source_currency)
             .change_context(IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to convert payout amount to string major unit".to_string(),
+                    ),
+                    ..Default::default()
+                },
             })?;
 
         let debit_account = match req.request.source_bank_data.clone() {
@@ -461,7 +477,7 @@ impl
         Ok(Self {
             payment_value,
             debit_account,
-            status: "AUTHORIZED".to_string(),
+            status: SantanderTransferStatus::Authorized,
         })
     }
 }
@@ -472,9 +488,8 @@ impl
 #[serde(rename_all = "camelCase")]
 pub struct SantanderPayoutResponse {
     pub id: String,
-    #[serde(alias = "paymentStatus", alias = "payment_status")]
     pub status: SantanderPayoutStatus,
-    pub payment_value: Option<String>,
+    pub payment_value: StringMajorUnit,
 }
 
 // ===== PAYOUT STATUS =====
@@ -482,15 +497,11 @@ pub struct SantanderPayoutResponse {
 #[derive(Debug, Deserialize, Serialize, Clone, Copy)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum SantanderPayoutStatus {
-    Started,
-    PendingValidation,
     ReadyToPay,
     Authorized,
     PendingConfirmation,
-    #[serde(alias = "PAID")]
     Payed,
     Rejected,
-    Error,
     #[serde(other)]
     Unknown,
 }
@@ -498,13 +509,10 @@ pub enum SantanderPayoutStatus {
 impl SantanderPayoutStatus {
     pub fn get_payout_status(&self) -> common_enums::PayoutStatus {
         match self {
-            Self::Started => common_enums::PayoutStatus::Initiated,
-            Self::PendingValidation | Self::Authorized | Self::PendingConfirmation => {
-                common_enums::PayoutStatus::Pending
-            }
+            Self::Authorized | Self::PendingConfirmation => common_enums::PayoutStatus::Pending,
             Self::ReadyToPay => common_enums::PayoutStatus::RequiresFulfillment,
             Self::Payed => common_enums::PayoutStatus::Success,
-            Self::Rejected | Self::Error => common_enums::PayoutStatus::Failure,
+            Self::Rejected => common_enums::PayoutStatus::Failure,
             Self::Unknown => common_enums::PayoutStatus::Pending,
         }
     }
@@ -515,11 +523,95 @@ impl SantanderPayoutStatus {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct SantanderStatusResponse {
     pub id: String,
-    #[serde(alias = "paymentStatus", alias = "payment_status")]
     pub status: SantanderPayoutStatus,
 }
 
 // ===== RESPONSE TRANSFORMER IMPLS =====
+
+impl
+    TryFrom<
+        &ResponseRouterData<
+            SantanderPayoutResponse,
+            RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>,
+        >,
+    > for PayoutCreateResponse
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: &ResponseRouterData<
+            SantanderPayoutResponse,
+            RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            merchant_payout_id: item.router_data.request.merchant_payout_id.clone(),
+            payout_status: item.response.status.get_payout_status(),
+            connector_payout_id: Some(item.response.id.clone()),
+            status_code: item.http_code,
+        })
+    }
+}
+
+impl
+    TryFrom<
+        &ResponseRouterData<
+            SantanderPayoutResponse,
+            RouterDataV2<
+                PayoutTransfer,
+                PayoutFlowData,
+                PayoutTransferRequest,
+                PayoutTransferResponse,
+            >,
+        >,
+    > for PayoutTransferResponse
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: &ResponseRouterData<
+            SantanderPayoutResponse,
+            RouterDataV2<
+                PayoutTransfer,
+                PayoutFlowData,
+                PayoutTransferRequest,
+                PayoutTransferResponse,
+            >,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            merchant_payout_id: item.router_data.request.merchant_payout_id.clone(),
+            payout_status: item.response.status.get_payout_status(),
+            connector_payout_id: Some(item.response.id.clone()),
+            status_code: item.http_code,
+        })
+    }
+}
+
+impl
+    TryFrom<
+        &ResponseRouterData<
+            SantanderStatusResponse,
+            RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
+        >,
+    > for PayoutGetResponse
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: &ResponseRouterData<
+            SantanderStatusResponse,
+            RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            merchant_payout_id: item.router_data.request.merchant_payout_id.clone(),
+            payout_status: item.response.status.get_payout_status(),
+            connector_payout_id: Some(item.response.id.clone()),
+            status_code: item.http_code,
+        })
+    }
+}
 
 impl
     TryFrom<ResponseRouterData<SantanderPayoutResponse, Self>>
@@ -530,18 +622,11 @@ impl
     fn try_from(
         item: ResponseRouterData<SantanderPayoutResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let response = &item.response;
-        let router_data = &item.router_data;
-
+        let payout_response = PayoutCreateResponse::try_from(&item)?;
         Ok(Self {
-            resource_common_data: router_data.resource_common_data.clone(),
-            response: Ok(PayoutCreateResponse {
-                merchant_payout_id: router_data.request.merchant_payout_id.clone(),
-                payout_status: response.status.get_payout_status(),
-                connector_payout_id: Some(response.id.clone()),
-                status_code: item.http_code,
-            }),
-            ..router_data.clone()
+            resource_common_data: item.router_data.resource_common_data.clone(),
+            response: Ok(payout_response),
+            ..item.router_data.clone()
         })
     }
 }
@@ -555,18 +640,11 @@ impl
     fn try_from(
         item: ResponseRouterData<SantanderPayoutResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let response = &item.response;
-        let router_data = &item.router_data;
-
+        let payout_response = PayoutTransferResponse::try_from(&item)?;
         Ok(Self {
-            resource_common_data: router_data.resource_common_data.clone(),
-            response: Ok(PayoutTransferResponse {
-                merchant_payout_id: router_data.request.merchant_payout_id.clone(),
-                payout_status: response.status.get_payout_status(),
-                connector_payout_id: Some(response.id.clone()),
-                status_code: item.http_code,
-            }),
-            ..router_data.clone()
+            resource_common_data: item.router_data.resource_common_data.clone(),
+            response: Ok(payout_response),
+            ..item.router_data.clone()
         })
     }
 }
@@ -580,18 +658,11 @@ impl
     fn try_from(
         item: ResponseRouterData<SantanderStatusResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let response = &item.response;
-        let router_data = &item.router_data;
-
+        let payout_response = PayoutGetResponse::try_from(&item)?;
         Ok(Self {
-            resource_common_data: router_data.resource_common_data.clone(),
-            response: Ok(PayoutGetResponse {
-                merchant_payout_id: router_data.request.merchant_payout_id.clone(),
-                payout_status: response.status.get_payout_status(),
-                connector_payout_id: Some(response.id.clone()),
-                status_code: item.http_code,
-            }),
-            ..router_data.clone()
+            resource_common_data: item.router_data.resource_common_data.clone(),
+            response: Ok(payout_response),
+            ..item.router_data.clone()
         })
     }
 }

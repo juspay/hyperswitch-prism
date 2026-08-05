@@ -605,13 +605,9 @@ impl ForeignTryFrom<grpc_api_types::payouts::PixBankTransferPayout>
             ispb: pix.ispb,
             bank_code: pix.bank_code,
             bank_type: pix.bank_type.and_then(|bt| {
-                grpc_api_types::payouts::PixBankAccountType::try_from(bt).ok().and_then(|t| match t {
-                    grpc_api_types::payouts::PixBankAccountType::Checking => Some(payouts::payout_method_data::PixBankAccountType::Checking),
-                    grpc_api_types::payouts::PixBankAccountType::Savings => Some(payouts::payout_method_data::PixBankAccountType::Savings),
-                    grpc_api_types::payouts::PixBankAccountType::Salary => Some(payouts::payout_method_data::PixBankAccountType::Salary),
-                    grpc_api_types::payouts::PixBankAccountType::Payment => Some(payouts::payout_method_data::PixBankAccountType::Payment),
-                    grpc_api_types::payouts::PixBankAccountType::Unspecified => None,
-                })
+                grpc_api_types::payouts::PixBankAccountType::try_from(bt)
+                    .ok()
+                    .and_then(|t| payouts::payout_method_data::PixBankAccountType::try_from(t).ok())
             }),
             account_holder_name: pix.account_holder_name,
         })

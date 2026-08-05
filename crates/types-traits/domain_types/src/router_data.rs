@@ -3624,21 +3624,6 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                 // creds path cannot supply. Configure Flywire via the proto
                 // FlywireConfig path instead of defaulting it to an empty string.
                 ConnectorEnum::Flywire => Err(err().into()),
-                ConnectorEnum::Santander => match auth {
-                    ConnectorAuthType::SignatureKey {
-                        api_key,
-                        key1,
-                        api_secret,
-                    } => Ok(Self::Santander {
-                        client_id: api_key.clone(),
-                        client_secret: key1.clone(),
-                        workspace_id: api_secret.clone(),
-                        certificates: None,
-                        private_key: None,
-                        base_url: None,
-                    }),
-                    _ => Err(err().into()),
-                },
             },
             connector_types::ConnectorVariant::Surcharge(connector_enum) => match connector_enum {
                 SurchargeConnectorEnum::Interpayments => match auth {

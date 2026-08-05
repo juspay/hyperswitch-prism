@@ -294,5 +294,3 @@ pub use self::givepayments::Givepayments;
 pub mod tesouro;
 pub use self::tesouro::Tesouro;
 
-pub mod santander;
-pub use self::santander::Santander;

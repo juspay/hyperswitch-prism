@@ -159,7 +159,6 @@ pub enum ConnectorEnum {
     Kount,
     Givepayments,
     Tesouro,
-    Santander,
 }
 
 // snake case for enum variants
@@ -254,7 +253,6 @@ impl TryFrom<ConnectorEnum> for PayoutConnectorEnum {
             ConnectorEnum::Itaubank => Ok(Self::Itaubank),
             ConnectorEnum::Worldpayxml => Ok(Self::Worldpayxml),
             ConnectorEnum::Cybersource => Ok(Self::Cybersource),
-            ConnectorEnum::Santander => Ok(Self::Santander),
             _ => Err(IntegrationError::InvalidDataFormat {
                 field_name: "connector",
                 context: IntegrationErrorContext::default(),
@@ -516,8 +514,8 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Tesouro => Ok(Self::Tesouro),
             grpc_api_types::payments::Connector::Glomopay => Ok(Self::Glomopay),
             grpc_api_types::payments::Connector::Givepayments => Ok(Self::Givepayments),
-            grpc_api_types::payments::Connector::Santander => Ok(Self::Santander),
-            grpc_api_types::payments::Connector::Unspecified => {
+            grpc_api_types::payments::Connector::Santander
+            | grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "connector",
                     context: IntegrationErrorContext::default(),
@@ -5572,7 +5570,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Affirm(_) => Ok(Self::Payment(ConnectorEnum::Affirm)),
             AuthType::Plaid(_) => Ok(Self::Authenticator(AuthenticatorConnectorEnum::Plaid)),
             AuthType::Givepayments(_) => Ok(Self::Payment(ConnectorEnum::Givepayments)),
-            AuthType::Santander(_) => Ok(Self::Payment(ConnectorEnum::Santander)),
+            AuthType::Santander(_) => Ok(Self::Payout(PayoutConnectorEnum::Santander)),
         }
     }
 }
