@@ -9026,9 +9026,8 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
                     .transpose()?
                     .unwrap_or_default(),
             ),
-            connector_reference_id: value.connector_response_reference_id.clone(),
-            // Populated for backward compatibility; will be removed once Hyperswitch migrates to connector_reference_id
-            merchant_transaction_id: value.connector_response_reference_id,
+            connector_reference_id: value.connector_response_reference_id,
+            merchant_transaction_id: value.connector_request_reference_id,
             status: status as i32,
             mandate_reference: mandate_reference_grpc,
             mandate_reference_details,

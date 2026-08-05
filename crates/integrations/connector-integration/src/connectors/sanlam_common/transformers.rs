@@ -516,7 +516,10 @@ impl TryFrom<AbsaSanlamWebhookEvent> for WebhookDetailsResponse {
                         error_code: payment_event.error.as_ref().and_then(|e| e.code.clone()),
                         error_message: payment_event.error.as_ref().and_then(|e| e.message.clone()),
                         error_reason: payment_event.error.as_ref().and_then(|e| e.reason.clone()),
-                        connector_response_reference_id: Some(payment_event.payment.user_reference),
+                        connector_response_reference_id: Some(
+                            payment_event.payment.user_reference.clone(),
+                        ),
+                        connector_request_reference_id: Some(payment_event.payment.user_reference),
                         mandate_reference: None,
                         network_txn_id: None,
                         raw_connector_response: None,
@@ -535,7 +538,10 @@ impl TryFrom<AbsaSanlamWebhookEvent> for WebhookDetailsResponse {
                         )),
                         mandate_reference: None,
                         network_txn_id: None,
-                        connector_response_reference_id: Some(payment_event.payment.user_reference),
+                        connector_response_reference_id: Some(
+                            payment_event.payment.user_reference.clone(),
+                        ),
+                        connector_request_reference_id: Some(payment_event.payment.user_reference),
                         raw_connector_response: None,
                         response_headers: None,
                         amount_captured: None,
