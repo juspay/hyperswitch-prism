@@ -111,10 +111,3 @@ use_self = "warn"
 
 # Lints to allow
 option_map_unit_fn = "allow"
-
-# TEMPORARY local override: picks up the log_utils `json_value_keys` change (nested-object
-# logging, needed for the euler-shaped `api_details` field). Remove once the framework-libs-rs
-# PR (feat/log-utils-json-value-keys) merges and the `rev` in crates/common/ucs_env/Cargo.toml
-# is bumped to the merged commit.
-[patch."https://github.com/juspay/framework-libs-rs"]
-log_utils = { path = "../../framework-libs-rs/crates/log_utils" }

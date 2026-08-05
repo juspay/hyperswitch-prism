@@ -286,6 +286,48 @@ where
     Ok(())
 }
 
+/// Flattens gRPC response metadata (ASCII entries) into a JSON object for the incoming golden log
+/// line's `api_details.res_headers`, matching euler's nested `res_headers`.
+fn metadata_to_json(metadata: &tonic::metadata::MetadataMap) -> serde_json::Value {
+    let mut map = serde_json::Map::new();
+    for entry in metadata.iter() {
+        if let tonic::metadata::KeyAndValueRef::Ascii(key, value) = entry {
+            if let Ok(value) = value.to_str() {
+                map.insert(
+                    key.as_str().to_owned(),
+                    serde_json::Value::String(value.to_owned()),
+                );
+            }
+        }
+    }
+    serde_json::Value::Object(map)
+}
+
+/// Extracts euler's `udf_order_id` / `udf_customer_id` from the incoming request body.
+///
+/// Euler sends these identifiers in the request *payload* (not as headers): the order id as
+/// `merchant_order_id` (= `orderReference.orderId`) and the customer id as `customer.id`
+/// (= `customer._id` / `orderReference.customerId`). Both are plain id strings, so they read
+/// directly off the masked body `Value`. Returns `(order_id, customer_id)`; either is `None` when
+/// the field is absent (e.g. non-euler callers or flows that omit it).
+fn udf_ids_from_request(
+    request_body: &Option<MaskedSerdeValue>,
+) -> (Option<String>, Option<String>) {
+    let Some(body) = request_body.as_ref().map(MaskedSerdeValue::inner) else {
+        return (None, None);
+    };
+    let order_id = body
+        .get("merchant_order_id")
+        .and_then(Value::as_str)
+        .map(str::to_owned);
+    let customer_id = body
+        .get("customer")
+        .and_then(|customer| customer.get("id"))
+        .and_then(Value::as_str)
+        .map(str::to_owned);
+    (order_id, customer_id)
+}
+
 pub fn log_after_initialization<T>(
     result: &Result<tonic::Response<T>, tonic::Status>,
     request_body: &Option<MaskedSerdeValue>,
@@ -293,12 +335,21 @@ pub fn log_after_initialization<T>(
     latency_ms: u128,
     // Real HTTP method (HTTP server); `None` for native gRPC, where it is always POST.
     http_method: Option<&str>,
+    // Upstream-supplied api tag (euler's `x-api-tag`); `None` when the caller doesn't send one.
+    api_tag: Option<&str>,
 ) where
     T: serde::Serialize + std::fmt::Debug + hyperswitch_masking::ErasedMaskSerialize,
 {
     let current_span = tracing::Span::current();
 
-    let (res_body, res_code) = match &result {
+    // euler's top-level `udf_order_id` / `udf_customer_id` come from the request payload itself, not
+    // from headers: euler sends the order id as `merchant_order_id` (= orderReference.orderId) and
+    // the customer id as `customer.id` (= customer._id / orderReference.customerId). `x-reference-id`
+    // is the *txn* id (merchant_transaction_id), so it is deliberately not used here. Both ids are
+    // plain (unmasked) strings, so they read straight off the masked request body.
+    let (udf_order_id, udf_customer_id) = udf_ids_from_request(request_body);
+
+    let (res_body, res_code, res_headers) = match &result {
         Ok(response) => {
             current_span.record("response_body", tracing::field::debug(response.get_ref()));
 
@@ -326,7 +377,7 @@ pub fn log_after_initialization<T>(
 
             let masked_res = MaskedSerdeValue::from_masked_optional(res_ref, "grpc_response_body")
                 .map(|m| m.inner().clone());
-            (masked_res, 200)
+            (masked_res, 200, metadata_to_json(response.metadata()))
         }
         Err(status) => {
             current_span.record("error_message", status.message());
@@ -334,14 +385,19 @@ pub fn log_after_initialization<T>(
             (
                 Some(serde_json::json!({ "error": status.message() })),
                 i32::from(status.code()),
+                metadata_to_json(status.metadata()),
             )
         }
     };
 
     // euler-shaped nested `api_details` (equivalent to euler's `message`) for the incoming call.
-    // Emitted as an event field so the ~40 handler instruments don't each need to declare it; the
-    // logger's `json_value_keys` renders the JSON string as a nested object. The flat incoming
-    // fields (`request_body`, `response_body`, …) remain for hyperswitch compatibility.
+    // Recorded as a real JSON object via `log_utils::record_json`, which writes the value straight
+    // into the current span's storage (no stringify/reparse), so the sessionizer reads an object
+    // rather than a string. The current span is the handler `#[instrument]` span that already carries
+    // `message_ = "Golden Log Line (incoming)"` and `response_time`; this mirrors the outgoing side
+    // (`record_api_details`). The golden-line event below is emitted under that same span, so it
+    // picks up `api_details` from span storage. The flat incoming fields (`request_body`,
+    // `response_body`, …) remain for hyperswitch compatibility.
     let api_details = serde_json::json!({
         // Real HTTP method under the HTTP server; POST for native gRPC (its only transport verb).
         "method": http_method.unwrap_or("POST"),
@@ -349,10 +405,21 @@ pub fn log_after_initialization<T>(
         "req_headers": req_headers,
         "req_body": request_body,
         "res_body": res_body,
+        "res_headers": res_headers,
         "res_code": res_code,
         "latency": latency_ms,
+        // Upstream api tag (euler's ApiTag, e.g. GW_INIT_TXN) when the caller sends `x-api-tag`.
+        "api_tag": api_tag,
     });
-    tracing::info!(api_details = %api_details, "Golden Log Line (incoming - response)");
+    log_utils::record_json("api_details", api_details);
+    tracing::info!(
+        category = "INCOMING_API",
+        // Top-level euler fields the sessionizer reads directly (no nested fallback).
+        entity = api_tag.unwrap_or(""),
+        udf_order_id = udf_order_id.as_deref().unwrap_or(""),
+        udf_customer_id = udf_customer_id.as_deref().unwrap_or(""),
+        "Golden Log Line (incoming - response)"
+    );
 }
 
 /// Generic gRPC logging wrapper that accepts a custom parser function.
@@ -390,6 +457,13 @@ where
         .extensions()
         .get::<axum::http::Method>()
         .map(|m| m.to_string());
+    // api_tag supplied by the upstream caller (e.g. euler sends its ApiTag as `x-api-tag`); shown
+    // verbatim in the golden log line's api_details. Absent when the caller does not provide it.
+    let upstream_api_tag = request
+        .metadata()
+        .get(common_utils::consts::X_API_TAG)
+        .and_then(|v| v.to_str().ok())
+        .map(str::to_string);
     let mut event_metadata_payload = None;
     let mut event_headers = HashMap::new();
 
@@ -414,6 +488,7 @@ where
         &event_headers,
         start_time.elapsed().as_millis(),
         http_method.as_deref(),
+        upstream_api_tag.as_deref(),
     );
 
     #[cfg(feature = "otel")]
@@ -466,6 +541,13 @@ where
         .extensions()
         .get::<axum::http::Method>()
         .map(|m| m.to_string());
+    // api_tag supplied by the upstream caller (e.g. euler sends its ApiTag as `x-api-tag`); shown
+    // verbatim in the golden log line's api_details. Absent when the caller does not provide it.
+    let upstream_api_tag = request
+        .metadata()
+        .get(common_utils::consts::X_API_TAG)
+        .and_then(|v| v.to_str().ok())
+        .map(str::to_string);
     let mut event_metadata_payload = None;
     let mut event_headers = HashMap::new();
 
@@ -490,6 +572,7 @@ where
         &event_headers,
         start_time.elapsed().as_millis(),
         http_method.as_deref(),
+        upstream_api_tag.as_deref(),
     );
 
     #[cfg(feature = "otel")]
@@ -1146,4 +1229,173 @@ macro_rules! implement_connector_operation {
         result
     }
 };
+}
+
+#[cfg(test)]
+mod golden_log_json_tests {
+    //! Renders the incoming Golden Log Line through the real `log_utils` JSON formatter (the same
+    //! `CompactJson` console mode UCS runs in prod) and asserts the euler-schema shape: `api_details`
+    //! is a real nested **object** (the record_json fix), plus every required top-level field.
+    use super::*;
+    use serde_json::{json, Value};
+    use std::collections::{HashMap, HashSet};
+    use std::io::Write;
+    use std::sync::{Arc, Mutex};
+    use tracing_subscriber::layer::SubscriberExt;
+
+    #[derive(Clone)]
+    struct BufWriter(Arc<Mutex<Vec<u8>>>);
+    impl Write for BufWriter {
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            self.0.lock().unwrap().extend_from_slice(buf);
+            Ok(buf.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    impl<'a> tracing_subscriber::fmt::MakeWriter<'a> for BufWriter {
+        type Writer = BufWriter;
+        fn make_writer(&'a self) -> Self::Writer {
+            self.clone()
+        }
+    }
+
+    /// Emits under the real JSON formatting + span-storage layers (JSON log mode) and returns the
+    /// parsed golden log line.
+    fn render_json_mode(emit: impl FnOnce()) -> Value {
+        let buf = Arc::new(Mutex::new(Vec::new()));
+        let config = log_utils::JsonFormattingLayerConfig {
+            // Mirrors ucs_env::logger::setup static_top_level_fields for JSON mode.
+            static_top_level_fields: HashMap::from_iter([
+                ("service".to_string(), json!("connector-service")),
+                ("schema_version".to_string(), json!("V2")),
+                ("env".to_string(), json!("sandbox")),
+                ("cluster".to_string(), json!("apoc")),
+                ("cell_id".to_string(), json!("cell-01")),
+            ]),
+            top_level_keys: HashSet::new(),
+            log_span_lifecycles: false,
+            additional_fields_placement: log_utils::AdditionalFieldsPlacement::TopLevel,
+        };
+        let storage = log_utils::SpanStorageLayer::new(HashSet::new());
+        let formatting = log_utils::JsonFormattingLayer::new(
+            config,
+            BufWriter(buf.clone()),
+            serde_json::ser::CompactFormatter,
+        )
+        .unwrap();
+        let subscriber = tracing_subscriber::registry().with(storage).with(formatting);
+        tracing::subscriber::with_default(subscriber, emit);
+        let out = String::from_utf8(buf.lock().unwrap().clone()).unwrap();
+        let line = out
+            .lines()
+            .find(|l| l.contains("Golden Log Line (incoming"))
+            .expect("golden log line present");
+        serde_json::from_str(line).expect("golden log line is valid JSON")
+    }
+
+    /// Reproduces the exact emission in `log_after_initialization` (incoming response path), run
+    /// under a simulated handler `#[instrument]` span that carries `message_` — exactly as prod does
+    /// (`record_json` records onto that ambient span; no dedicated span is created).
+    fn emit_incoming_golden(api_tag: Option<&str>, order_id: &str, customer_id: &str) {
+        // Stand-in for the handler's `#[instrument(fields(message_ = "Golden Log Line (incoming)"))]`.
+        let handler_span =
+            tracing::info_span!("payment_authorize", message_ = "Golden Log Line (incoming)");
+        let _h = handler_span.enter();
+
+        let req_headers: HashMap<String, String> = HashMap::from_iter([
+            ("x-request-id".to_string(), "req-123".to_string()),
+            ("x-ucs-api-tag".to_string(), api_tag.unwrap_or("").to_string()),
+        ]);
+        let api_details = json!({
+            "method": "POST",
+            "req_type": "INTERNAL",
+            "req_headers": req_headers,
+            "req_body": { "merchant_order_id": order_id, "customer": { "id": customer_id } },
+            "res_body": { "status": "CHARGED" },
+            "res_headers": { "content-type": "application/grpc" },
+            "res_code": 200,
+            "latency": 42u128,
+            "api_tag": api_tag,
+        });
+        log_utils::record_json("api_details", api_details);
+        tracing::info!(
+            category = "INCOMING_API",
+            entity = api_tag.unwrap_or(""),
+            udf_order_id = order_id,
+            udf_customer_id = customer_id,
+            "Golden Log Line (incoming - response)"
+        );
+    }
+
+    #[test]
+    fn api_details_is_nested_object_with_all_required_fields() {
+        let line = render_json_mode(|| {
+            emit_incoming_golden(Some("GW_INIT_TXN"), "ord_1785320050", "cust_42")
+        });
+        println!(
+            "\n=== rendered golden log line (JSON mode) ===\n{}\n",
+            serde_json::to_string_pretty(&line).unwrap()
+        );
+
+        // CORE FIX: api_details must be a real object, NOT a stringified blob.
+        let md = &line["api_details"];
+        assert!(md.is_object(), "api_details must be a JSON object, got: {md}");
+        for k in [
+            "method", "req_type", "req_headers", "req_body", "res_body", "res_headers", "res_code",
+            "latency", "api_tag",
+        ] {
+            assert!(md.get(k).is_some(), "api_details.{k} missing");
+        }
+        // Deep keys the sessionizer digs for live inside req_body/res_body as real nested values.
+        assert!(md["req_body"].is_object(), "req_body nested object");
+        assert_eq!(md["req_body"]["merchant_order_id"], "ord_1785320050");
+        assert_eq!(md["res_body"]["status"], "CHARGED");
+        assert_eq!(md["api_tag"], "GW_INIT_TXN");
+
+        // Required top-level euler fields the sessionizer reads directly.
+        assert_eq!(line["category"], "INCOMING_API");
+        assert_eq!(line["entity"], "GW_INIT_TXN");
+        assert_eq!(line["udf_order_id"], "ord_1785320050");
+        assert_eq!(line["udf_customer_id"], "cust_42");
+        // Static top-level fields (JSON-mode injected).
+        assert_eq!(line["schema_version"], "V2");
+        assert_eq!(line["env"], "sandbox");
+        assert_eq!(line["cluster"], "apoc");
+        assert_eq!(line["cell_id"], "cell-01");
+        // Golden lines are identified by the `message_` field (set on the handler span), which is
+        // unaffected by how `api_details` is recorded.
+        assert_eq!(line["message_"], "Golden Log Line (incoming)");
+        // The event message carries the response marker (the formatter prefixes it with the span).
+        assert!(
+            line["message"]
+                .as_str()
+                .unwrap()
+                .contains("Golden Log Line (incoming - response)"),
+            "unexpected message: {}",
+            line["message"]
+        );
+        assert!(line.get("timestamp").is_some() || line.get("time").is_some());
+        assert!(line.get("level").is_some());
+    }
+
+    #[test]
+    fn udf_ids_sourced_from_request_body_not_reference_id() {
+        // euler sends order id as `merchant_order_id` and customer id as `customer.id` in the BODY.
+        let body = MaskedSerdeValue::from_masked(&json!({
+            "merchant_order_id": "ord_1785320050",
+            "merchant_transaction_id": "txn_abc",   // this is the txn id (x-reference-id), NOT order
+            "customer": { "id": "cust_42", "name": "Jane" }
+        }))
+        .unwrap();
+        let (order, customer) = udf_ids_from_request(&Some(body));
+        assert_eq!(order.as_deref(), Some("ord_1785320050"));
+        assert_eq!(customer.as_deref(), Some("cust_42"));
+
+        // Absent when the caller omits them (non-euler callers).
+        let empty = MaskedSerdeValue::from_masked(&json!({ "foo": "bar" })).unwrap();
+        assert_eq!(udf_ids_from_request(&Some(empty)), (None, None));
+        assert_eq!(udf_ids_from_request(&None), (None, None));
+    }
 }

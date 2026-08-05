@@ -59,6 +59,11 @@ injector = { git = "https://github.com/juspay/hyperswitch", tag = "2026.06.18.0"
 connector_request_kafka = { path = "../connector_request_kafka", optional = true }
 url = "2.5.0"
 chrono = "0.4.31"
+# TEMPORARY: Amit's fork rev for `log_utils::record_json` (structured nested-object logging for the
+# euler-shaped outgoing `api_details` field). Switch back to upstream once framework-libs-rs PR #20 lands.
+log_utils = { git = "https://github.com/AmitsinghTanwar007/framework-libs-rs", rev = "8cc2e171e42ec831fd0def4cccdf1bfafacdb89a", package = "log_utils", features = [
+    "tracing",
+] }
 
 # OpenTelemetry (OTLP metrics push) — optional, enabled via the `otel` feature.
 opentelemetry = { version = "0.27", optional = true, default-features = false, features = [

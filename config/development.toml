@@ -6,7 +6,7 @@ return_raw_connector_data = false
 [log.console]
 enabled = true
 level = "TRACE"
-log_format = "default"
+log_format = "json"
 
 [log.kafka]
 enabled = false
@@ -19,11 +19,11 @@ buffer_limit = 100000
 [server]
 host = "0.0.0.0"
 port = 8000
-type = "grpc"
+type = "http"
 
 [metrics]
 host = "0.0.0.0"
-port = 8080
+port = 8085
 
 # OpenTelemetry (OTLP) metrics push. Requires building with the `otel` feature.
 # Disabled by default; the Prometheus /metrics scrape endpoint above is unaffected.

@@ -49,7 +49,10 @@ tokio = { version = "1.48.0", features = [
 tonic = { workspace = true }
 tonic-reflection = "0.14.0"
 http = "1.2.0"
-log_utils = { git = "https://github.com/juspay/framework-libs-rs", rev = "243562041252fe5897ce888d20b715ffdc3767ce", package = "log_utils", features = [
+# TEMPORARY: Amit's fork rev for `log_utils::record_json` (structured nested-object logging, needed
+# for the euler-shaped `api_details` field). Switch back to the upstream juspay/framework-libs-rs
+# merged commit once framework-libs-rs PR #20 lands.
+log_utils = { git = "https://github.com/AmitsinghTanwar007/framework-libs-rs", rev = "8cc2e171e42ec831fd0def4cccdf1bfafacdb89a", package = "log_utils", features = [
     "tracing",
 ] }
 build_info = { git = "https://github.com/juspay/framework-libs-rs", rev = "243562041252fe5897ce888d20b715ffdc3767ce", package = "build_info", features = [

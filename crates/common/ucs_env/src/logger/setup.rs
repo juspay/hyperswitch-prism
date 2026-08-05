@@ -75,9 +75,6 @@ pub fn setup(
         persistent_keys: HashSet::new(),
         log_span_lifecycles: true,
         additional_fields_placement: log_utils::AdditionalFieldsPlacement::TopLevel,
-        // `api_details` is recorded as a JSON string; emit it as a nested object so it matches
-        // euler's nested `message` structure.
-        json_value_keys: HashSet::from_iter(["api_details"]),
         file_config: None,
         console_config,
         global_filtering_directive: None,

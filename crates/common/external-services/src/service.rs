@@ -552,6 +552,7 @@ pub struct EventProcessingParams<'a> {
         message_ = "Golden Log Line (outgoing)",
         latency = Empty,
         api_details = Empty,
+        category = "OUTGOING_API",
     )
 )]
 #[allow(clippy::too_many_arguments)]
@@ -1067,9 +1068,11 @@ fn mask_connector_request(request_content: &Option<RequestContent>) -> serde_jso
 }
 
 /// Assembles the euler-shaped `api_details` object (equivalent to euler's nested `message`) from the
-/// already-masked `Event` data and records it as a JSON string on the current span. The logger
-/// (`json_value_keys`) emits it as a nested object. The flat `request.*` / `response.*` fields are
-/// still recorded separately for hyperswitch compatibility, so the detail appears in both places.
+/// already-masked `Event` data and records it as a real JSON object on the current span via
+/// `log_utils::record_json` (the outgoing `#[instrument]` span declares `api_details = Empty`). The
+/// value is written straight into span storage — no stringify/reparse — so JSON log mode emits a
+/// nested object the sessionizer can read. The flat `request.*` / `response.*` fields are still
+/// recorded separately for hyperswitch compatibility, so the detail appears in both places.
 #[cfg(feature = "injector-client")]
 fn record_api_details(event: &Event) {
     let api_details = json!({
@@ -1084,7 +1087,7 @@ fn record_api_details(event: &Event) {
         // Outbound connector call; euler reserves INTERNAL for service-to-service hops.
         "req_type": "EXTERNAL",
     });
-    tracing::Span::current().record("api_details", api_details.to_string().as_str());
+    log_utils::record_json("api_details", api_details);
 }
 
 #[cfg(feature = "injector-client")]
