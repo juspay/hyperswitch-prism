@@ -1050,6 +1050,9 @@ impl ForeignTryFrom<grpc_api_types::payments::CardNetwork> for CardNetwork {
             grpc_api_types::payments::CardNetwork::Pulse => Ok(Self::Pulse),
             grpc_api_types::payments::CardNetwork::Accel => Ok(Self::Accel),
             grpc_api_types::payments::CardNetwork::Nyce => Ok(Self::Nyce),
+            grpc_api_types::payments::CardNetwork::Prop => Ok(Self::Prop),
+            grpc_api_types::payments::CardNetwork::PrivateLabel => Ok(Self::PrivateLabel),
+            grpc_api_types::payments::CardNetwork::Dinacard => Ok(Self::Dinacard),
             grpc_api_types::payments::CardNetwork::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "card_network",
@@ -6226,6 +6229,9 @@ impl ForeignFrom<CardNetwork> for grpc_payment_types::CardNetwork {
             CardNetwork::Pulse => Self::Pulse,
             CardNetwork::Accel => Self::Accel,
             CardNetwork::Nyce => Self::Nyce,
+            CardNetwork::Prop => Self::Prop,
+            CardNetwork::PrivateLabel => Self::PrivateLabel,
+            CardNetwork::Dinacard => Self::Dinacard,
         }
     }
 }
