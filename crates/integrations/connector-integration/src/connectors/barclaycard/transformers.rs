@@ -175,6 +175,7 @@ fn wallet_data_label(wallet_data: &WalletData) -> &'static str {
         WalletData::ApplePayRedirect(_) => "apple_pay_redirect",
         WalletData::ApplePayThirdPartySdk(_) => "apple_pay_third_party_sdk",
         WalletData::DanaRedirect {} => "dana_redirect",
+        WalletData::GrabpayRedirect {} => "grabpay_redirect",
         WalletData::GooglePay(_) => "google_pay",
         WalletData::GooglePayRedirect(_) => "google_pay_redirect",
         WalletData::GooglePayThirdPartySdk(_) => "google_pay_third_party_sdk",

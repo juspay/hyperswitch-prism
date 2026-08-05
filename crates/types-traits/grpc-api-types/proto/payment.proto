@@ -896,6 +896,7 @@ enum Connector {
   GLOMOPAY = 130;
   GIVEPAYMENTS = 131;
   TESOURO = 132;
+  GRABPAY = 133;
 }
 
 // Payment method types
@@ -1015,6 +1016,7 @@ enum PaymentMethodType {
   OPEN_BANKING = 112;
   QWIKCILVER_WALLET = 113;
   SKRILL = 114;
+  GRAB_PAY = 115;
 }
 
 // Product type enumeration
@@ -4126,6 +4128,9 @@ message PaymentServiceVerifyRedirectResponseRequest {
 
   // Security
   optional RedirectResponseSecrets redirect_response_secrets = 3;
+
+  // Connector-owned metadata from the original redirect flow.
+  optional SecretString connector_feature_data = 4;
 }
 
 // Response message for VerifyRedirectResponse
@@ -4148,6 +4153,9 @@ message PaymentServiceVerifyRedirectResponseResponse {
 
   // Raw Response
   optional SecretString raw_connector_response = 7;
+
+  // Connector-specific metadata produced while parsing the redirect response.
+  optional SecretString connector_feature_data = 8;
 }
 
 // ============================================================================
@@ -5537,6 +5545,15 @@ message GlomopayConfig {
   optional string base_url = 50;
 }
 
+message GrabpayConfig {
+  SecretString partner_id = 1;
+  SecretString partner_secret = 2;
+  SecretString client_id = 3;
+  SecretString client_secret = 4;
+  SecretString merchant_id = 5;
+  optional string base_url = 50;
+}
+
 message TesouroConfig {
   SecretString api_key = 1;
   SecretString key1 = 2;
@@ -5852,6 +5869,8 @@ message ConnectorSpecificConfig {
     DeutschebankConfig deutschebank = 140;
     // PLAID = 141
     PlaidConfig plaid = 141;
+    // GRABPAY = 133
+    GrabpayConfig grabpay = 142;
   }
 }
 

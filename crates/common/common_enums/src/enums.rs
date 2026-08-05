@@ -1050,6 +1050,7 @@ pub enum PaymentMethodType {
     Giropay,
     Givex,
     GooglePay,
+    Grabpay,
     GoPay,
     Gcash,
     Ideal,
@@ -1140,6 +1141,7 @@ impl PaymentMethodType {
         match self {
             Self::ApplePay => "Apple Pay".to_string(),
             Self::GooglePay => "Google Pay".to_string(),
+            Self::Grabpay => "GrabPay".to_string(),
             Self::SamsungPay => "Samsung Pay".to_string(),
             Self::AliPay => "AliPay".to_string(),
             Self::WeChatPay => "WeChat Pay".to_string(),

@@ -123,7 +123,7 @@ impl ForeignFrom<(&CompositeAuthorizeRequest, &ConnectorEnum)>
 impl ForeignFrom<&CompositeAuthorizeRequest> for PaymentServiceCreateOrderRequest {
     fn foreign_from(item: &CompositeAuthorizeRequest) -> Self {
         Self {
-            merchant_order_id: item.merchant_order_id.clone(),
+            merchant_order_id: item.merchant_transaction_id.clone(),
             amount: item.amount,
             webhook_url: item.webhook_url.clone(),
             metadata: item.metadata.clone(),
@@ -166,7 +166,7 @@ impl
         });
 
         Self {
-            merchant_order_id: item.merchant_order_id.clone(),
+            merchant_order_id: item.merchant_transaction_id.clone(),
             amount: item.amount,
             webhook_url: item.webhook_url.clone(),
             metadata: item.metadata.clone(),

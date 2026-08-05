@@ -1343,7 +1343,7 @@ macro_rules! create_amount_converter_wrapper {
                 /// Convert connector amount back to MinorUnit.
                 ///
                 /// Returns generic ParsingError - caller should change_context appropriately:
-                /// ```
+                /// ```ignore
                 /// // In response transformation:
                 /// let amount = Convertor::convert_back(response.amount, currency)
                 ///     .change_context(crate::utils::response_handling_fail_for_connector(http_code, "macros"))?;

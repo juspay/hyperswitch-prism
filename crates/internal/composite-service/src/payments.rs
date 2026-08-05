@@ -1204,8 +1204,19 @@ where
         ),
         tonic::Status,
     > {
+        let mut access_token_payload = payload.clone();
+        access_token_payload.connector_feature_data = verify_response
+            .connector_feature_data
+            .clone()
+            .or_else(|| payload.connector_feature_data.clone());
+
         let access_token_response = self
-            .create_server_authentication_token(connector, payload, metadata, extensions)
+            .create_server_authentication_token(
+                connector,
+                &access_token_payload,
+                metadata,
+                extensions,
+            )
             .await?;
 
         let session_token_response = self
@@ -1250,6 +1261,7 @@ where
                 merchant_order_id: payload.merchant_order_id.clone(),
                 request_details: payload.request_details.clone(),
                 redirect_response_secrets: payload.redirect_response_secrets.clone(),
+                connector_feature_data: payload.connector_feature_data.clone(),
             };
 
         // Create tonic request with metadata

@@ -703,6 +703,7 @@ pub trait VerifyRedirectResponse: SourceVerification + BodyDecoding {
     fn process_redirect_response(
         &self,
         _request: &RequestDetails,
+        _connector_feature_data: Option<&hyperswitch_masking::Secret<String>>,
     ) -> CustomResult<RedirectDetailsResponse, domain_types::errors::IntegrationError> {
         Err(domain_types::errors::IntegrationError::NotImplemented(
             "process_redirect_response".to_string(),

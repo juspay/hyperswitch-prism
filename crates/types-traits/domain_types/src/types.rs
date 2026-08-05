@@ -423,6 +423,7 @@ pub struct Connectors {
     pub kount: ConnectorParams,
     pub plaid: ConnectorParams,
     pub givepayments: ConnectorParams,
+    pub grabpay: ConnectorParams,
     pub tesouro: ConnectorParams,
 }
 
@@ -1494,6 +1495,9 @@ impl<
                     Self::Wallet(payment_method_data::WalletData::GcashRedirect(
                         payment_method_data::GcashRedirection {},
                     )),
+                ),
+                grpc_api_types::payments::payment_method::PaymentMethod::GrabpayRedirect(_) => Ok(
+                    Self::Wallet(payment_method_data::WalletData::GrabpayRedirect {}),
                 ),
                 grpc_api_types::payments::payment_method::PaymentMethod::DanaRedirect(_) => Ok(
                     Self::Wallet(payment_method_data::WalletData::DanaRedirect {}),
@@ -2586,6 +2590,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             }
             grpc_api_types::payments::PaymentMethodType::AliPay => Ok(PaymentMethodType::AliPay),
             grpc_api_types::payments::PaymentMethodType::Gcash => Ok(PaymentMethodType::Gcash),
+            grpc_api_types::payments::PaymentMethodType::GrabPay => Ok(PaymentMethodType::Grabpay),
             grpc_api_types::payments::PaymentMethodType::Cashapp => Ok(PaymentMethodType::Cashapp),
             grpc_api_types::payments::PaymentMethodType::SepaBankTransfer => {
                 Ok(PaymentMethodType::SepaBankTransfer)
@@ -2741,6 +2746,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 grpc_api_types::payments::payment_method::PaymentMethod::AliPayHkRedirect(_) => Ok(Some(PaymentMethodType::AliPayHk)),
                 grpc_api_types::payments::payment_method::PaymentMethod::DanaRedirect(_) => Ok(Some(PaymentMethodType::Dana)),
                 grpc_api_types::payments::payment_method::PaymentMethod::GcashRedirect(_) => Ok(Some(PaymentMethodType::Gcash)),
+                grpc_api_types::payments::payment_method::PaymentMethod::GrabpayRedirect(_) => Ok(Some(PaymentMethodType::Grabpay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::GoPayRedirect(_) => Ok(Some(PaymentMethodType::GoPay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::KakaoPayRedirect(_) => Ok(Some(PaymentMethodType::KakaoPay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::MbWayRedirect(_) => Ok(Some(PaymentMethodType::MbWay)),
@@ -6660,6 +6666,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::GrabpayRedirect(_)),
+            } => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::DanaRedirect(_)),
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
@@ -8397,6 +8407,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::EaseBuzz => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::QwikcilverWallet => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::Skrill => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethodType::GrabPay => Ok(Self::Wallet),
 
             grpc_api_types::payments::PaymentMethodType::UpiCollect => Ok(Self::Upi),
             grpc_api_types::payments::PaymentMethodType::UpiIntent => Ok(Self::Upi),
@@ -12585,6 +12596,7 @@ pub enum PaymentMethodDataType {
     ApplePayRedirect,
     ApplePayThirdPartySdk,
     DanaRedirect,
+    GrabpayRedirect,
     DuitNow,
     GooglePay,
     GooglePayRedirect,
@@ -16301,6 +16313,9 @@ impl ForeignTryFrom<(bool, RedirectDetailsResponse)>
             raw_connector_response: redirect_details_response
                 .raw_connector_response
                 .map(|response| response.into()),
+            connector_feature_data: redirect_details_response
+                .connector_feature_data
+                .map(|feature_data| feature_data.into()),
         })
     }
 }
