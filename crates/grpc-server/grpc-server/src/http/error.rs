@@ -234,7 +234,8 @@ pub fn http_status_from_details_or_code(
     details: Option<&ErrorDetails>,
     code: tonic::Code,
 ) -> StatusCode {
-    connector_http_status_from_error_details(details).unwrap_or_else(|| grpc_code_to_http_status(code))
+    connector_http_status_from_error_details(details)
+        .unwrap_or_else(|| grpc_code_to_http_status(code))
 }
 
 /// Convenience over [`http_status_from_details_or_code`] that decodes the details from a
