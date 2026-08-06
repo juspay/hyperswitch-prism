@@ -652,6 +652,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<ZiftAuthPaymentsRespo
                             connector_mandate_id: Some(token),
                             payment_method_id: None,
                             connector_mandate_request_reference_id: None,
+                            mandate_metadata: None,
                         })
                     })
                 } else {
@@ -1142,6 +1143,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             connector_mandate_id: Some(token),
                             payment_method_id: None,
                             connector_mandate_request_reference_id: None,
+                            mandate_metadata: None,
                         })
                     }),
                     connector_metadata: None,
@@ -1318,6 +1320,7 @@ impl<F> TryFrom<ResponseRouterData<ZiftRefundResponse, Self>>
                     })?,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             })
         } else {
             Err(ErrorResponse {

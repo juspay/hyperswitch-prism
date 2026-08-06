@@ -187,6 +187,9 @@ pub fn legacy_connector_config_from_metadata(
     connector: &connector_types::ConnectorVariant,
 ) -> CustomResult<ConnectorSpecificConfig, IntegrationError> {
     let generic_auth = generic_auth_from_metadata(metadata)?;
+    if matches!(generic_auth, ConnectorAuthType::NoKey) {
+        return Ok(ConnectorSpecificConfig::NoKey);
+    }
     ConnectorSpecificConfig::foreign_try_from((&generic_auth, connector)).map_err(|_| {
         let connector_name = connector.get_connector_name();
         Report::new(IntegrationError::InvalidConnectorConfig {

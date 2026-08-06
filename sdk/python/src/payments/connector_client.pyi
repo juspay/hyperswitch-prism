@@ -7,6 +7,8 @@ from payments.generated.sdk_config_pb2 import ConnectorConfig, RequestConfig
 from payments.generated.payment_pb2 import (
     CustomerServiceCreateRequest,
     CustomerServiceCreateResponse,
+    CustomerServiceGetRequest,
+    CustomerServiceGetResponse,
     DisputeServiceAcceptRequest,
     DisputeServiceAcceptResponse,
     DisputeServiceDefendRequest,
@@ -35,6 +37,8 @@ from payments.generated.payment_pb2 import (
     PaymentMethodAuthenticationServicePreAuthenticateResponse,
     PaymentMethodServiceEligibilityRequest,
     PaymentMethodServiceEligibilityResponse,
+    PaymentMethodServiceRefreshRequest,
+    PaymentMethodServiceRefreshResponse,
     PaymentMethodServiceTokenizeRequest,
     PaymentMethodServiceTokenizeResponse,
     PaymentServiceAuthorizeRequest,
@@ -60,6 +64,8 @@ from payments.generated.payment_pb2 import (
     PaymentServiceVerifyRedirectResponseResponse,
     PaymentServiceVoidRequest,
     PaymentServiceVoidResponse,
+    PayoutMethodEligibilityRequest,
+    PayoutMethodEligibilityResponse,
     PayoutServiceCreateLinkRequest,
     PayoutServiceCreateLinkResponse,
     PayoutServiceCreateRecipientRequest,
@@ -92,6 +98,10 @@ class _ConnectorClientBase:
 class CustomerClient(_ConnectorClientBase):
     def customer_create(self, request: CustomerServiceCreateRequest, options: RequestConfig | None = ...) -> CustomerServiceCreateResponse:
         """CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information."""
+        ...
+
+    def customer_get(self, request: CustomerServiceGetRequest, options: RequestConfig | None = ...) -> CustomerServiceGetResponse:
+        """CustomerService.Get — Retrieves customer details from the payment processor. Callers typically use this before Create to implement get-or-create semantics for connectors that reject duplicates (e.g. Glomopay)."""
         ...
 
 
@@ -160,6 +170,10 @@ class PaymentMethodAuthenticationClient(_ConnectorClientBase):
 class PaymentMethodClient(_ConnectorClientBase):
     def eligibility(self, request: PaymentMethodServiceEligibilityRequest, options: RequestConfig | None = ...) -> PaymentMethodServiceEligibilityResponse:
         """PaymentMethodService.Eligibility — Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check)"""
+        ...
+
+    def refresh(self, request: PaymentMethodServiceRefreshRequest, options: RequestConfig | None = ...) -> PaymentMethodServiceRefreshResponse:
+        """PaymentMethodService.Refresh — Refresh a payment method the caller already holds in full. The request carries the instrument itself, not a reference to it: use Refresh when you own the complete payment method details and the provider exposes an endpoint that evaluates them."""
         ...
 
     def tokenize(self, request: PaymentMethodServiceTokenizeRequest, options: RequestConfig | None = ...) -> PaymentMethodServiceTokenizeResponse:
@@ -236,6 +250,10 @@ class PayoutClient(_ConnectorClientBase):
 
     def payout_create_recipient(self, request: PayoutServiceCreateRecipientRequest, options: RequestConfig | None = ...) -> PayoutServiceCreateRecipientResponse:
         """PayoutService.CreateRecipient — Create payout recipient."""
+        ...
+
+    def payout_eligibility(self, request: PayoutMethodEligibilityRequest, options: RequestConfig | None = ...) -> PayoutMethodEligibilityResponse:
+        """PayoutService.Eligibility — Check eligibility of a payout before initiating it (e.g. SEPA VoP / payee verification)."""
         ...
 
     def payout_enroll_disburse_account(self, request: PayoutServiceEnrollDisburseAccountRequest, options: RequestConfig | None = ...) -> PayoutServiceEnrollDisburseAccountResponse:

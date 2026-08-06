@@ -1042,6 +1042,7 @@ impl TryFrom<ResponseRouterData<EasebuzzRefundResponse, Self>>
                 connector_refund_id,
                 refund_status: RefundStatus::Pending,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..router_data
         })
@@ -1460,6 +1461,7 @@ impl TryFrom<ResponseRouterData<EasebuzzRefundSyncResponse, Self>>
                         connector_refund_id,
                         refund_status,
                         status_code: item.http_code,
+                        acquirer_reference_number: None,
                     }),
                     ..router_data
                 })

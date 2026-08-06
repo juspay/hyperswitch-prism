@@ -73,6 +73,7 @@ fn flow_to_suites(flow: &str) -> Option<&'static [&'static str]> {
         "MandateRevoke" => Some(&["RecurringPaymentService/Revoke"]),
         // Customer/token flows
         "CreateConnectorCustomer" => Some(&["CustomerService/Create"]),
+        "GetConnectorCustomer" => Some(&["CustomerService/Create"]),
         "PaymentMethodToken" => Some(&["PaymentMethodService/Tokenize"]),
         // Authentication flows (now have test suites!)
         "ServerAuthenticationToken" => {

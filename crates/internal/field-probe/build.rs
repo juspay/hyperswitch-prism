@@ -103,10 +103,9 @@ fn parse_flow_info(transformer_fn: &str, request_type: &str) -> Option<FlowInfo>
         }
     } else if let Some(pos) = base.find("MethodService") {
         pos + "MethodService".len()
-    } else if let Some(pos) = base.rfind("Service") {
-        pos + 7
     } else {
-        return None;
+        let pos = base.rfind("Service")?;
+        pos + 7
     };
 
     let service = &base[..service_end];
@@ -158,6 +157,7 @@ fn parse_flow_info(transformer_fn: &str, request_type: &str) -> Option<FlowInfo>
             | "proxy_setup_recurring"
             | "refund_get"
             | "recurring_revoke"
+            | "refresh"
     );
 
     Some(FlowInfo {

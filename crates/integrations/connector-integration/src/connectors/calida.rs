@@ -120,7 +120,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             resource_id: Some(ResponseId::ConnectorTransactionId(transaction_id.clone())),
             status,
             status_code: 200,
-            connector_response_reference_id: Some(transaction_id),
+            connector_response_reference_id: Some(transaction_id.clone()),
+            connector_request_reference_id: Some(transaction_id),
             error_code: None,
             error_message: None,
             raw_connector_response: Some(String::from_utf8_lossy(&request_body_copy).to_string()),
@@ -448,6 +449,7 @@ macros::macro_connector_flow_status_impls!(
         PaymentMethodToken,
         ServerAuthenticationToken,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
     ],
     not_supported: [
         VoidPostRefund,

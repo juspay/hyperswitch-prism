@@ -39,9 +39,9 @@ use interfaces::{
 use serde::Serialize;
 use transformers as kount;
 use transformers::{
-    KountEvaluateOrderRequest, KountOrderResponse, KountRefundUpdateRequest,
-    KountRefundUpdateResponse, KountTokenRequest, KountTokenResponse, KountUpdateOrderRequest,
-    KountUpdateOrderResponse,
+    KountEvaluateOrderRequest, KountFrmPaymentOutcomeResponse, KountFrmRefundProcessedResponse,
+    KountPreRiskCheckResponse, KountRefundUpdateRequest, KountTokenRequest, KountTokenResponse,
+    KountUpdateOrderRequest,
 };
 
 use super::macros;
@@ -219,19 +219,19 @@ macros::create_all_prerequisites!(
         (
             flow: PreRiskCheck,
             request_body: KountEvaluateOrderRequest,
-            response_body: KountOrderResponse,
+            response_body: KountPreRiskCheckResponse,
             router_data: RouterDataV2<PreRiskCheck, FrmFlowData, PreRiskCheckRequest, PreRiskCheckResponse>,
         ),
         (
             flow: FrmPaymentOutcome,
             request_body: KountUpdateOrderRequest,
-            response_body: KountUpdateOrderResponse,
+            response_body: KountFrmPaymentOutcomeResponse,
             router_data: RouterDataV2<FrmPaymentOutcome, FrmFlowData, FrmPaymentOutcomeRequest, FrmPaymentOutcomeResponse>,
         ),
         (
             flow: FrmRefundProcessed,
             request_body: KountRefundUpdateRequest,
-            response_body: KountRefundUpdateResponse,
+            response_body: KountFrmRefundProcessedResponse,
             router_data: RouterDataV2<FrmRefundProcessed, FrmFlowData, FrmRefundProcessedRequest, FrmRefundProcessedResponse>,
         )
     ],
@@ -471,9 +471,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
         ConnectorError,
     > {
-        // sessionID derives from the same id Evaluate Order uses as deviceSessionId.
-        let session_id =
-            kount::to_session_id(&data.resource_common_data.connector_request_reference_id);
+        // sessionID = hash(merchant_transaction_id), matching the Evaluate Order
+        // deviceSessionId (which hashes the same merchant transaction id). Falls
+        // back to the connector request reference when it is absent.
+        let session_ref = data
+            .request
+            .merchant_transaction_id
+            .clone()
+            .unwrap_or_else(|| {
+                data.resource_common_data
+                    .connector_request_reference_id
+                    .clone()
+            });
+        let session_id = kount::hash_session_id(&session_ref);
         // Access token threaded via state.access_token → PaymentFlowData.access_token.
         let token = data
             .resource_common_data
@@ -528,6 +538,7 @@ crate::connectors::macros::macro_connector_flow_status_impls!(
         Accept,
         ClientAuthenticationToken,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         DefendDispute,
         MandateRevoke,
         Authenticate,
@@ -646,7 +657,7 @@ macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Kount,
     curl_request: Json(KountEvaluateOrderRequest),
-    curl_response: KountOrderResponse,
+    curl_response: KountPreRiskCheckResponse,
     flow_name: PreRiskCheck,
     resource_common_data: FrmFlowData,
     flow_request: PreRiskCheckRequest,
@@ -693,7 +704,7 @@ macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Kount,
     curl_request: Json(KountUpdateOrderRequest),
-    curl_response: KountUpdateOrderResponse,
+    curl_response: KountFrmPaymentOutcomeResponse,
     flow_name: FrmPaymentOutcome,
     resource_common_data: FrmFlowData,
     flow_request: FrmPaymentOutcomeRequest,
@@ -740,7 +751,7 @@ macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Kount,
     curl_request: Json(KountRefundUpdateRequest),
-    curl_response: KountRefundUpdateResponse,
+    curl_response: KountFrmRefundProcessedResponse,
     flow_name: FrmRefundProcessed,
     resource_common_data: FrmFlowData,
     flow_request: FrmRefundProcessedRequest,

@@ -12,7 +12,7 @@ from payments import EventClient
 from payments import RefundClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
-SUPPORTED_FLOWS = ["capture", "get", "parse_event", "refund", "refund_get"]
+SUPPORTED_FLOWS = ["capture", "get", "parse_event", "refund", "refund_get", "void"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -52,8 +52,8 @@ def _build_parse_event_request():
         request_details=payment_pb2.RequestDetails(
             method=payment_pb2.HttpMethod.Value("HTTP_METHOD_POST"),  # HTTP method of the request (e.g., GET, POST).
             uri="https://example.com/webhook",  # URI of the request.
-            headers=payment_pb2.HeadersEntry(),  # Headers of the HTTP request.
-            body="{}",  # Body of the HTTP request.
+            headers={},  # Headers of the HTTP request.
+            body="{}".encode(),  # Body of the HTTP request.
         ),
     )
 
@@ -74,6 +74,16 @@ def _build_refund_get_request():
         merchant_refund_id="probe_refund_001",  # Identification.
         connector_transaction_id="probe_connector_txn_001",
         refund_id="probe_refund_id_001",  # Deprecated.
+    )
+
+def _build_void_request(connector_transaction_id: str):
+    return payment_pb2.PaymentServiceVoidRequest(
+        merchant_void_id="probe_void_001",  # Identification.
+        connector_transaction_id=connector_transaction_id,
+        amount=payment_pb2.Money(  # Amount Information.
+            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
+            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        ),
     )
 async def process_capture(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """Flow: PaymentService.Capture"""
@@ -97,9 +107,9 @@ async def process_parse_event(merchant_transaction_id: str, config: sdk_config_p
     """Flow: EventService.ParseEvent"""
     event_client = EventClient(config)
 
-    parse_response = await event_client.parse_event(_build_parse_event_request())
+    parse_response = event_client.parse_event(_build_parse_event_request())
 
-    return {"status": parse_response.status}
+    return {"event_type": parse_response.event_type}
 
 
 async def process_refund(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
@@ -118,6 +128,15 @@ async def process_refund_get(merchant_transaction_id: str, config: sdk_config_pb
     refund_response = await refund_client.refund_get(_build_refund_get_request())
 
     return {"status": refund_response.status}
+
+
+async def process_void(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: PaymentService.Void"""
+    payment_client = PaymentClient(config)
+
+    void_response = await payment_client.void(_build_void_request("probe_connector_txn_001"))
+
+    return {"status": void_response.status}
 
 if __name__ == "__main__":
     scenario = sys.argv[1] if len(sys.argv) > 1 else "capture"

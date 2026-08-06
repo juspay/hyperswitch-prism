@@ -616,6 +616,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::MobilePayment(_) => Err(IntegrationError::NotSupported {
                 message: "Payment method".to_string(),
                 connector: "Wellsfargo",
@@ -1431,6 +1432,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<WellsfargoPaymentsRes
                         connector_mandate_id: Some(instrument.id.clone().expose()),
                         payment_method_id: None, // Could potentially use token_information.customer.id here if needed
                         connector_mandate_request_reference_id: None,
+                        mandate_metadata: None,
                     }
                 });
 
@@ -1507,6 +1509,7 @@ impl TryFrom<ResponseRouterData<WellsfargoPaymentsResponse, Self>>
                 connector_refund_id: response.id.clone(),
                 refund_status: status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             })
         } else {
             // Build error response using helper function
@@ -1595,6 +1598,7 @@ impl TryFrom<ResponseRouterData<WellsfargoRSyncResponse, Self>>
                         connector_refund_id: response.id.clone(),
                         refund_status: status,
                         status_code: item.http_code,
+                        acquirer_reference_number: None,
                     })
                 }
             }

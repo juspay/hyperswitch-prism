@@ -1,0 +1,11 @@
+{
+  "connector": "flywire",
+  "supported_suites": [
+    "PaymentMethodAuthenticationService/Authenticate",
+    "PaymentService/VerifyRedirectResponse",
+    "PaymentService/Authorize",
+    "PaymentService/Get",
+    "PaymentService/Refund",
+    "RefundService/Get"
+  ]
+}

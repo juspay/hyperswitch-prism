@@ -510,6 +510,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                         connector_mandate_id: Some(response.payment_method.id.expose()),
                         payment_method_id: None,
                         connector_mandate_request_reference_id: None,
+                        mandate_metadata: None,
                     })),
                     false => None,
                 },
@@ -819,6 +820,7 @@ impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
                 connector_refund_id: response.id,
                 refund_status: common_enums::RefundStatus::from(response.status),
                 status_code: http_code,
+                acquirer_reference_number: None,
             }),
             request: RefundsData {
                 integrity_object: response_integrity_object,
@@ -854,6 +856,7 @@ impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
                 connector_refund_id: response.id,
                 refund_status: common_enums::RefundStatus::from(response.status),
                 status_code: http_code,
+                acquirer_reference_number: None,
             }),
             ..router_data
         })

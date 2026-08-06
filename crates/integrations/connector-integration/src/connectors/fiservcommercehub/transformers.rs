@@ -4,6 +4,7 @@ use crate::types::ResponseRouterData;
 use base64::{engine::general_purpose, Engine};
 use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::{
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     crypto::{self, RsaOaepSha256, SignMessage},
     FloatMajorUnit,
 };
@@ -21,8 +22,8 @@ use domain_types::{
     },
     errors,
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
-    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
-    router_data::ConnectorSpecificConfig,
+    payment_method_data::{CardWithNoCvc, PaymentMethodData, PaymentMethodDataTypes},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     utils,
 };
@@ -68,6 +69,73 @@ fn encrypt_card_data<T: PaymentMethodDataTypes>(
             },
         })?;
     let expiration_month = card.card_exp_month.peek().to_string();
+    let expiration_year = card.get_expiry_year_4_digit().peek().to_string();
+    let security_code = card.card_cvc.peek().to_string();
+
+    let plain_block =
+        format!("{card_data}{name_on_card}{expiration_month}{expiration_year}{security_code}");
+
+    let card_data_len = card_data.len();
+    let name_on_card_len = name_on_card.len();
+    let expiration_month_len = expiration_month.len();
+    let expiration_year_len = expiration_year.len();
+    let security_code_len = security_code.len();
+    let encryption_block_fields = format!(
+        "card.cardData:{card_data_len},card.nameOnCard:{name_on_card_len},card.expirationMonth:{expiration_month_len},card.expirationYear:{expiration_year_len},card.securityCode:{security_code_len}"
+    );
+
+    let encrypted_bytes = RsaOaepSha256::encrypt(public_key_der, plain_block.as_bytes())
+        .change_context(errors::IntegrationError::RequestEncodingFailed {
+            context: errors::IntegrationErrorContext {
+                doc_url: Some(FISERV_PAYMENT_METHOD_ENCRYPTION_URL.to_string()),
+                suggested_action: Some(
+                    "Ensure the RSA public key is correctly configured and valid".to_string(),
+                ),
+                additional_context: Some(
+                    "RSA OAEP-SHA256 encryption for card data failed".to_string(),
+                ),
+            },
+        })
+        .attach_printable("RSA OAEP-SHA256 encryption of card data failed")?;
+
+    let encryption_block = Secret::new(general_purpose::STANDARD.encode(&encrypted_bytes));
+
+    Ok(EncryptedCardData {
+        key_id,
+        encryption_block,
+        encryption_block_fields,
+    })
+}
+
+fn encrypt_card_data_no_cvc(
+    card: &CardWithNoCvc,
+    key_id: String,
+    public_key_der: &[u8],
+) -> Result<EncryptedCardData, error_stack::Report<errors::IntegrationError>> {
+    let card_data = card.card_number.get_card_no();
+    let name_on_card = card
+        .get_cardholder_name()
+        .change_context(errors::IntegrationError::MissingRequiredField {
+            field_name: "card_holder_name",
+            context: errors::IntegrationErrorContext {
+                doc_url: Some(FISERV_PAYMENT_METHOD_ENCRYPTION_URL.to_string()),
+                suggested_action: Some(
+                    "Provide card_holder_name as it is required for card encryption".to_string(),
+                ),
+                additional_context: Some(
+                    "card_holder_name is required for card encryption".to_string(),
+                ),
+            },
+        })?
+        .peek()
+        .clone();
+    let expiration_month = card
+        .get_card_expiry_month_2_digit()
+        .change_context(errors::IntegrationError::RequestEncodingFailed {
+            context: Default::default(),
+        })?
+        .peek()
+        .to_string();
     let expiration_year = card.get_expiry_year_4_digit().peek().to_string();
 
     let plain_block = format!("{card_data}{name_on_card}{expiration_month}{expiration_year}");
@@ -458,6 +526,7 @@ impl FiservcommercehubPaymentTokens {
                     connector_mandate_id: token.token_data.as_ref().map(|t| t.peek().clone()),
                     payment_method_id: token.token_source.clone(),
                     connector_mandate_request_reference_id: original_txn_id,
+                    mandate_metadata: None,
                 })
             })
     }
@@ -591,6 +660,28 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     stored_credentials,
                 )
             }
+            PaymentMethodData::CardWithNoCvc(card) => {
+                let encrypted_card = encrypt_card_data_no_cvc(card, key_id, &public_key_der)?;
+
+                let stored_credentials =
+                    if router_data.request.is_customer_initiated_mandate_payment() {
+                        Some(FiservcommercehubStoredCredentials::new_cit())
+                    } else {
+                        None
+                    };
+
+                (
+                    FiservcommercehubSourceData::PaymentCard(FiservcommercehubPaymentCardSource {
+                        encryption_data: FiservcommercehubEncryptionData {
+                            key_id: encrypted_card.key_id,
+                            encryption_type: ENCRYPTION_TYPE_RSA.to_string(),
+                            encryption_block: encrypted_card.encryption_block,
+                            encryption_block_fields: encrypted_card.encryption_block_fields,
+                        },
+                    }),
+                    stored_credentials,
+                )
+            }
             _ => {
                 return Err(error_stack::report!(
                     errors::IntegrationError::NotImplemented(
@@ -702,10 +793,43 @@ impl From<&FiservcommercehubRefundState> for RefundStatus {
 #[serde(rename_all = "camelCase")]
 pub struct FiservcommercehubAuthorizeResponse {
     pub gateway_response: FiservcommercehubGatewayResponseBody,
+    pub payment_receipt: Option<FiservcommercehubPaymentReceipt>,
     pub payment_tokens: Option<FiservcommercehubPaymentTokens>,
     /// Additional 3DS data returned in the response as a generic JSON Value
     #[serde(skip_serializing_if = "Option::is_none")]
     pub additional_data_3ds: Option<serde_json::Value>,
+}
+
+impl FiservcommercehubAuthorizeResponse {
+    fn approval_code(&self) -> Option<String> {
+        self.payment_receipt
+            .as_ref()
+            .and_then(FiservcommercehubPaymentReceipt::approval_code)
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FiservcommercehubPaymentReceipt {
+    pub processor_response_details: Option<FiservcommercehubProcessorResponseDetails>,
+}
+
+impl FiservcommercehubPaymentReceipt {
+    fn approval_code(&self) -> Option<String> {
+        self.processor_response_details
+            .as_ref()
+            .and_then(|details| details.approval_code.clone())
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FiservcommercehubProcessorResponseDetails {
+    pub approval_code: Option<String>,
+    pub response_code: Option<String>,
+    pub response_message: Option<String>,
+    pub host_response_code: Option<String>,
+    pub host_response_message: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -722,22 +846,105 @@ pub struct FiservcommercehubTxnDetails {
     pub transaction_id: String,
 }
 
-fn build_connector_response_with_3ds(
+fn build_connector_response(
     additional_data_3ds: Option<&serde_json::Value>,
+    auth_code: Option<String>,
 ) -> Option<domain_types::router_data::ConnectorResponseData> {
-    additional_data_3ds.map(|auth_data| {
+    if additional_data_3ds.is_some() || auth_code.is_some() {
         let additional_payment_method_data =
             domain_types::router_data::AdditionalPaymentMethodConnectorResponse::Card {
-                authentication_data: Some(auth_data.clone()),
+                authentication_data: additional_data_3ds.cloned(),
                 payment_checks: None,
                 card_network: None,
                 domestic_network: None,
-                auth_code: None,
+                auth_code,
             };
-        domain_types::router_data::ConnectorResponseData::with_additional_payment_method_data(
-            additional_payment_method_data,
+        Some(
+            domain_types::router_data::ConnectorResponseData::with_additional_payment_method_data(
+                additional_payment_method_data,
+            ),
         )
-    })
+    } else {
+        None
+    }
+}
+
+fn build_payment_response(
+    status: AttemptStatus,
+    status_code: u16,
+    resource_id: ResponseId,
+    connector_transaction_id: Option<String>,
+    connector_response_reference_id: Option<String>,
+    payment_tokens: Option<&FiservcommercehubPaymentTokens>,
+    payment_receipt: Option<&FiservcommercehubPaymentReceipt>,
+) -> Result<PaymentsResponseData, ErrorResponse> {
+    match status {
+        AttemptStatus::Failure => {
+            let processor_response_details =
+                payment_receipt.and_then(|receipt| receipt.processor_response_details.as_ref());
+
+            let response_code =
+                processor_response_details.and_then(|details| details.response_code.clone());
+            let response_message =
+                processor_response_details.and_then(|details| details.response_message.clone());
+            let host_response_code =
+                processor_response_details.and_then(|details| details.host_response_code.clone());
+            let host_response_message = processor_response_details
+                .and_then(|details| details.host_response_message.clone());
+
+            Err(ErrorResponse {
+                code: response_code
+                    .clone()
+                    .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                message: response_message
+                    .clone()
+                    .or_else(|| host_response_message.clone())
+                    .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                reason: host_response_message
+                    .clone()
+                    .or_else(|| response_message.clone()),
+                status_code,
+                attempt_status: Some(FlowStatus::Payment(status)),
+                connector_transaction_id,
+                network_decline_code: response_code,
+                network_advice_code: host_response_code,
+                network_error_message: host_response_message,
+            })
+        }
+        _ => Ok(PaymentsResponseData::TransactionResponse {
+            resource_id,
+            redirection_data: None,
+            mandate_reference: payment_tokens
+                .and_then(|token| token.get_mandate_reference(connector_transaction_id)),
+            connector_metadata: None,
+            network_txn_id: None,
+            network_txn_link_id: None,
+            connector_response_reference_id,
+            incremental_authorization_allowed: None,
+            status_code,
+            splits: None,
+        }),
+    }
+}
+
+fn build_transaction_payment_response(
+    status: AttemptStatus,
+    status_code: u16,
+    txn: &FiservcommercehubTxnDetails,
+    payment_tokens: Option<&FiservcommercehubPaymentTokens>,
+    payment_receipt: Option<&FiservcommercehubPaymentReceipt>,
+) -> Result<PaymentsResponseData, ErrorResponse> {
+    let connector_transaction_id = txn.transaction_id.clone();
+
+    build_payment_response(
+        status,
+        status_code,
+        ResponseId::ConnectorTransactionId(connector_transaction_id.clone()),
+        Some(connector_transaction_id),
+        txn.order_id.clone(),
+        payment_tokens,
+        payment_receipt,
+    )
 }
 
 impl<T: PaymentMethodDataTypes>
@@ -755,24 +962,20 @@ impl<T: PaymentMethodDataTypes>
             .transaction_processing_details;
         let status = AttemptStatus::from(&item.response.gateway_response.transaction_state);
 
-        let connector_response =
-            build_connector_response_with_3ds(item.response.additional_data_3ds.as_ref());
+        let connector_response = build_connector_response(
+            item.response.additional_data_3ds.as_ref(),
+            item.response.approval_code(),
+        );
+        let response = build_transaction_payment_response(
+            status,
+            item.http_code,
+            txn,
+            item.response.payment_tokens.as_ref(),
+            item.response.payment_receipt.as_ref(),
+        );
 
         Ok(Self {
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(txn.transaction_id.clone()),
-                redirection_data: None,
-                mandate_reference: item.response.payment_tokens.and_then(|token| {
-                    token.get_mandate_reference(Some(txn.transaction_id.clone()))
-                }),
-                connector_metadata: None,
-                network_txn_id: None,
-                network_txn_link_id: None,
-                connector_response_reference_id: txn.order_id.clone(),
-                incremental_authorization_allowed: None,
-                status_code: item.http_code,
-                splits: None,
-            }),
+            response,
             resource_common_data: PaymentFlowData {
                 status,
                 connector_response,
@@ -852,12 +1055,22 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 #[serde(rename_all = "camelCase")]
 pub struct FiservcommercehubPSyncGatewayResponse {
     pub transaction_state: FiservcommercehubTransactionState,
+    pub transaction_processing_details: Option<FiservcommercehubTxnDetails>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FiservcommercehubPSyncItem {
     pub gateway_response: FiservcommercehubPSyncGatewayResponse,
+    pub payment_receipt: Option<FiservcommercehubPaymentReceipt>,
+}
+
+impl FiservcommercehubPSyncItem {
+    fn approval_code(&self) -> Option<String> {
+        self.payment_receipt
+            .as_ref()
+            .and_then(FiservcommercehubPaymentReceipt::approval_code)
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -879,21 +1092,27 @@ impl TryFrom<ResponseRouterData<FiservcommercehubPSyncResponse, Self>>
             )
         })?;
         let status = AttemptStatus::from(&psync_item.gateway_response.transaction_state);
+        let connector_response = build_connector_response(None, psync_item.approval_code());
+        let connector_transaction_id = psync_item
+            .gateway_response
+            .transaction_processing_details
+            .as_ref()
+            .map(|txn| txn.transaction_id.clone());
+        let response = build_payment_response(
+            status,
+            item.http_code,
+            ResponseId::NoResponseId,
+            connector_transaction_id,
+            None,
+            None,
+            psync_item.payment_receipt.as_ref(),
+        );
+
         Ok(Self {
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::NoResponseId,
-                redirection_data: None,
-                mandate_reference: None,
-                connector_metadata: None,
-                network_txn_id: None,
-                network_txn_link_id: None,
-                connector_response_reference_id: None,
-                incremental_authorization_allowed: None,
-                status_code: item.http_code,
-                splits: None,
-            }),
+            response,
             resource_common_data: PaymentFlowData {
                 status,
+                connector_response,
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
@@ -997,6 +1216,7 @@ impl TryFrom<ResponseRouterData<FiservcommercehubRefundResponse, Self>>
                 connector_refund_id: txn.transaction_id.clone(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,
@@ -1096,6 +1316,7 @@ impl TryFrom<ResponseRouterData<FiservcommercehubRSyncResponse, Self>>
                 connector_refund_id,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,
@@ -1416,24 +1637,20 @@ impl TryFrom<ResponseRouterData<FiservcommercehubCaptureResponse, Self>>
             .transaction_processing_details;
         let status = AttemptStatus::from(&item.response.0.gateway_response.transaction_state);
 
-        let connector_response =
-            build_connector_response_with_3ds(item.response.0.additional_data_3ds.as_ref());
+        let connector_response = build_connector_response(
+            item.response.0.additional_data_3ds.as_ref(),
+            item.response.0.approval_code(),
+        );
+        let response = build_transaction_payment_response(
+            status,
+            item.http_code,
+            txn,
+            item.response.0.payment_tokens.as_ref(),
+            item.response.0.payment_receipt.as_ref(),
+        );
 
         Ok(Self {
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(txn.transaction_id.clone()),
-                redirection_data: None,
-                mandate_reference: item.response.0.payment_tokens.and_then(|token| {
-                    token.get_mandate_reference(Some(txn.transaction_id.clone()))
-                }),
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: txn.order_id.clone(),
-                incremental_authorization_allowed: None,
-                status_code: item.http_code,
-                network_txn_link_id: None,
-                splits: None,
-            }),
+            response,
             resource_common_data: PaymentFlowData {
                 status,
                 connector_response,
@@ -1610,25 +1827,21 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<FiservcommercehubRepe
             .transaction_processing_details;
         let status = AttemptStatus::from(&item.response.0.gateway_response.transaction_state);
 
-        // Build connector_response with 3DS authentication data if available
-        let connector_response =
-            build_connector_response_with_3ds(item.response.0.additional_data_3ds.as_ref());
+        // Build connector_response with 3DS authentication data or approval code if available
+        let connector_response = build_connector_response(
+            item.response.0.additional_data_3ds.as_ref(),
+            item.response.0.approval_code(),
+        );
+        let response = build_transaction_payment_response(
+            status,
+            item.http_code,
+            txn,
+            item.response.0.payment_tokens.as_ref(),
+            item.response.0.payment_receipt.as_ref(),
+        );
 
         Ok(Self {
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(txn.transaction_id.clone()),
-                redirection_data: None,
-                mandate_reference: item.response.0.payment_tokens.and_then(|token| {
-                    token.get_mandate_reference(Some(txn.transaction_id.clone()))
-                }),
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: txn.order_id.clone(),
-                incremental_authorization_allowed: None,
-                status_code: item.http_code,
-                network_txn_link_id: None,
-                splits: None,
-            }),
+            response,
             resource_common_data: PaymentFlowData {
                 status,
                 connector_response,
@@ -1797,9 +2010,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 #[serde(rename_all = "camelCase")]
 pub struct FiservcommercehubSetupMandateResponse {
     pub gateway_response: FiservcommercehubGatewayResponseBody,
+    pub payment_receipt: Option<FiservcommercehubPaymentReceipt>,
     pub payment_tokens: Option<FiservcommercehubPaymentTokens>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub additional_data_3ds: Option<serde_json::Value>,
+}
+
+impl FiservcommercehubSetupMandateResponse {
+    fn approval_code(&self) -> Option<String> {
+        self.payment_receipt
+            .as_ref()
+            .and_then(FiservcommercehubPaymentReceipt::approval_code)
+    }
 }
 
 impl<F, T> TryFrom<ResponseRouterData<FiservcommercehubSetupMandateResponse, Self>>
@@ -1822,24 +2044,20 @@ where
             _ => AttemptStatus::from(txn_state),
         };
 
-        let connector_response =
-            build_connector_response_with_3ds(item.response.additional_data_3ds.as_ref());
+        let connector_response = build_connector_response(
+            item.response.additional_data_3ds.as_ref(),
+            item.response.approval_code(),
+        );
+        let response = build_transaction_payment_response(
+            status,
+            item.http_code,
+            txn,
+            item.response.payment_tokens.as_ref(),
+            item.response.payment_receipt.as_ref(),
+        );
 
         Ok(Self {
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(txn.transaction_id.clone()),
-                redirection_data: None,
-                mandate_reference: item.response.payment_tokens.and_then(|token| {
-                    token.get_mandate_reference(Some(txn.transaction_id.clone()))
-                }),
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: txn.order_id.clone(),
-                incremental_authorization_allowed: None,
-                status_code: item.http_code,
-                network_txn_link_id: None,
-                splits: None,
-            }),
+            response,
             resource_common_data: PaymentFlowData {
                 status,
                 connector_response,

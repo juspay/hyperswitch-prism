@@ -941,6 +941,7 @@ impl TryFrom<ResponseRouterData<FiservemeaPaymentsResponse, Self>>
                 connector_refund_id: item.response.ipg_transaction_id.clone(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -966,6 +967,7 @@ impl TryFrom<ResponseRouterData<FiservemeaPaymentsResponse, Self>>
                 connector_refund_id: item.response.ipg_transaction_id.clone(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })

@@ -15,6 +15,7 @@ pub mod metadata;
 pub mod new_types;
 pub mod pii;
 pub mod request;
+pub mod request_metrics;
 #[cfg(feature = "superposition")]
 pub mod superposition_config;
 pub mod types;
@@ -84,6 +85,8 @@ pub mod date_time {
         YYYYMMDDHHmm,
         /// Format the date in 05112019081132 format
         DDMMYYYYHHmmss,
+        /// Format the date in 11/05/2019 format
+        MMDDYYYY,
     }
 
     /// Create a new [`PrimitiveDateTime`] with the current date and time in UTC.
@@ -138,6 +141,7 @@ pub mod date_time {
                 DateFormat::YYYYMMDD => time::macros::format_description!("[year repr:full][month padding:zero repr:numerical][day padding:zero]"),
                 DateFormat::YYYYMMDDHHmm => time::macros::format_description!("[year repr:full][month padding:zero repr:numerical][day padding:zero][hour padding:zero repr:24][minute padding:zero]"),
                 DateFormat::DDMMYYYYHHmmss => time::macros::format_description!("[day padding:zero][month padding:zero repr:numerical][year repr:full][hour padding:zero repr:24][minute padding:zero][second padding:zero]"),
+                DateFormat::MMDDYYYY => time::macros::format_description!("[month padding:zero repr:numerical]/[day padding:zero]/[year repr:full]"),
             }
         }
     }
