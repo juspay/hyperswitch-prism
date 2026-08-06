@@ -2510,6 +2510,34 @@ impl ForeignTryFrom<grpc_api_types::payments::BankType> for common_enums::BankTy
     }
 }
 
+impl ForeignTryFrom<i32> for common_enums::BankType {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(value: i32) -> Result<Self, error_stack::Report<Self::Error>> {
+        let bank_type = grpc_api_types::payments::BankType::try_from(value).map_err(|_| {
+            error_stack::report!(IntegrationError::InvalidDataFormat {
+                field_name: "bank_type",
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "integer {value} does not map to any known BankType variant"
+                    )),
+                    ..Default::default()
+                },
+            })
+        })?;
+        <Self as ForeignTryFrom<grpc_api_types::payments::BankType>>::foreign_try_from(bank_type)
+            .change_context(IntegrationError::InvalidDataFormat {
+                field_name: "bank_type",
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "BankType variant {bank_type:?} is not supported"
+                    )),
+                    ..Default::default()
+                },
+            })
+    }
+}
+
 impl ForeignTryFrom<grpc_api_types::payments::BankHolderType> for common_enums::BankHolderType {
     type Error = IntegrationError;
 

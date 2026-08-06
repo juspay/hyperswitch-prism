@@ -601,38 +601,26 @@ impl ForeignTryFrom<grpc_api_types::payouts::PixBankTransferPayout>
                     },
                 })
             })?,
-            tax_id: pix.tax_id.clone(),
+            tax_id: pix.tax_id,
             ispb: pix.ispb,
             bank_code: pix.bank_code,
             bank_account_type: pix
                 .bank_account_type
                 .map(|bank_type_raw| {
-                    let bank_type = grpc_api_types::payouts::BankType::try_from(bank_type_raw)
-                        .map_err(|_| IntegrationError::InvalidDataFormat {
+                    common_enums::BankType::foreign_try_from(bank_type_raw).change_context(
+                        IntegrationError::InvalidDataFormat {
                             field_name: "payout_method_data.bank_account_type",
                             context: IntegrationErrorContext {
                                 additional_context: Some(format!(
-                                    "unrecognised bank_type value: {bank_type_raw}"
+                                    "unsupported bank_account_type value: {bank_type_raw}"
                                 )),
                                 suggested_action: Some(
-                                    "Provide a recognised BankType enum value".to_string(),
+                                    "Provide a valid bank account type".to_string(),
                                 ),
                                 doc_url: None,
                             },
-                        })?;
-                    common_enums::BankType::foreign_try_from(bank_type)
-                        .change_context(IntegrationError::InvalidDataFormat {
-                            field_name: "payout_method_data.bank_account_type",
-                            context: IntegrationErrorContext {
-                                additional_context: Some(format!(
-                                    "unsupported bank_type: {bank_type:?}"
-                                )),
-                                suggested_action: Some(
-                                    "Provide a supported BankType (Checking, Savings, Salary, or Payment)".to_string(),
-                                ),
-                                doc_url: None,
-                            },
-                        })
+                        },
+                    )
                 })
                 .transpose()?,
             account_holder_name: pix.account_holder_name,
