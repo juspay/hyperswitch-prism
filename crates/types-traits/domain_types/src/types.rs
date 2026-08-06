@@ -17817,11 +17817,13 @@ impl From<connector_types::WebhookResourceReference> for grpc_api_types::payment
                 connector_refund_id,
                 merchant_refund_id,
                 connector_transaction_id,
+                merchant_transaction_id,
             }) => EventReference {
                 resource: Some(event_reference::Resource::Refund(RefundEventReference {
                     connector_refund_id,
                     merchant_refund_id,
                     connector_transaction_id,
+                    merchant_transaction_id,
                 })),
             },
             WebhookResourceReference::Dispute(DisputeWebhookReference {
@@ -17835,9 +17837,11 @@ impl From<connector_types::WebhookResourceReference> for grpc_api_types::payment
             },
             WebhookResourceReference::Mandate(MandateWebhookReference {
                 connector_mandate_id,
+                merchant_transaction_id,
             }) => EventReference {
                 resource: Some(event_reference::Resource::Mandate(MandateEventReference {
                     connector_mandate_id,
+                    merchant_transaction_id,
                 })),
             },
             WebhookResourceReference::Payout(PayoutWebhookReference {
