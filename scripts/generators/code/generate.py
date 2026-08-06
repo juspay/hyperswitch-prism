@@ -409,6 +409,8 @@ _FLOW_NAME_OVERRIDES: dict[tuple[str, str], str] = {
     ("PayoutService", "Get"): "payout_get",
     ("PayoutService", "Create"): "payout_create",
     ("PayoutService", "Void"): "payout_void",
+    # Disambiguate from PaymentMethodService.Eligibility (both RPCs are "Eligibility").
+    ("PayoutService", "Eligibility"): "payout_eligibility",
 }
 
 

@@ -442,6 +442,7 @@ impl TryFrom<CryptopayWebhookDetails> for WebhookDetailsResponse {
                 status: common_enums::AttemptStatus::Unknown,
                 resource_id: Some(ResponseId::ConnectorTransactionId(notif.data.id.clone())),
                 connector_response_reference_id: None,
+                connector_request_reference_id: None,
                 mandate_reference: None,
                 raw_connector_response: None,
                 response_headers: None,
@@ -479,6 +480,11 @@ impl TryFrom<CryptopayWebhookDetails> for WebhookDetailsResponse {
                         connector_response_reference_id: notif
                             .data
                             .custom_id
+                            .clone()
+                            .or_else(|| Some(notif.data.id.clone())),
+                        connector_request_reference_id: notif
+                            .data
+                            .custom_id
                             .or(Some(notif.data.id)),
                         error_code: None,
                         error_message: None,
@@ -494,7 +500,12 @@ impl TryFrom<CryptopayWebhookDetails> for WebhookDetailsResponse {
                     resource_id: Some(ResponseId::ConnectorTransactionId(notif.data.id.clone())),
                     mandate_reference: None,
                     status_code: 200,
-                    connector_response_reference_id: notif.data.custom_id.or(Some(notif.data.id)),
+                    connector_response_reference_id: notif
+                        .data
+                        .custom_id
+                        .clone()
+                        .or_else(|| Some(notif.data.id.clone())),
+                    connector_request_reference_id: notif.data.custom_id.or(Some(notif.data.id)),
                     error_code: None,
                     error_message: None,
                     raw_connector_response: None,

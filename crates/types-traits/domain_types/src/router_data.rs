@@ -872,9 +872,19 @@ pub enum ConnectorSpecificConfig {
         response_audience: Option<Secret<String>>,
         base_url: Option<String>,
     },
+    Deutschebank {
+        customer_identifier: Secret<String>,
+        key_id: Secret<String>,
+        signing_private_key: Secret<String>,
+        client_certificate_bundle: Secret<String>,
+        base_url: Option<String>,
+    },
     Juspay {
         api_key: Secret<String>,
         merchant_id: Secret<String>,
+        juspay_encryption_public_key: Option<Secret<String>>,
+        response_decryption_private_key: Option<Secret<String>>,
+        card_sync_key_id: Option<Secret<String>>,
         base_url: Option<String>,
     },
     Glomopay {
@@ -920,6 +930,18 @@ pub enum ConnectorSpecificConfig {
         /// Kount OAuth authorization-server id; account/environment specific.
         /// Falls back to the sandbox auth server when `None`.
         auth_server_id: Option<String>,
+        base_url: Option<String>,
+    },
+    Plaid {
+        client_id: Secret<String>,
+        secret: Secret<String>,
+        client_name: Option<String>,
+        base_url: Option<String>,
+    },
+    Tesouro {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        api_secret: Secret<String>,
         base_url: Option<String>,
     },
 }
@@ -1256,12 +1278,20 @@ impl ConnectorSpecificConfig {
             Tamara { api_key },
             Kount { api_key },
             Hyperswitch { api_key },
+            Tesouro {
+                api_key,
+                key1,
+                api_secret
+            },
             Imerchantsolutions { api_key },
             Interpayments { api_key },
             TwocTwopPaco {
                 access_token,
                 office_id,
                 paco_kid
+            },
+            Deutschebank {
+                customer_identifier
             },
             Qwikcilver {
                 bootstrap_bearer_token,
@@ -1277,6 +1307,7 @@ impl ConnectorSpecificConfig {
                 public_key,
                 private_key
             },
+            Plaid { client_id, secret },
             Givepayments { api_key },
         )
     }
@@ -1704,12 +1735,21 @@ impl ConnectorSpecificConfig {
                 Tamara { api_key },
                 Kount { api_key },
                 Hyperswitch { api_key },
+                Tesouro {
+                    api_key,
+                    key1,
+                    api_secret
+                },
                 Imerchantsolutions { api_key },
                 Interpayments { api_key },
                 TwocTwopPaco {
                     access_token,
                     office_id,
                     paco_kid
+                },
+                Deutschebank {
+                    customer_identifier,
+                    base_url
                 },
                 Qwikcilver {
                     bootstrap_bearer_token,
@@ -1725,6 +1765,7 @@ impl ConnectorSpecificConfig {
                     public_key,
                     private_key
                 },
+                Plaid { client_id, secret },
                 Givepayments { api_key },
             ),
             serde_json::Value::Object(connector_patch),
@@ -2273,6 +2314,9 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             AuthType::Juspay(juspay) => Ok(Self::Juspay {
                 api_key: juspay.api_key.ok_or_else(err)?,
                 merchant_id: juspay.merchant_id.ok_or_else(err)?,
+                juspay_encryption_public_key: juspay.juspay_encryption_public_key,
+                response_decryption_private_key: juspay.response_decryption_private_key,
+                card_sync_key_id: juspay.card_sync_key_id,
                 base_url: juspay.base_url,
             }),
             AuthType::Payconex(payconex) => Ok(Self::Payconex {
@@ -2292,6 +2336,12 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             AuthType::Hyperswitch(hyperswitch) => Ok(Self::Hyperswitch {
                 api_key: hyperswitch.api_key.ok_or_else(err)?,
                 base_url: hyperswitch.base_url,
+            }),
+            AuthType::Tesouro(tesouro) => Ok(Self::Tesouro {
+                api_key: tesouro.api_key.ok_or_else(err)?,
+                key1: tesouro.key1.ok_or_else(err)?,
+                api_secret: tesouro.api_secret.ok_or_else(err)?,
+                base_url: tesouro.base_url,
             }),
             AuthType::Imerchantsolutions(imerchantsolutions) => Ok(Self::Imerchantsolutions {
                 api_key: imerchantsolutions.api_key.ok_or_else(err)?,
@@ -2346,6 +2396,15 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 merchant_id: finix.merchant_id.ok_or_else(err)?,
                 base_url: finix.base_url,
             }),
+            AuthType::Deutschebank(deutschebank) => Ok(Self::Deutschebank {
+                customer_identifier: deutschebank.customer_identifier.ok_or_else(err)?,
+                key_id: deutschebank.key_id.ok_or_else(err)?,
+                signing_private_key: deutschebank.signing_private_key.ok_or_else(err)?,
+                client_certificate_bundle: deutschebank
+                    .client_certificate_bundle
+                    .ok_or_else(err)?,
+                base_url: deutschebank.base_url,
+            }),
             AuthType::Qwikcilver(qwikcilver) => Ok(Self::Qwikcilver {
                 bootstrap_bearer_token: qwikcilver.bootstrap_bearer_token.ok_or_else(err)?,
                 terminal_id: qwikcilver.terminal_id.ok_or_else(err)?,
@@ -2367,6 +2426,12 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             AuthType::Glomopay(glomopay) => Ok(Self::Glomopay {
                 api_key: glomopay.api_key.ok_or_else(err)?,
                 base_url: glomopay.base_url,
+            }),
+            AuthType::Plaid(plaid) => Ok(Self::Plaid {
+                client_id: plaid.client_id.ok_or_else(err)?,
+                secret: plaid.secret.ok_or_else(err)?,
+                client_name: plaid.client_name,
+                base_url: plaid.base_url,
             }),
             AuthType::Givepayments(givepayments) => Ok(Self::Givepayments {
                 api_key: givepayments.api_key.ok_or_else(err)?,
@@ -3459,6 +3524,19 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
+                ConnectorEnum::Tesouro => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Tesouro {
+                        api_key: api_key.clone(),
+                        key1: key1.clone(),
+                        api_secret: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
                 ConnectorEnum::PinelabsOnline => match auth {
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::PinelabsOnline {
                         client_id: api_key.clone(),
@@ -3486,6 +3564,9 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Juspay {
                         api_key: api_key.clone(),
                         merchant_id: key1.clone(),
+                        juspay_encryption_public_key: None,
+                        response_decryption_private_key: None,
+                        card_sync_key_id: None,
                         base_url: None,
                     }),
                     _ => Err(err().into()),
@@ -3567,6 +3648,19 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     _ => Err(err().into()),
                 },
             },
+            connector_types::ConnectorVariant::Authenticator(connector_enum) => {
+                match connector_enum {
+                    connector_types::AuthenticatorConnectorEnum::Plaid => match auth {
+                        ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Plaid {
+                            client_id: api_key.clone(),
+                            secret: key1.clone(),
+                            client_name: None,
+                            base_url: None,
+                        }),
+                        _ => Err(err().into()),
+                    },
+                }
+            }
             connector_types::ConnectorVariant::Payout(connector_enum) => match connector_enum {
                 PayoutConnectorEnum::Loonio => match auth {
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Loonio {
@@ -3613,6 +3707,21 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         client_secret: key1.clone(),
                         certificates: Some(api_secret.clone()),
                         private_key: Some(key2.clone()),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                PayoutConnectorEnum::Deutschebank => match auth {
+                    ConnectorAuthType::MultiAuthKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                        key2,
+                    } => Ok(Self::Deutschebank {
+                        customer_identifier: api_key.clone(),
+                        key_id: key1.clone(),
+                        signing_private_key: api_secret.clone(),
+                        client_certificate_bundle: key2.clone(),
                         base_url: None,
                     }),
                     _ => Err(err().into()),

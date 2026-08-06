@@ -661,6 +661,7 @@ impl TryFrom<ResponseRouterData<StaxPaymentResponse, Self>>
                 connector_refund_id,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -692,6 +693,7 @@ impl TryFrom<ResponseRouterData<StaxPaymentResponse, Self>>
                 connector_refund_id: response.id.clone(), // Top-level ID is the refund ID
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -1137,6 +1139,8 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StaxTokenResponse, Se
         Ok(Self {
             response: Ok(PaymentMethodTokenResponse {
                 token: item.response.id.expose(),
+                connector_payment_method_id: None,
+                status_code: item.http_code,
             }),
             ..item.router_data
         })

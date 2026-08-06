@@ -67,6 +67,7 @@ mod tests {
                     attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
                     status: AttemptStatus::Pending,
                     payment_method: PaymentMethod::Card,
+                    payment_method_type: None,
                     description: None,
                     return_url: None,
                     order_details: None,
@@ -130,6 +131,7 @@ mod tests {
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
+                    currency_conversion_data: None,
                     payment_method_data: PaymentMethodData::Card(Card {
                         card_number: RawCardNumber(
                             CardNumber::from_str("5123456789012346").unwrap(),
@@ -281,6 +283,7 @@ mod tests {
                     attempt_id: "MISSING_CARD_ID".to_string(),
                     status: AttemptStatus::Pending,
                     payment_method: PaymentMethod::Card,
+                    payment_method_type: None,
                     description: None,
                     return_url: None,
                     address: PaymentAddress::new(None, None, None, None),
@@ -331,6 +334,7 @@ mod tests {
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
+                    currency_conversion_data: None,
                     payment_method_data: PaymentMethodData::Card(Card {
                         card_number: RawCardNumber(CardNumber::from_str("").unwrap_or_default()),
                         card_exp_month: "".to_string().into(),
@@ -433,6 +437,7 @@ mod tests {
                     attempt_id: "INVALID_ATTEMPT".to_string(),
                     status: AttemptStatus::Pending,
                     payment_method: PaymentMethod::Card,
+                    payment_method_type: None,
                     description: None,
                     return_url: None,
                     address: PaymentAddress::new(None, None, None, None),
@@ -483,6 +488,7 @@ mod tests {
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
+                    currency_conversion_data: None,
                     payment_method_data: PaymentMethodData::Card(Card {
                         card_number: RawCardNumber(CardNumber::from_str("123").unwrap_or_default()),
                         card_exp_month: "99".to_string().into(),
@@ -595,6 +601,7 @@ mod tests {
                     attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
                     status: AttemptStatus::Pending,
                     payment_method: PaymentMethod::Card,
+                    payment_method_type: None,
                     description: None,
                     return_url: None,
                     address: PaymentAddress::new(
@@ -657,6 +664,7 @@ mod tests {
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
+                    currency_conversion_data: None,
                     payment_method_data: PaymentMethodData::Card(Card {
                         card_number: RawCardNumber(
                             CardNumber::from_str("5123450000000008").unwrap(),
@@ -967,6 +975,7 @@ mod tests {
                 attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
                 status: AttemptStatus::Pending,
                 payment_method: PaymentMethod::Card,
+                payment_method_type: None,
                 description: None,
                 return_url: None,
                 address: PaymentAddress::new(
@@ -1029,6 +1038,7 @@ mod tests {
                 payment_channel: None,
                 authentication_data: None,
                 connector_testing_data: None,
+                currency_conversion_data: None,
                 payment_method_data: PaymentMethodData::Card(Card {
                     card_number: RawCardNumber(CardNumber::from_str("5123450000000008").unwrap()),
                     card_exp_month: "12".to_string().into(),
@@ -1175,6 +1185,7 @@ mod tests {
                 attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
                 status: AttemptStatus::Pending,
                 payment_method: PaymentMethod::Card,
+                payment_method_type: None,
                 description: None,
                 return_url: None,
                 address: PaymentAddress::new(
@@ -1237,6 +1248,7 @@ mod tests {
                 payment_channel: None,
                 authentication_data: None,
                 connector_testing_data: None,
+                currency_conversion_data: None,
                 payment_method_data: PaymentMethodData::Card(Card {
                     card_number: RawCardNumber(CardNumber::from_str("5123450000000008").unwrap()),
                     card_exp_month: "12".to_string().into(),
@@ -1385,6 +1397,7 @@ mod tests {
                     attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
                     status: common_enums::AttemptStatus::Pending,
                     payment_method: common_enums::PaymentMethod::Card,
+                    payment_method_type: None,
                     description: None,
                     return_url: None,
                     address: PaymentAddress::new(
@@ -1449,6 +1462,7 @@ mod tests {
                     metadata: None,
                     webhook_url: None,
                     payment_method_type: None,
+                    order_details: None,
                 },
                 response: Err(ErrorResponse {
                     code: "HE_00".to_string(),
@@ -1520,6 +1534,7 @@ mod tests {
                     attempt_id: "".to_string(),
                     status: common_enums::AttemptStatus::Pending,
                     payment_method: common_enums::PaymentMethod::Card,
+                    payment_method_type: None,
                     description: None,
                     return_url: None,
                     address: PaymentAddress::default(),
@@ -1572,6 +1587,7 @@ mod tests {
                     metadata: None,
                     webhook_url: None,
                     payment_method_type: None,
+                    order_details: None,
                 },
                 response: Err(ErrorResponse {
                     code: "HE_01".to_string(),
@@ -1646,6 +1662,7 @@ mod tests {
                     attempt_id: "invalid_attempt_id".to_string(),
                     status: AttemptStatus::Pending,
                     payment_method: PaymentMethod::Card,
+                    payment_method_type: None,
                     description: None,
                     return_url: None,
                     address: PaymentAddress::new(None, None, None, None),
@@ -1696,6 +1713,7 @@ mod tests {
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
+                    currency_conversion_data: None,
                     payment_method_data: PaymentMethodData::Card(Card {
                         card_number: Default::default(),
                         card_exp_month: "".to_string().into(),
@@ -1807,6 +1825,7 @@ mod tests {
                 attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
                 status: AttemptStatus::Pending,
                 payment_method: PaymentMethod::Card,
+                payment_method_type: None,
                 description: None,
                 return_url: None,
                 address: PaymentAddress::new(
@@ -1871,6 +1890,7 @@ mod tests {
                 metadata: None,
                 webhook_url: None,
                 payment_method_type: None,
+                order_details: None,
             },
             response: Err(ErrorResponse {
                 code: "HE_00".to_string(),
@@ -1942,6 +1962,7 @@ mod tests {
                 attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
                 status: AttemptStatus::Pending,
                 payment_method: PaymentMethod::Card,
+                payment_method_type: None,
                 description: None,
                 return_url: None,
                 address: PaymentAddress::new(
@@ -2006,6 +2027,7 @@ mod tests {
                 metadata: None,
                 webhook_url: None,
                 payment_method_type: None,
+                order_details: None,
             },
             response: Err(ErrorResponse {
                 code: "HE_00".to_string(),
@@ -2066,6 +2088,7 @@ mod tests {
                 attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
                 status: AttemptStatus::Pending,
                 payment_method: PaymentMethod::Card,
+                payment_method_type: None,
                 description: None,
                 return_url: None,
                 address: PaymentAddress::new(
@@ -2130,6 +2153,7 @@ mod tests {
                 metadata: None,
                 webhook_url: None,
                 payment_method_type: None,
+                order_details: None,
             },
             response: Err(ErrorResponse {
                 code: "HE_00".to_string(),

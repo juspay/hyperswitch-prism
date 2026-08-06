@@ -735,6 +735,7 @@ impl<F> TryFrom<ResponseRouterData<PowertranzRefundResponse, Self>>
                 connector_refund_id: response.transaction_identifier.clone(),
                 refund_status,
                 status_code: http_code,
+                acquirer_reference_number: None,
             }),
             ..router_data
         })
@@ -769,6 +770,7 @@ impl<F> TryFrom<ResponseRouterData<PowertranzRSyncResponse, Self>>
                 connector_refund_id: response.transaction_identifier.clone(),
                 refund_status,
                 status_code: http_code,
+                acquirer_reference_number: None,
             }),
             ..router_data
         })

@@ -37,6 +37,8 @@ from payments.generated.payment_pb2 import (
     PaymentMethodAuthenticationServicePreAuthenticateResponse,
     PaymentMethodServiceEligibilityRequest,
     PaymentMethodServiceEligibilityResponse,
+    PaymentMethodServiceRefreshRequest,
+    PaymentMethodServiceRefreshResponse,
     PaymentMethodServiceTokenizeRequest,
     PaymentMethodServiceTokenizeResponse,
     PaymentServiceAuthorizeRequest,
@@ -62,6 +64,8 @@ from payments.generated.payment_pb2 import (
     PaymentServiceVerifyRedirectResponseResponse,
     PaymentServiceVoidRequest,
     PaymentServiceVoidResponse,
+    PayoutMethodEligibilityRequest,
+    PayoutMethodEligibilityResponse,
     PayoutServiceCreateLinkRequest,
     PayoutServiceCreateLinkResponse,
     PayoutServiceCreateRecipientRequest,
@@ -168,6 +172,10 @@ class PaymentMethodClient(_ConnectorClientBase):
         """PaymentMethodService.Eligibility — Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check)"""
         ...
 
+    def refresh(self, request: PaymentMethodServiceRefreshRequest, options: RequestConfig | None = ...) -> PaymentMethodServiceRefreshResponse:
+        """PaymentMethodService.Refresh — Refresh a payment method the caller already holds in full. The request carries the instrument itself, not a reference to it: use Refresh when you own the complete payment method details and the provider exposes an endpoint that evaluates them."""
+        ...
+
     def tokenize(self, request: PaymentMethodServiceTokenizeRequest, options: RequestConfig | None = ...) -> PaymentMethodServiceTokenizeResponse:
         """PaymentMethodService.Tokenize — Tokenize payment method for secure storage. Replaces raw card details with secure token for one-click payments and recurring billing."""
         ...
@@ -242,6 +250,10 @@ class PayoutClient(_ConnectorClientBase):
 
     def payout_create_recipient(self, request: PayoutServiceCreateRecipientRequest, options: RequestConfig | None = ...) -> PayoutServiceCreateRecipientResponse:
         """PayoutService.CreateRecipient — Create payout recipient."""
+        ...
+
+    def payout_eligibility(self, request: PayoutMethodEligibilityRequest, options: RequestConfig | None = ...) -> PayoutMethodEligibilityResponse:
+        """PayoutService.Eligibility — Check eligibility of a payout before initiating it (e.g. SEPA VoP / payee verification)."""
         ...
 
     def payout_enroll_disburse_account(self, request: PayoutServiceEnrollDisburseAccountRequest, options: RequestConfig | None = ...) -> PayoutServiceEnrollDisburseAccountResponse:

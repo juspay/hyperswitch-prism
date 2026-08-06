@@ -1,13 +1,18 @@
 use std::str::FromStr;
 
-use common_utils::consts::{X_CONNECTOR_NAME, X_FRM_CONNECTOR_NAME, X_SURCHARGE_CONNECTOR_NAME};
+use common_utils::consts::{
+    X_AUTHENTICATOR_CONNECTOR_NAME, X_CONNECTOR_NAME, X_FRM_CONNECTOR_NAME,
+    X_SURCHARGE_CONNECTOR_NAME,
+};
 use domain_types::connector_types::{
-    ConnectorEnum, ConnectorVariant, FrmConnectorEnum, SurchargeConnectorEnum,
+    AuthenticatorConnectorEnum, ConnectorEnum, ConnectorVariant, FrmConnectorEnum,
+    SurchargeConnectorEnum,
 };
 use grpc_api_types::payments::{
     AccessToken, CustomerServiceCreateResponse,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
-    MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse, PaymentStatus,
+    MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse,
+    PaymentMethodServiceTokenizeResponse, PaymentStatus,
 };
 
 pub fn connector_from_composite_authorize_metadata(
@@ -84,21 +89,58 @@ pub fn surcharge_connector_from_composite_surcharge_metadata(
         .transpose()
 }
 
+pub fn authenticator_connector_from_composite_authorize_metadata(
+    metadata: &tonic::metadata::MetadataMap,
+) -> Result<Option<AuthenticatorConnectorEnum>, Box<tonic::Status>> {
+    metadata
+        .get(X_AUTHENTICATOR_CONNECTOR_NAME)
+        .map(|connector| {
+            connector
+                .to_str()
+                .map_err(|_| {
+                    Box::new(tonic::Status::invalid_argument(
+                        "invalid x-auth-connector metadata value",
+                    ))
+                })
+                .and_then(|connector_from_metadata| {
+                    AuthenticatorConnectorEnum::from_str(connector_from_metadata).map_err(|err| {
+                        Box::new(tonic::Status::invalid_argument(format!(
+                            "Authenticator connector not supported: {err}"
+                        )))
+                    })
+                })
+        })
+        .transpose()
+}
+
 /// Resolves the connector variant from composite metadata headers.
-/// Priority: x-frm-connector → x-surcharge-connector → x-connector (payment).
-/// Returns `Err` when a specialised header is present but malformed/unknown.
+/// Priority: x-connector (payment) → x-surcharge-connector → x-frm-connector → x-auth-connector.
+/// Matches the ordering in ucs_interface_common/src/metadata.rs (connector → surcharge → frm → auth).
+/// Payout is omitted because composite never handles payout flows.
+/// Returns `Err` when a header is present but malformed/unknown, or when no header is found.
 pub fn connector_variant_from_composite_metadata(
     metadata: &tonic::metadata::MetadataMap,
 ) -> Result<ConnectorVariant, Box<tonic::Status>> {
-    if let Some(connector) = frm_connector_from_composite_frm_metadata(metadata)? {
-        return Ok(ConnectorVariant::Frm(connector));
+    if metadata.get(X_CONNECTOR_NAME).is_some() {
+        return connector_from_composite_authorize_metadata(metadata)
+            .map(ConnectorVariant::Payment);
     }
 
     if let Some(connector) = surcharge_connector_from_composite_surcharge_metadata(metadata)? {
         return Ok(ConnectorVariant::Surcharge(connector));
     }
 
-    connector_from_composite_authorize_metadata(metadata).map(ConnectorVariant::Payment)
+    if let Some(connector) = frm_connector_from_composite_frm_metadata(metadata)? {
+        return Ok(ConnectorVariant::Frm(connector));
+    }
+
+    if let Some(connector) = authenticator_connector_from_composite_authorize_metadata(metadata)? {
+        return Ok(ConnectorVariant::Authenticator(connector));
+    }
+
+    Err(Box::new(tonic::Status::invalid_argument(
+        "missing connector metadata: one of x-connector, x-surcharge-connector, x-frm-connector, or x-auth-connector is required",
+    )))
 }
 
 pub fn grpc_connector_from_connector_variant(connector: &ConnectorVariant) -> i32 {
@@ -147,6 +189,17 @@ pub fn get_access_token(
 ) -> Option<AccessToken> {
     access_token_from_request.or_else(|| {
         access_token_from_create_server_authentication_token_response(access_token_response)
+    })
+}
+
+pub fn get_payment_method_token(
+    payment_method_token_from_request: Option<String>,
+    payment_method_tokenize_response: Option<&PaymentMethodServiceTokenizeResponse>,
+) -> Option<String> {
+    payment_method_token_from_request.or_else(|| {
+        payment_method_tokenize_response
+            .map(|resp| resp.payment_method_token.clone())
+            .filter(|token| !token.is_empty())
     })
 }
 

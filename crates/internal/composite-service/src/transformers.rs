@@ -17,6 +17,7 @@ use grpc_api_types::payments::{
     PaymentMethodAuthenticationServicePreAuthenticateRequest,
     PaymentMethodAuthenticationServicePreAuthenticateResponse, PaymentMethodServiceCreateRequest,
     PaymentMethodServiceGetRequest, PaymentMethodServiceRechargeRequest,
+    PaymentMethodServiceTokenizeRequest, PaymentMethodServiceTokenizeResponse,
     PaymentServiceAuthorizeRequest, PaymentServiceCaptureRequest, PaymentServiceCreateOrderRequest,
     PaymentServiceCreateOrderResponse, PaymentServiceGetRequest, PaymentServiceRefundRequest,
     PaymentServiceVerifyRedirectResponseResponse, PaymentServiceVoidRequest,
@@ -24,7 +25,7 @@ use grpc_api_types::payments::{
 };
 
 use crate::utils::{
-    get_access_token, get_connector_customer_id, get_session_token,
+    get_access_token, get_connector_customer_id, get_payment_method_token, get_session_token,
     grpc_connector_from_connector_variant,
 };
 
@@ -119,21 +120,6 @@ impl ForeignFrom<(&CompositeAuthorizeRequest, &ConnectorEnum)>
     }
 }
 
-impl ForeignFrom<&CompositeAuthorizeRequest> for PaymentServiceCreateOrderRequest {
-    fn foreign_from(item: &CompositeAuthorizeRequest) -> Self {
-        Self {
-            merchant_order_id: item.merchant_order_id.clone(),
-            amount: item.amount,
-            webhook_url: item.webhook_url.clone(),
-            metadata: item.metadata.clone(),
-            connector_feature_data: item.connector_feature_data.clone(),
-            state: item.state.clone(),
-            test_mode: item.test_mode,
-            payment_method_type: None,
-        }
-    }
-}
-
 // Tuple variant: threads the freshly-created connector_customer_id from
 // `create_customer_response` into the outgoing state. Required for connectors
 // that do not cache the connector-side customer id externally (e.g. Glomopay),
@@ -143,12 +129,14 @@ impl
     ForeignFrom<(
         &CompositeAuthorizeRequest,
         Option<&CustomerServiceCreateResponse>,
+        interfaces::connector_types::MerchantOrderIdSource,
     )> for PaymentServiceCreateOrderRequest
 {
     fn foreign_from(
-        (item, create_customer_response): (
+        (item, create_customer_response, merchant_order_id_source): (
             &CompositeAuthorizeRequest,
             Option<&CustomerServiceCreateResponse>,
+            interfaces::connector_types::MerchantOrderIdSource,
         ),
     ) -> Self {
         let connector_customer_id_from_req = item
@@ -163,8 +151,17 @@ impl
             connector_customer_id,
         });
 
+        let merchant_order_id = match merchant_order_id_source {
+            interfaces::connector_types::MerchantOrderIdSource::OrderId => {
+                item.merchant_order_id.clone()
+            }
+            interfaces::connector_types::MerchantOrderIdSource::TransactionId => {
+                item.merchant_transaction_id.clone()
+            }
+        };
+
         Self {
-            merchant_order_id: item.merchant_order_id.clone(),
+            merchant_order_id,
             amount: item.amount,
             webhook_url: item.webhook_url.clone(),
             metadata: item.metadata.clone(),
@@ -172,6 +169,7 @@ impl
             state,
             test_mode: item.test_mode,
             payment_method_type: None,
+            order_details: item.order_details.clone(),
         }
     }
 }
@@ -353,6 +351,7 @@ impl
             domain_data: item.domain_data.clone(),
             split_payments: item.split_payments.clone(),
             partner_merchant_identifier_details: item.partner_merchant_identifier_details.clone(),
+            currency_conversion_data: item.currency_conversion_data.clone(),
         }
     }
 }
@@ -954,16 +953,36 @@ impl
     }
 }
 
+impl ForeignFrom<&CompositePaymentMethodGetRequest> for PaymentMethodServiceTokenizeRequest {
+    fn foreign_from(item: &CompositePaymentMethodGetRequest) -> Self {
+        Self {
+            merchant_payment_method_id: item.merchant_payment_method_id.clone(),
+            amount: item.amount,
+            payment_method: item.payment_method.clone(),
+            customer: item.customer.clone(),
+            address: item.address.clone(),
+            metadata: item.metadata.clone(),
+            connector_feature_data: item.connector_feature_data.clone(),
+            return_url: item.return_url.clone(),
+            test_mode: item.test_mode,
+            state: item.state.clone(),
+            split_payments: item.split_payments.clone(),
+        }
+    }
+}
+
 impl
     ForeignFrom<(
         &CompositePaymentMethodGetRequest,
         Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
+        Option<&PaymentMethodServiceTokenizeResponse>,
     )> for PaymentMethodServiceGetRequest
 {
     fn foreign_from(
-        (item, access_token_response): (
+        (item, access_token_response, payment_method_tokenize_response): (
             &CompositePaymentMethodGetRequest,
             Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
+            Option<&PaymentMethodServiceTokenizeResponse>,
         ),
     ) -> Self {
         let access_token_from_req = item
@@ -980,6 +999,11 @@ impl
             connector_customer_id,
         });
 
+        let payment_method_token = get_payment_method_token(
+            item.payment_method_token.clone(),
+            payment_method_tokenize_response,
+        );
+
         Self {
             merchant_payment_method_id: item.merchant_payment_method_id.clone(),
             connector_payment_method_id: item.connector_payment_method_id.clone(),
@@ -989,7 +1013,7 @@ impl
             connector_feature_data: item.connector_feature_data.clone(),
             metadata: item.metadata.clone(),
             test_mode: item.test_mode,
-            payment_method_token: item.payment_method_token.clone(),
+            payment_method_token,
         }
     }
 }
@@ -1127,6 +1151,7 @@ impl
             partner_merchant_identifier_details: request
                 .partner_merchant_identifier_details
                 .clone(),
+            currency_conversion_data: request.currency_conversion_data.clone(),
         }
     }
 }

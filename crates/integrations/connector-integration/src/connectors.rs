@@ -294,3 +294,5 @@ pub use self::kount::Kount;
 
 pub mod givepayments;
 pub use self::givepayments::Givepayments;
+pub mod tesouro;
+pub use self::tesouro::Tesouro;

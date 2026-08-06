@@ -1590,6 +1590,7 @@ impl TryFrom<ResponseRouterData<DatatransRefundResponse, Self>>
             connector_refund_id: item.response.transaction_id.clone(),
             refund_status: RefundStatus::Success, // 200 response indicates successful refund
             status_code: item.http_code,
+            acquirer_reference_number: None,
         };
 
         Ok(Self {
@@ -1689,6 +1690,7 @@ impl TryFrom<ResponseRouterData<DatatransRefundSyncResponse, Self>>
             connector_refund_id: response.transaction_id.clone(),
             refund_status,
             status_code: item.http_code,
+            acquirer_reference_number: None,
         };
 
         Ok(Self {

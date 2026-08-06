@@ -269,7 +269,8 @@ pub fn is_refund_failure(status: enums::RefundStatus) -> bool {
         }
         common_enums::RefundStatus::ManualReview
         | common_enums::RefundStatus::Pending
-        | common_enums::RefundStatus::Success => false,
+        | common_enums::RefundStatus::Success
+        | common_enums::RefundStatus::Unknown => false,
     }
 }
 
@@ -634,6 +635,13 @@ pub fn build_card_holder_name(
             Some(Secret::new(full))
         }
     })
+}
+
+/// Card networks (notably Mastercard) require the cardholder name to contain only
+/// English (ASCII) characters; accented characters are transliterated to the
+/// closest ASCII equivalent.
+pub fn normalize_cardholder_name(name: Secret<String>) -> Secret<String> {
+    Secret::new(unidecode::unidecode(&name.expose()))
 }
 
 pub fn pad_expiry_year_to_four_digits(year: &Secret<String>) -> Secret<String> {

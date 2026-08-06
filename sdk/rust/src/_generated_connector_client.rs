@@ -39,6 +39,7 @@ use grpc_api_types::payments::{
     PaymentMethodAuthenticationServicePreAuthenticateRequest,
     PaymentMethodAuthenticationServicePreAuthenticateResponse,
     PaymentMethodServiceEligibilityRequest, PaymentMethodServiceEligibilityResponse,
+    PaymentMethodServiceRefreshRequest, PaymentMethodServiceRefreshResponse,
     PaymentMethodServiceTokenizeRequest, PaymentMethodServiceTokenizeResponse,
     PaymentServiceAuthorizeRequest, PaymentServiceAuthorizeResponse, PaymentServiceCaptureRequest,
     PaymentServiceCaptureResponse, PaymentServiceCreateOrderRequest,
@@ -53,6 +54,7 @@ use grpc_api_types::payments::{
     RecurringPaymentServiceRevokeResponse, RefundResponse, RefundServiceGetRequest,
 };
 use grpc_api_types::payouts::{
+    PayoutMethodEligibilityRequest, PayoutMethodEligibilityResponse,
     PayoutServiceCreateLinkRequest, PayoutServiceCreateLinkResponse,
     PayoutServiceCreateRecipientRequest, PayoutServiceCreateRecipientResponse,
     PayoutServiceCreateRequest, PayoutServiceCreateResponse,
@@ -438,6 +440,13 @@ impl ConnectorClient {
         eligibility_res_handler
     );
     impl_flow_method!(
+        refresh,
+        PaymentMethodServiceRefreshRequest,
+        PaymentMethodServiceRefreshResponse,
+        refresh_req_handler,
+        refresh_res_handler
+    );
+    impl_flow_method!(
         tokenize,
         PaymentMethodServiceTokenizeRequest,
         PaymentMethodServiceTokenizeResponse,
@@ -558,6 +567,13 @@ impl ConnectorClient {
         PayoutServiceCreateRecipientResponse,
         payout_create_recipient_req_handler,
         payout_create_recipient_res_handler
+    );
+    impl_flow_method!(
+        payout_eligibility,
+        PayoutMethodEligibilityRequest,
+        PayoutMethodEligibilityResponse,
+        payout_eligibility_req_handler,
+        payout_eligibility_res_handler
     );
     impl_flow_method!(
         enroll_disburse_account,

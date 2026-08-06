@@ -1630,7 +1630,10 @@ fn get_stripe_card_network(card_network: common_enums::CardNetwork) -> Option<St
         | common_enums::CardNetwork::Star
         | common_enums::CardNetwork::Accel
         | common_enums::CardNetwork::Pulse
-        | common_enums::CardNetwork::Nyce => None,
+        | common_enums::CardNetwork::Nyce
+        | common_enums::CardNetwork::Prop
+        | common_enums::CardNetwork::PrivateLabel
+        | common_enums::CardNetwork::Dinacard => None,
     }
 }
 
@@ -4196,7 +4199,8 @@ pub(crate) fn build_webhook_payment_response(
     Ok(WebhookDetailsResponse {
         resource_id: connector_transaction_id.map(ResponseId::ConnectorTransactionId),
         status,
-        connector_response_reference_id,
+        connector_response_reference_id: connector_response_reference_id.clone(),
+        connector_request_reference_id: connector_response_reference_id,
         mandate_reference: None,
         error_code,
         error_message,
@@ -4900,6 +4904,7 @@ impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
                 connector_refund_id: item.response.id,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             })
         };
 
@@ -4961,6 +4966,7 @@ impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
                 connector_refund_id: item.response.id,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             })
         };
 
@@ -5912,7 +5918,11 @@ impl<F, T> TryFrom<ResponseRouterData<StripeTokenResponse, Self>>
     fn try_from(item: ResponseRouterData<StripeTokenResponse, Self>) -> Result<Self, Self::Error> {
         let token = item.response.id.clone().expose();
         Ok(Self {
-            response: Ok(PaymentMethodTokenResponse { token }),
+            response: Ok(PaymentMethodTokenResponse {
+                token,
+                connector_payment_method_id: None,
+                status_code: item.http_code,
+            }),
             ..item.router_data
         })
     }

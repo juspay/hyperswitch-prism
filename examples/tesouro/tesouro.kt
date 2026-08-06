@@ -1,0 +1,55 @@
+// This file is auto-generated. Do not edit manually.
+// Replace YOUR_API_KEY and placeholder values with real data.
+// Regenerate: python3 scripts/generate-connector-docs.py tesouro
+//
+// Tesouro — all scenarios and flows in one file.
+// Run a scenario:  ./gradlew run --args="tesouro processCheckoutCard"
+
+package examples.tesouro
+
+import types.Payment.*
+import types.PaymentMethods.*
+import payments.MerchantAuthenticationClient
+import payments.ConnectorConfig
+import payments.SdkOptions
+import payments.Environment
+import payments.ConnectorSpecificConfig
+import types.Payment.TesouroConfig
+import payments.SecretString
+
+val SUPPORTED_FLOWS = listOf<String>("create_server_authentication_token")
+
+val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setTesouro(TesouroConfig.newBuilder()
+                .setApiKey(SecretString.newBuilder().setValue("YOUR_API_KEY").build())
+                .setKey1(SecretString.newBuilder().setValue("YOUR_KEY1").build())
+                .setApiSecret(SecretString.newBuilder().setValue("YOUR_API_SECRET").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .build())
+            .build()
+    )
+    .build()
+
+
+// Flow: MerchantAuthenticationService.CreateServerAuthenticationToken
+fun createServerAuthenticationToken(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = MerchantAuthenticationClient(config)
+    val request = MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest.newBuilder().apply {
+
+    }.build()
+    val response = client.create_server_authentication_token(request)
+    println("StatusCode: ${response.statusCode}")
+}
+
+
+fun main(args: Array<String>) {
+    val txnId = "order_001"
+    val flow = args.firstOrNull() ?: "createServerAuthenticationToken"
+    when (flow) {
+        "createServerAuthenticationToken" -> createServerAuthenticationToken(txnId)
+        else -> System.err.println("Unknown flow: $flow. Available: createServerAuthenticationToken")
+    }
+}

@@ -583,6 +583,11 @@
         "error": "mandate_revoke flow not supported by netcetera connector"
       }
     },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "refund": {
       "default": {
         "status": "not_supported",
