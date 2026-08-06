@@ -2262,13 +2262,37 @@ pub fn generate_payout_eligibility_response(
             let payout_status = grpc_api_types::payouts::payout_enums::PayoutStatus::foreign_from(
                 response.payout_status,
             ) as i32;
+            // A connector-declared refusal (e.g. Deutsche Bank VoP NMTC/NOAP) is a
+            // successful call with a negative verdict, so the reason travels in
+            // `error` alongside the terminal status rather than as a transport error.
+            let error = response.error_code.clone().map(|code| {
+                grpc_api_types::payouts::ErrorInfo {
+                    unified_details: None,
+                    connector_details: Some(grpc_api_types::payouts::ConnectorErrorDetails {
+                        code: Some(code),
+                        message: response.error_message.clone(),
+                        reason: response.error_message.clone(),
+                        connector_transaction_id: response.connector_payout_id.clone(),
+                        status: None,
+                    }),
+                    issuer_details: None,
+                }
+            });
+
+            let connector_metadata = response
+                .connector_metadata
+                .as_ref()
+                .map(|value| hyperswitch_masking::Secret::new(value.to_string()));
+
             Ok(grpc_api_types::payouts::PayoutMethodEligibilityResponse {
                 merchant_payout_id: response.merchant_payout_id,
                 payout_status: Some(payout_status),
                 connector_payout_id: response.connector_payout_id,
                 payout_eligible: response.payout_eligible,
-                error: None,
+                error,
                 status_code: u32::from(response.status_code),
+                connector_metadata,
+                eligibility_reference_id: response.eligibility_reference_id,
             })
         }
         Err(err) => Ok(grpc_api_types::payouts::PayoutMethodEligibilityResponse {
@@ -2281,6 +2305,8 @@ pub fn generate_payout_eligibility_response(
             // eligibility is *unknown* — not that the payee is ineligible. `Some(false)`
             // is reserved for the connector-declared NOAP/NMTC path.
             payout_eligible: None,
+            connector_metadata: None,
+            eligibility_reference_id: None,
             error: Some(grpc_api_types::payouts::ErrorInfo {
                 unified_details: None,
                 connector_details: Some(grpc_api_types::payouts::ConnectorErrorDetails {

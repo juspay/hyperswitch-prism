@@ -119,6 +119,17 @@ pub enum DeutschebankVopMatchStatus {
     Nmtc,
 }
 
+impl DeutschebankVopMatchStatus {
+    pub fn code(self) -> &'static str {
+        match self {
+            Self::Mtch => "MTCH",
+            Self::Cmtc => "CMTC",
+            Self::Noap => "NOAP",
+            Self::Nmtc => "NMTC",
+        }
+    }
+}
+
 impl From<DeutschebankVopMatchStatus> for PayoutStatus {
     fn from(value: DeutschebankVopMatchStatus) -> Self {
         match value {
@@ -170,6 +181,24 @@ pub struct DeutschebankVopResponse {
         skip_serializing_if = "Option::is_none"
     )]
     pub additional_info: Option<String>,
+    #[serde(
+        rename = "matchedName",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub matched_name: Option<String>,
+    #[serde(
+        rename = "noapDescription",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub noap_description: Option<String>,
+    #[serde(
+        rename = "isNoapRetryable",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub is_noap_retryable: Option<bool>,
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
@@ -267,7 +296,38 @@ pub fn build_eligibility_response(
         DeutschebankVopMatchStatus::Mtch | DeutschebankVopMatchStatus::Cmtc
     );
 
-    let connector_payout_id = is_eligible.then_some(vop_id);
+    // Surface the refusal to the merchant. Only the conclusive no-match verdicts
+    // carry an error; `MTCH` and `CMTC` are successes and stay clean. `CMTC` is a
+    // near-match that DB still permits, so its advisory text is reported through
+    // `connector_metadata` rather than as an error.
+    let (error_code, error_message) = if is_eligible {
+        (None, None)
+    } else {
+        (
+            Some(match_status.code().to_string()),
+            vop_body.additional_info.clone(),
+        )
+    };
+
+    // On a successful verdict the outcome is not an error, so it travels as
+    // metadata instead: the verdict itself plus DB's explanation. A refusal
+    // already carries both in `error_code` / `error_message`, so it gets none.
+    let connector_metadata = is_eligible.then(|| {
+        let mut metadata = serde_json::Map::new();
+        metadata.insert(
+            "vop_status".to_string(),
+            serde_json::Value::String(match_status.code().to_string()),
+        );
+        if let Some(info) = vop_body.additional_info.clone() {
+            metadata.insert("additional_info".to_string(), serde_json::Value::String(info));
+        }
+        serde_json::Value::Object(metadata)
+    });
+
+    // Only an eligible payee yields a payout id to act on; the VoP reference is
+    // reported separately so a refusal is still traceable, and so it survives the
+    // transfer overwriting `connector_payout_id`.
+    let connector_payout_id = is_eligible.then(|| vop_id.clone());
 
     Ok(PayoutEligibilityResponse {
         merchant_payout_id: None,
@@ -275,6 +335,10 @@ pub fn build_eligibility_response(
         connector_payout_id,
         payout_eligible: Some(is_eligible),
         status_code: http_code,
+        error_code,
+        error_message,
+        connector_metadata,
+        eligibility_reference_id: Some(vop_id),
     })
 }
 

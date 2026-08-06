@@ -575,5 +575,12 @@ message PayoutMethodEligibilityResponse {
   uint32 status_code = 5;
   // Whether the payout is eligible
   optional bool payout_eligible = 6;
+  // Connector-specific details as a JSON object, surfaced to the merchant
+  optional SecretString connector_metadata = 7;
+  // Connector's reference for the eligibility check itself, independent of
+  // `connector_payout_id` (which is only set when the payee is eligible, and is
+  // later replaced by the transfer's id). Set for every verdict — including
+  // refusals — so the check remains traceable for reconciliation.
+  optional string eligibility_reference_id = 8;
 }
 
