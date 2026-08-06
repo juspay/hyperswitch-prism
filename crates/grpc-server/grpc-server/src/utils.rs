@@ -309,11 +309,12 @@ fn metadata_to_json(metadata: &tonic::metadata::MetadataMap) -> serde_json::Valu
 /// Extracts the `merchant_order_id` / `customer_id` / `merchant_transaction_id` from the incoming
 /// request body.
 ///
-/// Euler sends these identifiers in the request *payload* (not as headers): the order id as
-/// `merchant_order_id` (= `orderReference.orderId`), the customer id as `customer.id`
-/// (= `customer._id` / `orderReference.customerId`), and the txn id as `merchant_transaction_id`
-/// (= `txnDetail.txnId`; also mirrored to the `x-reference-id` header). All are plain id strings, so
-/// they read directly off the masked body `Value`. Returns `(order_id, customer_id, txn_id)`; each is
+/// Euler sends these identifiers in the request *payload* (not as headers). This reads the UCS-native
+/// body fields only: `merchant_order_id`, `customer.id`, and `merchant_transaction_id`. (For
+/// cross-reference, euler's equivalents are `orderReference.orderId`, `customer._id` /
+/// `orderReference.customerId`, and `txnDetail.txnId` — the txn id is also mirrored to the
+/// `x-reference-id` header — but the code does not read those euler names.) All are plain id strings,
+/// so they read directly off the masked body `Value`. Returns `(order_id, customer_id, txn_id)`; each is
 /// `None` when its field is absent (e.g. non-euler callers or flows that omit it). Emitted top-level
 /// under the UCS-native names `merchant_order_id` / `customer_id` / `merchant_transaction_id` (Vector
 /// maps them to euler's `udf_order_id` / `udf_customer_id` / `udf_txn_uuid`).
@@ -426,6 +427,9 @@ pub fn log_after_initialization<T>(
     // outgoing side (`record_api_details`). The golden-line event below is emitted under that same
     // span, so it picks up `api_details` from span storage. The flat incoming fields
     // (`request_body`, `response_body`, …) remain for hyperswitch compatibility.
+    // Single `u64` latency value used in both `api_details.latency` and the flat top-level `latency`,
+    // so downstream schema consumers see one numeric type (not u128 in one place, u64 in the other).
+    let latency_ms_u64 = u64::try_from(latency_ms).unwrap_or(u64::MAX);
     let api_details = serde_json::json!({
         // Real HTTP method under the HTTP server; POST for native gRPC (its only transport verb).
         "request_method": http_method.unwrap_or("POST"),
@@ -435,7 +439,7 @@ pub fn log_after_initialization<T>(
         "response_body": res_body,
         "response_headers": res_headers,
         "status_code": res_code,
-        "latency": latency_ms,
+        "latency": latency_ms_u64,
     });
     record_json("api_details", api_details);
     tracing::info!(
@@ -447,7 +451,7 @@ pub fn log_after_initialization<T>(
         merchant_transaction_id = txn_id.as_deref().unwrap_or(""),
         // Flat top-level latency (ms) to mirror euler's flat `latency` on every golden line; the same
         // value is inside `api_details.latency`. Present on both incoming and outgoing lines.
-        latency = u64::try_from(latency_ms).unwrap_or(u64::MAX),
+        latency = latency_ms_u64,
         "Golden Log Line (incoming - response)"
     );
 }
@@ -1342,6 +1346,63 @@ mod golden_log_json_tests {
             merchant_transaction_id = txn_id,
             "Golden Log Line (incoming - response)"
         );
+    }
+
+    #[derive(serde::Serialize, Debug)]
+    struct TestResp {
+        status: i32,
+    }
+
+    /// Drives the REAL `log_after_initialization` (not an inline re-impl) on the **error path**, so
+    /// this exercises the production assembly that the inline test above does not: the `http_method`
+    /// plumbing, the `Err(tonic::Status)` → HTTP status mapping via `http_status_for_status`,
+    /// `metadata_to_json`, and the `response_body` error extraction. The handler span declares the
+    /// fields `log_after_initialization` records (`status_code` / `error_message`) so they surface.
+    fn emit_incoming_golden_real_err() {
+        let handler_span = tracing::info_span!(
+            "payment_authorize",
+            message_ = "Golden Log Line (incoming)",
+            status_code = tracing::field::Empty,
+            error_message = tracing::field::Empty,
+        );
+        let _h = handler_span.enter();
+
+        let req_headers: HashMap<String, String> =
+            HashMap::from_iter([("x-request-id".to_string(), "req-err".to_string())]);
+        let request_body = MaskedSerdeValue::from_masked(&json!({
+            "merchant_order_id": "ord_1",
+            "merchant_transaction_id": "txn_1",
+            "customer": { "id": "cust_1" }
+        }))
+        .ok();
+        // InvalidArgument → HTTP 400 via `http_status_for_status` (no connector details → fallback).
+        let result: Result<tonic::Response<TestResp>, tonic::Status> =
+            Err(tonic::Status::invalid_argument("bad request"));
+        log_after_initialization(&result, &request_body, &req_headers, 55u128, Some("PUT"));
+    }
+
+    #[test]
+    fn incoming_golden_line_from_real_assembly_on_error() {
+        let line = render_json_mode(emit_incoming_golden_real_err);
+        let md = &line["api_details"];
+        assert!(md.is_object(), "api_details must be an object: {md}");
+        // Status mapped by the real `http_status_for_status` (InvalidArgument → 400), in both places.
+        assert_eq!(md["status_code"], 400);
+        assert_eq!(line["status_code"], 400);
+        // The gRPC status message is captured as `{ "error": ... }` in response_body / error_message.
+        assert_eq!(md["response_body"]["error"], "bad request");
+        assert_eq!(line["error_message"], "bad request");
+        // request_method comes from the real HTTP verb argument, not a hardcoded POST.
+        assert_eq!(md["request_method"], "PUT");
+        assert_eq!(md["request_type"], "INTERNAL");
+        // latency is one u64, identical in api_details and the flat field.
+        assert_eq!(md["latency"], 55);
+        assert_eq!(line["latency"], 55);
+        // Identifiers pulled from the request body by the real `identifiers_from_request`.
+        assert_eq!(line["merchant_order_id"], "ord_1");
+        assert_eq!(line["customer_id"], "cust_1");
+        assert_eq!(line["merchant_transaction_id"], "txn_1");
+        assert_eq!(line["api_direction"], "INCOMING_API");
     }
 
     #[test]

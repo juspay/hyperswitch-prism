@@ -931,7 +931,7 @@ where
                             // euler's `message` on failed gateway calls (which always includes the error),
                             // instead of emitting `api_details` with null response and null error.
                             event.error = MaskedSerdeValue::from_masked_optional(
-                                &json!(format!("{transport_err:?}")),
+                                &json!(format!("{transport_err}")),
                                 "connector_error",
                             );
                             Err(transport_err)
@@ -1063,7 +1063,7 @@ where
                             // `api_details` still carries it (euler parity — the message always includes the
                             // failure), instead of emitting `api_details` with null response and null error.
                             event.error = MaskedSerdeValue::from_masked_optional(
-                                &json!(format!("{publish_err:?}")),
+                                &json!(format!("{publish_err}")),
                                 "connector_error",
                             );
                             Err(publish_err)
@@ -1125,12 +1125,6 @@ fn mask_connector_request(request_content: &Option<RequestContent>) -> serde_jso
     }
 }
 
-/// Assembles the euler-shaped `api_details` object (equivalent to euler's nested `message`) from the
-/// already-masked `Event` data and records it as a real JSON object on the current span via
-/// `log_utils::record_json` (the outgoing `#[instrument]` span declares `api_details = Empty`). The
-/// value is written straight into span storage — no stringify/reparse — so JSON log mode emits a
-/// nested object the sessionizer can read. The flat `request.*` / `response.*` fields are still
-/// recorded separately for hyperswitch compatibility, so the detail appears in both places.
 /// Records `value` as a real nested JSON object under `key` in the current span's storage, via the
 /// upstream `log_utils` public `Storage` API (`tracing-storage-api` feature, framework-libs-rs PR #22).
 /// The `JsonFormattingLayer` reads span storage at emit time, so the object surfaces on the golden
@@ -1144,10 +1138,17 @@ fn record_json(key: &'static str, value: serde_json::Value) {
     });
 }
 
+/// Assembles the euler-shaped `api_details` object (equivalent to euler's nested `message`) from the
+/// already-masked `Event` data and records it as a real JSON object on the current span via
+/// [`record_json`] (the outgoing `#[instrument]` span declares `api_details = Empty`). The value is
+/// written straight into span storage — no stringify/reparse — so JSON log mode emits a nested object
+/// the sessionizer can read. The flat `request.*` / `response.*` fields are still recorded separately
+/// for hyperswitch compatibility, so the detail appears in both places.
 #[cfg(feature = "injector-client")]
 fn record_api_details(event: &Event) {
     // UCS-native field names (`request_*` / `response_*` / `status_code`); Vector renames them to
-    // euler's schema (`req_body`, `res_code`, …) on the euler-bound stream.
+    // euler's schema (`req_body`, `res_code`, …) on the euler-bound stream. `latency` is `u64`
+    // (Event.latency_ms) to match the flat top-level `latency` on both golden lines.
     let api_details = json!({
         "request_url": event.url,
         "request_method": event.method,
