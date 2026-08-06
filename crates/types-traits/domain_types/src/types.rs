@@ -3567,8 +3567,20 @@ impl ForeignTryFrom<grpc_api_types::payments::ProxyCardDetails>
                 //card number token is already stored in token_data , so we can update the value to internal transformation value.
                 "{{$card_number}}".to_string().into(),
             ),
-            card_exp_month: "{{$card_exp_month}}".to_string().into(),
-            card_exp_year: "{{$card_exp_year}}".to_string().into(),
+            // Unlike card_number/card_cvc, expiry can't stay a vault placeholder: connectors
+            // (e.g. Netcetera's cardholderAccount.cardExpiryDate) derive a combined/truncated
+            // format from card_exp_month + card_exp_year before the request ever reaches the
+            // injector, and that derivation is a no-op on opaque "{{$...}}" text — it only
+            // works on the real value. card_exp_month/year are plaintext on the wire already
+            // (never vault-aliased), so send them through as-is.
+            card_exp_month: card.card_exp_month.ok_or(IntegrationError::MissingRequiredField {
+                field_name: "payment_method.card_proxy.card_exp_month",
+                context: IntegrationErrorContext::default(),
+            })?,
+            card_exp_year: card.card_exp_year.ok_or(IntegrationError::MissingRequiredField {
+                field_name: "payment_method.card_proxy.card_exp_year",
+                context: IntegrationErrorContext::default(),
+            })?,
             card_cvc: "{{$card_cvc}}".to_string().into(),
             card_issuer: card.card_issuer,
             card_network,
