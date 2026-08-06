@@ -13,7 +13,7 @@ use domain_types::{
     router_response_types::RedirectForm,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeOptionInterface, PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -126,8 +126,9 @@ pub struct MayaPaymentsResponse {
 ///
 /// Includes both the documented payment-object statuses and the webhook event
 /// names returned by Maya (e.g. `CHECKOUT_DROPOUT`, `3DS_PAYMENT_SUCCESS`).
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, strum::Display)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum MayaPaymentStatus {
     PendingToken,
     PendingPayment,
@@ -228,14 +229,11 @@ impl From<MayaPaymentStatus> for EventType {
 ///
 /// Only the fields relevant to the Pay-with-Maya redirect flow are modeled;
 /// Checkout / Payment-Facilitator / Vault fields are intentionally omitted.
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MayaWebhookBody {
     pub id: String,
-    #[serde(default)]
-    pub status: Option<String>,
-    #[serde(default)]
-    pub payment_status: Option<String>,
+    pub status: MayaPaymentStatus,
     #[serde(default)]
     pub request_reference_number: Option<String>,
     #[serde(default)]
@@ -257,13 +255,6 @@ pub struct MayaWebhookBody {
 }
 
 impl MayaWebhookBody {
-    /// Effective payment status string.
-    ///
-    /// Prefers the explicit `paymentStatus` field, falling back to `status`.
-    pub fn payment_status(&self) -> Option<&str> {
-        self.payment_status.as_deref().or(self.status.as_deref())
-    }
-
     /// Merchant reference echoed by Maya, distinct from Maya's payment `id`.
     pub fn connector_response_reference_id(&self) -> Option<String> {
         self.request_reference_number
@@ -272,13 +263,10 @@ impl MayaWebhookBody {
     }
 }
 
-fn maya_raw_connector_status(
-    payment: &MayaWebhookBody,
-    effective_status: &str,
-) -> RawConnectorStatus {
+fn maya_raw_connector_status(payment: &MayaWebhookBody) -> RawConnectorStatus {
     RawConnectorStatus {
         code: payment.error_code.clone(),
-        message: Some(effective_status.to_string()),
+        message: Some(payment.status.to_string()),
         reason: payment.error_message.clone(),
     }
 }
@@ -310,22 +298,13 @@ pub struct MayaVoidRequest {
 }
 
 /// Maya void status values.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, strum::Display)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum MayaVoidStatus {
     Success,
     Failed,
     Pending,
-}
-
-impl MayaVoidStatus {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            MayaVoidStatus::Success => "SUCCESS",
-            MayaVoidStatus::Failed => "FAILED",
-            MayaVoidStatus::Pending => "PENDING",
-        }
-    }
 }
 
 impl From<MayaVoidStatus> for common_enums::AttemptStatus {
@@ -419,7 +398,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
-                context: Default::default(),
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to convert the Maya payment amount from minor units to major units"
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Verify that the amount and currency are valid for major-unit conversion"
+                            .to_string(),
+                    ),
+                    doc_url: None,
+                },
             })
             .attach_printable("Failed to convert amount to Maya major unit")?;
 
@@ -461,7 +450,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .connector_request_reference_id
                 .clone(),
             user_id,
-            metadata: router_data.request.metadata.clone().expose_option(),
+            metadata: None,
         })
     }
 }
@@ -473,9 +462,10 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<MayaPaymentsResponse,
 
     fn try_from(item: ResponseRouterData<MayaPaymentsResponse, Self>) -> Result<Self, Self::Error> {
         let redirect_url = Url::parse(&item.response.redirect_url).change_context(
-            ConnectorError::ResponseDeserializationFailed {
-                context: Default::default(),
-            },
+            ConnectorError::response_deserialization_failed_with_context(
+                item.http_code,
+                Some("Maya returned an invalid redirectUrl in the authorize response".to_string()),
+            ),
         )?;
 
         let status = common_enums::AttemptStatus::Pending;
@@ -506,11 +496,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<MayaPaymentsResponse,
             }),
             resource_common_data: PaymentFlowData {
                 status,
-                raw_connector_status: Some(RawConnectorStatus {
-                    code: Some(item.http_code.to_string()),
-                    message: Some("PENDING".to_string()),
-                    reason: None,
-                }),
+                raw_connector_status: None,
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
@@ -524,14 +510,6 @@ impl TryFrom<ResponseRouterData<MayaWebhookBody, Self>>
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<MayaWebhookBody, Self>) -> Result<Self, Self::Error> {
-        // The Maya paymentId from the request, used as a fallback for `resource_id`
-        // when the response does not carry one.
-        let request_txn_id = item
-            .router_data
-            .request
-            .connector_transaction_id
-            .get_connector_transaction_id()
-            .ok();
         let connector_request_reference_id = item
             .router_data
             .resource_common_data
@@ -542,24 +520,16 @@ impl TryFrom<ResponseRouterData<MayaWebhookBody, Self>>
 
         let settlement_status = maya_settlement_status(payment.can_void, payment.can_refund);
 
-        // Effective status: prefer `paymentStatus`, fall back to `status`
-        // (same logic as the webhook body).
-        let effective_status = payment.payment_status().unwrap_or("PAYMENT_FAILED");
-        let maya_payment_status: MayaPaymentStatus =
-            serde_json::from_str(&format!("\"{effective_status}\"")).change_context(
-                ConnectorError::response_deserialization_failed(item.http_code),
-            )?;
-        let status = common_enums::AttemptStatus::from(maya_payment_status);
+        let status = common_enums::AttemptStatus::from(payment.status.clone());
 
-        // `resource_id`: Maya paymentId (`id`) from the response if available, falling
-        // back to the request's `connector_transaction_id`.
-        let resource_id_value = if !payment.id.is_empty() {
-            payment.id.clone()
+        // Use Maya's payment ID when it is present in the response.
+        let resource_id = if !payment.id.is_empty() {
+            ResponseId::ConnectorTransactionId(payment.id.clone())
         } else {
-            request_txn_id.unwrap_or_default()
+            ResponseId::NoResponseId
         };
 
-        let raw_connector_status = maya_raw_connector_status(&payment, effective_status);
+        let raw_connector_status = maya_raw_connector_status(&payment);
 
         // `connector_response_reference_id`: the merchant reference number echoed back
         // by Maya (`requestReferenceNumber`). This keeps the reference consistent with
@@ -587,7 +557,7 @@ impl TryFrom<ResponseRouterData<MayaWebhookBody, Self>>
 
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(resource_id_value),
+                resource_id,
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata,
@@ -635,7 +605,7 @@ impl TryFrom<ResponseRouterData<MayaVoidResponse, Self>>
             resource_common_data: PaymentFlowData {
                 status,
                 raw_connector_status: Some(RawConnectorStatus {
-                    code: Some(item.response.status.as_str().to_string()),
+                    code: Some(item.response.status.to_string()),
                     message: item.response.reason.clone(),
                     reason: None,
                 }),
@@ -651,22 +621,13 @@ impl TryFrom<ResponseRouterData<MayaVoidResponse, Self>>
 // =============================================================================
 
 /// Maya refund status values.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, strum::Display)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum MayaRefundStatus {
     Success,
     Failed,
     Pending,
-}
-
-impl MayaRefundStatus {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            MayaRefundStatus::Success => "SUCCESS",
-            MayaRefundStatus::Failed => "FAILED",
-            MayaRefundStatus::Pending => "PENDING",
-        }
-    }
 }
 
 impl From<MayaRefundStatus> for common_enums::RefundStatus {
@@ -735,7 +696,17 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                 router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
-                context: Default::default(),
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to convert the Maya refund amount from minor units to major units"
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Verify that the refund amount and currency are valid for major-unit conversion"
+                            .to_string(),
+                    ),
+                    doc_url: None,
+                },
             })
             .attach_printable("Failed to convert refund amount to Maya major unit")?;
 
@@ -759,7 +730,7 @@ impl TryFrom<ResponseRouterData<MayaRefundResponse, Self>>
         let refund_status = common_enums::RefundStatus::from(item.response.status.clone());
 
         let raw_connector_status = RawConnectorStatus {
-            code: Some(item.response.status.as_str().to_string()),
+            code: Some(item.response.status.to_string()),
             message: item.response.reason.clone(),
             reason: None,
         };
@@ -769,6 +740,7 @@ impl TryFrom<ResponseRouterData<MayaRefundResponse, Self>>
                 connector_refund_id: item.response.id,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             resource_common_data: RefundFlowData {
                 raw_connector_status: Some(raw_connector_status),
@@ -790,7 +762,7 @@ impl TryFrom<ResponseRouterData<MayaRefundSyncResponse, Self>>
         let refund_status = common_enums::RefundStatus::from(item.response.status.clone());
 
         let raw_connector_status = RawConnectorStatus {
-            code: Some(item.response.status.as_str().to_string()),
+            code: Some(item.response.status.to_string()),
             message: item.response.reason.clone(),
             reason: None,
         };
@@ -800,6 +772,7 @@ impl TryFrom<ResponseRouterData<MayaRefundSyncResponse, Self>>
                 connector_refund_id: item.response.id,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             resource_common_data: RefundFlowData {
                 raw_connector_status: Some(raw_connector_status),

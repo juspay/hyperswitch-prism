@@ -1580,9 +1580,9 @@ impl<
                         payment_method_data::EaseBuzzRedirection {},
                     )))
                 }
-                grpc_api_types::payments::payment_method::PaymentMethod::PayMayaRedirect(_) => {
-                    Ok(Self::Wallet(payment_method_data::WalletData::PayMayaRedirect(
-                        payment_method_data::PayMayaRedirection {},
+                grpc_api_types::payments::payment_method::PaymentMethod::PaymayaRedirect(_) => {
+                    Ok(Self::Wallet(payment_method_data::WalletData::PaymayaRedirect(
+                        payment_method_data::PaymayaRedirection {},
                     )))
                 }
                 grpc_api_types::payments::payment_method::PaymentMethod::CashappQr(_) => {
@@ -2642,8 +2642,8 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::Netbanking => {
                 Ok(PaymentMethodType::Netbanking)
             }
-            grpc_api_types::payments::PaymentMethodType::PayMaya => {
-                Ok(PaymentMethodType::PayMaya)
+            grpc_api_types::payments::PaymentMethodType::Paymaya => {
+                Ok(PaymentMethodType::Paymaya)
             }
             grpc_api_types::payments::PaymentMethodType::Ideal => Ok(PaymentMethodType::Ideal),
             grpc_api_types::payments::PaymentMethodType::Blik => Ok(PaymentMethodType::Blik),
@@ -2775,7 +2775,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 grpc_api_types::payments::payment_method::PaymentMethod::VenmoRedirect(_) => Ok(Some(PaymentMethodType::Venmo)),
                 grpc_api_types::payments::payment_method::PaymentMethod::SkrillRedirect(_) => Ok(Some(PaymentMethodType::Skrill)),
                 grpc_api_types::payments::payment_method::PaymentMethod::PayseraRedirect(_) => Ok(Some(PaymentMethodType::Paysera)),
-                grpc_api_types::payments::payment_method::PaymentMethod::PayMayaRedirect(_) => Ok(Some(PaymentMethodType::PayMaya)),
+                grpc_api_types::payments::payment_method::PaymentMethod::PaymayaRedirect(_) => Ok(Some(PaymentMethodType::Paymaya)),
                 grpc_api_types::payments::payment_method::PaymentMethod::RevolutPayRedirect(_) => Ok(Some(PaymentMethodType::RevolutPay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::SatispayRedirect(_) => Ok(Some(PaymentMethodType::Satispay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::WeroRedirect(_) => Ok(Some(PaymentMethodType::Wero)),
@@ -6765,7 +6765,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
-                    Some(grpc_api_types::payments::payment_method::PaymentMethod::PayMayaRedirect(_)),
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::PaymayaRedirect(_)),
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
@@ -8433,7 +8433,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::CashFree => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::PayU => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::EaseBuzz => Ok(Self::Wallet),
-            grpc_api_types::payments::PaymentMethodType::PayMaya => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethodType::Paymaya => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::QwikcilverWallet => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::Skrill => Ok(Self::Wallet),
 
@@ -12739,7 +12739,7 @@ pub enum PaymentMethodDataType {
     CashfreeRedirect,
     PayURedirect,
     EaseBuzzRedirect,
-    PayMayaRedirect,
+    PaymayaRedirect,
     SepaGuaranteedBankDebit,
     IndonesianBankTransfer,
     Netbanking,

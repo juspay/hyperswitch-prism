@@ -12,7 +12,7 @@ use domain_types::{
     connector_types::*,
     errors,
     payment_method_data::PaymentMethodDataTypes,
-    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
+    router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     router_request_types::VerifyWebhookSourceRequestData,
     router_response_types::{Response, VerifyWebhookSourceResponseData},
@@ -206,7 +206,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             code: response.code,
             message: response.message,
             reason,
-            attempt_status: Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure)),
+            attempt_status: None,
             connector_transaction_id: None,
             network_decline_code: None,
             network_advice_code: None,
@@ -277,12 +277,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .parse_struct("MayaWebhookBody")
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
-        let effective_status = body.payment_status().unwrap_or("PAYMENT_FAILED");
-        let maya_payment_status: maya::MayaPaymentStatus =
-            serde_json::from_str(&format!("\"{effective_status}\""))
-                .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
-
-        Ok(EventType::from(maya_payment_status))
+        Ok(EventType::from(body.status))
     }
 
     fn process_payment_webhook(
@@ -297,22 +292,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .parse_struct("MayaWebhookBody")
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
-        let effective_status = body.payment_status().unwrap_or("PAYMENT_FAILED");
-        let maya_payment_status: maya::MayaPaymentStatus =
-            serde_json::from_str(&format!("\"{effective_status}\""))
-                .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
+        let status = common_enums::AttemptStatus::from(body.status.clone());
 
-        let status = common_enums::AttemptStatus::from(maya_payment_status);
-
-        // `requestReferenceNumber` (falling back to `transactionReferenceNumber`) is
-        // the merchant reference Maya echoes back — this is what Juspay sent as
-        // `merchantTransactionId` at payment-create time.
-        let connector_response_reference_id = body.connector_response_reference_id();
+        let connector_request_reference_id = body.request_reference_number.clone();
 
         Ok(WebhookDetailsResponse {
             resource_id: Some(ResponseId::ConnectorTransactionId(body.id)),
             status,
-            connector_response_reference_id,
+            connector_response_reference_id: None,
+            connector_request_reference_id,
             mandate_reference: None,
             error_code: body.error_code,
             error_message: body.error_message.clone(),
@@ -407,7 +395,17 @@ macros::macro_connector_implementation!(
                 .get_connector_transaction_id()
                 .change_context(errors::IntegrationError::MissingRequiredField {
                     field_name: "connector_transaction_id",
-                    context: Default::default(),
+                    context: errors::IntegrationErrorContext {
+                        additional_context: Some(
+                            "Maya PSync requires the paymentId returned by the Authorize flow"
+                                .to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Pass the Maya paymentId as connector_transaction_id when calling PSync"
+                                .to_string(),
+                        ),
+                        doc_url: None,
+                    },
                 })?;
             Ok(format!(
                 "{}/payments/v1/payments/{payment_id}",
@@ -653,6 +651,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::RefreshPaymentMethodV2<T> for Maya<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RechargeV2 for Maya<T>
 {
 }
@@ -731,6 +734,12 @@ impl_unsupported_connector_flow!(
     PaymentFlowData,
     CreatePaymentMethodData,
     CreatePaymentMethodResponseData
+);
+impl_unsupported_connector_flow!(
+    connector_flow::RefreshPaymentMethod,
+    RefreshPaymentMethodFlowData,
+    RefreshPaymentMethodData<T>,
+    RefreshPaymentMethodResponseData
 );
 impl_unsupported_connector_flow!(
     connector_flow::Recharge,
