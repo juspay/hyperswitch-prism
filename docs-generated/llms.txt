@@ -243,7 +243,7 @@ connector_id: finix
 doc: docs/connectors/finix.md
 scenarios: none
 payment_methods: none
-flows: capture, customer_create, get, handle_event, parse_event, recurring_charge, refund, refund_get, setup_recurring, token_authorize, void
+flows: capture, customer_create, get, handle_event, parse_event, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, token_authorize, void
 examples_python: none
 
 ## Fiserv
@@ -315,7 +315,7 @@ connector_id: givepayments
 doc: docs/connectors/givepayments.md
 scenarios: checkout_autocapture, refund, get_payment
 payment_methods: Card
-flows: authorize, get, handle_event, parse_event, recurring_charge, refund, refund_get
+flows: authorize, get, handle_event, parse_event, proxy_authorize, recurring_charge, refund, refund_get
 examples_python: examples/givepayments/givepayments.py
 
 ## Globalpay
@@ -395,7 +395,7 @@ connector_id: jpmorgan
 doc: docs/connectors/jpmorgan.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Ach, Card
-flows: authorize, capture, create_client_authentication_token, create_server_authentication_token, get, recurring_charge, refund, refund_get, setup_recurring, token_authorize, void
+flows: authorize, capture, create_client_authentication_token, create_server_authentication_token, get, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, token_authorize, void
 examples_python: examples/jpmorgan/jpmorgan.py
 
 ## Juspay
@@ -443,7 +443,7 @@ connector_id: multisafepay
 doc: docs/connectors/multisafepay.md
 scenarios: checkout_autocapture, refund, get_payment
 payment_methods: AliPayRedirect, Card, Eps, Giropay, GooglePay, GooglePayDecrypted, Ideal, PaypalRedirect, Sepa, Sofort, Trustly
-flows: authorize, create_client_authentication_token, get, refund, refund_get
+flows: authorize, create_client_authentication_token, get, proxy_authorize, refund, refund_get
 examples_python: examples/multisafepay/multisafepay.py
 
 ## Netcetera
@@ -683,7 +683,7 @@ connector_id: silverflow
 doc: docs/connectors/silverflow.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, capture, get, refund, refund_get, void
+flows: authorize, capture, get, proxy_authorize, refund, refund_get, void
 examples_python: examples/silverflow/silverflow.py
 
 ## Stax
@@ -803,7 +803,7 @@ connector_id: worldpay
 doc: docs/connectors/worldpay.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: ApplePay, Card, GooglePay
-flows: authorize, capture, get, incremental_authorization, recurring_charge, refund, refund_get, void
+flows: authorize, capture, get, incremental_authorization, proxy_authorize, recurring_charge, refund, refund_get, void
 examples_python: examples/worldpay/worldpay.py
 
 ## Worldpayvantiv

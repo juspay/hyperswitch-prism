@@ -13,7 +13,7 @@ from payments import RecurringPaymentClient
 from payments import RefundClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
-SUPPORTED_FLOWS = ["authorize", "get", "parse_event", "recurring_charge", "refund", "refund_get"]
+SUPPORTED_FLOWS = ["authorize", "get", "parse_event", "proxy_authorize", "recurring_charge", "refund", "refund_get"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -76,6 +76,36 @@ def _build_parse_event_request():
             uri="https://example.com/webhook",  # URI of the request.
             headers={},  # Headers of the HTTP request.
             body="{\"id\": \"GS_EV_pmV0LOyQvHYnG1VNZD2QeE\",\"created_at\": \"1661990400\",\"type\": \"payment.captured\",\"data\": { \"type\": \"payment\", \"object\": { \"id\": \"GS_TXN_cKP1ctmwThYaA5UJrUG67A\", \"id\": \"GS_TXN_cKP1ctmwThYaA5UJrUG67A\", \"created_at\": 1661990400, \"updated_at\": 1661990400, \"settled_at\": null, \"status\": \"successful\", \"processing_state\": \"captured\", \"total_amount\": 500, \"net_amount\": 500, \"fee_amount\": 44, \"fees_paid_by\": \"merchant\", \"description\": \"\", \"reversal_status\": \"not_reversed\", \"billing_descriptor\": \"1OFFICESUPPLIESSTORE\", \"risk\": { \"quarantine\": false, \"risk_level\": \"low\", \"assessment\": \"\" }, \"paymethod\": { \"type\": \"card\", \"card\": { \"id\": \"GS_PMC_7cmafx7A532uIiZaGRsE4D\", \"created_at\": 1661990400, \"updated_at\": 1661990400, \"brand\": \"visa\", \"name\": \"Jack Francis\", \"number_last4\": \"1111\", \"exp_year\": 2023, \"exp_month\": 8, \"is_debit\": false, \"user\": \"GS_USR_5z9QxI1cG1YAAZGV9nos4B\", \"address\": null }}, \"customer\": \"GS_CUS_2rbzrEaeBNwNMafRxKBfSb\", \"merchant\": \"GS_MER_OVC3SKymD34SH5NjEhPa8D\" }}, \"merchant\": \"GS_MER_OVC3SKymD34SH5NjEhPa8D\"}".encode(),  # Body of the HTTP request.
+        ),
+    )
+
+def _build_proxy_authorize_request():
+    return payment_pb2.PaymentServiceProxyAuthorizeRequest(
+        merchant_transaction_id="probe_proxy_txn_001",
+        amount=payment_pb2.Money(
+            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
+            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        ),
+        card_proxy=payment_methods_pb2.ProxyCardDetails(  # Card proxy for vault-aliased payments (VGS, Basis Theory, Spreedly). Real card values are substituted by the proxy before reaching the connector.
+            card_number=payment_methods_pb2.SecretString(value="4111111111111111"),  # Card Identification.
+            card_exp_month=payment_methods_pb2.SecretString(value="03"),
+            card_exp_year=payment_methods_pb2.SecretString(value="2030"),
+            card_cvc=payment_methods_pb2.SecretString(value="123"),
+            card_holder_name=payment_methods_pb2.SecretString(value="John Doe"),  # Cardholder Information.
+            card_network=payment_methods_pb2.CardNetwork.Value("VISA"),
+        ),
+        customer=payment_pb2.Customer(
+            email=payment_methods_pb2.SecretString(value="test@example.com"),  # Customer's email address.
+        ),
+        address=payment_pb2.PaymentAddress(
+            billing_address=payment_pb2.Address(),
+        ),
+        capture_method=payment_pb2.CaptureMethod.Value("AUTOMATIC"),
+        auth_type=payment_pb2.AuthenticationType.Value("NO_THREE_DS"),
+        return_url="https://example.com/return",
+        browser_info=payment_pb2.BrowserInformation(
+            user_agent="Mozilla/5.0 (probe-bot)",
+            ip_address="1.2.3.4",  # Device Information.
         ),
     )
 
@@ -224,6 +254,15 @@ async def process_parse_event(merchant_transaction_id: str, config: sdk_config_p
     parse_response = event_client.parse_event(_build_parse_event_request())
 
     return {"event_type": parse_response.event_type}
+
+
+async def process_proxy_authorize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: PaymentService.ProxyAuthorize"""
+    payment_client = PaymentClient(config)
+
+    proxy_response = await payment_client.proxy_authorize(_build_proxy_authorize_request())
+
+    return {"status": proxy_response.status}
 
 
 async def process_recurring_charge(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

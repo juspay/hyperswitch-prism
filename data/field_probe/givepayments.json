@@ -647,8 +647,47 @@
     },
     "proxy_authorize": {
       "default": {
-        "status": "error",
-        "error": "Invalid data format: payment_method_data.card.card_exp_year. Expected format: YY or YYYY"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_proxy_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "browser_info": {
+            "user_agent": "Mozilla/5.0 (probe-bot)",
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://api-sandbox.givepayments.com/payments",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "gp-requestor-ip": "1.2.3.4",
+            "gp-requestor-ua": "Mozilla/5.0 (probe-bot)",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":1000,\"paymethod\":{\"card\":{\"name\":\"John Doe\",\"number\":\"{{$card_number}}\",\"cvv\":\"{{$card_cvc}}\",\"exp_year\":2030,\"exp_month\":3,\"tokenize\":false}},\"customer\":{\"email\":\"test@example.com\"}}"
+        }
       }
     },
     "proxy_setup_recurring": {
