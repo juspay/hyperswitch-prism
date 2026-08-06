@@ -110,6 +110,33 @@ pub struct PaysafeSetupMandateRequest<T: PaymentMethodDataTypes> {
     pub three_ds: Option<ThreeDs>,
     pub profile: Option<PaysafeProfile>,
     pub billing_details: Option<PaysafeBillingDetails>,
+    /// Paysafe's escape hatch for accounts provisioned `THREE_D_S_TWO`: such an account
+    /// rejects a CARD payment handle that carries no `threeDs` block with
+    /// `5068 "threeDs may not be null or empty"`. Paysafe's own Google Pay request
+    /// examples send `skip3ds: true` for exactly this reason.
+    ///
+    /// Omitted entirely unless set, so the Skrill / Interac / PreAuthenticate bodies stay
+    /// byte-identical to the shadow-verified wire shape.
+    ///
+    /// NOTE the explicit rename: `rename_all = "camelCase"` would emit `skip3Ds`.
+    #[serde(rename = "skip3ds", skip_serializing_if = "Option::is_none")]
+    pub skip_3ds: Option<bool>,
+    /// Paysafe-side duplicate-request suppression. No hyperswitch equivalent, so this is
+    /// left `None` and Paysafe's own default applies.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dup_check: Option<bool>,
+    /// Dynamic billing descriptor shown on the cardholder's statement.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant_descriptor: Option<PaysafeMerchantDescriptor>,
+}
+
+/// `merchantDescriptor` on the payment handle: what the cardholder sees on their statement.
+#[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeMerchantDescriptor {
+    pub dynamic_descriptor: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub phone: Option<Secret<String>>,
 }
 
 /// PreAuthenticate (card + 3DS) reuses the payment-handle wire shape; a distinct alias keeps the
@@ -319,6 +346,32 @@ pub struct PaysafeGooglePayPaymentMethodData {
 pub struct PaysafeGooglePayCardInfo {
     pub card_network: String,
     pub card_details: String,
+    /// Cardholder billing address as carried inside the Google Pay token's `info` block.
+    /// Distinct from the handle's top-level `billingDetails`; Paysafe's own Google Pay
+    /// examples send both. Omitted when the address is unavailable.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub billing_address: Option<PaysafeGooglePayBillingAddress>,
+}
+
+/// `paymentMethodData.info.billingAddress` of a Google Pay token.
+///
+/// Every field is optional and blank values are dropped by the caller: Paysafe rejects
+/// present-but-empty strings with `5068 "size must be between 1 and 50 ..."`.
+#[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeGooglePayBillingAddress {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub address1: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub locality: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub administrative_area: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub postal_code: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub country_code: Option<common_enums::CountryAlpha2>,
 }
 
 #[derive(Debug, Serialize, Clone, PartialEq)]
@@ -362,6 +415,11 @@ pub struct PaysafeGooglePayPaymentMethodDetails {
     pub expiration_year: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cryptogram: Option<Secret<String>>,
+    /// ECI indicator accompanying a network-token cryptogram. Paysafe defines it on the
+    /// `tokenWith3DS` schema, so it is only meaningful next to `CRYPTOGRAM_3DS`; a
+    /// `PAN_ONLY` token has none and the field is omitted.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub eci_indicator: Option<String>,
 }
 
 #[derive(Debug, Serialize, Clone, PartialEq)]
