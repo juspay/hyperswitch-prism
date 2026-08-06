@@ -252,8 +252,12 @@ log_to_span = true
 
 # Per-connector unmask lists, comma-separated and case-insensitive.
 # A connector with no entry gets every value masked (keys still visible).
-# Full PAN, CVV, expiry and credentials stay masked regardless of what is listed here.
+# Naming a key here reveals only that key's own value: an object below it is re-decided key by
+# key, and an array below it stays masked, since its elements have no key you could name.
+# A key whose name looks like a full PAN, CVV, expiry or credential stays masked even if listed.
 # Truncated values (cardSummary, last4, cardBin) are not covered — name them if needed.
+# A body that is not JSON, XML or form-encoded has no keys to gate on, so it is replaced
+# wholesale by a stub carrying only its size.
 #
 # Names are validated against every connector enum — payment, surcharge, payout, FRM
 # and authenticator — so interpayments, deutschebank and plaid are valid keys here.
