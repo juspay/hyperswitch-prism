@@ -16,12 +16,14 @@ use domain_types::{
     connector_flow::{Authorize, CreateOrder, PSync, RSync, Refund, ServerAuthenticationToken},
     connector_types::{ConnectorSpecifications, SupportedPaymentMethodsExt},
     connector_types::{
-        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentsAuthorizeData,
-        PaymentsResponseData, PaymentsSyncData, RedirectDetailsResponse, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, RequestDetails,
+        ConnectorWebhookSecrets, EventContext, EventType, HttpMethod, PaymentCreateOrderData,
+        PaymentCreateOrderResponse, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData,
+        PaymentsSyncData, RedirectDetailsResponse, RefundFlowData, RefundSyncData,
+        RefundWebhookDetailsResponse, RefundsData, RefundsResponseData, RequestDetails, ResponseId,
         ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+        WebhookDetailsResponse, WebhookResourceReference,
     },
-    errors::{self, IntegrationError},
+    errors::{self, IntegrationError, WebhookError},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -47,6 +49,7 @@ use transformers::{
     GrabpayChargeCompleteResponse, GrabpayCreateOrderRequest, GrabpayCreateOrderResponse,
     GrabpayRefundRequest, GrabpayRefundResponse, GrabpayRefundSyncResponse,
     GrabpayServerAuthenticationTokenRequest, GrabpayServerAuthenticationTokenResponse,
+    GrabpayWebhookBody,
 };
 
 use super::macros;
@@ -211,6 +214,56 @@ fn build_hmac_authorization(
         auth.partner_id.peek(),
         BASE64_ENGINE.encode(signature)
     ))
+}
+
+fn get_webhook_header<'a>(
+    headers: &'a std::collections::HashMap<String, String>,
+    header_name: &'static str,
+) -> Result<&'a str, error_stack::Report<WebhookError>> {
+    headers
+        .iter()
+        .find_map(|(key, value)| {
+            key.eq_ignore_ascii_case(header_name)
+                .then_some(value.as_str())
+        })
+        .ok_or_else(|| {
+            error_stack::report!(WebhookError::WebhookMissingRequiredField { field: header_name })
+        })
+}
+
+fn grabpay_webhook_method(method: &HttpMethod) -> &'static str {
+    match method {
+        HttpMethod::Post => "POST",
+        HttpMethod::Get => "GET",
+        HttpMethod::Put => "PUT",
+        HttpMethod::Delete => "DELETE",
+        HttpMethod::Options => "OPTIONS",
+        HttpMethod::Head => "HEAD",
+        HttpMethod::Trace => "TRACE",
+        HttpMethod::Connect => "CONNECT",
+        HttpMethod::Patch => "PATCH",
+    }
+}
+
+fn grabpay_webhook_path(uri: Option<&str>) -> Result<String, error_stack::Report<WebhookError>> {
+    let uri = uri.ok_or_else(|| {
+        error_stack::report!(WebhookError::WebhookMissingRequiredField { field: "uri" })
+    })?;
+
+    if let Ok(url) = url::Url::parse(uri) {
+        return Ok(url.path().to_string());
+    }
+
+    Ok(uri.split('?').next().unwrap_or(uri).to_string())
+}
+
+fn parse_grabpay_webhook_body(
+    request: &RequestDetails,
+) -> Result<GrabpayWebhookBody, error_stack::Report<WebhookError>> {
+    request
+        .body
+        .parse_struct("GrabpayWebhookBody")
+        .change_context(WebhookError::WebhookBodyDecodingFailed)
 }
 
 fn build_pop_signature(
@@ -906,6 +959,134 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for Grabpay<T>
 {
+    fn verify_webhook_source(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<bool, error_stack::Report<WebhookError>> {
+        let connector_account_details = connector_account_details
+            .ok_or_else(|| error_stack::report!(WebhookError::WebhookVerificationSecretNotFound))?;
+        let auth = grabpay::GrabpayAuthType::try_from(&connector_account_details)
+            .change_context(WebhookError::WebhookVerificationSecretInvalid)?;
+
+        let incoming_authorization =
+            get_webhook_header(&request.headers, headers::AUTHORIZATION)?.trim();
+        let _content_type = get_webhook_header(&request.headers, headers::CONTENT_TYPE)?;
+        let date = get_webhook_header(&request.headers, headers::DATE)?;
+        let path = grabpay_webhook_path(request.uri.as_deref())?;
+        let method = grabpay_webhook_method(&request.method);
+        let expected_authorization =
+            build_hmac_authorization(&auth, method, &path, &request.body, date)
+                .change_context(WebhookError::WebhookSourceVerificationFailed)?;
+
+        Ok(incoming_authorization.as_bytes() == expected_authorization.as_bytes())
+    }
+
+    fn get_event_type(
+        &self,
+        request: RequestDetails,
+    ) -> Result<EventType, error_stack::Report<WebhookError>> {
+        let webhook_body = parse_grabpay_webhook_body(&request)?;
+        Ok(grabpay::grabpay_webhook_event_type(&webhook_body))
+    }
+
+    fn get_webhook_event_reference(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
+        let webhook_body = parse_grabpay_webhook_body(&request)?;
+        Ok(Some(webhook_body.webhook_reference()))
+    }
+
+    fn process_payment_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+        _event_context: Option<EventContext>,
+    ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
+        let webhook_body = parse_grabpay_webhook_body(&request)?;
+        if webhook_body.is_refund_event() {
+            return Err(error_stack::report!(
+                WebhookError::WebhookBodyDecodingFailed
+            ));
+        }
+
+        let status = grabpay::grabpay_webhook_attempt_status(&webhook_body);
+        let is_failure = status == enums::AttemptStatus::Failure;
+        let reason = webhook_body.effective_reason();
+        let connector_transaction_id = webhook_body.tx_id.clone().ok_or_else(|| {
+            error_stack::report!(WebhookError::WebhookMissingRequiredField { field: "txID" })
+        })?;
+
+        Ok(WebhookDetailsResponse {
+            resource_id: Some(ResponseId::ConnectorTransactionId(
+                connector_transaction_id.clone(),
+            )),
+            status,
+            connector_response_reference_id: Some(connector_transaction_id),
+            connector_request_reference_id: webhook_body.partner_tx_id,
+            mandate_reference: None,
+            error_code: if is_failure { reason.clone() } else { None },
+            error_message: if is_failure { reason.clone() } else { None },
+            error_reason: reason,
+            raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
+            status_code: 200,
+            response_headers: None,
+            amount_captured: None,
+            minor_amount_captured: None,
+            network_txn_id: None,
+            payment_method_update: None,
+            sender_payment_instrument_id: None,
+        })
+    }
+
+    fn process_refund_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<RefundWebhookDetailsResponse, error_stack::Report<WebhookError>> {
+        let webhook_body = parse_grabpay_webhook_body(&request)?;
+        if !webhook_body.is_refund_event() {
+            return Err(error_stack::report!(
+                WebhookError::WebhookBodyDecodingFailed
+            ));
+        }
+
+        let status = grabpay::grabpay_webhook_refund_status(&webhook_body);
+        let is_failure = status == enums::RefundStatus::Failure;
+        let reason = webhook_body.effective_reason();
+
+        Ok(RefundWebhookDetailsResponse {
+            connector_refund_id: webhook_body.tx_id,
+            merchant_transaction_id: webhook_body
+                .payload
+                .as_ref()
+                .and_then(|payload| payload.partner_group_tx_id.clone()),
+            status,
+            connector_response_reference_id: webhook_body.partner_tx_id,
+            error_code: if is_failure { reason.clone() } else { None },
+            error_message: if is_failure { reason } else { None },
+            raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
+            status_code: 200,
+            response_headers: None,
+        })
+    }
+
+    fn get_webhook_resource_object(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, error_stack::Report<WebhookError>>
+    {
+        let webhook_body = parse_grabpay_webhook_body(&request)?;
+        Ok(Box::new(webhook_body))
+    }
+
+    fn sample_webhook_body(&self) -> &'static [u8] {
+        br#"{"txType":"payment","txStatus":"success","partnerID":"partner_123","partnerTxID":"txn_123","txID":"grab_txn_123","amount":100,"currency":"SGD","payload":{"newStatus":"success","paymentMethod":"GRABPAY"}}"#
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

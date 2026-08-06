@@ -4,6 +4,9 @@ use common_utils::{consts::BASE64_ENGINE_URL_SAFE_NO_PAD, pii::SecretSerdeValue}
 use domain_types::{
     connector_flow::{Authorize, CreateOrder, PSync, RSync, Refund, ServerAuthenticationToken},
     connector_types::{
+        EventType, PaymentWebhookReference, RefundWebhookReference, WebhookResourceReference,
+    },
+    connector_types::{
         PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentsAuthorizeData,
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, ResponseId, ServerAuthenticationTokenRequestData,
@@ -281,6 +284,133 @@ impl From<GrabpayRefundStatus> for RefundStatus {
             }
         }
     }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GrabpayWebhookBody {
+    #[serde(rename = "txType")]
+    pub tx_type: Option<String>,
+    #[serde(rename = "txStatus")]
+    pub tx_status: Option<String>,
+    #[serde(rename = "partnerTxID")]
+    pub partner_tx_id: Option<String>,
+    #[serde(rename = "txID")]
+    pub tx_id: Option<String>,
+    #[serde(rename = "origTxID")]
+    pub orig_tx_id: Option<String>,
+    pub amount: Option<serde_json::Value>,
+    pub currency: Option<Currency>,
+    pub status: Option<String>,
+    pub reason: Option<String>,
+    pub payload: Option<GrabpayWebhookPayload>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GrabpayWebhookPayload {
+    #[serde(rename = "partnerGroupTxID")]
+    pub partner_group_tx_id: Option<String>,
+    #[serde(rename = "newStatus")]
+    pub new_status: Option<String>,
+    pub reason: Option<String>,
+    #[serde(rename = "paymentMethod")]
+    pub payment_method: Option<String>,
+    pub echo: Option<String>,
+}
+
+impl GrabpayWebhookBody {
+    pub fn is_refund_event(&self) -> bool {
+        let tx_type_is_refund = self
+            .tx_type
+            .as_deref()
+            .map(|tx_type| tx_type.to_ascii_lowercase().contains("refund"))
+            .unwrap_or(false);
+
+        tx_type_is_refund || self.orig_tx_id.is_some()
+    }
+
+    pub fn effective_status(&self) -> Option<&str> {
+        self.payload
+            .as_ref()
+            .and_then(|payload| payload.new_status.as_deref())
+            .or(self.tx_status.as_deref())
+            .or(self.status.as_deref())
+    }
+
+    pub fn effective_reason(&self) -> Option<String> {
+        self.payload
+            .as_ref()
+            .and_then(|payload| payload.reason.clone())
+            .or_else(|| self.reason.clone())
+    }
+
+    pub fn webhook_reference(&self) -> WebhookResourceReference {
+        if self.is_refund_event() {
+            WebhookResourceReference::Refund(RefundWebhookReference {
+                connector_refund_id: self.tx_id.clone(),
+                merchant_refund_id: self.partner_tx_id.clone(),
+                connector_transaction_id: self.orig_tx_id.clone(),
+            })
+        } else {
+            WebhookResourceReference::Payment(PaymentWebhookReference {
+                connector_transaction_id: self.tx_id.clone(),
+                merchant_transaction_id: self.partner_tx_id.clone(),
+            })
+        }
+    }
+}
+
+pub fn grabpay_webhook_event_type(webhook_body: &GrabpayWebhookBody) -> EventType {
+    if webhook_body.is_refund_event() {
+        match normalize_webhook_status(webhook_body.effective_status()).as_deref() {
+            Some("success") => EventType::RefundSuccess,
+            Some("failed") | Some("cancelled") | Some("authorisation_declined") => {
+                EventType::RefundFailure
+            }
+            Some("processing") | Some("transaction_already_exist") => EventType::RefundProcessing,
+            _ => EventType::IncomingWebhookEventUnspecified,
+        }
+    } else {
+        match normalize_webhook_status(webhook_body.effective_status()).as_deref() {
+            Some("success") => EventType::PaymentIntentSuccess,
+            Some("failed") | Some("cancelled") | Some("authorisation_declined") => {
+                EventType::PaymentIntentFailure
+            }
+            Some("processing") | Some("transaction_already_exist") => {
+                EventType::PaymentIntentProcessing
+            }
+            Some("authorised") => EventType::PaymentIntentAuthorizationSuccess,
+            _ => EventType::IncomingWebhookEventUnspecified,
+        }
+    }
+}
+
+pub fn grabpay_webhook_attempt_status(webhook_body: &GrabpayWebhookBody) -> AttemptStatus {
+    match normalize_webhook_status(webhook_body.effective_status()).as_deref() {
+        Some("success") => AttemptStatus::Charged,
+        Some("failed") | Some("cancelled") | Some("authorisation_declined") => {
+            AttemptStatus::Failure
+        }
+        Some("authorised") => AttemptStatus::Authorized,
+        Some("processing") | Some("transaction_already_exist") | None => AttemptStatus::Pending,
+        Some(_) => AttemptStatus::Pending,
+    }
+}
+
+pub fn grabpay_webhook_refund_status(webhook_body: &GrabpayWebhookBody) -> RefundStatus {
+    match normalize_webhook_status(webhook_body.effective_status()).as_deref() {
+        Some("success") => RefundStatus::Success,
+        Some("failed") | Some("cancelled") | Some("authorisation_declined") => {
+            RefundStatus::Failure
+        }
+        Some("processing") | Some("transaction_already_exist") | None => RefundStatus::Pending,
+        Some(_) => RefundStatus::Pending,
+    }
+}
+
+fn normalize_webhook_status(status: Option<&str>) -> Option<String> {
+    status.map(|status| status.trim().to_ascii_lowercase())
 }
 
 #[derive(Debug, Clone, Deserialize)]
