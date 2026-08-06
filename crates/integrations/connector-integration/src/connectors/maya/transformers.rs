@@ -272,6 +272,17 @@ impl MayaWebhookBody {
     }
 }
 
+fn maya_raw_connector_status(
+    payment: &MayaWebhookBody,
+    effective_status: &str,
+) -> RawConnectorStatus {
+    RawConnectorStatus {
+        code: payment.error_code.clone(),
+        message: Some(effective_status.to_string()),
+        reason: payment.error_message.clone(),
+    }
+}
+
 /// Derive Maya's settlement phase from the operation flags returned by payment inquiry.
 ///
 /// `canVoid` takes precedence. A payment is considered settled only when Maya explicitly disables
@@ -548,6 +559,8 @@ impl TryFrom<ResponseRouterData<MayaWebhookBody, Self>>
             request_txn_id.unwrap_or_default()
         };
 
+        let raw_connector_status = maya_raw_connector_status(&payment, effective_status);
+
         // `connector_response_reference_id`: the merchant reference number echoed back
         // by Maya (`requestReferenceNumber`). This keeps the reference consistent with
         // what Euler/Juspay uses as `txn_id`.
@@ -588,11 +601,7 @@ impl TryFrom<ResponseRouterData<MayaWebhookBody, Self>>
             resource_common_data: PaymentFlowData {
                 status,
                 settlement_status,
-                raw_connector_status: Some(RawConnectorStatus {
-                    code: payment.error_code.clone(),
-                    message: payment.error_message.clone(),
-                    reason: None,
-                }),
+                raw_connector_status: Some(raw_connector_status),
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
