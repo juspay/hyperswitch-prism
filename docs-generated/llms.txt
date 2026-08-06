@@ -339,7 +339,7 @@ connector_id: grabpay
 doc: docs/connectors/grabpay.md
 scenarios: none
 payment_methods: none
-flows: create_order, verify_redirect
+flows: create_order, handle_event, parse_event, verify_redirect
 examples_python: none
 
 ## Helcim

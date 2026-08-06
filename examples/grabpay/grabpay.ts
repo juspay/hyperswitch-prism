@@ -5,9 +5,9 @@
 // Grabpay — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx grabpay.ts checkout_autocapture
 
-import { PaymentClient, types } from 'hyperswitch-prism';
-const { Environment, Currency } = types;
-export const SUPPORTED_FLOWS = ["create_order"];
+import { PaymentClient, EventClient, types } from 'hyperswitch-prism';
+const { Environment, Currency, HttpMethod } = types;
+export const SUPPORTED_FLOWS = ["create_order", "parse_event"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -36,6 +36,31 @@ function _buildCreateOrderRequest(): types.IPaymentServiceCreateOrderRequest {
     };
 }
 
+function _buildHandleEventRequest(): types.IEventServiceHandleRequest {
+    return {
+        "merchantEventId": "probe_event_001",  // Caller-supplied correlation key, echoed in the response. Not used by UCS for processing.
+        "requestDetails": {
+            "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
+            "uri": "https://example.com/webhook",  // URI of the request.
+            "headers": {  // Headers of the HTTP request.
+            },
+            "body": new Uint8Array(Buffer.from("{\"txType\":\"payment\",\"txStatus\":\"success\",\"partnerID\":\"partner_123\",\"partnerTxID\":\"txn_123\",\"txID\":\"grab_txn_123\",\"amount\":100,\"currency\":\"SGD\",\"payload\":{\"newStatus\":\"success\",\"paymentMethod\":\"GRABPAY\"}}", "utf-8"))  // Body of the HTTP request.
+        }
+    };
+}
+
+function _buildParseEventRequest(): types.IEventServiceParseRequest {
+    return {
+        "requestDetails": {
+            "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
+            "uri": "https://example.com/webhook",  // URI of the request.
+            "headers": {  // Headers of the HTTP request.
+            },
+            "body": new Uint8Array(Buffer.from("{\"txType\":\"payment\",\"txStatus\":\"success\",\"partnerID\":\"partner_123\",\"partnerTxID\":\"txn_123\",\"txID\":\"grab_txn_123\",\"amount\":100,\"currency\":\"SGD\",\"payload\":{\"newStatus\":\"success\",\"paymentMethod\":\"GRABPAY\"}}", "utf-8"))  // Body of the HTTP request.
+        }
+    };
+}
+
 function _buildVerifyRedirectRequest(): types.IPaymentServiceVerifyRedirectResponseRequest {
     return {
     };
@@ -52,6 +77,24 @@ async function createOrder(merchantTransactionId: string, config: types.IConnect
     return createResponse;
 }
 
+// Flow: EventService.HandleEvent
+async function handleEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const eventClient = new EventClient(config);
+
+    const handleResponse = await eventClient.handleEvent(_buildHandleEventRequest());
+
+    return handleResponse;
+}
+
+// Flow: EventService.ParseEvent
+async function parseEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const eventClient = new EventClient(config);
+
+    const parseResponse = await eventClient.parseEvent(_buildParseEventRequest());
+
+    return parseResponse;
+}
+
 // Flow: PaymentService.VerifyRedirectResponse
 async function verifyRedirect(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -64,7 +107,7 @@ async function verifyRedirect(merchantTransactionId: string, config: types.IConn
 
 // Export all process* functions for the smoke test
 export {
-    createOrder, verifyRedirect, _buildCreateOrderRequest, _buildVerifyRedirectRequest
+    createOrder, handleEvent, parseEvent, verifyRedirect, _buildCreateOrderRequest, _buildHandleEventRequest, _buildParseEventRequest, _buildVerifyRedirectRequest
 };
 
 // CLI runner

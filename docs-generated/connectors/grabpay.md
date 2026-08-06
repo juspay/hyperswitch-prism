@@ -128,6 +128,8 @@ let config = ConnectorConfig {
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
 | [PaymentService.CreateOrder](#paymentservicecreateorder) | Payments | `PaymentServiceCreateOrderRequest` |
+| [EventService.HandleEvent](#eventservicehandleevent) | Events | `EventServiceHandleRequest` |
+| [EventService.ParseEvent](#eventserviceparseevent) | Events | `EventServiceParseRequest` |
 | [PaymentService.VerifyRedirectResponse](#paymentserviceverifyredirectresponse) | Payments | `PaymentServiceVerifyRedirectResponseRequest` |
 
 ### Payments
@@ -141,7 +143,7 @@ Create a payment order for later processing. Establishes a transaction context t
 | **Request** | `PaymentServiceCreateOrderRequest` |
 | **Response** | `PaymentServiceCreateOrderResponse` |
 
-**Examples:** [Python](../../examples/grabpay/grabpay.py) · [TypeScript](../../examples/grabpay/grabpay.ts#L47) · [Kotlin](../../examples/grabpay/grabpay.kt#L41) · [Rust](../../examples/grabpay/grabpay.rs)
+**Examples:** [Python](../../examples/grabpay/grabpay.py) · [TypeScript](../../examples/grabpay/grabpay.ts#L72) · [Kotlin](../../examples/grabpay/grabpay.kt#L43) · [Rust](../../examples/grabpay/grabpay.rs)
 
 #### PaymentService.VerifyRedirectResponse
 
@@ -152,4 +154,4 @@ Verify and process redirect responses from 3D Secure or other external flows. Va
 | **Request** | `PaymentServiceVerifyRedirectResponseRequest` |
 | **Response** | `PaymentServiceVerifyRedirectResponseResponse` |
 
-**Examples:** [Python](../../examples/grabpay/grabpay.py) · [TypeScript](../../examples/grabpay/grabpay.ts#L56) · [Kotlin](../../examples/grabpay/grabpay.kt#L55) · [Rust](../../examples/grabpay/grabpay.rs)
+**Examples:** [Python](../../examples/grabpay/grabpay.py) · [TypeScript](../../examples/grabpay/grabpay.ts#L99) · [Kotlin](../../examples/grabpay/grabpay.kt#L88) · [Rust](../../examples/grabpay/grabpay.rs)
