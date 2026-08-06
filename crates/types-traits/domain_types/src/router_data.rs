@@ -923,7 +923,7 @@ pub enum ConnectorSpecificConfig {
     Santander {
         client_id: Secret<String>,
         client_secret: Secret<String>,
-        workspace_id: Secret<String>,
+        workspace_id: String,
         certificates: Option<Secret<String>>,
         private_key: Option<Secret<String>>,
         base_url: Option<String>,
@@ -2440,7 +2440,7 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             AuthType::Santander(santander) => Ok(Self::Santander {
                 client_id: santander.client_id.ok_or_else(err)?,
                 client_secret: santander.client_secret.ok_or_else(err)?,
-                workspace_id: santander.workspace_id.ok_or_else(err)?,
+                workspace_id: santander.workspace_id,
                 certificates: santander.certificates,
                 private_key: santander.private_key,
                 base_url: santander.base_url,
@@ -3750,21 +3750,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
-                PayoutConnectorEnum::Santander => match auth {
-                    ConnectorAuthType::SignatureKey {
-                        api_key,
-                        key1,
-                        api_secret,
-                    } => Ok(Self::Santander {
-                        client_id: api_key.clone(),
-                        client_secret: key1.clone(),
-                        workspace_id: api_secret.clone(),
-                        certificates: None,
-                        private_key: None,
-                        base_url: None,
-                    }),
-                    _ => Err(err().into()),
-                },
+                PayoutConnectorEnum::Santander => Err(err().into()),
             },
         }
     }

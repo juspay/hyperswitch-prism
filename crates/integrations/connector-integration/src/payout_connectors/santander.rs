@@ -138,9 +138,6 @@ impl ConnectorCommon for SantanderPayouts {
     }
 }
 
-fn get_workspace_id(auth: &SantanderAuthType) -> String {
-    auth.workspace_id.clone().expose()
-}
 
 fn get_api_headers(access_token: &str, client_id: &str) -> Vec<(String, Maskable<String>)> {
     vec![
@@ -398,7 +395,7 @@ impl ConnectorIntegrationV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, P
     ) -> CustomResult<String, IntegrationError> {
         let base_url = self.base_url(&req.resource_common_data.connectors);
         let auth = SantanderAuthType::try_from(&req.connector_config)?;
-        let workspace_id = get_workspace_id(&auth);
+        let workspace_id = &auth.workspace_id;
         Ok(format!(
             "{base_url}/management_payments_partners/v1/workspaces/{workspace_id}/pix_payments"
         ))
@@ -443,7 +440,7 @@ impl ConnectorIntegrationV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, P
                     additional_context: Some(
                         "Failed to deserialize Santander payout response".to_string(),
                     ),
-                    ..Default::default()
+                    http_status_code: Some(res.status_code),
                 },
             })?;
 
@@ -523,7 +520,7 @@ impl
     ) -> CustomResult<String, IntegrationError> {
         let base_url = self.base_url(&req.resource_common_data.connectors);
         let auth = SantanderAuthType::try_from(&req.connector_config)?;
-        let workspace_id = get_workspace_id(&auth);
+        let workspace_id = &auth.workspace_id;
         let connector_payout_id = req
             .request
             .connector_payout_id
@@ -594,7 +591,7 @@ impl
                     additional_context: Some(
                         "Failed to deserialize Santander payout response".to_string(),
                     ),
-                    ..Default::default()
+                    http_status_code: Some(res.status_code),
                 },
             })?;
 
@@ -683,7 +680,7 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
     ) -> CustomResult<String, IntegrationError> {
         let base_url = self.base_url(&req.resource_common_data.connectors);
         let auth = SantanderAuthType::try_from(&req.connector_config)?;
-        let workspace_id = get_workspace_id(&auth);
+        let workspace_id = &auth.workspace_id;
         let connector_payout_id = req
             .request
             .connector_payout_id
@@ -731,7 +728,7 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
                     additional_context: Some(
                         "Failed to deserialize Santander payout response".to_string(),
                     ),
-                    ..Default::default()
+                    http_status_code: Some(res.status_code),
                 },
             })?;
 

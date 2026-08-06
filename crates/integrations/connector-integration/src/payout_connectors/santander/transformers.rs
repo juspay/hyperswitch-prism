@@ -1,6 +1,6 @@
 use crate::types::ResponseRouterData;
 use common_utils::types::{
-    AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, StringMajorUnit,
+    AmountConvertor, StringMajorUnit,
     StringMajorUnitForConnector,
 };
 use domain_types::{
@@ -12,7 +12,7 @@ use domain_types::{
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payouts::{
         payout_method_data::{
-            Bank, DocumentType, PayoutMethodData, PixBankTransfer, PixEmvBankTransfer,
+            Bank, PayoutMethodData, PixBankTransfer, PixEmvBankTransfer,
             PixKeyBankTransfer,
         },
         payouts_types::{
@@ -24,7 +24,7 @@ use domain_types::{
     router_data_v2::RouterDataV2,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, ExposeOptionInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, ExposeOptionInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 pub(super) const SANTANDER_PIX_DOCS_URL: &str =
@@ -35,7 +35,7 @@ pub(super) const SANTANDER_PIX_DOCS_URL: &str =
 pub struct SantanderAuthType {
     pub client_id: Secret<String>,
     pub client_secret: Secret<String>,
-    pub workspace_id: Secret<String>,
+    pub workspace_id: String,
     pub certificates: Option<Secret<String>>,
     pub private_key: Option<Secret<String>>,
 }
@@ -159,11 +159,6 @@ pub enum SantanderDictCodeType {
 pub fn detect_dict_code_type(key: &str) -> SantanderDictCodeType {
     let key = key.trim();
 
-    let digits: String = key
-        .chars()
-        .filter(|character| character.is_ascii_digit())
-        .collect();
-
     let all_cpf_cnpj_chars = key.chars().all(|character| {
         character.is_ascii_digit() || character == '.' || character == '-' || character == '/'
     });
@@ -175,10 +170,12 @@ pub fn detect_dict_code_type(key: &str) -> SantanderDictCodeType {
     } else if key.starts_with('+') {
         dict_code_type = SantanderDictCodeType::Cellular;
     } else if all_cpf_cnpj_chars {
-        dict_code_type = match digits.len() {
-            11 => SantanderDictCodeType::Cpf,
-            14 => SantanderDictCodeType::Cnpj,
-            _ => SantanderDictCodeType::Evp,
+        dict_code_type = if cpf_cnpj::cpf::validate(key) {
+            SantanderDictCodeType::Cpf
+        } else if cpf_cnpj::cnpj::validate(key) {
+            SantanderDictCodeType::Cnpj
+        } else {
+            SantanderDictCodeType::Evp
         };
     }
 
@@ -267,14 +264,6 @@ pub enum SantanderDocumentType {
     CNPJ,
 }
 
-impl From<DocumentType> for SantanderDocumentType {
-    fn from(doc_type: DocumentType) -> Self {
-        match doc_type {
-            DocumentType::Cpf => Self::CPF,
-            DocumentType::Cnpj => Self::CNPJ,
-        }
-    }
-}
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -294,7 +283,7 @@ pub struct SantanderBeneficiary {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SantanderCreateRequest {
-    pub payment_value: FloatMajorUnit,
+    pub payment_value: StringMajorUnit,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub dict_code: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -321,13 +310,13 @@ impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Pa
     fn try_from(
         req: &RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>,
     ) -> Result<Self, Self::Error> {
-        let converter = FloatMajorUnitForConnector;
+        let converter = StringMajorUnitForConnector;
         let payment_value = converter
             .convert(req.request.amount, req.request.source_currency)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: IntegrationErrorContext {
                     additional_context: Some(
-                        "Failed to convert payout amount to float major unit".to_string(),
+                        "Failed to convert payout amount to string major unit".to_string(),
                     ),
                     suggested_action: Some(
                         "Verify the payout amount and currency are valid".to_string(),
@@ -357,7 +346,6 @@ impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Pa
                 bank_code,
                 bank_account_type,
                 account_holder_name,
-                document_type,
                 ..
             }))) => {
                 let bank_branch = bank_branch
@@ -377,30 +365,8 @@ impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Pa
 
                 let number = bank_account_number.clone();
 
-                let document_type =
-                    document_type.ok_or(IntegrationError::MissingRequiredField {
-                        field_name: "payout_method_data.document_type",
-                        context: IntegrationErrorContext {
-                            additional_context: Some(
-                                "missing required field: document_type".to_string(),
-                            ),
-                            suggested_action: Some(
-                                "Provide a valid tax_id (CPF or CNPJ) so document_type can be determined".to_string(),
-                            ),
-                            doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
-                        },
-                    })?;
-
-                let document_number = tax_id
-                    .clone()
-                    .expose_option()
-                    .map(|id| {
-                        Secret::new(
-                            id.chars()
-                                .filter(|ch| ch.is_ascii_digit())
-                                .collect::<String>(),
-                        )
-                    })
+                let tax_id_secret = tax_id
+                    .as_ref()
                     .ok_or(IntegrationError::MissingRequiredField {
                         field_name: "payout_method_data.tax_id",
                         context: IntegrationErrorContext {
@@ -412,6 +378,34 @@ impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Pa
                             doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
                         },
                     })?;
+
+                let document_type = if cpf_cnpj::cpf::validate(tax_id_secret.peek()) {
+                    SantanderDocumentType::CPF
+                } else if cpf_cnpj::cnpj::validate(tax_id_secret.peek()) {
+                    SantanderDocumentType::CNPJ
+                } else {
+                    return Err(error_stack::report!(IntegrationError::InvalidDataFormat {
+                        field_name: "payout_method_data.tax_id",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "tax_id failed CPF and CNPJ validation".to_string(),
+                            ),
+                            suggested_action: Some(
+                                "Provide a valid 11-digit CPF or 14-digit CNPJ as tax_id"
+                                    .to_string(),
+                            ),
+                            doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
+                        },
+                    }));
+                };
+
+                let document_number = Secret::new(
+                    tax_id_secret
+                        .peek()
+                        .chars()
+                        .filter(|ch| ch.is_ascii_digit())
+                        .collect::<String>(),
+                );
 
                 let ispb_str = ispb.clone().expose_option().map(|ispb_raw| {
                     Secret::new(
@@ -467,7 +461,7 @@ impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Pa
                         )?;
                         SantanderAccountType::try_from(bank_type)?
                     },
-                    document_type: SantanderDocumentType::from(document_type),
+                    document_type,
                     document_number,
                     name,
                     bank_code,
@@ -621,7 +615,6 @@ impl
 pub struct SantanderPayoutResponse {
     pub id: String,
     pub status: SantanderPayoutStatus,
-    pub payment_value: StringMajorUnit,
 }
 
 // ===== PAYOUT STATUS =====

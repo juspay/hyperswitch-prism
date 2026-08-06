@@ -514,8 +514,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Tesouro => Ok(Self::Tesouro),
             grpc_api_types::payments::Connector::Glomopay => Ok(Self::Glomopay),
             grpc_api_types::payments::Connector::Givepayments => Ok(Self::Givepayments),
-            grpc_api_types::payments::Connector::Santander
-            | grpc_api_types::payments::Connector::Unspecified => {
+            grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "connector",
                     context: IntegrationErrorContext::default(),

@@ -5224,7 +5224,7 @@ message ItaubankConfig {
 message SantanderConfig {
   SecretString client_id = 1;
   SecretString client_secret = 2;
-  SecretString workspace_id = 3;
+  string workspace_id = 3;
   optional SecretString certificates = 4;
   optional SecretString private_key = 5;
   optional string base_url = 50;

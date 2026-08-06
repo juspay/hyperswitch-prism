@@ -604,37 +604,38 @@ impl ForeignTryFrom<grpc_api_types::payouts::PixBankTransferPayout>
             tax_id: pix.tax_id.clone(),
             ispb: pix.ispb,
             bank_code: pix.bank_code,
-            bank_account_type: pix.bank_account_type.and_then(|bank_type_raw| {
-                grpc_api_types::payouts::BankType::try_from(bank_type_raw)
-                    .ok()
-                    .and_then(|bank_type: grpc_api_types::payouts::BankType| {
-                        common_enums::BankType::foreign_try_from(bank_type).ok()
-                    })
-            }),
+            bank_account_type: pix
+                .bank_account_type
+                .map(|bank_type_raw| {
+                    let bank_type = grpc_api_types::payouts::BankType::try_from(bank_type_raw)
+                        .map_err(|_| IntegrationError::InvalidDataFormat {
+                            field_name: "payout_method_data.bank_account_type",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(format!(
+                                    "unrecognised bank_type value: {bank_type_raw}"
+                                )),
+                                suggested_action: Some(
+                                    "Provide a recognised BankType enum value".to_string(),
+                                ),
+                                doc_url: None,
+                            },
+                        })?;
+                    common_enums::BankType::foreign_try_from(bank_type)
+                        .change_context(IntegrationError::InvalidDataFormat {
+                            field_name: "payout_method_data.bank_account_type",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(format!(
+                                    "unsupported bank_type: {bank_type:?}"
+                                )),
+                                suggested_action: Some(
+                                    "Provide a supported BankType (Checking, Savings, Salary, or Payment)".to_string(),
+                                ),
+                                doc_url: None,
+                            },
+                        })
+                })
+                .transpose()?,
             account_holder_name: pix.account_holder_name,
-            document_type: pix.tax_id.as_ref().map(|tax_id| {
-                let raw = tax_id.peek();
-                if cpf_cnpj::cpf::validate(raw) {
-                    Ok(payouts::payout_method_data::DocumentType::Cpf)
-                } else if cpf_cnpj::cnpj::validate(raw) {
-                    Ok(payouts::payout_method_data::DocumentType::Cnpj)
-                } else {
-                    Err(error_stack::report!(IntegrationError::InvalidDataFormat {
-                        field_name: "payout_method_data.tax_id",
-                        context: IntegrationErrorContext {
-                            additional_context: Some(
-                                "tax_id failed CPF and CNPJ validation".to_string(),
-                            ),
-                            suggested_action: Some(
-                                "Provide a valid 11-digit CPF or 14-digit CNPJ as tax_id"
-                                    .to_string(),
-                            ),
-                            doc_url: None,
-                        },
-                    }))
-                }
-            })
-            .transpose()?,
         })
     }
 }
