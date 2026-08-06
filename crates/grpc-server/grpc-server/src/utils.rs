@@ -401,9 +401,11 @@ pub fn log_after_initialization<T>(
             (masked_res, 200u16, metadata_to_json(response.metadata()))
         }
         Err(status) => {
-            // Map the gRPC status to the HTTP status the caller actually receives (the HTTP server
-            // transcodes tonic errors), so `status_code` matches euler's `resp_code` for HTTP.
-            let http_status = crate::http::error::grpc_code_to_http_status(status.code()).as_u16();
+            // Map to the HTTP status the caller actually receives: the connector's exact 4xx/5xx when
+            // present in the error details, else the gRPC-to-HTTP fallback. Uses the same helper as
+            // `From<tonic::Status> for HttpError`, so the golden line's `status_code` matches the real
+            // response (e.g. a connector 422, not the raw gRPC `Unknown` → 500).
+            let http_status = crate::http::error::http_status_for_status(status).as_u16();
             current_span.record("error_message", status.message());
             current_span.record("status_code", http_status);
             (
