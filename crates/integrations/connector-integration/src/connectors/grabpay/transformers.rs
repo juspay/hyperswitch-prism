@@ -1,8 +1,13 @@
 use base64::Engine;
 use common_enums::{AttemptStatus, CountryAlpha2, Currency, RefundStatus};
-use common_utils::{consts::BASE64_ENGINE_URL_SAFE_NO_PAD, pii::SecretSerdeValue};
+use common_utils::{
+    consts::BASE64_ENGINE_URL_SAFE_NO_PAD, pii::SecretSerdeValue, types::MinorUnit,
+};
 use domain_types::{
-    connector_flow::{Authorize, CreateOrder, PSync, RSync, Refund, ServerAuthenticationToken},
+    connector_flow::{
+        Authorize, CreateOrder, PSync, RSync, Refund, ServerAuthenticationToken,
+        ServerSessionAuthenticationToken,
+    },
     connector_types::{
         EventType, PaymentWebhookReference, RefundWebhookReference, WebhookResourceReference,
     },
@@ -10,7 +15,8 @@ use domain_types::{
         PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentsAuthorizeData,
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, ResponseId, ServerAuthenticationTokenRequestData,
-        ServerAuthenticationTokenResponseData,
+        ServerAuthenticationTokenResponseData, ServerSessionAuthenticationTokenRequestData,
+        ServerSessionAuthenticationTokenResponseData,
     },
     errors,
     errors::IntegrationErrorContext,
@@ -36,6 +42,13 @@ const OAUTH_AUTHORIZE_PATH: &str = "/grabid/v1/oauth2/authorize";
 const CODE_CHALLENGE_METHOD: &str = "S256";
 const RESPONSE_TYPE_CODE: &str = "code";
 const SCOPE_ONE_TIME_CHARGE: &str = "payment.one_time_charge";
+
+fn grabpay_integration_context(additional_context: impl Into<String>) -> IntegrationErrorContext {
+    IntegrationErrorContext {
+        additional_context: Some(additional_context.into()),
+        ..Default::default()
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct GrabpayAuthType {
@@ -67,7 +80,9 @@ impl TryFrom<&ConnectorSpecificConfig> for GrabpayAuthType {
             }),
             _ => Err(error_stack::report!(
                 errors::IntegrationError::FailedToObtainAuthType {
-                    context: Default::default()
+                    context: grabpay_integration_context(
+                        "GrabPay auth type can only be built from Grabpay connector configuration"
+                    )
                 }
             )),
         }
@@ -111,7 +126,7 @@ pub struct GrabpayCreateOrderRequest {
     #[serde(rename = "partnerTxID")]
     pub partner_tx_id: String,
     pub currency: Currency,
-    pub amount: i64,
+    pub amount: MinorUnit,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[serde(rename = "merchantID")]
@@ -196,7 +211,7 @@ pub struct GrabpayRefundRequest {
     pub partner_group_tx_id: String,
     #[serde(rename = "partnerTxID")]
     pub partner_tx_id: String,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: Currency,
     #[serde(rename = "merchantID")]
     pub merchant_id: String,
@@ -270,6 +285,8 @@ impl From<GrabpayPaymentStatus> for AttemptStatus {
 pub enum GrabpayRefundStatus {
     Success,
     Failed,
+    Cancelled,
+    AuthorisationDeclined,
     Processing,
     TransactionAlreadyExist,
 }
@@ -278,7 +295,9 @@ impl From<GrabpayRefundStatus> for RefundStatus {
     fn from(status: GrabpayRefundStatus) -> Self {
         match status {
             GrabpayRefundStatus::Success => Self::Success,
-            GrabpayRefundStatus::Failed => Self::Failure,
+            GrabpayRefundStatus::Failed
+            | GrabpayRefundStatus::Cancelled
+            | GrabpayRefundStatus::AuthorisationDeclined => Self::Failure,
             GrabpayRefundStatus::Processing | GrabpayRefundStatus::TransactionAlreadyExist => {
                 Self::Pending
             }
@@ -291,6 +310,8 @@ impl From<GrabpayRefundStatus> for RefundStatus {
 pub struct GrabpayWebhookBody {
     #[serde(rename = "txType")]
     pub tx_type: Option<String>,
+    #[serde(rename = "txCategory")]
+    pub tx_category: Option<String>,
     #[serde(rename = "txStatus")]
     pub tx_status: Option<String>,
     #[serde(rename = "partnerTxID")]
@@ -326,8 +347,13 @@ impl GrabpayWebhookBody {
             .as_deref()
             .map(|tx_type| tx_type.to_ascii_lowercase().contains("refund"))
             .unwrap_or(false);
+        let tx_category_is_refund = self
+            .tx_category
+            .as_deref()
+            .map(|tx_category| tx_category.to_ascii_lowercase().contains("refund"))
+            .unwrap_or(false);
 
-        tx_type_is_refund || self.orig_tx_id.is_some()
+        tx_type_is_refund || tx_category_is_refund
     }
 
     pub fn effective_status(&self) -> Option<&str> {
@@ -363,54 +389,76 @@ impl GrabpayWebhookBody {
 
 pub fn grabpay_webhook_event_type(webhook_body: &GrabpayWebhookBody) -> EventType {
     if webhook_body.is_refund_event() {
-        match normalize_webhook_status(webhook_body.effective_status()).as_deref() {
-            Some("success") => EventType::RefundSuccess,
-            Some("failed") | Some("cancelled") | Some("authorisation_declined") => {
-                EventType::RefundFailure
-            }
-            Some("processing") | Some("transaction_already_exist") => EventType::RefundProcessing,
+        match GrabpayRefundStatus::from_webhook_status(webhook_body.effective_status()) {
+            Some(GrabpayRefundStatus::Success) => EventType::RefundSuccess,
+            Some(
+                GrabpayRefundStatus::Failed
+                | GrabpayRefundStatus::Cancelled
+                | GrabpayRefundStatus::AuthorisationDeclined,
+            ) => EventType::RefundFailure,
+            Some(
+                GrabpayRefundStatus::Processing | GrabpayRefundStatus::TransactionAlreadyExist,
+            ) => EventType::RefundProcessing,
             _ => EventType::IncomingWebhookEventUnspecified,
         }
     } else {
-        match normalize_webhook_status(webhook_body.effective_status()).as_deref() {
-            Some("success") => EventType::PaymentIntentSuccess,
-            Some("failed") | Some("cancelled") | Some("authorisation_declined") => {
-                EventType::PaymentIntentFailure
-            }
-            Some("processing") | Some("transaction_already_exist") => {
-                EventType::PaymentIntentProcessing
-            }
-            Some("authorised") => EventType::PaymentIntentAuthorizationSuccess,
+        match GrabpayPaymentStatus::from_webhook_status(webhook_body.effective_status()) {
+            Some(GrabpayPaymentStatus::Success) => EventType::PaymentIntentSuccess,
+            Some(
+                GrabpayPaymentStatus::Failed
+                | GrabpayPaymentStatus::Cancelled
+                | GrabpayPaymentStatus::AuthorisationDeclined,
+            ) => EventType::PaymentIntentFailure,
+            Some(
+                GrabpayPaymentStatus::Processing | GrabpayPaymentStatus::TransactionAlreadyExist,
+            ) => EventType::PaymentIntentProcessing,
+            Some(GrabpayPaymentStatus::Authorised) => EventType::PaymentIntentAuthorizationSuccess,
             _ => EventType::IncomingWebhookEventUnspecified,
         }
     }
 }
 
 pub fn grabpay_webhook_attempt_status(webhook_body: &GrabpayWebhookBody) -> AttemptStatus {
-    match normalize_webhook_status(webhook_body.effective_status()).as_deref() {
-        Some("success") => AttemptStatus::Charged,
-        Some("failed") | Some("cancelled") | Some("authorisation_declined") => {
-            AttemptStatus::Failure
-        }
-        Some("authorised") => AttemptStatus::Authorized,
-        Some("processing") | Some("transaction_already_exist") | None => AttemptStatus::Pending,
-        Some(_) => AttemptStatus::Pending,
+    match GrabpayPaymentStatus::from_webhook_status(webhook_body.effective_status()) {
+        Some(status) => AttemptStatus::from(status),
+        None => AttemptStatus::Pending,
     }
 }
 
 pub fn grabpay_webhook_refund_status(webhook_body: &GrabpayWebhookBody) -> RefundStatus {
-    match normalize_webhook_status(webhook_body.effective_status()).as_deref() {
-        Some("success") => RefundStatus::Success,
-        Some("failed") | Some("cancelled") | Some("authorisation_declined") => {
-            RefundStatus::Failure
-        }
-        Some("processing") | Some("transaction_already_exist") | None => RefundStatus::Pending,
-        Some(_) => RefundStatus::Pending,
+    match GrabpayRefundStatus::from_webhook_status(webhook_body.effective_status()) {
+        Some(status) => RefundStatus::from(status),
+        None => RefundStatus::Pending,
     }
 }
 
-fn normalize_webhook_status(status: Option<&str>) -> Option<String> {
-    status.map(|status| status.trim().to_ascii_lowercase())
+impl GrabpayPaymentStatus {
+    fn from_webhook_status(status: Option<&str>) -> Option<Self> {
+        match status?.trim().to_ascii_lowercase().as_str() {
+            "success" => Some(Self::Success),
+            "failed" => Some(Self::Failed),
+            "processing" => Some(Self::Processing),
+            "cancelled" => Some(Self::Cancelled),
+            "authorised" => Some(Self::Authorised),
+            "authorisation_declined" => Some(Self::AuthorisationDeclined),
+            "transaction_already_exist" => Some(Self::TransactionAlreadyExist),
+            _ => None,
+        }
+    }
+}
+
+impl GrabpayRefundStatus {
+    fn from_webhook_status(status: Option<&str>) -> Option<Self> {
+        match status?.trim().to_ascii_lowercase().as_str() {
+            "success" => Some(Self::Success),
+            "failed" => Some(Self::Failed),
+            "cancelled" => Some(Self::Cancelled),
+            "authorisation_declined" => Some(Self::AuthorisationDeclined),
+            "processing" => Some(Self::Processing),
+            "transaction_already_exist" => Some(Self::TransactionAlreadyExist),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -435,131 +483,12 @@ pub struct GrabpayServerAuthenticationTokenResponse {
     pub expires_in: Option<i64>,
 }
 
-impl GrabpayAuthorizeResponse {
-    pub fn redirect<
-        T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
-    >(
-        router_data: &RouterDataV2<
-            Authorize,
-            PaymentFlowData,
-            PaymentsAuthorizeData<T>,
-            PaymentsResponseData,
-        >,
-    ) -> Result<Self, error_stack::Report<errors::IntegrationError>> {
-        let redirect_context = build_redirect_context(router_data)?;
-
-        Ok(Self::Redirect(GrabpayRedirectAuthorizeResponse {
-            redirect_url: redirect_context.redirect_url,
-            connector_feature_data: redirect_context.connector_feature_data,
-            partner_tx_id: redirect_context.partner_tx_id,
-        }))
-    }
-}
-
-pub fn build_grabpay_authorize_url<
-    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
->(
-    router_data: &RouterDataV2<
-        Authorize,
-        PaymentFlowData,
-        PaymentsAuthorizeData<T>,
-        PaymentsResponseData,
-    >,
-) -> Result<String, error_stack::Report<errors::IntegrationError>> {
-    build_redirect_context(router_data).map(|context| context.redirect_url)
-}
+pub type GrabpayServerSessionAuthenticationTokenRequest = GrabpayServerAuthenticationTokenRequest;
+pub type GrabpayServerSessionAuthenticationTokenResponse = GrabpayServerAuthenticationTokenResponse;
 
 struct GrabpayRedirectContext {
     redirect_url: String,
     connector_feature_data: serde_json::Value,
-    partner_tx_id: String,
-}
-
-fn build_redirect_context<
-    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
->(
-    router_data: &RouterDataV2<
-        Authorize,
-        PaymentFlowData,
-        PaymentsAuthorizeData<T>,
-        PaymentsResponseData,
-    >,
-) -> Result<GrabpayRedirectContext, error_stack::Report<errors::IntegrationError>> {
-    let auth = GrabpayAuthType::try_from(&router_data.connector_config).change_context(
-        errors::IntegrationError::FailedToObtainAuthType {
-            context: Default::default(),
-        },
-    )?;
-    let request_code = required_string(
-        router_data.resource_common_data.connector_order_id.clone(),
-        "connector_order_id",
-        "GrabPay Authorize requires the request code returned by CreateOrder",
-    )?;
-    let partner_tx_id = router_data
-        .resource_common_data
-        .connector_request_reference_id
-        .clone();
-    validate_partner_tx_id(&partner_tx_id)?;
-    let redirect_uri = router_data
-        .request
-        .router_return_url
-        .clone()
-        .or_else(|| router_data.resource_common_data.return_url.clone())
-        .ok_or_else(|| {
-            error_stack::report!(errors::IntegrationError::MissingRequiredField {
-                field_name: "router_return_url",
-                context: IntegrationErrorContext {
-                    additional_context: Some(
-                        "GrabPay OAuth authorize URL requires a redirect_uri".to_string(),
-                    ),
-                    ..Default::default()
-                }
-            })
-        })?;
-    let currency = router_data.request.currency;
-    let country = get_country_code(router_data, currency);
-    let state = random_token(32);
-    let nonce = random_token(32);
-    let code_verifier = random_token(64);
-    let code_challenge = build_code_challenge(&code_verifier)?;
-    let acr_values = format!("consent_ctx:countryCode={country},currency={currency}");
-
-    let authorize_endpoint = oauth_endpoint(
-        &router_data.resource_common_data.connectors.grabpay.base_url,
-        OAUTH_AUTHORIZE_PATH,
-    );
-    let mut url = url::Url::parse(&authorize_endpoint).change_context(
-        errors::IntegrationError::RequestEncodingFailed {
-            context: Default::default(),
-        },
-    )?;
-    url.query_pairs_mut()
-        .append_pair("acr_values", &acr_values)
-        .append_pair("client_id", auth.client_id.peek())
-        .append_pair("code_challenge", &code_challenge)
-        .append_pair("code_challenge_method", CODE_CHALLENGE_METHOD)
-        .append_pair("nonce", &nonce)
-        .append_pair("redirect_uri", &redirect_uri)
-        .append_pair("request", &request_code)
-        .append_pair("response_type", RESPONSE_TYPE_CODE)
-        .append_pair("scope", SCOPE_ONE_TIME_CHARGE)
-        .append_pair("state", &state);
-
-    let connector_feature_data = serde_json::json!({
-        "state": state,
-        "nonce": nonce,
-        "code_verifier": code_verifier,
-        "redirect_uri": redirect_uri,
-        "partner_tx_id": partner_tx_id,
-        "currency": currency,
-        "request_code": request_code,
-    });
-
-    Ok(GrabpayRedirectContext {
-        redirect_url: url.to_string(),
-        connector_feature_data,
-        partner_tx_id,
-    })
 }
 
 fn build_code_challenge(
@@ -570,7 +499,9 @@ fn build_code_challenge(
     let digest = common_utils::crypto::Sha256
         .generate_digest(code_verifier.as_bytes())
         .change_context(errors::IntegrationError::RequestEncodingFailed {
-            context: Default::default(),
+            context: grabpay_integration_context(
+                "GrabPay redirect authorize failed to generate OAuth code challenge",
+            ),
         })?;
     Ok(BASE64_ENGINE_URL_SAFE_NO_PAD.encode(digest))
 }
@@ -579,26 +510,26 @@ fn random_token(length: usize) -> String {
     Alphanumeric.sample_string(&mut rand::thread_rng(), length)
 }
 
-fn get_country_code<T: PaymentMethodDataTypes>(
-    _router_data: &RouterDataV2<
-        Authorize,
-        PaymentFlowData,
-        PaymentsAuthorizeData<T>,
-        PaymentsResponseData,
-    >,
+fn country_from_currency(
     currency: Currency,
-) -> String {
-    country_from_currency(currency).to_string()
-}
-
-fn country_from_currency(currency: Currency) -> CountryAlpha2 {
+) -> Result<CountryAlpha2, error_stack::Report<errors::IntegrationError>> {
     match currency {
-        Currency::SGD => CountryAlpha2::SG,
-        Currency::MYR => CountryAlpha2::MY,
-        Currency::PHP => CountryAlpha2::PH,
-        Currency::IDR => CountryAlpha2::ID,
-        Currency::THB => CountryAlpha2::TH,
-        _ => CountryAlpha2::SG,
+        Currency::SGD => Ok(CountryAlpha2::SG),
+        Currency::MYR => Ok(CountryAlpha2::MY),
+        Currency::PHP => Ok(CountryAlpha2::PH),
+        Currency::IDR => Ok(CountryAlpha2::ID),
+        Currency::THB => Ok(CountryAlpha2::TH),
+        _ => Err(error_stack::report!(
+            errors::IntegrationError::InvalidDataFormat {
+                field_name: "currency",
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "GrabPay cannot infer country_code from unsupported currency {currency}; provide billing.address.country"
+                    )),
+                    ..Default::default()
+                }
+            }
+        )),
     }
 }
 
@@ -654,9 +585,92 @@ impl
     ) -> Result<Self, Self::Error> {
         let auth = GrabpayAuthType::try_from(&router_data.connector_config).change_context(
             errors::IntegrationError::FailedToObtainAuthType {
-                context: Default::default(),
+                context: grabpay_integration_context(
+                    "GrabPay OAuth token request requires GrabPay connector configuration",
+                ),
             },
         )?;
+        let feature_data = parse_connector_feature_data(
+            router_data
+                .resource_common_data
+                .connector_feature_data
+                .as_ref(),
+        )?;
+
+        let code = feature_data
+            .code
+            .clone()
+            .ok_or_else(missing_oauth_code_error)?;
+        validate_callback_state(&feature_data)?;
+
+        Ok(Self {
+            grant_type: AUTHORIZATION_CODE_GRANT.to_string(),
+            client_id: auth.client_id,
+            client_secret: auth.client_secret,
+            code_verifier: required_feature_field(feature_data.code_verifier, "code_verifier")?,
+            redirect_uri: required_feature_field(feature_data.redirect_uri, "redirect_uri")?,
+            code,
+        })
+    }
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        GrabpayFlowData<
+            RouterDataV2<
+                ServerSessionAuthenticationToken,
+                MerchantAuthenticationFlowData,
+                ServerSessionAuthenticationTokenRequestData,
+                ServerSessionAuthenticationTokenResponseData,
+            >,
+            T,
+        >,
+    > for GrabpayServerAuthenticationTokenRequest
+{
+    type Error = error_stack::Report<errors::IntegrationError>;
+
+    fn try_from(
+        wrapper: GrabpayFlowData<
+            RouterDataV2<
+                ServerSessionAuthenticationToken,
+                MerchantAuthenticationFlowData,
+                ServerSessionAuthenticationTokenRequestData,
+                ServerSessionAuthenticationTokenResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Self::try_from(&wrapper.router_data)
+    }
+}
+
+impl
+    TryFrom<
+        &RouterDataV2<
+            ServerSessionAuthenticationToken,
+            MerchantAuthenticationFlowData,
+            ServerSessionAuthenticationTokenRequestData,
+            ServerSessionAuthenticationTokenResponseData,
+        >,
+    > for GrabpayServerAuthenticationTokenRequest
+{
+    type Error = error_stack::Report<errors::IntegrationError>;
+
+    fn try_from(
+        router_data: &RouterDataV2<
+            ServerSessionAuthenticationToken,
+            MerchantAuthenticationFlowData,
+            ServerSessionAuthenticationTokenRequestData,
+            ServerSessionAuthenticationTokenResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let auth =
+            GrabpayAuthType::try_from(&router_data.connector_config)
+                .change_context(errors::IntegrationError::FailedToObtainAuthType {
+                context: grabpay_integration_context(
+                    "GrabPay OAuth session-token request requires GrabPay connector configuration",
+                ),
+            })?;
         let feature_data = parse_connector_feature_data(
             router_data
                 .resource_common_data
@@ -699,6 +713,28 @@ impl TryFrom<ConnectorResponseData<GrabpayServerAuthenticationTokenResponse, Sel
                 access_token: item.response.access_token,
                 token_type: item.response.token_type,
                 expires_in: item.response.expires_in,
+            }),
+            ..item.router_data
+        })
+    }
+}
+
+impl TryFrom<ConnectorResponseData<GrabpayServerAuthenticationTokenResponse, Self>>
+    for RouterDataV2<
+        ServerSessionAuthenticationToken,
+        MerchantAuthenticationFlowData,
+        ServerSessionAuthenticationTokenRequestData,
+        ServerSessionAuthenticationTokenResponseData,
+    >
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: ConnectorResponseData<GrabpayServerAuthenticationTokenResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(ServerSessionAuthenticationTokenResponseData {
+                session_token: item.response.access_token.peek().to_string(),
             }),
             ..item.router_data
         })
@@ -814,7 +850,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .resource_common_data
                         .connector_feature_data
                         .as_ref(),
-                    item.router_data.resource_common_data.access_token.as_ref(),
+                    item.router_data
+                        .resource_common_data
+                        .session_token
+                        .as_deref(),
                     &response,
                 );
                 Ok(Self {
@@ -908,7 +947,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = wrapper.router_data;
         let auth = GrabpayAuthType::try_from(&router_data.connector_config).change_context(
             errors::IntegrationError::FailedToObtainAuthType {
-                context: Default::default(),
+                context: grabpay_integration_context(
+                    "GrabPay Refund request requires GrabPay connector configuration",
+                ),
             },
         )?;
         let partner_tx_id = router_data.request.refund_id;
@@ -935,7 +976,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         Ok(Self {
             partner_group_tx_id: router_data.request.connector_transaction_id,
             partner_tx_id,
-            amount: router_data.request.refund_amount,
+            amount: router_data.request.minor_refund_amount,
             currency: router_data.request.currency,
             merchant_id: auth.merchant_id.peek().to_string(),
             origin_tx_id,
@@ -1075,7 +1116,9 @@ impl
     ) -> Result<Self, Self::Error> {
         let auth = GrabpayAuthType::try_from(&router_data.connector_config).change_context(
             errors::IntegrationError::FailedToObtainAuthType {
-                context: Default::default(),
+                context: grabpay_integration_context(
+                    "GrabPay CreateOrder request requires GrabPay connector configuration",
+                ),
             },
         )?;
         let partner_tx_id = router_data
@@ -1087,7 +1130,7 @@ impl
             partner_group_tx_id: partner_tx_id.clone(),
             partner_tx_id,
             currency: router_data.request.currency,
-            amount: router_data.request.amount.get_amount_as_i64(),
+            amount: router_data.request.amount,
             description: router_data.resource_common_data.description,
             merchant_id: auth.merchant_id.peek().to_string(),
         })
@@ -1108,7 +1151,7 @@ impl TryFrom<ConnectorResponseData<GrabpayCreateOrderResponse, Self>>
         item: ConnectorResponseData<GrabpayCreateOrderResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let response = item.response;
-        let request = response.request.ok_or_else(|| {
+        let request_code = response.request.ok_or_else(|| {
             error_stack::report!(errors::ConnectorError::ResponseHandlingFailed {
                 context: errors::ResponseTransformationErrorContext {
                     http_status_code: None,
@@ -1130,20 +1173,118 @@ impl TryFrom<ConnectorResponseData<GrabpayCreateOrderResponse, Self>>
                 .connector_request_reference_id
                 .clone()
         });
+        validate_partner_tx_id(&partner_tx_id).change_context(
+            errors::ConnectorError::ResponseHandlingFailed {
+                context: errors::ResponseTransformationErrorContext {
+                    http_status_code: Some(item.http_code),
+                    additional_context: Some(
+                        "GrabPay CreateOrder returned an invalid partnerTxID".to_string(),
+                    ),
+                },
+            },
+        )?;
+        let redirect_context =
+            build_create_order_redirect_context(&item.router_data, &request_code, &partner_tx_id)
+                .change_context(errors::ConnectorError::ResponseHandlingFailed {
+                context: errors::ResponseTransformationErrorContext {
+                    http_status_code: Some(item.http_code),
+                    additional_context: Some(
+                        "GrabPay CreateOrder failed to build OAuth redirect URL".to_string(),
+                    ),
+                },
+            })?;
 
         Ok(Self {
             response: Ok(PaymentCreateOrderResponse {
-                connector_order_id: request.clone(),
+                connector_order_id: partner_tx_id.clone(),
                 session_data: None,
+                redirection_data: Some(Box::new(RedirectForm::Uri {
+                    uri: redirect_context.redirect_url,
+                })),
+                connector_metadata: Some(redirect_context.connector_feature_data),
             }),
             resource_common_data: PaymentFlowData {
-                reference_id: Some(request),
+                reference_id: Some(partner_tx_id.clone()),
                 connector_order_id: Some(partner_tx_id),
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
         })
     }
+}
+
+fn build_create_order_redirect_context(
+    router_data: &RouterDataV2<
+        CreateOrder,
+        PaymentFlowData,
+        PaymentCreateOrderData,
+        PaymentCreateOrderResponse,
+    >,
+    request_code: &str,
+    partner_tx_id: &str,
+) -> Result<GrabpayRedirectContext, error_stack::Report<errors::IntegrationError>> {
+    let auth = GrabpayAuthType::try_from(&router_data.connector_config).change_context(
+        errors::IntegrationError::FailedToObtainAuthType {
+            context: grabpay_integration_context(
+                "GrabPay CreateOrder redirect requires GrabPay connector configuration",
+            ),
+        },
+    )?;
+    let redirect_uri = router_data.request.return_url.clone().ok_or_else(|| {
+        error_stack::report!(errors::IntegrationError::MissingRequiredField {
+            field_name: "return_url",
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "GrabPay OAuth authorize URL requires a redirect_uri".to_string(),
+                ),
+                ..Default::default()
+            }
+        })
+    })?;
+    let currency = router_data.request.currency;
+    let country = country_from_currency(currency)?.to_string();
+    let state = random_token(32);
+    let nonce = random_token(32);
+    let code_verifier = random_token(64);
+    let code_challenge = build_code_challenge(&code_verifier)?;
+    let acr_values = format!("consent_ctx:countryCode={country},currency={currency}");
+
+    let authorize_endpoint = oauth_endpoint(
+        &router_data.resource_common_data.connectors.grabpay.base_url,
+        OAUTH_AUTHORIZE_PATH,
+    );
+    let mut url = url::Url::parse(&authorize_endpoint).change_context(
+        errors::IntegrationError::RequestEncodingFailed {
+            context: grabpay_integration_context(
+                "GrabPay CreateOrder redirect failed to parse OAuth authorize endpoint",
+            ),
+        },
+    )?;
+    url.query_pairs_mut()
+        .append_pair("acr_values", &acr_values)
+        .append_pair("client_id", auth.client_id.peek())
+        .append_pair("code_challenge", &code_challenge)
+        .append_pair("code_challenge_method", CODE_CHALLENGE_METHOD)
+        .append_pair("nonce", &nonce)
+        .append_pair("redirect_uri", &redirect_uri)
+        .append_pair("request", request_code)
+        .append_pair("response_type", RESPONSE_TYPE_CODE)
+        .append_pair("scope", SCOPE_ONE_TIME_CHARGE)
+        .append_pair("state", &state);
+
+    let connector_feature_data = serde_json::json!({
+        "state": state,
+        "nonce": nonce,
+        "code_verifier": code_verifier,
+        "redirect_uri": redirect_uri,
+        "partner_tx_id": partner_tx_id,
+        "currency": currency,
+    });
+
+    Ok(GrabpayRedirectContext {
+        redirect_url: url.to_string(),
+        connector_feature_data,
+    })
 }
 
 pub(crate) fn validate_partner_tx_id(
@@ -1160,7 +1301,9 @@ pub(crate) fn validate_partner_tx_id(
         Err(error_stack::report!(
             errors::IntegrationError::InvalidDataFormat {
                 field_name: "connector_request_reference_id",
-                context: Default::default()
+                context: grabpay_integration_context(
+                    "GrabPay partnerTxID must be at most 32 ASCII alphanumeric, hyphen, or underscore characters"
+                )
             }
         ))
     }
@@ -1233,7 +1376,7 @@ fn charge_tx_id_from_connector_feature_data(
 
 fn build_complete_connector_feature_data(
     connector_feature_data: Option<&SecretSerdeValue>,
-    access_token_data: Option<&ServerAuthenticationTokenResponseData>,
+    session_token: Option<&str>,
     response: &GrabpayChargeCompleteResponse,
 ) -> serde_json::Value {
     let mut connector_metadata = connector_feature_data
@@ -1262,19 +1405,8 @@ fn build_complete_connector_feature_data(
     );
     metadata.insert("reason".to_string(), serde_json::json!(response.reason));
 
-    if let Some(access_token_data) = access_token_data {
-        metadata.insert(
-            "access_token".to_string(),
-            serde_json::json!(access_token_data.access_token.peek()),
-        );
-        metadata.insert(
-            "token_type".to_string(),
-            serde_json::json!(access_token_data.token_type),
-        );
-        metadata.insert(
-            "expires_in_seconds".to_string(),
-            serde_json::json!(access_token_data.expires_in),
-        );
+    if let Some(session_token) = session_token {
+        metadata.insert("access_token".to_string(), serde_json::json!(session_token));
     }
 
     connector_metadata

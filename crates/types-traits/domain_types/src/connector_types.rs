@@ -2039,6 +2039,7 @@ pub struct PaymentCreateOrderData {
     pub integrity_object: Option<CreateOrderIntegrityObject>,
     pub metadata: Option<SecretSerdeValue>,
     pub webhook_url: Option<String>,
+    pub return_url: Option<String>,
     pub payment_method_type: Option<common_enums::PaymentMethodType>,
     // Order line items, needed by some connectors (e.g. Airwallex PayLater/Klarna)
     // at order/intent creation time.
@@ -2050,6 +2051,8 @@ pub struct PaymentCreateOrderResponse {
     pub connector_order_id: String,
     /// Optional SDK session data for wallet flows (Apple Pay, Google Pay) and other SDK types
     pub session_data: Option<ClientAuthenticationTokenData>,
+    pub redirection_data: Option<Box<RedirectForm>>,
+    pub connector_metadata: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone)]

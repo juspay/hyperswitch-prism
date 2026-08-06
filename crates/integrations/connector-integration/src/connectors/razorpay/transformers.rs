@@ -1190,6 +1190,8 @@ impl ForeignTryFrom<(RazorpayOrderResponse, Self, u16, bool)>
         let order_response = PaymentCreateOrderResponse {
             connector_order_id: response.id.clone(),
             session_data: None,
+            redirection_data: None,
+            connector_metadata: None,
         };
 
         Ok(Self {

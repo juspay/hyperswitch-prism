@@ -1009,6 +1009,8 @@ impl TryFrom<ResponseRouterData<RapydCreateOrderResponse, Self>>
                     response: Ok(PaymentCreateOrderResponse {
                         connector_order_id: checkout_id.clone(),
                         session_data: None,
+                        redirection_data: None,
+                        connector_metadata: None,
                     }),
                     resource_common_data: PaymentFlowData {
                         status,

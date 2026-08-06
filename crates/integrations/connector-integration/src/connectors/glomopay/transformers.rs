@@ -693,6 +693,8 @@ impl TryFrom<ResponseRouterData<GlomopayCreateOrderResponse, Self>>
             response: Ok(PaymentCreateOrderResponse {
                 connector_order_id: order_id.clone(),
                 session_data: None,
+                redirection_data: None,
+                connector_metadata: None,
             }),
             resource_common_data: PaymentFlowData {
                 connector_order_id: Some(order_id.clone()),

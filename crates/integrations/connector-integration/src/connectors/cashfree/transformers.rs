@@ -681,6 +681,8 @@ impl TryFrom<CashfreeOrderCreateResponse> for PaymentCreateOrderResponse {
         Ok(Self {
             connector_order_id: response.payment_session_id,
             session_data: None,
+            redirection_data: None,
+            connector_metadata: None,
         })
     }
 }

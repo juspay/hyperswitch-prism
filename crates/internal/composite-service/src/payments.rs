@@ -30,7 +30,7 @@ use grpc_api_types::payments::{
     PaymentServiceRefundRequest, PaymentServiceVoidRequest, PaymentServiceVoidResponse,
     RefundResponse, RefundServiceGetRequest,
 };
-use interfaces::connector_types::AuthenticationStep;
+use interfaces::connector_types::{AuthenticationStep, SessionTokenPhase};
 
 use crate::transformers::{ForeignFrom, ForeignTryFrom};
 use crate::utils::{
@@ -395,6 +395,7 @@ where
         &self,
         connector: &ConnectorEnum,
         payload: &Req,
+        phase: SessionTokenPhase,
         metadata: &tonic::metadata::MetadataMap,
         extensions: &tonic::Extensions,
     ) -> Result<
@@ -402,7 +403,7 @@ where
         tonic::Status,
     > {
         let connector_data = ConnectorData::<domain_types::payment_method_data::DefaultPCIHolder>::get_connector_by_name(connector);
-        let should_do_session_token = connector_data.connector.should_do_session_token();
+        let should_do_session_token = connector_data.connector.should_do_session_token(phase);
 
         let should_create_session_token = !payload.has_session_token() && should_do_session_token;
 
@@ -768,6 +769,7 @@ where
             .create_server_session_authentication_token(
                 &connector,
                 &payload,
+                SessionTokenPhase::Authorize,
                 &metadata,
                 &extensions,
             )
@@ -791,6 +793,22 @@ where
         let payment_method = self.get_payment_method(&payload)?;
         let connector_data = ConnectorData::<domain_types::payment_method_data::DefaultPCIHolder>::get_connector_by_name(&connector);
         let redirect_state = self.get_redirect_state(&payload);
+
+        if create_order_response.as_ref().is_some_and(
+            |response: &PaymentServiceCreateOrderResponse| response.redirection_data.is_some(),
+        ) {
+            return Ok(tonic::Response::new(CompositeAuthorizeResponse {
+                access_token_response,
+                session_token_response,
+                create_customer_response,
+                create_order_response,
+                pre_authenticate_response: None,
+                authenticate_response: None,
+                post_authenticate_response: None,
+                authorize_response: None,
+                composite_status: CompositeStatus::RedirectRequired.into(),
+            }));
+        }
 
         let mut state = AuthorizeCompositeState::default();
 
@@ -1221,8 +1239,20 @@ where
             )
             .await?;
 
+        let mut session_token_payload = payload.clone();
+        session_token_payload.connector_feature_data = verify_response
+            .connector_feature_data
+            .clone()
+            .or_else(|| payload.connector_feature_data.clone());
+
         let session_token_response = self
-            .create_server_session_authentication_token(connector, payload, metadata, extensions)
+            .create_server_session_authentication_token(
+                connector,
+                &session_token_payload,
+                SessionTokenPhase::PostRedirectAuthorize,
+                metadata,
+                extensions,
+            )
             .await?;
 
         let authorize_payload = PaymentServiceAuthorizeRequest::foreign_from((

@@ -6075,9 +6075,14 @@ pub fn generate_create_order_response(
         Ok(PaymentCreateOrderResponse {
             connector_order_id,
             session_data,
+            redirection_data,
+            connector_metadata,
         }) => {
             let grpc_session_data = session_data
                 .map(grpc_api_types::payments::ClientAuthenticationTokenData::foreign_try_from)
+                .transpose()?;
+            let grpc_redirection_data = redirection_data
+                .map(|form| grpc_api_types::payments::RedirectForm::foreign_try_from(*form))
                 .transpose()?;
 
             PaymentServiceCreateOrderResponse {
@@ -6091,6 +6096,10 @@ pub fn generate_create_order_response(
                 raw_connector_response,
                 raw_connector_status,
                 session_data: grpc_session_data,
+                redirection_data: grpc_redirection_data,
+                connector_feature_data: convert_connector_metadata_to_secret_string(
+                    connector_metadata,
+                ),
             }
         }
         Err(err) => PaymentServiceCreateOrderResponse {
@@ -6119,6 +6128,8 @@ pub fn generate_create_order_response(
             raw_connector_response,
             raw_connector_status,
             session_data: None,
+            redirection_data: None,
+            connector_feature_data: None,
         },
     };
     Ok(response)
@@ -12359,6 +12370,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceCreateOrderRequest>
                 .map(|m| ForeignTryFrom::foreign_try_from((m, "metadata")))
                 .transpose()?,
             webhook_url,
+            return_url: value.return_url.clone(),
             payment_method_type,
             order_details,
         })
@@ -12424,7 +12436,7 @@ impl
             customer_id: None, // PaymentServiceCreateOrderRequest doesn't have customer_id field
             connector_customer,
             description: None,
-            return_url: None,
+            return_url: value.return_url,
             connector_feature_data,
             amount_captured: None,
             minor_amount_captured: None,
