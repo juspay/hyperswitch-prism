@@ -1,8 +1,5 @@
 use crate::types::ResponseRouterData;
-use common_utils::types::{
-    AmountConvertor, StringMajorUnit,
-    StringMajorUnitForConnector,
-};
+use common_utils::types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector};
 use domain_types::{
     connector_flow::{PayoutCreate, PayoutGet, PayoutTransfer, ServerAuthenticationToken},
     connector_types::{
@@ -12,8 +9,7 @@ use domain_types::{
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payouts::{
         payout_method_data::{
-            Bank, PayoutMethodData, PixBankTransfer, PixEmvBankTransfer,
-            PixKeyBankTransfer,
+            Bank, PayoutMethodData, PixBankTransfer, PixEmvBankTransfer, PixKeyBankTransfer,
         },
         payouts_types::{
             PayoutCreateRequest, PayoutCreateResponse, PayoutFlowData, PayoutGetRequest,
@@ -264,7 +260,6 @@ pub enum SantanderDocumentType {
     CNPJ,
 }
 
-
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SantanderBeneficiary {
@@ -365,19 +360,22 @@ impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Pa
 
                 let number = bank_account_number.clone();
 
-                let tax_id_secret = tax_id
-                    .as_ref()
-                    .ok_or(IntegrationError::MissingRequiredField {
-                        field_name: "payout_method_data.tax_id",
-                        context: IntegrationErrorContext {
-                            additional_context: Some("missing required field: tax_id".to_string()),
-                            suggested_action: Some(
-                                "Provide a valid CPF or CNPJ tax_id in payout_method_data"
-                                    .to_string(),
-                            ),
-                            doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
-                        },
-                    })?;
+                let tax_id_secret =
+                    tax_id
+                        .as_ref()
+                        .ok_or(IntegrationError::MissingRequiredField {
+                            field_name: "payout_method_data.tax_id",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "missing required field: tax_id".to_string(),
+                                ),
+                                suggested_action: Some(
+                                    "Provide a valid CPF or CNPJ tax_id in payout_method_data"
+                                        .to_string(),
+                                ),
+                                doc_url: Some(SANTANDER_PIX_DOCS_URL.to_string()),
+                            },
+                        })?;
 
                 let document_type = if cpf_cnpj::cpf::validate(tax_id_secret.peek()) {
                     SantanderDocumentType::CPF

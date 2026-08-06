@@ -138,7 +138,6 @@ impl ConnectorCommon for SantanderPayouts {
     }
 }
 
-
 fn get_api_headers(access_token: &str, client_id: &str) -> Vec<(String, Maskable<String>)> {
     vec![
         (

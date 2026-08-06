@@ -139,7 +139,6 @@ pub struct SepaBankTransfer {
     pub account_holder_name: Option<Secret<String>>,
 }
 
-
 #[derive(Default, Eq, PartialEq, Clone, Debug)]
 pub struct PixBankTransfer {
     /// Bank name
@@ -165,8 +164,6 @@ pub struct PixBankTransfer {
 
     /// The account holder name
     pub account_holder_name: Option<Secret<String>>,
-
-
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug)]

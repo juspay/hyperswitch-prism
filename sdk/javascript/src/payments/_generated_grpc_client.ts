@@ -276,7 +276,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   FiservcommercehubConfig: ["apiKey", "secret", "merchantId", "terminalId"],
   AbsaSanlamConfig: ["apiKey", "merchantId"],
   ItaubankConfig: ["clientSecret", "clientId", "certificates", "privateKey"],
-  SantanderConfig: ["clientId", "clientSecret", "workspaceId", "certificates", "privateKey"],
+  SantanderConfig: ["clientId", "clientSecret", "certificates", "privateKey"],
   GigadatConfig: ["campaignId", "accessToken", "securityToken"],
   PhonepeConfig: ["merchantId", "saltKey", "saltIndex"],
   ForteConfig: ["apiAccessId", "organizationId", "locationId", "apiSecretKey"],
