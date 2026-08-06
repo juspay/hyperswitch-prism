@@ -980,7 +980,7 @@ async fn verify_webhook_source_external(
         connectors: config.connectors.clone(),
         connector_request_reference_id: format!("webhook_verify_{}", metadata_payload.request_id),
         raw_connector_response: None,
-        unmasked_connector_response: None,
+        masked_connector_response: None,
         raw_connector_request: None,
         connector_response_headers: None,
     };

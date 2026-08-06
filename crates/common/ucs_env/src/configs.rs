@@ -38,7 +38,7 @@ pub struct Config {
     #[serde(default)]
     pub unmasked_headers: HeaderMaskingConfig,
     /// Per-connector key lists controlling which response values stay visible in
-    /// `unmasked_connector_response`.
+    /// `masked_connector_response`.
     #[serde(default)]
     pub connector_response_masking: ConnectorResponseMaskingConfig,
     #[serde(default)]

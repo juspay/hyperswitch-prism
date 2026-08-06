@@ -335,7 +335,7 @@ fn flow_status_label(flow_status: &domain_types::router_data::FlowStatus) -> Str
 /// `connector_name` is a lookup key, not something to re-parse: it came from
 /// `ConnectorVariant::get_connector_name()`, and ingress already validated it against whichever
 /// connector enum matches the flow family.
-fn record_unmasked_connector_response<ResourceCommonData>(
+fn record_masked_connector_response<ResourceCommonData>(
     resource_common_data: &mut ResourceCommonData,
     body: &Response,
     connector_name: &str,
@@ -362,11 +362,11 @@ fn record_unmasked_connector_response<ResourceCommonData>(
     if config.log_to_span {
         if let Some(masked) = masked.as_deref() {
             tracing::Span::current()
-                .record("response.unmasked_body", tracing::field::display(masked));
+                .record("response.masked_body", tracing::field::display(masked));
         }
     }
 
-    resource_common_data.set_unmasked_connector_response(masked);
+    resource_common_data.set_masked_connector_response(masked);
 }
 
 /// Handles the connector response, processing both successful and error responses
@@ -413,7 +413,7 @@ where
                     if let Some(params) =
                         event_params.filter(|p| p.connector_response_masking.enabled)
                     {
-                        record_unmasked_connector_response(
+                        record_masked_connector_response(
                             &mut updated_router_data.resource_common_data,
                             &body,
                             params.connector_name,
@@ -482,7 +482,7 @@ where
                     if let Some(params) =
                         event_params.filter(|p| p.connector_response_masking.enabled)
                     {
-                        record_unmasked_connector_response(
+                        record_masked_connector_response(
                             &mut updated_router_data.resource_common_data,
                             &body,
                             params.connector_name,
@@ -599,7 +599,7 @@ pub struct EventProcessingParams<'a> {
     pub tenant_id: &'a str,
     pub merchant_id: &'a str,
     pub return_raw_connector_data: bool,
-    /// Per-connector key lists driving `unmasked_connector_response`. Gated by its own
+    /// Per-connector key lists driving `masked_connector_response`. Gated by its own
     /// `enabled` flag, deliberately independent of `return_raw_connector_data`.
     pub connector_response_masking:
         &'a domain_types::connector_response_masking::ConnectorResponseMaskingConfig,
@@ -616,7 +616,7 @@ pub struct EventProcessingParams<'a> {
         request.url = Empty,
         request.method = Empty,
         response.body = Empty,
-        response.unmasked_body = Empty,
+        response.masked_body = Empty,
         response.headers = Empty,
         response.error_message = Empty,
         response.status_code = Empty,

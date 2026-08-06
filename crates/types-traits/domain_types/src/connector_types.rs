@@ -595,8 +595,8 @@ pub trait RawConnectorRequestResponse {
     /// connector's configured list names it. `String`, not `Secret<String>`: it is already
     /// sanitized, and wrapping it would collapse it to a placeholder in logs — the very
     /// problem this field exists to solve.
-    fn set_unmasked_connector_response(&mut self, response: Option<String>);
-    fn get_unmasked_connector_response(&self) -> Option<String>;
+    fn set_masked_connector_response(&mut self, response: Option<String>);
+    fn get_masked_connector_response(&self) -> Option<String>;
 }
 
 pub trait ConnectorResponseHeaders {
@@ -797,7 +797,7 @@ pub struct PaymentFlowData {
     pub connectors: Connectors,
     pub raw_connector_response: Option<Secret<String>>,
     /// Same body, values masked per the connector's config. Already sanitized — not a `Secret`.
-    pub unmasked_connector_response: Option<String>,
+    pub masked_connector_response: Option<String>,
     pub raw_connector_request: Option<Secret<String>>,
     pub vault_headers: Option<HashMap<String, Secret<String>>>,
     /// This field is used to store various data regarding the response from connector
@@ -1488,12 +1488,12 @@ impl RawConnectorRequestResponse for PaymentFlowData {
         self.raw_connector_response.clone()
     }
 
-    fn set_unmasked_connector_response(&mut self, response: Option<String>) {
-        self.unmasked_connector_response = response;
+    fn set_masked_connector_response(&mut self, response: Option<String>) {
+        self.masked_connector_response = response;
     }
 
-    fn get_unmasked_connector_response(&self) -> Option<String> {
-        self.unmasked_connector_response.clone()
+    fn get_masked_connector_response(&self) -> Option<String> {
+        self.masked_connector_response.clone()
     }
 
     fn get_raw_connector_request(&self) -> Option<Secret<String>> {
@@ -2691,7 +2691,7 @@ pub struct RefundFlowData {
     pub connector_request_reference_id: String,
     pub raw_connector_response: Option<Secret<String>>,
     /// Same body, values masked per the connector's config. Already sanitized — not a `Secret`.
-    pub unmasked_connector_response: Option<String>,
+    pub masked_connector_response: Option<String>,
     pub connector_response_headers: Option<http::HeaderMap>,
     pub raw_connector_request: Option<Secret<String>>,
     pub access_token: Option<ServerAuthenticationTokenResponseData>,
@@ -2715,12 +2715,12 @@ impl RawConnectorRequestResponse for RefundFlowData {
         self.raw_connector_response.clone()
     }
 
-    fn set_unmasked_connector_response(&mut self, response: Option<String>) {
-        self.unmasked_connector_response = response;
+    fn set_masked_connector_response(&mut self, response: Option<String>) {
+        self.masked_connector_response = response;
     }
 
-    fn get_unmasked_connector_response(&self) -> Option<String> {
-        self.unmasked_connector_response.clone()
+    fn get_masked_connector_response(&self) -> Option<String> {
+        self.masked_connector_response.clone()
     }
 
     fn get_raw_connector_request(&self) -> Option<Secret<String>> {
@@ -3736,7 +3736,7 @@ pub struct DisputeFlowData {
     pub connector_request_reference_id: String,
     pub raw_connector_response: Option<Secret<String>>,
     /// Same body, values masked per the connector's config. Already sanitized — not a `Secret`.
-    pub unmasked_connector_response: Option<String>,
+    pub masked_connector_response: Option<String>,
     pub raw_connector_request: Option<Secret<String>>,
     pub connector_response_headers: Option<http::HeaderMap>,
 }
@@ -3750,12 +3750,12 @@ impl RawConnectorRequestResponse for DisputeFlowData {
         self.raw_connector_response.clone()
     }
 
-    fn set_unmasked_connector_response(&mut self, response: Option<String>) {
-        self.unmasked_connector_response = response;
+    fn set_masked_connector_response(&mut self, response: Option<String>) {
+        self.masked_connector_response = response;
     }
 
-    fn get_unmasked_connector_response(&self) -> Option<String> {
-        self.unmasked_connector_response.clone()
+    fn get_masked_connector_response(&self) -> Option<String> {
+        self.masked_connector_response.clone()
     }
 
     fn set_raw_connector_request(&mut self, request: Option<Secret<String>>) {
@@ -3783,7 +3783,7 @@ pub struct VerifyWebhookSourceFlowData {
     pub connector_request_reference_id: String,
     pub raw_connector_response: Option<Secret<String>>,
     /// Same body, values masked per the connector's config. Already sanitized — not a `Secret`.
-    pub unmasked_connector_response: Option<String>,
+    pub masked_connector_response: Option<String>,
     pub raw_connector_request: Option<Secret<String>>,
     pub connector_response_headers: Option<http::HeaderMap>,
 }
@@ -3797,12 +3797,12 @@ impl RawConnectorRequestResponse for VerifyWebhookSourceFlowData {
         self.raw_connector_response.clone()
     }
 
-    fn set_unmasked_connector_response(&mut self, response: Option<String>) {
-        self.unmasked_connector_response = response;
+    fn set_masked_connector_response(&mut self, response: Option<String>) {
+        self.masked_connector_response = response;
     }
 
-    fn get_unmasked_connector_response(&self) -> Option<String> {
-        self.unmasked_connector_response.clone()
+    fn get_masked_connector_response(&self) -> Option<String> {
+        self.masked_connector_response.clone()
     }
 
     fn get_raw_connector_request(&self) -> Option<Secret<String>> {
@@ -3831,7 +3831,7 @@ pub struct RefreshPaymentMethodFlowData {
     /// Provider's encrypted form only — never decrypted payment method data.
     pub raw_connector_response: Option<Secret<String>>,
     /// Same body, values masked per the connector's config. Already sanitized — not a `Secret`.
-    pub unmasked_connector_response: Option<String>,
+    pub masked_connector_response: Option<String>,
     pub raw_connector_request: Option<Secret<String>>,
     pub connector_response_headers: Option<http::HeaderMap>,
 }
@@ -3845,12 +3845,12 @@ impl RawConnectorRequestResponse for RefreshPaymentMethodFlowData {
         self.raw_connector_response.clone()
     }
 
-    fn set_unmasked_connector_response(&mut self, response: Option<String>) {
-        self.unmasked_connector_response = response;
+    fn set_masked_connector_response(&mut self, response: Option<String>) {
+        self.masked_connector_response = response;
     }
 
-    fn get_unmasked_connector_response(&self) -> Option<String> {
-        self.unmasked_connector_response.clone()
+    fn get_masked_connector_response(&self) -> Option<String> {
+        self.masked_connector_response.clone()
     }
 
     fn get_raw_connector_request(&self) -> Option<Secret<String>> {

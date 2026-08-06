@@ -33,7 +33,7 @@ impl
         let merchant_id = extract_merchant_id_from_metadata(metadata)?;
 
         Ok(Self {
-            unmasked_connector_response: None,
+            masked_connector_response: None,
             merchant_id,
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_surcharge_id,
@@ -205,7 +205,7 @@ impl
         let merchant_id = extract_merchant_id_from_metadata(metadata)?;
 
         Ok(Self {
-            unmasked_connector_response: None,
+            masked_connector_response: None,
             merchant_id,
             connector_request_reference_id: extract_connector_request_reference_id(&Some(
                 value.event_id,

@@ -1,4 +1,4 @@
-//! Builds `unmasked_connector_response`: the connector's reply with every key preserved and every
+//! Builds `masked_connector_response`: the connector's reply with every key preserved and every
 //! value masked unless that connector's configured list names it. Emitted in the same format the
 //! gateway used — JSON, XML or form-encoded.
 
@@ -26,7 +26,7 @@ pub const MASKED: &str = "***";
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct ConnectorResponseMaskingConfig {
-    /// Whether to populate `unmasked_connector_response` at all.
+    /// Whether to populate `masked_connector_response` at all.
     pub enabled: bool,
 
     /// Whether to *also* record the masked view on the outgoing span. Separate from

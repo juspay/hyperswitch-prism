@@ -180,13 +180,13 @@ keys = ["x-request-id","x-merchant-id","x-lineage-ids","x-reference-id","x-conne
 connectors_with_webhook_source_verification_call = "paypal, truelayer"
 
 # Selectively-masked view of the connector response, exposed as
-# `unmasked_connector_response`. Every key is preserved; a value is shown only if
+# `masked_connector_response`. Every key is preserved; a value is shown only if
 # that connector's list below names it. Gated separately from
 # `common.return_raw_connector_data`, so this can stay on where raw capture is off.
 [connector_response_masking]
 enabled = true
 
-# Whether to ALSO write the masked view to our own logs (`response.unmasked_body`).
+# Whether to ALSO write the masked view to our own logs (`response.masked_body`).
 # `enabled` above already returns it to the caller; this is the extra copy we retain,
 # so a mistaken allowlist entry stays contained to whoever configured it.
 log_to_span = false

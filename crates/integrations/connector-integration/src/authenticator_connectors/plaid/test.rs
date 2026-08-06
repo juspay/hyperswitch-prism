@@ -41,7 +41,7 @@ mod tests {
             RouterDataV2 {
                 flow: PhantomData,
                 resource_common_data: MerchantAuthenticationFlowData {
-                    unmasked_connector_response: None,
+                    masked_connector_response: None,
                     merchant_id: common_utils::id_type::MerchantId::default(),
                     connectors: Connectors::default(),
                     connector_request_reference_id: "ref_test".to_owned(),
@@ -202,7 +202,7 @@ mod tests {
             RouterDataV2 {
                 flow: PhantomData,
                 resource_common_data: PaymentFlowData {
-                    unmasked_connector_response: None,
+                    masked_connector_response: None,
                     merchant_id: common_utils::id_type::MerchantId::default(),
                     customer_id: None,
                     connector_customer: None,
@@ -361,7 +361,7 @@ mod tests {
             RouterDataV2 {
                 flow: PhantomData,
                 resource_common_data: PaymentFlowData {
-                    unmasked_connector_response: None,
+                    masked_connector_response: None,
                     merchant_id: common_utils::id_type::MerchantId::default(),
                     customer_id: None,
                     connector_customer: None,

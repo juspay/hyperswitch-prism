@@ -59,7 +59,7 @@ mod tests {
             let test_router_data = RouterDataV2 {
                 flow: std::marker::PhantomData,
                 resource_common_data: PaymentFlowData {
-                    unmasked_connector_response: None,
+                    masked_connector_response: None,
                     raw_connector_status: None,
                     merchant_id: MerchantId::default(),
                     customer_id: None,
@@ -275,7 +275,7 @@ mod tests {
             let test_router_data = RouterDataV2 {
                 flow: std::marker::PhantomData,
                 resource_common_data: PaymentFlowData {
-                    unmasked_connector_response: None,
+                    masked_connector_response: None,
                     raw_connector_status: None,
                     merchant_id: MerchantId::default(),
                     customer_id: None,
@@ -429,7 +429,7 @@ mod tests {
             let test_router_data = RouterDataV2 {
                 flow: std::marker::PhantomData,
                 resource_common_data: PaymentFlowData {
-                    unmasked_connector_response: None,
+                    masked_connector_response: None,
                     raw_connector_status: None,
                     merchant_id: MerchantId::default(),
                     customer_id: None,
@@ -593,7 +593,7 @@ mod tests {
             let data = RouterDataV2 {
                 flow: std::marker::PhantomData,
                 resource_common_data: PaymentFlowData {
-                    unmasked_connector_response: None,
+                    masked_connector_response: None,
                     raw_connector_status: None,
                     merchant_id: MerchantId::default(),
                     customer_id: None,
@@ -967,7 +967,7 @@ mod tests {
         let data = RouterDataV2 {
             flow: std::marker::PhantomData,
             resource_common_data: PaymentFlowData {
-                unmasked_connector_response: None,
+                masked_connector_response: None,
                 raw_connector_status: None,
                 merchant_id: MerchantId::default(),
                 customer_id: None,
@@ -1177,7 +1177,7 @@ mod tests {
         let data = RouterDataV2 {
             flow: std::marker::PhantomData,
             resource_common_data: PaymentFlowData {
-                unmasked_connector_response: None,
+                masked_connector_response: None,
                 raw_connector_status: None,
                 merchant_id: MerchantId::default(),
                 customer_id: None,
@@ -1389,7 +1389,7 @@ mod tests {
             let test_router_data = RouterDataV2 {
                 flow: std::marker::PhantomData,
                 resource_common_data: domain_types::connector_types::PaymentFlowData {
-                    unmasked_connector_response: None,
+                    masked_connector_response: None,
                     raw_connector_status: None,
                     merchant_id: MerchantId::default(),
                     customer_id: None,
@@ -1526,7 +1526,7 @@ mod tests {
             let test_router_data = RouterDataV2 {
                 flow: std::marker::PhantomData,
                 resource_common_data: domain_types::connector_types::PaymentFlowData {
-                    unmasked_connector_response: None,
+                    masked_connector_response: None,
                     raw_connector_status: None,
                     merchant_id: MerchantId::default(),
                     customer_id: None,
@@ -1654,7 +1654,7 @@ mod tests {
             let test_router_data = RouterDataV2 {
                 flow: std::marker::PhantomData,
                 resource_common_data: PaymentFlowData {
-                    unmasked_connector_response: None,
+                    masked_connector_response: None,
                     raw_connector_status: None,
                     merchant_id: MerchantId::default(),
                     customer_id: None,
@@ -1817,7 +1817,7 @@ mod tests {
         let data = RouterDataV2 {
             flow: std::marker::PhantomData,
             resource_common_data: PaymentFlowData {
-                unmasked_connector_response: None,
+                masked_connector_response: None,
                 raw_connector_status: None,
                 merchant_id: MerchantId::default(),
                 customer_id: None,
@@ -1954,7 +1954,7 @@ mod tests {
         let data = RouterDataV2 {
             flow: std::marker::PhantomData,
             resource_common_data: PaymentFlowData {
-                unmasked_connector_response: None,
+                masked_connector_response: None,
                 raw_connector_status: None,
                 merchant_id: MerchantId::default(),
                 customer_id: None,
@@ -2080,7 +2080,7 @@ mod tests {
         let data = RouterDataV2 {
             flow: std::marker::PhantomData,
             resource_common_data: PaymentFlowData {
-                unmasked_connector_response: None,
+                masked_connector_response: None,
                 raw_connector_status: None,
                 merchant_id: MerchantId::default(),
                 customer_id: None,
