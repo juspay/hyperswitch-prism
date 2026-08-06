@@ -21,11 +21,8 @@ pub fn setup(
     config: &config::Log,
     service_name: &str,
     crates_to_filter: impl AsRef<[&'static str]>,
-    // Per-process euler-schema constants (e.g. `env`, `cluster`, `cell_id`) sourced from the app
-    // config by `main`; stamped on every log line as static top-level fields.
-    extra_static_fields: HashMap<String, serde_json::Value>,
 ) -> Result<TelemetryGuard, log_utils::LoggerError> {
-    let mut static_top_level_fields = HashMap::from_iter([
+    let static_top_level_fields = HashMap::from_iter([
         ("service".to_string(), serde_json::json!(service_name)),
         (
             "build_version".to_string(),
@@ -34,7 +31,6 @@ pub fn setup(
         // euler log-schema version; constant for now.
         ("schema_version".to_string(), serde_json::json!("V2")),
     ]);
-    static_top_level_fields.extend(extra_static_fields);
 
     let console_config = if config.console.enabled {
         let console_filter_directive =

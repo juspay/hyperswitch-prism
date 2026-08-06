@@ -40,21 +40,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    // euler-schema constant stamped on every log line: `env`. `cluster` / `cell_id` are intentionally
-    // NOT emitted here — they are injected by the log-shipping pipeline (Vector `.cluster = …` per
-    // cluster; `cell_id` from the pod env), matching how euler-native services get them. euler's own
-    // logger (`euler-hs` `PendingMsg`) doesn't carry them either, and the euler-connector LP reshaper
-    // maps neither, so the app owns no contract for them.
-    let euler_static_fields = std::collections::HashMap::from_iter([(
-        "env".to_string(),
-        serde_json::json!(config.common.environment.to_string()),
-    )]);
-
     let _guard = logger::setup(
         &config.log,
         ucs_env::service_name!(),
         [ucs_env::service_name!(), "grpc_server", "tower_http"],
-        euler_static_fields,
     );
 
     // Optionally push metrics over OTLP to an OpenTelemetry Collector (mirrors the
