@@ -2170,6 +2170,7 @@ pub(super) fn get_finix_webhook_reference(
                         connector_refund_id: Some(transfer.id),
                         merchant_refund_id: None,
                         connector_transaction_id: None,
+                        merchant_transaction_id: None,
                     },
                 ))),
                 // finix platform fee ignored (HS: Err(WebhookEventTypeNotFound))

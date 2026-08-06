@@ -2823,6 +2823,8 @@ pub struct RefundWebhookReference {
     pub merchant_refund_id: Option<String>,
     /// PSP-assigned ID of the original payment this refund belongs to.
     pub connector_transaction_id: Option<String>,
+    /// Caller-assigned order / invoice ID echoed back by the connector.
+    pub merchant_transaction_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -2837,6 +2839,8 @@ pub struct DisputeWebhookReference {
 pub struct MandateWebhookReference {
     /// PSP-assigned mandate ID.
     pub connector_mandate_id: Option<String>,
+    /// Caller-assigned order / invoice ID echoed back by the connector.
+    pub merchant_transaction_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
