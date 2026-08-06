@@ -203,8 +203,8 @@ fn connector_http_status_from_error_details(details: Option<&ErrorDetails>) -> O
     }
 }
 
-/// Canonical gRPC-to-HTTP status fallback. Also used by the golden log line's `status_code` so the
-/// logged code matches what the caller (e.g. euler over HTTP) receives instead of the raw gRPC code.
+/// Canonical gRPC-to-HTTP status fallback; also used by the golden line so its `status_code` matches
+/// what the caller receives.
 pub fn grpc_code_to_http_status(code: tonic::Code) -> StatusCode {
     match code {
         tonic::Code::Ok => StatusCode::OK,
@@ -228,8 +228,7 @@ pub fn grpc_code_to_http_status(code: tonic::Code) -> StatusCode {
 }
 
 /// The HTTP status the caller receives for a gRPC error: the connector's exact 4xx/5xx when the
-/// decoded details carry one, else the canonical gRPC-to-HTTP fallback. Single source of truth for
-/// both the HTTP response and the golden log line's `status_code`.
+/// details carry one, else the gRPC-to-HTTP fallback. Shared by the HTTP response and the golden line.
 pub fn http_status_from_details_or_code(
     details: Option<&ErrorDetails>,
     code: tonic::Code,
@@ -238,9 +237,7 @@ pub fn http_status_from_details_or_code(
         .unwrap_or_else(|| grpc_code_to_http_status(code))
 }
 
-/// Convenience over [`http_status_from_details_or_code`] that decodes the details from a
-/// `tonic::Status`. Used by the incoming golden log line so its `status_code` matches what the caller
-/// actually receives (e.g. a connector 422, not the raw gRPC `Unknown` → 500 fallback).
+/// [`http_status_from_details_or_code`] with the details decoded from a `tonic::Status`.
 pub fn http_status_for_status(status: &tonic::Status) -> StatusCode {
     let details = extract_error_details_from_status(status);
     http_status_from_details_or_code(details.as_ref(), status.code())

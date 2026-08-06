@@ -925,11 +925,8 @@ where
                         )
                         .map_err(report_connector_response_to_flow),
                         Err(transport_err) => {
-                            // Transport/network failure: no connector response, so `handle_connector_response`
-                            // never runs and `response_data`/`status_code` stay unset. Record the error on the
-                            // event so the outgoing golden line's `api_details` still carries it — mirroring
-                            // euler's `message` on failed gateway calls (which always includes the error),
-                            // instead of emitting `api_details` with null response and null error.
+                            // No connector response, so record the error on the event for the golden
+                            // line's `api_details` (euler emits the error even on transport failure).
                             event.error = MaskedSerdeValue::from_masked_optional(
                                 &json!(format!("{transport_err}")),
                                 "connector_error",
@@ -938,8 +935,6 @@ where
                         }
                     };
 
-                    // Flat top-level `latency` (ms) so the outgoing golden line matches euler's flat
-                    // `latency`; the same value is inside `api_details.latency`.
                     tracing::Span::current().record("latency", latency);
                     record_api_details(&event);
                     emit_event_with_config(event, event_params.event_config);
@@ -1058,10 +1053,8 @@ where
                         )
                         .map_err(report_connector_response_to_flow),
                         Err(publish_err) => {
-                            // Kafka publish failure: no delivery response, so `handle_connector_response`
-                            // never runs. Record the error on the event so the outgoing golden line's
-                            // `api_details` still carries it (euler parity — the message always includes the
-                            // failure), instead of emitting `api_details` with null response and null error.
+                            // No delivery response, so record the error on the event for the golden
+                            // line's `api_details` (euler emits the error even on publish failure).
                             event.error = MaskedSerdeValue::from_masked_optional(
                                 &json!(format!("{publish_err}")),
                                 "connector_error",
@@ -1070,8 +1063,6 @@ where
                         }
                     };
 
-                    // Flat top-level `latency` (ms) so the outgoing golden line matches euler's flat
-                    // `latency`; the same value is inside `api_details.latency`.
                     tracing::Span::current().record("latency", latency);
                     record_api_details(&event);
                     emit_event_with_config(event, event_params.event_config);
@@ -1125,12 +1116,9 @@ fn mask_connector_request(request_content: &Option<RequestContent>) -> serde_jso
     }
 }
 
-/// Records `value` as a real nested JSON object under `key` in the current span's storage, via the
-/// upstream `log_utils` public `Storage` API (`tracing-storage-api` feature, framework-libs-rs PR #22).
-/// The `JsonFormattingLayer` reads span storage at emit time, so the object surfaces on the golden
-/// line without any stringify/reparse. `key` is `&'static str` because `Storage::record_value` ties
-/// the key to the storage lifetime; all call sites pass string literals. Reserved keys are skipped
-/// (with a warning) inside `record_value`; `api_details` is not reserved.
+/// Records `value` as a real nested JSON object under `key` in the current span's storage (via the
+/// `log_utils` `Storage` API, `tracing-storage-api` feature), so JSON mode emits it without
+/// stringify/reparse. `key` is `&'static str` to satisfy `Storage::record_value`'s lifetime.
 #[cfg(feature = "injector-client")]
 fn record_json(key: &'static str, value: serde_json::Value) {
     log_utils::Storage::with_current_span_mut(|storage| {
@@ -1138,17 +1126,11 @@ fn record_json(key: &'static str, value: serde_json::Value) {
     });
 }
 
-/// Assembles the euler-shaped `api_details` object (equivalent to euler's nested `message`) from the
-/// already-masked `Event` data and records it as a real JSON object on the current span via
-/// [`record_json`] (the outgoing `#[instrument]` span declares `api_details = Empty`). The value is
-/// written straight into span storage — no stringify/reparse — so JSON log mode emits a nested object
-/// the sessionizer can read. The flat `request.*` / `response.*` fields are still recorded separately
-/// for hyperswitch compatibility, so the detail appears in both places.
+/// Builds the euler-shaped `api_details` object (euler's nested `message`) from the masked `Event`
+/// and records it on the outgoing span (which declares `api_details = Empty`).
 #[cfg(feature = "injector-client")]
 fn record_api_details(event: &Event) {
-    // UCS-native field names (`request_*` / `response_*` / `status_code`); Vector renames them to
-    // euler's schema (`req_body`, `res_code`, …) on the euler-bound stream. `latency` is `u64`
-    // (Event.latency_ms) to match the flat top-level `latency` on both golden lines.
+    // UCS-native field names; Vector renames them to euler's schema (`req_body`, `res_code`, …).
     let api_details = json!({
         "request_url": event.url,
         "request_method": event.method,

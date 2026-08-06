@@ -303,18 +303,9 @@ fn metadata_to_json(metadata: &tonic::metadata::MetadataMap) -> Value {
     Value::Object(map)
 }
 
-/// Extracts the `merchant_order_id` / `customer_id` / `merchant_transaction_id` from the incoming
-/// request body.
-///
-/// Euler sends these identifiers in the request *payload* (not as headers). This reads the UCS-native
-/// body fields only: `merchant_order_id`, `customer.id`, and `merchant_transaction_id`. (For
-/// cross-reference, euler's equivalents are `orderReference.orderId`, `customer._id` /
-/// `orderReference.customerId`, and `txnDetail.txnId` — the txn id is also mirrored to the
-/// `x-reference-id` header — but the code does not read those euler names.) All are plain id strings,
-/// so they read directly off the masked body `Value`. Returns `(order_id, customer_id, txn_id)`; each is
-/// `None` when its field is absent (e.g. non-euler callers or flows that omit it). Emitted top-level
-/// under the UCS-native names `merchant_order_id` / `customer_id` / `merchant_transaction_id` (Vector
-/// maps them to euler's `udf_order_id` / `udf_customer_id` / `udf_txn_uuid`).
+/// Extracts the UCS-native body fields `merchant_order_id` / `customer.id` /
+/// `merchant_transaction_id` (euler sends these in the payload, not as headers). Each is `None` when
+/// absent. Vector maps them to euler's `udf_order_id` / `udf_customer_id` / `udf_txn_uuid`.
 fn identifiers_from_request(
     request_body: &Option<MaskedSerdeValue>,
 ) -> (Option<String>, Option<String>, Option<String>) {
@@ -337,11 +328,9 @@ fn identifiers_from_request(
     (order_id, customer_id, txn_id)
 }
 
-/// Records `value` as a real nested JSON object under `key` in the current span's storage, via the
-/// upstream `log_utils` public `Storage` API (`tracing-storage-api` feature, framework-libs-rs PR #22).
-/// The `JsonFormattingLayer` reads span storage at emit time, so the object surfaces on the golden
-/// line without any stringify/reparse. `key` is `&'static str` because `Storage::record_value` ties
-/// the key to the storage lifetime; all call sites pass string literals.
+/// Records `value` as a real nested JSON object under `key` in the current span's storage (via the
+/// `log_utils` `Storage` API, `tracing-storage-api` feature), so JSON mode emits it without
+/// stringify/reparse. `key` is `&'static str` to satisfy `Storage::record_value`'s lifetime.
 fn record_json(key: &'static str, value: Value) {
     log_utils::Storage::with_current_span_mut(|storage| {
         storage.record_value(key, value);
@@ -399,10 +388,8 @@ pub fn log_after_initialization<T>(
             (masked_res, 200u16, metadata_to_json(response.metadata()))
         }
         Err(status) => {
-            // Map to the HTTP status the caller actually receives: the connector's exact 4xx/5xx when
-            // present in the error details, else the gRPC-to-HTTP fallback. Uses the same helper as
-            // `From<tonic::Status> for HttpError`, so the golden line's `status_code` matches the real
-            // response (e.g. a connector 422, not the raw gRPC `Unknown` → 500).
+            // Connector's exact 4xx/5xx when the error details carry one, else the gRPC-to-HTTP
+            // fallback — same helper as `From<tonic::Status>`, so this matches the real response.
             let http_status = crate::http::error::http_status_for_status(status).as_u16();
             current_span.record("error_message", status.message());
             current_span.record("status_code", http_status);
@@ -414,21 +401,11 @@ pub fn log_after_initialization<T>(
         }
     };
 
-    // Nested `api_details` object (euler's `message` equivalent) for the incoming call. Fields use
-    // UCS-native names (`request_*` / `response_*` / `status_code`); Vector renames them to euler's
-    // schema (`req_body`, `res_code`, …) on the euler-bound stream. Recorded as a real JSON object
-    // via `record_json` (our thin wrapper over `log_utils::Storage`), which writes the value straight
-    // into the current span's storage
-    // (no stringify/reparse). The current span is the handler `#[instrument]` span that already
-    // carries `message_ = "Golden Log Line (incoming)"` and `response_time`; this mirrors the
-    // outgoing side (`record_api_details`). The golden-line event below is emitted under that same
-    // span, so it picks up `api_details` from span storage. The flat incoming fields
-    // (`request_body`, `response_body`, …) remain for hyperswitch compatibility.
-    // Single `u64` latency value used in both `api_details.latency` and the flat top-level `latency`,
-    // so downstream schema consumers see one numeric type (not u128 in one place, u64 in the other).
+    // `api_details` = euler's nested `message`; UCS-native field names (Vector renames to euler's).
+    // One `u64` latency shared with the flat top-level `latency` below.
     let latency_ms_u64 = u64::try_from(latency_ms).unwrap_or(u64::MAX);
     let api_details = serde_json::json!({
-        // Real HTTP method under the HTTP server; POST for native gRPC (its only transport verb).
+        // Real HTTP verb on the HTTP server; POST for native gRPC.
         "request_method": http_method.unwrap_or("POST"),
         "request_type": "INTERNAL",
         "request_headers": req_headers,
@@ -441,13 +418,9 @@ pub fn log_after_initialization<T>(
     record_json("api_details", api_details);
     tracing::info!(
         api_direction = "INCOMING_API",
-        // Top-level identifiers the euler sessionizer reads directly; UCS-native names here,
-        // Vector maps them to euler's `udf_order_id` / `udf_customer_id` / `udf_txn_uuid`.
         merchant_order_id = order_id.as_deref().unwrap_or(""),
         customer_id = customer_id.as_deref().unwrap_or(""),
         merchant_transaction_id = txn_id.as_deref().unwrap_or(""),
-        // Flat top-level latency (ms) to mirror euler's flat `latency` on every golden line; the same
-        // value is inside `api_details.latency`. Present on both incoming and outgoing lines.
         latency = latency_ms_u64,
         "Golden Log Line (incoming - response)"
     );
@@ -1248,9 +1221,8 @@ macro_rules! implement_connector_operation {
 
 #[cfg(test)]
 mod golden_log_json_tests {
-    //! Renders the incoming Golden Log Line through the real `log_utils` JSON formatter (the same
-    //! `CompactJson` console mode UCS runs in prod) and asserts the euler-schema shape: `api_details`
-    //! is a real nested **object** (the record_json fix), plus every required top-level field.
+    //! Renders golden log lines through the real `log_utils` JSON formatter and asserts the
+    //! euler-schema shape (`api_details` a real nested object, plus the required top-level fields).
     use super::*;
     use serde_json::{json, Value};
     use std::collections::{HashMap, HashSet};
@@ -1262,8 +1234,6 @@ mod golden_log_json_tests {
     struct BufWriter(Arc<Mutex<Vec<u8>>>);
     impl Write for BufWriter {
         fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-            // Test buffer; on the (impossible-in-test) poisoned-lock case just drop the write
-            // rather than `unwrap()` in a `Result`-returning fn.
             if let Ok(mut guard) = self.0.lock() {
                 guard.extend_from_slice(buf);
             }
@@ -1280,14 +1250,12 @@ mod golden_log_json_tests {
         }
     }
 
-    /// Emits under the real JSON formatting + span-storage layers (JSON log mode) and returns the
-    /// parsed golden log line. Returns `Result` so the setup propagates with `?` instead of
-    /// `unwrap`/`expect` (the workspace denies those as `restriction` lints).
+    /// Runs `emit` under the real JSON formatting + span-storage layers and returns the parsed golden
+    /// log line. Returns `Result` so setup propagates with `?` (no `unwrap`/`expect`).
     fn render_json_mode(emit: impl FnOnce()) -> Result<Value, Box<dyn std::error::Error>> {
         let buf = Arc::new(Mutex::new(Vec::new()));
         let config = log_utils::JsonFormattingLayerConfig {
-            // Mirrors ucs_env::logger::setup static_top_level_fields for JSON mode (service +
-            // build_version only; schema_version/env are set by the euler LP, not the app).
+            // Mirrors ucs_env::logger::setup (service + build_version; the LP sets the rest).
             static_top_level_fields: HashMap::from_iter([
                 ("service".to_string(), json!("connector-service")),
                 ("build_version".to_string(), json!("test-build")),
@@ -1316,11 +1284,9 @@ mod golden_log_json_tests {
         Ok(serde_json::from_str(line)?)
     }
 
-    /// Reproduces the exact emission in `log_after_initialization` (incoming response path), run
-    /// under a simulated handler `#[instrument]` span that carries `message_` — exactly as prod does
-    /// (`record_json` records onto that ambient span; no dedicated span is created).
+    /// Reproduces the incoming emission inline (mirrors `log_after_initialization`) under a handler
+    /// span carrying `message_`, as prod does.
     fn emit_incoming_golden(order_id: &str, customer_id: &str, txn_id: &str) {
-        // Stand-in for the handler's `#[instrument(fields(message_ = "Golden Log Line (incoming)"))]`.
         let handler_span =
             tracing::info_span!("payment_authorize", message_ = "Golden Log Line (incoming)");
         let _h = handler_span.enter();
@@ -1356,11 +1322,9 @@ mod golden_log_json_tests {
         status: i32,
     }
 
-    /// Drives the REAL `log_after_initialization` (not an inline re-impl) on the **error path**, so
-    /// this exercises the production assembly that the inline test above does not: the `http_method`
-    /// plumbing, the `Err(tonic::Status)` → HTTP status mapping via `http_status_for_status`,
-    /// `metadata_to_json`, and the `response_body` error extraction. The handler span declares the
-    /// fields `log_after_initialization` records (`status_code` / `error_message`) so they surface.
+    /// Drives the real `log_after_initialization` on the error path, exercising the `http_method`
+    /// plumbing, the `Err` → HTTP status mapping, and the `response_body` error extraction. The span
+    /// declares the fields the fn records (`status_code` / `error_message`) so they surface.
     fn emit_incoming_golden_real_err() {
         let handler_span = tracing::info_span!(
             "payment_authorize",
@@ -1378,7 +1342,6 @@ mod golden_log_json_tests {
             "customer": { "id": "cust_1" }
         }))
         .ok();
-        // InvalidArgument → HTTP 400 via `http_status_for_status` (no connector details → fallback).
         let result: Result<tonic::Response<TestResp>, tonic::Status> =
             Err(tonic::Status::invalid_argument("bad request"));
         log_after_initialization(&result, &request_body, &req_headers, 55u128, Some("PUT"));
@@ -1386,15 +1349,14 @@ mod golden_log_json_tests {
 
     #[test]
     fn incoming_golden_line_from_real_assembly_on_error() {
-        // `render_json_mode` returns `Result` (no unwrap/expect inside); `unwrap_or_default` yields
-        // `Value::Null` on the (deterministically impossible) setup error, so the asserts below fail
-        // meaningfully rather than needing unwrap/expect/panic in the test.
+        // `unwrap_or_default` → `Value::Null` on the impossible setup error, so the asserts fail
+        // meaningfully without needing unwrap/expect/panic in the test.
         let line = render_json_mode(emit_incoming_golden_real_err).unwrap_or_default();
         assert!(
             line.pointer("/api_details").is_some_and(Value::is_object),
             "api_details must be an object: {line}"
         );
-        // Status mapped by the real `http_status_for_status` (InvalidArgument → 400), in both places.
+        // Status mapped by `http_status_for_status` (InvalidArgument → 400), in both places.
         assert_eq!(line.pointer("/api_details/status_code"), Some(&json!(400)));
         assert_eq!(line.pointer("/status_code"), Some(&json!(400)));
         // The gRPC status message is captured as `{ "error": ... }` in response_body / error_message.
@@ -1501,9 +1463,7 @@ mod golden_log_json_tests {
 
     #[test]
     fn identifiers_sourced_from_request_body() {
-        // euler sends order id as `merchant_order_id`, customer id as `customer.id`, and txn id as
-        // `merchant_transaction_id` in the BODY. `from_masked` on a plain JSON literal is infallible
-        // in practice; `.ok()` keeps the test free of unwrap/expect (`None` would fail the asserts).
+        // `.ok()` keeps the test free of unwrap/expect (`None` would fail the asserts below).
         let body = MaskedSerdeValue::from_masked(&json!({
             "merchant_order_id": "ord_1785320050",
             "merchant_transaction_id": "txn_abc",
