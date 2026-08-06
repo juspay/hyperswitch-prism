@@ -267,7 +267,7 @@ fn maya_raw_connector_status(payment: &MayaWebhookBody) -> RawConnectorStatus {
     RawConnectorStatus {
         code: payment.error_code.clone(),
         message: Some(payment.status.to_string()),
-        reason: payment.error_message.clone(),
+        reason: None,
     }
 }
 
@@ -606,7 +606,7 @@ impl TryFrom<ResponseRouterData<MayaVoidResponse, Self>>
                 status,
                 raw_connector_status: Some(RawConnectorStatus {
                     code: Some(item.response.status.to_string()),
-                    message: item.response.reason.clone(),
+                    message: None,
                     reason: None,
                 }),
                 ..item.router_data.resource_common_data
@@ -731,7 +731,7 @@ impl TryFrom<ResponseRouterData<MayaRefundResponse, Self>>
 
         let raw_connector_status = RawConnectorStatus {
             code: Some(item.response.status.to_string()),
-            message: item.response.reason.clone(),
+            message: None,
             reason: None,
         };
 
@@ -763,7 +763,7 @@ impl TryFrom<ResponseRouterData<MayaRefundSyncResponse, Self>>
 
         let raw_connector_status = RawConnectorStatus {
             code: Some(item.response.status.to_string()),
-            message: item.response.reason.clone(),
+            message: None,
             reason: None,
         };
 
