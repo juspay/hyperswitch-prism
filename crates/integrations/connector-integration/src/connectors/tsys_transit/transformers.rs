@@ -3788,8 +3788,7 @@ fn repeat_payment_data_to_authorize<T: PaymentMethodDataTypes>(
         payment_channel: req
             .payment_channel
             .clone()
-            .or(payment_channel_from_metadata)
-            .or(Some(PaymentChannel::TelephoneOrder)),
+            .or(payment_channel_from_metadata),
         enable_partial_authorization: req.enable_partial_authorization,
         locale: req.locale.clone(),
         redirect_response: None,
