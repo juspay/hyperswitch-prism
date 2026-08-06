@@ -242,12 +242,6 @@ pub struct RuntimeMetadata {
     /// Pod name (`metadata.name`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pod_name: Option<String>,
-    /// Kubernetes cluster name (euler `cluster`). Deployment-provided via `CS__RUNTIME_METADATA__*`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub cluster: Option<String>,
-    /// Cell / availability-zone identifier (euler `cell_id`). Deployment-provided.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub cell_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]

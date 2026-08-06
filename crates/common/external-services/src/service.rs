@@ -893,9 +893,23 @@ where
                             Some(&event_params),
                         )
                         .map_err(report_connector_response_to_flow),
-                        Err(transport_err) => Err(transport_err),
+                        Err(transport_err) => {
+                            // Transport/network failure: no connector response, so `handle_connector_response`
+                            // never runs and `response_data`/`status_code` stay unset. Record the error on the
+                            // event so the outgoing golden line's `api_details` still carries it — mirroring
+                            // euler's `message` on failed gateway calls (which always includes the error),
+                            // instead of emitting `api_details` with null response and null error.
+                            event.error = MaskedSerdeValue::from_masked_optional(
+                                &json!(format!("{transport_err:?}")),
+                                "connector_error",
+                            );
+                            Err(transport_err)
+                        }
                     };
 
+                    // Flat top-level `latency` (ms) so the outgoing golden line matches euler's flat
+                    // `latency`; the same value is inside `api_details.latency`.
+                    tracing::Span::current().record("latency", latency);
                     record_api_details(&event);
                     emit_event_with_config(event, event_params.event_config);
                     result
@@ -1012,9 +1026,22 @@ where
                             Some(&event_params),
                         )
                         .map_err(report_connector_response_to_flow),
-                        Err(publish_err) => Err(publish_err),
+                        Err(publish_err) => {
+                            // Kafka publish failure: no delivery response, so `handle_connector_response`
+                            // never runs. Record the error on the event so the outgoing golden line's
+                            // `api_details` still carries it (euler parity — the message always includes the
+                            // failure), instead of emitting `api_details` with null response and null error.
+                            event.error = MaskedSerdeValue::from_masked_optional(
+                                &json!(format!("{publish_err:?}")),
+                                "connector_error",
+                            );
+                            Err(publish_err)
+                        }
                     };
 
+                    // Flat top-level `latency` (ms) so the outgoing golden line matches euler's flat
+                    // `latency`; the same value is inside `api_details.latency`.
+                    tracing::Span::current().record("latency", latency);
                     record_api_details(&event);
                     emit_event_with_config(event, event_params.event_config);
                     result
@@ -1073,6 +1100,19 @@ fn mask_connector_request(request_content: &Option<RequestContent>) -> serde_jso
 /// value is written straight into span storage — no stringify/reparse — so JSON log mode emits a
 /// nested object the sessionizer can read. The flat `request.*` / `response.*` fields are still
 /// recorded separately for hyperswitch compatibility, so the detail appears in both places.
+/// Records `value` as a real nested JSON object under `key` in the current span's storage, via the
+/// upstream `log_utils` public `Storage` API (`tracing-storage-api` feature, framework-libs-rs PR #22).
+/// The `JsonFormattingLayer` reads span storage at emit time, so the object surfaces on the golden
+/// line without any stringify/reparse. `key` is `&'static str` because `Storage::record_value` ties
+/// the key to the storage lifetime; all call sites pass string literals. Reserved keys are skipped
+/// (with a warning) inside `record_value`; `api_details` is not reserved.
+#[cfg(feature = "injector-client")]
+fn record_json(key: &'static str, value: serde_json::Value) {
+    log_utils::Storage::with_current_span_mut(|storage| {
+        storage.record_value(key, value);
+    });
+}
+
 #[cfg(feature = "injector-client")]
 fn record_api_details(event: &Event) {
     // UCS-native field names (`request_*` / `response_*` / `status_code`); Vector renames them to
@@ -1089,7 +1129,7 @@ fn record_api_details(event: &Event) {
         // Outbound connector call; euler reserves INTERNAL for service-to-service hops.
         "request_type": "EXTERNAL",
     });
-    log_utils::record_json("api_details", api_details);
+    record_json("api_details", api_details);
 }
 
 #[cfg(feature = "injector-client")]

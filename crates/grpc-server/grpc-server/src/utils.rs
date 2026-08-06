@@ -336,6 +336,17 @@ fn identifiers_from_request(
     (order_id, customer_id, txn_id)
 }
 
+/// Records `value` as a real nested JSON object under `key` in the current span's storage, via the
+/// upstream `log_utils` public `Storage` API (`tracing-storage-api` feature, framework-libs-rs PR #22).
+/// The `JsonFormattingLayer` reads span storage at emit time, so the object surfaces on the golden
+/// line without any stringify/reparse. `key` is `&'static str` because `Storage::record_value` ties
+/// the key to the storage lifetime; all call sites pass string literals.
+fn record_json(key: &'static str, value: serde_json::Value) {
+    log_utils::Storage::with_current_span_mut(|storage| {
+        storage.record_value(key, value);
+    });
+}
+
 pub fn log_after_initialization<T>(
     result: &Result<tonic::Response<T>, tonic::Status>,
     request_body: &Option<MaskedSerdeValue>,
@@ -403,7 +414,8 @@ pub fn log_after_initialization<T>(
     // Nested `api_details` object (euler's `message` equivalent) for the incoming call. Fields use
     // UCS-native names (`request_*` / `response_*` / `status_code`); Vector renames them to euler's
     // schema (`req_body`, `res_code`, …) on the euler-bound stream. Recorded as a real JSON object
-    // via `log_utils::record_json`, which writes the value straight into the current span's storage
+    // via `record_json` (our thin wrapper over `log_utils::Storage`), which writes the value straight
+    // into the current span's storage
     // (no stringify/reparse). The current span is the handler `#[instrument]` span that already
     // carries `message_ = "Golden Log Line (incoming)"` and `response_time`; this mirrors the
     // outgoing side (`record_api_details`). The golden-line event below is emitted under that same
@@ -420,7 +432,7 @@ pub fn log_after_initialization<T>(
         "status_code": res_code,
         "latency": latency_ms,
     });
-    log_utils::record_json("api_details", api_details);
+    record_json("api_details", api_details);
     tracing::info!(
         api_direction = "INCOMING_API",
         // Top-level identifiers the euler sessionizer reads directly; UCS-native names here,
@@ -428,6 +440,9 @@ pub fn log_after_initialization<T>(
         merchant_order_id = order_id.as_deref().unwrap_or(""),
         customer_id = customer_id.as_deref().unwrap_or(""),
         merchant_transaction_id = txn_id.as_deref().unwrap_or(""),
+        // Flat top-level latency (ms) to mirror euler's flat `latency` on every golden line; the same
+        // value is inside `api_details.latency`. Present on both incoming and outgoing lines.
+        latency = u64::try_from(latency_ms).unwrap_or(u64::MAX),
         "Golden Log Line (incoming - response)"
     );
 }
@@ -1265,8 +1280,6 @@ mod golden_log_json_tests {
                 ("service".to_string(), json!("connector-service")),
                 ("schema_version".to_string(), json!("V2")),
                 ("env".to_string(), json!("sandbox")),
-                ("cluster".to_string(), json!("apoc")),
-                ("cell_id".to_string(), json!("cell-01")),
             ]),
             top_level_keys: HashSet::new(),
             log_span_lifecycles: false,
@@ -1316,7 +1329,7 @@ mod golden_log_json_tests {
             "status_code": 200,
             "latency": 42u128,
         });
-        log_utils::record_json("api_details", api_details);
+        record_json("api_details", api_details);
         tracing::info!(
             api_direction = "INCOMING_API",
             merchant_order_id = order_id,
@@ -1363,11 +1376,10 @@ mod golden_log_json_tests {
         assert_eq!(line["merchant_order_id"], "ord_1785320050");
         assert_eq!(line["customer_id"], "cust_42");
         assert_eq!(line["merchant_transaction_id"], "txn_9988");
-        // Static top-level fields (JSON-mode injected).
+        // Static top-level fields (JSON-mode injected). `cluster` / `cell_id` are intentionally
+        // absent — injected by the log pipeline, not the app.
         assert_eq!(line["schema_version"], "V2");
         assert_eq!(line["env"], "sandbox");
-        assert_eq!(line["cluster"], "apoc");
-        assert_eq!(line["cell_id"], "cell-01");
         // Golden lines are identified by the `message_` field (set on the handler span), which is
         // unaffected by how `api_details` is recorded.
         assert_eq!(line["message_"], "Golden Log Line (incoming)");

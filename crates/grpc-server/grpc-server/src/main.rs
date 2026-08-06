@@ -40,18 +40,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    // euler-schema constants stamped on every log line: `env` (always), plus `cluster` / `cell_id`
-    // when the deployment supplies them via `CS__RUNTIME_METADATA__*`.
-    let mut euler_static_fields = std::collections::HashMap::from_iter([(
+    // euler-schema constant stamped on every log line: `env`. `cluster` / `cell_id` are intentionally
+    // NOT emitted here — they are injected by the log-shipping pipeline (Vector `.cluster = …` per
+    // cluster; `cell_id` from the pod env), matching how euler-native services get them. euler's own
+    // logger (`euler-hs` `PendingMsg`) doesn't carry them either, and the euler-connector LP reshaper
+    // maps neither, so the app owns no contract for them.
+    let euler_static_fields = std::collections::HashMap::from_iter([(
         "env".to_string(),
         serde_json::json!(config.common.environment.to_string()),
     )]);
-    if let Some(cluster) = &config.runtime_metadata.cluster {
-        euler_static_fields.insert("cluster".to_string(), serde_json::json!(cluster));
-    }
-    if let Some(cell_id) = &config.runtime_metadata.cell_id {
-        euler_static_fields.insert("cell_id".to_string(), serde_json::json!(cell_id));
-    }
 
     let _guard = logger::setup(
         &config.log,
