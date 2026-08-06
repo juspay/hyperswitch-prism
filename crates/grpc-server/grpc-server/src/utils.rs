@@ -291,19 +291,16 @@ where
 
 /// Flattens gRPC response metadata (ASCII entries) into a JSON object for the incoming golden log
 /// line's `api_details.response_headers`.
-fn metadata_to_json(metadata: &tonic::metadata::MetadataMap) -> serde_json::Value {
+fn metadata_to_json(metadata: &tonic::metadata::MetadataMap) -> Value {
     let mut map = serde_json::Map::new();
     for entry in metadata.iter() {
         if let tonic::metadata::KeyAndValueRef::Ascii(key, value) = entry {
             if let Ok(value) = value.to_str() {
-                map.insert(
-                    key.as_str().to_owned(),
-                    serde_json::Value::String(value.to_owned()),
-                );
+                map.insert(key.as_str().to_owned(), Value::String(value.to_owned()));
             }
         }
     }
-    serde_json::Value::Object(map)
+    Value::Object(map)
 }
 
 /// Extracts the `merchant_order_id` / `customer_id` / `merchant_transaction_id` from the incoming
@@ -345,7 +342,7 @@ fn identifiers_from_request(
 /// The `JsonFormattingLayer` reads span storage at emit time, so the object surfaces on the golden
 /// line without any stringify/reparse. `key` is `&'static str` because `Storage::record_value` ties
 /// the key to the storage lifetime; all call sites pass string literals.
-fn record_json(key: &'static str, value: serde_json::Value) {
+fn record_json(key: &'static str, value: Value) {
     log_utils::Storage::with_current_span_mut(|storage| {
         storage.record_value(key, value);
     });
@@ -489,7 +486,7 @@ where
     // absent for native gRPC, where the transport method is always POST.
     let http_method = request
         .extensions()
-        .get::<axum::http::Method>()
+        .get::<http::Method>()
         .map(|m| m.to_string());
     let mut event_metadata_payload = None;
     let mut event_headers = HashMap::new();
@@ -565,7 +562,7 @@ where
     // absent for native gRPC, where the transport method is always POST.
     let http_method = request
         .extensions()
-        .get::<axum::http::Method>()
+        .get::<http::Method>()
         .map(|m| m.to_string());
     let mut event_metadata_payload = None;
     let mut event_headers = HashMap::new();
@@ -1265,7 +1262,11 @@ mod golden_log_json_tests {
     struct BufWriter(Arc<Mutex<Vec<u8>>>);
     impl Write for BufWriter {
         fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-            self.0.lock().unwrap().extend_from_slice(buf);
+            // Test buffer; on the (impossible-in-test) poisoned-lock case just drop the write
+            // rather than `unwrap()` in a `Result`-returning fn.
+            if let Ok(mut guard) = self.0.lock() {
+                guard.extend_from_slice(buf);
+            }
             Ok(buf.len())
         }
         fn flush(&mut self) -> std::io::Result<()> {
@@ -1273,22 +1274,23 @@ mod golden_log_json_tests {
         }
     }
     impl<'a> tracing_subscriber::fmt::MakeWriter<'a> for BufWriter {
-        type Writer = BufWriter;
+        type Writer = Self;
         fn make_writer(&'a self) -> Self::Writer {
             self.clone()
         }
     }
 
     /// Emits under the real JSON formatting + span-storage layers (JSON log mode) and returns the
-    /// parsed golden log line.
-    fn render_json_mode(emit: impl FnOnce()) -> Value {
+    /// parsed golden log line. Returns `Result` so the setup propagates with `?` instead of
+    /// `unwrap`/`expect` (the workspace denies those as `restriction` lints).
+    fn render_json_mode(emit: impl FnOnce()) -> Result<Value, Box<dyn std::error::Error>> {
         let buf = Arc::new(Mutex::new(Vec::new()));
         let config = log_utils::JsonFormattingLayerConfig {
-            // Mirrors ucs_env::logger::setup static_top_level_fields for JSON mode.
+            // Mirrors ucs_env::logger::setup static_top_level_fields for JSON mode (service +
+            // build_version only; schema_version/env are set by the euler LP, not the app).
             static_top_level_fields: HashMap::from_iter([
                 ("service".to_string(), json!("connector-service")),
-                ("schema_version".to_string(), json!("V2")),
-                ("env".to_string(), json!("sandbox")),
+                ("build_version".to_string(), json!("test-build")),
             ]),
             top_level_keys: HashSet::new(),
             log_span_lifecycles: false,
@@ -1300,17 +1302,18 @@ mod golden_log_json_tests {
             BufWriter(buf.clone()),
             serde_json::ser::CompactFormatter,
         )
-        .unwrap();
+        .map_err(|e| format!("json formatting layer: {e}"))?;
         let subscriber = tracing_subscriber::registry()
             .with(storage)
             .with(formatting);
         tracing::subscriber::with_default(subscriber, emit);
-        let out = String::from_utf8(buf.lock().unwrap().clone()).unwrap();
+        let bytes = buf.lock().map_err(|_| "buffer mutex poisoned")?.clone();
+        let out = String::from_utf8(bytes)?;
         let line = out
             .lines()
             .find(|l| l.contains("Golden Log Line (incoming"))
-            .expect("golden log line present");
-        serde_json::from_str(line).expect("golden log line is valid JSON")
+            .ok_or("golden log line not present in output")?;
+        Ok(serde_json::from_str(line)?)
     }
 
     /// Reproduces the exact emission in `log_after_initialization` (incoming response path), run
@@ -1383,42 +1386,55 @@ mod golden_log_json_tests {
 
     #[test]
     fn incoming_golden_line_from_real_assembly_on_error() {
-        let line = render_json_mode(emit_incoming_golden_real_err);
-        let md = &line["api_details"];
-        assert!(md.is_object(), "api_details must be an object: {md}");
+        // `render_json_mode` returns `Result` (no unwrap/expect inside); `unwrap_or_default` yields
+        // `Value::Null` on the (deterministically impossible) setup error, so the asserts below fail
+        // meaningfully rather than needing unwrap/expect/panic in the test.
+        let line = render_json_mode(emit_incoming_golden_real_err).unwrap_or_default();
+        assert!(
+            line.pointer("/api_details").is_some_and(Value::is_object),
+            "api_details must be an object: {line}"
+        );
         // Status mapped by the real `http_status_for_status` (InvalidArgument → 400), in both places.
-        assert_eq!(md["status_code"], 400);
-        assert_eq!(line["status_code"], 400);
+        assert_eq!(line.pointer("/api_details/status_code"), Some(&json!(400)));
+        assert_eq!(line.pointer("/status_code"), Some(&json!(400)));
         // The gRPC status message is captured as `{ "error": ... }` in response_body / error_message.
-        assert_eq!(md["response_body"]["error"], "bad request");
-        assert_eq!(line["error_message"], "bad request");
+        assert_eq!(
+            line.pointer("/api_details/response_body/error"),
+            Some(&json!("bad request"))
+        );
+        assert_eq!(line.pointer("/error_message"), Some(&json!("bad request")));
         // request_method comes from the real HTTP verb argument, not a hardcoded POST.
-        assert_eq!(md["request_method"], "PUT");
-        assert_eq!(md["request_type"], "INTERNAL");
+        assert_eq!(
+            line.pointer("/api_details/request_method"),
+            Some(&json!("PUT"))
+        );
+        assert_eq!(
+            line.pointer("/api_details/request_type"),
+            Some(&json!("INTERNAL"))
+        );
         // latency is one u64, identical in api_details and the flat field.
-        assert_eq!(md["latency"], 55);
-        assert_eq!(line["latency"], 55);
+        assert_eq!(line.pointer("/api_details/latency"), Some(&json!(55)));
+        assert_eq!(line.pointer("/latency"), Some(&json!(55)));
         // Identifiers pulled from the request body by the real `identifiers_from_request`.
-        assert_eq!(line["merchant_order_id"], "ord_1");
-        assert_eq!(line["customer_id"], "cust_1");
-        assert_eq!(line["merchant_transaction_id"], "txn_1");
-        assert_eq!(line["api_direction"], "INCOMING_API");
+        assert_eq!(line.pointer("/merchant_order_id"), Some(&json!("ord_1")));
+        assert_eq!(line.pointer("/customer_id"), Some(&json!("cust_1")));
+        assert_eq!(
+            line.pointer("/merchant_transaction_id"),
+            Some(&json!("txn_1"))
+        );
+        assert_eq!(line.pointer("/api_direction"), Some(&json!("INCOMING_API")));
     }
 
     #[test]
     fn api_details_is_nested_object_with_all_required_fields() {
         let line =
-            render_json_mode(|| emit_incoming_golden("ord_1785320050", "cust_42", "txn_9988"));
-        println!(
-            "\n=== rendered golden log line (JSON mode) ===\n{}\n",
-            serde_json::to_string_pretty(&line).unwrap()
-        );
+            render_json_mode(|| emit_incoming_golden("ord_1785320050", "cust_42", "txn_9988"))
+                .unwrap_or_default();
 
         // CORE FIX: api_details must be a real object, NOT a stringified blob.
-        let md = &line["api_details"];
         assert!(
-            md.is_object(),
-            "api_details must be a JSON object, got: {md}"
+            line.pointer("/api_details").is_some_and(Value::is_object),
+            "api_details must be a JSON object: {line}"
         );
         for k in [
             "request_method",
@@ -1430,33 +1446,54 @@ mod golden_log_json_tests {
             "status_code",
             "latency",
         ] {
-            assert!(md.get(k).is_some(), "api_details.{k} missing");
+            assert!(
+                line.pointer(&format!("/api_details/{k}")).is_some(),
+                "api_details.{k} missing"
+            );
         }
         // Deep keys the sessionizer digs for live inside request_body/response_body as real objects.
-        assert!(md["request_body"].is_object(), "request_body nested object");
-        assert_eq!(md["request_body"]["merchant_order_id"], "ord_1785320050");
-        assert_eq!(md["response_body"]["status"], "CHARGED");
+        assert!(
+            line.pointer("/api_details/request_body")
+                .is_some_and(Value::is_object),
+            "request_body nested object"
+        );
+        assert_eq!(
+            line.pointer("/api_details/request_body/merchant_order_id"),
+            Some(&json!("ord_1785320050"))
+        );
+        assert_eq!(
+            line.pointer("/api_details/response_body/status"),
+            Some(&json!("CHARGED"))
+        );
 
         // Required top-level identifiers (UCS-native names; Vector maps to euler's udf_*).
-        assert_eq!(line["api_direction"], "INCOMING_API");
-        assert_eq!(line["merchant_order_id"], "ord_1785320050");
-        assert_eq!(line["customer_id"], "cust_42");
-        assert_eq!(line["merchant_transaction_id"], "txn_9988");
-        // Static top-level fields (JSON-mode injected). `cluster` / `cell_id` are intentionally
-        // absent — injected by the log pipeline, not the app.
-        assert_eq!(line["schema_version"], "V2");
-        assert_eq!(line["env"], "sandbox");
+        assert_eq!(line.pointer("/api_direction"), Some(&json!("INCOMING_API")));
+        assert_eq!(
+            line.pointer("/merchant_order_id"),
+            Some(&json!("ord_1785320050"))
+        );
+        assert_eq!(line.pointer("/customer_id"), Some(&json!("cust_42")));
+        assert_eq!(
+            line.pointer("/merchant_transaction_id"),
+            Some(&json!("txn_9988"))
+        );
+        // App-injected static top-level field. `schema_version` / `env` / `cluster` / `cell_id` are
+        // intentionally absent — the euler LP / log pipeline set those, not the app.
+        assert_eq!(line.pointer("/service"), Some(&json!("connector-service")));
         // Golden lines are identified by the `message_` field (set on the handler span), which is
         // unaffected by how `api_details` is recorded.
-        assert_eq!(line["message_"], "Golden Log Line (incoming)");
+        assert_eq!(
+            line.pointer("/message_"),
+            Some(&json!("Golden Log Line (incoming)"))
+        );
         // The event message carries the response marker (the formatter prefixes it with the span).
+        let message = line
+            .pointer("/message")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
         assert!(
-            line["message"]
-                .as_str()
-                .unwrap()
-                .contains("Golden Log Line (incoming - response)"),
-            "unexpected message: {}",
-            line["message"]
+            message.contains("Golden Log Line (incoming - response)"),
+            "unexpected message: {message}"
         );
         assert!(line.get("timestamp").is_some() || line.get("time").is_some());
         assert!(line.get("level").is_some());
@@ -1465,21 +1502,22 @@ mod golden_log_json_tests {
     #[test]
     fn identifiers_sourced_from_request_body() {
         // euler sends order id as `merchant_order_id`, customer id as `customer.id`, and txn id as
-        // `merchant_transaction_id` in the BODY.
+        // `merchant_transaction_id` in the BODY. `from_masked` on a plain JSON literal is infallible
+        // in practice; `.ok()` keeps the test free of unwrap/expect (`None` would fail the asserts).
         let body = MaskedSerdeValue::from_masked(&json!({
             "merchant_order_id": "ord_1785320050",
             "merchant_transaction_id": "txn_abc",
             "customer": { "id": "cust_42", "name": "Jane" }
         }))
-        .unwrap();
-        let (order, customer, txn) = identifiers_from_request(&Some(body));
+        .ok();
+        let (order, customer, txn) = identifiers_from_request(&body);
         assert_eq!(order.as_deref(), Some("ord_1785320050"));
         assert_eq!(customer.as_deref(), Some("cust_42"));
         assert_eq!(txn.as_deref(), Some("txn_abc"));
 
         // Absent when the caller omits them (non-euler callers).
-        let empty = MaskedSerdeValue::from_masked(&json!({ "foo": "bar" })).unwrap();
-        assert_eq!(identifiers_from_request(&Some(empty)), (None, None, None));
+        let empty = MaskedSerdeValue::from_masked(&json!({ "foo": "bar" })).ok();
+        assert_eq!(identifiers_from_request(&empty), (None, None, None));
         assert_eq!(identifiers_from_request(&None), (None, None, None));
     }
 }

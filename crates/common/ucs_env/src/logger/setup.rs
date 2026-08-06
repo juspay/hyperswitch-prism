@@ -28,8 +28,6 @@ pub fn setup(
             "build_version".to_string(),
             serde_json::json!(crate::version!()),
         ),
-        // euler log-schema version; constant for now.
-        ("schema_version".to_string(), serde_json::json!("V2")),
     ]);
 
     let console_config = if config.console.enabled {
