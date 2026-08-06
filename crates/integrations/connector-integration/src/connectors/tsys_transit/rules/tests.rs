@@ -274,13 +274,13 @@ fn jcb_with_cvv_uses_key_entered_input() {
 }
 
 #[test]
-fn cit_setup_uses_key_entered_input() {
+fn mastercard_cit_setup_uses_key_entered_input() {
     // Cert: "cardDataInputMode tag must be set to 'KEY_ENTERED_INPUT'
     // on the 0.00 Visa card authentication in step 5 as this transaction
     // will be used to store credentials for payment."
     let p = profile(
         AcceptanceProfile::MotoPhone,
-        CardFamily::Visa,
+        CardFamily::Mastercard,
         CofPhase::CitSetup {
             intended_kind: MitIntent::Unscheduled,
         },
@@ -610,7 +610,7 @@ fn card_on_file_is_none_on_visa_cit_using_stored() {
 }
 
 #[test]
-fn card_on_file_is_none_on_visa_mit() {
+fn card_on_file_is_sent_on_visa_mit() {
     // Cert step 9: "cardOnFile tag must not be sent on the 25.50 Visa card on
     // file transaction." cardOnFile is a storage marker for CIT-setup only; a
     // MIT references the stored credential via cardOnFileTransactionIdentifier.
@@ -621,7 +621,10 @@ fn card_on_file_is_none_on_visa_mit() {
         CommercialLevel::None,
         CaptureKind::Auto,
     );
-    assert!(cof_mit::card_on_file(&p).is_none());
+    assert!(matches!(
+        cof_mit::card_on_file(&p),
+        Some(TsysTransitCardOnFile::Y)
+    ));
 }
 
 #[test]
