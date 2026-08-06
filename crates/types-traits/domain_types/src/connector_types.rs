@@ -764,6 +764,7 @@ pub struct PaymentFlowData {
     pub attempt_id: String,
     pub status: AttemptStatus,
     pub payment_method: PaymentMethod,
+    pub payment_method_type: Option<PaymentMethodType>,
     pub description: Option<String>,
     pub return_url: Option<String>,
     pub address: payment_address::PaymentAddress,
