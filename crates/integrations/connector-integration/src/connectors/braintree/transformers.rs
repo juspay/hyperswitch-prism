@@ -1330,6 +1330,7 @@ impl<F> TryFrom<ResponseRouterData<BraintreeRefundResponse, Self>>
                             connector_refund_id: refund_data.id.clone(),
                             refund_status,
                             status_code: item.http_code,
+                            acquirer_reference_number: None,
                         })
                     }
                 }
@@ -1532,6 +1533,7 @@ impl<F> TryFrom<ResponseRouterData<BraintreeRSyncResponse, Self>>
                     connector_refund_id: connector_refund_id.to_string(),
                     refund_status: enums::RefundStatus::from(edge_data.node.status.clone()),
                     status_code: item.http_code,
+                    acquirer_reference_number: None,
                 });
                 Ok(Self {
                     response,
@@ -1734,6 +1736,8 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                             .id
                             .expose()
                             .clone(),
+                        connector_payment_method_id: None,
+                        status_code: item.http_code,
                     })
                 }
             },

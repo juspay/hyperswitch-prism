@@ -131,6 +131,10 @@ pub fn create_router(state: AppState) -> Router {
             "/payments/server_authentication_token",
             post(handlers::payments::server_authentication_token),
         )
+        .route(
+            "/payments/client_authentication_token",
+            post(handlers::payments::client_authentication_token),
+        )
         .route("/payments/transform", post(handlers::payments::transform))
         .route(
             "/payments/verify_redirect_response",

@@ -274,13 +274,13 @@ fn jcb_with_cvv_uses_key_entered_input() {
 }
 
 #[test]
-fn cit_setup_uses_key_entered_input() {
+fn mastercard_cit_setup_uses_key_entered_input() {
     // Cert: "cardDataInputMode tag must be set to 'KEY_ENTERED_INPUT'
     // on the 0.00 Visa card authentication in step 5 as this transaction
     // will be used to store credentials for payment."
     let p = profile(
         AcceptanceProfile::MotoPhone,
-        CardFamily::Visa,
+        CardFamily::Mastercard,
         CofPhase::CitSetup {
             intended_kind: MitIntent::Unscheduled,
         },
@@ -610,6 +610,108 @@ fn card_on_file_is_none_on_visa_cit_using_stored() {
 }
 
 #[test]
+fn card_on_file_is_sent_on_visa_mit() {
+    // Cert step 9: "cardOnFile tag must not be sent on the 25.50 Visa card on
+    // file transaction." cardOnFile is a storage marker for CIT-setup only; a
+    // MIT references the stored credential via cardOnFileTransactionIdentifier.
+    let p = profile(
+        AcceptanceProfile::MotoPhone,
+        CardFamily::Visa,
+        CofPhase::Mit(MitKind::Unscheduled),
+        CommercialLevel::None,
+        CaptureKind::Auto,
+    );
+    assert!(matches!(
+        cof_mit::card_on_file(&p),
+        Some(TsysTransitCardOnFile::Y)
+    ));
+}
+
+#[test]
+fn card_family_recognises_16_digit_diners_from_pan() {
+    // The cert Diners test card 3055155515160018 is a modern 16-digit Diners
+    // (TSYS routes it via Discover). The shared get_card_issuer only matches
+    // 14-digit Diners, so the connector's PAN fallback must still classify it
+    // as Diners for the Discover-family recurring/installment tags to fire.
+    assert!(matches!(
+        CardFamily::from_card_number("3055155515160018"),
+        CardFamily::Diners
+    ));
+    // JCB (35xx) is not wrongly caught as Diners.
+    assert!(matches!(
+        CardFamily::from_card_number("3530142019945859"),
+        CardFamily::Jcb
+    ));
+}
+
+#[test]
+fn card_on_file_and_nti_on_discover_family_recurring_installment_mit() {
+    // Cert rows 147/155 (JCB recurring) and 165/172 (Diners installment): the
+    // Discover-family recurring/installment MIT sends cardOnFile=Y AND
+    // cardOnFileTransactionIdentifier.
+    for family in [
+        CardFamily::Jcb,
+        CardFamily::Diners,
+        CardFamily::Discover,
+        CardFamily::UnionPay,
+    ] {
+        for kind in [MitKind::Recurring, MitKind::Installment] {
+            let p = profile(
+                AcceptanceProfile::RecurringMit,
+                family,
+                CofPhase::Mit(kind),
+                CommercialLevel::None,
+                CaptureKind::Auto,
+            );
+            assert!(
+                matches!(cof_mit::card_on_file(&p), Some(TsysTransitCardOnFile::Y)),
+                "cardOnFile=Y expected for {family:?} {kind:?}"
+            );
+            assert!(
+                cof_mit::should_send_card_on_file_transaction_identifier(&p),
+                "NTI expected for {family:?} {kind:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn card_on_file_and_nti_none_on_mastercard_recurring_installment_mit() {
+    // Cert rows 162/169 (MasterCard installment): MasterCard signals the stored
+    // credential via mitStatusIndicator=M10x, NOT cardOnFile / NTI.
+    for kind in [MitKind::Recurring, MitKind::Installment] {
+        let p = profile(
+            AcceptanceProfile::RecurringMit,
+            CardFamily::Mastercard,
+            CofPhase::Mit(kind),
+            CommercialLevel::None,
+            CaptureKind::Auto,
+        );
+        assert!(cof_mit::card_on_file(&p).is_none());
+        assert!(!cof_mit::should_send_card_on_file_transaction_identifier(
+            &p
+        ));
+    }
+}
+
+#[test]
+fn card_on_file_none_on_discover_family_unscheduled_mit() {
+    // Discover-family *unscheduled* MIT uses mitStatusIndicator=U (MOTO_V2),
+    // not cardOnFile / NTI — only recurring/installment carry those.
+    let p = profile(
+        AcceptanceProfile::MotoPhone,
+        CardFamily::Jcb,
+        CofPhase::Mit(MitKind::Unscheduled),
+        CommercialLevel::None,
+        CaptureKind::Auto,
+    );
+    assert!(cof_mit::card_on_file(&p).is_none());
+    assert!(!cof_mit::should_send_card_on_file_transaction_identifier(
+        &p
+    ));
+}
+
+#[test]
 fn cit_status_indicator_c101_on_mastercard_cit_using_stored() {
     // Cert: "mitStatusIndicator tag must not be sent on the 29.75
     // Mastercard transaction in step 5 as this test case is a Card on
@@ -791,6 +893,28 @@ fn recurring_mit_card_data_source_follows_channel_not_recurring() {
     assert!(!matches!(
         resolved.card_data_source,
         TsysTransitCardDataSource::Recurring
+    ));
+}
+
+#[test]
+fn card_family_falls_back_to_bin_when_network_absent() {
+    // A MIT card fetched from the locker (CardDetailsForNetworkTransactionId)
+    // can arrive without a network. cardOnFile / cardOnFileTransactionIdentifier
+    // are gated on CardFamily::Visa, so the family must be recovered from the
+    // PAN when the network is absent.
+    use common_enums::CardNetwork;
+    assert!(matches!(
+        CardFamily::from_card_number("4012000098765439"),
+        CardFamily::Visa
+    ));
+    assert!(matches!(
+        CardFamily::from_network_or_number(None, "4012000098765439"),
+        CardFamily::Visa
+    ));
+    // An explicit network still wins over BIN detection.
+    assert!(matches!(
+        CardFamily::from_network_or_number(Some(&CardNetwork::Mastercard), "4012000098765439"),
+        CardFamily::Mastercard
     ));
 }
 

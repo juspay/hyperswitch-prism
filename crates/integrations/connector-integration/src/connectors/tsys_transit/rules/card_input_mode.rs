@@ -40,18 +40,23 @@ pub fn card_data_input_mode(
         return ManuallyEnteredWithKeyedCidAmexJcb;
     }
 
-    // 2. CIT-setup that stores credentials.
+    // 2. CIT-setup that stores credentials for future use of Visa card
+    if profile.cof_phase.is_cit_setup() && profile.card_family.is_visa() {
+        return MerchantInitiatedTransactionCardCredentialStoredOnFile;
+    }
+
+    // 3. CIT-setup that stores credentials.
     if profile.cof_phase.is_cit_setup() {
         return KeyEnteredInput;
     }
 
-    // 3. MIT (any kind) OR CIT-using-stored — both replay a stored
+    // 4. MIT (any kind) OR CIT-using-stored — both replay a stored
     //    credential, so both carry the STORED_ON_FILE input mode (cert MOTO
     //    25.50 Visa / 29.75 MC CIT-using-stored rows use this too).
     if profile.cof_phase.is_mit() || profile.cof_phase.is_cit_using_stored() {
         return MerchantInitiatedTransactionCardCredentialStoredOnFile;
     }
 
-    // 4. Acceptance-profile default.
+    // 5. Acceptance-profile default.
     terminal_data.default_card_data_input_mode.clone()
 }

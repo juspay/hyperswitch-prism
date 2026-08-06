@@ -26,6 +26,9 @@ enum CardNetwork {
   PULSE = 13;
   ACCEL = 14;
   NYCE = 15;
+  PROP = 16;
+  PRIVATE_LABEL = 17;
+  DINACARD = 18;
 }
 
 // Paysafecard - Prepaid payment method

@@ -1376,6 +1376,7 @@ impl TryFrom<ResponseRouterData<TrustpaymentsRSyncResponse, Self>>
             connector_refund_id: record.transactionreference.clone(),
             refund_status,
             status_code: item.http_code,
+            acquirer_reference_number: None,
         };
 
         Ok(Self {
@@ -1417,6 +1418,7 @@ impl TryFrom<ResponseRouterData<TrustpaymentsRefundResponse, Self>>
             connector_refund_id,
             refund_status,
             status_code: item.http_code,
+            acquirer_reference_number: None,
         };
 
         Ok(Self {
