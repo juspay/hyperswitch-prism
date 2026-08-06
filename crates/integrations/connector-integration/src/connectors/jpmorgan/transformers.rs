@@ -834,6 +834,7 @@ impl TryFrom<&responses::JpmorganRefundResponse> for RefundsResponseData {
             connector_refund_id: item.transaction_id.clone(),
             refund_status,
             status_code: item.response_code.parse::<u16>().unwrap_or(0),
+            acquirer_reference_number: None,
         })
     }
 }

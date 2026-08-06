@@ -762,6 +762,7 @@ impl<F> TryFrom<ResponseRouterData<FlywireRefundResponse, Self>>
                 connector_refund_id: response.refund_id.clone(),
                 refund_status: response.status.to_refund_status(),
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             resource_common_data: RefundFlowData {
                 raw_connector_response: raw_response,
@@ -793,6 +794,7 @@ impl<F> TryFrom<ResponseRouterData<FlywireRefundResponse, Self>>
                 connector_refund_id: response.refund_id.clone(),
                 refund_status: response.status.to_refund_status(),
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             resource_common_data: RefundFlowData {
                 raw_connector_response: raw_response,
@@ -824,6 +826,7 @@ impl<F> TryFrom<ResponseRouterData<FlywirePayment, Self>>
                 connector_refund_id: response.payment_id.clone(),
                 refund_status: response.status.to_refund_status(),
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             resource_common_data: RefundFlowData {
                 raw_connector_response: raw_response,
@@ -1035,7 +1038,8 @@ impl TryFrom<&FlywireWebhookBody> for WebhookDetailsResponse {
             error_message: None,
             error_reason: None,
             status_code: 200,
-            connector_response_reference_id: data.external_reference,
+            connector_response_reference_id: data.external_reference.clone(),
+            connector_request_reference_id: data.external_reference,
             mandate_reference: None,
             raw_connector_response: None,
             response_headers: None,

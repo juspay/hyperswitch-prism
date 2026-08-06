@@ -269,7 +269,10 @@ fn get_barclaycard_card_type(card_network: common_enums::CardNetwork) -> Option<
         | common_enums::CardNetwork::Star
         | common_enums::CardNetwork::Accel
         | common_enums::CardNetwork::Pulse
-        | common_enums::CardNetwork::Nyce => None,
+        | common_enums::CardNetwork::Nyce
+        | common_enums::CardNetwork::Prop
+        | common_enums::CardNetwork::PrivateLabel
+        | common_enums::CardNetwork::Dinacard => None,
     }
 }
 
@@ -1228,6 +1231,7 @@ impl TryFrom<ResponseRouterData<responses::BarclaycardRefundResponse, Self>>
                 connector_refund_id: item.response.id,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             })
         };
 
@@ -1289,6 +1293,7 @@ impl TryFrom<ResponseRouterData<responses::BarclaycardRsyncResponse, Self>>
                         connector_refund_id: item.response.id,
                         refund_status,
                         status_code: item.http_code,
+                        acquirer_reference_number: None,
                     })
                 }
             }
@@ -1299,6 +1304,7 @@ impl TryFrom<ResponseRouterData<responses::BarclaycardRsyncResponse, Self>>
                     Err(_) => common_enums::RefundStatus::Pending,
                 },
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
         };
 

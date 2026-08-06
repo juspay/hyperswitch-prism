@@ -133,6 +133,9 @@ pub fn apply_url_overrides(
                         connector_types::ConnectorVariant::Surcharge(c) => {
                             config.connectors.patch_surcharge_connector_urls(c, &urls)
                         }
+                        connector_types::ConnectorVariant::Authenticator(c) => config
+                            .connectors
+                            .patch_authenticator_connector_urls(c, &urls),
                     };
                     let patched_connectors = patch_result.map_err(|e| {
                         Report::new(IntegrationError::ConfigurationError {
@@ -400,7 +403,7 @@ pub fn log_after_initialization<T>(
         Err(status) => {
             // Map the gRPC status to the HTTP status the caller actually receives (the HTTP server
             // transcodes tonic errors), so `status_code` matches euler's `resp_code` for HTTP.
-            let http_status = crate::http::error::http_status_for_grpc_code(status.code()).as_u16();
+            let http_status = crate::http::error::grpc_code_to_http_status(status.code()).as_u16();
             current_span.record("error_message", status.message());
             current_span.record("status_code", http_status);
             (

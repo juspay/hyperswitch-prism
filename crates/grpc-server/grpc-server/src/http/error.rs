@@ -187,13 +187,25 @@ fn extract_error_details_from_status(status: &tonic::Status) -> Option<ErrorDeta
     None
 }
 
-// Convert tonic::Status to HTTP error
-/// Maps a gRPC status code to the HTTP status the client receives over the HTTP server.
-///
-/// Shared by `From<tonic::Status> for HttpError` (the actual response) and the golden log line's
-/// `status_code`, so the logged code matches what the caller (e.g. euler over HTTP) actually gets
-/// instead of the raw gRPC code.
-pub fn http_status_for_grpc_code(code: tonic::Code) -> StatusCode {
+/// Extract the connector's exact HTTP error status when the decoded details identify a
+/// connector-originated 4xx/5xx response.
+fn connector_http_status_from_error_details(details: Option<&ErrorDetails>) -> Option<StatusCode> {
+    match details {
+        Some(ErrorDetails::ConnectorError {
+            error_code,
+            http_status_code: Some(http_status_code),
+            ..
+        }) if error_code == "CONNECTOR_ERROR_RESPONSE" => u16::try_from(*http_status_code)
+            .ok()
+            .and_then(|status_code| StatusCode::from_u16(status_code).ok())
+            .filter(|status_code| status_code.is_client_error() || status_code.is_server_error()),
+        _ => None,
+    }
+}
+
+/// Canonical gRPC-to-HTTP status fallback. Also used by the golden log line's `status_code` so the
+/// logged code matches what the caller (e.g. euler over HTTP) receives instead of the raw gRPC code.
+pub fn grpc_code_to_http_status(code: tonic::Code) -> StatusCode {
     match code {
         tonic::Code::Ok => StatusCode::OK,
         tonic::Code::Cancelled => StatusCode::REQUEST_TIMEOUT,
@@ -217,17 +229,104 @@ pub fn http_status_for_grpc_code(code: tonic::Code) -> StatusCode {
 
 impl From<tonic::Status> for HttpError {
     fn from(status: tonic::Status) -> Self {
-        let http_status = http_status_for_grpc_code(status.code());
+        let details = extract_error_details_from_status(&status);
+
+        // Preserve the exact connector HTTP status when available; otherwise use the
+        // canonical gRPC-to-HTTP fallback.
+        let http_status = match connector_http_status_from_error_details(details.as_ref()) {
+            Some(connector_status) => connector_status,
+            None => grpc_code_to_http_status(status.code()),
+        };
 
         let message = status.message().to_string();
-
-        // Extract SDK error details from Status
-        let details = extract_error_details_from_status(&status);
 
         Self {
             status: http_status,
             message,
             details,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn status_with_connector_error(
+        grpc_code: tonic::Code,
+        error_code: &str,
+        http_status_code: Option<u32>,
+    ) -> tonic::Status {
+        let connector_error = grpc_api_types::payments::ConnectorError {
+            error_message: "connector error".to_string(),
+            error_code: error_code.to_string(),
+            http_status_code,
+            error_info: None,
+        };
+        let encoded = connector_error.encode_to_vec();
+
+        tonic::Status::with_details(grpc_code, "connector error", encoded.into())
+    }
+
+    #[test]
+    fn connector_http_status_takes_precedence_over_grpc_mapping() {
+        let cases = [
+            (tonic::Code::Unknown, 409),
+            (tonic::Code::Unknown, 422),
+            (tonic::Code::DeadlineExceeded, 408),
+            (tonic::Code::Unavailable, 502),
+            (tonic::Code::Unknown, 599),
+        ];
+
+        for (grpc_code, connector_http_status) in cases {
+            let status = status_with_connector_error(
+                grpc_code,
+                "CONNECTOR_ERROR_RESPONSE",
+                Some(connector_http_status.into()),
+            );
+
+            let http_error = HttpError::from(status);
+
+            assert_eq!(
+                http_error.status.as_u16(),
+                connector_http_status,
+                "connector HTTP status should be preserved for {grpc_code:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn non_connector_response_errors_use_grpc_fallback() {
+        let status = status_with_connector_error(
+            tonic::Code::Internal,
+            "RESPONSE_HANDLING_FAILED",
+            Some(422),
+        );
+
+        let http_error = HttpError::from(status);
+
+        assert_eq!(http_error.status, StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    #[test]
+    fn invalid_connector_http_status_uses_grpc_fallback() {
+        for connector_http_status in [200, 600] {
+            let status = status_with_connector_error(
+                tonic::Code::Unknown,
+                "CONNECTOR_ERROR_RESPONSE",
+                Some(connector_http_status),
+            );
+
+            let http_error = HttpError::from(status);
+
+            assert_eq!(http_error.status, StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    #[test]
+    fn missing_details_use_grpc_fallback() {
+        let http_error = HttpError::from(tonic::Status::invalid_argument("invalid request"));
+
+        assert_eq!(http_error.status, StatusCode::BAD_REQUEST);
     }
 }
