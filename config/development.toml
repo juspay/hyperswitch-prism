@@ -245,10 +245,18 @@ keys = ["x-request-id","x-merchant-id","x-lineage-ids","x-reference-id","x-conne
 [connector_response_masking]
 enabled = true
 
+# Whether to ALSO write the masked view to our own logs (`response.unmasked_body`).
+# `enabled` above already returns it to the caller; this is the extra copy we retain,
+# so it stays off outside development.
+log_to_span = true
+
 # Per-connector unmask lists, comma-separated and case-insensitive.
 # A connector with no entry gets every value masked (keys still visible).
 # Full PAN, CVV, expiry and credentials stay masked regardless of what is listed here.
 # Truncated values (cardSummary, last4, cardBin) are not covered — name them if needed.
+#
+# Names are validated against every connector enum — payment, surcharge, payout, FRM
+# and authenticator — so interpayments, deutschebank and plaid are valid keys here.
 #
 # Only one entry is seeded, as a worked example for testing. Add a line per
 # connector as you need its fields visible; an unknown connector name here will

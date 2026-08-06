@@ -12,7 +12,10 @@ use serde_json::Value;
 
 use common_utils::config_patch::Patch;
 
-use crate::connector_types::ConnectorEnum;
+use crate::connector_types::{
+    AuthenticatorConnectorEnum, ConnectorEnum, FrmConnectorEnum, PayoutConnectorEnum,
+    SurchargeConnectorEnum,
+};
 
 /// Replacement written in place of a masked value.
 pub const MASKED: &str = "***";
@@ -26,59 +29,67 @@ pub struct ConnectorResponseMaskingConfig {
     /// Whether to populate `unmasked_connector_response` at all.
     pub enabled: bool,
 
-    /// Connector -> comma-separated list of keys whose values stay visible.
+    /// Whether to *also* record the masked view on the outgoing span. Separate from
+    /// [`Self::enabled`] so the caller can be sent the field without a copy being retained in our
+    /// own logs, keeping a mistaken allowlist entry contained to whoever configured it.
+    pub log_to_span: bool,
+
+    /// Connector name -> comma-separated list of keys whose values stay visible.
     ///
     /// Comma-separated rather than a list because that is the only shape settable per connector
-    /// from the environment.
-    #[serde(
-        deserialize_with = "deserialize_connector_keys",
-        serialize_with = "serialize_connector_keys"
-    )]
-    pub connector_keys: HashMap<ConnectorEnum, String>,
+    /// from the environment. Keyed by name rather than a typed enum — see [`is_known_connector`].
+    #[serde(deserialize_with = "deserialize_connector_keys")]
+    pub connector_keys: HashMap<Box<str>, String>,
 }
 
-/// Parse map keys via `FromStr`, not the serde derive: strum's `snake_case` applies to `FromStr`
-/// only, and the config crate lowercases env-var keys. Same route as `WebhookSourceVerificationCall`.
+/// Whether any connector enum recognises this snake_case name.
+///
+/// Ingress resolves a connector per flow family — `x-connector` against [`ConnectorEnum`],
+/// `x-payout-connector` against [`PayoutConnectorEnum`], and so on
+/// (`ucs_interface_common::metadata::connector_variant_from_metadata`). No single enum spans all
+/// five, so validating against one would reject real connectors: `interpayments`, `deutschebank`
+/// and `plaid` have no [`ConnectorEnum`] counterpart.
+fn is_known_connector(name: &str) -> bool {
+    use std::str::FromStr;
+
+    ConnectorEnum::from_str(name).is_ok()
+        || SurchargeConnectorEnum::from_str(name).is_ok()
+        || PayoutConnectorEnum::from_str(name).is_ok()
+        || FrmConnectorEnum::from_str(name).is_ok()
+        || AuthenticatorConnectorEnum::from_str(name).is_ok()
+}
+
+/// Validate map keys via `FromStr`, not the serde derive: strum's `snake_case` applies to
+/// `FromStr` only, and the config crate lowercases env-var keys. Same route as
+/// `WebhookSourceVerificationCall`.
 fn deserialize_connector_keys<'de, D>(
     deserializer: D,
-) -> Result<HashMap<ConnectorEnum, String>, D::Error>
+) -> Result<HashMap<Box<str>, String>, D::Error>
 where
     D: serde::Deserializer<'de>,
 {
     use serde::de::Error;
-    use std::str::FromStr;
 
     HashMap::<String, String>::deserialize(deserializer)?
         .into_iter()
         .map(|(name, keys)| {
-            ConnectorEnum::from_str(&name.to_lowercase())
-                .map(|connector| (connector, keys))
-                .map_err(|_| D::Error::custom(format!("unknown connector `{name}`")))
+            let normalized = name.to_lowercase();
+            if is_known_connector(&normalized) {
+                Ok((normalized.into_boxed_str(), keys))
+            } else {
+                Err(D::Error::custom(format!("unknown connector `{name}`")))
+            }
         })
         .collect()
 }
 
-/// Mirror of [`deserialize_connector_keys`] — emit the snake_case name, not the variant name.
-fn serialize_connector_keys<S>(
-    connector_keys: &HashMap<ConnectorEnum, String>,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    connector_keys
-        .iter()
-        .map(|(connector, keys)| (connector.to_string(), keys))
-        .collect::<HashMap<_, _>>()
-        .serialize(serializer)
-}
-
 impl ConnectorResponseMaskingConfig {
-    /// Keys whose values stay visible for `connector`. Built per request rather than cached, so a
-    /// runtime config patch can never leave a stale set behind. No entry yields an empty set.
-    pub fn keys_for(&self, connector: &ConnectorEnum) -> HashSet<Box<str>> {
+    /// Keys whose values stay visible for `connector_name`. Built per request rather than cached,
+    /// so a runtime config patch can never leave a stale set behind. No entry yields an empty set,
+    /// as does an unrecognised name — masking every value is right either way.
+    pub fn keys_for(&self, connector_name: &str) -> HashSet<Box<str>> {
         self.connector_keys
-            .get(connector)
+            .get(connector_name)
             .map(|keys| {
                 keys.split(',')
                     .map(str::trim)
@@ -96,14 +107,16 @@ impl ConnectorResponseMaskingConfig {
 pub struct ConnectorResponseMaskingConfigPatch {
     /// See [`ConnectorResponseMaskingConfig::enabled`].
     pub enabled: Option<bool>,
+    /// See [`ConnectorResponseMaskingConfig::log_to_span`].
+    pub log_to_span: Option<bool>,
     /// See [`ConnectorResponseMaskingConfig::connector_keys`].
     #[serde(default, deserialize_with = "deserialize_optional_connector_keys")]
-    pub connector_keys: Option<HashMap<ConnectorEnum, String>>,
+    pub connector_keys: Option<HashMap<Box<str>, String>>,
 }
 
 fn deserialize_optional_connector_keys<'de, D>(
     deserializer: D,
-) -> Result<Option<HashMap<ConnectorEnum, String>>, D::Error>
+) -> Result<Option<HashMap<Box<str>, String>>, D::Error>
 where
     D: serde::Deserializer<'de>,
 {
@@ -114,6 +127,9 @@ impl Patch<ConnectorResponseMaskingConfigPatch> for ConnectorResponseMaskingConf
     fn apply(&mut self, patch: ConnectorResponseMaskingConfigPatch) {
         if let Some(enabled) = patch.enabled {
             self.enabled = enabled;
+        }
+        if let Some(log_to_span) = patch.log_to_span {
+            self.log_to_span = log_to_span;
         }
         if let Some(connector_keys) = patch.connector_keys {
             self.connector_keys = connector_keys;
@@ -386,14 +402,14 @@ fn detect(content_type: Option<&str>, body: &[u8]) -> Option<Format> {
     }
 }
 
-/// Mask `body` for `connector` and re-emit it in the same format.
+/// Mask `body` for `connector_name` and re-emit it in the same format.
 ///
 /// Returns `None` when masking is disabled or the body is empty. A body that cannot be parsed
 /// yields a labelled stub carrying only its size — never its content.
 pub fn mask_connector_response(
     body: &[u8],
     content_type: Option<&str>,
-    connector: &ConnectorEnum,
+    connector_name: &str,
     config: &ConnectorResponseMaskingConfig,
 ) -> Option<String> {
     if !config.enabled || body.is_empty() {
@@ -404,9 +420,9 @@ pub fn mask_connector_response(
     // rejects. The connector strips it in `preprocess_response_bytes`, but that runs inside
     // `handle_response_v2` — after this point. Must precede `detect`: a BOM makes the first
     // meaningful byte `0xEF`, so sniffing would misroute before reaching the `{`.
-    let body = body.strip_prefix(&[0xEF, 0xBB, 0xBF]).unwrap_or(body);
+    let body = common_utils::bytes_utils::strip_utf8_bom(body);
 
-    let keys = config.keys_for(connector);
+    let keys = config.keys_for(connector_name);
 
     let masked = match detect(content_type, body) {
         Some(Format::Json) => mask_json(body, &keys),

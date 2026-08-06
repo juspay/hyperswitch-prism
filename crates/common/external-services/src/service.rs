@@ -331,6 +331,10 @@ fn flow_status_label(flow_status: &domain_types::router_data::FlowStatus) -> Str
 ///
 /// Reads the untouched response bytes, so this works whether or not `raw_connector_response`
 /// is being captured — the safe view can be on in production with raw capture off.
+///
+/// `connector_name` is a lookup key, not something to re-parse: it came from
+/// `ConnectorVariant::get_connector_name()`, and ingress already validated it against whichever
+/// connector enum matches the flow family.
 fn record_unmasked_connector_response<ResourceCommonData>(
     resource_common_data: &mut ResourceCommonData,
     body: &Response,
@@ -339,15 +343,6 @@ fn record_unmasked_connector_response<ResourceCommonData>(
 ) where
     ResourceCommonData: RawConnectorRequestResponse,
 {
-    use std::str::FromStr;
-
-    // `connector_name` came from `ConnectorEnum::get_connector_name()`, and the enum derives
-    // `EnumString` with snake_case, so this always round-trips.
-    let Ok(connector) = domain_types::connector_types::ConnectorEnum::from_str(connector_name)
-    else {
-        return;
-    };
-
     // By name: this HeaderMap is reqwest 0.11 (http 0.2), not the http 1.x in scope.
     let content_type = body
         .headers
@@ -358,12 +353,17 @@ fn record_unmasked_connector_response<ResourceCommonData>(
     let masked = domain_types::connector_response_masking::mask_connector_response(
         &body.response,
         content_type,
-        &connector,
+        connector_name,
         config,
     );
 
-    if let Some(masked) = masked.as_deref() {
-        tracing::Span::current().record("response.unmasked_body", tracing::field::display(masked));
+    // Gated separately from populating the field: the caller always gets the masked view back,
+    // but a copy only lands in our own logs where that is explicitly enabled.
+    if config.log_to_span {
+        if let Some(masked) = masked.as_deref() {
+            tracing::Span::current()
+                .record("response.unmasked_body", tracing::field::display(masked));
+        }
     }
 
     resource_common_data.set_unmasked_connector_response(masked);
@@ -1686,14 +1686,8 @@ async fn handle_response(
 
 /// Helper function to remove BOM from response bytes and convert to string
 fn strip_bom_and_convert_to_string(response_bytes: &[u8]) -> Option<String> {
-    String::from_utf8(response_bytes.to_vec()).ok().map(|s| {
-        // Remove BOM if present (UTF-8 BOM is 0xEF, 0xBB, 0xBF)
-        if s.starts_with('\u{FEFF}') {
-            s.trim_start_matches('\u{FEFF}').to_string()
-        } else {
-            s
-        }
-    })
+    let stripped = common_utils::bytes_utils::strip_utf8_bom(response_bytes);
+    String::from_utf8(stripped.to_vec()).ok()
 }
 
 #[cfg(feature = "injector-client")]

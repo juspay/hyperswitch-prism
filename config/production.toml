@@ -186,6 +186,11 @@ connectors_with_webhook_source_verification_call = "paypal, truelayer"
 [connector_response_masking]
 enabled = true
 
+# Whether to ALSO write the masked view to our own logs (`response.unmasked_body`).
+# `enabled` above already returns it to the caller; this is the extra copy we retain,
+# so a mistaken allowlist entry stays contained to whoever configured it.
+log_to_span = false
+
 # Per-connector unmask lists, comma-separated and case-insensitive.
 # A connector with no entry gets every value masked (keys still visible).
 # Full PAN, CVV, expiry and credentials stay masked regardless of what is listed here.
