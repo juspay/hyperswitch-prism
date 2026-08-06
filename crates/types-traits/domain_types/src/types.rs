@@ -2642,9 +2642,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::Netbanking => {
                 Ok(PaymentMethodType::Netbanking)
             }
-            grpc_api_types::payments::PaymentMethodType::Paymaya => {
-                Ok(PaymentMethodType::Paymaya)
-            }
+            grpc_api_types::payments::PaymentMethodType::Paymaya => Ok(PaymentMethodType::Paymaya),
             grpc_api_types::payments::PaymentMethodType::Ideal => Ok(PaymentMethodType::Ideal),
             grpc_api_types::payments::PaymentMethodType::Blik => Ok(PaymentMethodType::Blik),
             grpc_api_types::payments::PaymentMethodType::Atome => Ok(PaymentMethodType::Atome),
