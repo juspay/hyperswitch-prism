@@ -319,7 +319,10 @@ pub fn build_eligibility_response(
             serde_json::Value::String(match_status.code().to_string()),
         );
         if let Some(info) = vop_body.additional_info.clone() {
-            metadata.insert("additional_info".to_string(), serde_json::Value::String(info));
+            metadata.insert(
+                "additional_info".to_string(),
+                serde_json::Value::String(info),
+            );
         }
         serde_json::Value::Object(metadata)
     });

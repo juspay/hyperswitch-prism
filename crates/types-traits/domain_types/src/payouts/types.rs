@@ -2265,19 +2265,21 @@ pub fn generate_payout_eligibility_response(
             // A connector-declared refusal (e.g. Deutsche Bank VoP NMTC/NOAP) is a
             // successful call with a negative verdict, so the reason travels in
             // `error` alongside the terminal status rather than as a transport error.
-            let error = response.error_code.clone().map(|code| {
-                grpc_api_types::payouts::ErrorInfo {
-                    unified_details: None,
-                    connector_details: Some(grpc_api_types::payouts::ConnectorErrorDetails {
-                        code: Some(code),
-                        message: response.error_message.clone(),
-                        reason: response.error_message.clone(),
-                        connector_transaction_id: response.connector_payout_id.clone(),
-                        status: None,
-                    }),
-                    issuer_details: None,
-                }
-            });
+            let error =
+                response
+                    .error_code
+                    .clone()
+                    .map(|code| grpc_api_types::payouts::ErrorInfo {
+                        unified_details: None,
+                        connector_details: Some(grpc_api_types::payouts::ConnectorErrorDetails {
+                            code: Some(code),
+                            message: response.error_message.clone(),
+                            reason: response.error_message.clone(),
+                            connector_transaction_id: response.connector_payout_id.clone(),
+                            status: None,
+                        }),
+                        issuer_details: None,
+                    });
 
             let connector_metadata = response
                 .connector_metadata
