@@ -223,7 +223,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 payload.transaction_id.clone(),
             )),
             status,
-            connector_response_reference_id: Some(payload.merchant_transaction_id),
+            connector_response_reference_id: Some(payload.merchant_transaction_id.clone()),
+            connector_request_reference_id: Some(payload.merchant_transaction_id),
             mandate_reference: None,
             error_code,
             error_message,
@@ -906,6 +907,7 @@ macros::macro_connector_flow_status_impls!(
         PostAuthenticate,
         ServerSessionAuthenticationToken,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         ClientAuthenticationToken,
     ],
 );

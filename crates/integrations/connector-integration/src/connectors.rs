@@ -44,6 +44,9 @@ pub use self::cashtocode::Cashtocode;
 pub mod novalnet;
 pub use self::novalnet::Novalnet;
 
+pub mod netcetera;
+pub use self::netcetera::Netcetera;
+
 pub mod nexinets;
 pub use self::nexinets::Nexinets;
 
@@ -265,6 +268,9 @@ pub use self::twoc_twop_paco::TwocTwopPaco;
 pub mod juspay;
 pub use self::juspay::Juspay;
 
+pub mod glomopay;
+pub use self::glomopay::Glomopay;
+
 pub mod payconex;
 pub use self::payconex::Payconex;
 pub mod tamara;
@@ -275,5 +281,15 @@ pub use self::hyperswitch::Hyperswitch;
 pub mod qwikcilver;
 pub use self::qwikcilver::Qwikcilver;
 
+pub mod flywire;
+pub use self::flywire::Flywire;
+pub mod affirm;
+pub use self::affirm::Affirm;
+
 pub mod kount;
 pub use self::kount::Kount;
+
+pub mod givepayments;
+pub use self::givepayments::Givepayments;
+pub mod tesouro;
+pub use self::tesouro::Tesouro;

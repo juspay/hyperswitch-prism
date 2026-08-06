@@ -7,10 +7,10 @@ use common_utils::{
 use domain_types::{
     connector_flow::{Authorize, Capture, RepeatPayment, SetupMandate, Void},
     connector_types::{
-        MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
-        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        ResponseId, SetupMandateRequestData,
+        MandateReference, MandateReferenceId, PartnerMerchantIdentifierDetails, PaymentFlowData,
+        PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
+        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{
@@ -25,7 +25,7 @@ use domain_types::{
     utils,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, ExposeOptionInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serde_with::skip_serializing_none;
@@ -298,6 +298,7 @@ pub struct PaymentsRequest<
     pub return_url: ReturnUrl,
     pub capture: bool,
     pub reference: String,
+    #[serde(skip_serializing_if = "is_metadata_empty")]
     pub metadata: Option<Secret<serde_json::Value>>,
     pub payment_type: CheckoutPaymentType,
     pub merchant_initiated: Option<bool>,
@@ -392,24 +393,32 @@ fn split_account_holder_name(
     }
 }
 
-fn build_metadata<
-    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
->(
-    item: &CheckoutRouterData<
-        RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-        T,
-    >,
+fn build_metadata(
+    metadata: Option<Secret<serde_json::Value>>,
+    partner_merchant_identifier_details: Option<&PartnerMerchantIdentifierDetails>,
 ) -> Option<Secret<serde_json::Value>> {
-    // get metadata or create empty json object
-    let metadata_json = item
-        .router_data
-        .request
-        .metadata
-        .clone()
-        .expose_option()
-        .unwrap_or_else(|| json!({}));
+    let udf5 = partner_merchant_identifier_details
+        .and_then(|details| details.partner_details.as_ref())
+        .and_then(|details| details.name.clone().or_else(|| details.integrator.clone()));
 
-    Some(Secret::new(metadata_json))
+    match (metadata, udf5) {
+        (None, None) => None,
+        (metadata, udf5) => {
+            let mut metadata_json = metadata
+                .map(ExposeInterface::expose)
+                .unwrap_or_else(|| json!({}));
+
+            if let Some(value) = udf5 {
+                if let Some(obj) = metadata_json.as_object_mut() {
+                    obj.insert("udf5".to_string(), json!(value));
+                } else {
+                    metadata_json = json!({ "udf5": value });
+                }
+            }
+
+            Some(Secret::new(metadata_json))
+        }
+    }
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -709,7 +718,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let connector_auth = &item.router_data.connector_config;
         let auth_type: CheckoutAuthType = connector_auth.try_into()?;
         let processing_channel_id = auth_type.processing_channel_id;
-        let metadata = build_metadata(&item);
+        let metadata = build_metadata(
+            item.router_data.request.metadata.clone(),
+            item.router_data
+                .request
+                .partner_merchant_identifier_details
+                .as_ref(),
+        );
 
         let (customer, processing, shipping, items) = if let Some(l2l3_data) =
             &item.router_data.resource_common_data.l2_l3_data
@@ -930,7 +945,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         };
                         Ok((
                             payment_source,
-                            Some(network_transaction_id.clone()),
+                            Some(network_transaction_id.network_transaction_id.clone()),
                             Some(true),
                             p_type,
                             None,
@@ -980,7 +995,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
                         Ok((
                             payment_source,
-                            Some(network_transaction_id.clone()),
+                            Some(network_transaction_id.network_transaction_id.clone()),
                             Some(true),
                             p_type,
                             None,
@@ -1027,7 +1042,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let auth_type: CheckoutAuthType = connector_auth.try_into()?;
         let processing_channel_id = auth_type.processing_channel_id;
 
-        let metadata = item.router_data.request.metadata.clone();
+        let metadata = build_metadata(
+            item.router_data.request.metadata.clone(),
+            item.router_data
+                .request
+                .partner_merchant_identifier_details
+                .as_ref(),
+        );
 
         let (customer, processing, shipping, items) = if let Some(l2l3_data) =
             &item.router_data.resource_common_data.l2_l3_data
@@ -1316,6 +1337,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let auth_type: CheckoutAuthType = connector_auth.try_into()?;
         let processing_channel_id = auth_type.processing_channel_id;
 
+        let metadata = build_metadata(
+            item.router_data.request.metadata.clone(),
+            item.router_data
+                .request
+                .partner_merchant_identifier_details
+                .as_ref(),
+        );
+
         let (customer, processing, shipping, items) = if let Some(l2l3_data) =
             &item.router_data.resource_common_data.l2_l3_data
         {
@@ -1402,7 +1431,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .resource_common_data
                 .connector_request_reference_id
                 .clone(),
-            metadata: None,
+            metadata,
             payment_type,
             merchant_initiated,
             previous_payment_id,
@@ -1667,6 +1696,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     connector_mandate_id: Some(id),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: Some(item.response.id.clone()),
+                    mandate_metadata: None,
                 })
         } else {
             None
@@ -1787,6 +1817,7 @@ impl<
                         connector_mandate_id: Some(id),
                         payment_method_id: None,
                         connector_mandate_request_reference_id: Some(item.response.id.clone()),
+                        mandate_metadata: None,
                     });
 
                 let additional_information =
@@ -1910,6 +1941,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 connector_mandate_id: Some(id),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: Some(item.response.id.clone()),
+                mandate_metadata: None,
             });
 
         let payments_response_data = PaymentsResponseData::TransactionResponse {
@@ -2008,6 +2040,7 @@ impl<F> TryFrom<ResponseRouterData<PaymentsResponse, Self>>
                     connector_mandate_id: Some(id),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: Some(item.response.id.clone()),
+                    mandate_metadata: None,
                 })
         } else {
             None
@@ -2309,6 +2342,7 @@ impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
                 connector_refund_id: item.response.action_id.clone(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -2438,6 +2472,7 @@ impl<F> TryFrom<ResponseRouterData<RSyncResponse, Self>>
                 connector_refund_id: action_response.action_id.clone(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -2483,4 +2518,18 @@ fn convert_to_additional_payment_method_connector_response(
             auth_code: None,
         }
     })
+}
+
+fn is_metadata_empty(val: &Option<Secret<serde_json::Value>>) -> bool {
+    match val {
+        None => true,
+        Some(secret) => {
+            let inner = secret.clone().expose();
+            match inner {
+                serde_json::Value::Null => true,
+                serde_json::Value::Object(map) => map.is_empty(),
+                _ => false,
+            }
+        }
+    }
 }

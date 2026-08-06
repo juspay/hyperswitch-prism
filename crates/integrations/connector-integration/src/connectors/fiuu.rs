@@ -5,6 +5,7 @@ use std::{any::type_name, borrow::Cow, collections::HashMap, fmt::Debug};
 use bytes::Bytes;
 use common_enums::CurrencyUnit;
 use common_utils::{
+    consts,
     crypto::{self, GenerateDigest, VerifySignature},
     errors::CustomResult,
     events,
@@ -303,28 +304,52 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         event_builder: Option<&mut events::Event>,
         _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        let response: fiuu::FiuuErrorResponse = res
-            .response
-            .parse_struct("fiuu::FiuuErrorResponse")
-            .change_context(
-                crate::utils::response_deserialization_fail(
-                    res.status_code,
-                "fiuu: response body did not match the expected format; confirm API version and connector documentation."),
-            )?;
+        if res.response.is_empty() {
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: consts::NO_ERROR_CODE.to_string(),
+                message: consts::NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+            });
+        }
 
-        with_error_response_body!(event_builder, response);
+        let response: Result<
+            fiuu::FiuuErrorResponse,
+            error_stack::Report<common_utils::errors::ParsingError>,
+        > = res.response.parse_struct("FiuuErrorResponse");
 
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.error_code.clone(),
-            message: response.error_desc.clone(),
-            reason: Some(response.error_desc.clone()),
-            attempt_status: None,
-            connector_transaction_id: None,
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
-        })
+        match response {
+            Ok(response) => {
+                with_error_response_body!(event_builder, response);
+
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: response.error_code.clone(),
+                    message: response.error_desc.clone(),
+                    reason: Some(response.error_desc.clone()),
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                })
+            }
+            Err(error_msg) => {
+                if let Some(event) = event_builder {
+                    event.set_connector_response(&serde_json::json!({
+                        "error": "Error response parsing failed",
+                        "status_code": res.status_code
+                    }));
+                }
+                error!(deserialization_error =? error_msg);
+                crate::utils::handle_json_response_deserialization_failure(res, "fiuu")
+            }
+        }
     }
 }
 
@@ -811,6 +836,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
+        if request.body.is_empty() {
+            return Ok(EventType::EndpointVerification);
+        }
         let header = request
             .headers
             .get("content-type")
@@ -983,7 +1011,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 ),
             ),
             status,
-            connector_response_reference_id: Some(webhook_payment.order_id),
+            connector_response_reference_id: Some(webhook_payment.order_id.clone()),
+            connector_request_reference_id: Some(webhook_payment.order_id),
             error_code: error_code.clone(),
             error_message: error_message.clone(),
             raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
@@ -1001,6 +1030,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                 connector_mandate_id: Some(token.expose()),
                                 payment_method_id: None,
                                 connector_mandate_request_reference_id: None,
+                                mandate_metadata: None,
                             })
                         })
                 }),
@@ -1156,6 +1186,7 @@ macros::macro_connector_flow_status_impls!(
         ServerSessionAuthenticationToken,
         ServerAuthenticationToken,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         MandateRevoke,
         PaymentMethodToken,
         PreAuthenticate,

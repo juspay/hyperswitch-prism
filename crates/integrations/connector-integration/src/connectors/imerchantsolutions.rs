@@ -239,7 +239,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 webhook_body.psp_reference,
             )),
             status,
-            connector_response_reference_id: Some(webhook_body.payment_id),
+            connector_response_reference_id: Some(webhook_body.payment_id.clone()),
+            connector_request_reference_id: Some(webhook_body.payment_id),
             mandate_reference: None,
             error_code,
             error_message,
@@ -277,6 +278,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         Ok(RefundWebhookDetailsResponse {
             connector_refund_id: Some(webhook_body.psp_reference.clone()),
+            merchant_transaction_id: None,
             status,
             connector_response_reference_id: Some(webhook_body.psp_reference),
             error_code,
@@ -729,6 +731,7 @@ macros::macro_connector_flow_status_impls!(
         Accept,
         ServerSessionAuthenticationToken,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         PreAuthenticate,
         Authenticate,
         PostAuthenticate,

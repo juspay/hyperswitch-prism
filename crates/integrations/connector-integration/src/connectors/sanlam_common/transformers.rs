@@ -88,7 +88,7 @@ pub struct AbsaSanlamPaymentsRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub statement_descriptor: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub batch_user_reference: Option<String>,
+    pub metadata: Option<SecretSerdeValue>,
 }
 
 #[derive(Debug, Serialize)]
@@ -270,6 +270,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
             | PaymentMethodData::Upi(_)
+            | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
@@ -286,14 +287,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         }?;
 
-        let batch_user_reference = item
-            .router_data
-            .request
-            .metadata
-            .map(AbsaSanlamMetaData::try_from)
-            .transpose()?
-            .and_then(|m| m.batch_user_reference);
-
         Ok(Self {
             amount: item.router_data.request.minor_amount,
             currency: item.router_data.request.currency,
@@ -302,7 +295,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .router_data
                 .resource_common_data
                 .connector_request_reference_id,
-            batch_user_reference,
+            metadata: item.router_data.request.metadata,
             statement_descriptor: item
                 .router_data
                 .request
@@ -523,7 +516,10 @@ impl TryFrom<AbsaSanlamWebhookEvent> for WebhookDetailsResponse {
                         error_code: payment_event.error.as_ref().and_then(|e| e.code.clone()),
                         error_message: payment_event.error.as_ref().and_then(|e| e.message.clone()),
                         error_reason: payment_event.error.as_ref().and_then(|e| e.reason.clone()),
-                        connector_response_reference_id: Some(payment_event.payment.user_reference),
+                        connector_response_reference_id: Some(
+                            payment_event.payment.user_reference.clone(),
+                        ),
+                        connector_request_reference_id: Some(payment_event.payment.user_reference),
                         mandate_reference: None,
                         network_txn_id: None,
                         raw_connector_response: None,
@@ -542,7 +538,10 @@ impl TryFrom<AbsaSanlamWebhookEvent> for WebhookDetailsResponse {
                         )),
                         mandate_reference: None,
                         network_txn_id: None,
-                        connector_response_reference_id: Some(payment_event.payment.user_reference),
+                        connector_response_reference_id: Some(
+                            payment_event.payment.user_reference.clone(),
+                        ),
+                        connector_request_reference_id: Some(payment_event.payment.user_reference),
                         raw_connector_response: None,
                         response_headers: None,
                         amount_captured: None,

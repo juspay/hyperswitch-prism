@@ -474,7 +474,7 @@ where
                         "Cancel Redeem reads the original Redeem's `TransactionId` from \
                          `connector_transaction_id`; expected a numeric `i64`, got \
                          `{}`.",
-                        &req.connector_transaction_id
+                        req.connector_transaction_id
                     ),
                     "Pass the `connector_transaction_id` from the original Redeem response \
                      verbatim (it's just the Pine Labs txn id as a numeric string).",
@@ -547,6 +547,7 @@ impl TryFrom<ResponseRouterData<QwikcilverCancelRedeemResponse, Self>>
                 connector_refund_id: body.transaction_id.to_string(),
                 refund_status: CANCEL_REDEEM_SUCCESS_STATUS,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             _ => Err(error_response_from_qc(
                 (&body).into(),

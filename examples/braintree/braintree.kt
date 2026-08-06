@@ -11,12 +11,14 @@ import types.Payment.*
 import types.PaymentMethods.*
 import payments.PaymentClient
 import payments.MerchantAuthenticationClient
+import payments.EventClient
 import payments.PaymentMethodClient
 import payments.AcceptanceType
 import payments.AuthenticationType
 import payments.CardNetwork
 import payments.Currency
 import payments.FutureUsage
+import payments.HttpMethod
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
@@ -24,7 +26,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.BraintreeConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("capture", "create_client_authentication_token", "get", "proxy_setup_recurring", "refund", "reverse", "setup_recurring", "tokenize", "void")
+val SUPPORTED_FLOWS = listOf<String>("capture", "create_client_authentication_token", "get", "parse_event", "proxy_setup_recurring", "refund", "reverse", "setup_recurring", "tokenize", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -116,7 +118,7 @@ fun createClientAuthenticationToken(txnId: String, config: ConnectorConfig = _de
     val client = MerchantAuthenticationClient(config)
     val request = MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest.newBuilder().apply {
         merchantClientSessionId = "probe_sdk_session_001"  // Infrastructure.
-        paymentBuilder.apply {  // FrmClientAuthenticationContext frm = 5; // future: device fingerprinting PayoutClientAuthenticationContext payout = 6; // future: payout verification widget.
+        paymentBuilder.apply {
             amountBuilder.apply {
                 minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
                 currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
@@ -133,6 +135,37 @@ fun get(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val request = buildGetRequest("probe_connector_txn_001")
     val response = client.get(request)
     println("Status: ${response.status.name}")
+}
+
+// Flow: EventService.HandleEvent
+fun handleEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = EventClient(config)
+    val request = EventServiceHandleRequest.newBuilder().apply {
+        merchantEventId = "probe_event_001"  // Caller-supplied correlation key, echoed in the response. Not used by UCS for processing.
+        requestDetailsBuilder.apply {
+            method = HttpMethod.HTTP_METHOD_POST  // HTTP method of the request (e.g., GET, POST).
+            uri = "https://example.com/webhook"  // URI of the request.
+            putAllHeaders(mapOf())  // Headers of the HTTP request.
+            body = com.google.protobuf.ByteString.copyFromUtf8("bt_signature=dummy_public_key%7Cdummy_signature&bt_payload=PG5vdGlmaWNhdGlvbj48a2luZD5kaXNwdXRlX29wZW5lZDwva2luZD48dGltZXN0YW1wPjIwMjQtMDEtMDFUMDA6MDA6MDBaPC90aW1lc3RhbXA%2BPGRpc3B1dGU%2BPGFtb3VudF9kaXNwdXRlZD4xMDAwPC9hbW91bnRfZGlzcHV0ZWQ%2BPGN1cnJlbmN5X2lzb19jb2RlPlVTRDwvY3VycmVuY3lfaXNvX2NvZGU%2BPGlkPmR1bW15X2Rpc3B1dGVfaWRfMDAxPC9pZD48a2luZD5DSEFSR0VCQUNLPC9raW5kPjxzdGF0dXM%2Bb3Blbjwvc3RhdHVzPjxyZWFzb24%2BZnJhdWQ8L3JlYXNvbj48cmVhc29uX2NvZGU%2BODM8L3JlYXNvbl9jb2RlPjx0cmFuc2FjdGlvbj48YW1vdW50PjEwLjAwPC9hbW91bnQ%2BPGlkPmR1bW15X3R4bl9pZF8wMDE8L2lkPjwvdHJhbnNhY3Rpb24%2BPC9kaXNwdXRlPjwvbm90aWZpY2F0aW9uPg%3D%3D")  // Body of the HTTP request.
+        }
+    }.build()
+    val response = client.handle_event(request)
+    println("Webhook: type=${response.eventType.name} verified=${response.sourceVerified}")
+}
+
+// Flow: EventService.ParseEvent
+fun parseEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = EventClient(config)
+    val request = EventServiceParseRequest.newBuilder().apply {
+        requestDetailsBuilder.apply {
+            method = HttpMethod.HTTP_METHOD_POST  // HTTP method of the request (e.g., GET, POST).
+            uri = "https://example.com/webhook"  // URI of the request.
+            putAllHeaders(mapOf())  // Headers of the HTTP request.
+            body = com.google.protobuf.ByteString.copyFromUtf8("bt_signature=dummy_public_key%7Cdummy_signature&bt_payload=PG5vdGlmaWNhdGlvbj48a2luZD5kaXNwdXRlX29wZW5lZDwva2luZD48dGltZXN0YW1wPjIwMjQtMDEtMDFUMDA6MDA6MDBaPC90aW1lc3RhbXA%2BPGRpc3B1dGU%2BPGFtb3VudF9kaXNwdXRlZD4xMDAwPC9hbW91bnRfZGlzcHV0ZWQ%2BPGN1cnJlbmN5X2lzb19jb2RlPlVTRDwvY3VycmVuY3lfaXNvX2NvZGU%2BPGlkPmR1bW15X2Rpc3B1dGVfaWRfMDAxPC9pZD48a2luZD5DSEFSR0VCQUNLPC9raW5kPjxzdGF0dXM%2Bb3Blbjwvc3RhdHVzPjxyZWFzb24%2BZnJhdWQ8L3JlYXNvbj48cmVhc29uX2NvZGU%2BODM8L3JlYXNvbl9jb2RlPjx0cmFuc2FjdGlvbj48YW1vdW50PjEwLjAwPC9hbW91bnQ%2BPGlkPmR1bW15X3R4bl9pZF8wMDE8L2lkPjwvdHJhbnNhY3Rpb24%2BPC9kaXNwdXRlPjwvbm90aWZpY2F0aW9uPg%3D%3D")  // Body of the HTTP request.
+        }
+    }.build()
+    val response = client.parse_event(request)
+    println("Webhook parsed: type=${response.eventType.name}")
 }
 
 // Flow: PaymentService.ProxySetupRecurring
@@ -268,12 +301,14 @@ fun main(args: Array<String>) {
         "capture" -> capture(txnId)
         "createClientAuthenticationToken" -> createClientAuthenticationToken(txnId)
         "get" -> get(txnId)
+        "handleEvent" -> handleEvent(txnId)
+        "parseEvent" -> parseEvent(txnId)
         "proxySetupRecurring" -> proxySetupRecurring(txnId)
         "refund" -> refund(txnId)
         "reverse" -> reverse(txnId)
         "setupRecurring" -> setupRecurring(txnId)
         "tokenize" -> tokenize(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: capture, createClientAuthenticationToken, get, proxySetupRecurring, refund, reverse, setupRecurring, tokenize, void")
+        else -> System.err.println("Unknown flow: $flow. Available: capture, createClientAuthenticationToken, get, handleEvent, parseEvent, proxySetupRecurring, refund, reverse, setupRecurring, tokenize, void")
     }
 }

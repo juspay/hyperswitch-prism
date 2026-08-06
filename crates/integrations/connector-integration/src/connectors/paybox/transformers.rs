@@ -975,6 +975,7 @@ impl TryFrom<ResponseRouterData<PayboxRefundResponse, Self>>
                     connector_refund_id: item.response.paybox_order_id.clone(),
                     refund_status: RefundStatus::Success,
                     status_code: item.http_code,
+                    acquirer_reference_number: None,
                 }),
                 resource_common_data: RefundFlowData {
                     status: RefundStatus::Success,
@@ -1091,6 +1092,7 @@ impl TryFrom<ResponseRouterData<PayboxRSyncResponse, Self>>
                 connector_refund_id: item.response.paybox_order_id.clone(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,
@@ -1294,6 +1296,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PayboxSetupMandateRes
                     .customer_id
                     .as_ref()
                     .map(|id| id.peek().to_string()),
+                mandate_metadata: None,
             }));
 
             Ok(Self {
@@ -1550,6 +1553,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PayboxRepeatPaymentRe
                                 .customer_id
                                 .as_ref()
                                 .map(|id| id.peek().to_string()),
+                            mandate_metadata: None,
                         })
                     });
 

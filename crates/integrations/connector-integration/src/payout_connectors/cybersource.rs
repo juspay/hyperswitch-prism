@@ -12,16 +12,22 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        PayoutCreate, PayoutCreateLink, PayoutCreateRecipient, PayoutEnrollDisburseAccount,
-        PayoutGet, PayoutStage, PayoutTransfer, PayoutVoid,
+        PayoutCreate, PayoutCreateLink, PayoutCreateRecipient, PayoutEligibility,
+        PayoutEnrollDisburseAccount, PayoutGet, PayoutStage, PayoutTransfer, PayoutVoid,
+        ServerAuthenticationToken,
     },
-    errors::{ConnectorError, IntegrationError},
+    connector_types::{
+        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+    },
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payouts::payouts_types::{
         PayoutCreateLinkRequest, PayoutCreateLinkResponse, PayoutCreateRecipientRequest,
         PayoutCreateRecipientResponse, PayoutCreateRequest, PayoutCreateResponse,
-        PayoutEnrollDisburseAccountRequest, PayoutEnrollDisburseAccountResponse, PayoutFlowData,
-        PayoutGetRequest, PayoutGetResponse, PayoutStageRequest, PayoutStageResponse,
-        PayoutTransferRequest, PayoutTransferResponse, PayoutVoidRequest, PayoutVoidResponse,
+        PayoutEligibilityRequest, PayoutEligibilityResponse, PayoutEnrollDisburseAccountRequest,
+        PayoutEnrollDisburseAccountResponse, PayoutFlowData, PayoutGetRequest, PayoutGetResponse,
+        PayoutStageRequest, PayoutStageResponse, PayoutTransferRequest, PayoutTransferResponse,
+        PayoutVoidRequest, PayoutVoidResponse,
     },
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -34,8 +40,9 @@ use interfaces::{
     api::ConnectorCommon,
     connector_integration_v2::ConnectorIntegrationV2,
     connector_types::{
-        PayoutCreateLinkV2, PayoutCreateRecipientV2, PayoutCreateV2, PayoutEnrollDisburseAccountV2,
-        PayoutGetV2, PayoutServiceTrait, PayoutStageV2, PayoutTransferV2, PayoutVoidV2,
+        PayoutCreateLinkV2, PayoutCreateRecipientV2, PayoutCreateV2, PayoutEligibilityV2,
+        PayoutEnrollDisburseAccountV2, PayoutGetV2, PayoutServiceTrait, PayoutStageV2,
+        PayoutTransferV2, PayoutVoidV2, ServerAuthentication,
     },
 };
 use ring::{digest, hmac};
@@ -365,6 +372,36 @@ fn build_5xx_error_response(
     })
 }
 
+// ===== SERVER AUTHENTICATION (not implemented) =====
+
+impl ServerAuthentication for CybersourcePayouts {}
+
+impl
+    ConnectorIntegrationV2<
+        ServerAuthenticationToken,
+        MerchantAuthenticationFlowData,
+        ServerAuthenticationTokenRequestData,
+        ServerAuthenticationTokenResponseData,
+    > for CybersourcePayouts
+{
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            ServerAuthenticationToken,
+            MerchantAuthenticationFlowData,
+            ServerAuthenticationTokenRequestData,
+            ServerAuthenticationTokenResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(IntegrationError::connector_flow_not_implemented(
+            ConnectorCommon::id(self),
+            "server_authentication_token",
+            IntegrationErrorContext::default(),
+        )
+        .into())
+    }
+}
+
 impl PayoutServiceTrait for CybersourcePayouts {}
 
 // ===== PAYOUT TRANSFER (REAL) =====
@@ -652,6 +689,34 @@ impl
         Err(IntegrationError::connector_flow_not_implemented(
             self.id(),
             "payout_enroll_disburse_account",
+            Default::default(),
+        )
+        .into())
+    }
+}
+
+impl PayoutEligibilityV2 for CybersourcePayouts {}
+
+impl
+    ConnectorIntegrationV2<
+        PayoutEligibility,
+        PayoutFlowData,
+        PayoutEligibilityRequest,
+        PayoutEligibilityResponse,
+    > for CybersourcePayouts
+{
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            PayoutEligibility,
+            PayoutFlowData,
+            PayoutEligibilityRequest,
+            PayoutEligibilityResponse,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(IntegrationError::connector_flow_not_implemented(
+            self.id(),
+            "payout_eligibility",
             Default::default(),
         )
         .into())

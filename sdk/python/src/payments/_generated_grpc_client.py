@@ -115,6 +115,13 @@ class GrpcCustomerClient:
             "customer/customer_create",
             req, payment_pb2.CustomerServiceCreateResponse,
         )
+    def customer_get(self, req: payment_pb2.CustomerServiceGetRequest) -> payment_pb2.CustomerServiceGetResponse:
+        """CustomerService.Get — Retrieves customer details from the payment processor. Callers typically use this before Create to implement get-or-create semantics for connectors that reject duplicates (e.g. Glomopay)."""
+        return _call_grpc(
+            self._ffi, self._config,
+            "customer/customer_get",
+            req, payment_pb2.CustomerServiceGetResponse,
+        )
 
 class GrpcDisputeClient:
     """DisputeService — gRPC sub-client."""
@@ -288,6 +295,13 @@ class GrpcPaymentMethodClient:
             self._ffi, self._config,
             "payment_method/payment_method_get",
             req, payment_pb2.PaymentMethodServiceGetResponse,
+        )
+    def refresh(self, req: payment_pb2.PaymentMethodServiceRefreshRequest) -> payment_pb2.PaymentMethodServiceRefreshResponse:
+        """PaymentMethodService.Refresh — Refresh a payment method the caller already holds in full. The request carries the instrument itself, not a reference to it: use Refresh when you own the complete payment method details and the provider exposes an endpoint that evaluates them."""
+        return _call_grpc(
+            self._ffi, self._config,
+            "payment_method/refresh",
+            req, payment_pb2.PaymentMethodServiceRefreshResponse,
         )
     def recharge(self, req: payment_pb2.PaymentMethodServiceRechargeRequest) -> payment_pb2.PaymentMethodServiceRechargeResponse:
         """PaymentMethodService.Recharge — Recharge a payment method (wallet, gift card, prepaid card) with funds."""
@@ -474,7 +488,7 @@ class GrpcPayoutClient:
             req, payment_pb2.PayoutServiceEnrollDisburseAccountResponse,
         )
     def payout_eligibility(self, req: payment_pb2.PayoutMethodEligibilityRequest) -> payment_pb2.PayoutMethodEligibilityResponse:
-        """PayoutService.Eligibility — Check if the payout method is eligible for the transaction"""
+        """PayoutService.Eligibility — Check eligibility of a payout before initiating it (e.g. SEPA VoP / payee verification)."""
         return _call_grpc(
             self._ffi, self._config,
             "payout/payout_eligibility",

@@ -119,6 +119,7 @@ let config = ConnectorConfig {
 
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
+| [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
 | [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
 | [PaymentService.CreateOrder](#paymentservicecreateorder) | Payments | `PaymentServiceCreateOrderRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
@@ -126,6 +127,134 @@ let config = ConnectorConfig {
 | [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
 
 ### Payments
+
+#### PaymentService.Authorize
+
+Authorize a payment amount on a payment method. This reserves funds without capturing them, essential for verifying availability before finalizing.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceAuthorizeRequest` |
+| **Response** | `PaymentServiceAuthorizeResponse` |
+
+**Supported payment method types:**
+
+| Payment Method | Supported |
+|----------------|:---------:|
+| Card | ⚠ |
+| Bancontact | ⚠ |
+| Apple Pay | ⚠ |
+| Apple Pay Dec | ⚠ |
+| Apple Pay SDK | ⚠ |
+| Google Pay | ⚠ |
+| Google Pay Dec | ⚠ |
+| Google Pay SDK | ⚠ |
+| PayPal SDK | ⚠ |
+| Amazon Pay | ⚠ |
+| Cash App | ⚠ |
+| PayPal | ⚠ |
+| WeChat Pay | ⚠ |
+| Alipay | ⚠ |
+| Revolut Pay | ⚠ |
+| MiFinity | ⚠ |
+| Bluecode | ⚠ |
+| Paze | x |
+| Samsung Pay | ⚠ |
+| MB Way | ⚠ |
+| Satispay | ⚠ |
+| Wero | ⚠ |
+| GoPay | ⚠ |
+| GCash | ⚠ |
+| Momo | ⚠ |
+| Dana | ⚠ |
+| Kakao Pay | ⚠ |
+| Touch 'n Go | ⚠ |
+| Twint | ⚠ |
+| Vipps | ⚠ |
+| Swish | ⚠ |
+| Affirm | ⚠ |
+| Afterpay | ⚠ |
+| Klarna | ⚠ |
+| UPI Collect | ✓ |
+| UPI Intent | ✓ |
+| UPI QR | ✓ |
+| Thailand | ⚠ |
+| Czech | ⚠ |
+| Finland | ⚠ |
+| FPX | ⚠ |
+| Poland | ⚠ |
+| Slovakia | ⚠ |
+| UK | ⚠ |
+| PIS | x |
+| Generic | ⚠ |
+| Local | ⚠ |
+| iDEAL | ⚠ |
+| Sofort | ⚠ |
+| Trustly | ⚠ |
+| Giropay | ⚠ |
+| EPS | ⚠ |
+| Przelewy24 | ⚠ |
+| PSE | ⚠ |
+| BLIK | ⚠ |
+| Interac | ⚠ |
+| Bizum | ⚠ |
+| EFT | ⚠ |
+| DuitNow | x |
+| ACH | ⚠ |
+| SEPA | ⚠ |
+| BACS | ⚠ |
+| Multibanco | ⚠ |
+| Instant | ⚠ |
+| Instant FI | ⚠ |
+| Instant PL | ⚠ |
+| Pix | ⚠ |
+| Permata | ⚠ |
+| BCA | ⚠ |
+| BNI VA | ⚠ |
+| BRI VA | ⚠ |
+| CIMB VA | ⚠ |
+| Danamon VA | ⚠ |
+| Mandiri VA | ⚠ |
+| Local | ⚠ |
+| Indonesian | ⚠ |
+| ACH | ⚠ |
+| SEPA | ⚠ |
+| BACS | ⚠ |
+| BECS | ⚠ |
+| SEPA Guaranteed | ⚠ |
+| Crypto | x |
+| Reward | ⚠ |
+| Givex | x |
+| PaySafeCard | ⚠ |
+| E-Voucher | ⚠ |
+| Boleto | ⚠ |
+| Efecty | ⚠ |
+| Pago Efectivo | ⚠ |
+| Red Compra | ⚠ |
+| Red Pagos | ⚠ |
+| Alfamart | ⚠ |
+| Indomaret | ⚠ |
+| Oxxo | ⚠ |
+| 7-Eleven | ⚠ |
+| Lawson | ⚠ |
+| Mini Stop | ⚠ |
+| Family Mart | ⚠ |
+| Seicomart | ⚠ |
+| Pay Easy | ⚠ |
+
+**Payment method objects** — use these in the `payment_method` field of the Authorize request.
+
+##### UPI Collect
+
+```python
+"payment_method": {
+  "upi_collect": {
+    "vpa_id": "test@upi"
+  }
+}
+```
+
+**Examples:** [Python](../../examples/easebuzz/easebuzz.py) · [TypeScript](../../examples/easebuzz/easebuzz.ts#L106) · [Kotlin](../../examples/easebuzz/easebuzz.kt#L101) · [Rust](../../examples/easebuzz/easebuzz.rs)
 
 #### PaymentService.Capture
 
@@ -136,7 +265,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/easebuzz/easebuzz.py) · [TypeScript](../../examples/easebuzz/easebuzz.ts#L83) · [Kotlin](../../examples/easebuzz/easebuzz.kt#L76) · [Rust](../../examples/easebuzz/easebuzz.rs)
+**Examples:** [Python](../../examples/easebuzz/easebuzz.py) · [TypeScript](../../examples/easebuzz/easebuzz.ts#L115) · [Kotlin](../../examples/easebuzz/easebuzz.kt#L113) · [Rust](../../examples/easebuzz/easebuzz.rs)
 
 #### PaymentService.CreateOrder
 
@@ -147,7 +276,7 @@ Create a payment order for later processing. Establishes a transaction context t
 | **Request** | `PaymentServiceCreateOrderRequest` |
 | **Response** | `PaymentServiceCreateOrderResponse` |
 
-**Examples:** [Python](../../examples/easebuzz/easebuzz.py) · [TypeScript](../../examples/easebuzz/easebuzz.ts#L92) · [Kotlin](../../examples/easebuzz/easebuzz.kt#L86) · [Rust](../../examples/easebuzz/easebuzz.rs)
+**Examples:** [Python](../../examples/easebuzz/easebuzz.py) · [TypeScript](../../examples/easebuzz/easebuzz.ts#L124) · [Kotlin](../../examples/easebuzz/easebuzz.kt#L123) · [Rust](../../examples/easebuzz/easebuzz.rs)
 
 #### PaymentService.Get
 
@@ -158,7 +287,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/easebuzz/easebuzz.py) · [TypeScript](../../examples/easebuzz/easebuzz.ts#L101) · [Kotlin](../../examples/easebuzz/easebuzz.kt#L100) · [Rust](../../examples/easebuzz/easebuzz.rs)
+**Examples:** [Python](../../examples/easebuzz/easebuzz.py) · [TypeScript](../../examples/easebuzz/easebuzz.ts#L133) · [Kotlin](../../examples/easebuzz/easebuzz.kt#L137) · [Rust](../../examples/easebuzz/easebuzz.rs)
 
 #### PaymentService.Refund
 
@@ -169,7 +298,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/easebuzz/easebuzz.py) · [TypeScript](../../examples/easebuzz/easebuzz.ts#L110) · [Kotlin](../../examples/easebuzz/easebuzz.kt#L108) · [Rust](../../examples/easebuzz/easebuzz.rs)
+**Examples:** [Python](../../examples/easebuzz/easebuzz.py) · [TypeScript](../../examples/easebuzz/easebuzz.ts#L142) · [Kotlin](../../examples/easebuzz/easebuzz.kt#L145) · [Rust](../../examples/easebuzz/easebuzz.rs)
 
 ### Refunds
 
@@ -182,4 +311,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/easebuzz/easebuzz.py) · [TypeScript](../../examples/easebuzz/easebuzz.ts#L119) · [Kotlin](../../examples/easebuzz/easebuzz.kt#L118) · [Rust](../../examples/easebuzz/easebuzz.rs)
+**Examples:** [Python](../../examples/easebuzz/easebuzz.py) · [TypeScript](../../examples/easebuzz/easebuzz.ts#L151) · [Kotlin](../../examples/easebuzz/easebuzz.kt#L155) · [Rust](../../examples/easebuzz/easebuzz.rs)

@@ -425,6 +425,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::MobilePayment(_) => Err(error_stack::report!(
                 errors::IntegrationError::NotSupported {
                     message: utils::get_unimplemented_payment_method_error_message("Trustly"),
@@ -684,6 +685,7 @@ impl TryFrom<ResponseRouterData<TrustlyRefundResponse, Self>>
                     connector_refund_id: response.result.data.orderid,
                     refund_status: common_enums::RefundStatus::from(response.result.data.result),
                     status_code: item.http_code,
+                    acquirer_reference_number: None,
                 }),
                 ..item.router_data
             }),
@@ -830,25 +832,40 @@ pub fn verify_webhook_signature(
         .change_context(errors::WebhookError::WebhookSourceVerificationFailed)
 }
 
-pub fn get_webhook_event(event: TrustlyWebhookMethod) -> domain_types::connector_types::EventType {
-    match event {
-        TrustlyWebhookMethod::Credit => {
+pub fn get_webhook_event(
+    event: TrustlyWebhookMethod,
+    message_id: String,
+) -> domain_types::connector_types::EventType {
+    match (event, !message_id.as_str().starts_with("payout_")) {
+        (TrustlyWebhookMethod::Credit, true) => {
             domain_types::connector_types::EventType::PaymentIntentSuccess
         }
-        TrustlyWebhookMethod::Debit => {
+        (TrustlyWebhookMethod::Credit, false) => {
+            domain_types::connector_types::EventType::PayoutReversed
+        }
+        (TrustlyWebhookMethod::Debit, _) => {
             domain_types::connector_types::EventType::PaymentIntentFailure
         }
-        TrustlyWebhookMethod::Cancel => {
+        (TrustlyWebhookMethod::Cancel, true) => {
             domain_types::connector_types::EventType::PaymentIntentCancelled
         }
-        TrustlyWebhookMethod::Account | TrustlyWebhookMethod::Pending => {
+        (TrustlyWebhookMethod::Cancel, false) => {
+            domain_types::connector_types::EventType::PayoutCancelled
+        }
+        (TrustlyWebhookMethod::Account, _) | (TrustlyWebhookMethod::Pending, _) => {
             domain_types::connector_types::EventType::PaymentIntentProcessing
         }
-        TrustlyWebhookMethod::PayoutConfirmation => {
+        (TrustlyWebhookMethod::PayoutConfirmation, true) => {
             domain_types::connector_types::EventType::RefundSuccess
         }
-        TrustlyWebhookMethod::PayoutFailed => {
+        (TrustlyWebhookMethod::PayoutFailed, true) => {
             domain_types::connector_types::EventType::RefundFailure
+        }
+        (TrustlyWebhookMethod::PayoutConfirmation, false) => {
+            domain_types::connector_types::EventType::PayoutSuccess
+        }
+        (TrustlyWebhookMethod::PayoutFailed, false) => {
+            domain_types::connector_types::EventType::PayoutFailure
         }
     }
 }

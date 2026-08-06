@@ -35,6 +35,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ".types.FlowStatus.status",
         "#[serde(rename_all = \"snake_case\")]",
     );
+    config.type_attribute(
+        ".types.PaymentMethodServiceRefreshRequest.payment_method",
+        "#[serde(rename_all = \"snake_case\")]",
+    );
+    config.type_attribute(
+        ".types.RefreshResult.result",
+        "#[serde(rename_all = \"snake_case\")]",
+    );
+
+    // PaysafePaymentMethodDetails carries several optional per-currency account
+    // maps (card, ach, apple_pay, interac, skrill, pay_safe_card). The
+    // x-connector-config header only supplies the subset a merchant has
+    // provisioned, so any omitted map must default to empty. Without this,
+    // serde treats a missing (non-optional proto map) field as a hard error,
+    // which would break backward compatibility when new account maps are added.
+    // A partial config cannot silently send an empty account id: a missing map
+    // resolves to `None` and an explicit `""` is rejected as empty by
+    // `PaysafePaymentMethodDetails::get_account_id` (domain_types/router_data.rs).
+    config.type_attribute(".types.PaysafePaymentMethodDetails", "#[serde(default)]");
 
     // Use compile_protos_with_config which handles everything internally
     // including string enum support, serde derives, and descriptor set writing

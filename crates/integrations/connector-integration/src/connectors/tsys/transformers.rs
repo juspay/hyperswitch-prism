@@ -974,6 +974,7 @@ impl TryFrom<ResponseRouterData<RefundResponse, Self>>
                 connector_refund_id: return_response.transaction_id,
                 refund_status: common_enums::enums::RefundStatus::from(return_response.status),
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             TsysResponseTypes::ErrorResponse(error_response) => {
                 Err(get_error_response(&error_response, item.http_code))
@@ -1043,6 +1044,7 @@ impl TryFrom<ResponseRouterData<TsysRSyncResponse, Self>>
                     search_response.transaction_details,
                 ),
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             SearchResponseTypes::ErrorResponse(error_response) => {
                 Err(get_error_response(&error_response, item.http_code))
@@ -1165,6 +1167,7 @@ fn get_setup_mandate_response(
             connector_mandate_id: Some(transaction_id.clone()),
             payment_method_id: None,
             connector_mandate_request_reference_id: None,
+            mandate_metadata: None,
         })),
         connector_metadata: None,
         network_txn_id: Some(transaction_id.clone()),
@@ -1341,7 +1344,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // transaction field on Sale/Auth) but surfaces later via response.
         let _cit_reference = match &item.request.mandate_reference {
             MandateReferenceId::ConnectorMandateId(cm) => cm.get_connector_mandate_id(),
-            MandateReferenceId::NetworkMandateId(nmi) => Some(nmi.clone()),
+            MandateReferenceId::NetworkMandateId(nmi) => Some(nmi.network_transaction_id.clone()),
             MandateReferenceId::NetworkTokenWithNTI(nti) => {
                 Some(nti.network_transaction_id.clone())
             }

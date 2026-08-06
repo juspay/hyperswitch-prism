@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use grpc_api_types::payments::{
     self as proto, payment_method::PaymentMethod as PmVariant, BrowserInformation, CardDetails,
-    Money, PaymentMethod,
+    CardDetailsWithNoCvc, Money, PaymentMethod,
 };
 use hyperswitch_masking::Secret;
 
@@ -47,6 +47,21 @@ pub(crate) fn card_payment_method() -> PaymentMethod {
             card_exp_year: Some(Secret::new("2030".to_string())),
             card_cvc: Some(Secret::new("737".to_string())),
             card_holder_name: Some(Secret::new("John Doe".to_string())),
+            ..Default::default()
+        })),
+    }
+}
+
+pub(crate) fn card_with_no_cvc_payment_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::CardWithNoCvc(CardDetailsWithNoCvc {
+            card_number: Some(
+                cards::CardNumber::from_str("4111111111111111").expect("static test card"),
+            ),
+            card_exp_month: Some(Secret::new("03".to_string())),
+            card_exp_year: Some(Secret::new("2030".to_string())),
+            card_holder_name: Some(Secret::new("John Doe".to_string())),
+            card_network: Some(proto::CardNetwork::Visa as i32),
             ..Default::default()
         })),
     }

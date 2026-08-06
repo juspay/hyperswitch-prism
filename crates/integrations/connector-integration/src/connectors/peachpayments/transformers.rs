@@ -661,6 +661,7 @@ impl TryFrom<ResponseRouterData<responses::PeachpaymentsRefundResponse, Self>>
                 connector_refund_id: item.response.transaction_id.clone(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -682,6 +683,7 @@ impl TryFrom<ResponseRouterData<responses::PeachpaymentsRefundSyncResponse, Self
                 connector_refund_id: item.response.transaction_id.clone(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -735,6 +737,9 @@ impl TryFrom<common_enums::CardNetwork> for requests::CardNetworkLowercase {
             common_enums::CardNetwork::Pulse => Ok(Self::Pulse),
             common_enums::CardNetwork::Accel => Ok(Self::Accel),
             common_enums::CardNetwork::Nyce => Ok(Self::Nyce),
+            common_enums::CardNetwork::Prop => Ok(Self::Prop),
+            common_enums::CardNetwork::PrivateLabel => Ok(Self::PrivateLabel),
+            common_enums::CardNetwork::Dinacard => Ok(Self::Dinacard),
         }
     }
 }
@@ -904,6 +909,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         connector_mandate_id: Some(data.transaction_id.clone()),
                         payment_method_id: None,
                         connector_mandate_request_reference_id: None,
+                        mandate_metadata: None,
                     }));
 
                     Ok(PaymentsResponseData::TransactionResponse {
