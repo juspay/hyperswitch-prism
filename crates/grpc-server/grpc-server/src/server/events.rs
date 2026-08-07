@@ -507,7 +507,7 @@ impl EventServiceImpl {
             connector_latency: metadata_payload.connector_latency.clone(),
             #[cfg(feature = "log-transformations")]
             log_transformations: &config.log_transformations,
-            log_static_values: &config.log.static_values,
+            log_static_values: &config.log.static_values.outgoing,
         };
 
         let response_result = Box::pin(
@@ -619,7 +619,7 @@ impl EventServiceImpl {
             connector_latency: metadata_payload.connector_latency.clone(),
             #[cfg(feature = "log-transformations")]
             log_transformations: &config.log_transformations,
-            log_static_values: &config.log.static_values,
+            log_static_values: &config.log.static_values.outgoing,
         };
 
         let response_result = Box::pin(
@@ -731,7 +731,7 @@ impl EventServiceImpl {
             connector_latency: metadata_payload.connector_latency.clone(),
             #[cfg(feature = "log-transformations")]
             log_transformations: &config.log_transformations,
-            log_static_values: &config.log.static_values,
+            log_static_values: &config.log.static_values.outgoing,
         };
 
         let response_result = Box::pin(
@@ -840,7 +840,7 @@ impl EventServiceImpl {
             connector_latency: metadata_payload.connector_latency.clone(),
             #[cfg(feature = "log-transformations")]
             log_transformations: &config.log_transformations,
-            log_static_values: &config.log.static_values,
+            log_static_values: &config.log.static_values.outgoing,
         };
 
         let response_result = Box::pin(
@@ -949,7 +949,7 @@ impl EventServiceImpl {
             connector_latency: metadata_payload.connector_latency.clone(),
             #[cfg(feature = "log-transformations")]
             log_transformations: &config.log_transformations,
-            log_static_values: &config.log.static_values,
+            log_static_values: &config.log.static_values.outgoing,
         };
 
         let response_result = Box::pin(
@@ -1047,7 +1047,7 @@ async fn verify_webhook_source_external(
         connector_latency: metadata_payload.connector_latency.clone(),
         #[cfg(feature = "log-transformations")]
         log_transformations: &config.log_transformations,
-        log_static_values: &config.log.static_values,
+        log_static_values: &config.log.static_values.outgoing,
     };
 
     match Box::pin(

@@ -580,7 +580,7 @@ impl Payments {
             connector_latency: metadata_payload.connector_latency.clone(),
             #[cfg(feature = "log-transformations")]
             log_transformations: &config.log_transformations,
-            log_static_values: &config.log.static_values,
+            log_static_values: &config.log.static_values.outgoing,
         };
 
         // Execute connector processing - ONLY the authorize call
@@ -721,7 +721,7 @@ impl Payments {
             connector_latency: metadata_payload.connector_latency.clone(),
             #[cfg(feature = "log-transformations")]
             log_transformations: &config.log_transformations,
-            log_static_values: &config.log.static_values,
+            log_static_values: &config.log.static_values.outgoing,
         };
 
         let response = Box::pin(
@@ -1138,7 +1138,7 @@ impl PaymentService for Payments {
                 connector_latency: metadata_payload.connector_latency.clone(),
                         #[cfg(feature = "log-transformations")]
                         log_transformations: &config.log_transformations,
-                        log_static_values: &config.log.static_values,
+                        log_static_values: &config.log.static_values.outgoing,
                     };
 
                     // handle_response field removed from proto (field 5 reserved)
@@ -2619,7 +2619,7 @@ impl PaymentMethod {
             connector_latency: metadata_payload.connector_latency.clone(),
             #[cfg(feature = "log-transformations")]
             log_transformations: &config.log_transformations,
-            log_static_values: &config.log.static_values,
+            log_static_values: &config.log.static_values.outgoing,
         };
 
         let response = Box::pin(
@@ -2759,7 +2759,7 @@ impl PaymentMethod {
             runtime_metadata: &config.runtime_metadata,
             #[cfg(feature = "log-transformations")]
             log_transformations: &config.log_transformations,
-            log_static_values: &config.log.static_values,
+            log_static_values: &config.log.static_values.outgoing,
         };
 
         let response = Box::pin(
@@ -2878,7 +2878,7 @@ impl MerchantAuthentication {
             connector_latency: event_params.connector_latency.clone(),
             #[cfg(feature = "log-transformations")]
             log_transformations: &config.log_transformations,
-            log_static_values: &config.log.static_values,
+            log_static_values: &config.log.static_values.outgoing,
         };
 
         // Execute connector processing
@@ -3022,7 +3022,7 @@ impl MerchantAuthentication {
             connector_latency: event_params.connector_latency.clone(),
             #[cfg(feature = "log-transformations")]
             log_transformations: &config.log_transformations,
-            log_static_values: &config.log.static_values,
+            log_static_values: &config.log.static_values.outgoing,
         };
 
         let response = Box::pin(
@@ -3604,7 +3604,7 @@ impl RecurringPaymentService for RecurringPayments {
                 connector_latency: metadata_payload.connector_latency.clone(),
                         #[cfg(feature = "log-transformations")]
                         log_transformations: &config.log_transformations,
-                        log_static_values: &config.log.static_values,
+                        log_static_values: &config.log.static_values.outgoing,
                     };
 
                     let response = Box::pin(

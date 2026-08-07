@@ -467,10 +467,10 @@ where
     log_after_initialization(
         &grpc_response,
         &config.log_transformations,
-        &config.log.static_values,
+        &config.log.static_values.incoming,
     );
     #[cfg(not(feature = "log-transformations"))]
-    log_after_initialization(&grpc_response, &config.log.static_values);
+    log_after_initialization(&grpc_response, &config.log.static_values.incoming);
 
     #[cfg(feature = "otel")]
     observe_internal_latency(
@@ -538,10 +538,10 @@ where
     log_after_initialization(
         &grpc_response,
         &config.log_transformations,
-        &config.log.static_values,
+        &config.log.static_values.incoming,
     );
     #[cfg(not(feature = "log-transformations"))]
-    log_after_initialization(&grpc_response, &config.log.static_values);
+    log_after_initialization(&grpc_response, &config.log.static_values.incoming);
 
     #[cfg(feature = "otel")]
     observe_internal_latency(
@@ -813,7 +813,7 @@ macro_rules! implement_connector_operation {
                 connector_latency: metadata_payload.connector_latency.clone(),
                 #[cfg(feature = "log-transformations")]
                 log_transformations: &config.log_transformations,
-                log_static_values: &config.log.static_values,
+                log_static_values: &config.log.static_values.outgoing,
             };
 
             // The connector round-trip is identical for both holders → written once,
@@ -1177,7 +1177,7 @@ macro_rules! implement_connector_operation {
                 connector_latency: metadata_payload.connector_latency.clone(),
                 #[cfg(feature = "log-transformations")]
                 log_transformations: &config.log_transformations,
-                log_static_values: &config.log.static_values,
+                log_static_values: &config.log.static_values.outgoing,
             };
             let call_connector_action = connector_integration.get_call_connector_action();
             let response_result = external_services::service::execute_connector_processing_step(

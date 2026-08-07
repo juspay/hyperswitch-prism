@@ -187,7 +187,7 @@ impl DisputeService for Disputes {
                         connector_latency,
                         #[cfg(feature = "log-transformations")]
                         log_transformations: &config.log_transformations,
-                        log_static_values: &config.log.static_values,
+                        log_static_values: &config.log.static_values.outgoing,
                     };
 
                     let response = Box::pin(
@@ -430,7 +430,7 @@ impl DisputeService for Disputes {
                         connector_latency,
                         #[cfg(feature = "log-transformations")]
                         log_transformations: &config.log_transformations,
-                        log_static_values: &config.log.static_values,
+                        log_static_values: &config.log.static_values.outgoing,
                     };
 
                     let response = Box::pin(

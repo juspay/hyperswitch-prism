@@ -32,10 +32,20 @@ pub struct Log {
     #[patch(ignore)]
     pub transformations: LogTransformations,
     /// Static key-value pairs added to golden log line spans.
-    /// These are flat fields written directly into span storage.
+    /// Separate maps for incoming (gRPC handler) and outgoing (connector call) golden log lines.
     /// Patchable via `x-config-override` header for per-request overrides.
     #[serde(default)]
-    pub static_values: HashMap<String, String>,
+    pub static_values: LogStaticValues,
+}
+
+/// Static key-value pairs for golden log lines, split by direction.
+/// Allows different values for the same field on incoming vs outgoing spans.
+#[derive(Debug, Deserialize, Clone, Serialize, PartialEq, Default, config_patch_derive::Patch)]
+pub struct LogStaticValues {
+    #[serde(default)]
+    pub incoming: HashMap<String, String>,
+    #[serde(default)]
+    pub outgoing: HashMap<String, String>,
 }
 
 /// Logging to a console.
