@@ -2,7 +2,7 @@ pub mod transformers;
 
 use common_enums::CurrencyUnit;
 use common_utils::{
-    consts::NO_ERROR_CODE, errors::CustomResult, events, ext_traits::ByteSliceExt,
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE}, errors::CustomResult, events, ext_traits::ByteSliceExt,
     request::RequestContent, AmountConvertor, StringMajorUnit, StringMajorUnitForConnector,
 };
 use domain_types::{
@@ -123,20 +123,17 @@ impl ConnectorCommon for GotymeSanlamPayouts {
             ))?;
 
         event_builder.map(|i| i.set_connector_response(&response));
-
-        let message = response
-            .error_message
-            .clone()
-            .or(response.error_title.clone())
-            .unwrap_or_else(|| "Unknown error".to_string());
+        tracing::info!(response=?response, "response from connector");
 
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response
                 .error_code
                 .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
-            message: message.clone(),
-            reason: Some(message),
+            message: response
+                .error_message
+                .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+            reason: None,
             attempt_status: None,
             connector_transaction_id: None,
             network_decline_code: None,

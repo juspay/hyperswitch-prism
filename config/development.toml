@@ -71,7 +71,7 @@ peachpayments.base_url = "https://apitest.bankint.ppay.io/v/1"
 finix.base_url = "https://finix.sandbox-payments-api.com"
 fiservcommercehub.base_url = "https://connect-cert.fiservapis.com/ch/"
 absa_sanlam.base_url = "dev"
-gotyme_sanlam.base_url = "dev"
+gotyme_sanlam.base_url = "https://services.multipay-sbx.sanlamonline.co.za/meep-tymebank"
 revolv3.base_url = "https://api-sandbox.revolv3.com"
 ppro.base_url = "https://api.sandbox.eu.ppro.com"
 gigadat.base_url = "https://interac.express-connect.com/"
@@ -220,7 +220,7 @@ field_prefix = "lineage_"
 "message.log_type" = "API_CALL"
 
 [connector_request_kafka]
-enabled = false
+enabled = true
 brokers = ["localhost:9092"]
 acks = "all"
 request_timeout_ms = 30000

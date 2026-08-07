@@ -70,7 +70,7 @@ impl<T> From<(StringMajorUnit, T)> for GotymeSanlamPayoutRouterData<T> {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct GotymeSanlamErrorResponse {
     pub error_code: Option<String>,
     pub error_title: Option<String>,
