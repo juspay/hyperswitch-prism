@@ -2403,8 +2403,6 @@ impl TryFrom<NuveiOpenOrderResponse> for PaymentCreateOrderResponse {
         Ok(Self {
             connector_order_id,
             session_data: None,
-            redirection_data: None,
-            connector_metadata: None,
         })
     }
 }

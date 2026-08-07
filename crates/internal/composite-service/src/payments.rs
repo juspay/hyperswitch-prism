@@ -794,22 +794,6 @@ where
         let connector_data = ConnectorData::<domain_types::payment_method_data::DefaultPCIHolder>::get_connector_by_name(&connector);
         let redirect_state = self.get_redirect_state(&payload);
 
-        if create_order_response.as_ref().is_some_and(
-            |response: &PaymentServiceCreateOrderResponse| response.redirection_data.is_some(),
-        ) {
-            return Ok(tonic::Response::new(CompositeAuthorizeResponse {
-                access_token_response,
-                session_token_response,
-                create_customer_response,
-                create_order_response,
-                pre_authenticate_response: None,
-                authenticate_response: None,
-                post_authenticate_response: None,
-                authorize_response: None,
-                composite_status: CompositeStatus::RedirectRequired.into(),
-            }));
-        }
-
         let mut state = AuthorizeCompositeState::default();
 
         // Authentication loop - connector controls flow via next_authentication_step

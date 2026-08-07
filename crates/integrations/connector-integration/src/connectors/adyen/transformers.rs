@@ -8025,8 +8025,6 @@ impl TryFrom<AdyenOrderCreateResponse> for PaymentCreateOrderResponse {
         Ok(Self {
             connector_order_id: response.psp_reference,
             session_data: None,
-            redirection_data: None,
-            connector_metadata: None,
         })
     }
 }

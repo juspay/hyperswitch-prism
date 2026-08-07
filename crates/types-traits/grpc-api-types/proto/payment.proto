@@ -3178,9 +3178,6 @@ message PaymentServiceCreateOrderRequest {
   // Order line items. Required by some connectors (e.g. Airwallex PayLater /
   // Klarna) when creating the order/payment-intent.
   repeated OrderDetailsWithAmount order_details = 9;
-
-  // Return URL used by connectors that build a redirect URL during CreateOrder.
-  optional string return_url = 10;
 }
 
 // Response message for create order operation
@@ -3205,13 +3202,6 @@ message PaymentServiceCreateOrderResponse {
   // SDK Session Data
   optional ClientAuthenticationTokenData session_data =
       9; // SDK session data for wallets (Apple Pay, Google Pay) and other SDK types
-
-  // Redirection data returned by connectors whose CreateOrder completes the
-  // initial redirect step.
-  optional RedirectForm redirection_data = 11;
-
-  // Connector feature data returned by CreateOrder for follow-up flows.
-  optional SecretString connector_feature_data = 12;
 
   // The connector's reported status for this response.
   optional RawConnectorStatus raw_connector_status = 10;

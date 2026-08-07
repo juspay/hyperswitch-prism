@@ -170,7 +170,6 @@ impl
             test_mode: item.test_mode,
             payment_method_type: None,
             order_details: item.order_details.clone(),
-            return_url: item.return_url.clone(),
         }
     }
 }

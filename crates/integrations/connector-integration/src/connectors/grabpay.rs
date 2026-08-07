@@ -14,15 +14,15 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Authorize, CreateOrder, PSync, RSync, Refund, ServerAuthenticationToken,
+        Authenticate, Authorize, PSync, RSync, Refund, ServerAuthenticationToken,
         ServerSessionAuthenticationToken,
     },
     connector_types::{ConnectorSpecifications, SupportedPaymentMethodsExt},
     connector_types::{
-        ConnectorWebhookSecrets, EventContext, EventType, HttpMethod, PaymentCreateOrderData,
-        PaymentCreateOrderResponse, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData,
-        PaymentsSyncData, RedirectDetailsResponse, RefundFlowData, RefundSyncData,
-        RefundWebhookDetailsResponse, RefundsData, RefundsResponseData, RequestDetails, ResponseId,
+        ConnectorWebhookSecrets, EventContext, EventType, HttpMethod, PaymentFlowData,
+        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData,
+        RedirectDetailsResponse, RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse,
+        RefundsData, RefundsResponseData, RequestDetails, ResponseId,
         ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
         ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
         WebhookDetailsResponse, WebhookResourceReference,
@@ -52,8 +52,8 @@ use interfaces::{
 };
 use serde::Serialize;
 use transformers::{
-    self as grabpay, GrabpayAuthorizeRequest, GrabpayAuthorizeResponse,
-    GrabpayChargeCompleteResponse, GrabpayCreateOrderRequest, GrabpayCreateOrderResponse,
+    self as grabpay, GrabpayAuthenticateRequest, GrabpayAuthenticateResponse,
+    GrabpayAuthorizeRequest, GrabpayAuthorizeResponse, GrabpayChargeCompleteResponse,
     GrabpayRefundRequest, GrabpayRefundResponse, GrabpayRefundSyncResponse,
     GrabpayServerAuthenticationTokenRequest, GrabpayServerAuthenticationTokenResponse,
     GrabpayServerSessionAuthenticationTokenRequest,
@@ -137,10 +137,10 @@ macros::create_all_prerequisites!(
             router_data: RouterDataV2<ServerSessionAuthenticationToken, MerchantAuthenticationFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
         ),
         (
-            flow: CreateOrder,
-            request_body: GrabpayCreateOrderRequest,
-            response_body: GrabpayCreateOrderResponse,
-            router_data: RouterDataV2<CreateOrder, PaymentFlowData, PaymentCreateOrderData, PaymentCreateOrderResponse>,
+            flow: Authenticate,
+            request_body: GrabpayAuthenticateRequest,
+            response_body: GrabpayAuthenticateResponse,
+            router_data: RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [],
@@ -492,39 +492,39 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Grabpay,
-    curl_request: Json(GrabpayCreateOrderRequest),
-    curl_response: GrabpayCreateOrderResponse,
-    flow_name: CreateOrder,
+    curl_request: Json(GrabpayAuthenticateRequest),
+    curl_response: GrabpayAuthenticateResponse,
+    flow_name: Authenticate,
     resource_common_data: PaymentFlowData,
-    flow_request: PaymentCreateOrderData,
-    flow_response: PaymentCreateOrderResponse,
+    flow_request: PaymentsAuthenticateData<T>,
+    flow_response: PaymentsResponseData,
     http_method: Post,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     other_functions: {
         fn get_headers(
             &self,
-            req: &RouterDataV2<CreateOrder, PaymentFlowData, PaymentCreateOrderData, PaymentCreateOrderResponse>,
+            req: &RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let auth = grabpay::GrabpayAuthType::try_from(&req.connector_config).change_context(
                 IntegrationError::FailedToObtainAuthType {
                     context: grabpay_integration_context(
-                        "GrabPay CreateOrder requires GrabPay connector configuration",
+                        "GrabPay Authenticate requires GrabPay connector configuration",
                     ),
                 },
             )?;
-            let connector_request = GrabpayCreateOrderRequest::try_from(req.clone())?;
+            let connector_request = GrabpayAuthenticateRequest::try_from(req.clone())?;
             let body = serde_json::to_vec(&connector_request).change_context(
                 IntegrationError::RequestEncodingFailed {
                     context: grabpay_integration_context(
-                        "GrabPay CreateOrder failed to serialize HMAC request body",
+                        "GrabPay Authenticate failed to serialize HMAC request body",
                     ),
                 },
             )?;
             let request_path = url::Url::parse(&self.get_url(req)?)
                 .change_context(IntegrationError::RequestEncodingFailed {
                     context: grabpay_integration_context(
-                        "GrabPay CreateOrder failed to parse charge init URL for HMAC path",
+                        "GrabPay Authenticate failed to parse charge init URL for HMAC path",
                     ),
                 })?
                 .path()
@@ -535,7 +535,7 @@ macros::macro_connector_implementation!(
 
         fn get_url(
             &self,
-            req: &RouterDataV2<CreateOrder, PaymentFlowData, PaymentCreateOrderData, PaymentCreateOrderResponse>,
+            req: &RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             let base_url = self.connector_base_url_payments(req);
             Ok(format!("{base_url}{CHARGE_INIT_PATH}"))
@@ -1134,8 +1134,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Grabpay<T>
 {
-    fn should_do_order_create(&self) -> bool {
-        true
+    /// GrabPay's flow: `Authenticate` (POST `/charge/init` → OAuth redirect URL) on the
+    /// initial request; `Authorize` (POST `/charge/complete`) after the customer completes
+    /// the OAuth consent and the caller redirects back (mirrors Flywire).
+    fn next_authentication_step(
+        &self,
+        _auth_type: common_enums::AuthenticationType,
+        _payment_method: common_enums::PaymentMethod,
+        redirect_state: connector_types::RedirectState,
+        _completed_step: Option<connector_types::AuthenticationStep>,
+    ) -> connector_types::AuthenticationStep {
+        use interfaces::connector_types::{AuthenticationStep, RedirectState};
+        match redirect_state {
+            RedirectState::InitialRequest => AuthenticationStep::Authenticate,
+            RedirectState::RedirectWithParams | RedirectState::RedirectWithoutParams => {
+                AuthenticationStep::Authorize
+            }
+        }
     }
 
     fn should_do_access_token(&self, _payment_method: Option<enums::PaymentMethod>) -> bool {
@@ -1403,7 +1418,7 @@ fn get_query_param(request: &RequestDetails, param_name: &str) -> Option<String>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentOrderCreate for Grabpay<T>
+    connector_types::PaymentAuthenticateV2<T> for Grabpay<T>
 {
 }
 
@@ -1630,7 +1645,6 @@ crate::connectors::macros::macro_connector_flow_status_impls!(
         GetConnectorCustomer,
         GetPaymentMethod,
         MandateRevoke,
-        Authenticate,
         IncrementalAuthorization,
         PostAuthenticate,
         PreAuthenticate,
@@ -1643,5 +1657,5 @@ crate::connectors::macros::macro_connector_flow_status_impls!(
         SetupMandate,
         SubmitEvidence
     ],
-    not_supported: [Capture, Void],
+    not_supported: [Capture, Void, CreateOrder],
 );
