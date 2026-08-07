@@ -400,8 +400,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     ),
                     doc_url: None,
                     additional_context: Some(
-                        "Maya supports only the PayMaya wallet redirect payment method"
-                            .to_string(),
+                        "Maya supports only the PayMaya wallet redirect payment method".to_string(),
                     ),
                 },
             ))),
