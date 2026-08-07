@@ -220,7 +220,7 @@ field_prefix = "lineage_"
 "message.log_type" = "API_CALL"
 
 [connector_request_kafka]
-enabled = true
+enabled = false
 brokers = ["localhost:9092"]
 acks = "all"
 request_timeout_ms = 30000
