@@ -328,7 +328,16 @@ impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Pa
             Some(PayoutMethodData::Bank(Bank::PixKey(PixKeyBankTransfer { pix_key }))) => {
                 let key_str = pix_key.clone().expose();
                 let code_type = detect_dict_code_type(&key_str);
-                (Some(pix_key), Some(code_type), None, None)
+                let normalized_key = match code_type {
+                    SantanderDictCodeType::Cpf | SantanderDictCodeType::Cnpj => Secret::new(
+                        key_str
+                            .chars()
+                            .filter(|c| c.is_ascii_digit())
+                            .collect::<String>(),
+                    ),
+                    _ => pix_key,
+                };
+                (Some(normalized_key), Some(code_type), None, None)
             }
             Some(PayoutMethodData::Bank(Bank::PixEmv(PixEmvBankTransfer { emv }))) => {
                 (None, None, Some(emv), None)
