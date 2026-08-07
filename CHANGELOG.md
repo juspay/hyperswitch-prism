@@ -19,6 +19,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.08.07.0
+
+### Features
+
+- **webhooks:** Add merchant_transaction_id to RefundEventReference and MandateEventReference ([#2069](https://github.com/juspay/connector-service/pull/2069)) ([`efd6aee`](https://github.com/juspay/connector-service/commit/efd6aee864108c214383b7dc25c767391e7b40d1))
+- Add payment method headers in shadow mode ([#2030](https://github.com/juspay/connector-service/pull/2030)) ([`5cb7d5e`](https://github.com/juspay/connector-service/commit/5cb7d5ee63781d0e36de54e8e0841b4e428792f7))
+
+### Bug Fixes
+
+- **connector:** [tsys_transit] fix payment request for visa transactions ([#2059](https://github.com/juspay/connector-service/pull/2059)) ([`4764e2a`](https://github.com/juspay/connector-service/commit/4764e2a46251459092ad88b1af5e44f76ca8ff95))
+
+**Full Changelog:** [`2026.08.06.0...2026.08.07.0`](https://github.com/juspay/connector-service/compare/2026.08.06.0...2026.08.07.0)
+
+- - -
+
 ## 2026.08.06.0
 
 ### Features
