@@ -27,7 +27,7 @@ use domain_types::{
     router_response_types::RedirectForm,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use rand::distributions::{Alphanumeric, DistString};
 use serde::{Deserialize, Serialize};
 
@@ -131,6 +131,29 @@ pub struct GrabpayCreateOrderRequest {
     pub description: Option<String>,
     #[serde(rename = "merchantID")]
     pub merchant_id: String,
+    #[serde(rename = "shippingDetails", skip_serializing_if = "Option::is_none")]
+    pub shipping_details: Option<GrabpayShippingDetails>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GrabpayShippingDetails {
+    #[serde(rename = "firstName", skip_serializing_if = "Option::is_none")]
+    pub first_name: Option<Secret<String>>,
+    #[serde(rename = "lastName", skip_serializing_if = "Option::is_none")]
+    pub last_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub address: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub city: Option<Secret<String>>,
+    #[serde(rename = "postalCode", skip_serializing_if = "Option::is_none")]
+    pub postal_code: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub phone: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<common_utils::pii::Email>,
+    #[serde(rename = "countryCode", skip_serializing_if = "Option::is_none")]
+    pub country_code: Option<CountryAlpha2>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -1137,7 +1160,56 @@ impl
             amount: router_data.request.amount,
             description: router_data.resource_common_data.description,
             merchant_id: auth.merchant_id.peek().to_string(),
+            shipping_details: build_shipping_details(&router_data.resource_common_data),
         })
+    }
+}
+
+fn build_shipping_details(flow_data: &PaymentFlowData) -> Option<GrabpayShippingDetails> {
+    flow_data.get_optional_shipping().and_then(|_| {
+        let shipping_details = GrabpayShippingDetails {
+            first_name: flow_data.get_optional_shipping_first_name(),
+            last_name: flow_data.get_optional_shipping_last_name(),
+            address: build_shipping_address(flow_data),
+            city: flow_data.get_optional_shipping_city(),
+            postal_code: flow_data.get_optional_shipping_zip(),
+            phone: flow_data.get_optional_shipping_phone_number(),
+            email: flow_data.get_optional_shipping_email(),
+            country_code: flow_data.get_optional_shipping_country(),
+        };
+
+        shipping_details.has_any_field().then_some(shipping_details)
+    })
+}
+
+impl GrabpayShippingDetails {
+    fn has_any_field(&self) -> bool {
+        self.first_name.is_some()
+            || self.last_name.is_some()
+            || self.address.is_some()
+            || self.city.is_some()
+            || self.postal_code.is_some()
+            || self.phone.is_some()
+            || self.email.is_some()
+            || self.country_code.is_some()
+    }
+}
+
+fn build_shipping_address(flow_data: &PaymentFlowData) -> Option<Secret<String>> {
+    let line1 = flow_data
+        .get_optional_shipping_line1()
+        .map(|line1| line1.expose());
+    let line2 = flow_data
+        .get_optional_shipping_line2()
+        .map(|line2| line2.expose());
+
+    match (line1, line2) {
+        (Some(line1), Some(line2)) if !line2.is_empty() => {
+            Some(Secret::new(format!("{line1}, {line2}")))
+        }
+        (Some(line1), _) => Some(Secret::new(line1)),
+        (None, Some(line2)) => Some(Secret::new(line2)),
+        (None, None) => None,
     }
 }
 
