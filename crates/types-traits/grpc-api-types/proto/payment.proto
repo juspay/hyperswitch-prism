@@ -895,8 +895,8 @@ enum Connector {
   FLYWIRE = 129;
   GLOMOPAY = 130;
   GIVEPAYMENTS = 131;
-  MAYA = 132;
-  TESOURO = 133;
+  TESOURO = 132;
+  MAYA = 133;
 }
 
 // Payment method types

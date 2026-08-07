@@ -7,7 +7,7 @@ use domain_types::{
         RefundsResponseData, ResponseId, SettlementStatus,
     },
     errors::{self, ConnectorError, IntegrationError},
-    payment_method_data::PaymentMethodDataTypes,
+    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, WalletData},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
@@ -85,8 +85,6 @@ pub struct MayaPaymentsRequest {
     pub request_reference_number: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub user_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub metadata: Option<serde_json::Value>,
 }
 
 /// `totalAmount` object carried by most Maya request bodies (`value` + `currency`,
@@ -213,7 +211,7 @@ impl From<MayaPaymentStatus> for EventType {
             | MayaPaymentStatus::ThreeDsPaymentFailure
             | MayaPaymentStatus::CheckOutDropout
             | MayaPaymentStatus::ThreeDsPaymentDropout => Self::PaymentIntentFailure,
-            MayaPaymentStatus::Refunded => Self::RefundSuccess,
+            MayaPaymentStatus::Refunded => Self::PaymentIntentSuccess,
         }
     }
 }
@@ -311,8 +309,8 @@ impl From<MayaVoidStatus> for common_enums::AttemptStatus {
     fn from(status: MayaVoidStatus) -> Self {
         match status {
             MayaVoidStatus::Success => Self::Voided,
-            MayaVoidStatus::Failed => Self::Failure,
-            MayaVoidStatus::Pending => Self::Pending,
+            MayaVoidStatus::Failed => Self::VoidFailed,
+            MayaVoidStatus::Pending => Self::VoidInitiated,
         }
     }
 }
@@ -390,6 +388,25 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let router_data = item.router_data;
 
+        // Maya only supports the PayMaya wallet redirect flow; any other payment
+        // method would be silently turned into a wallet checkout, so fail fast.
+        match &router_data.request.payment_method_data {
+            PaymentMethodData::Wallet(WalletData::PaymayaRedirect(_)) => Ok(()),
+            _ => Err(error_stack::report!(IntegrationError::NotImplemented(
+                "This payment method is not supported for Maya".to_string(),
+                errors::IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Use the PayMaya wallet payment method with Maya".to_string(),
+                    ),
+                    doc_url: None,
+                    additional_context: Some(
+                        "Maya supports only the PayMaya wallet redirect payment method"
+                            .to_string(),
+                    ),
+                },
+            ))),
+        }?;
+
         let value = item
             .connector
             .amount_converter
@@ -450,7 +467,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .connector_request_reference_id
                 .clone(),
             user_id,
-            metadata: None,
         })
     }
 }
@@ -468,7 +484,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<MayaPaymentsResponse,
             ),
         )?;
 
-        let status = common_enums::AttemptStatus::Pending;
+        let status = common_enums::AttemptStatus::AuthenticationPending;
 
         // Maya returns only `paymentId` and `redirectUrl` in the create-payment response.
         // The merchant-facing reference is the `requestReferenceNumber` we sent in the
