@@ -1143,10 +1143,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         false
     }
 
-    fn should_do_session_token(
-        &self,
-        connector_feature_data: Option<&Secret<String>>,
-    ) -> bool {
+    fn should_do_session_token(&self, connector_feature_data: Option<&Secret<String>>) -> bool {
         grabpay::should_do_session_token(connector_feature_data)
     }
 

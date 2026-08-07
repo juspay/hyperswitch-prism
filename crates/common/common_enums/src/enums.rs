@@ -1131,6 +1131,7 @@ pub enum PaymentMethodType {
     IndonesianBankTransfer,
     Skrill,
     Paysera,
+    Paymaya,
     QwikcilverWallet,
 }
 

@@ -897,7 +897,8 @@ enum Connector {
   GIVEPAYMENTS = 131;
   TESOURO = 132;
   SANTANDER = 133;
-  GRABPAY = 134;
+  MAYA = 134;
+  GRABPAY = 135;
 }
 
 // Payment method types
@@ -1017,7 +1018,8 @@ enum PaymentMethodType {
   OPEN_BANKING = 112;
   QWIKCILVER_WALLET = 113;
   SKRILL = 114;
-  GRAB_PAY = 115;
+  PAYMAYA = 115;
+  GRAB_PAY = 116;
 }
 
 // Product type enumeration
@@ -5439,6 +5441,12 @@ message AxisbankConfig {
   optional string base_url = 50;
 }
 
+message MayaConfig {
+  SecretString public_key = 1;
+  SecretString secret_key = 2;
+  optional string base_url = 50;
+}
+
 message TsysTransitConfig {
   SecretString device_id = 1;
   SecretString transaction_key = 2;
@@ -5884,8 +5892,10 @@ message ConnectorSpecificConfig {
     PlaidConfig plaid = 141;
     // SANTANDER = 142
     SantanderConfig santander = 142;
-    // GRABPAY = 143
-    GrabpayConfig grabpay = 143;
+    // MAYA = 143
+    MayaConfig maya = 143;
+    // GRABPAY = 144
+    GrabpayConfig grabpay = 144;
   }
 }
 

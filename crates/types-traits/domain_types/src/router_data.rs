@@ -856,6 +856,11 @@ pub enum ConnectorSpecificConfig {
         juspay_public_key: Secret<String>,
         base_url: Option<String>,
     },
+    Maya {
+        public_key: Secret<String>,
+        secret_key: Secret<String>,
+        base_url: Option<String>,
+    },
     TwocTwopPaco {
         access_token: Secret<String>,
         office_id: Secret<String>,
@@ -1272,6 +1277,10 @@ impl ConnectorSpecificConfig {
             PinelabsOnline {
                 client_id,
                 client_secret
+            },
+            Maya {
+                public_key,
+                secret_key
             },
             Juspay {
                 api_key,
@@ -1737,6 +1746,10 @@ impl ConnectorSpecificConfig {
                 PinelabsOnline {
                     client_id,
                     client_secret
+                },
+                Maya {
+                    public_key,
+                    secret_key
                 },
                 Juspay {
                     api_key,
@@ -2332,6 +2345,11 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 api_salt: easebuzz.api_salt.ok_or_else(err)?,
                 base_url: easebuzz.base_url,
                 secondary_base_url: easebuzz.secondary_base_url,
+            }),
+            AuthType::Maya(maya) => Ok(Self::Maya {
+                public_key: maya.public_key.ok_or_else(err)?,
+                secret_key: maya.secret_key.ok_or_else(err)?,
+                base_url: maya.base_url,
             }),
             AuthType::Juspay(juspay) => Ok(Self::Juspay {
                 api_key: juspay.api_key.ok_or_else(err)?,
@@ -3523,6 +3541,14 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         client_secret: key1.clone(),
                         certificates: Some(api_secret.clone()),
                         private_key: Some(key2.clone()),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Maya => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Maya {
+                        public_key: api_key.clone(),
+                        secret_key: key1.clone(),
                         base_url: None,
                     }),
                     _ => Err(err().into()),

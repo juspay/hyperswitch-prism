@@ -430,6 +430,14 @@ payment_methods: Interac
 flows: authorize, get
 examples_python: none
 
+## Maya
+connector_id: maya
+doc: docs/connectors/maya.md
+scenarios: none
+payment_methods: none
+flows: get, handle_event, parse_event, refund, refund_get, verify_redirect, void
+examples_python: none
+
 ## MiFinity
 connector_id: mifinity
 doc: docs/connectors/mifinity.md

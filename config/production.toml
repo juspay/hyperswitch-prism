@@ -24,6 +24,7 @@ bypass_urls = ["localhost", "local"]
 
 [connectors]
 grabpay.base_url = "https://partner-api.grab.com/grabpay/partner/v2"
+maya.base_url = "https://pg.maya.ph"
 tesouro.base_url = "https://api.tesouro.com"
 kount.base_url = "https://api.kount.com"
 kount.secondary_base_url = "https://login.kount.com"
