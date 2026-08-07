@@ -29,9 +29,15 @@ pub struct ConnectorResponseMaskingConfig {
     /// Whether to populate `masked_connector_response` at all.
     pub enabled: bool,
 
-    /// Whether to *also* record the masked view on the outgoing span. Separate from
-    /// [`Self::enabled`] so the caller can be sent the field without a copy being retained in our
-    /// own logs, keeping a mistaken allowlist entry contained to whoever configured it.
+    /// Whether the masked view may reach our own logs at all. Separate from [`Self::enabled`] so
+    /// the caller can be sent the field without a copy being retained here, keeping a mistaken
+    /// allowlist entry contained to whoever configured it.
+    ///
+    /// While this is off the value is stripped from every gRPC-level log sink, not just the
+    /// dedicated `response.masked_body` span field: it is also removed from `response_body` and
+    /// from the event payload, both of which otherwise serialize the whole response
+    /// (`grpc-server::utils::response_for_logging`). Being a plain `String` rather than a
+    /// `Secret<String>`, it has no type-level masking of its own to fall back on.
     pub log_to_span: bool,
 
     /// Connector name -> comma-separated list of keys whose values stay visible.

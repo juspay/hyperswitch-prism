@@ -289,15 +289,65 @@ where
     Ok(())
 }
 
-pub fn log_after_initialization<T>(result: &Result<tonic::Response<T>, tonic::Status>)
+/// Serde key of the one response field that carries a connector's reply back to the caller.
+const MASKED_CONNECTOR_RESPONSE_KEY: &str = "masked_connector_response";
+
+/// Whether the operator asked for the masked connector response to reach our own logs.
+///
+/// Without the `connector-response-masking` feature the field is never populated, so there is
+/// nothing to strip and the answer does not matter.
+#[cfg(feature = "connector-response-masking")]
+fn should_log_masked(config: &configs::Config) -> bool {
+    config.connector_response_masking.log_to_span
+}
+
+#[cfg(not(feature = "connector-response-masking"))]
+fn should_log_masked(_config: &configs::Config) -> bool {
+    true
+}
+
+/// Serialize a gRPC response for logging, dropping `masked_connector_response` unless the operator
+/// opted into logging it.
+///
+/// That field already has its own log channel — `response.masked_body`, gated by the same flag in
+/// `external-services` — so while the flag is off it must not ride along inside a generic response
+/// payload either. Masked the same way the request side is (see `log_before_initialization`), so
+/// `Secret` fields are hidden by serde rather than relying on each field's `Debug`.
+fn response_for_logging<R>(response: &R, log_masked: bool) -> Value
 where
-    T: serde::Serialize + std::fmt::Debug,
+    R: serde::Serialize,
+{
+    let mut value = match hyperswitch_masking::masked_serialize(response) {
+        Ok(value) => value,
+        Err(e) => {
+            tracing::error!("Masked serialization error: {:?}", e);
+            return Value::String("<masked serialization error>".to_string());
+        }
+    };
+
+    if !log_masked {
+        if let Value::Object(map) = &mut value {
+            map.remove(MASKED_CONNECTOR_RESPONSE_KEY);
+        }
+    }
+
+    value
+}
+
+pub fn log_after_initialization<T>(
+    result: &Result<tonic::Response<T>, tonic::Status>,
+    log_masked: bool,
+) where
+    T: serde::Serialize,
 {
     let current_span = tracing::Span::current();
 
     match &result {
         Ok(response) => {
-            current_span.record("response_body", tracing::field::debug(response.get_ref()));
+            current_span.record(
+                "response_body",
+                response_for_logging(response.get_ref(), log_masked).to_string(),
+            );
 
             let res_ref = response.get_ref();
 
@@ -376,7 +426,7 @@ where
     .await;
 
     let grpc_response = handler_result.into_grpc_status();
-    log_after_initialization(&grpc_response);
+    log_after_initialization(&grpc_response, should_log_masked(&config));
 
     #[cfg(feature = "otel")]
     observe_internal_latency(
@@ -440,7 +490,7 @@ where
     .await;
 
     let grpc_response = handler_result.into_grpc_status();
-    log_after_initialization(&grpc_response);
+    log_after_initialization(&grpc_response, should_log_masked(&config));
 
     #[cfg(feature = "otel")]
     observe_internal_latency(
@@ -541,7 +591,12 @@ fn create_and_emit_grpc_event<R>(
     );
 
     match grpc_response {
-        Ok(response) => grpc_event.set_grpc_success_response(response.get_ref()),
+        // Same strip as the span field: the event payload is logged in full on every request
+        // (`emit_event_with_config`), so it is the second way the masked view would reach our logs.
+        Ok(response) => grpc_event.set_grpc_success_response(&response_for_logging(
+            response.get_ref(),
+            should_log_masked(config),
+        )),
         Err(error) => {
             grpc_event.set_grpc_error_response(error);
             grpc_event.set_error_response(&build_error_detail(error));
