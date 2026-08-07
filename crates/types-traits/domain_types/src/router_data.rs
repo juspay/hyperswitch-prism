@@ -3516,13 +3516,9 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     _ => Err(err().into()),
                 },
                 ConnectorEnum::Maya => match auth {
-                    ConnectorAuthType::SignatureKey {
-                        api_key,
-                        key1: _,
-                        api_secret,
-                    } => Ok(Self::Maya {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Maya {
                         public_key: api_key.clone(),
-                        secret_key: api_secret.clone(),
+                        secret_key: key1.clone(),
                         base_url: None,
                     }),
                     _ => Err(err().into()),
