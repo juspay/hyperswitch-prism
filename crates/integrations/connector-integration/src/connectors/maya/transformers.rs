@@ -44,7 +44,10 @@ impl TryFrom<&ConnectorSpecificConfig> for MayaAuthType {
                         additional_context: Some(
                             "Maya requires public_key and secret_key authentication".to_string()
                         ),
-                        ..Default::default()
+                        suggested_action: Some(
+                            "Check that the connector account is configured with Maya's public_key and secret_key credentials".to_string(),
+                        ),
+                        doc_url:Some("https://developers.maya.ph/reference/api-authentication-methods".to_string()),
                     }
                 }
             )),
@@ -255,9 +258,7 @@ pub struct MayaWebhookBody {
 impl MayaWebhookBody {
     /// Merchant reference echoed by Maya, distinct from Maya's payment `id`.
     pub fn connector_response_reference_id(&self) -> Option<String> {
-        self.request_reference_number
-            .clone()
-            .or_else(|| self.transaction_reference_number.clone())
+        self.request_reference_number.clone()
     }
 }
 
@@ -433,14 +434,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 field_name: "return_url",
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
-                        "Maya checkout requires success_url and failure_url for post-payment redirect"
+                        "Maya is a redirect-only connector; it needs a return_url to send the customer back to after payment"
                             .to_string(),
                     ),
                     suggested_action: Some(
-                        "Provide a return_url so Maya can redirect the customer after payment completion"
-                            .to_string(),
+                        "Set the `return_url` field in the Authorize request".to_string(),
                     ),
-                    ..Default::default()
+                    doc_url: Some(
+                        "https://developers.maya.ph/reference/createv2singlepayment".to_string(),
+                    ),
                 },
             },
         )?;
@@ -553,29 +555,12 @@ impl TryFrom<ResponseRouterData<MayaWebhookBody, Self>>
             .connector_response_reference_id()
             .unwrap_or(connector_request_reference_id.clone());
 
-        // Expose Maya's `canVoid` / `canRefund` flags so downstream services can
-        // decide whether void/refund operations are currently allowed.
-        let connector_metadata = {
-            let mut map = serde_json::Map::new();
-            if let Some(can_void) = payment.can_void {
-                map.insert("canVoid".to_string(), serde_json::json!(can_void));
-            }
-            if let Some(can_refund) = payment.can_refund {
-                map.insert("canRefund".to_string(), serde_json::json!(can_refund));
-            }
-            if map.is_empty() {
-                None
-            } else {
-                Some(serde_json::Value::Object(map))
-            }
-        };
-
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id,
                 redirection_data: None,
                 mandate_reference: None,
-                connector_metadata,
+                connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(connector_response_reference_id),
                 incremental_authorization_allowed: None,
@@ -601,12 +586,10 @@ impl TryFrom<ResponseRouterData<MayaVoidResponse, Self>>
 
     fn try_from(item: ResponseRouterData<MayaVoidResponse, Self>) -> Result<Self, Self::Error> {
         let status = common_enums::AttemptStatus::from(item.response.status.clone());
-        let connector_transaction_id = item.router_data.request.connector_transaction_id.clone();
-        let void_id = item.response.id;
 
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(connector_transaction_id.clone()),
+                resource_id: ResponseId::ConnectorTransactionId(void_id.clone()),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
