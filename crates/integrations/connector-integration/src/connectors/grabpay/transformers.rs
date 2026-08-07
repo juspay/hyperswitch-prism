@@ -5,8 +5,7 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Authenticate, Authorize, PSync, RSync, Refund, ServerAuthenticationToken,
-        ServerSessionAuthenticationToken,
+        Authenticate, Authorize, PSync, RSync, Refund, ServerSessionAuthenticationToken,
     },
     connector_types::{
         EventType, PaymentWebhookReference, RefundWebhookReference, WebhookResourceReference,
@@ -14,8 +13,8 @@ use domain_types::{
     connector_types::{
         PaymentFlowData, PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsResponseData,
         PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        ResponseId, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
-        ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
+        ResponseId, ServerSessionAuthenticationTokenRequestData,
+        ServerSessionAuthenticationTokenResponseData,
     },
     errors,
     errors::IntegrationErrorContext,
@@ -284,8 +283,9 @@ pub struct GrabpayRefundSyncResponse {
     pub echo: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, strum::EnumString)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case", ascii_case_insensitive)]
 pub enum GrabpayPaymentStatus {
     Success,
     Failed,
@@ -311,8 +311,9 @@ impl From<GrabpayPaymentStatus> for AttemptStatus {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, strum::EnumString)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case", ascii_case_insensitive)]
 pub enum GrabpayRefundStatus {
     Success,
     Failed,
@@ -469,30 +470,13 @@ pub fn grabpay_webhook_refund_status(webhook_body: &GrabpayWebhookBody) -> Refun
 
 impl GrabpayPaymentStatus {
     fn from_webhook_status(status: Option<&str>) -> Option<Self> {
-        match status?.trim().to_ascii_lowercase().as_str() {
-            "success" => Some(Self::Success),
-            "failed" => Some(Self::Failed),
-            "processing" => Some(Self::Processing),
-            "cancelled" => Some(Self::Cancelled),
-            "authorised" => Some(Self::Authorised),
-            "authorisation_declined" => Some(Self::AuthorisationDeclined),
-            "transaction_already_exist" => Some(Self::TransactionAlreadyExist),
-            _ => None,
-        }
+        status?.trim().parse().ok()
     }
 }
 
 impl GrabpayRefundStatus {
     fn from_webhook_status(status: Option<&str>) -> Option<Self> {
-        match status?.trim().to_ascii_lowercase().as_str() {
-            "success" => Some(Self::Success),
-            "failed" => Some(Self::Failed),
-            "cancelled" => Some(Self::Cancelled),
-            "authorisation_declined" => Some(Self::AuthorisationDeclined),
-            "processing" => Some(Self::Processing),
-            "transaction_already_exist" => Some(Self::TransactionAlreadyExist),
-            _ => None,
-        }
+        status?.trim().parse().ok()
     }
 }
 
@@ -502,7 +486,7 @@ struct GrabpayRefundMetadata {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct GrabpayServerAuthenticationTokenRequest {
+pub struct GrabpayServerSessionAuthenticationTokenRequest {
     pub grant_type: String,
     pub client_id: Secret<String>,
     pub client_secret: Secret<String>,
@@ -512,14 +496,11 @@ pub struct GrabpayServerAuthenticationTokenRequest {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct GrabpayServerAuthenticationTokenResponse {
+pub struct GrabpayServerSessionAuthenticationTokenResponse {
     pub access_token: Secret<String>,
     pub token_type: Option<String>,
     pub expires_in: Option<i64>,
 }
-
-pub type GrabpayServerSessionAuthenticationTokenRequest = GrabpayServerAuthenticationTokenRequest;
-pub type GrabpayServerSessionAuthenticationTokenResponse = GrabpayServerAuthenticationTokenResponse;
 
 struct GrabpayRedirectContext {
     redirect_url: String,
@@ -571,93 +552,10 @@ fn country_from_currency(
             errors::IntegrationError::InvalidDataFormat {
                 field_name: "currency",
                 context: grabpay_integration_context(format!(
-                        "GrabPay cannot infer country_code from unsupported currency {currency}; provide billing.address.country"
-                    ))
+                    "GrabPay cannot infer country_code from unsupported currency {currency}; provide billing.address.country"
+                ))
             }
         )),
-    }
-}
-
-impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    TryFrom<
-        GrabpayFlowData<
-            RouterDataV2<
-                ServerAuthenticationToken,
-                MerchantAuthenticationFlowData,
-                ServerAuthenticationTokenRequestData,
-                ServerAuthenticationTokenResponseData,
-            >,
-            T,
-        >,
-    > for GrabpayServerAuthenticationTokenRequest
-{
-    type Error = error_stack::Report<errors::IntegrationError>;
-
-    fn try_from(
-        wrapper: GrabpayFlowData<
-            RouterDataV2<
-                ServerAuthenticationToken,
-                MerchantAuthenticationFlowData,
-                ServerAuthenticationTokenRequestData,
-                ServerAuthenticationTokenResponseData,
-            >,
-            T,
-        >,
-    ) -> Result<Self, Self::Error> {
-        Self::try_from(&wrapper.router_data)
-    }
-}
-
-impl
-    TryFrom<
-        &RouterDataV2<
-            ServerAuthenticationToken,
-            MerchantAuthenticationFlowData,
-            ServerAuthenticationTokenRequestData,
-            ServerAuthenticationTokenResponseData,
-        >,
-    > for GrabpayServerAuthenticationTokenRequest
-{
-    type Error = error_stack::Report<errors::IntegrationError>;
-
-    fn try_from(
-        router_data: &RouterDataV2<
-            ServerAuthenticationToken,
-            MerchantAuthenticationFlowData,
-            ServerAuthenticationTokenRequestData,
-            ServerAuthenticationTokenResponseData,
-        >,
-    ) -> Result<Self, Self::Error> {
-        let auth = GrabpayAuthType::try_from(&router_data.connector_config).change_context(
-            errors::IntegrationError::FailedToObtainAuthType {
-                context: grabpay_integration_context(
-                    "GrabPay OAuth token request requires GrabPay connector configuration",
-                ),
-            },
-        )?;
-        let feature_data = parse_connector_feature_data(
-            router_data
-                .resource_common_data
-                .connector_feature_data
-                .as_ref(),
-        )?;
-
-        let code = feature_data
-            .code
-            .clone()
-            .ok_or_else(missing_oauth_code_error)?;
-        validate_callback_state(&feature_data)?;
-
-        Ok(Self {
-            grant_type: AUTHORIZATION_CODE_GRANT.to_string(),
-            client_id: auth.client_id,
-            client_secret: auth.client_secret,
-            code_verifier: required_feature_field(feature_data.code_verifier, "code_verifier")?
-                .peek()
-                .to_string(),
-            redirect_uri: required_feature_field(feature_data.redirect_uri, "redirect_uri")?,
-            code,
-        })
     }
 }
 
@@ -672,7 +570,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             >,
             T,
         >,
-    > for GrabpayServerAuthenticationTokenRequest
+    > for GrabpayServerSessionAuthenticationTokenRequest
 {
     type Error = error_stack::Report<errors::IntegrationError>;
 
@@ -699,7 +597,7 @@ impl
             ServerSessionAuthenticationTokenRequestData,
             ServerSessionAuthenticationTokenResponseData,
         >,
-    > for GrabpayServerAuthenticationTokenRequest
+    > for GrabpayServerSessionAuthenticationTokenRequest
 {
     type Error = error_stack::Report<errors::IntegrationError>;
 
@@ -744,31 +642,7 @@ impl
     }
 }
 
-impl TryFrom<ConnectorResponseData<GrabpayServerAuthenticationTokenResponse, Self>>
-    for RouterDataV2<
-        ServerAuthenticationToken,
-        MerchantAuthenticationFlowData,
-        ServerAuthenticationTokenRequestData,
-        ServerAuthenticationTokenResponseData,
-    >
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-
-    fn try_from(
-        item: ConnectorResponseData<GrabpayServerAuthenticationTokenResponse, Self>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(ServerAuthenticationTokenResponseData {
-                access_token: item.response.access_token,
-                token_type: item.response.token_type,
-                expires_in: item.response.expires_in,
-            }),
-            ..item.router_data
-        })
-    }
-}
-
-impl TryFrom<ConnectorResponseData<GrabpayServerAuthenticationTokenResponse, Self>>
+impl TryFrom<ConnectorResponseData<GrabpayServerSessionAuthenticationTokenResponse, Self>>
     for RouterDataV2<
         ServerSessionAuthenticationToken,
         MerchantAuthenticationFlowData,
@@ -779,7 +653,7 @@ impl TryFrom<ConnectorResponseData<GrabpayServerAuthenticationTokenResponse, Sel
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        item: ConnectorResponseData<GrabpayServerAuthenticationTokenResponse, Self>,
+        item: ConnectorResponseData<GrabpayServerSessionAuthenticationTokenResponse, Self>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(ServerSessionAuthenticationTokenResponseData {
@@ -864,6 +738,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     fn try_from(
         item: ConnectorResponseData<GrabpayAuthorizeResponse, Self>,
     ) -> Result<Self, Self::Error> {
+        let session_token = item
+            .router_data
+            .resource_common_data
+            .get_session_token()
+            .ok();
         let response = item.response;
         let status = AttemptStatus::from(response.tx_status.clone());
         let resource_id = match item.router_data.response.as_ref() {
@@ -878,6 +757,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .connector_feature_data
                 .as_ref(),
             &response,
+            session_token.as_deref(),
         );
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -1490,6 +1370,7 @@ fn charge_tx_id_from_connector_feature_data(
 fn build_complete_connector_feature_data(
     connector_feature_data: Option<&SecretSerdeValue>,
     response: &GrabpayChargeCompleteResponse,
+    session_token: Option<&str>,
 ) -> serde_json::Value {
     let mut connector_metadata = connector_feature_data
         .and_then(|data| {
@@ -1516,6 +1397,12 @@ fn build_complete_connector_feature_data(
         serde_json::json!(response.description),
     );
     metadata.insert("reason".to_string(), serde_json::json!(response.reason));
+    if let Some(session_token) = session_token {
+        metadata.insert(
+            "session_token".to_string(),
+            serde_json::json!(session_token),
+        );
+    }
 
     connector_metadata
 }
