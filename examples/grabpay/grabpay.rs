@@ -4,13 +4,17 @@
 //
 // Grabpay — all scenarios and flows in one file.
 // Run a scenario:  cargo run --example grabpay -- process_checkout_card
+use cards::CardNumber;
 use grpc_api_types::payments::connector_specific_config;
+use grpc_api_types::payments::payment_method;
 use grpc_api_types::payments::*;
+use hyperswitch_masking::Secret;
 use hyperswitch_payments_client::ConnectorClient;
 use std::collections::HashMap;
+use std::str::FromStr;
 
 #[allow(dead_code)]
-pub const SUPPORTED_FLOWS: &[&str] = &["create_order", "parse_event"];
+pub const SUPPORTED_FLOWS: &[&str] = &["authorize", "create_order", "parse_event"];
 
 #[allow(dead_code)]
 fn build_client() -> ConnectorClient {
@@ -42,6 +46,45 @@ fn build_client() -> ConnectorClient {
         }),
     };
     ConnectorClient::new(config, None).unwrap()
+}
+
+pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeRequest {
+    PaymentServiceAuthorizeRequest {
+        merchant_transaction_id: Some("probe_txn_001".to_string()), // Identification.
+        amount: Some(Money {
+            // The amount for the payment.
+            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
+            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+        }),
+        payment_method: Some(PaymentMethod {
+            // Payment method to be used.
+            payment_method: Some(payment_method::PaymentMethod::Card(CardDetails {
+                card_number: Some(CardNumber::from_str("4111111111111111").unwrap()), // Card Identification.
+                card_exp_month: Some(Secret::new("03".to_string())),
+                card_exp_year: Some(Secret::new("2030".to_string())),
+                card_cvc: Some(Secret::new("737".to_string())),
+                card_holder_name: Some(Secret::new("John Doe".to_string())), // Cardholder Information.
+                ..Default::default()
+            })),
+            ..Default::default()
+        }),
+        capture_method: Some(
+            CaptureMethod::from_str_name(capture_method)
+                .unwrap_or_default()
+                .into(),
+        ), // Method for capturing the payment.
+        address: Some(PaymentAddress {
+            // Address Information.
+            billing_address: Some(Address {
+                ..Default::default()
+            }),
+            ..Default::default()
+        }),
+        auth_type: AuthenticationType::NoThreeDs.into(), // Authentication Details.
+        return_url: Some("https://example.com/return".to_string()), // URLs for Redirection and Webhooks.
+        session_token: Some("probe_session_token".to_string()), // Session and Token Information.
+        ..Default::default()
+    }
 }
 
 pub fn build_create_order_request() -> PaymentServiceCreateOrderRequest {
@@ -90,6 +133,57 @@ pub fn build_verify_redirect_request() -> PaymentServiceVerifyRedirectResponseRe
     }
 }
 
+// Scenario: One-step Payment (Authorize + Capture)
+// Simple payment that authorizes and captures in one call. Use for immediate charges.
+#[allow(dead_code)]
+pub async fn process_checkout_autocapture(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    // Step 1: Authorize — reserve funds on the payment method
+    let authorize_response = client
+        .authorize(build_authorize_request("AUTOMATIC"), &HashMap::new(), None)
+        .await?;
+
+    match authorize_response.status() {
+        PaymentStatus::Failure | PaymentStatus::AuthorizationFailed => {
+            return Err(format!("Payment failed: {:?}", authorize_response.error).into())
+        }
+        PaymentStatus::Pending => return Ok("pending — awaiting webhook".to_string()),
+        _ => {}
+    }
+
+    Ok(format!(
+        "Payment: {:?} — {}",
+        authorize_response.status(),
+        authorize_response
+            .connector_transaction_id
+            .as_deref()
+            .unwrap_or("")
+    ))
+}
+
+// Flow: PaymentService.Authorize (Card)
+#[allow(dead_code)]
+pub async fn process_authorize(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .authorize(build_authorize_request("AUTOMATIC"), &HashMap::new(), None)
+        .await?;
+    match response.status() {
+        PaymentStatus::Failure | PaymentStatus::AuthorizationFailed => {
+            Err(format!("Authorize failed: {:?}", response.error).into())
+        }
+        PaymentStatus::Pending => Ok("pending — await webhook".to_string()),
+        _ => Ok(format!(
+            "Authorized: {}",
+            response.connector_transaction_id.as_deref().unwrap_or("")
+        )),
+    }
+}
+
 // Flow: PaymentService.CreateOrder
 #[allow(dead_code)]
 pub async fn process_create_order(
@@ -118,15 +212,14 @@ async fn main() {
     let client = build_client();
     let flow = std::env::args()
         .nth(1)
-        .unwrap_or_else(|| "process_create_order".to_string());
+        .unwrap_or_else(|| "process_checkout_autocapture".to_string());
     let result: Result<String, Box<dyn std::error::Error>> = match flow.as_str() {
+        "process_checkout_autocapture" => process_checkout_autocapture(&client, "order_001").await,
+        "process_authorize" => process_authorize(&client, "txn_001").await,
         "process_create_order" => process_create_order(&client, "txn_001").await,
         "process_parse_event" => process_parse_event(&client, "txn_001").await,
         _ => {
-            eprintln!(
-                "Unknown flow: {}. Available: process_create_order, process_parse_event",
-                flow
-            );
+            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_authorize, process_create_order, process_parse_event", flow);
             return;
         }
     };

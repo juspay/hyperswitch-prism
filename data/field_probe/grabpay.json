@@ -9,328 +9,2565 @@
     },
     "authorize": {
       "Ach": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "ach": {
+              "account_number": "000123456789",
+              "routing_number": "110000000",
+              "bank_account_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "AchBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "ach_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "Affirm": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "affirm": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "Afterpay": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "afterpay_clearpay": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "Alfamart": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "alfamart": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "AliPayRedirect": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "ali_pay_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "AmazonPayRedirect": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "amazon_pay_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "ApplePay": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay_sdk": {
+              "payment_data": {
+                "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9"
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type": "debit"
+              },
+              "transaction_identifier": "probe_txn_id"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "ApplePayDecrypted": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay_sdk": {
+              "payment_data": {
+                "decrypted_data": {
+                  "application_primary_account_number": "4111111111111111",
+                  "application_expiration_month": "03",
+                  "application_expiration_year": "2030",
+                  "payment_data": {
+                    "online_payment_cryptogram": "AAAAAA==",
+                    "eci_indicator": "05"
+                  }
+                }
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type": "debit"
+              },
+              "transaction_identifier": "probe_txn_id"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "ApplePayThirdPartySdk": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay_third_party_sdk": {
+              "token": "probe_apple_pay_third_party_token"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "Bacs": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "bacs": {
+              "account_number": "55779911",
+              "sort_code": "200000",
+              "bank_account_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "BacsBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "bacs_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "BancontactCard": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "bancontact_card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "BcaBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "bca_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "Becs": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "becs": {
+              "account_number": "000123456",
+              "bsb_number": "000000",
+              "bank_account_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "BillDeskRedirect": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "billdesk_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "Bizum": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "bizum": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "Blik": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "blik": {
+              "blik_code": "777124"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "Bluecode": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "bluecode_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "BniVaBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "bni_va_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "Boleto": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "boleto": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "BriVaBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "bri_va_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "Card": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "CashappQr": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "cashapp_qr": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "CashfreeRedirect": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "cashfree_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "CimbVaBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "cimb_va_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "ClassicReward": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "classic_reward": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "Crypto": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Dana": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "dana_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "DanamonVaBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "danamon_va_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "DuitNow": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "EVoucher": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "e_voucher": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "EaseBuzzRedirect": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "easebuzz_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "Efecty": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "efecty": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "Eft": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "eft_bank_redirect": {
+              "provider": "ozow"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "Eps": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "eps": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "FamilyMart": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "family_mart": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "GCash": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "gcash_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "Giropay": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "giropay": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "Givex": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "GoPay": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "go_pay_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "GooglePay": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay_sdk": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "encrypted_data": {
+                  "token_type": "PAYMENT_GATEWAY",
+                  "token": "{\"id\":\"tok_probe_gpay\",\"object\":\"token\",\"type\":\"card\"}"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "GooglePayDecrypted": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay_sdk": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "decrypted_data": {
+                  "card_exp_month": "03",
+                  "card_exp_year": "2030",
+                  "application_primary_account_number": "4111111111111111",
+                  "cryptogram": "AAAAAA==",
+                  "eci_indicator": "05"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "GooglePayThirdPartySdk": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay_third_party_sdk": {
+              "token": "probe_google_pay_third_party_token"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "Ideal": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "ideal": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "Indomaret": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "indomaret": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "IndonesianBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "indonesian_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "InstantBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "instant_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "InstantBankTransferFinland": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "instant_bank_transfer_finland": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "InstantBankTransferPoland": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "instant_bank_transfer_poland": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "Interac": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "interac": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "KakaoPay": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "kakao_pay_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "Klarna": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "klarna": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "Lawson": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "lawson": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "LazyPayRedirect": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "lazypay_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "LocalBankRedirect": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "local_bank_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "LocalBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "local_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "MandiriVaBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "mandiri_va_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "MbWay": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "mb_way": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "Mifinity": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "mifinity_redirect": {
+              "date_of_birth": "1990-01-01",
+              "language_preference": "en"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "MiniStop": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "mini_stop": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "MobilePayRedirect": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Momo": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "momo_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "MultibancoBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "multibanco_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "Netbanking": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "netbanking": {
+              "issuer": "HdfcBank"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "OnlineBankingCzechRepublic": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "online_banking_czech_republic": {
+              "issuer": "CeskaSporitelna"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "OnlineBankingFinland": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "online_banking_finland": {
+              "email": "test@example.com"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "OnlineBankingFpx": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "online_banking_fpx": {
+              "issuer": "Maybank"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "OnlineBankingPoland": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "online_banking_poland": {
+              "issuer": "BankPekaoSa"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "OnlineBankingSlovakia": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "online_banking_slovakia": {
+              "issuer": "TatraPay"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "OnlineBankingThailand": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "online_banking_thailand": {
+              "issuer": "BangkokBank"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "OpenBanking": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "open_banking": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "OpenBankingPis": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "OpenBankingUk": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "open_banking_uk": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "Oxxo": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "oxxo": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "PagoEfectivo": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "pago_efectivo": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "PayEasy": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "pay_easy": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "PaySafeCard": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "pay_safe_card": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "PayURedirect": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "payu_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "PaypalRedirect": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "paypal_redirect": {
+              "email": "test@example.com"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "PaypalSdk": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "paypal_sdk": {
+              "token": "probe_paypal_sdk_token"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "Paysera": {
         "status": "not_supported",
@@ -341,112 +2578,888 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "PermataBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "permata_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "PhonePeRedirect": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "phonepe_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "Pix": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "pix": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "Przelewy24": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "przelewy24": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "Pse": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "pse": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "RedCompra": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "red_compra": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "RedPagos": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "red_pagos": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "RevolutPay": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "revolut_pay": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "SamsungPay": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "samsung_pay_sdk": {
+              "payment_credential": {
+                "method": "3DS",
+                "recurring_payment": false,
+                "card_brand": "VISA",
+                "card_last_four_digits": "1234",
+                "token_data": {
+                  "type": "S",
+                  "version": "100",
+                  "data": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNhbXN1bmdfcHJvYmVfa2V5XzEyMyJ9.eyJwYXltZW50TWV0aG9kVG9rZW4iOiJwcm9iZV9zYW1zdW5nX3Rva2VuIn0.ZHVtbXlfc2lnbmF0dXJl"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "Satispay": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "satispay": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "Seicomart": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "seicomart": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "Sepa": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "sepa": {
+              "iban": "DE89370400440532013000",
+              "bank_account_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "SepaBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "sepa_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "SepaGuaranteedDebit": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "sepa_guaranteed_debit": {
+              "iban": "DE89370400440532013000",
+              "bank_account_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "SevenEleven": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "seven_eleven": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "Skrill": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "skrill_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "Sofort": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "sofort": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "Swish": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "swish_qr": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "TouchNGo": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "touch_n_go_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "Trustly": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "trustly": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "Twint": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "twint_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "UpiCollect": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "upi_collect": {
+              "vpa_id": "test@upi"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "UpiIntent": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "upi_intent": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "UpiQr": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "upi_qr": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "Vipps": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "vipps_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "WeChatPayQr": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "we_chat_pay_qr": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       },
       "Wero": {
-        "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "wero": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "eyJ0aW1lX3NpbmNlX2Vwb2NoIjoxNzg2MDcyNTA0LCJzaWciOiJpWDJRT0FkZF9PaFJiVE5ydUJDQzZVTnRfd083OExyQjlScTBCaDl5ck9nIn0"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
       }
     },
     "capture": {
@@ -491,8 +3504,7 @@
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: server_session_authentication_token flow for grabpay"
+        "status": "not_implemented"
       }
     },
     "customer_create": {
@@ -607,7 +3619,7 @@
     "proxy_authorize": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "error": "Stuck on field: session_token. GrabPay post-redirect authorize requires a successful OAuth session-token exchange — Missing required field: session_token. GrabPay post-redirect authorize requires a successful OAuth session-token exchange"
       }
     },
     "proxy_setup_recurring": {
@@ -660,7 +3672,7 @@
     "token_authorize": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange — Missing required field: access_token. GrabPay post-redirect authorize requires a successful OAuth token exchange"
+        "error": "Stuck on field: session_token. GrabPay post-redirect authorize requires a successful OAuth session-token exchange — Missing required field: session_token. GrabPay post-redirect authorize requires a successful OAuth session-token exchange"
       }
     },
     "token_setup_recurring": {
