@@ -406,20 +406,26 @@ where
         payload: &Req,
         metadata: &tonic::metadata::MetadataMap,
         extensions: &tonic::Extensions,
+        verify_response: Option<grpc_api_types::payments::PaymentServiceVerifyRedirectResponseResponse>,
     ) -> Result<
         Option<MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse>,
         tonic::Status,
     > {
         let connector_data = ConnectorData::<domain_types::payment_method_data::DefaultPCIHolder>::get_connector_by_name(connector);
+        let connector_feature_data = verify_response
+            .as_ref()
+            .and_then(|response| response.connector_feature_data.as_ref())
+            .or_else(|| payload.connector_feature_data());
         let should_do_session_token = connector_data
             .connector
-            .should_do_session_token(payload.connector_feature_data());
+            .should_do_session_token(connector_feature_data);
 
         let should_create_session_token = !payload.has_session_token() && should_do_session_token;
 
         let session_token_response = match should_create_session_token {
             true => {
-                let session_token_payload = payload.build_session_token_request(connector);
+                let mut session_token_payload = payload.build_session_token_request(connector);
+                session_token_payload.connector_feature_data = connector_feature_data.cloned();
                 let mut session_token_request = tonic::Request::new(session_token_payload);
                 *session_token_request.metadata_mut() = metadata.clone();
                 *session_token_request.extensions_mut() = extensions.clone();
@@ -781,6 +787,7 @@ where
                 &payload,
                 &metadata,
                 &extensions,
+                None
             )
             .await?;
         let create_customer_response = self
@@ -1225,7 +1232,7 @@ where
             .await?;
 
         let session_token_response = self
-            .create_server_session_authentication_token(connector, payload, metadata, extensions)
+            .create_server_session_authentication_token(connector, payload, metadata, extensions, Some(verify_response.clone()))
             .await?;
 
         let authorize_payload = PaymentServiceAuthorizeRequest::foreign_from((

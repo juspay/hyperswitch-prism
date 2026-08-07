@@ -497,6 +497,7 @@ pub(crate) fn normalize_header_value(name: &str, value: String) -> String {
         "idempotency-key" => "HS_probe00000000000000000".to_string(),
         "timestamp" => "0000000000".to_string(),
         "date" => "2020-01-01T00:00:00+00:00".to_string(),
+        "x-gid-aux-pop" => "signature".to_string(),
         _ => normalize_content(&value),
     }
 }
