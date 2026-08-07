@@ -474,6 +474,197 @@ pub struct KafkaTopicConfig {
     pub partition_key_field: String,
 }
 
+/// Controls whether transformations copy or replace the original source fields.
+#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum TransformationMode {
+    /// Add the new key but keep the original source field (default).
+    #[default]
+    Copy,
+    /// Add the new key and remove the original source field after all transformations complete.
+    Replace,
+}
+
+/// A single log transformation with pre-split target path segments.
+#[cfg(feature = "log-transformations")]
+#[derive(Debug, Clone)]
+pub struct CompiledLogTransformation {
+    /// Source field key in span storage (e.g., "gateway", "request.url").
+    /// Leaked to `&'static str` at startup for `Storage::record_value()`.
+    pub source_field: &'static str,
+    /// Pre-split target path segments (e.g., `["api_details", "url"]`).
+    /// Segment 0 is the root key; segments 1.. are the nested sub-path.
+    pub target_segments: Vec<String>,
+    /// Top-level key for `Storage::record_value()` — leaked `&'static str`.
+    pub target_root_key: &'static str,
+}
+
+/// Pre-compiled transformations for one golden log line type (incoming or outgoing).
+#[cfg(feature = "log-transformations")]
+#[derive(Debug, Clone, Default)]
+pub struct CompiledLogTransformations {
+    pub rules: Vec<CompiledLogTransformation>,
+}
+
+#[cfg(feature = "log-transformations")]
+impl CompiledLogTransformations {
+    /// Compile raw `target_path → source_field` mappings into pre-split rules.
+    /// Uses `Box::leak` to produce `&'static str` keys — safe because config is loaded once
+    /// at process startup and lives for the entire process lifetime.
+    pub fn compile(raw: &HashMap<String, String>) -> Self {
+        let rules = raw
+            .iter()
+            .map(|(target_path, source_field)| {
+                let segments: Vec<String> =
+                    target_path.split('.').map(String::from).collect();
+                let root_key: &'static str =
+                    Box::leak(segments[0].clone().into_boxed_str());
+                let source_key: &'static str =
+                    Box::leak(source_field.clone().into_boxed_str());
+                CompiledLogTransformation {
+                    source_field: source_key,
+                    target_segments: segments,
+                    target_root_key: root_key,
+                }
+            })
+            .collect();
+        Self { rules }
+    }
+
+    /// Returns `true` if no transformation rules are configured.
+    pub fn is_empty(&self) -> bool {
+        self.rules.is_empty()
+    }
+}
+
+/// Holds compiled transformations for both golden log lines.
+#[cfg(feature = "log-transformations")]
+#[derive(Debug, Clone, Default)]
+pub struct LogTransformationConfig {
+    pub incoming: CompiledLogTransformations,
+    pub outgoing: CompiledLogTransformations,
+    pub mode: TransformationMode,
+}
+
+#[cfg(feature = "log-transformations")]
+impl LogTransformationConfig {
+    pub fn compile(
+        incoming: &HashMap<String, String>,
+        outgoing: &HashMap<String, String>,
+        mode: TransformationMode,
+    ) -> Self {
+        Self {
+            incoming: CompiledLogTransformations::compile(incoming),
+            outgoing: CompiledLogTransformations::compile(outgoing),
+            mode,
+        }
+    }
+}
+
+/// Given span storage values and compiled transformation rules, compute the new key-value
+/// pairs to write back into span storage. Returns a list of `(root_key, value)` pairs.
+///
+/// For simple renames (1 segment), the value is copied directly.
+/// For nested targets (2+ segments), values are grouped under the root key as a nested JSON object
+/// using `set_nested_value_from_segments()`.
+#[cfg(feature = "log-transformations")]
+pub fn compute_log_transformations(
+    storage_values: &HashMap<String, serde_json::Value>,
+    compiled: &CompiledLogTransformations,
+) -> Vec<(&'static str, serde_json::Value)> {
+    let mut writes: HashMap<&'static str, serde_json::Value> = HashMap::new();
+
+    for rule in &compiled.rules {
+        let source_value = match storage_values.get(rule.source_field) {
+            Some(v) => v.clone(),
+            None => continue,
+        };
+
+        if rule.target_segments.len() == 1 {
+            // Simple rename: "connector" = "gateway"
+            writes.insert(rule.target_root_key, source_value);
+        } else {
+            // Nested target: "api_details.url" = "request.url"
+            let root = writes
+                .entry(rule.target_root_key)
+                .or_insert_with(|| serde_json::json!({}));
+            // Walk pre-compiled segments[1..] to set the value
+            set_nested_value_from_segments(root, &rule.target_segments[1..], source_value);
+        }
+    }
+
+    writes.into_iter().collect()
+}
+
+/// Like `set_nested_value` but takes pre-split path segments instead of a dotted string.
+/// Avoids runtime `split('.')` — segments are pre-compiled at startup.
+#[cfg(feature = "log-transformations")]
+fn set_nested_value_from_segments(
+    target: &mut serde_json::Value,
+    segments: &[String],
+    value: serde_json::Value,
+) {
+    if segments.is_empty() {
+        return;
+    }
+    if segments.len() == 1 {
+        target[&segments[0]] = value;
+        return;
+    }
+    // Walk intermediate segments, creating objects as needed
+    let mut current = target;
+    for (i, segment) in segments.iter().enumerate() {
+        if i == segments.len() - 1 {
+            current[segment.as_str()] = value;
+            return;
+        }
+        if !current[segment.as_str()].is_object() {
+            current[segment.as_str()] = serde_json::json!({});
+        }
+        current = &mut current[segment.as_str()];
+    }
+}
+
+/// Apply compiled log transformation rules to the current span's storage.
+/// Snapshots the current span storage, computes new fields from the rules,
+/// and writes them back.
+#[cfg(feature = "log-transformations")]
+pub fn apply_log_transformations_to_span(compiled: &CompiledLogTransformations) {
+    if compiled.is_empty() {
+        return;
+    }
+    let snapshot: Option<HashMap<String, serde_json::Value>> =
+        log_utils::Storage::with_current_span(|storage| storage.values().clone());
+    let Some(snapshot) = snapshot else {
+        return;
+    };
+    let writes = compute_log_transformations(&snapshot, compiled);
+    // Filter out reserved keys BEFORE entering the span lock.
+    // `record_value` calls `tracing::warn!` for reserved keys, which re-enters
+    // the subscriber and deadlocks when called inside `with_current_span_mut`.
+    let writes: Vec<_> = writes
+        .into_iter()
+        .filter(|(key, _)| {
+            if log_utils::Storage::is_reserved(key) {
+                tracing::warn!(
+                    "Log transformation target key `{key}` is reserved by the logging infrastructure, skipping"
+                );
+                false
+            } else {
+                true
+            }
+        })
+        .collect();
+    if writes.is_empty() {
+        return;
+    }
+    log_utils::Storage::with_current_span_mut(|storage| {
+        for (key, value) in writes {
+            storage.record_value(key, value);
+        }
+    });
+}
+
 /// Configuration for events system
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, config_patch_derive::Patch)]
 pub struct EventConfig {
@@ -483,6 +674,9 @@ pub struct EventConfig {
     pub connector_events: KafkaTopicConfig,
     /// Inbound request events.
     pub api_events: KafkaTopicConfig,
+    #[serde(default)]
+    #[patch(ignore)]
+    pub transformation_mode: TransformationMode,
     #[serde(default)]
     pub transformations: HashMap<String, String>, // target_path → source_field
     #[serde(default)]
@@ -508,6 +702,7 @@ impl Default for EventConfig {
             brokers: vec!["localhost:9092".to_string()],
             connector_events: KafkaTopicConfig::default(),
             api_events: KafkaTopicConfig::default(),
+            transformation_mode: TransformationMode::default(),
             transformations: HashMap::new(),
             static_values: HashMap::new(),
             extractions: HashMap::new(),
@@ -555,9 +750,11 @@ pub(crate) fn process_event_with_config(
     let normalize_path =
         |path: &str| -> String { path.replace("_DOT_", ".").replace("_dot_", ".") };
 
-    // Process transformations
+    // Process transformations — collect source fields used for potential removal in replace mode
+    let mut used_source_fields: Vec<&str> = Vec::new();
     for (target_path, source_field) in &config.transformations {
         if let Some(value) = result.get(source_field).cloned() {
+            used_source_fields.push(source_field.as_str());
             let normalized_path = normalize_path(target_path);
             if let Err(e) = set_nested_value(&mut result, &normalized_path, value) {
                 tracing::warn!(
@@ -567,6 +764,16 @@ pub(crate) fn process_event_with_config(
                     error = %e,
                     "Failed to set transformation, continuing with event processing"
                 );
+            }
+        }
+    }
+
+    // In replace mode, remove original source fields after all transformations complete.
+    // This is done after the loop so fan-out works (multiple targets reading the same source).
+    if matches!(config.transformation_mode, TransformationMode::Replace) {
+        if let Some(obj) = result.as_object_mut() {
+            for source_field in &used_source_fields {
+                obj.remove(*source_field);
             }
         }
     }

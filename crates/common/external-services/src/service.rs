@@ -8,6 +8,8 @@ use common_utils::{
     events::{EventStage, MaskedSerdeValue},
     request::TransportType,
 };
+#[cfg(all(feature = "injector-client", feature = "log-transformations"))]
+use common_utils::events::{apply_log_transformations_to_span, LogTransformationConfig};
 use common_utils::{
     ext_traits::AsyncExt,
     lineage,
@@ -551,6 +553,12 @@ pub struct EventProcessingParams<'a> {
     pub merchant_id: &'a str,
     pub return_raw_connector_data: bool,
     pub connector_latency: ConnectorLatencyTracker,
+    /// Pre-compiled log transformations for golden log lines.
+    #[cfg(feature = "log-transformations")]
+    pub log_transformations: &'a LogTransformationConfig,
+    /// Static key-value pairs added to golden log line spans.
+    /// Patchable via `x-config-override` for per-request overrides.
+    pub log_static_values: &'a HashMap<String, String>,
 }
 
 #[cfg(feature = "injector-client")]
@@ -1074,8 +1082,45 @@ where
 
     let elapsed = start.elapsed().as_millis();
     tracing::Span::current().record("latency", elapsed);
+    // Apply outgoing log transformations before emitting the golden log line
+    #[cfg(feature = "log-transformations")]
+    apply_log_transformations_to_span(&event_params.log_transformations.outgoing);
+    // Apply static key-value pairs (config-driven, overridable via x-config-override)
+    apply_outgoing_log_static_values(event_params.log_static_values);
     tracing::info!(tag = ?Tag::OutgoingApi, log_type = "api", "Outgoing Request completed");
     result_with_integrity_check
+}
+
+/// Write static key-value pairs into the current span's storage for outgoing golden log lines.
+#[cfg(feature = "injector-client")]
+fn apply_outgoing_log_static_values(static_values: &HashMap<String, String>) {
+    if static_values.is_empty() {
+        return;
+    }
+    // Filter out reserved keys BEFORE entering the span lock.
+    // `record_value` calls `tracing::warn!` for reserved keys, which re-enters
+    // the subscriber and deadlocks when called inside `with_current_span_mut`.
+    let filtered: Vec<_> = static_values
+        .iter()
+        .filter(|(key, _)| {
+            if log_utils::Storage::is_reserved(key) {
+                tracing::warn!(
+                    "Static value key `{key}` is reserved by the logging infrastructure, skipping"
+                );
+                false
+            } else {
+                true
+            }
+        })
+        .collect();
+    if filtered.is_empty() {
+        return;
+    }
+    log_utils::Storage::with_current_span_mut(|storage| {
+        for (key, value) in &filtered {
+            storage.record_value(key, serde_json::Value::String((*value).clone()));
+        }
+    });
 }
 
 #[cfg(feature = "injector-client")]

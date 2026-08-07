@@ -59,6 +59,10 @@ injector = { git = "https://github.com/juspay/hyperswitch", tag = "2026.06.18.0"
 connector_request_kafka = { path = "../connector_request_kafka", optional = true }
 url = "2.5.0"
 chrono = "0.4.31"
+log_utils = { git = "https://github.com/juspay/framework-libs-rs", rev = "5d0b5824b2a82dafae492f9930c95060507d91b4", package = "log_utils", features = [
+    "tracing",
+    "tracing-storage-api",
+] }
 
 # OpenTelemetry (OTLP metrics push) — optional, enabled via the `otel` feature.
 opentelemetry = { version = "0.27", optional = true, default-features = false, features = [
@@ -76,6 +80,7 @@ injector-client = ["dep:injector"]
 connector-request-kafka = ["dep:connector_request_kafka"]
 # Push gRPC metrics over OTLP (in addition to the Prometheus /metrics endpoint).
 otel = ["dep:opentelemetry"]
+log-transformations = ["common_utils/log-transformations"]
 
 [lints]
 workspace = true

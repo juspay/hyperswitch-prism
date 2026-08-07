@@ -2,7 +2,22 @@
 //! Logger-specific config.
 //!
 
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
+
+/// Log field transformations for golden log lines (incoming + outgoing).
+/// Format: `target_path = "source_field"` — same as `[events.transformations]`.
+/// Dotted target paths create nested JSON objects.
+#[cfg(feature = "log-transformations")]
+#[derive(Debug, Deserialize, Clone, Serialize, PartialEq, Default)]
+pub struct LogTransformations {
+    #[serde(default)]
+    pub incoming: HashMap<String, String>,
+    #[serde(default)]
+    pub outgoing: HashMap<String, String>,
+}
+
 /// Log config settings.
 #[derive(Debug, Deserialize, Clone, Serialize, PartialEq, config_patch_derive::Patch)]
 pub struct Log {
@@ -11,6 +26,16 @@ pub struct Log {
     /// Logging to Kafka (optional).
     #[serde(default)]
     pub kafka: Option<LogKafka>,
+    /// Field transformations applied to the two golden log lines.
+    #[cfg(feature = "log-transformations")]
+    #[serde(default)]
+    #[patch(ignore)]
+    pub transformations: LogTransformations,
+    /// Static key-value pairs added to golden log line spans.
+    /// These are flat fields written directly into span storage.
+    /// Patchable via `x-config-override` header for per-request overrides.
+    #[serde(default)]
+    pub static_values: HashMap<String, String>,
 }
 
 /// Logging to a console.

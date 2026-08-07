@@ -6,10 +6,15 @@ use std::sync::Arc;
 use common_utils::{
     connector_request_kafka::{ConnectorRequestKafkaConfig, ConnectorRequestKafkaConfigPatch},
     consts,
-    events::{EventConfig, EventConfigPatch, RuntimeMetadata, RuntimeMetadataPatch},
+    events::{
+        EventConfig, EventConfigPatch, RuntimeMetadata,
+        RuntimeMetadataPatch,
+    },
     metadata::{HeaderMaskingConfig, HeaderMaskingConfigPatch},
     SuperpositionConfig,
 };
+#[cfg(feature = "log-transformations")]
+use common_utils::events::LogTransformationConfig;
 use domain_types::{
     connector_types::ConnectorEnum,
     types::{Connectors, ConnectorsPatch, ProxyConfig, ProxyConfigPatch},
@@ -53,6 +58,12 @@ pub struct Config {
     #[serde(skip)]
     #[patch(ignore)]
     pub superposition_config: Option<Arc<SuperpositionConfig>>,
+    /// Pre-compiled log transformations for golden log lines.
+    /// Compiled once at startup from `[log.transformations.incoming]` and `[log.transformations.outgoing]`.
+    #[cfg(feature = "log-transformations")]
+    #[serde(skip)]
+    #[patch(ignore)]
+    pub log_transformations: Arc<LogTransformationConfig>,
 }
 
 #[derive(Clone, Deserialize, Debug, Default, Serialize, PartialEq, config_patch_derive::Patch)]
@@ -362,6 +373,19 @@ impl Config {
             eprintln!("Unable to deserialize application configuration: {error}");
             error.into_inner()
         })?;
+
+        // Compile log transformations from [log.transformations.incoming] and [log.transformations.outgoing].
+        // Pre-splits dotted paths so no string splitting happens at runtime.
+        #[cfg(feature = "log-transformations")]
+        let config = {
+            let mut config = config;
+            config.log_transformations = Arc::new(LogTransformationConfig::compile(
+                &config.log.transformations.incoming,
+                &config.log.transformations.outgoing,
+                config.events.transformation_mode.clone(),
+            ));
+            config
+        };
 
         // Validate the environment field
         config.common.validate()?;

@@ -578,6 +578,9 @@ impl Payments {
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
             connector_latency: metadata_payload.connector_latency.clone(),
+            #[cfg(feature = "log-transformations")]
+            log_transformations: &config.log_transformations,
+            log_static_values: &config.log.static_values,
         };
 
         // Execute connector processing - ONLY the authorize call
@@ -716,6 +719,9 @@ impl Payments {
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
             connector_latency: metadata_payload.connector_latency.clone(),
+            #[cfg(feature = "log-transformations")]
+            log_transformations: &config.log_transformations,
+            log_static_values: &config.log.static_values,
         };
 
         let response = Box::pin(
@@ -1130,6 +1136,9 @@ impl PaymentService for Payments {
                         merchant_id: metadata_payload.merchant_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
                 connector_latency: metadata_payload.connector_latency.clone(),
+                        #[cfg(feature = "log-transformations")]
+                        log_transformations: &config.log_transformations,
+                        log_static_values: &config.log.static_values,
                     };
 
                     // handle_response field removed from proto (field 5 reserved)
@@ -2608,6 +2617,9 @@ impl PaymentMethod {
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
             connector_latency: metadata_payload.connector_latency.clone(),
+            #[cfg(feature = "log-transformations")]
+            log_transformations: &config.log_transformations,
+            log_static_values: &config.log.static_values,
         };
 
         let response = Box::pin(
@@ -2745,6 +2757,9 @@ impl PaymentMethod {
             return_raw_connector_data: config.common.return_raw_connector_data,
             connector_latency: metadata_payload.connector_latency.clone(),
             runtime_metadata: &config.runtime_metadata,
+            #[cfg(feature = "log-transformations")]
+            log_transformations: &config.log_transformations,
+            log_static_values: &config.log.static_values,
         };
 
         let response = Box::pin(
@@ -2861,6 +2876,9 @@ impl MerchantAuthentication {
             merchant_id: event_params.merchant_id,
             return_raw_connector_data: config.common.return_raw_connector_data,
             connector_latency: event_params.connector_latency.clone(),
+            #[cfg(feature = "log-transformations")]
+            log_transformations: &config.log_transformations,
+            log_static_values: &config.log.static_values,
         };
 
         // Execute connector processing
@@ -3002,6 +3020,9 @@ impl MerchantAuthentication {
             merchant_id: event_params.merchant_id,
             return_raw_connector_data: config.common.return_raw_connector_data,
             connector_latency: event_params.connector_latency.clone(),
+            #[cfg(feature = "log-transformations")]
+            log_transformations: &config.log_transformations,
+            log_static_values: &config.log.static_values,
         };
 
         let response = Box::pin(
@@ -3581,6 +3602,9 @@ impl RecurringPaymentService for RecurringPayments {
                         merchant_id: metadata_payload.merchant_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
                 connector_latency: metadata_payload.connector_latency.clone(),
+                        #[cfg(feature = "log-transformations")]
+                        log_transformations: &config.log_transformations,
+                        log_static_values: &config.log.static_values,
                     };
 
                     let response = Box::pin(

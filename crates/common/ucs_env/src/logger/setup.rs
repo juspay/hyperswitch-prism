@@ -49,7 +49,7 @@ pub fn setup(
                 // Disable color or emphasis related ANSI escape codes for JSON formats
                 error_stack::Report::set_color_mode(error_stack::fmt::ColorMode::None);
 
-                log_utils::ConsoleLogFormat::CompactJson
+                log_utils::ConsoleLogFormat::PrettyJson
             }
         };
 
