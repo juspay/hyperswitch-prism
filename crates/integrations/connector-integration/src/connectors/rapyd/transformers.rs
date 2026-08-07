@@ -117,6 +117,7 @@ impl<F, T> TryFrom<ResponseRouterData<RapydPaymentsResponse, Self>>
                             network_advice_code: None,
                             network_decline_code: None,
                             network_error_message: None,
+                            typed_connector_response: None,
                         }),
                     ),
                     _ => {
@@ -169,6 +170,7 @@ impl<F, T> TryFrom<ResponseRouterData<RapydPaymentsResponse, Self>>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
                 }),
             ),
         };
@@ -1031,6 +1033,7 @@ impl TryFrom<ResponseRouterData<RapydCreateOrderResponse, Self>>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
                 }),
                 resource_common_data: PaymentFlowData {
                     status: common_enums::AttemptStatus::Failure,
@@ -1263,6 +1266,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             network_advice_code: None,
                             network_decline_code: None,
                             network_error_message: None,
+                            typed_connector_response: None,
                         }),
                     ),
                     _ => {
@@ -1332,6 +1336,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                     network_advice_code: None,
                                     network_decline_code: None,
                                     network_error_message: None,
+                                    typed_connector_response: None,
                                 }),
                             ),
                         }
@@ -1355,6 +1360,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
                 }),
             ),
         };
@@ -1530,6 +1536,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             network_advice_code: None,
                             network_decline_code: None,
                             network_error_message: None,
+                            typed_connector_response: None,
                         }),
                     ),
                     _ => (
@@ -1570,6 +1577,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
                 }),
             ),
         };

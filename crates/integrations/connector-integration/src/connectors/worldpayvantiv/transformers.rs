@@ -1365,6 +1365,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         network_decline_code: None,
                         network_advice_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
                     };
 
                     Ok(Self {
@@ -1419,6 +1420,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         network_decline_code: None,
                         network_advice_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
                     };
 
                     Ok(Self {
@@ -1469,6 +1471,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
                 };
 
                 Ok(Self {
@@ -2109,6 +2112,7 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
             };
 
             Ok(Self {
@@ -2242,6 +2246,7 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
                 };
 
                 Ok(Self {
@@ -2290,6 +2295,7 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
             };
 
             Ok(Self {
@@ -2382,6 +2388,7 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
                 };
 
                 Ok(Self {
@@ -2433,6 +2440,7 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
                 };
 
                 Ok(Self {
@@ -2479,6 +2487,7 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
             };
 
             Ok(Self {
@@ -2514,6 +2523,7 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
                 };
 
                 Ok(Self {
@@ -2556,6 +2566,7 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
             };
 
             Ok(Self {
@@ -2698,6 +2709,7 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
                 };
 
                 Ok(Self {
@@ -2737,6 +2749,7 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
             };
 
             Ok(Self {

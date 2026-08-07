@@ -378,6 +378,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PayboxAuthorizeRespon
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
                 }),
                 ..item.router_data
             })
@@ -676,6 +677,7 @@ impl TryFrom<ResponseRouterData<PayboxCaptureResponse, Self>>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
                 }),
                 ..item.router_data
             })
@@ -839,6 +841,7 @@ impl TryFrom<ResponseRouterData<PayboxVoidResponse, Self>>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
                 }),
                 ..item.router_data
             })
@@ -995,6 +998,7 @@ impl TryFrom<ResponseRouterData<PayboxRefundResponse, Self>>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
                 }),
                 ..item.router_data
             })
@@ -1333,6 +1337,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PayboxSetupMandateRes
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
                 }),
                 ..item.router_data
             })
@@ -1591,6 +1596,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PayboxRepeatPaymentRe
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
                 }),
                 ..item.router_data
             })

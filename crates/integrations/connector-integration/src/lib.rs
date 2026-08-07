@@ -10,5 +10,8 @@ pub mod types;
 pub mod utils;
 pub mod webhook_utils;
 
+#[cfg(test)]
+mod typed_observability_lint;
+
 pub use domain_types::errors;
 pub use domain_types::{ConnectorError, IntegrationError};

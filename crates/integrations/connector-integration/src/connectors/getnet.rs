@@ -355,6 +355,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         with_error_response_body!(event_builder, response);
 
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.code.unwrap_or_else(|| "UNKNOWN_ERROR".to_string()),
@@ -365,6 +367,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
         })
     }
 }

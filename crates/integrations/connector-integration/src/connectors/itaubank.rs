@@ -38,6 +38,8 @@ pub(crate) mod headers {
 use std::fmt::Debug;
 
 use super::macros;
+use crate::set_typed_response;
+use crate::types::ResponseRouterData;
 
 // ===== MACRO PREREQUISITES =====
 macros::create_all_prerequisites!(
@@ -112,6 +114,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
                 let message = construct_itaubank_error_message(&error_res);
 
+                let typed = macros::serialize_typed_connector_payload(
+                    &error_res,
+                    "typed_connector_response",
+                );
                 Ok(ErrorResponse {
                     status_code: res.status_code,
                     code: error_res.codigo,
@@ -122,6 +128,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: typed,
                 })
             }
             Err(_) => {
@@ -140,6 +147,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
                 })
             }
         }
@@ -293,18 +301,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             res.response.parse_struct("ItaubankAccessTokenResponse");
 
         match response {
-            Ok(token_res) => {
-                event_builder.map(|i| i.set_connector_response(&token_res));
-                let access_token_data = ServerAuthenticationTokenResponseData {
-                    access_token: token_res.access_token.into(),
-                    token_type: token_res.token_type,
-                    expires_in: token_res.expires_in,
-                };
-
-                Ok(RouterDataV2 {
-                    response: Ok(access_token_data),
-                    ..data.clone()
-                })
+            Ok(response) => {
+                set_typed_response!(event_builder, response, data, res.status_code)
             }
             Err(_) => {
                 tracing::error!(

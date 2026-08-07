@@ -1355,6 +1355,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StaxSetupMandateRespo
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
             })
         };
 
@@ -1496,6 +1497,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StaxRepeatPaymentResp
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
             })
         };
 

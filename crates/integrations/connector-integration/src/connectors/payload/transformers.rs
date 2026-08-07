@@ -800,6 +800,7 @@ fn handle_payment_response<F, T>(
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
                 })
             } else {
                 Ok(PaymentsResponseData::TransactionResponse {

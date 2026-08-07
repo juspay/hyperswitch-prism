@@ -51,6 +51,7 @@ mod tests {
                     merchant_request_id: None,
                     raw_connector_response: None,
                     raw_connector_request: None,
+                    typed_connector_request: None,
                     connector_response_headers: None,
                 },
                 connector_config: ConnectorSpecificConfig::Plaid {
@@ -235,6 +236,7 @@ mod tests {
                     raw_connector_response: None,
                     vault_headers: None,
                     raw_connector_request: None,
+                    typed_connector_request: None,
                     minor_amount_capturable: None,
                     amount: None,
                     connector_response: None,
@@ -394,6 +396,7 @@ mod tests {
                     raw_connector_response: None,
                     vault_headers: None,
                     raw_connector_request: None,
+                    typed_connector_request: None,
                     minor_amount_capturable: None,
                     amount: None,
                     connector_response: None,

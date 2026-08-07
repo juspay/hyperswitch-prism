@@ -595,6 +595,7 @@ impl TryFrom<ResponseRouterData<PinelabsOnlineCreateOrderResponse, Self>>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
                 });
 
                 Ok(Self {
@@ -916,6 +917,7 @@ impl<F, Req> TryFrom<ResponseRouterData<PinelabsOnlineResponse, Self>>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
                 });
 
                 Ok(Self {
@@ -984,6 +986,7 @@ impl<F, T> TryFrom<ResponseRouterData<PinelabsOnlineCaptureResponse, Self>>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
                 });
 
                 Ok(Self {
@@ -1051,6 +1054,7 @@ impl<F, T> TryFrom<ResponseRouterData<PinelabsOnlineVoidResponse, Self>>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
                 });
 
                 Ok(Self {
@@ -1106,6 +1110,7 @@ impl<F> TryFrom<ResponseRouterData<PinelabsOnlineRefundResponse, Self>>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
                 });
 
                 Ok(Self {
@@ -1159,6 +1164,7 @@ impl TryFrom<ResponseRouterData<PinelabsOnlineRSyncResponse, Self>>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
                 });
 
                 Ok(Self {

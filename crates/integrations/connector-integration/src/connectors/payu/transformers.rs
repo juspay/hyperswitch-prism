@@ -957,6 +957,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 network_error_message: None,
                 network_advice_code: None,
                 network_decline_code: None,
+                typed_connector_response: None,
             };
 
             return Ok(Self {
@@ -1124,6 +1125,7 @@ impl TryFrom<ResponseRouterData<PayuSyncResponse, Self>>
                             network_error_message: None,
                             network_advice_code: None,
                             network_decline_code: None,
+                            typed_connector_response: None,
                         };
 
                         Ok(Self {
@@ -1149,6 +1151,7 @@ impl TryFrom<ResponseRouterData<PayuSyncResponse, Self>>
                     network_error_message: None,
                     network_advice_code: None,
                     network_decline_code: None,
+                    typed_connector_response: None,
                 };
 
                 Ok(Self {
@@ -1370,6 +1373,7 @@ impl TryFrom<ResponseRouterData<PayuCaptureResponse, Self>>
                 network_error_message: None,
                 network_advice_code: None,
                 network_decline_code: None,
+                typed_connector_response: None,
             };
 
             return Ok(Self {
@@ -1557,6 +1561,7 @@ impl TryFrom<ResponseRouterData<PayuVoidResponse, Self>>
                 network_error_message: None,
                 network_advice_code: None,
                 network_decline_code: None,
+                typed_connector_response: None,
             };
 
             return Ok(Self {
@@ -1749,6 +1754,7 @@ impl TryFrom<ResponseRouterData<PayuRefundResponse, Self>>
                 network_error_message: None,
                 network_advice_code: None,
                 network_decline_code: None,
+                typed_connector_response: None,
             };
             return Ok(Self {
                 response: Err(error_response),
@@ -1973,6 +1979,7 @@ impl TryFrom<ResponseRouterData<PayuRefundSyncResponse, Self>>
                     network_error_message: None,
                     network_advice_code: None,
                     network_decline_code: None,
+                    typed_connector_response: None,
                 };
 
                 Ok(Self {
@@ -2096,6 +2103,7 @@ impl TryFrom<ResponseRouterData<PayuSessionTokenResponse, Self>>
                     network_error_message: None,
                     network_advice_code: None,
                     network_decline_code: None,
+                    typed_connector_response: None,
                 }),
                 ..item.router_data
             });

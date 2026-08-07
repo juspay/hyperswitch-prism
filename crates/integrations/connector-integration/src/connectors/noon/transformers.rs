@@ -660,6 +660,7 @@ impl<F, T> TryFrom<ResponseRouterData<NoonPaymentsResponse, Self>>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
                 }),
                 _ => {
                     let connector_response_reference_id =
@@ -963,6 +964,7 @@ impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
             })
         } else {
             Ok(RefundsResponseData {
@@ -1032,6 +1034,7 @@ impl<F> TryFrom<ResponseRouterData<RefundSyncResponse, Self>>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
             })
         } else {
             Ok(RefundsResponseData {
@@ -1476,6 +1479,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
                 }),
                 _ => {
                     let connector_response_reference_id =
@@ -1700,6 +1704,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
                 }),
                 _ => {
                     let connector_response_reference_id =

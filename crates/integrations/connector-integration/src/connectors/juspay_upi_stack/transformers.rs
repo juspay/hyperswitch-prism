@@ -215,6 +215,7 @@ pub fn build_error_response(
         network_decline_code: None,
         network_advice_code: None,
         network_error_message: None,
+        typed_connector_response: None,
     }
 }
 
@@ -575,6 +576,7 @@ pub fn handle_authorize_response<
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -665,6 +667,7 @@ pub fn handle_psync_response(
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,

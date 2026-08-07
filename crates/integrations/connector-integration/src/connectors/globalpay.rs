@@ -44,9 +44,9 @@ use transformers::{
 };
 
 use crate::connectors::macros;
+use crate::set_typed_response;
 use crate::types::ResponseRouterData;
 use crate::with_error_response_body;
-use crate::with_response_body;
 use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
 
@@ -756,13 +756,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 "globalpay: response body did not match the expected format; confirm API version and connector documentation."),
             )?;
 
-        with_response_body!(event_builder, response);
-
-        RouterDataV2::try_from(ResponseRouterData {
-            response,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        })
+        set_typed_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -840,6 +834,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         with_error_response_body!(event_builder, response);
 
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.error_code,
@@ -850,6 +846,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
         })
     }
 }

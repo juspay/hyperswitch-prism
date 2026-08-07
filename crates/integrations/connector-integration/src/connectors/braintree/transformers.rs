@@ -872,6 +872,7 @@ fn get_error_response<T>(
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
+        typed_connector_response: None,
     }))
 }
 
@@ -891,6 +892,7 @@ fn create_failure_error_response<T: ToString>(
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
+        typed_connector_response: None,
     }
 }
 

@@ -88,9 +88,11 @@ message FrmServicePreRiskCheckResponse {
 
   // Raw request sent to the connector for debugging
   optional SecretString raw_connector_request = 7;
+  optional SecretString typed_connector_request = 10;
 
   // Raw response from the connector for debugging
   optional SecretString raw_connector_response = 8;
+  optional SecretString typed_connector_response = 11;
 
   // Response headers from the connector
   map<string, string> response_headers = 9;
@@ -157,9 +159,11 @@ message FrmServicePostRiskCheckResponse {
 
   // Raw request sent to the connector for debugging
   optional SecretString raw_connector_request = 7;
+  optional SecretString typed_connector_request = 10;
 
   // Raw response from the connector for debugging
   optional SecretString raw_connector_response = 8;
+  optional SecretString typed_connector_response = 11;
 
   // Response headers from the connector
   map<string, string> response_headers = 9;

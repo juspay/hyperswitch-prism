@@ -75,6 +75,37 @@ macro_rules! with_response_body {
     };
 }
 
+/// Serialize the connector response once, build `RouterDataV2` via `TryFrom<ResponseRouterData>`,
+/// set both event response data and `typed_connector_response`, and return `Ok(result)`.
+///
+/// Replaces the 12-line boilerplate block in every manual `handle_response_v2`.
+#[macro_export]
+macro_rules! set_typed_response {
+    ($event_builder:expr, $response:expr, $data:expr, $status_code:expr) => {{
+        use domain_types::connector_types::RawConnectorRequestResponse;
+        let masked = $crate::connectors::macros::masked_serialize_connector_response(&$response);
+        if let Some(ref msv) = masked {
+            if let Some(evt) = $event_builder {
+                evt.response_data = Some(msv.clone());
+            }
+        }
+        let mut result = RouterDataV2::try_from(ResponseRouterData {
+            response: $response,
+            router_data: $data.clone(),
+            http_code: $status_code,
+        })
+        .map_err(|e| {
+            e.change_context($crate::ConnectorError::ResponseHandlingFailed {
+                context: Default::default(),
+            })
+        })?;
+        result
+            .resource_common_data
+            .set_typed_connector_response(masked.as_ref().map(|m| m.inner().to_string()));
+        Ok(result)
+    }};
+}
+
 pub trait PaymentsAuthorizeRequestData {
     fn get_router_return_url(&self) -> Result<String, Error>;
 }
@@ -258,6 +289,7 @@ pub(crate) fn handle_json_response_deserialization_failure(
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            typed_connector_response: None,
         }),
     }
 }
@@ -712,5 +744,6 @@ pub fn build_error_response(
         network_decline_code: None,
         network_advice_code: None,
         network_error_message: None,
+        typed_connector_response: None,
     }
 }

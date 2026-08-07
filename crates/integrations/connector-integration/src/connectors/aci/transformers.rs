@@ -1403,6 +1403,7 @@ where
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {
@@ -1563,6 +1564,7 @@ impl<F, T> TryFrom<ResponseRouterData<AciCaptureResponse, Self>>
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {
@@ -1765,6 +1767,7 @@ impl<F> TryFrom<ResponseRouterData<AciRefundResponse, Self>>
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
             })
         } else {
             Ok(RefundsResponseData {
@@ -1813,6 +1816,7 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {

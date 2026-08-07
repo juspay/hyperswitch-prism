@@ -41,7 +41,7 @@ use transformers::{
 };
 
 use super::macros;
-use crate::{types::ResponseRouterData, with_error_response_body};
+use crate::{set_typed_response, types::ResponseRouterData, with_error_response_body};
 
 // Trait for types that can provide access tokens
 pub trait AccessTokenProvider {
@@ -337,6 +337,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         with_error_response_body!(event_builder, response);
 
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.title.clone(),
@@ -351,6 +353,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
         })
     }
 }
@@ -447,6 +450,7 @@ macros::macro_connector_implementation!(
 
             with_error_response_body!(event_builder, response);
 
+            let typed = macros::serialize_typed_connector_payload(&response, "typed_connector_response");
             Ok(ErrorResponse {
                 status_code: res.status_code,
                 code: response.error,
@@ -456,7 +460,8 @@ macros::macro_connector_implementation!(
                 connector_transaction_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
-                network_error_message: None
+                network_error_message: None,
+                typed_connector_response: typed,
 })
         }
     }
@@ -724,19 +729,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     res.status_code,
                 "truelayer: response body did not match the expected format; confirm API version and connector documentation."),
             )?;
-        if let Some(event) = event_builder {
-            event.set_connector_response(&response)
-        }
-
-        RouterDataV2::try_from(ResponseRouterData {
-            response,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        })
-        .change_context(crate::utils::response_handling_fail_for_connector(
-            res.status_code,
-            "truelayer",
-        ))
+        set_typed_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(

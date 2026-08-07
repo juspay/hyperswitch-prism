@@ -67,7 +67,7 @@ use transformers::{
 };
 
 use super::macros;
-use crate::{types::ResponseRouterData, with_error_response_body};
+use crate::{set_typed_response, types::ResponseRouterData, with_error_response_body};
 use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
 
@@ -474,6 +474,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             Ok(transformers::CybersourceErrorResponse::StandardError(response)) => {
                 with_error_response_body!(event_builder, response);
 
+                let typed = macros::serialize_typed_connector_payload(
+                    &response,
+                    "typed_connector_response",
+                );
                 let (code, message, reason) = match response.error_information {
                     Some(ref error_info) => {
                         let detailed_error_info = error_info.details.as_ref().map(|details| {
@@ -529,6 +533,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: typed,
                 })
             }
             Ok(transformers::CybersourceErrorResponse::AuthenticationError(response)) => {
@@ -543,6 +548,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
                 })
             }
             Ok(transformers::CybersourceErrorResponse::NotAvailableError(response)) => {
@@ -569,6 +575,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
                 })
             }
             Err(error_msg) => {
@@ -1138,23 +1145,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             client_library,
             client_library_integrity,
         };
-        event_builder.map(|i| i.set_connector_response(&response_body));
-
-        let response_router_data = ResponseRouterData {
-            response: response_body,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        };
-
-        let result = RouterDataV2::<
-            ClientAuthenticationToken,
-            MerchantAuthenticationFlowData,
-            ClientAuthenticationTokenRequestData,
-            PaymentsResponseData,
-        >::try_from(response_router_data)
-        .map_err(|e| e.change_context(ConnectorError::response_handling_failed(res.status_code)))?;
-
-        Ok(result)
+        set_typed_response!(event_builder, response_body, data, res.status_code)
     }
     fn get_error_response_v2(
         &self,
@@ -1284,15 +1275,27 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
         ConnectorError,
     > {
+        use domain_types::connector_types::RawConnectorRequestResponse;
+
         if matches!(res.status_code, 204) {
-            event_builder.map(|i| i.set_connector_response(&serde_json::json!({"mandate_status": common_enums::MandateStatus::Revoked.to_string()})));
-            Ok(RouterDataV2 {
+            let synthetic_response = serde_json::json!({"mandate_status": common_enums::MandateStatus::Revoked.to_string()});
+            let masked = macros::masked_serialize_connector_response(&synthetic_response);
+            if let Some(ref msv) = masked {
+                if let Some(evt) = event_builder {
+                    evt.response_data = Some(msv.clone());
+                }
+            }
+            let mut result = RouterDataV2 {
                 response: Ok(MandateRevokeResponseData {
                     mandate_status: common_enums::MandateStatus::Revoked,
                     status_code: res.status_code,
                 }),
                 ..data.clone()
-            })
+            };
+            result
+                .resource_common_data
+                .set_typed_connector_response(masked.as_ref().map(|m| m.inner().to_string()));
+            Ok(result)
         } else {
             // If http_code != 204 || http_code != 4xx, we dont know any other response scenario yet.
             let response_value: serde_json::Value = serde_json::from_slice(&res.response)
@@ -1302,14 +1305,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 ))?;
             let response_string = response_value.to_string();
 
-            event_builder.map(|i| {
-                i.set_connector_response(
-                    &serde_json::json!({"response_string": response_string.clone()}),
-                )
-            });
+            let synthetic_response =
+                serde_json::json!({"response_string": response_string.clone()});
+            let masked = macros::masked_serialize_connector_response(&synthetic_response);
+            if let Some(ref msv) = masked {
+                if let Some(evt) = event_builder {
+                    evt.response_data = Some(msv.clone());
+                }
+            }
             tracing::info!(connector_response=?response_string);
 
-            Ok(RouterDataV2 {
+            let mut result = RouterDataV2 {
                 response: Err(ErrorResponse {
                     code: NO_ERROR_CODE.to_string(),
                     message: response_string.clone(),
@@ -1320,9 +1326,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
                 }),
                 ..data.clone()
-            })
+            };
+            result
+                .resource_common_data
+                .set_typed_connector_response(masked.as_ref().map(|m| m.inner().to_string()));
+            Ok(result)
         }
     }
     fn get_error_response_v2(

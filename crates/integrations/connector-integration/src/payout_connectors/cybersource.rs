@@ -49,8 +49,8 @@ use ring::{digest, hmac};
 use time::OffsetDateTime;
 
 use crate::{
-    connectors::cybersource::transformers as cs_payments, types::ResponseRouterData,
-    with_error_response_body,
+    connectors::cybersource::transformers as cs_payments, set_typed_response,
+    types::ResponseRouterData, with_error_response_body,
 };
 use transformers::{CybersourceAuthType, CybersourceFulfillResponse, CybersourcePayoutContext};
 
@@ -213,6 +213,10 @@ impl ConnectorCommon for CybersourcePayouts {
         match response {
             Ok(cs_payments::CybersourceErrorResponse::StandardError(response)) => {
                 with_error_response_body!(event_builder, response);
+                let typed = crate::connectors::macros::serialize_typed_connector_payload(
+                    &response,
+                    "typed_connector_response",
+                );
                 let (code, message, reason) = match response.error_information {
                     Some(ref error_info) => {
                         let detailed_error_info = error_info.details.as_ref().map(|details| {
@@ -267,6 +271,7 @@ impl ConnectorCommon for CybersourcePayouts {
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: typed,
                 })
             }
             Ok(cs_payments::CybersourceErrorResponse::AuthenticationError(response)) => {
@@ -281,6 +286,7 @@ impl ConnectorCommon for CybersourcePayouts {
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
                 })
             }
             Ok(cs_payments::CybersourceErrorResponse::NotAvailableError(response)) => {
@@ -307,6 +313,7 @@ impl ConnectorCommon for CybersourcePayouts {
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
                 })
             }
             Err(error_msg) => {
@@ -349,6 +356,7 @@ fn build_5xx_error_response(
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            typed_connector_response: None,
         });
     }
     let error_message = match res.status_code {
@@ -369,6 +377,7 @@ fn build_5xx_error_response(
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
+        typed_connector_response: None,
     })
 }
 
@@ -499,7 +508,7 @@ impl
             PayoutTransferRequest,
             PayoutTransferResponse,
         >,
-        _event_builder: Option<&mut events::Event>,
+        event_builder: Option<&mut events::Event>,
         res: Response,
     ) -> CustomResult<
         RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>,
@@ -511,11 +520,7 @@ impl
             .change_context(ConnectorError::ResponseDeserializationFailed {
                 context: Default::default(),
             })?;
-        RouterDataV2::try_from(ResponseRouterData {
-            response,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        })
+        set_typed_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(

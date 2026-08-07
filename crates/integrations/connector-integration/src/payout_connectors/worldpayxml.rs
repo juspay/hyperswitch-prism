@@ -46,6 +46,7 @@ use interfaces::{
 
 use crate::{
     connectors::worldpayxml::{requests, responses},
+    set_typed_response,
     types::ResponseRouterData,
     with_error_response_body,
 };
@@ -178,6 +179,10 @@ impl ConnectorCommon for WorldpayxmlPayouts {
                 "worldpayxml: response body did not match the expected format; confirm API version and connector documentation.",
             ))?;
 
+        let typed = crate::connectors::macros::serialize_typed_connector_payload(
+            &response,
+            "typed_connector_response",
+        );
         match response {
             responses::WorldpayxmlErrorResponse::Standard(error_response) => {
                 with_error_response_body!(event_builder, error_response);
@@ -195,6 +200,7 @@ impl ConnectorCommon for WorldpayxmlPayouts {
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: typed,
                 })
             }
         }
@@ -303,7 +309,7 @@ impl
             PayoutTransferRequest,
             PayoutTransferResponse,
         >,
-        _event_builder: Option<&mut events::Event>,
+        event_builder: Option<&mut events::Event>,
         res: Response,
     ) -> CustomResult<
         RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>,
@@ -311,11 +317,7 @@ impl
     > {
         let response: responses::WorldpayxmlPayoutTransferResponse =
             Self::parse_xml_response(res.response, res.status_code)?;
-        RouterDataV2::try_from(ResponseRouterData {
-            response,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        })
+        set_typed_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -373,7 +375,7 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
     fn handle_response_v2(
         &self,
         data: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
-        _event_builder: Option<&mut events::Event>,
+        event_builder: Option<&mut events::Event>,
         res: Response,
     ) -> CustomResult<
         RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
@@ -381,11 +383,7 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
     > {
         let response: responses::WorldpayxmlPayoutGetResponse =
             Self::parse_xml_response(res.response, res.status_code)?;
-        RouterDataV2::try_from(ResponseRouterData {
-            response,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        })
+        set_typed_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -443,7 +441,7 @@ impl ConnectorIntegrationV2<PayoutVoid, PayoutFlowData, PayoutVoidRequest, Payou
     fn handle_response_v2(
         &self,
         data: &RouterDataV2<PayoutVoid, PayoutFlowData, PayoutVoidRequest, PayoutVoidResponse>,
-        _event_builder: Option<&mut events::Event>,
+        event_builder: Option<&mut events::Event>,
         res: Response,
     ) -> CustomResult<
         RouterDataV2<PayoutVoid, PayoutFlowData, PayoutVoidRequest, PayoutVoidResponse>,
@@ -451,11 +449,7 @@ impl ConnectorIntegrationV2<PayoutVoid, PayoutFlowData, PayoutVoidRequest, Payou
     > {
         let response: responses::WorldpayxmlPayoutVoidResponse =
             Self::parse_xml_response(res.response, res.status_code)?;
-        RouterDataV2::try_from(ResponseRouterData {
-            response,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        })
+        set_typed_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(

@@ -41,6 +41,7 @@ use interfaces::{
     },
 };
 
+use crate::set_typed_response;
 use crate::types::ResponseRouterData;
 use transformers as paypal;
 
@@ -179,6 +180,10 @@ impl ConnectorCommon for PaypalPayouts {
                 .join("; ")
         });
 
+        let typed = crate::connectors::macros::serialize_typed_connector_payload(
+            &response,
+            "typed_connector_response",
+        );
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response
@@ -192,6 +197,7 @@ impl ConnectorCommon for PaypalPayouts {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
         })
     }
 }
@@ -323,22 +329,7 @@ impl
                 },
             })?;
 
-        event_builder.map(|i| i.set_connector_response(&response));
-
-        RouterDataV2::try_from(ResponseRouterData {
-            response,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        })
-        .change_context(ConnectorError::ResponseDeserializationFailed {
-            context: ResponseTransformationErrorContext {
-                http_status_code: Some(res.status_code),
-                additional_context: Some(
-                    "PayPal Fulfill (PayoutTransfer) - failed to map response to RouterData"
-                        .to_string(),
-                ),
-            },
-        })
+        set_typed_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -440,21 +431,7 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
                 },
             })?;
 
-        event_builder.map(|i| i.set_connector_response(&response));
-
-        RouterDataV2::try_from(ResponseRouterData {
-            response,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        })
-        .change_context(ConnectorError::ResponseDeserializationFailed {
-            context: ResponseTransformationErrorContext {
-                http_status_code: Some(res.status_code),
-                additional_context: Some(
-                    "PayPal Get (PayoutGet) - failed to map response to RouterData".to_string(),
-                ),
-            },
-        })
+        set_typed_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(

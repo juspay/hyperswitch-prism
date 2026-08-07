@@ -76,6 +76,31 @@ pub(crate) fn validate_xml_structure(xml_str: &str) -> Result<(), String> {
     Ok(())
 }
 
+pub(crate) fn serialize_typed_connector_payload<T: serde::Serialize>(
+    payload: &T,
+    context: &'static str,
+) -> Option<String> {
+    hyperswitch_masking::masked_serialize(payload)
+        .and_then(|value| serde_json::to_string(&value))
+        .inspect_err(|error| {
+            tracing::warn!(
+                error = %error,
+                context,
+                "failed to serialize typed connector payload"
+            );
+        })
+        .ok()
+}
+
+/// Masked-serialize once into a [`MaskedSerdeValue`], from which callers
+/// derive both the event field (`.inner()`) and the typed string
+/// (`.inner().to_string()`). This avoids calling `masked_serialize` twice.
+pub(crate) fn masked_serialize_connector_response<T: serde::Serialize>(
+    payload: &T,
+) -> Option<common_utils::events::MaskedSerdeValue> {
+    common_utils::events::MaskedSerdeValue::from_masked_optional(payload, "connector_response")
+}
+
 pub struct NoRequestBody;
 pub struct NoRequestBodyTemplating;
 
@@ -381,6 +406,7 @@ macro_rules! expand_fn_handle_response {
             RouterDataV2<$flow, $resource_common_data, $request, $response>,
             macro_types::ConnectorError,
         > {
+            use domain_types::connector_types::RawConnectorRequestResponse;
             use error_stack::ResultExt;
             paste::paste! {let bridge = self.[< $flow:snake >];}
 
@@ -393,13 +419,23 @@ macro_rules! expand_fn_handle_response {
                 ))?;
 
             let response_body = bridge.response(response_bytes, res.status_code)?;
-            event_builder.map(|i| i.set_connector_response(&response_body));
+            // Serialize once: masked Value for event logging, String for typed_connector_response
+            let masked =
+                crate::connectors::macros::masked_serialize_connector_response(&response_body);
+            if let Some(ref msv) = masked {
+                if let Some(evt) = event_builder {
+                    evt.response_data = Some(msv.clone());
+                }
+            }
             let response_router_data = ResponseRouterData {
                 response: response_body,
                 router_data: data.clone(),
                 http_code: res.status_code,
             };
-            let result = bridge.router_data(response_router_data, res.status_code)?;
+            let mut result = bridge.router_data(response_router_data, res.status_code)?;
+            result
+                .resource_common_data
+                .set_typed_connector_response(masked.as_ref().map(|m| m.inner().to_string()));
             Ok(result)
         }
     };
@@ -415,15 +451,26 @@ macro_rules! expand_fn_handle_response {
             RouterDataV2<$flow, $resource_common_data, $request, $response>,
             macro_types::ConnectorError,
         > {
+            use domain_types::connector_types::RawConnectorRequestResponse;
             paste::paste! {let bridge = self.[< $flow:snake >];}
             let response_body = bridge.response(res.response, res.status_code)?;
-            event_builder.map(|i| i.set_connector_response(&response_body));
+            // Serialize once: masked Value for event logging, String for typed_connector_response
+            let masked =
+                crate::connectors::macros::masked_serialize_connector_response(&response_body);
+            if let Some(ref msv) = masked {
+                if let Some(evt) = event_builder {
+                    evt.response_data = Some(msv.clone());
+                }
+            }
             let response_router_data = ResponseRouterData {
                 response: response_body,
                 router_data: data.clone(),
                 http_code: res.status_code,
             };
-            let result = bridge.router_data(response_router_data, res.status_code)?;
+            let mut result = bridge.router_data(response_router_data, res.status_code)?;
+            result
+                .resource_common_data
+                .set_typed_connector_response(masked.as_ref().map(|m| m.inner().to_string()));
             Ok(result)
         }
     };
@@ -1482,6 +1529,7 @@ macro_rules! expand_payout_implementation {
                     ::domain_types::errors::IntegrationErrorContext::default(),
                 ).into())
             }
+
         }
     };
     (
@@ -1514,6 +1562,7 @@ macro_rules! expand_payout_implementation {
                     ::domain_types::errors::IntegrationErrorContext::default(),
                 ).into())
             }
+
         }
     };
     (
@@ -1546,6 +1595,7 @@ macro_rules! expand_payout_implementation {
                     ::domain_types::errors::IntegrationErrorContext::default(),
                 ).into())
             }
+
         }
     };
     (
@@ -1578,6 +1628,7 @@ macro_rules! expand_payout_implementation {
                     ::domain_types::errors::IntegrationErrorContext::default(),
                 ).into())
             }
+
         }
     };
     (
@@ -1610,6 +1661,7 @@ macro_rules! expand_payout_implementation {
                     ::domain_types::errors::IntegrationErrorContext::default(),
                 ).into())
             }
+
         }
     };
     (
@@ -1642,6 +1694,7 @@ macro_rules! expand_payout_implementation {
                     ::domain_types::errors::IntegrationErrorContext::default(),
                 ).into())
             }
+
         }
     };
     (
@@ -1674,6 +1727,7 @@ macro_rules! expand_payout_implementation {
                     ::domain_types::errors::IntegrationErrorContext::default(),
                 ).into())
             }
+
         }
     };
     (
@@ -1706,6 +1760,7 @@ macro_rules! expand_payout_implementation {
                     ::domain_types::errors::IntegrationErrorContext::default(),
                 ).into())
             }
+
         }
     };
 }
@@ -2175,6 +2230,7 @@ macro_rules! flow_status_emit {
                     ::domain_types::errors::IntegrationErrorContext::default(),
                 ).into())
             }
+
         }
     };
     (
@@ -2202,6 +2258,7 @@ macro_rules! flow_status_emit {
                     ::domain_types::errors::IntegrationErrorContext::default(),
                 ).into())
             }
+
         }
     };
 }
@@ -2258,6 +2315,7 @@ macro_rules! frm_flow_not_implemented {
                 )
                 .into())
             }
+
         }
     };
 }

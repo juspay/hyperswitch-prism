@@ -416,6 +416,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     }
                 };
 
+                let typed = macros::serialize_typed_connector_payload(
+                    &response,
+                    "typed_connector_response",
+                );
                 Ok(ErrorResponse {
                     status_code: res.status_code,
                     code: code.unwrap_or_else(|| NO_ERROR_CODE.to_string()),
@@ -426,6 +430,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: typed,
                 })
             }
             Ok(transformers::WellsfargoErrorResponse::AuthenticationError(response)) => {
@@ -441,6 +446,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
                 })
             }
             Ok(transformers::WellsfargoErrorResponse::NotAvailableError(response)) => {
@@ -462,6 +468,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
                 })
             }
             Err(error_msg) => {

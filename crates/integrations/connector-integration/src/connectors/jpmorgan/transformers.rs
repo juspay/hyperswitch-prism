@@ -682,6 +682,7 @@ impl<F> TryFrom<ResponseRouterData<responses::JpmorganPaymentsResponse, Self>>
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
             })
         } else {
             Ok(PaymentsResponseData::PostCaptureVoidResponse {
@@ -831,6 +832,7 @@ fn build_payments_response_result(
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: None,
         }))
     } else {
         Ok(Ok(PaymentsResponseData::try_from(response)?))

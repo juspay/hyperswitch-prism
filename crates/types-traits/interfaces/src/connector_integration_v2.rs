@@ -10,7 +10,7 @@ use domain_types::{
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
 };
-use hyperswitch_masking::Maskable;
+use hyperswitch_masking::{Maskable, Secret};
 use serde_json::json;
 
 use crate::api;
@@ -128,13 +128,19 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
         &self,
         req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
     ) -> CustomResult<Option<Request>, IntegrationError> {
+        let body = self.get_request_body(req)?;
+        let typed_request_value = body
+            .as_ref()
+            .and_then(|b| b.masked_serialize_inner())
+            .map(|(v, _)| v);
         Ok(Some(
             RequestBuilder::new()
                 .method(self.get_http_method())
                 .url(self.get_url(req)?.as_str())
                 .attach_default_headers()
                 .headers(self.get_headers(req)?)
-                .set_optional_body(self.get_request_body(req)?)
+                .set_optional_body(body)
+                .set_typed_connector_request(typed_request_value)
                 .add_certificate(self.get_certificate(req)?)
                 .add_certificate_key(self.get_certificate_key(req)?)
                 .add_ca_certificate_pem(self.get_ca_certificate(req)?)
@@ -225,6 +231,7 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            typed_connector_response: None,
         })
     }
 
@@ -239,7 +246,7 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
     fn get_certificate(
         &self,
         _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
-    ) -> CustomResult<Option<hyperswitch_masking::Secret<String>>, IntegrationError> {
+    ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
         Ok(None)
     }
 
@@ -247,7 +254,7 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
     fn get_certificate_key(
         &self,
         _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
-    ) -> CustomResult<Option<hyperswitch_masking::Secret<String>>, IntegrationError> {
+    ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
         Ok(None)
     }
     /// returns an extra CA certificate (PEM, may be a bundle) to add as a trust
@@ -255,7 +262,7 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
     fn get_ca_certificate(
         &self,
         _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
-    ) -> CustomResult<Option<hyperswitch_masking::Secret<String>>, IntegrationError> {
+    ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
         Ok(None)
     }
 

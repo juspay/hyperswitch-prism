@@ -51,7 +51,7 @@ use transformers::{
 };
 
 use super::macros;
-use crate::{types::ResponseRouterData, with_error_response_body};
+use crate::{set_typed_response, types::ResponseRouterData, with_error_response_body};
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 
 use domain_types::errors::ConnectorError;
@@ -111,6 +111,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             Ok(braintree::ErrorResponses::BraintreeApiErrorResponse(response)) => {
                 with_error_response_body!(event_builder, response);
 
+                let typed = macros::serialize_typed_connector_payload(
+                    &response,
+                    "typed_connector_response",
+                );
                 let error_object = response.api_error_response.errors;
                 let error = error_object.errors.first().or(error_object
                     .transaction
@@ -135,10 +139,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: typed,
                 })
             }
             Ok(braintree::ErrorResponses::BraintreeErrorResponse(response)) => {
                 with_error_response_body!(event_builder, response);
+                let typed = macros::serialize_typed_connector_payload(
+                    &response,
+                    "typed_connector_response",
+                );
                 Ok(ErrorResponse {
                     status_code: res.status_code,
                     code: NO_ERROR_CODE.to_string(),
@@ -149,6 +158,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: typed,
                 })
             }
             Err(_) => {
@@ -571,12 +581,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             res.status_code,
                         "braintree: response body did not match the expected format; confirm API version and connector documentation."),
                     )?;
-                event_builder.map(|i| i.set_connector_response(&response));
-                RouterDataV2::try_from(ResponseRouterData {
-                    response,
-                    router_data: data.clone(),
-                    http_code: res.status_code,
-                })
+                set_typed_response!(event_builder, response, data, res.status_code)
             }
             false => {
                 let response: BraintreeAuthResponse = res
@@ -587,12 +592,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             res.status_code,
                         "braintree: response body did not match the expected format; confirm API version and connector documentation."),
                     )?;
-                event_builder.map(|i| i.set_connector_response(&response));
-                RouterDataV2::try_from(ResponseRouterData {
-                    response,
-                    router_data: data.clone(),
-                    http_code: res.status_code,
-                })
+                set_typed_response!(event_builder, response, data, res.status_code)
             }
         }
     }

@@ -909,6 +909,7 @@ fn build_payment_response(
                 network_decline_code: response_code,
                 network_advice_code: host_response_code,
                 network_error_message: host_response_message,
+                typed_connector_response: None,
             })
         }
         _ => Ok(PaymentsResponseData::TransactionResponse {

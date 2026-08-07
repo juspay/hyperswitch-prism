@@ -279,6 +279,7 @@ pub fn build_powertranz_error_response(
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
             };
         }
     }
@@ -295,6 +296,7 @@ pub fn build_powertranz_error_response(
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: None,
         };
     }
 
@@ -308,6 +310,7 @@ pub fn build_powertranz_error_response(
         network_decline_code: None,
         network_advice_code: None,
         network_error_message: None,
+        typed_connector_response: None,
     }
 }
 

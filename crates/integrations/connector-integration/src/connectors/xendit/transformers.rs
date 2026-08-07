@@ -488,6 +488,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {
@@ -588,6 +589,7 @@ impl<F> TryFrom<ResponseRouterData<XenditResponse, Self>>
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -711,6 +713,7 @@ impl<F> TryFrom<ResponseRouterData<XenditCaptureResponse, Self>>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {

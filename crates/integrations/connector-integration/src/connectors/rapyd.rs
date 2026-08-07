@@ -167,6 +167,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         match response {
             Ok(response_data) => {
                 with_error_response_body!(event_builder, response_data);
+                let typed = macros::serialize_typed_connector_payload(
+                    &response_data,
+                    "typed_connector_response",
+                );
                 Ok(ErrorResponse {
                     status_code: res.status_code,
                     code: response_data.status.error_code,
@@ -177,6 +181,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: typed,
                 })
             }
             Err(error_msg) => {

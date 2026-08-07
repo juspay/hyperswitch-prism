@@ -778,6 +778,7 @@ where
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
                 });
             }
         }
@@ -936,6 +937,7 @@ impl<F, Req, T> TryFrom<ResponseRouterData<PproRefundResponse, Self>>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
             })
         } else {
             Ok(RefundsResponseData {
@@ -1430,6 +1432,7 @@ impl<F, Req> TryFrom<ResponseRouterData<PproAgreementResponse, Self>>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
                 });
             }
         }

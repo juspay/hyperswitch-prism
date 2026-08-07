@@ -234,6 +234,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         with_error_response_body!(event_builder, response);
 
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         let error_string = match response {
             helcim::HelcimErrorResponse::Payment(response) => match response.errors {
                 helcim::HelcimErrorTypes::StringType(error) => error,
@@ -252,6 +254,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
         })
     }
 }

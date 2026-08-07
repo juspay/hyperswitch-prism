@@ -38,6 +38,7 @@ use interfaces::{
     },
 };
 
+use crate::set_typed_response;
 use crate::types::ResponseRouterData;
 use crate::with_error_response_body;
 use transformers::{
@@ -135,6 +136,10 @@ impl ConnectorCommon for LoonioPayouts {
 
         with_error_response_body!(event_builder, response);
 
+        let typed = crate::connectors::macros::serialize_typed_connector_payload(
+            &response,
+            "typed_connector_response",
+        );
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response
@@ -147,6 +152,7 @@ impl ConnectorCommon for LoonioPayouts {
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
         })
     }
 }
@@ -268,13 +274,7 @@ impl
                 context: Default::default(),
             })?;
 
-        event_builder.map(|i| i.set_connector_response(&response));
-
-        RouterDataV2::try_from(ResponseRouterData {
-            response,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        })
+        set_typed_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -328,7 +328,7 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
     fn handle_response_v2(
         &self,
         data: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
-        _event_builder: Option<&mut events::Event>,
+        event_builder: Option<&mut events::Event>,
         res: Response,
     ) -> CustomResult<
         RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
@@ -341,11 +341,7 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
                 context: Default::default(),
             })?;
 
-        RouterDataV2::try_from(ResponseRouterData {
-            response,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        })
+        set_typed_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(

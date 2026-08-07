@@ -221,7 +221,8 @@ impl ToGrpcStatus for ConnectorError {
         let _ = connector_error.encode(&mut buf);
 
         match self {
-            Self::ConnectorErrorResponse(error_response) => match error_response.status_code {
+            Self::ConnectorErrorResponse { error_response, .. } => match error_response.status_code
+            {
                 400 | 402 | 405 | 406 | 407 | 410..=428 | 431..=499 => {
                     Status::with_details(tonic::Code::InvalidArgument, msg, buf.into())
                 }

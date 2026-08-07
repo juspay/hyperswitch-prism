@@ -19,8 +19,10 @@ pub struct PayoutFlowData {
     pub connectors: Connectors,
     pub connector_request_reference_id: String,
     pub raw_connector_response: Option<Secret<String>>,
+    pub typed_connector_response: Option<String>,
     pub connector_response_headers: Option<http::HeaderMap>,
     pub raw_connector_request: Option<Secret<String>>,
+    pub typed_connector_request: Option<String>,
     pub access_token: Option<ServerAuthenticationTokenResponseData>,
     pub test_mode: Option<bool>,
     pub description: Option<String>,
@@ -41,6 +43,22 @@ impl RawConnectorRequestResponse for PayoutFlowData {
 
     fn set_raw_connector_request(&mut self, request: Option<Secret<String>>) {
         self.raw_connector_request = request;
+    }
+
+    fn set_typed_connector_response(&mut self, response: Option<String>) {
+        self.typed_connector_response = response;
+    }
+
+    fn get_typed_connector_response(&self) -> Option<String> {
+        self.typed_connector_response.clone()
+    }
+
+    fn set_typed_connector_request(&mut self, request: Option<String>) {
+        self.typed_connector_request = request;
+    }
+
+    fn get_typed_connector_request(&self) -> Option<String> {
+        self.typed_connector_request.clone()
     }
 }
 

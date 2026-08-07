@@ -53,8 +53,8 @@ use serde::Serialize;
 use transformers::{self as razorpay, ForeignTryFrom};
 
 use crate::{
-    connectors::razorpayv2::transformers::RazorpayV2SyncResponse, with_error_response_body,
-    with_response_body,
+    connectors::razorpayv2::transformers::RazorpayV2SyncResponse, set_typed_response,
+    types::ResponseRouterData, with_error_response_body,
 };
 
 pub(crate) mod headers {
@@ -181,6 +181,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         with_error_response_body!(event_builder, response);
 
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         let (code, message, reason, attempt_status) = match response {
             razorpay::RazorpayErrorResponse::StandardError { error } => {
                 let attempt_status = match error.code.as_str() {
@@ -215,6 +217,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
         })
     }
 }
@@ -340,6 +343,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ConnectorError,
     > {
+        use domain_types::connector_types::RawConnectorRequestResponse;
         // Handle UPI payments differently from regular payments
         match &data.request.payment_method_data {
             PaymentMethodData::Upi(_) => {
@@ -352,10 +356,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
                 match upi_response_result {
                     Ok(upi_response) => {
-                        with_response_body!(event_builder, upi_response);
+                        // Serialize once for both event logging and typed_connector_response
+                        let masked = macros::masked_serialize_connector_response(&upi_response);
+                        if let Some(ref msv) = masked {
+                            if let Some(evt) = event_builder {
+                                evt.response_data = Some(msv.clone());
+                            }
+                        }
 
                         // Use the transformer for UPI response handling
-                        RouterDataV2::foreign_try_from((
+                        let mut result = RouterDataV2::foreign_try_from((
                             upi_response,
                             data.clone(),
                             res.status_code,
@@ -366,7 +376,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 res.status_code,
                                 "razorpay",
                             ),
-                        )
+                        )?;
+                        result.resource_common_data.set_typed_connector_response(
+                            masked.as_ref().map(|m| m.inner().to_string()),
+                        );
+                        Ok(result)
                     }
                     Err(_) => {
                         // Fall back to regular payment response
@@ -379,21 +393,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 "razorpay: response body did not match the expected format; confirm API version and connector documentation."),
                             )?;
 
-                        with_response_body!(event_builder, response);
-                        RouterDataV2::foreign_try_from((
-                            response,
-                            data.clone(),
-                            res.status_code,
-                            data.request.capture_method,
-                            false,
-                            data.request.payment_method_type,
-                        ))
-                        .change_context(
-                            crate::utils::response_handling_fail_for_connector(
-                                res.status_code,
-                                "razorpay",
-                            ),
-                        )
+                        set_typed_response!(event_builder, response, data, res.status_code)
                     }
                 }
             }
@@ -408,19 +408,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         "razorpay: response body did not match the expected format; confirm API version and connector documentation.")
                     })?;
 
-                with_response_body!(event_builder, response);
-
-                RouterDataV2::foreign_try_from((
-                    response,
-                    data.clone(),
-                    res.status_code,
-                    data.request.capture_method,
-                    false,
-                    data.request.payment_method_type,
-                ))
-                .change_context(
-                    crate::utils::response_handling_fail_for_connector(res.status_code, "razorpay"),
-                )
+                set_typed_response!(event_builder, response, data, res.status_code)
             }
         }
     }
@@ -513,6 +501,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         ConnectorError,
     > {
         // Parse the response using the enum that handles both collection and direct payment responses
+        use domain_types::connector_types::RawConnectorRequestResponse;
         let sync_response: RazorpayV2SyncResponse = res
             .response
             .parse_struct("RazorpayV2SyncResponse")
@@ -522,10 +511,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 "razorpay: response body did not match the expected format; confirm API version and connector documentation."),
             )?;
 
-        with_response_body!(event_builder, sync_response);
+        // Serialize once for both event logging and typed_connector_response
+        let masked = macros::masked_serialize_connector_response(&sync_response);
+        if let Some(ref msv) = masked {
+            if let Some(evt) = event_builder {
+                evt.response_data = Some(msv.clone());
+            }
+        }
 
         // Use the transformer for PSync response handling
-        RouterDataV2::foreign_try_from((
+        let mut result = RouterDataV2::foreign_try_from((
             sync_response,
             data.clone(),
             res.status_code,
@@ -534,7 +529,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         .change_context(crate::utils::response_handling_fail_for_connector(
             res.status_code,
             "razorpay",
-        ))
+        ))?;
+        result
+            .resource_common_data
+            .set_typed_connector_response(masked.as_ref().map(|m| m.inner().to_string()));
+        Ok(result)
     }
 
     fn get_error_response_v2(
@@ -658,13 +657,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 "razorpay: response body did not match the expected format; confirm API version and connector documentation.")
             })?;
 
-        with_response_body!(event_builder, response);
-
-        RouterDataV2::foreign_try_from((response, data.clone(), res.status_code, false))
-            .change_context(crate::utils::response_handling_fail_for_connector(
-                res.status_code,
-                "razorpay",
-            ))
+        set_typed_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -789,11 +782,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 "razorpay: response body did not match the expected format; confirm API version and connector documentation.")
             })?;
 
-        with_response_body!(event_builder, response);
-
-        RouterDataV2::foreign_try_from((response, data.clone(), res.status_code)).change_context(
-            crate::utils::response_handling_fail_for_connector(res.status_code, "razorpay"),
-        )
+        set_typed_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -872,11 +861,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 "razorpay: response body did not match the expected format; confirm API version and connector documentation."),
             )?;
 
-        with_response_body!(event_builder, response);
-
-        RouterDataV2::foreign_try_from((response, data.clone(), res.status_code)).change_context(
-            crate::utils::response_handling_fail_for_connector(res.status_code, "razorpay"),
-        )
+        set_typed_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -1054,11 +1039,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 "razorpay: response body did not match the expected format; confirm API version and connector documentation."),
             )?;
 
-        with_response_body!(event_builder, response);
-
-        RouterDataV2::foreign_try_from((response, data.clone(), res.status_code)).change_context(
-            crate::utils::response_handling_fail_for_connector(res.status_code, "razorpay"),
-        )
+        set_typed_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -1165,11 +1146,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .attach_printable(format!("Failed to parse RazorpayCaptureResponse: {err:?}"))
             })?;
 
-        with_response_body!(event_builder, response);
-
-        RouterDataV2::foreign_try_from((response, data.clone(), res.status_code)).change_context(
-            crate::utils::response_handling_fail_for_connector(res.status_code, "razorpay"),
-        )
+        set_typed_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(

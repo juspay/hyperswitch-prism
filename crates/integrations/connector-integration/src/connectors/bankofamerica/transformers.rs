@@ -386,6 +386,7 @@ fn convert_to_error_response_from_error_info(
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
+        typed_connector_response: None,
     }
 }
 
@@ -489,6 +490,7 @@ fn get_error_response(
         network_advice_code,
         network_decline_code,
         network_error_message: None,
+        typed_connector_response: None,
     }
 }
 
@@ -1945,6 +1947,7 @@ where
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
+        typed_connector_response: None,
     });
 
     RouterDataV2 {

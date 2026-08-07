@@ -55,6 +55,7 @@ use crate::{
         PaypalRepeatPaymentResponse, PaypalSetupMandatesResponse, PaypalSyncResponse,
         PaypalZeroMandateRequest, RefundResponse, RefundSyncResponse,
     },
+    set_typed_response,
     types::ResponseRouterData,
     utils::{self, ConnectorErrorType, ConnectorErrorTypeMapping},
     with_error_response_body,
@@ -599,6 +600,7 @@ macros::create_all_prerequisites!(
 
         with_error_response_body!(event_builder, response);
 
+        let typed = macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         let error_reason = response.details.clone().map(|order_errors| {
             order_errors
                 .iter()
@@ -642,8 +644,9 @@ macros::create_all_prerequisites!(
             connector_transaction_id: response.debug_id,
             network_advice_code: None,
             network_decline_code: None,
-            network_error_message: None
-})
+            network_error_message: None,
+            typed_connector_response: typed,
+        })
     }
     }
 );
@@ -781,19 +784,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 "paypal",
             ))?;
 
-        if let Some(event) = event_builder {
-            event.set_connector_response(&response)
-        }
-
-        RouterDataV2::try_from(ResponseRouterData {
-            response,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        })
-        .change_context(utils::response_handling_fail_for_connector(
-            res.status_code,
-            "paypal",
-        ))
+        set_typed_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -854,6 +845,7 @@ macros::macro_connector_implementation!(
 
         with_error_response_body!(event_builder, response);
 
+        let typed = macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.error.clone(),
@@ -863,8 +855,9 @@ macros::macro_connector_implementation!(
             connector_transaction_id: None,
             network_advice_code: None,
             network_decline_code: None,
-            network_error_message: None
-})
+            network_error_message: None,
+            typed_connector_response: typed,
+        })
         }
     }
 );
@@ -1408,19 +1401,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 "paypal",
             ))?;
 
-        if let Some(event) = event_builder {
-            event.set_connector_response(&response)
-        }
-
-        RouterDataV2::try_from(ResponseRouterData {
-            response,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        })
-        .change_context(utils::response_handling_fail_for_connector(
-            res.status_code,
-            "paypal",
-        ))
+        set_typed_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -1526,19 +1507,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 res.status_code,
                 "paypal",
             ))?;
-        if let Some(event) = event_builder {
-            event.set_connector_response(&verification_response)
-        }
-
-        RouterDataV2::try_from(ResponseRouterData {
-            response: verification_response,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        })
-        .change_context(utils::response_handling_fail_for_connector(
-            res.status_code,
-            "paypal",
-        ))
+        set_typed_response!(event_builder, verification_response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -1717,6 +1686,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         with_error_response_body!(event_builder, response);
 
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         let error_reason = response
             .details
             .clone()
@@ -1769,6 +1740,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
         })
     }
 }

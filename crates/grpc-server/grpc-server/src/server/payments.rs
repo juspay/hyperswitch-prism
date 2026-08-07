@@ -98,7 +98,7 @@ use grpc_api_types::payments::{
     RecurringPaymentServiceChargeResponse, RecurringPaymentServiceRevokeRequest,
     RecurringPaymentServiceRevokeResponse, RefundResponse,
 };
-use hyperswitch_masking::{ExposeInterface, PeekInterface};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use injector::TokenData;
 use interfaces::{
     connector_integration_v2::BoxedConnectorIntegrationV2,
@@ -2681,7 +2681,7 @@ impl PaymentMethod {
         // Authenticator connectors use PaymentMethodType instead of PMData
         let dummy_pm_data = payment_method_data::PaymentMethodData::PaymentMethodToken(
             payment_method_data::PaymentMethodToken {
-                token: hyperswitch_masking::Secret::new(String::new()),
+                token: Secret::new(String::new()),
             },
         );
         let connector_feature_data = request
@@ -2889,7 +2889,13 @@ impl MerchantAuthentication {
                 Ok(session_response)
             }
             Err(error_response) => Err(error_stack::report!(
-                ConnectorError::ConnectorErrorResponse(error_response)
+                ConnectorError::ConnectorErrorResponse {
+                    error_response,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_response: None,
+                    typed_connector_request: None,
+                }
             )
             .to_grpc_error()),
         }
@@ -3852,9 +3858,17 @@ pub fn generate_mandate_revoke_response(
     let raw_connector_response = router_data_v2
         .resource_common_data
         .get_raw_connector_response();
+    let typed_connector_response = router_data_v2
+        .resource_common_data
+        .get_typed_connector_response()
+        .map(Secret::new);
     let raw_connector_request = router_data_v2
         .resource_common_data
         .get_raw_connector_request();
+    let typed_connector_request = router_data_v2
+        .resource_common_data
+        .get_typed_connector_request()
+        .map(Secret::new);
     let response_headers = router_data_v2
         .resource_common_data
         .get_connector_response_headers_as_map();
@@ -3881,7 +3895,9 @@ pub fn generate_mandate_revoke_response(
             network_transaction_id: None,
             merchant_revoke_id: None,
             raw_connector_response,
+            typed_connector_response,
             raw_connector_request,
+            typed_connector_request,
         }),
         Err(e) => Ok(RecurringPaymentServiceRevokeResponse {
             status: grpc_api_types::payments::MandateStatus::MandateRevokeFailed.into(),
@@ -3901,7 +3917,9 @@ pub fn generate_mandate_revoke_response(
             network_transaction_id: None,
             merchant_revoke_id: e.connector_transaction_id,
             raw_connector_response,
+            typed_connector_response,
             raw_connector_request,
+            typed_connector_request,
         }),
     }
 }

@@ -282,6 +282,7 @@ macros::macro_connector_implementation!(
             .map(|e| e.detail.clone())
             .unwrap_or_else(|| "Refund error".to_string());
 
+        let typed = macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         Ok(ErrorResponse {
             status_code: res.status_code,
             code,
@@ -291,7 +292,8 @@ macros::macro_connector_implementation!(
             connector_transaction_id: None,
             network_decline_code: None,
             network_advice_code: None,
-            network_error_message: None
+            network_error_message: None,
+            typed_connector_response: typed,
 })
     }
     }
@@ -400,6 +402,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         with_error_response_body!(event_builder, response);
 
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.err.clone(),
@@ -410,6 +414,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
         })
     }
 }

@@ -2508,6 +2508,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     network_decline_code: body.host_response_code.clone(),
                     network_advice_code: None,
                     network_error_message: body.response_message.clone(),
+                    typed_connector_response: None,
                 }),
                 ..router_data.clone()
             });
@@ -2667,6 +2668,7 @@ impl TryFrom<ResponseRouterData<TsysTransitTransactionInquiryResponse, Self>>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: response.response_message.clone(),
+                    typed_connector_response: None,
                 }),
                 ..router_data.clone()
             });
@@ -2801,6 +2803,7 @@ impl TryFrom<ResponseRouterData<TsysTransitCaptureResponse, Self>>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: response.response_message.clone(),
+                    typed_connector_response: None,
                 }),
                 ..router_data.clone()
             });
@@ -2932,6 +2935,7 @@ impl TryFrom<ResponseRouterData<TsysTransitReturnResponse, Self>>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: response.response_message.clone(),
+                    typed_connector_response: None,
                 }),
                 ..router_data.clone()
             });
@@ -3058,6 +3062,7 @@ impl TryFrom<ResponseRouterData<TsysTransitTransactionInquiryResponse, Self>>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: response.response_message.clone(),
+                    typed_connector_response: None,
                 }),
                 ..router_data.clone()
             });
@@ -3193,6 +3198,7 @@ impl TryFrom<ResponseRouterData<TsysTransitVoidPostRefundResponse, Self>>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: response.response_message.clone(),
+                    typed_connector_response: None,
                 }),
                 ..router_data.clone()
             });
@@ -3344,6 +3350,7 @@ impl TryFrom<ResponseRouterData<TsysTransitVoidResponse, Self>>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: response.response_message.clone(),
+                    typed_connector_response: None,
                 }),
                 ..router_data.clone()
             });
@@ -3663,6 +3670,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: response.response_message.clone(),
+                    typed_connector_response: None,
                 }),
                 ..router_data.clone()
             });
@@ -3894,6 +3902,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     network_decline_code: body.host_response_code.clone(),
                     network_advice_code: None,
                     network_error_message: body.response_message.clone(),
+                    typed_connector_response: None,
                 }),
                 ..router_data.clone()
             });

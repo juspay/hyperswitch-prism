@@ -162,6 +162,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         };
         match response {
             Ok(BankofamericaErrorResponse::StandardError(response)) => {
+                let typed = macros::serialize_typed_connector_payload(
+                    &response,
+                    "typed_connector_response",
+                );
                 let (code, message, reason) = match response.error_information {
                     Some(ref error_info) => {
                         let detailed_error_info = error_info.details.as_ref().map(|details| {
@@ -216,19 +220,27 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: typed,
                 })
             }
-            Ok(BankofamericaErrorResponse::AuthenticationError(response)) => Ok(ErrorResponse {
-                status_code: res.status_code,
-                code: NO_ERROR_CODE.to_string(),
-                message: response.response.rmsg.clone(),
-                reason: Some(response.response.rmsg),
-                attempt_status: None,
-                connector_transaction_id: None,
-                network_advice_code: None,
-                network_decline_code: None,
-                network_error_message: None,
-            }),
+            Ok(BankofamericaErrorResponse::AuthenticationError(response)) => {
+                let typed = macros::serialize_typed_connector_payload(
+                    &response,
+                    "typed_connector_response",
+                );
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: NO_ERROR_CODE.to_string(),
+                    message: response.response.rmsg.clone(),
+                    reason: Some(response.response.rmsg),
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    typed_connector_response: typed,
+                })
+            }
             Err(error_msg) => {
                 tracing::error!(deserialization_error =? error_msg);
                 domain_types::utils::handle_json_response_deserialization_failure(

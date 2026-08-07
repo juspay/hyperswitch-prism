@@ -1242,6 +1242,7 @@ fn in_band_error(
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
+        typed_connector_response: None,
     })
 }
 
@@ -1283,6 +1284,7 @@ fn top_level_error(
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
+        typed_connector_response: None,
     })
 }
 
@@ -1520,6 +1522,7 @@ fn map_authorization_response(
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
                     }),
                 ))
             }
@@ -1740,6 +1743,7 @@ impl TryFrom<ResponseRouterData<TesouroSyncResponse, Self>>
                             network_advice_code: None,
                             network_decline_code: None,
                             network_error_message: None,
+                            typed_connector_response: None,
                         }),
                     )
                 } else {
