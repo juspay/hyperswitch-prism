@@ -143,8 +143,11 @@ pub enum PaysafePaymentMethod<T: PaymentMethodDataTypes> {
         ach: PaysafeAch,
     },
     GooglePay {
+        // Boxed to keep this variant from dominating the enum's size: the decrypted token
+        // payload makes it far larger than the others. Mirrors `ApplePay` below. `Box` is
+        // transparent to serde, so the wire body is unchanged.
         #[serde(rename = "googlePay")]
-        google_pay: PaysafeGooglePay,
+        google_pay: Box<PaysafeGooglePay>,
     },
     ApplePay {
         #[serde(rename = "applePay")]

@@ -1255,9 +1255,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     let account_id = account_id.get_account_id(PaysafeAccountKind::CardNoThreeDs, currency)?;
                     (
                         PaysafePaymentMethod::GooglePay {
-                            google_pay: PaysafeGooglePay {
+                            google_pay: Box::new(PaysafeGooglePay {
                                 google_pay_payment_token,
-                            },
+                            }),
                         },
                         PaysafePaymentType::Card,
                         Some(account_id),
