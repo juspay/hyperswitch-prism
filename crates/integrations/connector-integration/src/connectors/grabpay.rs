@@ -337,18 +337,6 @@ fn format_rfc7231_date(date_time: time::OffsetDateTime) -> CustomResult<String, 
         })
 }
 
-fn payment_access_token(data: &PaymentFlowData) -> CustomResult<String, IntegrationError> {
-    data.get_access_token().or_else(|err| {
-        session_token_from_connector_feature_data(data.connector_feature_data.as_ref()).ok_or(err)
-    })
-}
-
-fn refund_access_token(data: &RefundFlowData) -> CustomResult<String, IntegrationError> {
-    data.get_access_token().or_else(|err| {
-        session_token_from_connector_feature_data(data.connector_feature_data.as_ref()).ok_or(err)
-    })
-}
-
 fn session_token_from_connector_feature_data(
     connector_feature_data: Option<&common_utils::pii::SecretSerdeValue>,
 ) -> Option<String> {
@@ -534,7 +522,12 @@ macros::macro_connector_implementation!(
                     ),
                 },
             )?;
-            let access_token = refund_access_token(&req.resource_common_data)?;
+            let access_token = req.resource_common_data.get_access_token().or_else(|err| {
+                session_token_from_connector_feature_data(
+                    req.resource_common_data.connector_feature_data.as_ref(),
+                )
+                .ok_or(err)
+            })?;
 
             self.build_pop_headers(&auth, &access_token)
         }
@@ -590,7 +583,12 @@ macros::macro_connector_implementation!(
                     ),
                 },
             )?;
-            let access_token = payment_access_token(&req.resource_common_data)?;
+            let access_token = req.resource_common_data.get_access_token().or_else(|err| {
+                session_token_from_connector_feature_data(
+                    req.resource_common_data.connector_feature_data.as_ref(),
+                )
+                .ok_or(err)
+            })?;
 
             self.build_pop_headers(&auth, &access_token)
         }
@@ -638,7 +636,12 @@ macros::macro_connector_implementation!(
                     ),
                 },
             )?;
-            let access_token = refund_access_token(&req.resource_common_data)?;
+            let access_token = req.resource_common_data.get_access_token().or_else(|err| {
+                session_token_from_connector_feature_data(
+                    req.resource_common_data.connector_feature_data.as_ref(),
+                )
+                .ok_or(err)
+            })?;
 
             self.build_pop_headers(&auth, &access_token)
         }
