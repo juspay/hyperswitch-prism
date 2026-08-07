@@ -6097,7 +6097,7 @@ pub fn generate_create_order_response(
                 raw_connector_status,
                 session_data: grpc_session_data,
                 redirection_data: grpc_redirection_data,
-                connector_feature_data: convert_connector_metadata_to_secret_string(
+                connector_feature_data: convert_secret_connector_metadata_to_secret_string(
                     connector_metadata,
                 ),
             }
@@ -6206,6 +6206,12 @@ fn convert_connector_metadata_to_secret_string(
     connector_metadata: Option<serde_json::Value>,
 ) -> Option<Secret<String>> {
     connector_metadata.and_then(|value| serde_json::to_string(&value).ok().map(Secret::new))
+}
+
+fn convert_secret_connector_metadata_to_secret_string(
+    connector_metadata: Option<SecretSerdeValue>,
+) -> Option<Secret<String>> {
+    connector_metadata.and_then(|value| serde_json::to_string(value.peek()).ok().map(Secret::new))
 }
 
 impl ForeignTryFrom<connector_types::MandateReference>

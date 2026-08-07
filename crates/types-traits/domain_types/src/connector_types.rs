@@ -2052,7 +2052,7 @@ pub struct PaymentCreateOrderResponse {
     /// Optional SDK session data for wallet flows (Apple Pay, Google Pay) and other SDK types
     pub session_data: Option<ClientAuthenticationTokenData>,
     pub redirection_data: Option<Box<RedirectForm>>,
-    pub connector_metadata: Option<serde_json::Value>,
+    pub connector_metadata: Option<SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone)]

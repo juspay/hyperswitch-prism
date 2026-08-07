@@ -149,18 +149,18 @@ pub struct GrabpayCreateOrderResponse {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct GrabpayConnectorFeatureData {
-    pub state: Option<String>,
+    pub state: Option<Secret<String>>,
     pub callback_state: Option<String>,
     pub code: Option<String>,
     pub nonce: Option<String>,
-    pub code_verifier: Option<String>,
+    pub code_verifier: Option<Secret<String>>,
     pub redirect_uri: Option<String>,
     pub partner_tx_id: Option<String>,
     pub currency: Option<Currency>,
     pub request_code: Option<String>,
     #[serde(rename = "txID")]
     pub tx_id: Option<String>,
-    pub access_token: Option<String>,
+    pub access_token: Option<Secret<String>>,
     pub token_type: Option<String>,
     pub expires_in_seconds: Option<i64>,
 }
@@ -488,7 +488,7 @@ pub type GrabpayServerSessionAuthenticationTokenResponse = GrabpayServerAuthenti
 
 struct GrabpayRedirectContext {
     redirect_url: String,
-    connector_feature_data: serde_json::Value,
+    connector_feature_data: SecretSerdeValue,
 }
 
 fn build_code_challenge(
@@ -607,7 +607,9 @@ impl
             grant_type: AUTHORIZATION_CODE_GRANT.to_string(),
             client_id: auth.client_id,
             client_secret: auth.client_secret,
-            code_verifier: required_feature_field(feature_data.code_verifier, "code_verifier")?,
+            code_verifier: required_feature_field(feature_data.code_verifier, "code_verifier")?
+                .peek()
+                .to_string(),
             redirect_uri: required_feature_field(feature_data.redirect_uri, "redirect_uri")?,
             code,
         })
@@ -688,7 +690,9 @@ impl
             grant_type: AUTHORIZATION_CODE_GRANT.to_string(),
             client_id: auth.client_id,
             client_secret: auth.client_secret,
-            code_verifier: required_feature_field(feature_data.code_verifier, "code_verifier")?,
+            code_verifier: required_feature_field(feature_data.code_verifier, "code_verifier")?
+                .peek()
+                .to_string(),
             redirect_uri: required_feature_field(feature_data.redirect_uri, "redirect_uri")?,
             code,
         })
@@ -1272,14 +1276,14 @@ fn build_create_order_redirect_context(
         .append_pair("scope", SCOPE_ONE_TIME_CHARGE)
         .append_pair("state", &state);
 
-    let connector_feature_data = serde_json::json!({
+    let connector_feature_data = SecretSerdeValue::new(serde_json::json!({
         "state": state,
         "nonce": nonce,
         "code_verifier": code_verifier,
         "redirect_uri": redirect_uri,
         "partner_tx_id": partner_tx_id,
         "currency": currency,
-    });
+    }));
 
     Ok(GrabpayRedirectContext {
         redirect_url: url.to_string(),
@@ -1347,6 +1351,7 @@ pub(crate) fn access_token_from_connector_feature_data(
 ) -> Result<String, error_stack::Report<errors::IntegrationError>> {
     let feature_data = parse_connector_feature_data(connector_feature_data)?;
     required_feature_field(feature_data.access_token, "access_token")
+        .map(|token| token.peek().to_string())
 }
 
 pub(crate) fn currency_from_connector_feature_data(
@@ -1419,7 +1424,7 @@ fn validate_callback_state(
     let callback_state =
         required_feature_field(feature_data.callback_state.clone(), "callback_state")?;
 
-    if expected_state == callback_state {
+    if expected_state.peek().as_str() == callback_state.as_str() {
         Ok(())
     } else {
         Err(error_stack::report!(errors::IntegrationError::InvalidDataFormat {
@@ -1435,10 +1440,10 @@ fn validate_callback_state(
     }
 }
 
-fn required_feature_field(
-    value: Option<String>,
+fn required_feature_field<T>(
+    value: Option<T>,
     field_name: &'static str,
-) -> Result<String, error_stack::Report<errors::IntegrationError>> {
+) -> Result<T, error_stack::Report<errors::IntegrationError>> {
     value.ok_or_else(|| {
         error_stack::report!(errors::IntegrationError::MissingRequiredField {
             field_name,
