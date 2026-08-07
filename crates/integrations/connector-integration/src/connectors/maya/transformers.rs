@@ -214,7 +214,7 @@ impl From<MayaPaymentStatus> for EventType {
             | MayaPaymentStatus::ThreeDsPaymentFailure
             | MayaPaymentStatus::CheckOutDropout
             | MayaPaymentStatus::ThreeDsPaymentDropout => Self::PaymentIntentFailure,
-            MayaPaymentStatus::Refunded => Self::PaymentIntentSuccess,
+            MayaPaymentStatus::Refunded => Self::RefundSuccess,
         }
     }
 }
@@ -329,8 +329,7 @@ pub struct MayaVoidResponse {
     pub reason: Option<String>,
     #[serde(default)]
     pub request_reference_number: Option<String>,
-    #[serde(default)]
-    pub payment: Option<String>,
+    pub payment: String,
     #[serde(default)]
     pub created_at: Option<String>,
     #[serde(default)]
@@ -587,10 +586,11 @@ impl TryFrom<ResponseRouterData<MayaVoidResponse, Self>>
     fn try_from(item: ResponseRouterData<MayaVoidResponse, Self>) -> Result<Self, Self::Error> {
         let status = common_enums::AttemptStatus::from(item.response.status.clone());
         let void_id = item.response.id;
+        let payment_id = item.response.payment;
 
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(void_id.clone()),
+                resource_id: ResponseId::ConnectorTransactionId(payment_id),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
