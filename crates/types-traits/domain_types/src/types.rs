@@ -408,6 +408,7 @@ pub struct Connectors {
     pub easebuzz: ConnectorParams,
     pub imerchantsolutions: ConnectorParams,
     pub axisbank: ConnectorParams,
+    pub maya: ConnectorParams,
     pub tsys_transit: ConnectorParams,
     pub twoc_twop_paco: ConnectorParams,
     pub interpayments: ConnectorParams,
@@ -1581,6 +1582,11 @@ impl<
                         payment_method_data::EaseBuzzRedirection {},
                     )))
                 }
+                grpc_api_types::payments::payment_method::PaymentMethod::PaymayaRedirect(_) => {
+                    Ok(Self::Wallet(payment_method_data::WalletData::PaymayaRedirect(
+                        payment_method_data::PaymayaRedirection {},
+                    )))
+                }
                 grpc_api_types::payments::payment_method::PaymentMethod::CashappQr(_) => {
                     Ok(Self::Wallet(payment_method_data::WalletData::CashappQr(
                         Box::new(payment_method_data::CashappQr {}),
@@ -2668,6 +2674,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::Netbanking => {
                 Ok(PaymentMethodType::Netbanking)
             }
+            grpc_api_types::payments::PaymentMethodType::Paymaya => Ok(PaymentMethodType::Paymaya),
             grpc_api_types::payments::PaymentMethodType::Ideal => Ok(PaymentMethodType::Ideal),
             grpc_api_types::payments::PaymentMethodType::Blik => Ok(PaymentMethodType::Blik),
             grpc_api_types::payments::PaymentMethodType::Atome => Ok(PaymentMethodType::Atome),
@@ -2798,6 +2805,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 grpc_api_types::payments::payment_method::PaymentMethod::VenmoRedirect(_) => Ok(Some(PaymentMethodType::Venmo)),
                 grpc_api_types::payments::payment_method::PaymentMethod::SkrillRedirect(_) => Ok(Some(PaymentMethodType::Skrill)),
                 grpc_api_types::payments::payment_method::PaymentMethod::PayseraRedirect(_) => Ok(Some(PaymentMethodType::Paysera)),
+                grpc_api_types::payments::payment_method::PaymentMethod::PaymayaRedirect(_) => Ok(Some(PaymentMethodType::Paymaya)),
                 grpc_api_types::payments::payment_method::PaymentMethod::RevolutPayRedirect(_) => Ok(Some(PaymentMethodType::RevolutPay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::SatispayRedirect(_) => Ok(Some(PaymentMethodType::Satispay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::WeroRedirect(_) => Ok(Some(PaymentMethodType::Wero)),
@@ -6787,6 +6795,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::PaymayaRedirect(_)),
+            } => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::RevolutPayRedirect(_)),
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
@@ -8451,6 +8463,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::CashFree => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::PayU => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::EaseBuzz => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethodType::Paymaya => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::QwikcilverWallet => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::Skrill => Ok(Self::Wallet),
 
@@ -9110,7 +9123,7 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
             merchant_order_id: None,
             metadata: None,
             status_code: value.status_code as u32,
-            raw_connector_response: None,
+            raw_connector_response: value.raw_connector_response.map(Secret::new),
             response_headers,
             state: None,
             raw_connector_request: None,
@@ -9695,7 +9708,7 @@ impl ForeignTryFrom<RefundWebhookDetailsResponse> for RefundResponse {
                 }),
                 issuer_details: None,
             }),
-            raw_connector_response: None,
+            raw_connector_response: value.raw_connector_response.map(Secret::new),
             refund_amount: None,
             payment_amount: None,
             refund_reason: None,
@@ -12756,6 +12769,7 @@ pub enum PaymentMethodDataType {
     CashfreeRedirect,
     PayURedirect,
     EaseBuzzRedirect,
+    PaymayaRedirect,
     SepaGuaranteedBankDebit,
     IndonesianBankTransfer,
     Netbanking,
