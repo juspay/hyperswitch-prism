@@ -406,7 +406,9 @@ where
         payload: &Req,
         metadata: &tonic::metadata::MetadataMap,
         extensions: &tonic::Extensions,
-        verify_response: Option<grpc_api_types::payments::PaymentServiceVerifyRedirectResponseResponse>,
+        verify_response: Option<
+            grpc_api_types::payments::PaymentServiceVerifyRedirectResponseResponse,
+        >,
     ) -> Result<
         Option<MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse>,
         tonic::Status,
@@ -787,7 +789,7 @@ where
                 &payload,
                 &metadata,
                 &extensions,
-                None
+                None,
             )
             .await?;
         let create_customer_response = self
@@ -1232,7 +1234,13 @@ where
             .await?;
 
         let session_token_response = self
-            .create_server_session_authentication_token(connector, payload, metadata, extensions, Some(verify_response.clone()))
+            .create_server_session_authentication_token(
+                connector,
+                payload,
+                metadata,
+                extensions,
+                Some(verify_response.clone()),
+            )
             .await?;
 
         let authorize_payload = PaymentServiceAuthorizeRequest::foreign_from((
