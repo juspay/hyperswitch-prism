@@ -1489,7 +1489,9 @@ mod tests {
     use domain_types::connector_types::EventType;
     use hyperswitch_masking::Secret;
 
-    use super::{build_hmac_authorization, build_pop_signature, format_rfc7231_date, grabpay};
+    use super::{
+        build_hmac_authorization, build_pop_signature, format_rfc7231_date, grabpay, CONTENT_TYPE,
+    };
 
     fn test_auth() -> grabpay::GrabpayAuthType {
         grabpay::GrabpayAuthType {

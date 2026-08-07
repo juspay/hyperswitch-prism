@@ -400,6 +400,7 @@ impl GrabpayWebhookBody {
                 connector_refund_id: self.tx_id.clone(),
                 merchant_refund_id: self.partner_tx_id.clone(),
                 connector_transaction_id: self.orig_tx_id.clone(),
+                merchant_transaction_id: self.partner_tx_id.clone(),
             })
         } else {
             WebhookResourceReference::Payment(PaymentWebhookReference {
@@ -1152,6 +1153,7 @@ impl
             .resource_common_data
             .connector_request_reference_id;
         validate_partner_tx_id(&partner_tx_id)?;
+        let shipping_details = build_shipping_details(&router_data.resource_common_data);
 
         Ok(Self {
             partner_group_tx_id: partner_tx_id.clone(),
@@ -1160,7 +1162,7 @@ impl
             amount: router_data.request.amount,
             description: router_data.resource_common_data.description,
             merchant_id: auth.merchant_id.peek().to_string(),
-            shipping_details: build_shipping_details(&router_data.resource_common_data),
+            shipping_details,
         })
     }
 }
