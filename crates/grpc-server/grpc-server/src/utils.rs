@@ -38,6 +38,9 @@ pub fn record_fields_from_header<B: hyper::body::Body>(request: &Request<B>) -> 
         "request",
         uri = %url_path,
         version = ?request.version(),
+        // euler's `action` = the real HTTP verb (GET/POST/…); euler maps it to the `_method`
+        // column. gRPC-over-HTTP2 is always POST, the HTTP gateway carries the true verb.
+        action = %request.method(),
         tenant_id = tracing::field::Empty,
         request_id = tracing::field::Empty,
         execution_mode = tracing::field::Empty,
@@ -273,13 +276,13 @@ where
         ..
     } = metadata_payload;
     let current_span = tracing::Span::current();
-    let req_body_json = match hyperswitch_masking::masked_serialize(&request_data.payload) {
-        Ok(masked_value) => masked_value.to_string(),
-        Err(e) => {
-            tracing::error!("Masked serialization error: {:?}", e);
-            "<masked serialization error>".to_string()
-        }
-    };
+    let masked_body = hyperswitch_masking::masked_serialize(&request_data.payload)
+        .map_err(|e| tracing::error!("Masked serialization error: {:?}", e))
+        .ok();
+    let req_body_json = masked_body
+        .as_ref()
+        .map(ToString::to_string)
+        .unwrap_or_else(|| "<masked serialization error>".to_string());
     let connector_name = connector.get_connector_name();
     current_span.record("service_name", service_name);
     current_span.record("request_body", req_body_json);
@@ -287,6 +290,37 @@ where
     current_span.record("merchant_id", merchant_id);
     current_span.record("tenant_id", tenant_id);
     current_span.record("request_id", request_id);
+
+    // Euler secondary-key id sources (udf_order_id / udf_customer_id / udf_txn_uuid).
+    // Recorded as flat span fields via the storage API because the log transform sources by flat
+    // key (it cannot reach into `request_body`) and this avoids declaring the fields on every
+    // handler's `#[instrument]`. (`category` is set per-direction via static values.)
+    if let Some(ids) = masked_body.as_ref().map(|body| {
+        [
+            (
+                "merchant_order_id",
+                body.get("merchant_order_id").and_then(Value::as_str),
+            ),
+            (
+                "customer_id",
+                body.get("customer")
+                    .and_then(|customer| customer.get("id"))
+                    .and_then(Value::as_str),
+            ),
+            (
+                "merchant_transaction_id",
+                body.get("merchant_transaction_id").and_then(Value::as_str),
+            ),
+        ]
+    }) {
+        log_utils::Storage::with_current_span_mut(|storage| {
+            for (key, value) in ids {
+                if let Some(value) = value {
+                    storage.record_value(key, Value::String(value.to_owned()));
+                }
+            }
+        });
+    }
     tracing::info!("Golden Log Line (incoming - request)");
     Ok(())
 }
@@ -301,6 +335,8 @@ pub fn log_after_initialization<T>(
 
     match &result {
         Ok(response) => {
+            // Success HTTP status; euler's `res_code` is present on every line.
+            current_span.record("status_code", 200_i64);
             current_span.record("response_body", tracing::field::debug(response.get_ref()));
 
             let res_ref = response.get_ref();
@@ -327,7 +363,10 @@ pub fn log_after_initialization<T>(
         }
         Err(status) => {
             current_span.record("error_message", status.message());
-            current_span.record("status_code", status.code().to_string());
+            // Connector-aware HTTP status (e.g. 422) — matches the HTTP response the caller
+            // receives, not the coarse gRPC code.
+            let http_status = crate::http::error::http_status_for_status(status).as_u16();
+            current_span.record("status_code", i64::from(http_status));
         }
     }
     // Apply unified log fields (transformations + static values) before emitting the golden log line
