@@ -287,30 +287,49 @@ pub struct PaysafeMeta {
 ///
 /// Wallets can never carry `threeDs`: Paysafe then applies card validation and demands
 /// `card.holderName`, but a `card` object may not coexist with `googlePay`/`applePay`
-/// ("exactly one payment method is required"). So a wallet without a cryptogram is skipped
-/// here regardless of the requested authentication type — 3DS is simply unreachable for
-/// wallets on Paysafe, and erroring instead would block wallet traffic outright.
+/// ("exactly one payment method is required"). A wallet payment that carries no cryptogram
+/// therefore has no way to authenticate, so requesting `three_ds` on one cannot be honoured
+/// — that is rejected here rather than silently downgraded to `skip3ds`, which would skip
+/// SCA the merchant explicitly asked for.
 ///
 /// Returns `None` (field omitted) wherever the current wire shape already succeeds:
 /// Apple Pay and Google Pay tokens that carry a cryptogram are authenticated by the wallet,
 /// and the redirect APMs are not subject to the card 3DS mandate.
 fn resolve_paysafe_skip_3ds<T: PaymentMethodDataTypes>(
     payment_method_data: &PaymentMethodData<T>,
-) -> Option<bool> {
+    is_three_ds: bool,
+) -> Result<Option<bool>, error_stack::Report<IntegrationError>> {
     match payment_method_data {
-        PaymentMethodData::Card(_) => Some(true),
+        // This leg is the no-3DS card path by construction: a card electing 3DS mints its
+        // handle in PreAuthenticate, which sends a `threeDs` block instead.
+        PaymentMethodData::Card(_) => Ok(Some(true)),
         PaymentMethodData::Wallet(WalletData::GooglePay(google_pay_data)) => {
             match &google_pay_data.tokenization_data {
                 // Decrypted upstream: we can see whether the wallet authenticated.
                 GpayTokenizationData::Decrypted(decrypted) => {
-                    decrypted.cryptogram.is_none().then_some(true)
+                    if decrypted.cryptogram.is_some() {
+                        // The wallet cryptogram is the authentication; Paysafe accepts it
+                        // in place of 3DS even on a THREE_D_S_TWO account.
+                        Ok(None)
+                    } else if is_three_ds {
+                        Err(IntegrationError::NotImplemented(
+                            "Paysafe: Google Pay cannot perform 3DS. A `threeDs` block may not accompany `googlePay` (Paysafe requires card.holderName, which cannot coexist with a wallet object). Use no_three_ds, or supply a wallet cryptogram (CRYPTOGRAM_3DS)."
+                                .to_string(),
+                            Default::default(),
+                        )
+                        .into())
+                    } else {
+                        Ok(Some(true))
+                    }
                 }
                 // Paysafe decrypts gateway-side, so the auth method is not visible here.
-                // Leave the body as-is rather than assert anything about authentication.
-                GpayTokenizationData::Encrypted(_) => None,
+                // Asserting `skip3ds` would claim 3DS was skipped for a token that may in
+                // fact carry a cryptogram, so the body is left as-is and Paysafe's own
+                // error surfaces on a 3DS-mandatory account.
+                GpayTokenizationData::Encrypted(_) => Ok(None),
             }
         }
-        _ => None,
+        _ => Ok(None),
     }
 }
 
@@ -340,45 +359,6 @@ fn create_paysafe_billing_details(
     } else {
         Ok(None)
     }
-}
-
-/// Build `googlePay.…paymentMethodData.info.billingAddress`.
-///
-/// Distinct from the handle's top-level `billingDetails` — Paysafe's own Google Pay
-/// examples carry both. Every field is optional here, so unlike
-/// `create_paysafe_billing_details` there is no mandatory-field gate; the object is
-/// omitted only when nothing at all is known. Blank strings are dropped for the same
-/// reason as above (error 5068 on present-but-empty values).
-fn create_paysafe_google_pay_billing_address(
-    resource_common_data: &PaymentFlowData,
-) -> Option<PaysafeGooglePayBillingAddress> {
-    let non_empty = |value: Option<Secret<String>>| value.filter(|v| !v.peek().trim().is_empty());
-
-    let name = non_empty(resource_common_data.get_optional_billing_full_name());
-    let address1 = non_empty(resource_common_data.get_optional_billing_line1());
-    let locality = non_empty(resource_common_data.get_optional_billing_city());
-    let administrative_area = non_empty(resource_common_data.get_optional_billing_state());
-    let postal_code = non_empty(resource_common_data.get_optional_billing_zip());
-    let country_code = resource_common_data.get_optional_billing_country();
-
-    if name.is_none()
-        && address1.is_none()
-        && locality.is_none()
-        && administrative_area.is_none()
-        && postal_code.is_none()
-        && country_code.is_none()
-    {
-        return None;
-    }
-
-    Some(PaysafeGooglePayBillingAddress {
-        name,
-        address1,
-        locality,
-        administrative_area,
-        postal_code,
-        country_code,
-    })
 }
 
 /// Whether this payment method is a Paysafe redirect APM that must create a payment
@@ -727,8 +707,6 @@ where
             // Redirect APMs (Skrill / Interac / paysafecard) are not subject to the card
             // 3DS mandate; keep their verified wire shape untouched.
             skip_3ds: None,
-            dup_check: None,
-            merchant_descriptor: None,
         })
     }
 }
@@ -892,8 +870,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             billing_details,
             // This leg exists to run 3DS, so the mandate is satisfied by `threeDs` itself.
             skip_3ds: None,
-            dup_check: None,
-            merchant_descriptor: None,
         })
     }
 }
@@ -1271,9 +1247,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             info: PaysafeGooglePayCardInfo {
                                 card_network: google_pay_data.info.card_network.clone(),
                                 card_details: google_pay_data.info.card_details.clone(),
-                                billing_address: create_paysafe_google_pay_billing_address(
-                                    &router_data.resource_common_data,
-                                ),
                             },
                             tokenization_data,
                         },
@@ -1632,9 +1605,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             // No `threeDs` on this leg, so a THREE_D_S_TWO account needs `skip3ds` for
             // anything the wallet has not already authenticated. See
             // `resolve_paysafe_skip_3ds`.
-            skip_3ds: resolve_paysafe_skip_3ds(&router_data.request.payment_method_data),
-            dup_check: None,
-            merchant_descriptor: None,
+            skip_3ds: resolve_paysafe_skip_3ds(
+                &router_data.request.payment_method_data,
+                router_data.resource_common_data.is_three_ds(),
+            )?,
         })))
     }
 }
@@ -2811,7 +2785,7 @@ mod skip_3ds_tests {
     #[test]
     fn google_pay_without_cryptogram_skips_3ds() {
         let pmd = google_pay(GpayTokenizationData::Decrypted(decrypted(None)));
-        assert_eq!(resolve_paysafe_skip_3ds(&pmd), Some(true));
+        assert_eq!(resolve_paysafe_skip_3ds(&pmd, false).unwrap(), Some(true));
     }
 
     /// A cryptogram means the wallet authenticated; Paysafe accepts it, so the field must
@@ -2819,7 +2793,7 @@ mod skip_3ds_tests {
     #[test]
     fn google_pay_with_cryptogram_omits_skip_3ds() {
         let pmd = google_pay(GpayTokenizationData::Decrypted(decrypted(Some("AgAAAA=="))));
-        assert_eq!(resolve_paysafe_skip_3ds(&pmd), None);
+        assert_eq!(resolve_paysafe_skip_3ds(&pmd, false).unwrap(), None);
     }
 
     /// Paysafe decrypts gateway-side, so the auth method is not visible to us — leave the
@@ -2832,7 +2806,7 @@ mod skip_3ds_tests {
                 token: "xxxx".to_string(),
             },
         ));
-        assert_eq!(resolve_paysafe_skip_3ds(&pmd), None);
+        assert_eq!(resolve_paysafe_skip_3ds(&pmd, false).unwrap(), None);
     }
 
     /// `authMethod` must track cryptogram presence, mapping onto Paysafe's two schemas
@@ -2885,8 +2859,6 @@ mod skip_3ds_tests {
             profile: None,
             billing_details: None,
             skip_3ds: Some(true),
-            dup_check: None,
-            merchant_descriptor: None,
         };
         let body = serde_json::to_value(&req).unwrap();
         assert_eq!(body.get("skip3ds"), Some(&serde_json::json!(true)));
@@ -2894,8 +2866,22 @@ mod skip_3ds_tests {
             body.get("skip3Ds").is_none(),
             "wrong casing would be silently ignored by Paysafe"
         );
-        // Optional additions must stay absent so existing verified bodies are unchanged.
-        assert!(body.get("dupCheck").is_none());
-        assert!(body.get("merchantDescriptor").is_none());
+    }
+
+    /// A wallet cannot perform 3DS on Paysafe, so a merchant asking for `three_ds` must get
+    /// an error rather than a silent downgrade to `skip3ds` — that would skip the SCA they
+    /// explicitly requested.
+    #[test]
+    fn google_pay_without_cryptogram_rejects_three_ds() {
+        let pmd = google_pay(GpayTokenizationData::Decrypted(decrypted(None)));
+        assert!(resolve_paysafe_skip_3ds(&pmd, true).is_err());
+    }
+
+    /// A cryptogram authenticates the wallet payment, so `three_ds` is satisfiable and must
+    /// not error — nor add `skip3ds`.
+    #[test]
+    fn google_pay_with_cryptogram_allows_three_ds() {
+        let pmd = google_pay(GpayTokenizationData::Decrypted(decrypted(Some("AgAAAA=="))));
+        assert_eq!(resolve_paysafe_skip_3ds(&pmd, true).unwrap(), None);
     }
 }
