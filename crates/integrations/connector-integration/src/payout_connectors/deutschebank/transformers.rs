@@ -171,33 +171,19 @@ pub struct DeutschebankVopDebtor {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DeutschebankVopResponse {
-    // DB's VoP response fields.
+    // DB's VoP response fields. `payeeNameMatch` does not follow from the field
+    // name, so it keeps an explicit rename.
     #[serde(rename = "payeeNameMatch")]
     pub match_status: Option<DeutschebankVopMatchStatus>,
-    #[serde(
-        rename = "additionalInfo",
-        default,
-        skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub additional_info: Option<String>,
-    #[serde(
-        rename = "matchedName",
-        default,
-        skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub matched_name: Option<String>,
-    #[serde(
-        rename = "noapDescription",
-        default,
-        skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub noap_description: Option<String>,
-    #[serde(
-        rename = "isNoapRetryable",
-        default,
-        skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub is_noap_retryable: Option<bool>,
 }
 
