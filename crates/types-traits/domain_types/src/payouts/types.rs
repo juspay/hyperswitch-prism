@@ -603,6 +603,27 @@ impl ForeignTryFrom<grpc_api_types::payouts::PixBankTransferPayout>
             })?,
             tax_id: pix.tax_id,
             ispb: pix.ispb,
+            bank_code: pix.bank_code,
+            bank_account_type: pix
+                .bank_account_type
+                .map(|bank_type_raw| {
+                    common_enums::BankType::foreign_try_from(bank_type_raw).change_context(
+                        IntegrationError::InvalidDataFormat {
+                            field_name: "payout_method_data.bank_account_type",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(format!(
+                                    "unsupported bank_account_type value: {bank_type_raw}"
+                                )),
+                                suggested_action: Some(
+                                    "Provide a valid bank account type".to_string(),
+                                ),
+                                doc_url: None,
+                            },
+                        },
+                    )
+                })
+                .transpose()?,
+            account_holder_name: pix.account_holder_name,
         })
     }
 }
