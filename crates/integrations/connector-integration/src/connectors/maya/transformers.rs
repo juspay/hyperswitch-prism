@@ -586,6 +586,7 @@ impl TryFrom<ResponseRouterData<MayaVoidResponse, Self>>
 
     fn try_from(item: ResponseRouterData<MayaVoidResponse, Self>) -> Result<Self, Self::Error> {
         let status = common_enums::AttemptStatus::from(item.response.status.clone());
+        let void_id = item.response.id;
 
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
