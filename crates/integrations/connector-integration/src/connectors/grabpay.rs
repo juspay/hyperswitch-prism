@@ -1145,7 +1145,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
     fn should_do_session_token(
         &self,
-        connector_feature_data: Option<&hyperswitch_masking::Secret<String>>,
+        connector_feature_data: Option<&Secret<String>>,
     ) -> bool {
         grabpay::should_do_session_token(connector_feature_data)
     }
