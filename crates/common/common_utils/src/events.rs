@@ -514,15 +514,16 @@ impl CompiledLogTransformations {
     pub fn compile(raw: &HashMap<String, String>) -> Self {
         let rules = raw
             .iter()
-            .map(|(target_path, source_field)| {
+            .filter_map(|(target_path, source_field)| {
                 let segments: Vec<String> = target_path.split('.').map(String::from).collect();
-                let root_key: &'static str = Box::leak(segments[0].clone().into_boxed_str());
+                let first = segments.first()?;
+                let root_key: &'static str = Box::leak(first.clone().into_boxed_str());
                 let source_key: &'static str = Box::leak(source_field.clone().into_boxed_str());
-                CompiledLogTransformation {
+                Some(CompiledLogTransformation {
                     source_field: source_key,
                     target_segments: segments,
                     target_root_key: root_key,
-                }
+                })
             })
             .collect();
         Self { rules }
@@ -585,8 +586,10 @@ pub fn compute_log_transformations(
             let root = writes
                 .entry(rule.target_root_key)
                 .or_insert_with(|| serde_json::json!({}));
-            // Walk pre-compiled segments[1..] to set the value
-            set_nested_value_from_segments(root, &rule.target_segments[1..], source_value);
+            // Walk pre-compiled segments past the root to set the value
+            if let Some(rest) = rule.target_segments.get(1..) {
+                set_nested_value_from_segments(root, rest, source_value);
+            }
         }
     }
 
@@ -604,8 +607,8 @@ fn set_nested_value_from_segments(
     if segments.is_empty() {
         return;
     }
-    if segments.len() == 1 {
-        target[&segments[0]] = value;
+    if let (1, Some(seg)) = (segments.len(), segments.first()) {
+        target[seg.as_str()] = value;
         return;
     }
     // Walk intermediate segments, creating objects as needed
