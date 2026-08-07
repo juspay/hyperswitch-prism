@@ -577,6 +577,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         connector_refund_id: Some(payload.data.id),
                         merchant_refund_id: None,
                         connector_transaction_id: payload.data.payment_id,
+                        merchant_transaction_id: None,
                     },
                 )))
             }

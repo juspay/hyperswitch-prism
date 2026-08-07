@@ -1868,6 +1868,7 @@ enum CountryAlpha2 {
   ZW = 249;
 }
 
+// The type of bank account
 enum BankType {
   BANK_TYPE_UNSPECIFIED = 0;
   BANK_TYPE_CHECKING = 1;
@@ -1876,8 +1877,11 @@ enum BankType {
   BANK_TYPE_CURRENT = 4;
   BANK_TYPE_BOND = 5;
   BANK_TYPE_SUBSCRIPTION_SHARE = 6;
+  BANK_TYPE_SALARY = 7;
+  BANK_TYPE_PAYMENT = 8;
 }
 
+// The type of entity holding the bank account
 enum BankHolderType {
   BANK_HOLDER_TYPE_UNSPECIFIED = 0;
   BANK_HOLDER_TYPE_PERSONAL = 1;

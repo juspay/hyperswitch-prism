@@ -425,6 +425,7 @@ pub struct Connectors {
     pub plaid: ConnectorParams,
     pub givepayments: ConnectorParams,
     pub tesouro: ConnectorParams,
+    pub santander: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -816,6 +817,7 @@ impl Connectors {
             PayoutConnectorEnum::Itaubank => patched.itaubank.apply(params_patch),
             PayoutConnectorEnum::Worldpayxml => patched.worldpayxml.apply(params_patch),
             PayoutConnectorEnum::Cybersource => patched.cybersource.apply(params_patch),
+            PayoutConnectorEnum::Santander => patched.santander.apply(params_patch),
             // Deutschebank uses `ConnectorParamsWithCaBundle`, so patch the resolved
             // URLs while leaving its `server_ca_bundle` untouched.
             PayoutConnectorEnum::Deutschebank => {
@@ -2502,6 +2504,8 @@ impl ForeignTryFrom<grpc_api_types::payments::BankType> for common_enums::BankTy
             grpc_api_types::payments::BankType::Transmission => {
                 Ok(common_enums::BankType::Transmission)
             }
+            grpc_api_types::payments::BankType::Salary => Ok(common_enums::BankType::Salary),
+            grpc_api_types::payments::BankType::Payment => Ok(common_enums::BankType::Payment),
             grpc_api_types::payments::BankType::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "unknown",
@@ -2512,6 +2516,34 @@ impl ForeignTryFrom<grpc_api_types::payments::BankType> for common_enums::BankTy
                 })?
             }
         }
+    }
+}
+
+impl ForeignTryFrom<i32> for common_enums::BankType {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(value: i32) -> Result<Self, error_stack::Report<Self::Error>> {
+        let bank_type = grpc_api_types::payments::BankType::try_from(value).map_err(|_| {
+            error_stack::report!(IntegrationError::InvalidDataFormat {
+                field_name: "bank_type",
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "integer {value} does not map to any known BankType variant"
+                    )),
+                    ..Default::default()
+                },
+            })
+        })?;
+        <Self as ForeignTryFrom<grpc_api_types::payments::BankType>>::foreign_try_from(bank_type)
+            .change_context(IntegrationError::InvalidDataFormat {
+                field_name: "bank_type",
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "BankType variant {bank_type:?} is not supported"
+                    )),
+                    ..Default::default()
+                },
+            })
     }
 }
 
@@ -17453,6 +17485,8 @@ impl ForeignFrom<common_enums::BankType> for grpc_api_types::payments::BankType 
             common_enums::BankType::Bond => Self::Bond,
             common_enums::BankType::SubscriptionShare => Self::SubscriptionShare,
             common_enums::BankType::Transmission => Self::Transmission,
+            common_enums::BankType::Salary => Self::Salary,
+            common_enums::BankType::Payment => Self::Payment,
         }
     }
 }
@@ -17864,11 +17898,13 @@ impl From<connector_types::WebhookResourceReference> for grpc_api_types::payment
                 connector_refund_id,
                 merchant_refund_id,
                 connector_transaction_id,
+                merchant_transaction_id,
             }) => EventReference {
                 resource: Some(event_reference::Resource::Refund(RefundEventReference {
                     connector_refund_id,
                     merchant_refund_id,
                     connector_transaction_id,
+                    merchant_transaction_id,
                 })),
             },
             WebhookResourceReference::Dispute(DisputeWebhookReference {
@@ -17882,9 +17918,11 @@ impl From<connector_types::WebhookResourceReference> for grpc_api_types::payment
             },
             WebhookResourceReference::Mandate(MandateWebhookReference {
                 connector_mandate_id,
+                merchant_transaction_id,
             }) => EventReference {
                 resource: Some(event_reference::Resource::Mandate(MandateEventReference {
                     connector_mandate_id,
+                    merchant_transaction_id,
                 })),
             },
             WebhookResourceReference::Payout(PayoutWebhookReference {

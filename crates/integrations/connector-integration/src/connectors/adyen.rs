@@ -900,6 +900,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     connector_refund_id: Some(notif.psp_reference),
                     merchant_refund_id: Some(notif.merchant_reference),
                     connector_transaction_id: notif.original_reference,
+                    merchant_transaction_id: None,
                 })
             }
             // Dispute events: psp_reference is the dispute ID; original_reference is the parent payment.
