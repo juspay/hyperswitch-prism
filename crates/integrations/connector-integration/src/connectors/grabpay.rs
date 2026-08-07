@@ -5,7 +5,7 @@ use std::{fmt::Debug, sync::LazyLock};
 use base64::Engine;
 use common_enums::{enums, CurrencyUnit, PaymentMethodType};
 use common_utils::{
-    consts::BASE64_ENGINE_URL_SAFE_NO_PAD,
+    consts::{BASE64_ENGINE_URL_SAFE_NO_PAD, NO_ERROR_CODE, NO_ERROR_MESSAGE},
     crypto,
     errors::CustomResult,
     events,
@@ -69,9 +69,11 @@ const CHARGE_COMPLETE_PATH: &str = "/charge/complete";
 const CHARGE_STATUS_PREFIX: &str = "/charge";
 const REFUND_PATH: &str = "/refund";
 const OAUTH_TOKEN_PATH: &str = "/grabid/v1/oauth2/token";
-const GRABPAY_ERROR_CODE: &str = "GRABPAY_ERROR";
-const GRABPAY_ERROR_MESSAGE: &str = "GrabPay error response";
-const GRABPAY_EMPTY_ERROR_MESSAGE: &str = "GrabPay error response was empty";
+pub(crate) const GRABPAY_DOC_URL: &str =
+    "https://developers.grab.com/docs/grabpay-online-integration";
+pub(crate) const GRABPAY_CONFIG_SUGGESTED_ACTION: &str =
+    "Verify the GrabPay connector configuration (partner_id, partner_secret, client_id, \
+     client_secret, merchant_id, base_url) and the request payload, then retry.";
 
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 
@@ -83,8 +85,9 @@ pub(crate) mod headers {
 
 fn grabpay_integration_context(additional_context: impl Into<String>) -> IntegrationErrorContext {
     IntegrationErrorContext {
+        suggested_action: Some(GRABPAY_CONFIG_SUGGESTED_ACTION.to_string()),
+        doc_url: Some(GRABPAY_DOC_URL.to_string()),
         additional_context: Some(additional_context.into()),
-        ..Default::default()
     }
 }
 
@@ -175,7 +178,7 @@ macros::create_all_prerequisites!(
             path: &str,
             body: &[u8],
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            let date = format_rfc7231_date(time::OffsetDateTime::now_utc());
+            let date = format_rfc7231_date(time::OffsetDateTime::now_utc())?;
             let authorization =
                 build_hmac_authorization(auth, method, CONTENT_TYPE, path, body, &date)?;
 
@@ -191,7 +194,7 @@ macros::create_all_prerequisites!(
             access_token: &str,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let now = time::OffsetDateTime::now_utc();
-            let date = format_rfc7231_date(now);
+            let date = format_rfc7231_date(now)?;
             let timestamp = now.unix_timestamp().to_string();
             let pop = build_pop_signature(auth, access_token, &timestamp)?;
 
@@ -221,15 +224,16 @@ pub(crate) fn oauth_endpoint(base_url: &str, path: &str) -> String {
         .unwrap_or_else(|| format!("{base_url}{path}"))
 }
 
-fn build_hmac_authorization(
-    auth: &grabpay::GrabpayAuthType,
+/// Builds GrabPay's canonical signing string:
+/// `{method}\n{content_type}\n{date}\n{path}\n{base64(sha256(body))}\n`.
+fn grabpay_hmac_signing_string(
     method: &str,
     content_type: &str,
     path: &str,
     body: &[u8],
     date: &str,
 ) -> CustomResult<String, IntegrationError> {
-    use common_utils::crypto::{GenerateDigest, SignMessage};
+    use common_utils::crypto::GenerateDigest;
 
     let body_digest = crypto::Sha256.generate_digest(body).change_context(
         IntegrationError::RequestEncodingFailed {
@@ -239,8 +243,22 @@ fn build_hmac_authorization(
         },
     )?;
     let encoded_body_digest = BASE64_ENGINE.encode(body_digest);
-    let signing_string =
-        format!("{method}\n{content_type}\n{date}\n{path}\n{encoded_body_digest}\n");
+    Ok(format!(
+        "{method}\n{content_type}\n{date}\n{path}\n{encoded_body_digest}\n"
+    ))
+}
+
+fn build_hmac_authorization(
+    auth: &grabpay::GrabpayAuthType,
+    method: &str,
+    content_type: &str,
+    path: &str,
+    body: &[u8],
+    date: &str,
+) -> CustomResult<String, IntegrationError> {
+    use common_utils::crypto::SignMessage;
+
+    let signing_string = grabpay_hmac_signing_string(method, content_type, path, body, date)?;
     let signature = crypto::HmacSha256
         .sign_message(
             auth.partner_secret.peek().as_bytes(),
@@ -349,53 +367,27 @@ fn build_pop_signature(
     Ok(BASE64_ENGINE_URL_SAFE_NO_PAD.encode(payload_json.as_bytes()))
 }
 
-fn format_rfc7231_date(date_time: time::OffsetDateTime) -> String {
-    let weekday = match date_time.weekday() {
-        time::Weekday::Monday => "Mon",
-        time::Weekday::Tuesday => "Tue",
-        time::Weekday::Wednesday => "Wed",
-        time::Weekday::Thursday => "Thu",
-        time::Weekday::Friday => "Fri",
-        time::Weekday::Saturday => "Sat",
-        time::Weekday::Sunday => "Sun",
-    };
-    let month = match date_time.month() {
-        time::Month::January => "Jan",
-        time::Month::February => "Feb",
-        time::Month::March => "Mar",
-        time::Month::April => "Apr",
-        time::Month::May => "May",
-        time::Month::June => "Jun",
-        time::Month::July => "Jul",
-        time::Month::August => "Aug",
-        time::Month::September => "Sep",
-        time::Month::October => "Oct",
-        time::Month::November => "Nov",
-        time::Month::December => "Dec",
-    };
-
-    format!(
-        "{}, {:02} {} {:04} {:02}:{:02}:{:02} GMT",
-        weekday,
-        date_time.day(),
-        month,
-        date_time.year(),
-        date_time.hour(),
-        date_time.minute(),
-        date_time.second()
-    )
+/// Formats a timestamp as an HTTP-date (RFC 7231, e.g. `Wed, 02 Nov 2022 08:00:00 GMT`)
+/// for GrabPay's `Date` header, using `time`'s format description instead of a manual match.
+fn format_rfc7231_date(date_time: time::OffsetDateTime) -> CustomResult<String, IntegrationError> {
+    let format = time::macros::format_description!(
+        "[weekday repr:short], [day] [month repr:short] [year] [hour]:[minute]:[second] GMT"
+    );
+    date_time
+        .format(&format)
+        .change_context(IntegrationError::RequestEncodingFailed {
+            context: grabpay_integration_context(
+                "GrabPay failed to format the RFC 7231 Date header",
+            ),
+        })
 }
 
 fn payment_access_token(data: &PaymentFlowData) -> CustomResult<String, IntegrationError> {
-    data.get_access_token().or_else(|_| {
-        grabpay::access_token_from_connector_feature_data(data.connector_feature_data.as_ref())
-    })
+    data.get_access_token()
 }
 
 fn refund_access_token(data: &RefundFlowData) -> CustomResult<String, IntegrationError> {
-    data.get_access_token().or_else(|_| {
-        grabpay::access_token_from_connector_feature_data(data.connector_feature_data.as_ref())
-    })
+    data.get_access_token()
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorCommon
@@ -441,8 +433,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         if res.response.is_empty() {
             return Ok(ErrorResponse {
                 status_code: res.status_code,
-                code: GRABPAY_ERROR_CODE.to_string(),
-                message: GRABPAY_EMPTY_ERROR_MESSAGE.to_string(),
+                code: NO_ERROR_CODE.to_string(),
+                message: NO_ERROR_MESSAGE.to_string(),
                 reason: None,
                 attempt_status: None,
                 connector_transaction_id: None,
@@ -468,12 +460,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             .message
             .or(response.error_description)
             .or(response.reason.clone())
-            .unwrap_or_else(|| GRABPAY_ERROR_MESSAGE.to_string());
+            .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string());
         let code = response
             .code
             .or(response.error)
             .or(response.reason.clone())
-            .unwrap_or_else(|| GRABPAY_ERROR_CODE.to_string());
+            .unwrap_or_else(|| NO_ERROR_CODE.to_string());
 
         Ok(ErrorResponse {
             status_code: res.status_code,
@@ -735,18 +727,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 self.connector_base_url_payments(req)
             ))
         } else {
-            Err(
-                error_stack::report!(IntegrationError::MissingRequiredField {
+            Err(error_stack::report!(IntegrationError::MissingRequiredField {
                 field_name: "session_token",
-                context: IntegrationErrorContext {
-                    additional_context: Some(
-                        "GrabPay post-redirect authorize requires a successful OAuth session-token exchange"
-                            .to_string(),
-                    ),
-                    ..Default::default()
-                },
-            }),
-            )
+                context: grabpay_integration_context(
+                    "GrabPay post-redirect authorize requires a successful OAuth session-token exchange",
+                ),
+            }))
         }
     }
 
@@ -1182,6 +1168,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<bool, error_stack::Report<WebhookError>> {
+        use common_utils::crypto::VerifySignature;
+
         let connector_account_details = connector_account_details
             .ok_or_else(|| error_stack::report!(WebhookError::WebhookVerificationSecretNotFound))?;
         let auth = grabpay::GrabpayAuthType::try_from(&connector_account_details)
@@ -1193,11 +1181,33 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let date = get_webhook_header(&request.headers, headers::DATE)?;
         let path = grabpay_webhook_path(request.uri.as_deref())?;
         let method = grabpay_webhook_method(&request.method);
-        let expected_authorization =
-            build_hmac_authorization(&auth, method, content_type, &path, &request.body, date)
+
+        // GrabPay's Authorization header is `{partner_id}:{base64(HMAC-SHA256(canonical))}`.
+        // The partner_id prefix is a public identifier; the signature must be compared in
+        // constant time. `HmacSha256::verify_signature` uses ring's constant-time verification.
+        let Some((incoming_partner_id, incoming_signature_b64)) =
+            incoming_authorization.split_once(':')
+        else {
+            return Ok(false);
+        };
+        if incoming_partner_id != auth.partner_id.peek() {
+            return Ok(false);
+        }
+        let incoming_signature = match BASE64_ENGINE.decode(incoming_signature_b64) {
+            Ok(signature) => signature,
+            Err(_) => return Ok(false),
+        };
+        let signing_string =
+            grabpay_hmac_signing_string(method, content_type, &path, &request.body, date)
                 .change_context(WebhookError::WebhookSourceVerificationFailed)?;
 
-        Ok(incoming_authorization.as_bytes() == expected_authorization.as_bytes())
+        crypto::HmacSha256
+            .verify_signature(
+                auth.partner_secret.peek().as_bytes(),
+                &incoming_signature,
+                signing_string.as_bytes(),
+            )
+            .change_context(WebhookError::WebhookSourceVerificationFailed)
     }
 
     fn get_event_type(
@@ -1552,7 +1562,7 @@ mod tests {
         let timestamp = time::OffsetDateTime::from_unix_timestamp(1_667_376_000)?;
 
         assert_eq!(
-            format_rfc7231_date(timestamp),
+            format_rfc7231_date(timestamp)?,
             "Wed, 02 Nov 2022 08:00:00 GMT"
         );
         Ok(())
