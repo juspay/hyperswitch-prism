@@ -6,6 +6,7 @@ import {
   generateProxyCacheKey,
   NetworkErrorCode
 } from '../src/http_client';
+// @ts-ignore
 import { types } from '../src/payments/generated/proto';
 
 test('NetworkError initialization and properties', () => {
