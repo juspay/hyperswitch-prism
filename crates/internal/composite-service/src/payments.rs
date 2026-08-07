@@ -30,7 +30,7 @@ use grpc_api_types::payments::{
     PaymentServiceRefundRequest, PaymentServiceVoidRequest, PaymentServiceVoidResponse,
     RefundResponse, RefundServiceGetRequest,
 };
-use interfaces::connector_types::{AuthenticationStep, SessionTokenPhase};
+use interfaces::connector_types::AuthenticationStep;
 
 use crate::transformers::{ForeignFrom, ForeignTryFrom};
 use crate::utils::{
@@ -56,6 +56,7 @@ pub trait CompositeSessionTokenRequest {
         connector: &ConnectorEnum,
     ) -> MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest;
     fn has_session_token(&self) -> bool;
+    fn connector_feature_data(&self) -> Option<&hyperswitch_masking::Secret<String>>;
 }
 
 /// Trait for abstracting request construction for composite pre-authenticate flows.
@@ -118,6 +119,10 @@ impl CompositeSessionTokenRequest for CompositeAuthorizeRequest {
 
     fn has_session_token(&self) -> bool {
         self.session_token.is_some()
+    }
+
+    fn connector_feature_data(&self) -> Option<&hyperswitch_masking::Secret<String>> {
+        self.connector_feature_data.as_ref()
     }
 }
 
@@ -280,6 +285,10 @@ impl CompositeSessionTokenRequest
     fn has_session_token(&self) -> bool {
         self.session_token.is_some()
     }
+
+    fn connector_feature_data(&self) -> Option<&hyperswitch_masking::Secret<String>> {
+        self.connector_feature_data.as_ref()
+    }
 }
 
 /// Holds the mutable state accumulated during composite authorize flow execution.
@@ -395,7 +404,6 @@ where
         &self,
         connector: &ConnectorEnum,
         payload: &Req,
-        phase: SessionTokenPhase,
         metadata: &tonic::metadata::MetadataMap,
         extensions: &tonic::Extensions,
     ) -> Result<
@@ -403,7 +411,9 @@ where
         tonic::Status,
     > {
         let connector_data = ConnectorData::<domain_types::payment_method_data::DefaultPCIHolder>::get_connector_by_name(connector);
-        let should_do_session_token = connector_data.connector.should_do_session_token(phase);
+        let should_do_session_token = connector_data
+            .connector
+            .should_do_session_token(payload.connector_feature_data());
 
         let should_create_session_token = !payload.has_session_token() && should_do_session_token;
 
@@ -554,13 +564,23 @@ where
         create_customer_response: Option<&CustomerServiceCreateResponse>,
         metadata: &tonic::metadata::MetadataMap,
         extensions: &tonic::Extensions,
+<<<<<<< Updated upstream
+=======
+        redirect_state: interfaces::connector_types::RedirectState,
+>>>>>>> Stashed changes
     ) -> Result<Option<PaymentServiceCreateOrderResponse>, tonic::Status> {
         let connector_data =
             ConnectorData::<domain_types::payment_method_data::DefaultPCIHolder>::get_connector_by_name(
                 connector,
             );
 
+<<<<<<< Updated upstream
         let should_execute_create_order = connector_data.connector.should_do_order_create();
+=======
+        let should_execute_create_order = connector_data
+            .connector
+            .should_do_order_create(redirect_state);
+>>>>>>> Stashed changes
         let merchant_order_id_source = connector_data.connector.merchant_order_id_source();
 
         let create_order_response = match should_execute_create_order {
@@ -769,7 +789,6 @@ where
             .create_server_session_authentication_token(
                 &connector,
                 &payload,
-                SessionTokenPhase::Authorize,
                 &metadata,
                 &extensions,
             )
@@ -1249,7 +1268,6 @@ where
             .create_server_session_authentication_token(
                 connector,
                 &session_token_payload,
-                SessionTokenPhase::PostRedirectAuthorize,
                 metadata,
                 extensions,
             )

@@ -89,7 +89,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         true
     }
 
-    fn should_do_session_token(&self, _phase: connector_types::SessionTokenPhase) -> bool {
+    fn should_do_session_token(
+        &self,
+        _connector_feature_data: Option<&hyperswitch_masking::Secret<String>>,
+    ) -> bool {
         true
     }
 }

@@ -735,18 +735,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 self.connector_base_url_payments(req)
             ))
         } else {
-            Err(
-                error_stack::report!(IntegrationError::MissingRequiredField {
+            Err(error_stack::report!(
+                IntegrationError::MissingRequiredField {
                 field_name: "session_token",
-                context: IntegrationErrorContext {
-                    additional_context: Some(
-                        "GrabPay post-redirect authorize requires a successful OAuth session-token exchange"
-                            .to_string(),
-                    ),
-                    ..Default::default()
-                },
-            }),
-            )
+                context: grabpay_integration_context(
+                    "GrabPay post-redirect authorize requires a successful OAuth session-token exchange"
+                ),
+            }))
         }
     }
 
@@ -1142,11 +1137,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         false
     }
 
-    fn should_do_session_token(&self, phase: connector_types::SessionTokenPhase) -> bool {
-        matches!(
-            phase,
-            connector_types::SessionTokenPhase::PostRedirectAuthorize
-        )
+    fn should_do_session_token(
+        &self,
+        connector_feature_data: Option<&hyperswitch_masking::Secret<String>>,
+    ) -> bool {
+        grabpay::should_do_session_token(connector_feature_data)
     }
 
     fn requires_authorize_post_redirect(&self) -> bool {

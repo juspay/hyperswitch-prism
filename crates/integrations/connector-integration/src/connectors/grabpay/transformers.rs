@@ -133,6 +133,23 @@ pub struct GrabpayCreateOrderRequest {
     pub merchant_id: String,
     #[serde(rename = "shippingDetails", skip_serializing_if = "Option::is_none")]
     pub shipping_details: Option<GrabpayShippingDetails>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub items: Option<Vec<GrabpayItem>>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GrabpayItem {
+    #[serde(rename = "itemName")]
+    pub item_name: String,
+    pub quantity: u16,
+    pub price: MinorUnit,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub category: Option<String>,
+    #[serde(rename = "itemCategory", skip_serializing_if = "Option::is_none")]
+    pub item_category: Option<String>,
+    #[serde(rename = "imageURL", skip_serializing_if = "Option::is_none")]
+    pub image_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -400,7 +417,6 @@ impl GrabpayWebhookBody {
                 connector_refund_id: self.tx_id.clone(),
                 merchant_refund_id: self.partner_tx_id.clone(),
                 connector_transaction_id: self.orig_tx_id.clone(),
-                merchant_transaction_id: self.partner_tx_id.clone(),
             })
         } else {
             WebhookResourceReference::Payment(PaymentWebhookReference {
@@ -546,12 +562,9 @@ fn country_from_currency(
         _ => Err(error_stack::report!(
             errors::IntegrationError::InvalidDataFormat {
                 field_name: "currency",
-                context: IntegrationErrorContext {
-                    additional_context: Some(format!(
-                        "GrabPay cannot infer country_code from unsupported currency {currency}; provide billing.address.country"
-                    )),
-                    ..Default::default()
-                }
+                context: grabpay_integration_context(format!(
+                    "GrabPay cannot infer country_code from unsupported currency {currency}; provide billing.address.country"
+                ))
             }
         )),
     }
@@ -1149,11 +1162,12 @@ impl
                 ),
             },
         )?;
+        let shipping_details = build_shipping_details(&router_data.resource_common_data);
+        let items = build_items(&router_data.request.order_details);
         let partner_tx_id = router_data
             .resource_common_data
             .connector_request_reference_id;
         validate_partner_tx_id(&partner_tx_id)?;
-        let shipping_details = build_shipping_details(&router_data.resource_common_data);
 
         Ok(Self {
             partner_group_tx_id: partner_tx_id.clone(),
@@ -1163,8 +1177,29 @@ impl
             description: router_data.resource_common_data.description,
             merchant_id: auth.merchant_id.peek().to_string(),
             shipping_details,
+            items,
         })
     }
+}
+
+fn build_items(
+    order_details: &Option<Vec<domain_types::payment_address::OrderDetailsWithAmount>>,
+) -> Option<Vec<GrabpayItem>> {
+    let items = order_details
+        .as_ref()?
+        .iter()
+        .filter(|detail| !detail.product_name.is_empty() && detail.quantity > 0)
+        .map(|detail| GrabpayItem {
+            item_name: detail.product_name.clone(),
+            quantity: detail.quantity,
+            price: detail.amount,
+            category: detail.category.clone(),
+            item_category: detail.sub_category.clone(),
+            image_url: detail.product_img_link.clone(),
+        })
+        .collect::<Vec<_>>();
+
+    (!items.is_empty()).then_some(items)
 }
 
 fn build_shipping_details(flow_data: &PaymentFlowData) -> Option<GrabpayShippingDetails> {
@@ -1311,12 +1346,9 @@ fn build_create_order_redirect_context(
     let redirect_uri = router_data.request.return_url.clone().ok_or_else(|| {
         error_stack::report!(errors::IntegrationError::MissingRequiredField {
             field_name: "return_url",
-            context: IntegrationErrorContext {
-                additional_context: Some(
-                    "GrabPay OAuth authorize URL requires a redirect_uri".to_string(),
-                ),
-                ..Default::default()
-            }
+            context: grabpay_integration_context(
+                "GrabPay OAuth authorize URL requires a redirect_uri"
+            )
         })
     })?;
     let currency = router_data.request.currency;
@@ -1397,6 +1429,16 @@ pub fn is_missing_oauth_code_error(error: &error_stack::Report<errors::Integrati
     )
 }
 
+pub(crate) fn should_do_session_token(connector_feature_data: Option<&Secret<String>>) -> bool {
+    let connector_feature_data = connector_feature_data
+        .and_then(|data| serde_json::from_str(data.peek()).ok())
+        .map(SecretSerdeValue::new);
+
+    parse_connector_feature_data(connector_feature_data.as_ref())
+        .map(|feature_data| feature_data.code.is_some())
+        .unwrap_or(false)
+}
+
 fn parse_connector_feature_data(
     connector_feature_data: Option<&SecretSerdeValue>,
 ) -> Result<GrabpayConnectorFeatureData, error_stack::Report<errors::IntegrationError>> {
@@ -1435,13 +1477,9 @@ pub(crate) fn currency_from_connector_feature_data(
     feature_data.currency.ok_or_else(|| {
         error_stack::report!(errors::IntegrationError::MissingRequiredField {
             field_name: "connector_feature_data.currency",
-            context: IntegrationErrorContext {
-                additional_context: Some(
-                    "GrabPay RSync requires either refund_amount.currency or connector_feature_data.currency"
-                        .to_string(),
-                ),
-                ..Default::default()
-            },
+            context: grabpay_integration_context(
+                "GrabPay RSync requires either refund_amount.currency or connector_feature_data.currency"
+            ),
         })
     })
 }
@@ -1503,13 +1541,9 @@ fn validate_callback_state(
     } else {
         Err(error_stack::report!(errors::IntegrationError::InvalidDataFormat {
             field_name: "connector_feature_data.callback_state",
-            context: IntegrationErrorContext {
-                additional_context: Some(
-                    "GrabPay OAuth callback state does not match the state generated during initial authorization"
-                        .to_string(),
-                ),
-                ..Default::default()
-            }
+            context: grabpay_integration_context(
+                "GrabPay OAuth callback state does not match the state generated during initial authorization"
+            )
         }))
     }
 }
@@ -1521,12 +1555,9 @@ fn required_feature_field<T>(
     value.ok_or_else(|| {
         error_stack::report!(errors::IntegrationError::MissingRequiredField {
             field_name,
-            context: IntegrationErrorContext {
-                additional_context: Some(format!(
-                    "GrabPay OAuth token exchange requires connector_feature_data.{field_name}"
-                )),
-                ..Default::default()
-            }
+            context: grabpay_integration_context(format!(
+                "GrabPay OAuth token exchange requires connector_feature_data.{field_name}"
+            ))
         })
     })
 }
@@ -1539,10 +1570,7 @@ fn required_string(
     value.ok_or_else(|| {
         error_stack::report!(errors::IntegrationError::MissingRequiredField {
             field_name,
-            context: IntegrationErrorContext {
-                additional_context: Some(message.to_string()),
-                ..Default::default()
-            }
+            context: grabpay_integration_context(message)
         })
     })
 }
@@ -1550,12 +1578,8 @@ fn required_string(
 fn missing_oauth_code_error() -> error_stack::Report<errors::IntegrationError> {
     error_stack::report!(errors::IntegrationError::MissingRequiredField {
         field_name: "connector_feature_data.code",
-        context: IntegrationErrorContext {
-            additional_context: Some(
-                "GrabPay OAuth code is not available yet; skipping token exchange request"
-                    .to_string(),
-            ),
-            ..Default::default()
-        }
+        context: grabpay_integration_context(
+            "GrabPay OAuth code is not available yet; skipping token exchange request"
+        )
     })
 }
