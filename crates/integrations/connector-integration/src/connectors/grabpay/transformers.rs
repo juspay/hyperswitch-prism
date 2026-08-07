@@ -136,6 +136,23 @@ pub struct GrabpayAuthenticateRequest {
     pub merchant_id: String,
     #[serde(rename = "shippingDetails", skip_serializing_if = "Option::is_none")]
     pub shipping_details: Option<GrabpayShippingDetails>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub items: Option<Vec<GrabpayItem>>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GrabpayItem {
+    #[serde(rename = "itemName")]
+    pub item_name: String,
+    pub quantity: u16,
+    pub price: MinorUnit,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub category: Option<String>,
+    #[serde(rename = "itemCategory", skip_serializing_if = "Option::is_none")]
+    pub item_category: Option<String>,
+    #[serde(rename = "imageURL", skip_serializing_if = "Option::is_none")]
+    pub image_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -391,7 +408,10 @@ impl GrabpayWebhookBody {
                 connector_refund_id: self.tx_id.clone(),
                 merchant_refund_id: self.partner_tx_id.clone(),
                 connector_transaction_id: self.orig_tx_id.clone(),
-                merchant_transaction_id: self.partner_tx_id.clone(),
+                merchant_transaction_id: self
+                    .payload
+                    .as_ref()
+                    .and_then(|payload| payload.partner_group_tx_id.clone()),
             })
         } else {
             WebhookResourceReference::Payment(PaymentWebhookReference {
@@ -1122,12 +1142,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 ),
             },
         )?;
+        let shipping_details = build_shipping_details(&router_data.resource_common_data);
+        let items = build_items(&router_data.resource_common_data.order_details);
         let partner_tx_id = router_data
             .resource_common_data
             .connector_request_reference_id
             .clone();
         validate_partner_tx_id(&partner_tx_id)?;
-        let shipping_details = build_shipping_details(&router_data.resource_common_data);
         let currency = grabpay_request_currency(router_data.request.currency)?;
 
         Ok(Self {
@@ -1138,8 +1159,29 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             description: router_data.resource_common_data.description,
             merchant_id: auth.merchant_id.peek().to_string(),
             shipping_details,
+            items,
         })
     }
+}
+
+fn build_items(
+    order_details: &Option<Vec<domain_types::payment_address::OrderDetailsWithAmount>>,
+) -> Option<Vec<GrabpayItem>> {
+    let items = order_details
+        .as_ref()?
+        .iter()
+        .filter(|detail| !detail.product_name.is_empty() && detail.quantity > 0)
+        .map(|detail| GrabpayItem {
+            item_name: detail.product_name.clone(),
+            quantity: detail.quantity,
+            price: detail.amount,
+            category: detail.category.clone(),
+            item_category: detail.sub_category.clone(),
+            image_url: detail.product_img_link.clone(),
+        })
+        .collect::<Vec<_>>();
+
+    (!items.is_empty()).then_some(items)
 }
 
 fn build_shipping_details(flow_data: &PaymentFlowData) -> Option<GrabpayShippingDetails> {
@@ -1393,6 +1435,16 @@ pub fn is_missing_oauth_code_error(error: &error_stack::Report<errors::Integrati
             ..
         }
     )
+}
+
+pub(crate) fn should_do_session_token(connector_feature_data: Option<&Secret<String>>) -> bool {
+    let connector_feature_data = connector_feature_data
+        .and_then(|data| serde_json::from_str(data.peek()).ok())
+        .map(SecretSerdeValue::new);
+
+    parse_connector_feature_data(connector_feature_data.as_ref())
+        .map(|feature_data| feature_data.code.is_some())
+        .unwrap_or(false)
 }
 
 fn parse_connector_feature_data(

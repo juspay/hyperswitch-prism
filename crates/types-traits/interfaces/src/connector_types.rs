@@ -91,16 +91,6 @@ pub enum RedirectState {
     RedirectWithoutParams,
 }
 
-/// Identifies which composite phase is requesting a session token, so a
-/// connector can enable it for only one phase (e.g. post-redirect authorize).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SessionTokenPhase {
-    /// CompositeAuthorize — before create-order / initial authorize.
-    Authorize,
-    /// CompositeVerifyRedirectResponse — before the post-redirect authorize.
-    PostRedirectAuthorize,
-}
-
 /// Describes which merchant-side identifier a connector uses as its order reference.
 /// Some connectors do not distinguish between order and transaction and expect
 /// merchant_transaction_id wherever an order identifier is required.
@@ -236,7 +226,10 @@ pub trait ValidationTrait: ConnectorCommon {
         false
     }
 
-    fn should_do_session_token(&self, _phase: SessionTokenPhase) -> bool {
+    fn should_do_session_token(
+        &self,
+        _connector_feature_data: Option<&hyperswitch_masking::Secret<String>>,
+    ) -> bool {
         false
     }
 

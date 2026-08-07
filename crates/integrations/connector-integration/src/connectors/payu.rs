@@ -104,7 +104,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Payu<T>
 {
-    fn should_do_session_token(&self, _phase: connector_types::SessionTokenPhase) -> bool {
+    fn should_do_session_token(
+        &self,
+        _connector_feature_data: Option<&hyperswitch_masking::Secret<String>>,
+    ) -> bool {
         true // Enable SDKSessionToken (ServerSessionAuthenticationToken) flow
     }
 } // Authentication trait implementations
