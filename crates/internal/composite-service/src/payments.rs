@@ -1217,34 +1217,15 @@ where
         ),
         tonic::Status,
     > {
-        let mut access_token_payload = payload.clone();
-        access_token_payload.connector_feature_data = verify_response
-            .connector_feature_data
-            .clone()
-            .or_else(|| payload.connector_feature_data.clone());
-
+        // `payload.connector_feature_data` already carries the redirect callback data
+        // (folded in by the caller from the verify-redirect response), so the token
+        // steps read it through the normal channel — no per-call payload mutation.
         let access_token_response = self
-            .create_server_authentication_token(
-                connector,
-                &access_token_payload,
-                metadata,
-                extensions,
-            )
+            .create_server_authentication_token(connector, payload, metadata, extensions)
             .await?;
 
-        let mut session_token_payload = payload.clone();
-        session_token_payload.connector_feature_data = verify_response
-            .connector_feature_data
-            .clone()
-            .or_else(|| payload.connector_feature_data.clone());
-
         let session_token_response = self
-            .create_server_session_authentication_token(
-                connector,
-                &session_token_payload,
-                metadata,
-                extensions,
-            )
+            .create_server_session_authentication_token(connector, payload, metadata, extensions)
             .await?;
 
         let authorize_payload = PaymentServiceAuthorizeRequest::foreign_from((
@@ -1311,13 +1292,21 @@ where
         tonic::Response<grpc_api_types::payments::CompositeVerifyRedirectResponseResponse>,
         tonic::Status,
     > {
-        let (metadata, extensions, payload) = request.into_parts();
+        let (metadata, extensions, mut payload) = request.into_parts();
         let connector =
             connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
 
         let verify_response = self
             .verify_redirect_response(&payload, &metadata, &extensions)
             .await?;
+
+        // `process_redirect_response` folds the redirect callback (e.g. the OAuth `code`)
+        // into `connector_feature_data`. Carry that forward on the payload so the
+        // post-redirect token/authorize steps see it via the normal
+        // `connector_feature_data` channel — same as the initial authorize flow.
+        if verify_response.connector_feature_data.is_some() {
+            payload.connector_feature_data = verify_response.connector_feature_data.clone();
+        }
 
         let connector_data = ConnectorData::<
             domain_types::payment_method_data::DefaultPCIHolder,
