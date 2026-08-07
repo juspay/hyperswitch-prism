@@ -139,13 +139,12 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/grabpay/grabpay.py#L89) · [JavaScript](../../examples/grabpay/grabpay.js) · [Kotlin](../../examples/grabpay/grabpay.kt#L75) · [Rust](../../examples/grabpay/grabpay.rs#L140)
+**Examples:** [Python](../../examples/grabpay/grabpay.py#L67) · [JavaScript](../../examples/grabpay/grabpay.js) · [Kotlin](../../examples/grabpay/grabpay.kt#L74) · [Rust](../../examples/grabpay/grabpay.rs#L112)
 
 ## API Reference
 
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
-| [PaymentMethodAuthenticationService.Authenticate](#paymentmethodauthenticationserviceauthenticate) | Authentication | `PaymentMethodAuthenticationServiceAuthenticateRequest` |
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
 | [EventService.HandleEvent](#eventservicehandleevent) | Events | `EventServiceHandleRequest` |
 | [EventService.ParseEvent](#eventserviceparseevent) | Events | `EventServiceParseRequest` |
@@ -451,7 +450,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/grabpay/grabpay.py) · [TypeScript](../../examples/grabpay/grabpay.ts#L140) · [Kotlin](../../examples/grabpay/grabpay.kt#L117) · [Rust](../../examples/grabpay/grabpay.rs)
+**Examples:** [Python](../../examples/grabpay/grabpay.py) · [TypeScript](../../examples/grabpay/grabpay.ts#L108) · [Kotlin](../../examples/grabpay/grabpay.kt#L89) · [Rust](../../examples/grabpay/grabpay.rs)
 
 #### PaymentService.VerifyRedirectResponse
 
@@ -462,17 +461,4 @@ Verify and process redirect responses from 3D Secure or other external flows. Va
 | **Request** | `PaymentServiceVerifyRedirectResponseRequest` |
 | **Response** | `PaymentServiceVerifyRedirectResponseResponse` |
 
-**Examples:** [Python](../../examples/grabpay/grabpay.py) · [TypeScript](../../examples/grabpay/grabpay.ts#L167) · [Kotlin](../../examples/grabpay/grabpay.kt#L160) · [Rust](../../examples/grabpay/grabpay.rs)
-
-### Authentication
-
-#### PaymentMethodAuthenticationService.Authenticate
-
-Execute 3DS challenge or frictionless verification. Authenticates customer via bank challenge or behind-the-scenes verification for fraud prevention.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentMethodAuthenticationServiceAuthenticateRequest` |
-| **Response** | `PaymentMethodAuthenticationServiceAuthenticateResponse` |
-
-**Examples:** [Python](../../examples/grabpay/grabpay.py) · [TypeScript](../../examples/grabpay/grabpay.ts#L131) · [Kotlin](../../examples/grabpay/grabpay.kt#L90) · [Rust](../../examples/grabpay/grabpay.rs)
+**Examples:** [Python](../../examples/grabpay/grabpay.py) · [TypeScript](../../examples/grabpay/grabpay.ts#L135) · [Kotlin](../../examples/grabpay/grabpay.kt#L132) · [Rust](../../examples/grabpay/grabpay.rs)

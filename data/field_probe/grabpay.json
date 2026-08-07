@@ -3,37 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "card": {
-              "card_number": "4111111111111111",
-              "card_exp_month": "03",
-              "card_exp_year": "2030",
-              "card_cvc": "737",
-              "card_holder_name": "John Doe"
-            }
-          },
-          "address": {
-            "billing_address": {}
-          },
-          "return_url": "https://example.com/3ds-return"
-        },
-        "sample": {
-          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/init",
-          "method": "Post",
-          "headers": {
-            "authorization": "probe_key:cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "content-type": "application/json",
-            "date": "2020-01-01T00:00:00+00:00",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"partnerGroupTxID\":\"\",\"partnerTxID\":\"\",\"currency\":\"USD\",\"amount\":1000,\"merchantID\":\"probe_key\"}"
-        }
+        "status": "error",
+        "error": "Stuck on field: billing.address.country. Provide billing address country in the payment request — Missing required field: billing.address.country. Provide billing address country in the payment request"
       }
     },
     "authorize": {

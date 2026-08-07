@@ -339,7 +339,7 @@ connector_id: grabpay
 doc: docs/connectors/grabpay.md
 scenarios: checkout_autocapture
 payment_methods: Ach, AchBankTransfer, Affirm, Afterpay, Alfamart, AliPayRedirect, AmazonPayRedirect, ApplePay, ApplePayDecrypted, ApplePayThirdPartySdk, Bacs, BacsBankTransfer, BancontactCard, BcaBankTransfer, Becs, BillDeskRedirect, Bizum, Blik, Bluecode, BniVaBankTransfer, Boleto, BriVaBankTransfer, Card, CashappQr, CashfreeRedirect, CimbVaBankTransfer, ClassicReward, Dana, DanamonVaBankTransfer, EVoucher, EaseBuzzRedirect, Efecty, Eft, Eps, FamilyMart, GCash, Giropay, GoPay, GooglePay, GooglePayDecrypted, GooglePayThirdPartySdk, Ideal, Indomaret, IndonesianBankTransfer, InstantBankTransfer, InstantBankTransferFinland, InstantBankTransferPoland, Interac, KakaoPay, Klarna, Lawson, LazyPayRedirect, LocalBankRedirect, LocalBankTransfer, MandiriVaBankTransfer, MbWay, Mifinity, MiniStop, Momo, MultibancoBankTransfer, Netbanking, OnlineBankingCzechRepublic, OnlineBankingFinland, OnlineBankingFpx, OnlineBankingPoland, OnlineBankingSlovakia, OnlineBankingThailand, OpenBanking, OpenBankingUk, Oxxo, PagoEfectivo, PayEasy, PaySafeCard, PayURedirect, PaypalRedirect, PaypalSdk, PermataBankTransfer, PhonePeRedirect, Pix, Przelewy24, Pse, RedCompra, RedPagos, RevolutPay, SamsungPay, Satispay, Seicomart, Sepa, SepaBankTransfer, SepaGuaranteedDebit, SevenEleven, Skrill, Sofort, Swish, TouchNGo, Trustly, Twint, UpiCollect, UpiIntent, UpiQr, Vipps, WeChatPayQr, Wero
-flows: authenticate, authorize, handle_event, parse_event, verify_redirect
+flows: authorize, handle_event, parse_event, verify_redirect
 examples_python: examples/grabpay/grabpay.py
 
 ## Helcim
