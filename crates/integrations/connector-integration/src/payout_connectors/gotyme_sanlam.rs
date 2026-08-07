@@ -132,7 +132,7 @@ impl ConnectorCommon for GotymeSanlamPayouts {
                 .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
             message: response
                 .error_message
-                .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
             reason: None,
             attempt_status: None,
             connector_transaction_id: None,

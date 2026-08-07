@@ -303,8 +303,8 @@ where
             current_span.record("error_message", status.message());
             current_span.record("status_code", status.code().to_string());
             current_span.record(
-                "response_error_body",
-                tracing::field::debug(&build_error_detail(status)),
+                "error_response_details",
+                tracing::field::debug(status),
             );
         }
     }
