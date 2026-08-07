@@ -472,6 +472,18 @@ impl EventStage {
 pub struct KafkaTopicConfig {
     pub topic: String,
     pub partition_key_field: String,
+    #[serde(default)]
+    pub payload_format: EventPayloadFormat,
+}
+
+#[derive(
+    Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq, config_patch_derive::Patch,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum EventPayloadFormat {
+    #[default]
+    Json,
+    JsonString,
 }
 
 /// Configuration for events system
@@ -614,7 +626,27 @@ pub(crate) fn process_event_with_config(
         }
     }
 
+    if config.topic_config(&event.stage).payload_format == EventPayloadFormat::JsonString {
+        stringify_event_payloads(&mut result);
+    }
+
     Ok(result)
+}
+
+fn stringify_event_payloads(result: &mut serde_json::Value) {
+    let Some(obj) = result.as_object_mut() else {
+        return;
+    };
+
+    for field in ["request_data", "response_data"] {
+        let Some(value) = obj.get_mut(field) else {
+            continue;
+        };
+
+        if !value.is_null() && !value.is_string() {
+            *value = serde_json::Value::String(value.to_string());
+        }
+    }
 }
 
 pub(crate) fn extract_from_request(
