@@ -1,5 +1,6 @@
 use hyperswitch_masking::ErasedMaskSerialize;
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 use std::collections::HashMap;
 
 use crate::errors::EventPublisherError;
@@ -320,6 +321,24 @@ impl Event {
         });
     }
 
+    /// Carry the connector's reply, every value masked except the ones that connector's allowlist
+    /// names, so a consumer can read it off the event stream.
+    ///
+    /// Recorded on the connector-call event because that is where it is produced, next to the
+    /// request and response it describes. Attached whenever it exists: delivery to consumers is
+    /// the point of the field and is deliberately independent of whether we log it ourselves —
+    /// see [`MASKED_CONNECTOR_RESPONSE_KEY`].
+    pub fn add_masked_connector_response(&mut self, masked_response: &str) {
+        MaskedSerdeValue::from_masked_optional(
+            &masked_response.to_string(),
+            MASKED_CONNECTOR_RESPONSE_KEY,
+        )
+        .map(|masked| {
+            self.additional_fields
+                .insert(MASKED_CONNECTOR_RESPONSE_KEY.to_string(), masked);
+        });
+    }
+
     pub fn set_grpc_error_response(&mut self, tonic_error: &tonic::Status) {
         self.status_code = Some(tonic_error.code().into());
         let error_body = serde_json::json!({
@@ -515,8 +534,65 @@ impl Default for EventConfig {
     }
 }
 
+/// Serde key of the connector's masked reply, wherever it appears in an event.
+///
+/// Named once because two things must agree on it: [`Event::add_masked_connector_response`], which
+/// writes it, and the callers that ask [`emit_event_with_config_redacting`] to keep it out of our
+/// logs.
+pub const MASKED_CONNECTOR_RESPONSE_KEY: &str = "masked_connector_response";
+
+/// Drop `keys` from `value` wherever they occur, at any depth.
+///
+/// Recursive rather than top-level: the same key sits at different depths depending on which event
+/// carries it — top level on the connector event, under `response_data` on the gRPC event, and
+/// nested again inside `event_content.content` for webhook responses. Borrows unless something
+/// actually matches, so the usual empty-`keys` call costs nothing.
+pub fn without_keys<'a>(value: &'a serde_json::Value, keys: &[&str]) -> Cow<'a, serde_json::Value> {
+    fn contains(value: &serde_json::Value, keys: &[&str]) -> bool {
+        match value {
+            serde_json::Value::Object(map) => map
+                .iter()
+                .any(|(key, nested)| keys.contains(&key.as_str()) || contains(nested, keys)),
+            serde_json::Value::Array(items) => items.iter().any(|item| contains(item, keys)),
+            _ => false,
+        }
+    }
+
+    fn strip(value: &mut serde_json::Value, keys: &[&str]) {
+        match value {
+            serde_json::Value::Object(map) => {
+                map.retain(|key, _| !keys.contains(&key.as_str()));
+                map.values_mut().for_each(|nested| strip(nested, keys));
+            }
+            serde_json::Value::Array(items) => items.iter_mut().for_each(|item| strip(item, keys)),
+            _ => {}
+        }
+    }
+
+    if keys.is_empty() || !contains(value, keys) {
+        return Cow::Borrowed(value);
+    }
+    let mut owned = value.clone();
+    strip(&mut owned, keys);
+    Cow::Owned(owned)
+}
+
 /// Emit an event: always processes and logs; publishes to Kafka only when kafka feature is enabled.
 pub fn emit_event_with_config(event: Event, config: &EventConfig) {
+    emit_event_with_config_redacting(event, config, &[])
+}
+
+/// As [`emit_event_with_config`], but omits `redacted_from_log` from the copy written to our own
+/// logs.
+///
+/// The published payload is deliberately untouched. A field can be required by a downstream
+/// consumer and still be something we decline to retain ourselves, which is exactly the shape
+/// `connector_response_masking.log_to_span` asks for.
+pub fn emit_event_with_config_redacting(
+    event: Event,
+    config: &EventConfig,
+    redacted_from_log: &[&str],
+) {
     let processed_event = match process_event_with_config(&event, config) {
         Ok(processed) => processed,
         Err(e) => {
@@ -524,7 +600,7 @@ pub fn emit_event_with_config(event: Event, config: &EventConfig) {
             return;
         }
     };
-    let event_json = serde_json::to_string(&processed_event)
+    let event_json = serde_json::to_string(&without_keys(&processed_event, redacted_from_log))
         .unwrap_or_else(|e| format!("{{\"error\":\"Failed to serialize event: {}\"}}", e));
     tracing::info!(
         events_enabled = config.enabled,
@@ -777,5 +853,97 @@ mod runtime_metadata_tests {
         };
         let value = serde_json::to_value(sample_event(rm)).expect("event serializes");
         assert_eq!(value.get("version").and_then(|v| v.as_str()), Some("v"));
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::expect_used)]
+mod log_redaction_tests {
+    use super::{without_keys, MASKED_CONNECTOR_RESPONSE_KEY};
+    use serde_json::json;
+    use std::borrow::Cow;
+
+    const KEYS: &[&str] = &[MASKED_CONNECTOR_RESPONSE_KEY];
+
+    #[test]
+    fn removes_the_key_at_the_top_level() {
+        // Where it lands on the connector-call event: `additional_fields` is flattened.
+        let value = json!({"masked_connector_response": "{\"id\":\"1\"}", "connector": "adyen"});
+        let out = without_keys(&value, KEYS);
+        assert!(out.get(MASKED_CONNECTOR_RESPONSE_KEY).is_none());
+        assert_eq!(out.get("connector").and_then(|v| v.as_str()), Some("adyen"));
+    }
+
+    #[test]
+    fn removes_the_key_when_nested() {
+        // Where it lands on the gRPC event (`response_data`) and, deeper, inside a webhook
+        // response (`event_content.content`). A top-level-only strip passes the first and
+        // silently leaks the second.
+        let value = json!({
+            "response_data": {
+                "status": "CHARGED",
+                "masked_connector_response": "{\"pan\":\"***\"}",
+                "event_content": {
+                    "content": {"masked_connector_response": "{\"deep\":\"***\"}"}
+                }
+            }
+        });
+        let out = without_keys(&value, KEYS);
+        assert!(!out.to_string().contains(MASKED_CONNECTOR_RESPONSE_KEY));
+        assert_eq!(
+            out.pointer("/response_data/status")
+                .and_then(|v| v.as_str()),
+            Some("CHARGED"),
+            "siblings must survive"
+        );
+    }
+
+    #[test]
+    fn removes_the_key_inside_arrays() {
+        let value = json!({"items": [{"masked_connector_response": "x", "keep": 1}]});
+        let out = without_keys(&value, KEYS);
+        assert!(!out.to_string().contains(MASKED_CONNECTOR_RESPONSE_KEY));
+        assert_eq!(
+            out.pointer("/items/0/keep").and_then(|v| v.as_u64()),
+            Some(1)
+        );
+    }
+
+    #[test]
+    fn borrows_when_nothing_matches() {
+        // The `log_to_span = true` and no-redaction paths must not pay for a deep clone.
+        let value = json!({"response_data": {"status": "CHARGED"}});
+        assert!(matches!(without_keys(&value, KEYS), Cow::Borrowed(_)));
+        assert!(matches!(without_keys(&value, &[]), Cow::Borrowed(_)));
+    }
+
+    #[test]
+    fn an_empty_key_list_is_a_no_op_even_when_the_key_is_present() {
+        // This is the `log_to_span = true` case: the value stays in the logged copy.
+        let value = json!({"masked_connector_response": "kept"});
+        let out = without_keys(&value, &[]);
+        assert_eq!(
+            out.get(MASKED_CONNECTOR_RESPONSE_KEY)
+                .and_then(|v| v.as_str()),
+            Some("kept")
+        );
+    }
+
+    #[test]
+    fn the_published_value_is_never_mutated() {
+        // The property the whole change rests on: redaction produces a separate copy for the log,
+        // leaving the payload handed to Kafka intact.
+        let published =
+            json!({"masked_connector_response": "{\"id\":\"1\"}", "connector": "adyen"});
+        let logged = without_keys(&published, KEYS).into_owned();
+
+        assert!(logged.get(MASKED_CONNECTOR_RESPONSE_KEY).is_none());
+        assert_eq!(
+            published
+                .get(MASKED_CONNECTOR_RESPONSE_KEY)
+                .and_then(|v| v.as_str()),
+            Some("{\"id\":\"1\"}"),
+            "the published copy must still carry it"
+        );
     }
 }

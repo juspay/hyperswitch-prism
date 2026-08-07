@@ -289,9 +289,6 @@ where
     Ok(())
 }
 
-/// Serde key of the one response field that carries a connector's reply back to the caller.
-const MASKED_CONNECTOR_RESPONSE_KEY: &str = "masked_connector_response";
-
 /// Whether the operator asked for the masked connector response to reach our own logs.
 ///
 /// Without the `connector-response-masking` feature the field is never populated, so there is
@@ -313,11 +310,14 @@ fn should_log_masked(_config: &configs::Config) -> bool {
 /// `external-services` — so while the flag is off it must not ride along inside a generic response
 /// payload either. Masked the same way the request side is (see `log_before_initialization`), so
 /// `Secret` fields are hidden by serde rather than relying on each field's `Debug`.
+///
+/// Removal is recursive: on this struct the field is top-level, but `EventContent` nests whole
+/// response messages under `event_content.content`, where a top-level-only strip would miss it.
 fn response_for_logging<R>(response: &R, log_masked: bool) -> Value
 where
     R: serde::Serialize,
 {
-    let mut value = match hyperswitch_masking::masked_serialize(response) {
+    let value = match hyperswitch_masking::masked_serialize(response) {
         Ok(value) => value,
         Err(e) => {
             tracing::error!("Masked serialization error: {:?}", e);
@@ -325,13 +325,10 @@ where
         }
     };
 
-    if !log_masked {
-        if let Value::Object(map) = &mut value {
-            map.remove(MASKED_CONNECTOR_RESPONSE_KEY);
-        }
+    if log_masked {
+        return value;
     }
-
-    value
+    common_utils::without_keys(&value, &[common_utils::MASKED_CONNECTOR_RESPONSE_KEY]).into_owned()
 }
 
 pub fn log_after_initialization<T>(
