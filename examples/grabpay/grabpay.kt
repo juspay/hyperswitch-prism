@@ -10,6 +10,7 @@ package examples.grabpay
 import types.Payment.*
 import types.PaymentMethods.*
 import payments.PaymentClient
+import payments.PaymentMethodAuthenticationClient
 import payments.EventClient
 import payments.AuthenticationType
 import payments.CaptureMethod
@@ -22,7 +23,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.GrabpayConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("authorize", "create_order", "parse_event")
+val SUPPORTED_FLOWS = listOf<String>("authenticate", "authorize", "parse_event")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -85,6 +86,33 @@ fun processCheckoutAutocapture(txnId: String, config: ConnectorConfig = _default
     return mapOf("status" to authorizeResponse.status.name, "transactionId" to authorizeResponse.connectorTransactionId, "error" to authorizeResponse.error)
 }
 
+// Flow: PaymentMethodAuthenticationService.Authenticate
+fun authenticate(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentMethodAuthenticationClient(config)
+    val request = PaymentMethodAuthenticationServiceAuthenticateRequest.newBuilder().apply {
+        amountBuilder.apply {  // Amount Information.
+            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+        paymentMethodBuilder.apply {  // Payment Method.
+            cardBuilder.apply {  // Generic card payment.
+                cardNumberBuilder.value = "4111111111111111"  // Card Identification.
+                cardExpMonthBuilder.value = "03"
+                cardExpYearBuilder.value = "2030"
+                cardCvcBuilder.value = "737"
+                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
+            }
+        }
+        addressBuilder.apply {  // Address Information.
+            billingAddressBuilder.apply {
+            }
+        }
+        returnUrl = "https://example.com/3ds-return"  // URLs for Redirection.
+    }.build()
+    val response = client.authenticate(request)
+    println("Status: ${response.status.name}")
+}
+
 // Flow: PaymentService.Authorize (Card)
 fun authorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
@@ -95,20 +123,6 @@ fun authorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
         "PENDING" -> println("Pending — await webhook before proceeding")
         else      -> println("Authorized: ${response.connectorTransactionId}")
     }
-}
-
-// Flow: PaymentService.CreateOrder
-fun createOrder(txnId: String, config: ConnectorConfig = _defaultConfig) {
-    val client = PaymentClient(config)
-    val request = PaymentServiceCreateOrderRequest.newBuilder().apply {
-        merchantOrderId = "probe_order_001"  // Identification.
-        amountBuilder.apply {  // Amount Information.
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        }
-    }.build()
-    val response = client.create_order(request)
-    println("Order: ${response.connectorOrderId}")
 }
 
 // Flow: EventService.HandleEvent
@@ -158,11 +172,11 @@ fun main(args: Array<String>) {
     val flow = args.firstOrNull() ?: "processCheckoutAutocapture"
     when (flow) {
         "processCheckoutAutocapture" -> processCheckoutAutocapture(txnId)
+        "authenticate" -> authenticate(txnId)
         "authorize" -> authorize(txnId)
-        "createOrder" -> createOrder(txnId)
         "handleEvent" -> handleEvent(txnId)
         "parseEvent" -> parseEvent(txnId)
         "verifyRedirect" -> verifyRedirect(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, authorize, createOrder, handleEvent, parseEvent, verifyRedirect")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, authenticate, authorize, handleEvent, parseEvent, verifyRedirect")
     }
 }

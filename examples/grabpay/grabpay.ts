@@ -5,9 +5,9 @@
 // Grabpay — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx grabpay.ts checkout_autocapture
 
-import { PaymentClient, EventClient, types } from 'hyperswitch-prism';
+import { PaymentClient, PaymentMethodAuthenticationClient, EventClient, types } from 'hyperswitch-prism';
 const { Environment, AuthenticationType, CaptureMethod, Currency, HttpMethod } = types;
-export const SUPPORTED_FLOWS = ["authorize", "create_order", "parse_event"];
+export const SUPPORTED_FLOWS = ["authenticate", "authorize", "parse_event"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -25,6 +25,29 @@ const _defaultConfig: types.IConnectorConfig = {
     },
 };
 
+
+function _buildAuthenticateRequest(): types.IPaymentMethodAuthenticationServiceAuthenticateRequest {
+    return {
+        "amount": {  // Amount Information.
+            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        },
+        "paymentMethod": {  // Payment Method.
+            "card": {  // Generic card payment.
+                "cardNumber": {"value": "4111111111111111"},  // Card Identification.
+                "cardExpMonth": {"value": "03"},
+                "cardExpYear": {"value": "2030"},
+                "cardCvc": {"value": "737"},
+                "cardHolderName": {"value": "John Doe"}  // Cardholder Information.
+            }
+        },
+        "address": {  // Address Information.
+            "billingAddress": {
+            }
+        },
+        "returnUrl": "https://example.com/3ds-return"  // URLs for Redirection.
+    };
+}
 
 function _buildAuthorizeRequest(captureMethod: types.CaptureMethod): types.IPaymentServiceAuthorizeRequest {
     return {
@@ -50,16 +73,6 @@ function _buildAuthorizeRequest(captureMethod: types.CaptureMethod): types.IPaym
         "authType": AuthenticationType.NO_THREE_DS,  // Authentication Details.
         "returnUrl": "https://example.com/return",  // URLs for Redirection and Webhooks.
         "sessionToken": "probe_session_token"  // Session and Token Information.
-    };
-}
-
-function _buildCreateOrderRequest(): types.IPaymentServiceCreateOrderRequest {
-    return {
-        "merchantOrderId": "probe_order_001",  // Identification.
-        "amount": {  // Amount Information.
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        }
     };
 }
 
@@ -114,6 +127,15 @@ async function processCheckoutAutocapture(merchantTransactionId: string, config:
     return { status: authorizeResponse.status, transactionId: authorizeResponse.connectorTransactionId!, error: authorizeResponse.error } as any;
 }
 
+// Flow: PaymentMethodAuthenticationService.Authenticate
+async function authenticate(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentMethodAuthenticationClient = new PaymentMethodAuthenticationClient(config);
+
+    const authenticateResponse = await paymentMethodAuthenticationClient.authenticate(_buildAuthenticateRequest());
+
+    return authenticateResponse;
+}
+
 // Flow: PaymentService.Authorize (Card)
 async function authorize(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -121,15 +143,6 @@ async function authorize(merchantTransactionId: string, config: types.IConnector
     const authorizeResponse = await paymentClient.authorize(_buildAuthorizeRequest(CaptureMethod.AUTOMATIC));
 
     return authorizeResponse;
-}
-
-// Flow: PaymentService.CreateOrder
-async function createOrder(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const paymentClient = new PaymentClient(config);
-
-    const createResponse = await paymentClient.createOrder(_buildCreateOrderRequest());
-
-    return createResponse;
 }
 
 // Flow: EventService.HandleEvent
@@ -162,7 +175,7 @@ async function verifyRedirect(merchantTransactionId: string, config: types.IConn
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, authorize, createOrder, handleEvent, parseEvent, verifyRedirect, _buildAuthorizeRequest, _buildCreateOrderRequest, _buildHandleEventRequest, _buildParseEventRequest, _buildVerifyRedirectRequest
+    processCheckoutAutocapture, authenticate, authorize, handleEvent, parseEvent, verifyRedirect, _buildAuthenticateRequest, _buildAuthorizeRequest, _buildHandleEventRequest, _buildParseEventRequest, _buildVerifyRedirectRequest
 };
 
 // CLI runner

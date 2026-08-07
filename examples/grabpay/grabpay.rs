@@ -14,7 +14,7 @@ use std::collections::HashMap;
 use std::str::FromStr;
 
 #[allow(dead_code)]
-pub const SUPPORTED_FLOWS: &[&str] = &["authorize", "create_order", "parse_event"];
+pub const SUPPORTED_FLOWS: &[&str] = &["authenticate", "authorize", "parse_event"];
 
 #[allow(dead_code)]
 fn build_client() -> ConnectorClient {
@@ -46,6 +46,37 @@ fn build_client() -> ConnectorClient {
         }),
     };
     ConnectorClient::new(config, None).unwrap()
+}
+
+pub fn build_authenticate_request() -> PaymentMethodAuthenticationServiceAuthenticateRequest {
+    PaymentMethodAuthenticationServiceAuthenticateRequest {
+        amount: Some(Money {
+            // Amount Information.
+            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
+            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+        }),
+        payment_method: Some(PaymentMethod {
+            // Payment Method.
+            payment_method: Some(payment_method::PaymentMethod::Card(CardDetails {
+                card_number: Some(CardNumber::from_str("4111111111111111").unwrap()), // Card Identification.
+                card_exp_month: Some(Secret::new("03".to_string())),
+                card_exp_year: Some(Secret::new("2030".to_string())),
+                card_cvc: Some(Secret::new("737".to_string())),
+                card_holder_name: Some(Secret::new("John Doe".to_string())), // Cardholder Information.
+                ..Default::default()
+            })),
+            ..Default::default()
+        }),
+        address: Some(PaymentAddress {
+            // Address Information.
+            billing_address: Some(Address {
+                ..Default::default()
+            }),
+            ..Default::default()
+        }),
+        return_url: Some("https://example.com/3ds-return".to_string()), // URLs for Redirection.
+        ..Default::default()
+    }
 }
 
 pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeRequest {
@@ -83,18 +114,6 @@ pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeR
         auth_type: AuthenticationType::NoThreeDs.into(), // Authentication Details.
         return_url: Some("https://example.com/return".to_string()), // URLs for Redirection and Webhooks.
         session_token: Some("probe_session_token".to_string()), // Session and Token Information.
-        ..Default::default()
-    }
-}
-
-pub fn build_create_order_request() -> PaymentServiceCreateOrderRequest {
-    PaymentServiceCreateOrderRequest {
-        merchant_order_id: Some("probe_order_001".to_string()), // Identification.
-        amount: Some(Money {
-            // Amount Information.
-            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
-        }),
         ..Default::default()
     }
 }
@@ -163,6 +182,18 @@ pub async fn process_checkout_autocapture(
     ))
 }
 
+// Flow: PaymentMethodAuthenticationService.Authenticate
+#[allow(dead_code)]
+pub async fn process_authenticate(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .authenticate(build_authenticate_request(), &HashMap::new(), None)
+        .await?;
+    Ok(format!("status: {:?}", response.status()))
+}
+
 // Flow: PaymentService.Authorize (Card)
 #[allow(dead_code)]
 pub async fn process_authorize(
@@ -184,18 +215,6 @@ pub async fn process_authorize(
     }
 }
 
-// Flow: PaymentService.CreateOrder
-#[allow(dead_code)]
-pub async fn process_create_order(
-    client: &ConnectorClient,
-    _merchant_transaction_id: &str,
-) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client
-        .create_order(build_create_order_request(), &HashMap::new(), None)
-        .await?;
-    Ok(format!("status: {:?}", response.status()))
-}
-
 // Flow: EventService.ParseEvent
 #[allow(dead_code)]
 pub async fn process_parse_event(
@@ -215,11 +234,11 @@ async fn main() {
         .unwrap_or_else(|| "process_checkout_autocapture".to_string());
     let result: Result<String, Box<dyn std::error::Error>> = match flow.as_str() {
         "process_checkout_autocapture" => process_checkout_autocapture(&client, "order_001").await,
+        "process_authenticate" => process_authenticate(&client, "txn_001").await,
         "process_authorize" => process_authorize(&client, "txn_001").await,
-        "process_create_order" => process_create_order(&client, "txn_001").await,
         "process_parse_event" => process_parse_event(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_authorize, process_create_order, process_parse_event", flow);
+            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_authenticate, process_authorize, process_parse_event", flow);
             return;
         }
     };
