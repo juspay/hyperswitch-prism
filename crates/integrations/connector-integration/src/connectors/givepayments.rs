@@ -188,6 +188,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     connector_refund_id: Some(response_data.id),
                     merchant_refund_id: response_data.external_reference,
                     connector_transaction_id: None,
+                    merchant_transaction_id: None,
                 })
             }
         };

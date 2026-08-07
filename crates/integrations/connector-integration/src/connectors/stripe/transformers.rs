@@ -4099,6 +4099,7 @@ pub(crate) fn get_webhook_reference(
                 connector_refund_id,
                 merchant_refund_id,
                 connector_transaction_id: event_object.payment_intent.clone(),
+                merchant_transaction_id: None,
             })
         }
     };

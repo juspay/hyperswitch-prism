@@ -241,6 +241,7 @@ pub enum PayoutConnectorEnum {
     Deutschebank,
     Worldpayxml,
     Cybersource,
+    Santander,
 }
 
 impl TryFrom<ConnectorEnum> for PayoutConnectorEnum {
@@ -293,6 +294,7 @@ impl ForeignTryFrom<AuthType> for PayoutConnectorEnum {
             AuthType::Deutschebank(_) => Ok(Self::Deutschebank),
             AuthType::Worldpayxml(_) => Ok(Self::Worldpayxml),
             AuthType::Cybersource(_) => Ok(Self::Cybersource),
+            AuthType::Santander(_) => Ok(Self::Santander),
             _ => Err(error_stack::Report::new(
                 IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -766,6 +768,7 @@ pub struct PaymentFlowData {
     pub attempt_id: String,
     pub status: AttemptStatus,
     pub payment_method: PaymentMethod,
+    pub payment_method_type: Option<PaymentMethodType>,
     pub description: Option<String>,
     pub return_url: Option<String>,
     pub address: payment_address::PaymentAddress,
@@ -2825,6 +2828,8 @@ pub struct RefundWebhookReference {
     pub merchant_refund_id: Option<String>,
     /// PSP-assigned ID of the original payment this refund belongs to.
     pub connector_transaction_id: Option<String>,
+    /// Caller-assigned order / invoice ID echoed back by the connector.
+    pub merchant_transaction_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -2839,6 +2844,8 @@ pub struct DisputeWebhookReference {
 pub struct MandateWebhookReference {
     /// PSP-assigned mandate ID.
     pub connector_mandate_id: Option<String>,
+    /// Caller-assigned order / invoice ID echoed back by the connector.
+    pub merchant_transaction_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -5574,6 +5581,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Affirm(_) => Ok(Self::Payment(ConnectorEnum::Affirm)),
             AuthType::Plaid(_) => Ok(Self::Authenticator(AuthenticatorConnectorEnum::Plaid)),
             AuthType::Givepayments(_) => Ok(Self::Payment(ConnectorEnum::Givepayments)),
+            AuthType::Santander(_) => Ok(Self::Payout(PayoutConnectorEnum::Santander)),
         }
     }
 }

@@ -920,6 +920,14 @@ pub enum ConnectorSpecificConfig {
         private_key: Secret<String>,
         base_url: Option<String>,
     },
+    Santander {
+        client_id: Secret<String>,
+        client_secret: Secret<String>,
+        workspace_id: String,
+        certificates: Option<Secret<String>>,
+        private_key: Option<Secret<String>>,
+        base_url: Option<String>,
+    },
     Kount {
         api_key: Secret<String>,
         /// Kount OAuth authorization-server id; account/environment specific.
@@ -1315,6 +1323,11 @@ impl ConnectorSpecificConfig {
             },
             Plaid { client_id, secret },
             Givepayments { api_key },
+            Santander {
+                client_id,
+                client_secret,
+                workspace_id
+            },
         )
     }
 
@@ -1776,6 +1789,11 @@ impl ConnectorSpecificConfig {
                 },
                 Plaid { client_id, secret },
                 Givepayments { api_key },
+                Santander {
+                    client_id,
+                    client_secret,
+                    workspace_id
+                },
             ),
             serde_json::Value::Object(connector_patch),
         );
@@ -2448,6 +2466,14 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             AuthType::Givepayments(givepayments) => Ok(Self::Givepayments {
                 api_key: givepayments.api_key.ok_or_else(err)?,
                 base_url: givepayments.base_url,
+            }),
+            AuthType::Santander(santander) => Ok(Self::Santander {
+                client_id: santander.client_id.ok_or_else(err)?,
+                client_secret: santander.client_secret.ok_or_else(err)?,
+                workspace_id: santander.workspace_id,
+                certificates: santander.certificates,
+                private_key: santander.private_key,
+                base_url: santander.base_url,
             }),
         }
     }
@@ -3755,6 +3781,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
+                PayoutConnectorEnum::Santander => Err(err().into()),
             },
         }
     }

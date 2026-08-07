@@ -225,6 +225,8 @@ pub enum BankType {
     Current,
     Bond,
     SubscriptionShare,
+    Salary,
+    Payment,
 }
 
 #[derive(

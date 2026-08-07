@@ -425,6 +425,7 @@ pub struct Connectors {
     pub givepayments: ConnectorParams,
     pub grabpay: ConnectorParams,
     pub tesouro: ConnectorParams,
+    pub santander: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -816,6 +817,7 @@ impl Connectors {
             PayoutConnectorEnum::Itaubank => patched.itaubank.apply(params_patch),
             PayoutConnectorEnum::Worldpayxml => patched.worldpayxml.apply(params_patch),
             PayoutConnectorEnum::Cybersource => patched.cybersource.apply(params_patch),
+            PayoutConnectorEnum::Santander => patched.santander.apply(params_patch),
             // Deutschebank uses `ConnectorParamsWithCaBundle`, so patch the resolved
             // URLs while leaving its `server_ca_bundle` untouched.
             PayoutConnectorEnum::Deutschebank => {
@@ -2500,6 +2502,8 @@ impl ForeignTryFrom<grpc_api_types::payments::BankType> for common_enums::BankTy
             grpc_api_types::payments::BankType::Transmission => {
                 Ok(common_enums::BankType::Transmission)
             }
+            grpc_api_types::payments::BankType::Salary => Ok(common_enums::BankType::Salary),
+            grpc_api_types::payments::BankType::Payment => Ok(common_enums::BankType::Payment),
             grpc_api_types::payments::BankType::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "unknown",
@@ -2510,6 +2514,34 @@ impl ForeignTryFrom<grpc_api_types::payments::BankType> for common_enums::BankTy
                 })?
             }
         }
+    }
+}
+
+impl ForeignTryFrom<i32> for common_enums::BankType {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(value: i32) -> Result<Self, error_stack::Report<Self::Error>> {
+        let bank_type = grpc_api_types::payments::BankType::try_from(value).map_err(|_| {
+            error_stack::report!(IntegrationError::InvalidDataFormat {
+                field_name: "bank_type",
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "integer {value} does not map to any known BankType variant"
+                    )),
+                    ..Default::default()
+                },
+            })
+        })?;
+        <Self as ForeignTryFrom<grpc_api_types::payments::BankType>>::foreign_try_from(bank_type)
+            .change_context(IntegrationError::InvalidDataFormat {
+                field_name: "bank_type",
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "BankType variant {bank_type:?} is not supported"
+                    )),
+                    ..Default::default()
+                },
+            })
     }
 }
 
@@ -5123,6 +5155,7 @@ impl ForeignTryFrom<(PaymentServiceAuthorizeRequest, Connectors, &MaskedMetadata
             payment_method: PaymentMethod::foreign_try_from(
                 value.payment_method.unwrap_or_default(),
             )?, // Use direct enum
+            payment_method_type: None,
             address,
             auth_type: common_enums::AuthenticationType::foreign_try_from(
                 grpc_api_types::payments::AuthenticationType::try_from(value.auth_type)
@@ -5235,6 +5268,11 @@ impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for Pay
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
             status: common_enums::AttemptStatus::Pending,
             payment_method: PaymentMethod::Card,
+            payment_method_type: value
+                .payment_method
+                .map(<Option<PaymentMethodType>>::foreign_try_from)
+                .transpose()
+                .map(Option::flatten)?,
             address,
             auth_type: common_enums::AuthenticationType::foreign_try_from(value.auth_type)?,
             connector_request_reference_id: extract_connector_request_reference_id(
@@ -5323,6 +5361,11 @@ impl ForeignTryFrom<(SetupRecurringRequest, Connectors, &MaskedMetadata)> for Pa
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
             status: common_enums::AttemptStatus::Pending,
             payment_method: PaymentMethod::Card,
+            payment_method_type: value
+                .payment_method
+                .map(<Option<PaymentMethodType>>::foreign_try_from)
+                .transpose()
+                .map(Option::flatten)?,
             address,
             auth_type: common_enums::AuthenticationType::foreign_try_from(value.auth_type)?,
             connector_request_reference_id: extract_connector_request_reference_id(&Some(
@@ -5437,6 +5480,9 @@ impl
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
             status: common_enums::AttemptStatus::Pending,
             payment_method: PaymentMethod::Card, //TODO
+            payment_method_type: <Option<PaymentMethodType>>::foreign_try_from(
+                value.payment_method_type(),
+            )?,
             address,
             auth_type: common_enums::AuthenticationType::foreign_try_from(value.auth_type())?,
             connector_request_reference_id: extract_connector_request_reference_id(
@@ -5520,6 +5566,7 @@ impl
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
             status: common_enums::AttemptStatus::Pending,
             payment_method: PaymentMethod::Card, //TODO
+            payment_method_type: None,
             address,
             auth_type: common_enums::AuthenticationType::default(),
             connector_request_reference_id: value.merchant_transaction_id.unwrap_or_default(),
@@ -5609,6 +5656,7 @@ impl ForeignTryFrom<(PaymentServiceVoidRequest, Connectors, &MaskedMetadata)> fo
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
             status: common_enums::AttemptStatus::Pending,
             payment_method: PaymentMethod::Card, //TODO
+            payment_method_type: None,
             address,
             auth_type: common_enums::AuthenticationType::default(),
             connector_request_reference_id: extract_connector_request_reference_id(
@@ -5692,6 +5740,7 @@ impl
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
             status: common_enums::AttemptStatus::Pending,
             payment_method: PaymentMethod::Card,
+            payment_method_type: None,
             address,
             auth_type: common_enums::AuthenticationType::default(),
             connector_request_reference_id: String::new(),
@@ -9461,6 +9510,7 @@ impl
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
             status: common_enums::AttemptStatus::Pending,
             payment_method: PaymentMethod::Card, //TODO
+            payment_method_type: None,
             address,
             auth_type: common_enums::AuthenticationType::default(),
             connector_request_reference_id: extract_connector_request_reference_id(
@@ -9573,6 +9623,7 @@ impl
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
             status: common_enums::AttemptStatus::Pending,
             payment_method: PaymentMethod::Card, //TODO
+            payment_method_type: None,
             address,
             auth_type: common_enums::AuthenticationType::default(),
             connector_request_reference_id: extract_connector_request_reference_id(
@@ -10638,6 +10689,7 @@ impl
             attempt_id: "ATTEMPT_ID".to_string(),
             status: common_enums::AttemptStatus::Pending,
             payment_method: PaymentMethod::Card, // Default
+            payment_method_type: None,
             address: PaymentAddress::default(),
             auth_type: common_enums::AuthenticationType::default(),
             connector_request_reference_id: value.merchant_capture_id.unwrap_or_default(),
@@ -11088,6 +11140,7 @@ impl
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
             status: common_enums::AttemptStatus::Pending,
             payment_method: PaymentMethod::Card, //TODO
+            payment_method_type: None,
             address,
             auth_type: common_enums::AuthenticationType::foreign_try_from(
                 grpc_api_types::payments::AuthenticationType::try_from(value.auth_type)
@@ -11189,6 +11242,7 @@ impl
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
             status: common_enums::AttemptStatus::Pending,
             payment_method: PaymentMethod::Card,
+            payment_method_type: None,
             address,
             auth_type: common_enums::AuthenticationType::default(),
             connector_request_reference_id: value.merchant_recurring_payment_id,
@@ -12416,6 +12470,7 @@ impl
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
             status: common_enums::AttemptStatus::Pending,
             payment_method: PaymentMethod::Card,
+            payment_method_type: None,
             address,
             auth_type: common_enums::AuthenticationType::default(),
             connector_request_reference_id: extract_connector_request_reference_id(
@@ -13173,6 +13228,7 @@ impl
                 .map(PaymentMethod::foreign_try_from)
                 .transpose()?
                 .unwrap_or_default(),
+            payment_method_type: None,
             address,
             auth_type: common_enums::AuthenticationType::default(),
             connector_request_reference_id: extract_connector_request_reference_id(
@@ -13356,6 +13412,7 @@ impl
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
             status: common_enums::AttemptStatus::Pending,
             payment_method: PaymentMethod::Wallet, // Default for recharge
+            payment_method_type: None,
             address: PaymentAddress::default(),
             auth_type: common_enums::AuthenticationType::default(),
             connector_request_reference_id: extract_connector_request_reference_id(
@@ -13473,6 +13530,7 @@ impl
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
             status: common_enums::AttemptStatus::Pending,
             payment_method: PaymentMethod::Wallet,
+            payment_method_type: None,
             address: PaymentAddress::default(),
             auth_type: common_enums::AuthenticationType::default(),
             connector_request_reference_id: extract_connector_request_reference_id(
@@ -13581,6 +13639,7 @@ impl
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
             status: common_enums::AttemptStatus::Pending,
             payment_method: PaymentMethod::Wallet,
+            payment_method_type: None,
             address: PaymentAddress::default(),
             auth_type: common_enums::AuthenticationType::default(),
             connector_request_reference_id: extract_connector_request_reference_id(
@@ -13875,7 +13934,8 @@ impl
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
             status: common_enums::AttemptStatus::Pending,
             payment_method: PaymentMethod::Card, // Default for connector customer creation
-            address,                             // Default address
+            payment_method_type: None,
+            address, // Default address
             auth_type: common_enums::AuthenticationType::default(),
             connector_request_reference_id: value.merchant_customer_id.unwrap_or_default(), // request_ref_id field not available in this proto
             customer_id: None,
@@ -13962,6 +14022,7 @@ impl
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
             status: common_enums::AttemptStatus::Pending,
             payment_method: PaymentMethod::Card,
+            payment_method_type: None,
             address: PaymentAddress::default(),
             auth_type: common_enums::AuthenticationType::default(),
             connector_request_reference_id: value.merchant_customer_id.unwrap_or_default(),
@@ -15941,6 +16002,7 @@ impl
             payment_method: PaymentMethod::foreign_try_from(
                 value.payment_method.unwrap_or_default(),
             )?,
+            payment_method_type: None,
             address,
             auth_type: common_enums::AuthenticationType::ThreeDs, // Pre-auth typically uses 3DS
             connector_request_reference_id: extract_connector_request_reference_id(
@@ -16051,6 +16113,7 @@ impl
                 .map(PaymentMethod::foreign_try_from)
                 .transpose()?
                 .unwrap_or(PaymentMethod::Card),
+            payment_method_type: None,
             address,
             auth_type: common_enums::AuthenticationType::ThreeDs, // Auth step uses 3DS
             connector_request_reference_id: extract_connector_request_reference_id(
@@ -16153,6 +16216,7 @@ impl
             payment_method: PaymentMethod::foreign_try_from(
                 value.payment_method.unwrap_or_default(),
             )?,
+            payment_method_type: None,
             address,
             auth_type: common_enums::AuthenticationType::ThreeDs, // Post-auth uses 3DS
             connector_request_reference_id: extract_connector_request_reference_id(
@@ -16236,6 +16300,7 @@ impl
             attempt_id: "MANDATE_REVOKE_ATTEMPT_ID".to_string(),
             status: common_enums::AttemptStatus::Pending,
             payment_method: common_enums::PaymentMethod::Card, // Default for mandate operations
+            payment_method_type: None,
             address: PaymentAddress::default(),
             auth_type: common_enums::AuthenticationType::default(),
             connector_request_reference_id: extract_connector_request_reference_id(
@@ -17421,6 +17486,8 @@ impl ForeignFrom<common_enums::BankType> for grpc_api_types::payments::BankType 
             common_enums::BankType::Bond => Self::Bond,
             common_enums::BankType::SubscriptionShare => Self::SubscriptionShare,
             common_enums::BankType::Transmission => Self::Transmission,
+            common_enums::BankType::Salary => Self::Salary,
+            common_enums::BankType::Payment => Self::Payment,
         }
     }
 }
@@ -17832,11 +17899,13 @@ impl From<connector_types::WebhookResourceReference> for grpc_api_types::payment
                 connector_refund_id,
                 merchant_refund_id,
                 connector_transaction_id,
+                merchant_transaction_id,
             }) => EventReference {
                 resource: Some(event_reference::Resource::Refund(RefundEventReference {
                     connector_refund_id,
                     merchant_refund_id,
                     connector_transaction_id,
+                    merchant_transaction_id,
                 })),
             },
             WebhookResourceReference::Dispute(DisputeWebhookReference {
@@ -17850,9 +17919,11 @@ impl From<connector_types::WebhookResourceReference> for grpc_api_types::payment
             },
             WebhookResourceReference::Mandate(MandateWebhookReference {
                 connector_mandate_id,
+                merchant_transaction_id,
             }) => EventReference {
                 resource: Some(event_reference::Resource::Mandate(MandateEventReference {
                     connector_mandate_id,
+                    merchant_transaction_id,
                 })),
             },
             WebhookResourceReference::Payout(PayoutWebhookReference {
