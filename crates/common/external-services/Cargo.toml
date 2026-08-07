@@ -76,6 +76,9 @@ injector-client = ["dep:injector"]
 connector-request-kafka = ["dep:connector_request_kafka"]
 # Push gRPC metrics over OTLP (in addition to the Prometheus /metrics endpoint).
 otel = ["dep:opentelemetry"]
+# Populate `masked_connector_response` from the connector's reply. See the same feature on
+# domain_types: off by default, so the code is absent from a build that does not ask for it.
+connector-response-masking = ["domain_types/connector-response-masking"]
 
 [lints]
 workspace = true

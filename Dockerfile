@@ -55,6 +55,8 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # Build only the binary shipped by the runtime stage; skips test/SDK crates.
+# `connector-response-masking` is deliberately absent: the code that turns a connector response
+# into `masked_connector_response` is then not compiled in, so no config setting can enable it here.
 COPY . .
 RUN --mount=type=cache,target=/sccache \
     cargo build --release --features kafka,connector-request-kafka,otel -p grpc-server

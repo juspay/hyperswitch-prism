@@ -242,6 +242,10 @@ keys = ["x-request-id","x-merchant-id","x-lineage-ids","x-reference-id","x-conne
 # `masked_connector_response`. Every key is preserved; a value is shown only if
 # that connector's list below names it. Gated separately from
 # `common.return_raw_connector_data`, so this can stay on where raw capture is off.
+#
+# This whole section only takes effect in a build compiled with
+# `--features connector-response-masking`. Without it the code is not in the binary and every
+# setting below is ignored, `enabled` included.
 [connector_response_masking]
 enabled = true
 

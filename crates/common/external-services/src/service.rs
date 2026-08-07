@@ -335,6 +335,7 @@ fn flow_status_label(flow_status: &domain_types::router_data::FlowStatus) -> Str
 /// `connector_name` is a lookup key, not something to re-parse: it came from
 /// `ConnectorVariant::get_connector_name()`, and ingress already validated it against whichever
 /// connector enum matches the flow family.
+#[cfg(feature = "connector-response-masking")]
 fn record_masked_connector_response<ResourceCommonData>(
     resource_common_data: &mut ResourceCommonData,
     body: &Response,
@@ -410,6 +411,7 @@ where
                     }
 
                     // Independent of `return_raw_connector_data`: this view is already sanitized.
+                    #[cfg(feature = "connector-response-masking")]
                     if let Some(params) =
                         event_params.filter(|p| p.connector_response_masking.enabled)
                     {
@@ -479,6 +481,7 @@ where
                     }
 
                     // A 4xx/5xx body is exactly when the masked view is most useful.
+                    #[cfg(feature = "connector-response-masking")]
                     if let Some(params) =
                         event_params.filter(|p| p.connector_response_masking.enabled)
                     {
@@ -599,8 +602,10 @@ pub struct EventProcessingParams<'a> {
     pub tenant_id: &'a str,
     pub merchant_id: &'a str,
     pub return_raw_connector_data: bool,
-    /// Per-connector key lists driving `masked_connector_response`. Gated by its own
-    /// `enabled` flag, deliberately independent of `return_raw_connector_data`.
+    /// Per-connector key lists driving `masked_connector_response`. Present only in a build with
+    /// the `connector-response-masking` feature, and gated at runtime by its own `enabled` flag —
+    /// deliberately independent of `return_raw_connector_data`.
+    #[cfg(feature = "connector-response-masking")]
     pub connector_response_masking:
         &'a domain_types::connector_response_masking::ConnectorResponseMaskingConfig,
     pub connector_latency: ConnectorLatencyTracker,

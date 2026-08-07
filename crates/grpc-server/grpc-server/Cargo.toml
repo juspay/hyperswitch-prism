@@ -101,6 +101,12 @@ connector-request-kafka = ["dep:connector_request_kafka", "external-services/con
 # Push gRPC metrics over OTLP to an OpenTelemetry Collector, in addition to the
 # Prometheus /metrics scrape endpoint.
 otel = ["ucs_env/otel", "external-services/otel"]
+# Return `masked_connector_response` to the caller. Off by default, so a release image built
+# without it cannot emit connector response content whatever the config file says.
+connector-response-masking = [
+    "ucs_env/connector-response-masking",
+    "external-services/connector-response-masking",
+]
 
 [lints]
 workspace = true

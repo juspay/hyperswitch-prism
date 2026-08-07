@@ -577,6 +577,7 @@ impl Payments {
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
+            #[cfg(feature = "connector-response-masking")]
             connector_response_masking: &config.connector_response_masking,
             connector_latency: metadata_payload.connector_latency.clone(),
         };
@@ -716,6 +717,7 @@ impl Payments {
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
+            #[cfg(feature = "connector-response-masking")]
             connector_response_masking: &config.connector_response_masking,
             connector_latency: metadata_payload.connector_latency.clone(),
         };
@@ -1131,6 +1133,7 @@ impl PaymentService for Payments {
                         tenant_id: &metadata_payload.tenant_id,
                         merchant_id: metadata_payload.merchant_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
+                        #[cfg(feature = "connector-response-masking")]
                         connector_response_masking: &config.connector_response_masking,
                 connector_latency: metadata_payload.connector_latency.clone(),
                     };
@@ -2610,6 +2613,7 @@ impl PaymentMethod {
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
+            #[cfg(feature = "connector-response-masking")]
             connector_response_masking: &config.connector_response_masking,
             connector_latency: metadata_payload.connector_latency.clone(),
         };
@@ -2747,6 +2751,7 @@ impl PaymentMethod {
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
+            #[cfg(feature = "connector-response-masking")]
             connector_response_masking: &config.connector_response_masking,
             connector_latency: metadata_payload.connector_latency.clone(),
             runtime_metadata: &config.runtime_metadata,
@@ -2865,6 +2870,7 @@ impl MerchantAuthentication {
             tenant_id: event_params.tenant_id,
             merchant_id: event_params.merchant_id,
             return_raw_connector_data: config.common.return_raw_connector_data,
+            #[cfg(feature = "connector-response-masking")]
             connector_response_masking: &config.connector_response_masking,
             connector_latency: event_params.connector_latency.clone(),
         };
@@ -3007,6 +3013,7 @@ impl MerchantAuthentication {
             tenant_id: event_params.tenant_id,
             merchant_id: event_params.merchant_id,
             return_raw_connector_data: config.common.return_raw_connector_data,
+            #[cfg(feature = "connector-response-masking")]
             connector_response_masking: &config.connector_response_masking,
             connector_latency: event_params.connector_latency.clone(),
         };
@@ -3587,6 +3594,7 @@ impl RecurringPaymentService for RecurringPayments {
                         tenant_id: &metadata_payload.tenant_id,
                         merchant_id: metadata_payload.merchant_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
+                        #[cfg(feature = "connector-response-masking")]
                         connector_response_masking: &config.connector_response_masking,
                 connector_latency: metadata_payload.connector_latency.clone(),
                     };

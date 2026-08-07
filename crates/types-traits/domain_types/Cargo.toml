@@ -25,8 +25,10 @@ thiserror = { workspace = true }
 strum = { version = "0.26", features = ["derive"] }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
-serde_urlencoded = "0.7"
-quick-xml = { version = "0.31.0", features = ["serialize"] }
+# Only `connector_response_masking` uses these, so both hang off that feature: without it this
+# crate does not depend on an XML or a form parser at all.
+serde_urlencoded = { version = "0.7", optional = true }
+quick-xml = { version = "0.31.0", features = ["serialize"], optional = true }
 error-stack = "0.4.1"
 base64 = "0.21"
 rand = "0.8.5"
@@ -53,3 +55,6 @@ toml = "0.8"
 [features]
 default = ["actix-web"]
 actix-web = ["dep:actix-web"]
+# Builds `masked_connector_response`. Off by default: it turns raw connector response bytes into a
+# string the caller is handed back, so a build that does not opt in cannot produce one at all.
+connector-response-masking = ["dep:quick-xml", "dep:serde_urlencoded"]
