@@ -539,24 +539,17 @@ fn grabpay_request_currency(
     })
 }
 
-fn country_from_currency(
-    currency: Currency,
+fn grabpay_billing_country(
+    flow_data: &PaymentFlowData,
 ) -> Result<CountryAlpha2, error_stack::Report<errors::IntegrationError>> {
-    match currency {
-        Currency::SGD => Ok(CountryAlpha2::SG),
-        Currency::MYR => Ok(CountryAlpha2::MY),
-        Currency::PHP => Ok(CountryAlpha2::PH),
-        Currency::IDR => Ok(CountryAlpha2::ID),
-        Currency::THB => Ok(CountryAlpha2::TH),
-        _ => Err(error_stack::report!(
-            errors::IntegrationError::InvalidDataFormat {
-                field_name: "currency",
-                context: grabpay_integration_context(format!(
-                    "GrabPay cannot infer country_code from unsupported currency {currency}; provide billing.address.country"
-                ))
-            }
-        )),
-    }
+    flow_data.get_optional_billing_country().ok_or_else(|| {
+        error_stack::report!(errors::IntegrationError::MissingRequiredField {
+            field_name: "billing.address.country",
+            context: grabpay_integration_context(
+                "Provide billing address country in the payment request".to_string(),
+            )
+        })
+    })
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -907,18 +900,6 @@ impl TryFrom<ConnectorResponseData<GrabpayRefundResponse, Self>>
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,
-                raw_connector_response: Some(Secret::new(
-                    serde_json::json!({
-                        "txID": response.tx_id,
-                        "status": response.status,
-                        "paymentMethod": response.payment_method,
-                        "description": response.description,
-                        "txStatus": response.tx_status,
-                        "reason": response.reason,
-                        "echo": response.echo,
-                    })
-                    .to_string(),
-                )),
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
@@ -946,18 +927,6 @@ impl TryFrom<ConnectorResponseData<GrabpayRefundSyncResponse, Self>>
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,
-                raw_connector_response: Some(Secret::new(
-                    serde_json::json!({
-                        "txID": response.tx_id,
-                        "status": response.status,
-                        "paymentMethod": response.payment_method,
-                        "description": response.description,
-                        "txStatus": response.tx_status,
-                        "reason": response.reason,
-                        "echo": response.echo,
-                    })
-                    .to_string(),
-                )),
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
@@ -1030,6 +999,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .clone();
         validate_partner_tx_id(&partner_tx_id)?;
         let currency = grabpay_request_currency(router_data.request.currency)?;
+        grabpay_billing_country(&router_data.resource_common_data)?;
 
         Ok(Self {
             partner_group_tx_id: partner_tx_id.clone(),
@@ -1231,16 +1201,7 @@ fn build_authenticate_redirect_context<
             })
         })?;
     let currency = grabpay_request_currency(router_data.request.currency)?;
-    // Prefer the billing address country when the merchant provides it; only fall back to
-    // deriving it from the currency (which errors for a currency we cannot map).
-    let country = match router_data
-        .resource_common_data
-        .get_optional_billing_country()
-    {
-        Some(country) => country,
-        None => country_from_currency(currency)?,
-    }
-    .to_string();
+    let country = grabpay_billing_country(&router_data.resource_common_data)?.to_string();
     let state = random_token(32);
     let nonce = random_token(32);
     let code_verifier = random_token(64);
@@ -1315,16 +1276,6 @@ pub fn is_missing_oauth_code_error(error: &error_stack::Report<errors::Integrati
             ..
         }
     )
-}
-
-pub(crate) fn should_do_session_token(connector_feature_data: Option<&Secret<String>>) -> bool {
-    let connector_feature_data = connector_feature_data
-        .and_then(|data| serde_json::from_str(data.peek()).ok())
-        .map(SecretSerdeValue::new);
-
-    parse_connector_feature_data(connector_feature_data.as_ref())
-        .map(|feature_data| feature_data.code.is_some())
-        .unwrap_or(false)
 }
 
 fn parse_connector_feature_data(

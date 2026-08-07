@@ -878,7 +878,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 
     fn should_do_session_token(&self, connector_feature_data: Option<&Secret<String>>) -> bool {
-        grabpay::should_do_session_token(connector_feature_data)
+        connector_feature_data
+            .and_then(|data| serde_json::from_str::<serde_json::Value>(data.peek()).ok())
+            .map(|feature_data| {
+                feature_data
+                    .get("code")
+                    .and_then(serde_json::Value::as_str)
+                    .is_some()
+            })
+            .unwrap_or(false)
     }
 
     fn requires_authorize_post_redirect(&self) -> bool {
