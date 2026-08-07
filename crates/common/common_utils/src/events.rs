@@ -515,12 +515,9 @@ impl CompiledLogTransformations {
         let rules = raw
             .iter()
             .map(|(target_path, source_field)| {
-                let segments: Vec<String> =
-                    target_path.split('.').map(String::from).collect();
-                let root_key: &'static str =
-                    Box::leak(segments[0].clone().into_boxed_str());
-                let source_key: &'static str =
-                    Box::leak(source_field.clone().into_boxed_str());
+                let segments: Vec<String> = target_path.split('.').map(String::from).collect();
+                let root_key: &'static str = Box::leak(segments[0].clone().into_boxed_str());
+                let source_key: &'static str = Box::leak(source_field.clone().into_boxed_str());
                 CompiledLogTransformation {
                     source_field: source_key,
                     target_segments: segments,

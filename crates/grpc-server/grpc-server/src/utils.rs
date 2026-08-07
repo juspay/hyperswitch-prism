@@ -4,19 +4,16 @@ pub use ucs_interface_common::config::*;
 pub use ucs_interface_common::flow::*;
 pub use ucs_interface_common::metadata::*;
 
+#[cfg(feature = "log-transformations")]
+use common_utils::events::{apply_log_transformations_to_span, LogTransformationConfig};
 use common_utils::{
     consts::{self, Env},
     errors::CustomResult,
-    events::{
-        Event, EventStage, FlowName,
-        MaskedSerdeValue,
-    },
+    events::{Event, EventStage, FlowName, MaskedSerdeValue},
     lineage::LineageIds,
     superposition_config::{get_connector_urls, ConnectorUrls, SuperpositionConfig},
     types::ExecutionMode,
 };
-#[cfg(feature = "log-transformations")]
-use common_utils::events::{apply_log_transformations_to_span, LogTransformationConfig};
 use domain_types::{
     connector_types, errors::IntegrationError, router_data::ConnectorSpecificConfig,
 };
@@ -467,7 +464,11 @@ where
 
     let grpc_response = handler_result.into_grpc_status();
     #[cfg(feature = "log-transformations")]
-    log_after_initialization(&grpc_response, &config.log_transformations, &config.log.static_values);
+    log_after_initialization(
+        &grpc_response,
+        &config.log_transformations,
+        &config.log.static_values,
+    );
     #[cfg(not(feature = "log-transformations"))]
     log_after_initialization(&grpc_response, &config.log.static_values);
 
@@ -534,7 +535,11 @@ where
 
     let grpc_response = handler_result.into_grpc_status();
     #[cfg(feature = "log-transformations")]
-    log_after_initialization(&grpc_response, &config.log_transformations, &config.log.static_values);
+    log_after_initialization(
+        &grpc_response,
+        &config.log_transformations,
+        &config.log.static_values,
+    );
     #[cfg(not(feature = "log-transformations"))]
     log_after_initialization(&grpc_response, &config.log.static_values);
 

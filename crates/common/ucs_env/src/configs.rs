@@ -3,18 +3,15 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
 
+#[cfg(feature = "log-transformations")]
+use common_utils::events::LogTransformationConfig;
 use common_utils::{
     connector_request_kafka::{ConnectorRequestKafkaConfig, ConnectorRequestKafkaConfigPatch},
     consts,
-    events::{
-        EventConfig, EventConfigPatch, RuntimeMetadata,
-        RuntimeMetadataPatch,
-    },
+    events::{EventConfig, EventConfigPatch, RuntimeMetadata, RuntimeMetadataPatch},
     metadata::{HeaderMaskingConfig, HeaderMaskingConfigPatch},
     SuperpositionConfig,
 };
-#[cfg(feature = "log-transformations")]
-use common_utils::events::LogTransformationConfig;
 use domain_types::{
     connector_types::ConnectorEnum,
     types::{Connectors, ConnectorsPatch, ProxyConfig, ProxyConfigPatch},
