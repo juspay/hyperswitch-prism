@@ -3505,18 +3505,20 @@
     },
     "create_order": {
       "default": {
-        "status": "not_supported",
-        "error": "create_order flow not supported by grabpay connector"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_order flow for grabpay"
       }
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_authentication_token flow for grabpay"
       }
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.code. GrabPay OAuth code is not available yet; skipping token exchange request — Missing required field: connector_feature_data.code. GrabPay OAuth code is not available yet; skipping token exchange request"
       }
     },
     "customer_create": {
@@ -3636,8 +3638,8 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for grabpay"
+        "status": "not_supported",
+        "error": "setup_mandate flow not supported by grabpay connector"
       }
     },
     "recurring_charge": {
@@ -3648,8 +3650,8 @@
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: mandate_revoke flow for grabpay"
+        "status": "not_supported",
+        "error": "mandate_revoke flow not supported by grabpay connector"
       }
     },
     "refresh": {
@@ -3677,8 +3679,8 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for grabpay"
+        "status": "not_supported",
+        "error": "setup_mandate flow not supported by grabpay connector"
       }
     },
     "token_authorize": {
@@ -3689,8 +3691,8 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for grabpay"
+        "status": "not_supported",
+        "error": "setup_mandate flow not supported by grabpay connector"
       }
     },
     "tokenize": {

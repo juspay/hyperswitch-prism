@@ -175,7 +175,7 @@ Consolidated view of Get, Void, Refund, Capture, Reverse, CreateOrder, and other
 | [Givepayments](connectors/givepayments.md) | ✓ | ⚠ | ⚠ | x | ⚠ | ✓ | x | ⚠ | ⚠ | ⚠ | ⚠ | ? | ⚠ | ✓ | ⚠ | ✓ | x | x | x | ⚠ | x | x | x | x | x | ⚠ | x | x | x | x | x | x | ⚠ | x | x | ✓ | ✓ | x |
 | [Globalpay](connectors/globalpay.md) | ✓ | ✓ | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | ✓ | ⚠ | ✓ | ✓ | ✓ | ⚠ | ✓ | x | ⚠ | ⚠ | ⚠ | x | x | x | x | x | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
 | [Glomopay](connectors/glomopay.md) | ✓ | x | x | ⚠ | ? | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | x | ? | ✓ | ⚠ | x | x | x | x | x | ⚠ | ⚠ | ⚠ | x | x | x | x | ⚠ | x | x | ✓ | ✓ | x |
-| [Grabpay](connectors/grabpay.md) | ? | x | ⚠ | x | x | ? | ⚠ | ✓ | ⚠ | ? | ⚠ | ? | ⚠ | ⚠ | ⚠ | ? | x | ⚠ | ⚠ | ⚠ | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ✓ | x |
+| [Grabpay](connectors/grabpay.md) | ? | x | ⚠ | x | ⚠ | ? | ⚠ | ✓ | x | ? | x | ? | x | ⚠ | x | ? | x | ⚠ | ⚠ | ⚠ | x | x | x | x | ⚠ | ⚠ | ? | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ✓ | x |
 | [Helcim](connectors/helcim.md) | ✓ | ✓ | ⚠ | ✓ | x | ✓ | x | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | ⚠ | x | x | x | x | x | ⚠ | ⚠ | ⚠ | x | x | x | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Hipay](connectors/hipay.md) | ✓ | ✓ | x | ✓ | ⚠ | ✓ | x | ⚠ | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | x | ✓ | x | x | x | ✓ | x | x | x | x | x | x | x | x | x | x | x | x | ⚠ | x | ⚠ | ⚠ | ⚠ | x |
 | [Hyperpg](connectors/hyperpg.md) | ✓ | ⚠ | x | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | ⚠ | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
