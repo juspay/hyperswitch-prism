@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.08.07.1
+
+### Features
+
+- **connector:** Add support for santander pix payouts ([#2061](https://github.com/juspay/connector-service/pull/2061)) ([`086e814`](https://github.com/juspay/connector-service/commit/086e814e91a66bf7c629ee8544633b5a211d41f3))
+
+**Full Changelog:** [`2026.08.07.0...2026.08.07.1`](https://github.com/juspay/connector-service/compare/2026.08.07.0...2026.08.07.1)
+
+- - -
+
 ## 2026.08.07.0
 
 ### Features
