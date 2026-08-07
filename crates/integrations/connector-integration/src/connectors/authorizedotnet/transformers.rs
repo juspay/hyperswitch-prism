@@ -381,7 +381,6 @@ pub enum AccountType {
     BusinessChecking,
 }
 
-
 impl
     TryFrom<(
         Option<common_enums::BankType>,
