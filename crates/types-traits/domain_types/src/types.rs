@@ -830,6 +830,7 @@ impl Connectors {
                         server_ca_bundle: None,
                     })
             }
+            PayoutConnectorEnum::Truelayer => patched.truelayer.apply(params_patch),
         }
         Ok(patched)
     }

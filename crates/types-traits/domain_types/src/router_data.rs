@@ -3751,6 +3751,19 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     _ => Err(err().into()),
                 },
                 PayoutConnectorEnum::Santander => Err(err().into()),
+                PayoutConnectorEnum::Truelayer => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Truelayer {
+                        client_id: api_key.clone(),
+                        client_secret: key1.clone(),
+                        merchant_account_id: None,
+                        account_holder_name: None,
+                        private_key: None,
+                        kid: None,
+                        base_url: None,
+                        secondary_base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
             },
         }
     }
