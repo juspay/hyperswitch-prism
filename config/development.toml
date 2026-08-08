@@ -6,7 +6,7 @@ return_raw_connector_data = false
 [log.console]
 enabled = true
 level = "TRACE"
-log_format = "json"
+log_format = "default"
 
 [log.kafka]
 enabled = false
