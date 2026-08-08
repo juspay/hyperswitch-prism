@@ -405,7 +405,7 @@ where
         connector: &ConnectorEnum,
         payload: &Req,
         metadata: &tonic::metadata::MetadataMap,
-        extensions: &tonic::Extensions
+        extensions: &tonic::Extensions,
     ) -> Result<
         Option<MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse>,
         tonic::Status,
@@ -1225,12 +1225,7 @@ where
             .await?;
 
         let session_token_response = self
-            .create_server_session_authentication_token(
-                connector,
-                payload,
-                metadata,
-                extensions,
-            )
+            .create_server_session_authentication_token(connector, payload, metadata, extensions)
             .await?;
 
         let authorize_payload = PaymentServiceAuthorizeRequest::foreign_from((

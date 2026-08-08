@@ -3,8 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: billing.address.country. Provide billing address country in the payment request — Missing required field: billing.address.country. Provide billing address country in the payment request"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: GrabPay only supports Wallet(GrabpayRedirect); received Some(Card(Card { card_number: RawCardNumber(CardNumber(411111**********)), card_exp_month: *** alloc::string::String ***, card_exp_year: *** alloc::string::String ***, card_cvc: *** alloc::string::String ***, card_issuer: None, card_network: None, card_type: None, card_issuing_country: None, bank_code: None, nick_name: None, card_holder_name: Some(*** alloc::string::String ***), co_badged_card_data: None })). GrabPay Authenticate only accepts PaymentMethodData::Wallet(WalletData::GrabpayRedirect {{}})"
       }
     },
     "authorize": {
