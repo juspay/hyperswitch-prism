@@ -17,7 +17,7 @@ export class IntegrationError extends Error {
     super(proto.errorMessage || (proto as any).error_message);
   }
 
-  get errorCode(): string { return this.proto.errorCode || (this.proto as any).error_code || "UNKNOWN"; }
+  get errorCode(): string | undefined { return this.proto.errorCode || (this.proto as any).error_code; }
   get suggestedAction(): string | undefined { return this.proto.suggestedAction || (this.proto as any).suggested_action; }
   get docUrl(): string | undefined { return this.proto.docUrl || (this.proto as any).doc_url; }
 }
@@ -31,6 +31,6 @@ export class ConnectorError extends Error {
     super(proto.errorMessage || (proto as any).error_message);
   }
 
-  get errorCode(): string { return this.proto.errorCode || (this.proto as any).error_code || "UNKNOWN"; }
+  get errorCode(): string | undefined { return this.proto.errorCode || (this.proto as any).error_code; }
   get httpStatusCode(): number | undefined { return this.proto.httpStatusCode || (this.proto as any).http_status_code; }
 }
