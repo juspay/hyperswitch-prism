@@ -80,16 +80,8 @@ pub(crate) fn serialize_typed_connector_payload<T: serde::Serialize>(
     payload: &T,
     context: &'static str,
 ) -> Option<String> {
-    hyperswitch_masking::masked_serialize(payload)
-        .and_then(|value| serde_json::to_string(&value))
-        .inspect_err(|error| {
-            tracing::warn!(
-                error = %error,
-                context,
-                "failed to serialize typed connector payload"
-            );
-        })
-        .ok()
+    common_utils::events::MaskedSerdeValue::from_masked_optional(payload, context)
+        .map(|msv| msv.inner().to_string())
 }
 
 /// Masked-serialize once into a [`MaskedSerdeValue`], from which callers

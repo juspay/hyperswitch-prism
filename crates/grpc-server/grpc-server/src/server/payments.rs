@@ -2890,7 +2890,7 @@ impl MerchantAuthentication {
             }
             Err(error_response) => Err(error_stack::report!(
                 ConnectorError::ConnectorErrorResponse {
-                    error_response,
+                    error_response: Box::new(error_response),
                     raw_connector_response: None,
                     raw_connector_request: None,
                     typed_connector_response: None,

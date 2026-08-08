@@ -89,6 +89,7 @@ mod tests {
                     merchant_request_id: None,
                     sender_payment_instrument_id: None,
                     settlement_status: None,
+                    typed_connector_response: None,
 },
                 connector_config: ConnectorSpecificConfig::Adyen {
                     api_key: Secret::new(api_key),
@@ -298,6 +299,7 @@ mod tests {
                     merchant_request_id: None,
                     sender_payment_instrument_id: None,
                     settlement_status: None,
+                    typed_connector_response: None,
 },
                 connector_config: ConnectorSpecificConfig::Adyen {
                     api_key: Secret::new(api_key),

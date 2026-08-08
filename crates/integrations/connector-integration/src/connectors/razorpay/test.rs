@@ -121,6 +121,7 @@ mod tests {
                     merchant_request_id: None,
                     sender_payment_instrument_id: None,
                     settlement_status: None,
+                    typed_connector_response: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
                     api_key: "dummy_api_key".to_string().into(),
@@ -229,6 +230,7 @@ mod tests {
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
                 }),
             };
 
@@ -325,6 +327,7 @@ mod tests {
                     sender_payment_instrument_id: None,
                     settlement_status: None,
                     merchant_request_id: None,
+                    typed_connector_response: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
                     api_key: "dummy_api_key".to_string().into(),
@@ -410,6 +413,7 @@ mod tests {
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
                 }),
             };
 
@@ -480,6 +484,7 @@ mod tests {
                     sender_payment_instrument_id: None,
                     settlement_status: None,
                     merchant_request_id: None,
+                    typed_connector_response: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
                     api_key: "dummy_api_key".to_string().into(),
@@ -565,6 +570,7 @@ mod tests {
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
                 }),
             };
 
@@ -657,6 +663,7 @@ mod tests {
                     merchant_request_id: None,
                     sender_payment_instrument_id: None,
                     settlement_status: None,
+                    typed_connector_response: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
                     api_key: "dummy_api_key".to_string().into(),
@@ -765,6 +772,7 @@ mod tests {
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
                 }),
             };
 
@@ -1032,6 +1040,7 @@ mod tests {
                 sender_payment_instrument_id: None,
                 settlement_status: None,
                 merchant_request_id: None,
+                typed_connector_response: None,
             },
             connector_config: ConnectorSpecificConfig::Razorpay {
                 api_key: "dummy_api_key".to_string().into(),
@@ -1136,6 +1145,7 @@ mod tests {
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
             }),
         };
 
@@ -1243,6 +1253,7 @@ mod tests {
                 merchant_request_id: None,
                 sender_payment_instrument_id: None,
                 settlement_status: None,
+                typed_connector_response: None,
             },
             connector_config: ConnectorSpecificConfig::Razorpay {
                 api_key: "dummy_api_key".to_string().into(),
@@ -1347,6 +1358,7 @@ mod tests {
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
             }),
         };
 
@@ -1456,6 +1468,7 @@ mod tests {
                     sender_payment_instrument_id: None,
                     settlement_status: None,
                     merchant_request_id: None,
+                    typed_connector_response: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
                     api_key: "dummy_api_key".to_string().into(),
@@ -1481,6 +1494,7 @@ mod tests {
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
                 }),
             };
 
@@ -1582,6 +1596,7 @@ mod tests {
                     merchant_request_id: None,
                     sender_payment_instrument_id: None,
                     settlement_status: None,
+                    typed_connector_response: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
                     api_key: "dummy_api_key".to_string().into(),
@@ -1607,6 +1622,7 @@ mod tests {
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
                 }),
             };
 
@@ -1711,6 +1727,7 @@ mod tests {
                     sender_payment_instrument_id: None,
                     settlement_status: None,
                     merchant_request_id: None,
+                    typed_connector_response: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
                     api_key: "invalid_key".to_string().into(),
@@ -1796,6 +1813,7 @@ mod tests {
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
                 }),
             };
 
@@ -1887,6 +1905,7 @@ mod tests {
                 merchant_request_id: None,
                 sender_payment_instrument_id: None,
                 settlement_status: None,
+                typed_connector_response: None,
             },
             connector_config: ConnectorSpecificConfig::Razorpay {
                 api_key: "dummy_api_key".to_string().into(),
@@ -1912,6 +1931,7 @@ mod tests {
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
             }),
         };
 
@@ -2025,6 +2045,7 @@ mod tests {
                 sender_payment_instrument_id: None,
                 settlement_status: None,
                 merchant_request_id: None,
+                typed_connector_response: None,
             },
             connector_config: ConnectorSpecificConfig::Razorpay {
                 api_key: "dummy_api_key".to_string().into(),
@@ -2050,6 +2071,7 @@ mod tests {
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
             }),
         };
 
@@ -2152,6 +2174,7 @@ mod tests {
                 sender_payment_instrument_id: None,
                 settlement_status: None,
                 merchant_request_id: None,
+                typed_connector_response: None,
             },
             connector_config: ConnectorSpecificConfig::Razorpay {
                 api_key: "dummy_api_key".to_string().into(),
@@ -2177,6 +2200,7 @@ mod tests {
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
             }),
         };
 

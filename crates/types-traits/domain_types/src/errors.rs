@@ -397,7 +397,7 @@ pub enum ConnectorError {
     /// so they survive the error path and reach the gRPC layer.
     #[error("Connector returned an error response with status {}", error_response.status_code)]
     ConnectorErrorResponse {
-        error_response: ErrorResponse,
+        error_response: Box<ErrorResponse>,
         raw_connector_response: Option<Secret<String>>,
         raw_connector_request: Option<Secret<String>>,
         typed_connector_response: Option<String>,
@@ -563,7 +563,7 @@ impl ErrorSwitch<grpc_api_types::payments::ConnectorError> for ConnectorError {
                 typed_connector_request,
             } => {
                 // Build structured ErrorInfo from available error data
-                let error_info = ForeignFrom::foreign_from(error_response);
+                let error_info = ForeignFrom::foreign_from(error_response.as_ref());
 
                 // Structured error data is fully captured in `error_info`.
                 // Use the connector's top-level message directly as error_message.

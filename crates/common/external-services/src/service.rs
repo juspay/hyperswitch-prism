@@ -499,7 +499,7 @@ where
                             typed_connector_response: error_response
                                 .typed_connector_response
                                 .clone(),
-                            error_response,
+                            error_response: Box::new(error_response),
                             raw_connector_response: updated_router_data
                                 .resource_common_data
                                 .get_raw_connector_response(),

@@ -52,6 +52,7 @@ mod tests {
                     raw_connector_response: None,
                     raw_connector_request: None,
                     typed_connector_request: None,
+                    typed_connector_response: None,
                     connector_response_headers: None,
                 },
                 connector_config: ConnectorSpecificConfig::Plaid {
@@ -246,6 +247,7 @@ mod tests {
                     sender_payment_instrument_id: None,
                     settlement_status: None,
                     raw_connector_status: None,
+                    typed_connector_response: None,
                 },
                 connector_config: ConnectorSpecificConfig::Plaid {
                     client_id: Secret::new("test_client_id".to_owned()),
@@ -406,6 +408,7 @@ mod tests {
                     sender_payment_instrument_id: None,
                     settlement_status: None,
                     raw_connector_status: None,
+                    typed_connector_response: None,
                 },
                 connector_config: ConnectorSpecificConfig::Plaid {
                     client_id: Secret::new("test_client_id".to_owned()),
