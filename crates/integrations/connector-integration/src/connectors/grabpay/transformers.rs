@@ -472,12 +472,13 @@ fn parse_webhook_status<T>(
 where
     T: std::str::FromStr,
 {
-    let status = webhook_body.effective_status().ok_or_else(|| {
-        error_stack::report!(errors::WebhookError::WebhookBodyDecodingFailed)
-    })?;
-    status.trim().parse::<T>().map_err(|_| {
-        error_stack::report!(errors::WebhookError::WebhookBodyDecodingFailed)
-    })
+    let status = webhook_body
+        .effective_status()
+        .ok_or_else(|| error_stack::report!(errors::WebhookError::WebhookBodyDecodingFailed))?;
+    status
+        .trim()
+        .parse::<T>()
+        .map_err(|_| error_stack::report!(errors::WebhookError::WebhookBodyDecodingFailed))
 }
 
 #[derive(Debug, Clone, Deserialize)]
