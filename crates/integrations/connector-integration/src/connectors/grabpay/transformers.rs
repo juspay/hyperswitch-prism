@@ -423,61 +423,61 @@ impl GrabpayWebhookBody {
     }
 }
 
-pub fn grabpay_webhook_event_type(webhook_body: &GrabpayWebhookBody) -> EventType {
+pub fn grabpay_webhook_event_type(
+    webhook_body: &GrabpayWebhookBody,
+) -> Result<EventType, error_stack::Report<errors::WebhookError>> {
     if webhook_body.is_refund_event() {
-        match webhook_body
-            .effective_status()
-            .and_then(|s| s.trim().parse::<GrabpayRefundStatus>().ok())
-        {
-            Some(GrabpayRefundStatus::Success) => EventType::RefundSuccess,
-            Some(
-                GrabpayRefundStatus::Failed
-                | GrabpayRefundStatus::Cancelled
-                | GrabpayRefundStatus::AuthorisationDeclined,
-            ) => EventType::RefundFailure,
-            Some(
-                GrabpayRefundStatus::Processing | GrabpayRefundStatus::TransactionAlreadyExist,
-            ) => EventType::RefundProcessing,
-            _ => EventType::IncomingWebhookEventUnspecified,
-        }
+        let status = parse_webhook_status::<GrabpayRefundStatus>(webhook_body)?;
+        Ok(match status {
+            GrabpayRefundStatus::Success => EventType::RefundSuccess,
+            GrabpayRefundStatus::Failed
+            | GrabpayRefundStatus::Cancelled
+            | GrabpayRefundStatus::AuthorisationDeclined => EventType::RefundFailure,
+            GrabpayRefundStatus::Processing | GrabpayRefundStatus::TransactionAlreadyExist => {
+                EventType::RefundProcessing
+            }
+        })
     } else {
-        match webhook_body
-            .effective_status()
-            .and_then(|s| s.trim().parse::<GrabpayPaymentStatus>().ok())
-        {
-            Some(GrabpayPaymentStatus::Success) => EventType::PaymentIntentSuccess,
-            Some(
-                GrabpayPaymentStatus::Failed
-                | GrabpayPaymentStatus::Cancelled
-                | GrabpayPaymentStatus::AuthorisationDeclined,
-            ) => EventType::PaymentIntentFailure,
-            Some(
-                GrabpayPaymentStatus::Processing | GrabpayPaymentStatus::TransactionAlreadyExist,
-            ) => EventType::PaymentIntentProcessing,
-            Some(GrabpayPaymentStatus::Authorised) => EventType::PaymentIntentAuthorizationSuccess,
-            _ => EventType::IncomingWebhookEventUnspecified,
-        }
+        let status = parse_webhook_status::<GrabpayPaymentStatus>(webhook_body)?;
+        Ok(match status {
+            GrabpayPaymentStatus::Success => EventType::PaymentIntentSuccess,
+            GrabpayPaymentStatus::Failed
+            | GrabpayPaymentStatus::Cancelled
+            | GrabpayPaymentStatus::AuthorisationDeclined => EventType::PaymentIntentFailure,
+            GrabpayPaymentStatus::Processing | GrabpayPaymentStatus::TransactionAlreadyExist => {
+                EventType::PaymentIntentProcessing
+            }
+            GrabpayPaymentStatus::Authorised => EventType::PaymentIntentAuthorizationSuccess,
+        })
     }
 }
 
-pub fn grabpay_webhook_attempt_status(webhook_body: &GrabpayWebhookBody) -> AttemptStatus {
-    match webhook_body
-        .effective_status()
-        .and_then(|s| s.trim().parse::<GrabpayPaymentStatus>().ok())
-    {
-        Some(status) => AttemptStatus::from(status),
-        None => AttemptStatus::Pending,
-    }
+pub fn grabpay_webhook_attempt_status(
+    webhook_body: &GrabpayWebhookBody,
+) -> Result<AttemptStatus, error_stack::Report<errors::WebhookError>> {
+    let status = parse_webhook_status::<GrabpayPaymentStatus>(webhook_body)?;
+    Ok(AttemptStatus::from(status))
 }
 
-pub fn grabpay_webhook_refund_status(webhook_body: &GrabpayWebhookBody) -> RefundStatus {
-    match webhook_body
-        .effective_status()
-        .and_then(|s| s.trim().parse::<GrabpayRefundStatus>().ok())
-    {
-        Some(status) => RefundStatus::from(status),
-        None => RefundStatus::Pending,
-    }
+pub fn grabpay_webhook_refund_status(
+    webhook_body: &GrabpayWebhookBody,
+) -> Result<RefundStatus, error_stack::Report<errors::WebhookError>> {
+    let status = parse_webhook_status::<GrabpayRefundStatus>(webhook_body)?;
+    Ok(RefundStatus::from(status))
+}
+
+fn parse_webhook_status<T>(
+    webhook_body: &GrabpayWebhookBody,
+) -> Result<T, error_stack::Report<errors::WebhookError>>
+where
+    T: std::str::FromStr,
+{
+    let status = webhook_body.effective_status().ok_or_else(|| {
+        error_stack::report!(errors::WebhookError::WebhookBodyDecodingFailed)
+    })?;
+    status.trim().parse::<T>().map_err(|_| {
+        error_stack::report!(errors::WebhookError::WebhookBodyDecodingFailed)
+    })
 }
 
 #[derive(Debug, Clone, Deserialize)]
