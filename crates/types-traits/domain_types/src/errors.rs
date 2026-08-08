@@ -5,7 +5,6 @@ use crate::utils::ForeignFrom;
 use common_enums;
 use common_utils::errors::ErrorSwitch;
 use error_stack::Report;
-use hyperswitch_masking::Secret;
 // use api_models::errors::types::{ Extra};
 #[derive(Debug, thiserror::Error, PartialEq, Clone, strum::AsRefStr)]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
@@ -393,16 +392,8 @@ pub enum ConnectorError {
     /// The `ErrorResponse` is fully parsed by the connector's own `get_error_response_v2` /
     /// `get_5xx_error_response` / `build_error_response` implementation.
     /// `error_response.status_code` carries the actual HTTP status (4xx or 5xx).
-    /// The raw/typed request/response fields are populated by `service.rs` from `updated_router_data`
-    /// so they survive the error path and reach the gRPC layer.
-    #[error("Connector returned an error response with status {}", error_response.status_code)]
-    ConnectorErrorResponse {
-        error_response: Box<ErrorResponse>,
-        raw_connector_response: Option<Secret<String>>,
-        raw_connector_request: Option<Secret<String>>,
-        typed_connector_response: Option<String>,
-        typed_connector_request: Option<String>,
-    },
+    #[error("Connector returned an error response with status {}", .0.status_code)]
+    ConnectorErrorResponse(Box<ErrorResponse>),
 }
 
 /// Returns documentation URL for error codes.
@@ -424,7 +415,7 @@ impl ConnectorError {
             | Self::ResponseHandlingFailed { context }
             | Self::UnexpectedResponseError { context }
             | Self::IntegrityCheckFailed { context, .. } => context.http_status_code,
-            Self::ConnectorErrorResponse { error_response, .. } => Some(error_response.status_code),
+            Self::ConnectorErrorResponse(error_response) => Some(error_response.status_code),
         }
     }
 
@@ -435,7 +426,7 @@ impl ConnectorError {
             | Self::ResponseHandlingFailed { context }
             | Self::UnexpectedResponseError { context }
             | Self::IntegrityCheckFailed { context, .. } => context.additional_context.as_deref(),
-            Self::ConnectorErrorResponse { error_response, .. } => error_response.reason.as_deref(),
+            Self::ConnectorErrorResponse(error_response) => error_response.reason.as_deref(),
         }
     }
 
@@ -447,12 +438,10 @@ impl ConnectorError {
             | Self::ResponseHandlingFailed { context }
             | Self::UnexpectedResponseError { context }
             | Self::IntegrityCheckFailed { context, .. } => context.clone(),
-            Self::ConnectorErrorResponse { error_response, .. } => {
-                ResponseTransformationErrorContext {
-                    http_status_code: Some(error_response.status_code),
-                    additional_context: error_response.reason.clone(),
-                }
-            }
+            Self::ConnectorErrorResponse(error_response) => ResponseTransformationErrorContext {
+                http_status_code: Some(error_response.status_code),
+                additional_context: error_response.reason.clone(),
+            },
         }
     }
 
@@ -555,13 +544,7 @@ impl ConnectorError {
 impl ErrorSwitch<grpc_api_types::payments::ConnectorError> for ConnectorError {
     fn switch(&self) -> grpc_api_types::payments::ConnectorError {
         match self {
-            Self::ConnectorErrorResponse {
-                error_response,
-                raw_connector_response,
-                raw_connector_request,
-                typed_connector_response,
-                typed_connector_request,
-            } => {
+            Self::ConnectorErrorResponse(error_response) => {
                 // Build structured ErrorInfo from available error data
                 let error_info = ForeignFrom::foreign_from(error_response.as_ref());
 
@@ -572,10 +555,10 @@ impl ErrorSwitch<grpc_api_types::payments::ConnectorError> for ConnectorError {
                     error_code: self.error_code().to_string(),
                     http_status_code: Some(error_response.status_code as u32),
                     error_info,
-                    raw_connector_response: raw_connector_response.clone(),
-                    raw_connector_request: raw_connector_request.clone(),
-                    typed_connector_response: typed_connector_response.clone(),
-                    typed_connector_request: typed_connector_request.clone(),
+                    raw_connector_response: error_response.raw_connector_response.clone(),
+                    raw_connector_request: error_response.raw_connector_request.clone(),
+                    typed_connector_response: error_response.typed_connector_response.clone(),
+                    typed_connector_request: error_response.typed_connector_request.clone(),
                 }
             }
             _ => {
@@ -1512,6 +1495,9 @@ impl From<ApiErrorResponse> for crate::router_data::ErrorResponse {
             network_decline_code: None,
             network_error_message: None,
             typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         }
     }
 }

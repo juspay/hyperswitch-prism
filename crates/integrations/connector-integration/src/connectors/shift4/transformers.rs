@@ -1351,6 +1351,9 @@ impl TryFrom<ResponseRouterData<Shift4PaymentsResponse, Self>>
                 network_advice_code: None,
                 network_error_message: None,
                 typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             }),
             Shift4PaymentStatus::Successful => {
                 Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
@@ -1670,6 +1673,9 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4SetupMandateRes
                 network_advice_code: None,
                 network_error_message: None,
                 typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             }),
             _ => {
                 // For MIT/RepeatPayment, Shift4 requires the stored-card

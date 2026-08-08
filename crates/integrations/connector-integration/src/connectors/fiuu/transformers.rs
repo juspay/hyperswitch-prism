@@ -1393,6 +1393,9 @@ where
                     network_decline_code: None,
                     network_error_message: None,
                     typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 resource_common_data: PaymentFlowData {
                     status: common_enums::AttemptStatus::Failure,
@@ -1477,6 +1480,9 @@ where
                             network_decline_code: None,
                             network_error_message: None,
                             typed_connector_response: None,
+                            raw_connector_response: None,
+                            raw_connector_request: None,
+                            typed_connector_request: None,
                         })
                     } else {
                         Ok(PaymentsResponseData::TransactionResponse {
@@ -1532,6 +1538,9 @@ where
                                 network_decline_code: None,
                                 network_error_message: None,
                                 typed_connector_response: None,
+                                raw_connector_response: None,
+                                raw_connector_request: None,
+                                typed_connector_request: None,
                             })
                         } else {
                             Ok(PaymentsResponseData::TransactionResponse {
@@ -1714,6 +1723,9 @@ impl<F> TryFrom<ResponseRouterData<FiuuRefundResponse, Self>>
                     network_decline_code: None,
                     network_error_message: None,
                     typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..router_data
             }),
@@ -1745,6 +1757,9 @@ impl<F> TryFrom<ResponseRouterData<FiuuRefundResponse, Self>>
                             network_decline_code: None,
                             network_error_message: None,
                             typed_connector_response: None,
+                            raw_connector_response: None,
+                            raw_connector_request: None,
+                            typed_connector_request: None,
                         }),
                         ..router_data
                     })
@@ -1980,6 +1995,9 @@ impl<F> TryFrom<ResponseRouterData<FiuuPaymentResponse, Self>>
                         network_decline_code: None,
                         network_error_message: None,
                         typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     })
                 } else {
                     None
@@ -2046,6 +2064,9 @@ impl<F> TryFrom<ResponseRouterData<FiuuPaymentResponse, Self>>
                         network_decline_code: None,
                         network_error_message: None,
                         typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     })
                 } else {
                     None
@@ -2275,6 +2296,9 @@ impl<F> TryFrom<ResponseRouterData<PaymentCaptureResponse, Self>>
                 network_decline_code: None,
                 network_error_message: None,
                 typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             None
@@ -2412,6 +2436,9 @@ impl<F> TryFrom<ResponseRouterData<FiuuPaymentCancelResponse, Self>>
                 network_decline_code: None,
                 network_error_message: None,
                 typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             None
@@ -2528,6 +2555,9 @@ impl<F> TryFrom<ResponseRouterData<FiuuRefundSyncResponse, Self>>
                     network_decline_code: None,
                     network_error_message: None,
                     typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..router_data
             }),

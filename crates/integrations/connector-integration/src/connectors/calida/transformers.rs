@@ -361,6 +361,9 @@ impl<F> TryFrom<ResponseRouterData<CalidaSyncResponse, Self>>
                 network_decline_code: None,
                 network_error_message: None,
                 typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {

@@ -272,6 +272,9 @@ impl ConnectorCommon for CybersourcePayouts {
                     network_decline_code: None,
                     network_error_message: None,
                     typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 })
             }
             Ok(cs_payments::CybersourceErrorResponse::AuthenticationError(response)) => {
@@ -287,6 +290,9 @@ impl ConnectorCommon for CybersourcePayouts {
                     network_decline_code: None,
                     network_error_message: None,
                     typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 })
             }
             Ok(cs_payments::CybersourceErrorResponse::NotAvailableError(response)) => {
@@ -314,6 +320,9 @@ impl ConnectorCommon for CybersourcePayouts {
                     network_decline_code: None,
                     network_error_message: None,
                     typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 })
             }
             Err(error_msg) => {
@@ -357,6 +366,9 @@ fn build_5xx_error_response(
             network_decline_code: None,
             network_error_message: None,
             typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         });
     }
     let error_message = match res.status_code {
@@ -378,6 +390,9 @@ fn build_5xx_error_response(
         network_decline_code: None,
         network_error_message: None,
         typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
     })
 }
 

@@ -767,6 +767,9 @@ pub fn get_elavon_attempt_status(
                 network_advice_code: None,
                 network_error_message: None,
                 typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             }),
         ),
     }
@@ -843,6 +846,9 @@ impl<
                 network_advice_code: None,
                 network_error_message: None,
                 typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             }),
         };
 
@@ -1089,6 +1095,9 @@ impl<F> TryFrom<ResponseRouterData<ElavonCaptureResponse, Self>>
                 network_advice_code: None,
                 network_error_message: None,
                 typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             }),
         };
 
@@ -1246,6 +1255,9 @@ impl<F> TryFrom<ResponseRouterData<ElavonRefundResponse, Self>>
                 network_advice_code: None,
                 network_error_message: None,
                 typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             }),
         };
 

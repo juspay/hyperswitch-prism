@@ -557,6 +557,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     network_advice_code: None,
                     network_error_message: response.declined_message.clone(),
                     typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..router_data.clone()
             });
@@ -687,6 +690,9 @@ impl TryFrom<ResponseRouterData<BamboraapacCaptureResponse, Self>>
                     network_advice_code: None,
                     network_error_message: response.declined_message.clone(),
                     typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..router_data.clone()
             });
@@ -801,6 +807,9 @@ impl TryFrom<ResponseRouterData<BamboraapacSyncResponse, Self>>
                         network_advice_code: None,
                         network_error_message: None,
                         typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     }),
                     ..router_data.clone()
                 });
@@ -842,6 +851,9 @@ impl TryFrom<ResponseRouterData<BamboraapacSyncResponse, Self>>
                     network_advice_code: None,
                     network_error_message: response.declined_message.clone(),
                     typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..router_data.clone()
             });
@@ -978,6 +990,9 @@ impl TryFrom<ResponseRouterData<BamboraapacRefundResponse, Self>>
                     network_advice_code: None,
                     network_error_message: response.declined_message.clone(),
                     typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..router_data.clone()
             });
@@ -1077,6 +1092,9 @@ impl TryFrom<ResponseRouterData<BamboraapacSyncResponse, Self>>
                         network_advice_code: None,
                         network_error_message: None,
                         typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     }),
                     ..router_data.clone()
                 });
@@ -1114,6 +1132,9 @@ impl TryFrom<ResponseRouterData<BamboraapacSyncResponse, Self>>
                     network_advice_code: None,
                     network_error_message: response.declined_message.clone(),
                     typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..router_data.clone()
             });
@@ -1328,6 +1349,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     network_advice_code: None,
                     network_error_message: Some(error_message.to_string()),
                     typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..router_data.clone()
             });
@@ -1520,6 +1544,9 @@ impl<
                     network_advice_code: None,
                     network_error_message: response.declined_message.clone(),
                     typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..router_data.clone()
             });

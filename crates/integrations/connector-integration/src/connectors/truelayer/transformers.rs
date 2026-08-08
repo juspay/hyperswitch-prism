@@ -478,6 +478,9 @@ impl<F, T> TryFrom<ResponseRouterData<TruelayerPaymentsResponseData, Self>>
                 network_decline_code: None,
                 network_error_message: None,
                 typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             };
 
             Ok(Self {
@@ -601,6 +604,9 @@ impl<F, T> TryFrom<ResponseRouterData<TruelayerPSyncResponseData, Self>>
                         network_decline_code: None,
                         network_error_message: None,
                         typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     };
 
                     Ok(Self {
@@ -683,6 +689,9 @@ impl<F, T> TryFrom<ResponseRouterData<TruelayerPSyncResponseData, Self>>
                         network_decline_code: None,
                         network_error_message: None,
                         typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     };
 
                     Ok(Self {
@@ -840,6 +849,9 @@ impl TryFrom<ResponseRouterData<TruelayerRsyncResponse, Self>>
                         network_decline_code: None,
                         network_error_message: None,
                         typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     })
                 } else {
                     Ok(RefundsResponseData {
@@ -878,6 +890,9 @@ impl TryFrom<ResponseRouterData<TruelayerRsyncResponse, Self>>
                         network_decline_code: None,
                         network_error_message: None,
                         typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     })
                 } else {
                     Ok(RefundsResponseData {

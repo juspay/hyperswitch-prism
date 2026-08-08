@@ -2509,6 +2509,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     network_advice_code: None,
                     network_error_message: body.response_message.clone(),
                     typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..router_data.clone()
             });
@@ -2669,6 +2672,9 @@ impl TryFrom<ResponseRouterData<TsysTransitTransactionInquiryResponse, Self>>
                     network_advice_code: None,
                     network_error_message: response.response_message.clone(),
                     typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..router_data.clone()
             });
@@ -2804,6 +2810,9 @@ impl TryFrom<ResponseRouterData<TsysTransitCaptureResponse, Self>>
                     network_advice_code: None,
                     network_error_message: response.response_message.clone(),
                     typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..router_data.clone()
             });
@@ -2936,6 +2945,9 @@ impl TryFrom<ResponseRouterData<TsysTransitReturnResponse, Self>>
                     network_advice_code: None,
                     network_error_message: response.response_message.clone(),
                     typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..router_data.clone()
             });
@@ -3063,6 +3075,9 @@ impl TryFrom<ResponseRouterData<TsysTransitTransactionInquiryResponse, Self>>
                     network_advice_code: None,
                     network_error_message: response.response_message.clone(),
                     typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..router_data.clone()
             });
@@ -3199,6 +3214,9 @@ impl TryFrom<ResponseRouterData<TsysTransitVoidPostRefundResponse, Self>>
                     network_advice_code: None,
                     network_error_message: response.response_message.clone(),
                     typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..router_data.clone()
             });
@@ -3351,6 +3369,9 @@ impl TryFrom<ResponseRouterData<TsysTransitVoidResponse, Self>>
                     network_advice_code: None,
                     network_error_message: response.response_message.clone(),
                     typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..router_data.clone()
             });
@@ -3671,6 +3692,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     network_advice_code: None,
                     network_error_message: response.response_message.clone(),
                     typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..router_data.clone()
             });
@@ -3903,6 +3927,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     network_advice_code: None,
                     network_error_message: body.response_message.clone(),
                     typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..router_data.clone()
             });

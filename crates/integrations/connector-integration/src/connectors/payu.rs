@@ -327,6 +327,9 @@ macros::macro_connector_implementation!(
                     network_advice_code: None,
                     network_decline_code: None,
                     typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 })
             } else {
                 // Generic error response
@@ -341,6 +344,9 @@ macros::macro_connector_implementation!(
                     network_advice_code: None,
                     network_decline_code: None,
                     typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 })
             }
         }
@@ -410,6 +416,9 @@ macros::macro_connector_implementation!(
                 network_advice_code: None,
                 network_decline_code: None,
                 typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
             })
         }
     }
@@ -478,6 +487,9 @@ macros::macro_connector_implementation!(
                 network_advice_code: None,
                 network_decline_code: None,
                 typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
             })
         }
     }
@@ -545,6 +557,9 @@ macros::macro_connector_implementation!(
                 network_advice_code: None,
                 network_decline_code: None,
                 typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
             })
         }
     }
@@ -612,6 +627,9 @@ macros::macro_connector_implementation!(
                 network_advice_code: None,
                 network_decline_code: None,
                 typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
             })
         }
     }
@@ -680,6 +698,9 @@ macros::macro_connector_implementation!(
                 network_advice_code: None,
                 network_decline_code: None,
                 typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
             })
         }
     }
@@ -747,6 +768,9 @@ macros::macro_connector_implementation!(
                     network_advice_code: None,
                     network_decline_code: None,
                     typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 })
             } else {
                 // This shouldn't happen as successful responses go through normal flow
@@ -762,6 +786,9 @@ macros::macro_connector_implementation!(
                     network_advice_code: None,
                     network_decline_code: None,
                     typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 })
             }
         }

@@ -399,6 +399,9 @@ impl TryFrom<ResponseRouterData<GlomopayGetCustomerResponse, Self>>
                 network_advice_code: None,
                 network_error_message: None,
                 typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             }),
         };
         Ok(Self {
@@ -656,6 +659,9 @@ impl TryFrom<ResponseRouterData<GlomopayCreateOrderResponse, Self>>
                         network_advice_code: None,
                         network_error_message: None,
                         typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     }),
                     resource_common_data: PaymentFlowData {
                         status: AttemptStatus::Pending,
@@ -682,6 +688,9 @@ impl TryFrom<ResponseRouterData<GlomopayCreateOrderResponse, Self>>
                         network_advice_code: None,
                         network_error_message: None,
                         typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     }),
                     resource_common_data: PaymentFlowData {
                         status: AttemptStatus::Failure,
@@ -999,6 +1008,9 @@ impl TryFrom<ResponseRouterData<GlomopayPaymentSyncResponse, Self>>
                 network_advice_code: None,
                 network_error_message: None,
                 typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {

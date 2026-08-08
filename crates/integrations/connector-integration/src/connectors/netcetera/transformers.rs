@@ -87,6 +87,9 @@ fn error_response_from_details(
         network_decline_code: None,
         network_error_message: None,
         typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
     }
 }
 

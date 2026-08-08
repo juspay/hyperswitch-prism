@@ -2889,13 +2889,7 @@ impl MerchantAuthentication {
                 Ok(session_response)
             }
             Err(error_response) => Err(error_stack::report!(
-                ConnectorError::ConnectorErrorResponse {
-                    error_response: Box::new(error_response),
-                    raw_connector_response: None,
-                    raw_connector_request: None,
-                    typed_connector_response: None,
-                    typed_connector_request: None,
-                }
+                ConnectorError::ConnectorErrorResponse(Box::new(error_response))
             )
             .to_grpc_error()),
         }

@@ -856,6 +856,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     network_advice_code: None,
                     network_error_message: None,
                     typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..item.router_data
             })
@@ -1122,6 +1125,9 @@ impl TryFrom<ResponseRouterData<PhonepeSyncResponse, Self>>
                             network_advice_code: None,
                             network_error_message: None,
                             typed_connector_response: None,
+                            raw_connector_response: None,
+                            raw_connector_request: None,
+                            typed_connector_request: None,
                         }),
                         ..item.router_data
                     })
@@ -1157,6 +1163,9 @@ impl TryFrom<ResponseRouterData<PhonepeSyncResponse, Self>>
                     network_advice_code: None,
                     network_error_message: None,
                     typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..item.router_data
             })
@@ -1678,6 +1687,9 @@ impl TryFrom<ResponseRouterData<PhonepeCaptureResponse, Self>>
                 network_advice_code: None,
                 network_error_message: None,
                 typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             });
             Ok(router_data)
         }
@@ -1927,6 +1939,9 @@ impl TryFrom<ResponseRouterData<PhonepeRefundResponse, Self>>
                 network_advice_code: None,
                 network_error_message: None,
                 typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             });
             Ok(router_data)
         }
@@ -2203,6 +2218,9 @@ impl TryFrom<ResponseRouterData<PhonepeRefundSyncResponse, Self>>
                 network_advice_code: None,
                 network_error_message: None,
                 typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             });
             Ok(router_data)
         }
@@ -2431,6 +2449,9 @@ impl TryFrom<ResponseRouterData<PhonepeVoidResponse, Self>>
                 network_advice_code: None,
                 network_error_message: None,
                 typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             });
             Ok(router_data)
         }

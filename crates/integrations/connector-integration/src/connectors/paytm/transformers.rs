@@ -339,6 +339,9 @@ impl TryFrom<ResponseRouterData<PaytmInitiateTxnResponse, Self>>
                         network_advice_code: None,
                         network_error_message: None,
                         typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     })
                 } else {
                     Ok(ServerSessionAuthenticationTokenResponseData {
@@ -358,6 +361,9 @@ impl TryFrom<ResponseRouterData<PaytmInitiateTxnResponse, Self>>
                     network_advice_code: None,
                     network_error_message: None,
                     typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 })
             }
         };
@@ -609,6 +615,9 @@ impl<
                 network_advice_code: None,
                 network_error_message: None,
                 typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {
@@ -752,6 +761,9 @@ impl TryFrom<ResponseRouterData<PaytmTransactionStatusResponse, Self>>
                 network_advice_code: None,
                 network_error_message: None,
                 typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             let connector_metadata = get_wait_screen_metadata();

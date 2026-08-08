@@ -4472,6 +4472,9 @@ fn get_stripe_payments_response_data(
             .as_ref()
             .and_then(|res| res.decline_code.clone().or(res.advice_code.clone())),
         typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
     }))
 }
 
@@ -4901,6 +4904,9 @@ impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
                 network_decline_code: None,
                 network_error_message: None,
                 typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             Ok(RefundsResponseData {
@@ -4964,6 +4970,9 @@ impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
                 network_decline_code: None,
                 network_error_message: None,
                 typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             Ok(RefundsResponseData {

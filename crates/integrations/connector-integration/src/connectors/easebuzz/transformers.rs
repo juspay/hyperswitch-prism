@@ -290,6 +290,9 @@ impl ForeignTryFrom<(EasebuzzInitiateLinkResponse, Self, u16, bool)>
                     network_advice_code: None,
                     network_error_message: None,
                     typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..data
             });
@@ -557,6 +560,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         network_advice_code: None,
                         network_error_message: None,
                         typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     }),
                     ..router_data
                 });
@@ -795,6 +801,9 @@ impl TryFrom<ResponseRouterData<EasebuzzCaptureResponse, Self>>
                                 network_advice_code: None,
                                 network_error_message: None,
                                 typed_connector_response: None,
+                                raw_connector_response: None,
+                                raw_connector_request: None,
+                                typed_connector_request: None,
                             }),
                             ..router_data
                         });
@@ -867,6 +876,9 @@ impl TryFrom<ResponseRouterData<EasebuzzCaptureResponse, Self>>
                         network_advice_code: None,
                         network_error_message: None,
                         typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     }),
                     ..router_data
                 })
@@ -1038,6 +1050,9 @@ impl TryFrom<ResponseRouterData<EasebuzzRefundResponse, Self>>
                     network_advice_code: None,
                     network_error_message: None,
                     typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..router_data
             });
@@ -1309,6 +1324,9 @@ impl TryFrom<ResponseRouterData<EasebuzzSyncResponse, Self>>
                         network_advice_code: None,
                         network_error_message: None,
                         typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     }),
                     ..router_data
                 })
@@ -1507,6 +1525,9 @@ impl TryFrom<ResponseRouterData<EasebuzzRefundSyncResponse, Self>>
                         network_advice_code: None,
                         network_error_message: None,
                         typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     }),
                     ..router_data
                 })

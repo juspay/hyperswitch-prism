@@ -615,6 +615,9 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PayconexPaymentsRespo
                 network_decline_code: None,
                 network_error_message: None,
                 typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             }),
             _ => Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(
@@ -715,6 +718,9 @@ impl TryFrom<ResponseRouterData<PayconexCaptureResponse, Self>>
                     network_decline_code: None,
                     network_error_message: None,
                     typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..item.router_data
             })
@@ -793,6 +799,9 @@ impl TryFrom<ResponseRouterData<PayconexVoidResponse, Self>>
                     network_decline_code: None,
                     network_error_message: None,
                     typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..item.router_data
             })
@@ -845,6 +854,9 @@ impl TryFrom<ResponseRouterData<PayconexSyncResponse, Self>>
                 network_decline_code: None,
                 network_error_message: None,
                 typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             }),
             _ => Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: item
@@ -915,6 +927,9 @@ impl TryFrom<ResponseRouterData<PayconexRefundResponse, Self>>
                 network_decline_code: None,
                 network_error_message: None,
                 typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             }),
             _ => Ok(RefundsResponseData {
                 connector_refund_id: item.response.transaction_id.clone().ok_or_else(|| {
@@ -978,6 +993,9 @@ impl TryFrom<ResponseRouterData<PayconexRefundSyncResponse, Self>>
                 network_decline_code: None,
                 network_error_message: None,
                 typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             }),
             _ => Ok(RefundsResponseData {
                 connector_refund_id: item

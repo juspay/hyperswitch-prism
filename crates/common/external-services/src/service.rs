@@ -443,7 +443,7 @@ where
                             .set_connector_response_headers(body.headers.clone());
                     }
 
-                    let error_response = match body.status_code {
+                    let mut error_response = match body.status_code {
                         500..=511 => connector.get_5xx_error_response(
                             body.clone(),
                             event.as_deref_mut(),
@@ -494,22 +494,19 @@ where
                             &flow_status_label(flow_status),
                         );
                     }
+                    {
+                        error_response.raw_connector_response = updated_router_data
+                            .resource_common_data
+                            .get_raw_connector_response();
+                        error_response.raw_connector_request = updated_router_data
+                            .resource_common_data
+                            .get_raw_connector_request();
+                        error_response.typed_connector_request = updated_router_data
+                            .resource_common_data
+                            .get_typed_connector_request();
+                    }
                     Err(error_stack::report!(
-                        ConnectorError::ConnectorErrorResponse {
-                            typed_connector_response: error_response
-                                .typed_connector_response
-                                .clone(),
-                            error_response: Box::new(error_response),
-                            raw_connector_response: updated_router_data
-                                .resource_common_data
-                                .get_raw_connector_response(),
-                            raw_connector_request: updated_router_data
-                                .resource_common_data
-                                .get_raw_connector_request(),
-                            typed_connector_request: updated_router_data
-                                .resource_common_data
-                                .get_typed_connector_request(),
-                        }
+                        ConnectorError::ConnectorErrorResponse(Box::new(error_response))
                     ))?
                 }
             };

@@ -605,6 +605,9 @@ fn handle_cards_response(
             network_decline_code: None,
             network_error_message: None,
             typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     } else {
         None
@@ -687,6 +690,9 @@ fn handle_bank_redirects_error_response(
         network_decline_code: None,
         network_error_message: None,
         typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
     });
     let payment_response_data = PaymentsResponseData::TransactionResponse {
         resource_id: ResponseId::NoResponseId,
@@ -745,6 +751,9 @@ fn handle_bank_redirects_sync_response(
             network_decline_code: None,
             network_error_message: None,
             typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     } else {
         None
@@ -805,6 +814,9 @@ pub fn handle_webhook_response(
             network_decline_code: None,
             network_error_message: None,
             typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     } else {
         None
@@ -867,6 +879,9 @@ pub fn handle_webhook_response_incoming_webhook(
             network_decline_code: None,
             network_error_message: None,
             typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     } else {
         None
@@ -1135,6 +1150,9 @@ impl TryFrom<ResponseRouterData<TrustpayAuthUpdateResponse, Self>>
                     network_decline_code: None,
                     network_error_message: None,
                     typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..item.router_data
             }),
@@ -1998,6 +2016,9 @@ fn handle_cards_refund_response(
             network_decline_code: None,
             network_error_message: None,
             typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         }),
         None => None,
     };
@@ -2037,6 +2058,9 @@ pub fn handle_webhooks_refund_response(
                 network_decline_code: None,
                 network_error_message: None,
                 typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         }
         false => None,
@@ -2095,6 +2119,9 @@ pub fn handle_webhooks_refund_response_incoming_webhook(
                 network_decline_code: None,
                 network_error_message: None,
                 typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         }
         false => None,
@@ -2129,6 +2156,9 @@ fn handle_bank_redirects_refund_response(
             network_decline_code: None,
             network_error_message: None,
             typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         }),
         false => None,
     };
@@ -2171,6 +2201,9 @@ fn handle_bank_redirects_refund_sync_response(
                 network_decline_code: None,
                 network_error_message: None,
                 typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         }
         false => None,
@@ -2203,6 +2236,9 @@ fn handle_bank_redirects_refund_sync_error_response(
         network_decline_code: None,
         network_error_message: None,
         typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
     });
     //unreachable case as we are sending error as Some()
     let refund_response_data = RefundsResponseData {
@@ -2802,6 +2838,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 network_decline_code: None,
                 network_error_message: None,
                 typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             None
@@ -2973,6 +3012,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 network_decline_code: None,
                 network_error_message: None,
                 typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             None
