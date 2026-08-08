@@ -19,7 +19,7 @@ use domain_types::{
     errors,
     errors::IntegrationErrorContext,
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
-    payment_method_data::PaymentMethodDataTypes,
+    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, WalletData},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
@@ -425,7 +425,10 @@ impl GrabpayWebhookBody {
 
 pub fn grabpay_webhook_event_type(webhook_body: &GrabpayWebhookBody) -> EventType {
     if webhook_body.is_refund_event() {
-        match GrabpayRefundStatus::from_webhook_status(webhook_body.effective_status()) {
+        match webhook_body
+            .effective_status()
+            .and_then(|s| s.trim().parse::<GrabpayRefundStatus>().ok())
+        {
             Some(GrabpayRefundStatus::Success) => EventType::RefundSuccess,
             Some(
                 GrabpayRefundStatus::Failed
@@ -438,7 +441,10 @@ pub fn grabpay_webhook_event_type(webhook_body: &GrabpayWebhookBody) -> EventTyp
             _ => EventType::IncomingWebhookEventUnspecified,
         }
     } else {
-        match GrabpayPaymentStatus::from_webhook_status(webhook_body.effective_status()) {
+        match webhook_body
+            .effective_status()
+            .and_then(|s| s.trim().parse::<GrabpayPaymentStatus>().ok())
+        {
             Some(GrabpayPaymentStatus::Success) => EventType::PaymentIntentSuccess,
             Some(
                 GrabpayPaymentStatus::Failed
@@ -455,28 +461,22 @@ pub fn grabpay_webhook_event_type(webhook_body: &GrabpayWebhookBody) -> EventTyp
 }
 
 pub fn grabpay_webhook_attempt_status(webhook_body: &GrabpayWebhookBody) -> AttemptStatus {
-    match GrabpayPaymentStatus::from_webhook_status(webhook_body.effective_status()) {
+    match webhook_body
+        .effective_status()
+        .and_then(|s| s.trim().parse::<GrabpayPaymentStatus>().ok())
+    {
         Some(status) => AttemptStatus::from(status),
         None => AttemptStatus::Pending,
     }
 }
 
 pub fn grabpay_webhook_refund_status(webhook_body: &GrabpayWebhookBody) -> RefundStatus {
-    match GrabpayRefundStatus::from_webhook_status(webhook_body.effective_status()) {
+    match webhook_body
+        .effective_status()
+        .and_then(|s| s.trim().parse::<GrabpayRefundStatus>().ok())
+    {
         Some(status) => RefundStatus::from(status),
         None => RefundStatus::Pending,
-    }
-}
-
-impl GrabpayPaymentStatus {
-    fn from_webhook_status(status: Option<&str>) -> Option<Self> {
-        status?.trim().parse().ok()
-    }
-}
-
-impl GrabpayRefundStatus {
-    fn from_webhook_status(status: Option<&str>) -> Option<Self> {
-        status?.trim().parse().ok()
     }
 }
 
@@ -984,6 +984,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
+        match &router_data.request.payment_method_data {
+            Some(PaymentMethodData::Wallet(WalletData::GrabpayRedirect {})) => {}
+            other => {
+                return Err(error_stack::report!(errors::IntegrationError::NotImplemented(
+                    format!("GrabPay only supports Wallet(GrabpayRedirect); received {other:?}"),
+                    grabpay_integration_context(
+                        "GrabPay Authenticate only accepts PaymentMethodData::Wallet(WalletData::GrabpayRedirect {{}})",
+                    ),
+                )));
+            }
+        }
+
         let auth = GrabpayAuthType::try_from(&router_data.connector_config).change_context(
             errors::IntegrationError::FailedToObtainAuthType {
                 context: grabpay_integration_context(
@@ -1266,16 +1278,6 @@ pub(crate) fn validate_partner_tx_id(
             }
         ))
     }
-}
-
-pub fn is_missing_oauth_code_error(error: &error_stack::Report<errors::IntegrationError>) -> bool {
-    matches!(
-        error.current_context(),
-        errors::IntegrationError::MissingRequiredField {
-            field_name: "connector_feature_data.code",
-            ..
-        }
-    )
 }
 
 fn parse_connector_feature_data(
