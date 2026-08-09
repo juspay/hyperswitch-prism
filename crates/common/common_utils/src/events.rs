@@ -485,115 +485,204 @@ pub enum TransformationMode {
     Replace,
 }
 
-/// A single log transformation with pre-split target path segments.
-#[cfg(feature = "log-transformations")]
+/// A single field entry for golden log lines.
+///
+/// Each entry is either a literal value or a reference to a span storage field.
+/// - `{ value = "literal" }` — injects a constant string.
+/// - `{ source = "span_field" }` — reads the value from the named span storage field at runtime.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(untagged)]
+pub enum LogFieldEntry {
+    /// Read value from the named field in span storage.
+    Source { source: String },
+    /// Use a literal string value.
+    Value { value: String },
+}
+
+/// A single compiled log field with pre-split target path segments.
 #[derive(Debug, Clone)]
-pub struct CompiledLogTransformation {
-    /// Source field key in span storage (e.g., "gateway", "request.url").
-    /// Leaked to `&'static str` at startup for `Storage::record_value()`.
-    pub source_field: &'static str,
+pub struct CompiledLogField {
     /// Pre-split target path segments (e.g., `["api_details", "url"]`).
     /// Segment 0 is the root key; segments 1.. are the nested sub-path.
     pub target_segments: Vec<String>,
-    /// Top-level key for `Storage::record_value()` — leaked `&'static str`.
-    pub target_root_key: &'static str,
+    /// Top-level key — segment 0 of the target path.
+    pub target_root_key: String,
+    /// Resolved entry: either a source field name or a literal value.
+    pub entry: CompiledFieldEntry,
 }
 
-/// Pre-compiled transformations for one golden log line type (incoming or outgoing).
-#[cfg(feature = "log-transformations")]
+/// Resolved field entry — either a source field reference or a literal value.
+#[derive(Debug, Clone)]
+pub enum CompiledFieldEntry {
+    /// Read value from this field name in span storage at runtime.
+    Source(String),
+    /// Use this literal value.
+    Value(serde_json::Value),
+}
+
+/// Pre-compiled fields for one golden log line type (incoming or outgoing).
 #[derive(Debug, Clone, Default)]
-pub struct CompiledLogTransformations {
-    pub rules: Vec<CompiledLogTransformation>,
+pub struct CompiledLogFields {
+    pub rules: Vec<CompiledLogField>,
 }
 
-#[cfg(feature = "log-transformations")]
-impl CompiledLogTransformations {
-    /// Compile raw `target_path → source_field` mappings into pre-split rules.
-    /// Uses `Box::leak` to produce `&'static str` keys — safe because config is loaded once
-    /// at process startup and lives for the entire process lifetime.
-    pub fn compile(raw: &HashMap<String, String>) -> Self {
+impl CompiledLogFields {
+    /// Compile raw `target_path → LogFieldEntry` mappings into pre-split rules.
+    pub fn compile(raw: &HashMap<String, LogFieldEntry>) -> Self {
         let rules = raw
             .iter()
-            .filter_map(|(target_path, source_field)| {
+            .filter_map(|(target_path, field_entry)| {
                 let segments: Vec<String> = target_path.split('.').map(String::from).collect();
-                let first = segments.first()?;
-                let root_key: &'static str = Box::leak(first.clone().into_boxed_str());
-                let source_key: &'static str = Box::leak(source_field.clone().into_boxed_str());
-                Some(CompiledLogTransformation {
-                    source_field: source_key,
+                let root_key = segments.first()?.clone();
+                let entry = match field_entry {
+                    LogFieldEntry::Source { source } => CompiledFieldEntry::Source(source.clone()),
+                    LogFieldEntry::Value { value } => {
+                        CompiledFieldEntry::Value(serde_json::Value::String(value.clone()))
+                    }
+                };
+                Some(CompiledLogField {
                     target_segments: segments,
                     target_root_key: root_key,
+                    entry,
                 })
             })
             .collect();
         Self { rules }
     }
 
-    /// Returns `true` if no transformation rules are configured.
+    /// Returns `true` if no field rules are configured.
     pub fn is_empty(&self) -> bool {
         self.rules.is_empty()
     }
 }
 
-/// Holds compiled transformations for both golden log lines.
-#[cfg(feature = "log-transformations")]
+/// Holds compiled fields for both golden log lines.
 #[derive(Debug, Clone, Default)]
-pub struct LogTransformationConfig {
-    pub incoming: CompiledLogTransformations,
-    pub outgoing: CompiledLogTransformations,
-    pub mode: TransformationMode,
+pub struct CompiledLogFieldsConfig {
+    pub incoming: CompiledLogFields,
+    pub outgoing: CompiledLogFields,
 }
 
-#[cfg(feature = "log-transformations")]
-impl LogTransformationConfig {
+impl CompiledLogFieldsConfig {
     pub fn compile(
-        incoming: &HashMap<String, String>,
-        outgoing: &HashMap<String, String>,
-        mode: TransformationMode,
+        incoming: &HashMap<String, LogFieldEntry>,
+        outgoing: &HashMap<String, LogFieldEntry>,
     ) -> Self {
         Self {
-            incoming: CompiledLogTransformations::compile(incoming),
-            outgoing: CompiledLogTransformations::compile(outgoing),
-            mode,
+            incoming: CompiledLogFields::compile(incoming),
+            outgoing: CompiledLogFields::compile(outgoing),
         }
     }
 }
 
-/// Given span storage values and compiled transformation rules, compute the new key-value
-/// pairs to write back into span storage. Returns a list of `(root_key, value)` pairs.
+/// Apply compiled log field rules to the current span's storage.
 ///
-/// For simple renames (1 segment), the value is copied directly.
-/// For nested targets (2+ segments), values are grouped under the root key as a nested JSON object
-/// using `set_nested_value_from_segments()`.
+/// For each rule:
+/// - `Source` entries read a value from the span storage snapshot.
+/// - `Value` entries use the literal value directly.
+///
+/// Dotted target paths build nested JSON objects. When writing a nested object,
+/// it is deep-merged with any existing value for the same root key in the span.
 #[cfg(feature = "log-transformations")]
-pub fn compute_log_transformations(
-    storage_values: &HashMap<String, serde_json::Value>,
-    compiled: &CompiledLogTransformations,
-) -> Vec<(&'static str, serde_json::Value)> {
-    let mut writes: HashMap<&'static str, serde_json::Value> = HashMap::new();
+pub fn apply_log_fields(compiled: &CompiledLogFields) {
+    if compiled.is_empty() {
+        return;
+    }
 
+    // Snapshot span storage (needed for Source entries to read current values).
+    let snapshot: Option<HashMap<String, serde_json::Value>> =
+        log_utils::Storage::with_current_span(|storage| storage.values().clone());
+
+    // Build writes: for each rule, resolve the value and group by root key.
+    let mut writes: HashMap<String, serde_json::Value> = HashMap::new();
     for rule in &compiled.rules {
-        let source_value = match storage_values.get(rule.source_field) {
-            Some(v) => v.clone(),
-            None => continue,
+        let resolved_value = match &rule.entry {
+            CompiledFieldEntry::Value(v) => v.clone(),
+            CompiledFieldEntry::Source(field) => {
+                match snapshot
+                    .as_ref()
+                    .and_then(|s| s.get(field.as_str()))
+                    .cloned()
+                {
+                    Some(v) => v,
+                    None => continue, // source field not present in span, skip
+                }
+            }
         };
 
         if rule.target_segments.len() == 1 {
-            // Simple rename: "connector" = "gateway"
-            writes.insert(rule.target_root_key, source_value);
+            // Flat key: "connector" = { source = "gateway" }
+            writes.insert(rule.target_root_key.clone(), resolved_value);
         } else {
-            // Nested target: "api_details.url" = "request.url"
+            // Nested target: "api_details.url" = { source = "request.url" }
             let root = writes
-                .entry(rule.target_root_key)
+                .entry(rule.target_root_key.clone())
                 .or_insert_with(|| serde_json::json!({}));
-            // Walk pre-compiled segments past the root to set the value
             if let Some(rest) = rule.target_segments.get(1..) {
-                set_nested_value_from_segments(root, rest, source_value);
+                set_nested_value_from_segments(root, rest, resolved_value);
             }
         }
     }
 
-    writes.into_iter().collect()
+    // Filter out reserved keys BEFORE entering the span lock.
+    // `record_value` calls `tracing::warn!` for reserved keys, which re-enters
+    // the subscriber and deadlocks when called inside `with_current_span_mut`.
+    let writes: Vec<_> = writes
+        .into_iter()
+        .filter(|(key, _)| {
+            if log_utils::Storage::is_reserved(key) {
+                tracing::warn!(
+                    "Log field target key `{key}` is reserved by the logging infrastructure, skipping"
+                );
+                false
+            } else {
+                true
+            }
+        })
+        .collect();
+
+    if writes.is_empty() {
+        return;
+    }
+
+    // Write to span storage, deep-merging nested objects with existing values.
+    log_utils::Storage::with_current_span_mut(|storage| {
+        for (key, value) in writes {
+            if value.is_object() {
+                // Deep-merge with existing object if present
+                if let Some(existing) = storage.values().get(&key).cloned() {
+                    if existing.is_object() {
+                        let mut merged = existing;
+                        deep_merge_json(&mut merged, value);
+                        storage.record_value(&key, merged);
+                        continue;
+                    }
+                }
+            }
+            storage.record_value(&key, value);
+        }
+    });
+}
+
+/// Recursively merge `source` JSON object into `target`.
+/// Keys in `source` overwrite matching keys in `target`.
+/// Nested objects are merged recursively.
+#[cfg(feature = "log-transformations")]
+fn deep_merge_json(target: &mut serde_json::Value, source: serde_json::Value) {
+    if let (serde_json::Value::Object(target_map), serde_json::Value::Object(source_map)) =
+        (target, source)
+    {
+        for (key, value) in source_map {
+            let entry = target_map
+                .entry(key)
+                .or_insert(serde_json::Value::Null);
+            if entry.is_object() && value.is_object() {
+                deep_merge_json(entry, value);
+            } else {
+                *entry = value;
+            }
+        }
+    }
 }
 
 /// Like `set_nested_value` but takes pre-split path segments instead of a dotted string.
@@ -623,46 +712,6 @@ fn set_nested_value_from_segments(
         }
         current = &mut current[segment.as_str()];
     }
-}
-
-/// Apply compiled log transformation rules to the current span's storage.
-/// Snapshots the current span storage, computes new fields from the rules,
-/// and writes them back.
-#[cfg(feature = "log-transformations")]
-pub fn apply_log_transformations_to_span(compiled: &CompiledLogTransformations) {
-    if compiled.is_empty() {
-        return;
-    }
-    let snapshot: Option<HashMap<String, serde_json::Value>> =
-        log_utils::Storage::with_current_span(|storage| storage.values().clone());
-    let Some(snapshot) = snapshot else {
-        return;
-    };
-    let writes = compute_log_transformations(&snapshot, compiled);
-    // Filter out reserved keys BEFORE entering the span lock.
-    // `record_value` calls `tracing::warn!` for reserved keys, which re-enters
-    // the subscriber and deadlocks when called inside `with_current_span_mut`.
-    let writes: Vec<_> = writes
-        .into_iter()
-        .filter(|(key, _)| {
-            if log_utils::Storage::is_reserved(key) {
-                tracing::warn!(
-                    "Log transformation target key `{key}` is reserved by the logging infrastructure, skipping"
-                );
-                false
-            } else {
-                true
-            }
-        })
-        .collect();
-    if writes.is_empty() {
-        return;
-    }
-    log_utils::Storage::with_current_span_mut(|storage| {
-        for (key, value) in writes {
-            storage.record_value(key, value);
-        }
-    });
 }
 
 /// Configuration for events system

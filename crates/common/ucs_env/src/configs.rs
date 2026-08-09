@@ -3,12 +3,13 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
 
-#[cfg(feature = "log-transformations")]
-use common_utils::events::LogTransformationConfig;
 use common_utils::{
     connector_request_kafka::{ConnectorRequestKafkaConfig, ConnectorRequestKafkaConfigPatch},
     consts,
-    events::{EventConfig, EventConfigPatch, RuntimeMetadata, RuntimeMetadataPatch},
+    events::{
+        CompiledLogFieldsConfig, EventConfig, EventConfigPatch, RuntimeMetadata,
+        RuntimeMetadataPatch,
+    },
     metadata::{HeaderMaskingConfig, HeaderMaskingConfigPatch},
     SuperpositionConfig,
 };
@@ -55,12 +56,12 @@ pub struct Config {
     #[serde(skip)]
     #[patch(ignore)]
     pub superposition_config: Option<Arc<SuperpositionConfig>>,
-    /// Pre-compiled log transformations for golden log lines.
-    /// Compiled once at startup from `[log.transformations.incoming]` and `[log.transformations.outgoing]`.
-    #[cfg(feature = "log-transformations")]
+    /// Pre-compiled log fields for golden log lines.
+    /// Compiled at startup from `[log.fields.incoming]` and `[log.fields.outgoing]`.
+    /// Recompiled per-request when `x-config-override` patches `log.fields`.
     #[serde(skip)]
     #[patch(ignore)]
-    pub log_transformations: Arc<LogTransformationConfig>,
+    pub log_fields: Arc<CompiledLogFieldsConfig>,
 }
 
 #[derive(Clone, Deserialize, Debug, Default, Serialize, PartialEq, config_patch_derive::Patch)]
@@ -336,6 +337,21 @@ impl WebhookSourceVerificationCall {
 }
 
 impl Config {
+    /// Recompute derived / cached fields from the raw config values.
+    ///
+    /// Call this after deserialization **and** after applying a config-override patch.
+    /// Any `#[serde(skip)] #[patch(ignore)]` field that is derived from patchable
+    /// config should be rebuilt here.
+    pub fn post_patch_processing(&mut self) {
+        #[cfg(feature = "log-transformations")]
+        {
+            self.log_fields = Arc::new(CompiledLogFieldsConfig::compile(
+                &self.log.fields.incoming,
+                &self.log.fields.outgoing,
+            ));
+        }
+    }
+
     /// Function to build the configuration by picking it from default locations
     pub fn new() -> Result<Self, config::ConfigError> {
         Self::new_with_config_path(None)
@@ -371,16 +387,9 @@ impl Config {
             error.into_inner()
         })?;
 
-        // Compile log transformations from [log.transformations.incoming] and [log.transformations.outgoing].
-        // Pre-splits dotted paths so no string splitting happens at runtime.
-        #[cfg(feature = "log-transformations")]
         let config = {
             let mut config = config;
-            config.log_transformations = Arc::new(LogTransformationConfig::compile(
-                &config.log.transformations.incoming,
-                &config.log.transformations.outgoing,
-                config.events.transformation_mode.clone(),
-            ));
+            config.post_patch_processing();
             config
         };
 

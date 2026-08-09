@@ -185,9 +185,7 @@ impl DisputeService for Disputes {
                         merchant_id: merchant_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
                         connector_latency,
-                        #[cfg(feature = "log-transformations")]
-                        log_transformations: &config.log_transformations,
-                        log_static_values: &config.log.static_values.outgoing,
+                        log_fields: &config.log_fields.outgoing,
                     };
 
                     let response = Box::pin(
@@ -428,9 +426,7 @@ impl DisputeService for Disputes {
                         merchant_id: merchant_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
                         connector_latency,
-                        #[cfg(feature = "log-transformations")]
-                        log_transformations: &config.log_transformations,
-                        log_static_values: &config.log.static_values.outgoing,
+                        log_fields: &config.log_fields.outgoing,
                     };
 
                     let response = Box::pin(

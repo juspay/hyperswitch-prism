@@ -5,11 +5,11 @@ pub use ucs_interface_common::flow::*;
 pub use ucs_interface_common::metadata::*;
 
 #[cfg(feature = "log-transformations")]
-use common_utils::events::{apply_log_transformations_to_span, LogTransformationConfig};
+use common_utils::events::apply_log_fields;
 use common_utils::{
     consts::{self, Env},
     errors::CustomResult,
-    events::{Event, EventStage, FlowName, MaskedSerdeValue},
+    events::{CompiledLogFields, Event, EventStage, FlowName, MaskedSerdeValue},
     lineage::LineageIds,
     superposition_config::{get_connector_urls, ConnectorUrls, SuperpositionConfig},
     types::ExecutionMode,
@@ -291,43 +291,9 @@ where
     Ok(())
 }
 
-/// Write static key-value pairs into the current span's storage.
-/// Keys are owned Strings — no `Box::leak` needed since Storage accepts `&str`.
-fn apply_log_static_values(static_values: &HashMap<String, String>) {
-    if static_values.is_empty() {
-        return;
-    }
-    // Filter out reserved keys BEFORE entering the span lock.
-    // `record_value` calls `tracing::warn!` for reserved keys, which re-enters
-    // the subscriber and deadlocks when called inside `with_current_span_mut`.
-    let filtered: Vec<_> = static_values
-        .iter()
-        .filter(|(key, _)| {
-            if log_utils::Storage::is_reserved(key) {
-                tracing::warn!(
-                    "Static value key `{key}` is reserved by the logging infrastructure, skipping"
-                );
-                false
-            } else {
-                true
-            }
-        })
-        .collect();
-    if filtered.is_empty() {
-        return;
-    }
-    log_utils::Storage::with_current_span_mut(|storage| {
-        for (key, value) in &filtered {
-            storage.record_value(key, Value::String((*value).clone()));
-        }
-    });
-}
-
-#[cfg(feature = "log-transformations")]
 pub fn log_after_initialization<T>(
     result: &Result<tonic::Response<T>, tonic::Status>,
-    log_transformations: &LogTransformationConfig,
-    log_static_values: &HashMap<String, String>,
+    log_fields: &CompiledLogFields,
 ) where
     T: serde::Serialize + std::fmt::Debug,
 {
@@ -364,55 +330,11 @@ pub fn log_after_initialization<T>(
             current_span.record("status_code", status.code().to_string());
         }
     }
-    // Apply incoming log transformations before emitting the golden log line
-    apply_log_transformations_to_span(&log_transformations.incoming);
-    // Apply static key-value pairs (config-driven, overridable via x-config-override)
-    apply_log_static_values(log_static_values);
-    tracing::info!("Golden Log Line (incoming - response)");
-}
-
-#[cfg(not(feature = "log-transformations"))]
-pub fn log_after_initialization<T>(
-    result: &Result<tonic::Response<T>, tonic::Status>,
-    log_static_values: &HashMap<String, String>,
-) where
-    T: serde::Serialize + std::fmt::Debug,
-{
-    let current_span = tracing::Span::current();
-
-    match &result {
-        Ok(response) => {
-            current_span.record("response_body", tracing::field::debug(response.get_ref()));
-
-            let res_ref = response.get_ref();
-
-            // Try converting to JSON Value
-            if let Ok(Value::Object(map)) = serde_json::to_value(res_ref) {
-                if let Some(status_val) = map.get("status") {
-                    let status_num_opt = status_val.as_number();
-                    let status_u32_opt: Option<u32> = status_num_opt
-                        .and_then(|n| n.as_u64())
-                        .and_then(|n| u32::try_from(n).ok());
-                    let status_str = if let Some(s) = status_u32_opt {
-                        common_enums::AttemptStatus::try_from(s)
-                            .unwrap_or(common_enums::AttemptStatus::Unknown)
-                            .to_string()
-                    } else {
-                        common_enums::AttemptStatus::Unknown.to_string()
-                    };
-                    current_span.record("flow_specific_fields.status", status_str);
-                }
-            } else {
-                tracing::warn!("Could not serialize response to JSON to extract status");
-            }
-        }
-        Err(status) => {
-            current_span.record("error_message", status.message());
-            current_span.record("status_code", status.code().to_string());
-        }
-    }
-    // Apply static key-value pairs (config-driven, overridable via x-config-override)
-    apply_log_static_values(log_static_values);
+    // Apply unified log fields (transformations + static values) before emitting the golden log line
+    #[cfg(feature = "log-transformations")]
+    apply_log_fields(log_fields);
+    #[cfg(not(feature = "log-transformations"))]
+    let _ = log_fields;
     tracing::info!("Golden Log Line (incoming - response)");
 }
 
@@ -463,14 +385,7 @@ where
     .await;
 
     let grpc_response = handler_result.into_grpc_status();
-    #[cfg(feature = "log-transformations")]
-    log_after_initialization(
-        &grpc_response,
-        &config.log_transformations,
-        &config.log.static_values.incoming,
-    );
-    #[cfg(not(feature = "log-transformations"))]
-    log_after_initialization(&grpc_response, &config.log.static_values.incoming);
+    log_after_initialization(&grpc_response, &config.log_fields.incoming);
 
     #[cfg(feature = "otel")]
     observe_internal_latency(
@@ -534,14 +449,7 @@ where
     .await;
 
     let grpc_response = handler_result.into_grpc_status();
-    #[cfg(feature = "log-transformations")]
-    log_after_initialization(
-        &grpc_response,
-        &config.log_transformations,
-        &config.log.static_values.incoming,
-    );
-    #[cfg(not(feature = "log-transformations"))]
-    log_after_initialization(&grpc_response, &config.log.static_values.incoming);
+    log_after_initialization(&grpc_response, &config.log_fields.incoming);
 
     #[cfg(feature = "otel")]
     observe_internal_latency(
@@ -811,9 +719,7 @@ macro_rules! implement_connector_operation {
                 merchant_id: metadata_payload.merchant_id.as_str(),
                 return_raw_connector_data: config.common.return_raw_connector_data,
                 connector_latency: metadata_payload.connector_latency.clone(),
-                #[cfg(feature = "log-transformations")]
-                log_transformations: &config.log_transformations,
-                log_static_values: &config.log.static_values.outgoing,
+                log_fields: &config.log_fields.outgoing,
             };
 
             // The connector round-trip is identical for both holders → written once,
@@ -1175,9 +1081,7 @@ macro_rules! implement_connector_operation {
                 merchant_id: metadata_payload.merchant_id.as_str(),
                 return_raw_connector_data: config.common.return_raw_connector_data,
                 connector_latency: metadata_payload.connector_latency.clone(),
-                #[cfg(feature = "log-transformations")]
-                log_transformations: &config.log_transformations,
-                log_static_values: &config.log.static_values.outgoing,
+                log_fields: &config.log_fields.outgoing,
             };
             let call_connector_action = connector_integration.get_call_connector_action();
             let response_result = external_services::service::execute_connector_processing_step(

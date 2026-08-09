@@ -4,18 +4,44 @@
 
 use std::collections::HashMap;
 
+use common_utils::config_patch::Patch;
+pub use common_utils::events::LogFieldEntry;
 use serde::{Deserialize, Serialize};
 
-/// Log field transformations for golden log lines (incoming + outgoing).
-/// Format: `target_path = "source_field"` — same as `[events.transformations]`.
-/// Dotted target paths create nested JSON objects.
-#[cfg(feature = "log-transformations")]
-#[derive(Debug, Deserialize, Clone, Serialize, PartialEq, Default)]
-pub struct LogTransformations {
+/// Unified log fields for golden log lines, split by direction.
+///
+/// Each map key is a target path (dotted paths like `"api_details.url"` create nested JSON).
+/// Each value is a [`LogFieldEntry`] — either a literal or a source field reference.
+///
+/// Patchable via `x-config-override` header with **merge** semantics:
+/// override entries are added to / replace matching base entries; unmentioned entries stay.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct LogFields {
     #[serde(default)]
-    pub incoming: HashMap<String, String>,
+    pub incoming: HashMap<String, LogFieldEntry>,
     #[serde(default)]
-    pub outgoing: HashMap<String, String>,
+    pub outgoing: HashMap<String, LogFieldEntry>,
+}
+
+/// Patch type for [`LogFields`] — manually defined for merge semantics.
+///
+/// When applied, each direction's map is **extended** (not replaced):
+/// new keys are added, existing keys are overwritten, absent keys are kept.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct LogFieldsPatch {
+    pub incoming: Option<HashMap<String, LogFieldEntry>>,
+    pub outgoing: Option<HashMap<String, LogFieldEntry>>,
+}
+
+impl Patch<LogFieldsPatch> for LogFields {
+    fn apply(&mut self, patch: LogFieldsPatch) {
+        if let Some(incoming) = patch.incoming {
+            self.incoming.extend(incoming);
+        }
+        if let Some(outgoing) = patch.outgoing {
+            self.outgoing.extend(outgoing);
+        }
+    }
 }
 
 /// Log config settings.
@@ -26,26 +52,13 @@ pub struct Log {
     /// Logging to Kafka (optional).
     #[serde(default)]
     pub kafka: Option<LogKafka>,
-    /// Field transformations applied to the two golden log lines.
-    #[cfg(feature = "log-transformations")]
+    /// Unified log fields for golden log lines.
+    /// Each entry is either a literal value or a source field reference.
+    /// Dotted target paths create nested JSON objects.
+    /// Patchable per-request via `x-config-override` with merge semantics.
     #[serde(default)]
-    #[patch(ignore)]
-    pub transformations: LogTransformations,
-    /// Static key-value pairs added to golden log line spans.
-    /// Separate maps for incoming (gRPC handler) and outgoing (connector call) golden log lines.
-    /// Patchable via `x-config-override` header for per-request overrides.
-    #[serde(default)]
-    pub static_values: LogStaticValues,
-}
-
-/// Static key-value pairs for golden log lines, split by direction.
-/// Allows different values for the same field on incoming vs outgoing spans.
-#[derive(Debug, Deserialize, Clone, Serialize, PartialEq, Default, config_patch_derive::Patch)]
-pub struct LogStaticValues {
-    #[serde(default)]
-    pub incoming: HashMap<String, String>,
-    #[serde(default)]
-    pub outgoing: HashMap<String, String>,
+    #[patch(patch_type = LogFieldsPatch)]
+    pub fields: LogFields,
 }
 
 /// Logging to a console.

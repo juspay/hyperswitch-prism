@@ -561,6 +561,7 @@ impl Payments {
         })?;
 
         // Execute connector processing
+
         let event_params = EventProcessingParams {
             connector_name: &connector.get_connector_name(),
             service_name,
@@ -578,9 +579,7 @@ impl Payments {
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
             connector_latency: metadata_payload.connector_latency.clone(),
-            #[cfg(feature = "log-transformations")]
-            log_transformations: &config.log_transformations,
-            log_static_values: &config.log.static_values.outgoing,
+            log_fields: &config.log_fields.outgoing,
         };
 
         // Execute connector processing - ONLY the authorize call
@@ -702,6 +701,7 @@ impl Payments {
             ))
         })?;
 
+
         let event_params = EventProcessingParams {
             connector_name: &connector.get_connector_name(),
             service_name,
@@ -719,9 +719,7 @@ impl Payments {
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
             connector_latency: metadata_payload.connector_latency.clone(),
-            #[cfg(feature = "log-transformations")]
-            log_transformations: &config.log_transformations,
-            log_static_values: &config.log.static_values.outgoing,
+            log_fields: &config.log_fields.outgoing,
         };
 
         let response = Box::pin(
@@ -1119,6 +1117,7 @@ impl PaymentService for Payments {
                             }))
                         })?;
 
+
                     let event_params = EventProcessingParams {
                         connector_name: &connector.get_connector_name(),
                         service_name: &service_name,
@@ -1136,9 +1135,7 @@ impl PaymentService for Payments {
                         merchant_id: metadata_payload.merchant_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
                 connector_latency: metadata_payload.connector_latency.clone(),
-                        #[cfg(feature = "log-transformations")]
-                        log_transformations: &config.log_transformations,
-                        log_static_values: &config.log.static_values.outgoing,
+                        log_fields: &config.log_fields.outgoing,
                     };
 
                     // handle_response field removed from proto (field 5 reserved)
@@ -2600,6 +2597,7 @@ impl PaymentMethod {
         })?;
 
         // Execute connector processing
+
         let event_params = EventProcessingParams {
             connector_name: &connector.get_connector_name(),
             service_name,
@@ -2617,9 +2615,7 @@ impl PaymentMethod {
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
             connector_latency: metadata_payload.connector_latency.clone(),
-            #[cfg(feature = "log-transformations")]
-            log_transformations: &config.log_transformations,
-            log_static_values: &config.log.static_values.outgoing,
+            log_fields: &config.log_fields.outgoing,
         };
 
         let response = Box::pin(
@@ -2740,6 +2736,7 @@ impl PaymentMethod {
             ))
         })?;
 
+
         let event_params = EventProcessingParams {
             connector_name: &metadata_payload.connector.get_connector_name(),
             service_name,
@@ -2757,9 +2754,7 @@ impl PaymentMethod {
             return_raw_connector_data: config.common.return_raw_connector_data,
             connector_latency: metadata_payload.connector_latency.clone(),
             runtime_metadata: &config.runtime_metadata,
-            #[cfg(feature = "log-transformations")]
-            log_transformations: &config.log_transformations,
-            log_static_values: &config.log.static_values.outgoing,
+            log_fields: &config.log_fields.outgoing,
         };
 
         let response = Box::pin(
@@ -2859,6 +2854,7 @@ impl MerchantAuthentication {
             })?;
 
         // Create event processing parameters
+
         let external_event_params = EventProcessingParams {
             connector_name,
             service_name,
@@ -2876,9 +2872,7 @@ impl MerchantAuthentication {
             merchant_id: event_params.merchant_id,
             return_raw_connector_data: config.common.return_raw_connector_data,
             connector_latency: event_params.connector_latency.clone(),
-            #[cfg(feature = "log-transformations")]
-            log_transformations: &config.log_transformations,
-            log_static_values: &config.log.static_values.outgoing,
+            log_fields: &config.log_fields.outgoing,
         };
 
         // Execute connector processing
@@ -3003,6 +2997,7 @@ impl MerchantAuthentication {
             })?;
 
         // Execute connector processing
+
         let external_event_params = EventProcessingParams {
             connector_name,
             service_name,
@@ -3020,9 +3015,7 @@ impl MerchantAuthentication {
             merchant_id: event_params.merchant_id,
             return_raw_connector_data: config.common.return_raw_connector_data,
             connector_latency: event_params.connector_latency.clone(),
-            #[cfg(feature = "log-transformations")]
-            log_transformations: &config.log_transformations,
-            log_static_values: &config.log.static_values.outgoing,
+            log_fields: &config.log_fields.outgoing,
         };
 
         let response = Box::pin(
@@ -3585,6 +3578,7 @@ impl RecurringPaymentService for RecurringPayments {
                             }))
                         })?;
 
+
                     let event_params = EventProcessingParams {
                         connector_name: &metadata_payload.connector.get_connector_name(),
                         service_name: &service_name,
@@ -3602,9 +3596,7 @@ impl RecurringPaymentService for RecurringPayments {
                         merchant_id: metadata_payload.merchant_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
                 connector_latency: metadata_payload.connector_latency.clone(),
-                        #[cfg(feature = "log-transformations")]
-                        log_transformations: &config.log_transformations,
-                        log_static_values: &config.log.static_values.outgoing,
+                        log_fields: &config.log_fields.outgoing,
                     };
 
                     let response = Box::pin(
