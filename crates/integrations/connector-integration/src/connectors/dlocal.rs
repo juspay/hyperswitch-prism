@@ -378,7 +378,7 @@ macros::create_all_prerequisites!(
                     "{}{}{}",
                     auth.x_login.peek(),
                     date,
-                    dlocal_req.get_inner_value().peek().to_owned()
+                    dlocal_req.content.get_inner_value().peek().to_owned()
                 ),
                 None => format!("{}{}", auth.x_login.peek(), date)
 };

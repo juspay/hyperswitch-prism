@@ -633,15 +633,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn get_request_body(
         &self,
         req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-    ) -> CustomResult<Option<macro_types::RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let bridge = self.p_sync;
         let input_data = FiuuRouterData {
             connector: self.to_owned(),
             router_data: req.clone(),
         };
         let request = bridge.request_body(input_data)?;
+        let typed = macros::serialize_typed_msv(&request);
         let form_data = <FiuuPaymentSyncRequest as GetFormData>::get_form_data(&request);
-        Ok(Some(macro_types::RequestContent::FormData(form_data)))
+        Ok(Some(common_utils::request::ConnectorRequestData::new(
+            macro_types::RequestContent::FormData(form_data),
+            typed,
+        )))
     }
 
     fn handle_response_v2(

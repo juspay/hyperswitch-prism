@@ -93,6 +93,12 @@ pub(crate) fn masked_serialize_connector_response<T: serde::Serialize>(
     common_utils::events::MaskedSerdeValue::from_masked_optional(payload, "connector_response")
 }
 
+pub(crate) fn serialize_typed_msv<T: serde::Serialize>(
+    payload: &T,
+) -> Option<common_utils::events::MaskedSerdeValue> {
+    common_utils::events::MaskedSerdeValue::from_masked_optional(payload, "typed_connector_request")
+}
+
 pub struct NoRequestBody;
 pub struct NoRequestBodyTemplating;
 
@@ -185,7 +191,7 @@ macro_rules! expand_fn_get_request_body {
             fn get_request_body(
                 &self,
                 _req: &RouterDataV2<$flow, $resource_common_data, $request, $response>,
-            ) -> CustomResult<Option<macro_types::RequestContent>, macro_types::IntegrationError>
+            ) -> CustomResult<Option<macro_types::ConnectorRequestData>, macro_types::IntegrationError>
             {
                 // always return None
                 Ok(None)
@@ -206,7 +212,7 @@ macro_rules! expand_fn_get_request_body {
             fn get_request_body(
                 &self,
                 req: &RouterDataV2<$flow, $resource_common_data, $request, $response>,
-            ) -> CustomResult<Option<macro_types::RequestContent>, macro_types::IntegrationError>
+            ) -> CustomResult<Option<macro_types::ConnectorRequestData>, macro_types::IntegrationError>
             {
                 let bridge = self.[< $flow:snake >];
                 let input_data = [<$connector RouterData>] {
@@ -214,8 +220,12 @@ macro_rules! expand_fn_get_request_body {
                     router_data: req.clone()
 };
                 let request = bridge.request_body(input_data)?;
+                let typed = macros::serialize_typed_msv(&request);
                 let form_data = <$curl_req as GetFormData>::get_form_data(&request);
-                Ok(Some(macro_types::RequestContent::FormData(form_data)))
+                Ok(Some(macro_types::ConnectorRequestData::new(
+                    macro_types::RequestContent::FormData(form_data),
+                    typed,
+                )))
             }
         }
     };
@@ -233,7 +243,7 @@ macro_rules! expand_fn_get_request_body {
             fn get_request_body(
                 &self,
                 req: &RouterDataV2<$flow, $resource_common_data, $request, $response>,
-            ) -> CustomResult<Option<macro_types::RequestContent>, macro_types::IntegrationError>
+            ) -> CustomResult<Option<macro_types::ConnectorRequestData>, macro_types::IntegrationError>
             {
                 let bridge = self.[< $flow:snake >];
                 let input_data = [<$connector RouterData>] {
@@ -241,6 +251,7 @@ macro_rules! expand_fn_get_request_body {
                     router_data: req.clone()
 };
                 let request = bridge.request_body(input_data)?;
+                let typed = macros::serialize_typed_msv(&request);
                 let soap_xml = <$curl_req as GetSoapXml>::to_soap_xml(&request);
 
                 // Validate XML structure before sending
@@ -250,7 +261,10 @@ macro_rules! expand_fn_get_request_body {
                             .attach_printable(e)
                     })?;
 
-                Ok(Some(macro_types::RequestContent::RawBytes(soap_xml.into_bytes())))
+                Ok(Some(macro_types::ConnectorRequestData::new(
+                    macro_types::RequestContent::RawBytes(soap_xml.into_bytes()),
+                    typed,
+                )))
             }
         }
     };
@@ -268,7 +282,7 @@ macro_rules! expand_fn_get_request_body {
             fn get_request_body(
                 &self,
                 req: &RouterDataV2<$flow, $resource_common_data, $request, $response>,
-            ) -> CustomResult<Option<macro_types::RequestContent>, macro_types::IntegrationError>
+            ) -> CustomResult<Option<macro_types::ConnectorRequestData>, macro_types::IntegrationError>
             {
                 use crate::connectors::macros::ContentTypeSelector;
 
@@ -278,22 +292,24 @@ macro_rules! expand_fn_get_request_body {
                     router_data: req.clone()
 };
                 let request = bridge.request_body(input_data)?;
+                let typed = macros::serialize_typed_msv(&request);
 
                 // Get dynamic content type based on runtime conditions
                 let content_type = self.get_dynamic_content_type(req)?;
 
-                match content_type {
+                let content = match content_type {
                     common_enums::DynamicContentType::Json => {
-                        Ok(Some(macro_types::RequestContent::Json(Box::new(request))))
+                        macro_types::RequestContent::Json(Box::new(request))
                     }
                     common_enums::DynamicContentType::FormUrlEncoded => {
-                        Ok(Some(macro_types::RequestContent::FormUrlEncoded(Box::new(request))))
+                        macro_types::RequestContent::FormUrlEncoded(Box::new(request))
                     }
                     common_enums::DynamicContentType::FormData => {
                         let form_data = <$curl_req as GetFormData>::get_form_data(&request);
-                        Ok(Some(macro_types::RequestContent::FormData(form_data)))
+                        macro_types::RequestContent::FormData(form_data)
                     }
-                }
+                };
+                Ok(Some(macro_types::ConnectorRequestData::new(content, typed)))
             }
         }
     };
@@ -311,7 +327,7 @@ macro_rules! expand_fn_get_request_body {
             fn get_request_body(
                 &self,
                 req: &RouterDataV2<$flow, $resource_common_data, $request, $response>,
-            ) -> CustomResult<Option<macro_types::RequestContent>, macro_types::IntegrationError>
+            ) -> CustomResult<Option<macro_types::ConnectorRequestData>, macro_types::IntegrationError>
             {
                 let bridge = self.[< $flow:snake >];
                 let input_data = [< $connector RouterData >] {
@@ -319,7 +335,11 @@ macro_rules! expand_fn_get_request_body {
                     router_data: req.clone()
 };
                 let request = bridge.request_body(input_data)?;
-                Ok(Some(macro_types::RequestContent::$content_type(Box::new(request))))
+                let typed = macros::serialize_typed_msv(&request);
+                Ok(Some(macro_types::ConnectorRequestData::new(
+                    macro_types::RequestContent::$content_type(Box::new(request)),
+                    typed,
+                )))
             }
         }
     };
@@ -342,7 +362,7 @@ macro_rules! expand_fn_get_request_body {
             fn get_request_body(
                 &self,
                 req: &RouterDataV2<$flow, $resource_common_data, $request, $response>,
-            ) -> CustomResult<Option<macro_types::RequestContent>, macro_types::IntegrationError>
+            ) -> CustomResult<Option<macro_types::ConnectorRequestData>, macro_types::IntegrationError>
             {
                 use error_stack::ResultExt;
                 let bridge = self.[< $flow:snake >];
@@ -351,6 +371,7 @@ macro_rules! expand_fn_get_request_body {
                     router_data: req.clone()
 };
                 let request = bridge.request_body(input_data)?;
+                let typed = macros::serialize_typed_msv(&request);
                 if let Ok(masked_body) = hyperswitch_masking::masked_serialize(&request) {
                     tracing::info!(
                         connector = stringify!($connector),
@@ -379,7 +400,10 @@ macro_rules! expand_fn_get_request_body {
                     },
                 )?;
                 let preprocessed = self.preprocess_request_bytes(req, json_bytes)?;
-                Ok(Some(macro_types::RequestContent::RawBytes(preprocessed)))
+                Ok(Some(macro_types::ConnectorRequestData::new(
+                    macro_types::RequestContent::RawBytes(preprocessed),
+                    typed,
+                )))
             }
         }
     };
@@ -1340,7 +1364,11 @@ macro_rules! expand_imports {
             // pub(super) use domain_models::{
             //     AuthenticationInitiation, Confirmation, PostAuthenticationSync, PreAuthentication,
             // };
-            pub(super) use common_utils::{errors::CustomResult, events, request::RequestContent};
+            pub(super) use common_utils::{
+                errors::CustomResult,
+                events,
+                request::{ConnectorRequestData, RequestContent},
+            };
             pub(super) use domain_types::{
                 errors::{ConnectorError, IntegrationError},
                 router_data::{ConnectorSpecificConfig, ErrorResponse},

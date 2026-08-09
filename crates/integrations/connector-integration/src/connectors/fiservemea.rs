@@ -115,7 +115,7 @@ macros::create_all_prerequisites!(
 
             // Get request body for signature generation
             let temp_request_body = self.get_request_body(req)?;
-            let request_body_str = match temp_request_body {
+            let request_body_str = match temp_request_body.map(|d| d.content) {
                 Some(RequestContent::Json(json_body)) => serde_json::to_string(&json_body)
                     .change_context(IntegrationError::RequestEncodingFailed { context: Default::default() })?,
                 None => String::new(), // For GET requests

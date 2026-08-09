@@ -2,7 +2,10 @@ pub mod transformers;
 
 use common_enums::CurrencyUnit;
 use common_utils::{
-    errors::CustomResult, events, ext_traits::ByteSliceExt, request::RequestContent,
+    errors::CustomResult,
+    events,
+    ext_traits::ByteSliceExt,
+    request::{ConnectorRequestData, RequestContent},
 };
 use domain_types::{
     connector_flow::{
@@ -11,7 +14,8 @@ use domain_types::{
         ServerAuthenticationToken,
     },
     connector_types::{
-        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+        RawConnectorRequestResponse, ServerAuthenticationTokenRequestData,
+        ServerAuthenticationTokenResponseData,
     },
     errors::{
         ConnectorError, IntegrationError, IntegrationErrorContext,
@@ -260,11 +264,13 @@ impl
             ServerAuthenticationTokenRequestData,
             ServerAuthenticationTokenResponseData,
         >,
-    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<ConnectorRequestData>, IntegrationError> {
         let connector_req = SantanderAccessTokenRequest::try_from(req)?;
-        Ok(Some(RequestContent::FormUrlEncoded(Box::new(
-            connector_req,
-        ))))
+        let typed = crate::connectors::macros::serialize_typed_msv(&connector_req);
+        Ok(Some(ConnectorRequestData::new(
+            RequestContent::FormUrlEncoded(Box::new(connector_req)),
+            typed,
+        )))
     }
 
     fn handle_response_v2(
@@ -292,14 +298,20 @@ impl
         match response {
             Ok(token_res) => {
                 event_builder.map(|i| i.set_connector_response(&token_res));
-                Ok(RouterDataV2 {
+                let typed =
+                    crate::connectors::macros::masked_serialize_connector_response(&token_res);
+                let mut result = RouterDataV2 {
                     response: Ok(ServerAuthenticationTokenResponseData {
                         access_token: token_res.access_token.into(),
                         token_type: token_res.token_type,
                         expires_in: token_res.expires_in,
                     }),
                     ..data.clone()
-                })
+                };
+                result
+                    .resource_common_data
+                    .set_typed_connector_response(typed.map(|v| v.inner().to_string()));
+                Ok(result)
             }
             Err(error) => {
                 tracing::warn!(
@@ -425,9 +437,13 @@ impl ConnectorIntegrationV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, P
     fn get_request_body(
         &self,
         req: &RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>,
-    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<ConnectorRequestData>, IntegrationError> {
         let connector_req = SantanderCreateRequest::try_from(req)?;
-        Ok(Some(RequestContent::Json(Box::new(connector_req))))
+        let typed = crate::connectors::macros::serialize_typed_msv(&connector_req);
+        Ok(Some(ConnectorRequestData::new(
+            RequestContent::Json(Box::new(connector_req)),
+            typed,
+        )))
     }
 
     fn handle_response_v2(
@@ -570,9 +586,13 @@ impl
             PayoutTransferRequest,
             PayoutTransferResponse,
         >,
-    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<ConnectorRequestData>, IntegrationError> {
         let connector_req = SantanderTransferRequest::try_from(req)?;
-        Ok(Some(RequestContent::Json(Box::new(connector_req))))
+        let typed = crate::connectors::macros::serialize_typed_msv(&connector_req);
+        Ok(Some(ConnectorRequestData::new(
+            RequestContent::Json(Box::new(connector_req)),
+            typed,
+        )))
     }
 
     fn handle_response_v2(

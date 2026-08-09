@@ -271,7 +271,7 @@ macros::create_all_prerequisites!(
             // Get the request body for digest calculation
             let request_body = self.get_request_body(req)?;
             let sha256 = if let Some(body) = request_body {
-                let body_string = body.get_inner_value();
+                let body_string = body.content.get_inner_value();
                 self.generate_digest(body_string.expose().as_bytes())
             } else {
                 String::new()

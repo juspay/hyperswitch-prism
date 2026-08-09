@@ -318,7 +318,7 @@ macros::create_all_prerequisites!(
             .collect();
         let sha256 = self.generate_digest(
             cybersource_req
-                .map(|req| req.get_inner_value().expose())
+                .map(|req| req.content.get_inner_value().expose())
                 .unwrap_or_default()
                 .as_bytes()
         );
@@ -1063,16 +1063,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ClientAuthenticationTokenRequestData,
             PaymentsResponseData,
         >,
-    ) -> CustomResult<Option<common_utils::request::RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let bridge = self.client_authentication_token;
         let input_data = CybersourceRouterData {
             connector: self.to_owned(),
             router_data: req.clone(),
         };
         let request = bridge.request_body(input_data)?;
-        Ok(Some(common_utils::request::RequestContent::Json(Box::new(
-            request,
-        ))))
+        let typed = macros::serialize_typed_msv(&request);
+        Ok(Some(common_utils::request::ConnectorRequestData::new(
+            common_utils::request::RequestContent::Json(Box::new(request)),
+            typed,
+        )))
     }
     fn handle_response_v2(
         &self,
@@ -1262,7 +1264,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             MandateRevokeRequestData,
             MandateRevokeResponseData,
         >,
-    ) -> CustomResult<Option<common_utils::request::RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         Ok(None)
     }
     fn handle_response_v2(

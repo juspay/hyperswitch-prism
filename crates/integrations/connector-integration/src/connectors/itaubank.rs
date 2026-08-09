@@ -277,11 +277,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ServerAuthenticationTokenRequestData,
             ServerAuthenticationTokenResponseData,
         >,
-    ) -> CustomResult<Option<RequestContent>, errors::IntegrationError> {
+    ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, errors::IntegrationError>
+    {
         let connector_req = ItaubankAccessTokenRequest::try_from(req)?;
-        Ok(Some(RequestContent::FormUrlEncoded(Box::new(
-            connector_req,
-        ))))
+        let typed = macros::serialize_typed_msv(&connector_req);
+        Ok(Some(common_utils::request::ConnectorRequestData::new(
+            RequestContent::FormUrlEncoded(Box::new(connector_req)),
+            typed,
+        )))
     }
 
     fn handle_response_v2(

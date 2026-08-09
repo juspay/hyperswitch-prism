@@ -367,7 +367,7 @@ macros::macro_connector_implementation!(
                 .unwrap_or(&url);
             // Get the exact request body that will be sent
             let body = self.get_request_body(req)?
-                .map(|content| content.get_inner_value().expose())
+                .map(|content| content.content.get_inner_value().expose())
                 .unwrap_or_default();
             self.build_headers(req, "post", url_path, &body)
         }
@@ -433,7 +433,7 @@ macros::macro_connector_implementation!(
             let url_path = url.strip_prefix(self.connector_base_url_payments(req))
                 .unwrap_or(&url);
             let body = self.get_request_body(req)?
-                .map(|content| content.get_inner_value().expose())
+                .map(|content| content.content.get_inner_value().expose())
                 .unwrap_or_default();
             self.build_headers(req, "post", url_path, &body)
         }
@@ -499,7 +499,7 @@ macros::macro_connector_implementation!(
             let url_path = url.strip_prefix(self.connector_base_url_refunds(req))
                 .unwrap_or(&url);
             let body = self.get_request_body(req)?
-                .map(|content| content.get_inner_value().expose())
+                .map(|content| content.content.get_inner_value().expose())
                 .unwrap_or_default();
             self.build_headers(req, "post", url_path, &body)
         }
@@ -564,7 +564,7 @@ macros::macro_connector_implementation!(
             let url_path = url.strip_prefix(self.connector_base_url_payments(req))
                 .unwrap_or(&url);
             let body = self.get_request_body(req)?
-                .map(|content| content.get_inner_value().expose())
+                .map(|content| content.content.get_inner_value().expose())
                 .unwrap_or_default();
             self.build_headers(req, "post", url_path, &body)
         }
@@ -624,6 +624,7 @@ macros::macro_connector_implementation!(
                         ..Default::default()
                     },
                 })?
+                .content
                 .get_inner_value()
                 .expose();
             self.build_headers(req, "post", url_path, &body)
@@ -689,6 +690,7 @@ macros::macro_connector_implementation!(
                         ..Default::default()
                     },
                 })?
+                .content
                 .get_inner_value()
                 .expose();
             self.build_headers(req, "post", url_path, &body)
@@ -723,7 +725,7 @@ macros::macro_connector_implementation!(
             let url_path = url.strip_prefix(self.connector_base_url_merchant_auth(req))
                 .unwrap_or(&url);
             let body = self.get_request_body(req)?
-                .map(|content| content.get_inner_value().expose())
+                .map(|content| content.content.get_inner_value().expose())
                 .unwrap_or_default();
             self.build_headers(req, "post", url_path, &body)
         }

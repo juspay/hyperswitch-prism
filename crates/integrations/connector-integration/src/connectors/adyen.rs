@@ -504,7 +504,14 @@ macros::macro_connector_implementation!(
                 // Build the request normally if encoded_data is present
                 let url = self.get_url(req)?;
                 let headers = self.get_headers(req)?;
-                let body = ConnectorIntegrationV2::<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>::get_request_body(self, req)?;
+                let request_data = ConnectorIntegrationV2::<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>::get_request_body(self, req)?;
+                let (body, typed_request_value) = match request_data {
+                    Some(data) => (
+                        Some(data.content),
+                        data.typed_request.map(|msv| msv.inner().clone()),
+                    ),
+                    None => (None, None),
+                };
 
                 Ok(Some(
                     common_utils::request::RequestBuilder::new()
@@ -513,6 +520,7 @@ macros::macro_connector_implementation!(
                         .attach_default_headers()
                         .headers(headers)
                         .set_optional_body(body)
+                        .set_typed_connector_request(typed_request_value)
                         .build(),
                 ))
             } else {

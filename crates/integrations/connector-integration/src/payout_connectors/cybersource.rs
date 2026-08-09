@@ -471,7 +471,7 @@ impl
             PayoutTransferRequest,
             PayoutTransferResponse,
         >,
-    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let converter = StringMajorUnitForConnector;
         let total_amount = converter
             .convert(req.request.amount, req.request.destination_currency)
@@ -482,7 +482,11 @@ impl
             req,
             CybersourcePayoutContext { total_amount },
         ))?;
-        Ok(Some(RequestContent::Json(Box::new(connector_req))))
+        let typed = crate::connectors::macros::serialize_typed_msv(&connector_req);
+        Ok(Some(common_utils::request::ConnectorRequestData::new(
+            RequestContent::Json(Box::new(connector_req)),
+            typed,
+        )))
     }
 
     fn get_headers(
@@ -500,18 +504,19 @@ impl
             PayoutTransferRequest,
             PayoutTransferResponse,
         >>::get_url(self, req)?;
-        let body = <Self as ConnectorIntegrationV2<
+        let request_data = <Self as ConnectorIntegrationV2<
             PayoutTransfer,
             PayoutFlowData,
             PayoutTransferRequest,
             PayoutTransferResponse,
         >>::get_request_body(self, req)?;
+        let body = request_data.as_ref().map(|d| &d.content);
         self.build_signed_headers(
             &req.connector_config,
             &req.resource_common_data.connectors,
             &url,
             Method::Post,
-            body.as_ref(),
+            body,
         )
     }
 

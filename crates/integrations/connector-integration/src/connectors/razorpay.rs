@@ -299,7 +299,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentsAuthorizeData<T>,
             PaymentsResponseData,
         >,
-    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let converted_amount = self
             .amount_converter
             .convert(req.request.minor_amount, req.request.currency)
@@ -313,21 +313,31 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentMethodData::Upi(_) => {
                 let connector_req =
                     razorpay::RazorpayWebCollectRequest::try_from(&connector_router_data)?;
-                Ok(Some(RequestContent::FormUrlEncoded(Box::new(
-                    connector_req,
-                ))))
+                let typed = macros::serialize_typed_msv(&connector_req);
+                Ok(Some(common_utils::request::ConnectorRequestData::new(
+                    RequestContent::FormUrlEncoded(Box::new(connector_req)),
+                    typed,
+                )))
             }
             PaymentMethodData::BankRedirect(
                 domain_types::payment_method_data::BankRedirectData::Netbanking { .. },
             ) => {
                 let connector_req =
                     razorpay::RazorpayNetbankingRequest::try_from(&connector_router_data)?;
-                Ok(Some(RequestContent::Json(Box::new(connector_req))))
+                let typed = macros::serialize_typed_msv(&connector_req);
+                Ok(Some(common_utils::request::ConnectorRequestData::new(
+                    RequestContent::Json(Box::new(connector_req)),
+                    typed,
+                )))
             }
             _ => {
                 let connector_req =
                     razorpay::RazorpayPaymentRequest::try_from(&connector_router_data)?;
-                Ok(Some(RequestContent::Json(Box::new(connector_req))))
+                let typed = macros::serialize_typed_msv(&connector_req);
+                Ok(Some(common_utils::request::ConnectorRequestData::new(
+                    RequestContent::Json(Box::new(connector_req)),
+                    typed,
+                )))
             }
         }
     }
@@ -617,7 +627,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentCreateOrderData,
             PaymentCreateOrderResponse,
         >,
-    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let converted_amount = self
             .amount_converter
             .convert(req.request.amount, req.request.currency)
@@ -627,9 +637,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let connector_router_data =
             razorpay::RazorpayRouterData::try_from((converted_amount, req))?;
         let connector_req = razorpay::RazorpayOrderRequest::try_from(&connector_router_data)?;
-        Ok(Some(RequestContent::FormUrlEncoded(Box::new(
-            connector_req,
-        ))))
+        let typed = macros::serialize_typed_msv(&connector_req);
+        Ok(Some(common_utils::request::ConnectorRequestData::new(
+            RequestContent::FormUrlEncoded(Box::new(connector_req)),
+            typed,
+        )))
     }
 
     fn handle_response_v2(
@@ -741,7 +753,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             ServerSessionAuthenticationTokenRequestData,
             ServerSessionAuthenticationTokenResponseData,
         >,
-    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let converted_amount = self
             .amount_converter
             .convert(req.request.amount, req.request.currency)
@@ -752,9 +764,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             razorpay::RazorpayRouterData::try_from((converted_amount, req))?;
         let connector_req =
             razorpay::RazorpaySessionTokenRequest::try_from(&connector_router_data)?;
-        Ok(Some(RequestContent::FormUrlEncoded(Box::new(
-            connector_req,
-        ))))
+        let typed = macros::serialize_typed_msv(&connector_req);
+        Ok(Some(common_utils::request::ConnectorRequestData::new(
+            RequestContent::FormUrlEncoded(Box::new(connector_req)),
+            typed,
+        )))
     }
 
     fn handle_response_v2(
@@ -1011,7 +1025,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     fn get_request_body(
         &self,
         req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let converted_amount = self
             .amount_converter
             .convert(req.request.minor_refund_amount, req.request.currency)
@@ -1020,8 +1034,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })?;
         let refund_router_data = razorpay::RazorpayRouterData::try_from((converted_amount, req))?;
         let connector_req = razorpay::RazorpayRefundRequest::try_from(&refund_router_data)?;
-
-        Ok(Some(RequestContent::Json(Box::new(connector_req))))
+        let typed = macros::serialize_typed_msv(&connector_req);
+        Ok(Some(common_utils::request::ConnectorRequestData::new(
+            RequestContent::Json(Box::new(connector_req)),
+            typed,
+        )))
     }
 
     fn handle_response_v2(
@@ -1115,7 +1132,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     fn get_request_body(
         &self,
         req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let converted_amount = self
             .amount_converter
             .convert(req.request.minor_amount_to_capture, req.request.currency)
@@ -1125,7 +1142,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let connector_router_data =
             razorpay::RazorpayRouterData::try_from((converted_amount, req))?;
         let connector_req = razorpay::RazorpayCaptureRequest::try_from(&connector_router_data)?;
-        Ok(Some(RequestContent::Json(Box::new(connector_req))))
+        let typed = macros::serialize_typed_msv(&connector_req);
+        Ok(Some(common_utils::request::ConnectorRequestData::new(
+            RequestContent::Json(Box::new(connector_req)),
+            typed,
+        )))
     }
 
     fn handle_response_v2(

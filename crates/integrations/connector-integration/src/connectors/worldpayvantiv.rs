@@ -129,12 +129,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentsIncrementalAuthorizationData,
             PaymentsResponseData,
         >,
-    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let request = WorldpayvantivPaymentsRequest::try_from(WorldpayvantivRouterData {
             router_data: req.clone(),
             connector: self.clone(),
         })?;
-        Ok(Some(RequestContent::Xml(Box::new(request))))
+        let typed = macros::serialize_typed_msv(&request);
+        Ok(Some(common_utils::request::ConnectorRequestData::new(
+            RequestContent::Xml(Box::new(request)),
+            typed,
+        )))
     }
 
     fn handle_response_v2(
@@ -534,12 +538,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     fn get_request_body(
         &self,
         req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let request = WorldpayvantivPaymentsRequest::try_from(WorldpayvantivRouterData {
             router_data: req.clone(),
             connector: self.clone(),
         })?;
-        Ok(Some(RequestContent::Xml(Box::new(request))))
+        let typed = macros::serialize_typed_msv(&request);
+        Ok(Some(common_utils::request::ConnectorRequestData::new(
+            RequestContent::Xml(Box::new(request)),
+            typed,
+        )))
     }
 
     fn handle_response_v2(
@@ -598,12 +606,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     fn get_request_body(
         &self,
         req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let request = WorldpayvantivPaymentsRequest::try_from(WorldpayvantivRouterData {
             router_data: req.clone(),
             connector: self.clone(),
         })?;
-        Ok(Some(RequestContent::Xml(Box::new(request))))
+        let typed = macros::serialize_typed_msv(&request);
+        Ok(Some(common_utils::request::ConnectorRequestData::new(
+            RequestContent::Xml(Box::new(request)),
+            typed,
+        )))
     }
 
     fn handle_response_v2(
@@ -681,12 +693,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentsCancelPostCaptureData,
             PaymentsResponseData,
         >,
-    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let request = WorldpayvantivPaymentsRequest::try_from(WorldpayvantivRouterData {
             router_data: req.clone(),
             connector: self.clone(),
         })?;
-        Ok(Some(RequestContent::Xml(Box::new(request))))
+        let typed = macros::serialize_typed_msv(&request);
+        Ok(Some(common_utils::request::ConnectorRequestData::new(
+            RequestContent::Xml(Box::new(request)),
+            typed,
+        )))
     }
 
     fn handle_response_v2(
@@ -750,12 +766,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     fn get_request_body(
         &self,
         req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let request = WorldpayvantivPaymentsRequest::try_from(WorldpayvantivRouterData {
             router_data: req.clone(),
             connector: self.clone(),
         })?;
-        Ok(Some(RequestContent::Xml(Box::new(request))))
+        let typed = macros::serialize_typed_msv(&request);
+        Ok(Some(common_utils::request::ConnectorRequestData::new(
+            RequestContent::Xml(Box::new(request)),
+            typed,
+        )))
     }
 
     fn handle_response_v2(
@@ -824,7 +844,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     fn get_request_body(
         &self,
         _req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         // GET request doesn't need a body
         Ok(None)
     }

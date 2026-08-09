@@ -202,11 +202,13 @@ impl
             SurchargeCalculateRequest,
             SurchargeCalculateResponse,
         >,
-    ) -> CustomResult<Option<common_utils::request::RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let request = InterPaymentsSurchargeRequest::try_from(req)?;
-        Ok(Some(common_utils::request::RequestContent::Json(Box::new(
-            request,
-        ))))
+        let typed = crate::connectors::macros::serialize_typed_msv(&request);
+        Ok(Some(common_utils::request::ConnectorRequestData::new(
+            common_utils::request::RequestContent::Json(Box::new(request)),
+            typed,
+        )))
     }
 
     fn build_request_v2(
@@ -218,13 +220,22 @@ impl
             SurchargeCalculateResponse,
         >,
     ) -> CustomResult<Option<common_utils::request::Request>, IntegrationError> {
+        let request_data = self.get_request_body(req)?;
+        let (body, typed_request_value) = match request_data {
+            Some(data) => (
+                Some(data.content),
+                data.typed_request.map(|msv| msv.inner().clone()),
+            ),
+            None => (None, None),
+        };
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
                 .url(self.get_url(req)?.as_str())
                 .attach_default_headers()
                 .headers(self.get_headers(req)?)
-                .set_optional_body(self.get_request_body(req)?)
+                .set_optional_body(body)
+                .set_typed_connector_request(typed_request_value)
                 .build(),
         ))
     }
@@ -329,13 +340,22 @@ impl
             SurchargePaymentSucceededResponse,
         >,
     ) -> CustomResult<Option<common_utils::request::Request>, IntegrationError> {
+        let request_data = self.get_request_body(req)?;
+        let (body, typed_request_value) = match request_data {
+            Some(data) => (
+                Some(data.content),
+                data.typed_request.map(|msv| msv.inner().clone()),
+            ),
+            None => (None, None),
+        };
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
                 .url(self.get_url(req)?.as_str())
                 .attach_default_headers()
                 .headers(self.get_headers(req)?)
-                .set_optional_body(self.get_request_body(req)?)
+                .set_optional_body(body)
+                .set_typed_connector_request(typed_request_value)
                 .build(),
         ))
     }
@@ -348,11 +368,13 @@ impl
             SurchargePaymentSucceededRequest,
             SurchargePaymentSucceededResponse,
         >,
-    ) -> CustomResult<Option<common_utils::request::RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let request = transformers::InterPaymentsPaymentSucceededRequest::from(req);
-        Ok(Some(common_utils::request::RequestContent::Json(Box::new(
-            request,
-        ))))
+        let typed = crate::connectors::macros::serialize_typed_msv(&request);
+        Ok(Some(common_utils::request::ConnectorRequestData::new(
+            common_utils::request::RequestContent::Json(Box::new(request)),
+            typed,
+        )))
     }
 
     fn handle_response_v2(
@@ -477,13 +499,22 @@ impl
             SurchargeRefundSucceededResponse,
         >,
     ) -> CustomResult<Option<common_utils::request::Request>, IntegrationError> {
+        let request_data = self.get_request_body(req)?;
+        let (body, typed_request_value) = match request_data {
+            Some(data) => (
+                Some(data.content),
+                data.typed_request.map(|msv| msv.inner().clone()),
+            ),
+            None => (None, None),
+        };
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
                 .url(self.get_url(req)?.as_str())
                 .attach_default_headers()
                 .headers(self.get_headers(req)?)
-                .set_optional_body(self.get_request_body(req)?)
+                .set_optional_body(body)
+                .set_typed_connector_request(typed_request_value)
                 .build(),
         ))
     }
@@ -496,11 +527,13 @@ impl
             SurchargeRefundSucceededRequest,
             SurchargeRefundSucceededResponse,
         >,
-    ) -> CustomResult<Option<common_utils::request::RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let request = transformers::InterPaymentsRefundSucceededRequest::from(req);
-        Ok(Some(common_utils::request::RequestContent::Json(Box::new(
-            request,
-        ))))
+        let typed = crate::connectors::macros::serialize_typed_msv(&request);
+        Ok(Some(common_utils::request::ConnectorRequestData::new(
+            common_utils::request::RequestContent::Json(Box::new(request)),
+            typed,
+        )))
     }
 
     fn handle_response_v2(

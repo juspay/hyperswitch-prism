@@ -551,16 +551,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsAuthorizeData<T>,
             PaymentsResponseData,
         >,
-    ) -> CustomResult<Option<common_utils::request::RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let connector_router_data = BraintreeRouterData {
             connector: self.to_owned(),
             router_data: req.to_owned(),
         };
         let connector_req: BraintreePaymentsRequest =
             BraintreePaymentsRequest::try_from(connector_router_data)?;
-        Ok(Some(common_utils::request::RequestContent::Json(Box::new(
-            connector_req,
-        ))))
+        let typed = macros::serialize_typed_msv(&connector_req);
+        Ok(Some(common_utils::request::ConnectorRequestData::new(
+            common_utils::request::RequestContent::Json(Box::new(connector_req)),
+            typed,
+        )))
     }
 
     fn handle_response_v2(

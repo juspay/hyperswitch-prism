@@ -147,7 +147,7 @@ macros::create_all_prerequisites!(
                     .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
 
             let temp_request_body = self.get_request_body(req)?;
-            let request_body_str = match temp_request_body {
+            let request_body_str = match temp_request_body.map(|d| d.content) {
                 Some(RequestContent::Json(json_body)) => serde_json::to_string(&json_body)
                     .change_context(errors::IntegrationError::RequestEncodingFailed { context: Default::default() })?,
                 None => String::new(),
@@ -224,7 +224,7 @@ macros::create_all_prerequisites!(
                     .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
 
             let temp_request_body = self.get_request_body(req)?;
-            let request_body_str = match temp_request_body {
+            let request_body_str = match temp_request_body.map(|d| d.content) {
                 Some(RequestContent::Json(json_body)) => serde_json::to_string(&json_body)
                     .change_context(errors::IntegrationError::RequestEncodingFailed { context: Default::default() })?,
                 None => String::new(),
@@ -249,7 +249,7 @@ macros::create_all_prerequisites!(
                     .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
 
             let temp_request_body = self.get_request_body(req)?;
-            let request_body_str = match temp_request_body {
+            let request_body_str = match temp_request_body.map(|d| d.content) {
                 Some(RequestContent::Json(json_body)) => serde_json::to_string(&json_body)
                     .change_context(errors::IntegrationError::RequestEncodingFailed { context: Default::default() })?,
                 None => String::new(),
@@ -276,7 +276,7 @@ macros::create_all_prerequisites!(
                     .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
 
             let temp_request_body = self.get_request_body(req)?;
-            let request_body_str = match temp_request_body {
+            let request_body_str = match temp_request_body.map(|d| d.content) {
                 Some(RequestContent::Json(json_body)) => serde_json::to_string(&json_body)
                     .change_context(errors::IntegrationError::RequestEncodingFailed { context: Default::default() })?,
                 None => String::new(),
@@ -302,7 +302,7 @@ macros::create_all_prerequisites!(
                     .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
 
             let temp_request_body = self.get_request_body(req)?;
-            let request_body_str = match temp_request_body {
+            let request_body_str = match temp_request_body.map(|d| d.content) {
                 Some(RequestContent::Json(json_body)) => serde_json::to_string(&json_body)
                     .change_context(errors::IntegrationError::RequestEncodingFailed { context: Default::default() })?,
                 None => String::new(),
@@ -327,7 +327,7 @@ macros::create_all_prerequisites!(
                     .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
 
             let temp_request_body = self.get_request_body(req)?;
-            let request_body_str = match temp_request_body {
+            let request_body_str = match temp_request_body.map(|d| d.content) {
                 Some(RequestContent::Json(json_body)) => serde_json::to_string(&json_body)
                     .change_context(errors::IntegrationError::RequestEncodingFailed { context: Default::default() })?,
                 None => String::new(),
@@ -352,7 +352,7 @@ macros::create_all_prerequisites!(
                     .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
 
             let temp_request_body = self.get_request_body(req)?;
-            let request_body_str = match temp_request_body {
+            let request_body_str = match temp_request_body.map(|d| d.content) {
                 Some(RequestContent::Json(json_body)) => serde_json::to_string(&json_body)
                     .change_context(errors::IntegrationError::RequestEncodingFailed { context: Default::default() })?,
                 None => String::new(),

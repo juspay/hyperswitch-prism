@@ -198,7 +198,7 @@ macros::create_all_prerequisites!(
                 Method::Post | Method::Put | Method::Delete | Method::Patch => {
                     let body = self
                         .get_request_body(req)?
-                        .map(|content| content.get_inner_value().peek().to_owned())
+                        .map(|content| content.content.get_inner_value().peek().to_owned())
                         .unwrap_or_default();
                     let md5_payload = crypto::Md5
                         .generate_digest(body.as_bytes())

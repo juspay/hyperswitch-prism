@@ -250,7 +250,7 @@ macros::create_all_prerequisites!(
             let idempotency_key = uuid::Uuid::new_v4().to_string();
             let truelayer_req = self
                 .get_request_body(req)?
-                .map(|req| req.get_inner_value().expose().clone());
+                .map(|req| req.content.get_inner_value().expose().clone());
             let http_method = self.get_http_method();
 
             let mut headers = BTreeMap::new();

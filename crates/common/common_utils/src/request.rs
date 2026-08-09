@@ -1,3 +1,4 @@
+use crate::events::MaskedSerdeValue;
 use hyperswitch_masking::{Maskable, Secret};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -97,6 +98,28 @@ pub enum RequestContent {
     FormData(MultipartData),
     Xml(Box<dyn hyperswitch_masking::ErasedMaskSerialize + Send>),
     RawBytes(Vec<u8>),
+}
+
+/// Bundles the wire-format request body with its typed observability payload.
+///
+/// The macro-generated `get_request_body` returns this so that the typed
+/// connector request struct is serialized *before* conversion to FormData or
+/// RawBytes (which would otherwise lose the typed information).
+#[derive(Debug)]
+pub struct ConnectorRequestData {
+    /// The actual request content sent over the wire.
+    pub content: RequestContent,
+    /// Masked serialization of the connector's typed request struct, for observability.
+    pub typed_request: Option<MaskedSerdeValue>,
+}
+
+impl ConnectorRequestData {
+    pub fn new(content: RequestContent, typed_request: Option<MaskedSerdeValue>) -> Self {
+        Self {
+            content,
+            typed_request,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]

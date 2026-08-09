@@ -740,7 +740,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsAuthorizeData<T>,
             PaymentsResponseData,
         >,
-    ) -> CustomResult<Option<common_utils::request::RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let body = if matches!(
             req.request.payment_method_data,
             PaymentMethodData::Wallet(WalletData::PaypalSdk(_))
@@ -756,10 +756,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 router_data: req.to_owned(),
             };
             let connector_req = PaypalPaymentsRequest::try_from(connector_router_data)?;
+            let typed = macros::serialize_typed_msv(&connector_req);
 
-            Some(common_utils::request::RequestContent::Json(Box::new(
-                connector_req,
-            )))
+            Some(common_utils::request::ConnectorRequestData::new(
+                common_utils::request::RequestContent::Json(Box::new(connector_req)),
+                typed,
+            ))
         };
 
         Ok(body)
@@ -1376,7 +1378,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsPostAuthenticateData<T>,
             PaymentsResponseData,
         >,
-    ) -> CustomResult<Option<common_utils::request::RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         Ok(None)
     }
 
@@ -1480,11 +1482,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             VerifyWebhookSourceRequestData,
             VerifyWebhookSourceResponseData,
         >,
-    ) -> CustomResult<Option<common_utils::request::RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let verification_request = paypal::PaypalSourceVerificationRequest::try_from(&req.request)?;
-        Ok(Some(common_utils::request::RequestContent::Json(Box::new(
-            verification_request,
-        ))))
+        let typed = macros::serialize_typed_msv(&verification_request);
+        Ok(Some(common_utils::request::ConnectorRequestData::new(
+            common_utils::request::RequestContent::Json(Box::new(verification_request)),
+            typed,
+        )))
     }
 
     fn handle_response_v2(

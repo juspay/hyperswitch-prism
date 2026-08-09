@@ -335,7 +335,7 @@ macros::create_all_prerequisites!(
                 .collect();
             let sha256 = self.generate_digest(
                 barclaycard_req
-                    .map(|req| req.get_inner_value().expose())
+                    .map(|req| req.content.get_inner_value().expose())
                     .unwrap_or_default()
                     .as_bytes()
             );

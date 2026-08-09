@@ -700,9 +700,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ServerAuthenticationTokenRequestData,
             ServerAuthenticationTokenResponseData,
         >,
-    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let request = globalpay::GlobalpayAccessTokenRequest::try_from(req)?;
-        Ok(Some(RequestContent::Json(Box::new(request))))
+        let typed = macros::serialize_typed_msv(&request);
+        Ok(Some(common_utils::request::ConnectorRequestData::new(
+            RequestContent::Json(Box::new(request)),
+            typed,
+        )))
     }
 
     fn build_request_v2(
@@ -714,16 +718,25 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ServerAuthenticationTokenResponseData,
         >,
     ) -> CustomResult<Option<common_utils::request::Request>, IntegrationError> {
-        let request_body = self.get_request_body(req)?;
+        let request_data = self.get_request_body(req)?;
+        let (body, typed_request_value) = match request_data {
+            Some(data) => (
+                Some(data.content),
+                data.typed_request.map(|msv| msv.inner().clone()),
+            ),
+            None => (None, None),
+        };
         let mut request_builder = common_utils::request::RequestBuilder::new()
             .method(common_utils::request::Method::Post)
             .url(&self.get_url(req)?)
             .attach_default_headers()
             .headers(self.get_headers(req)?);
 
-        if let Some(body) = request_body {
+        if let Some(body) = body {
             request_builder = request_builder.set_body(body);
         }
+
+        request_builder = request_builder.set_typed_connector_request(typed_request_value);
 
         Ok(Some(request_builder.build()))
     }

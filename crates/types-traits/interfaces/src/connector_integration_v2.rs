@@ -2,7 +2,7 @@
 
 use common_utils::{
     events,
-    request::{KafkaRecord, Method, Request, RequestBuilder, RequestContent, TransportType},
+    request::{ConnectorRequestData, KafkaRecord, Method, Request, RequestBuilder, TransportType},
     CustomResult,
 };
 use domain_types::{
@@ -73,7 +73,7 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
     fn get_request_body(
         &self,
         _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
-    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<ConnectorRequestData>, IntegrationError> {
         Ok(None)
     }
 
@@ -128,11 +128,14 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
         &self,
         req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
     ) -> CustomResult<Option<Request>, IntegrationError> {
-        let body = self.get_request_body(req)?;
-        let typed_request_value = body
-            .as_ref()
-            .and_then(|b| b.masked_serialize_inner())
-            .map(|(v, _)| v);
+        let request_data = self.get_request_body(req)?;
+        let (body, typed_request_value) = match request_data {
+            Some(data) => (
+                Some(data.content),
+                data.typed_request.map(|msv| msv.inner().clone()),
+            ),
+            None => (None, None),
+        };
         Ok(Some(
             RequestBuilder::new()
                 .method(self.get_http_method())

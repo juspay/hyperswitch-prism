@@ -6,7 +6,7 @@ use common_utils::{
     errors::CustomResult,
     events,
     ext_traits::{ByteSliceExt, XmlExt},
-    request::RequestContent,
+    request::{ConnectorRequestData, RequestContent},
 };
 use domain_types::{
     connector_flow::{
@@ -299,9 +299,11 @@ impl
             PayoutTransferRequest,
             PayoutTransferResponse,
         >,
-    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<ConnectorRequestData>, IntegrationError> {
         let connector_req = requests::WorldpayxmlPayoutTransferRequest::try_from(req)?;
-        Ok(Some(Self::encode_soap_xml(&connector_req)?))
+        let typed = crate::connectors::macros::serialize_typed_msv(&connector_req);
+        let content = Self::encode_soap_xml(&connector_req)?;
+        Ok(Some(ConnectorRequestData::new(content, typed)))
     }
 
     fn handle_response_v2(
@@ -370,9 +372,11 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
     fn get_request_body(
         &self,
         req: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
-    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<ConnectorRequestData>, IntegrationError> {
         let connector_req = requests::WorldpayxmlPayoutGetRequest::try_from(req)?;
-        Ok(Some(Self::encode_soap_xml(&connector_req)?))
+        let typed = crate::connectors::macros::serialize_typed_msv(&connector_req);
+        let content = Self::encode_soap_xml(&connector_req)?;
+        Ok(Some(ConnectorRequestData::new(content, typed)))
     }
 
     fn handle_response_v2(
@@ -436,9 +440,11 @@ impl ConnectorIntegrationV2<PayoutVoid, PayoutFlowData, PayoutVoidRequest, Payou
     fn get_request_body(
         &self,
         req: &RouterDataV2<PayoutVoid, PayoutFlowData, PayoutVoidRequest, PayoutVoidResponse>,
-    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<ConnectorRequestData>, IntegrationError> {
         let connector_req = requests::WorldpayxmlPayoutVoidRequest::try_from(req)?;
-        Ok(Some(Self::encode_soap_xml(&connector_req)?))
+        let typed = crate::connectors::macros::serialize_typed_msv(&connector_req);
+        let content = Self::encode_soap_xml(&connector_req)?;
+        Ok(Some(ConnectorRequestData::new(content, typed)))
     }
 
     fn handle_response_v2(

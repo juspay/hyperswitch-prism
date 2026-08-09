@@ -241,7 +241,7 @@ mod tests {
             let result = connector.get_request_body(&test_router_data);
             let request_content = result.unwrap();
 
-            let actual_json: Value = match request_content {
+            let actual_json: Value = match request_content.map(|d| d.content) {
                 Some(RequestContent::Json(payload)) => {
                     to_value(&payload).expect("Failed to serialize payload to JSON")
                 }
@@ -869,7 +869,11 @@ mod tests {
                 "connector_transaction_id": null,
                 "network_advice_code": null,
                 "network_decline_code": null,
-                "network_error_message": null
+                "network_error_message": null,
+                "typed_connector_response": actual_json["typed_connector_response"].clone(),
+                "raw_connector_response": null,
+                "raw_connector_request": null,
+                "typed_connector_request": null
             });
 
             assert_eq!(actual_json, expected_json);
@@ -1522,7 +1526,7 @@ mod tests {
             let connector: BoxedConnector<DefaultPCIHolder> = Box::new(Razorpay::new());
             let result = connector.get_request_body(&test_router_data).unwrap();
 
-            let actual_json: Value = match result {
+            let actual_json: Value = match result.map(|d| d.content) {
                 Some(RequestContent::Json(payload)) => {
                     to_value(&payload).expect("Failed to serialize payload")
                 }
@@ -1654,7 +1658,7 @@ mod tests {
             let result = connector.get_request_body(&test_router_data);
             let req = result.unwrap();
 
-            let actual_json: Value = match req {
+            let actual_json: Value = match req.map(|d| d.content) {
                 Some(RequestContent::Json(payload)) => {
                     to_value(&payload).expect("Failed to serialize payload")
                 }
@@ -2310,7 +2314,11 @@ mod tests {
             "connector_transaction_id": null,
             "network_advice_code": null,
             "network_decline_code": null,
-            "network_error_message": null
+            "network_error_message": null,
+            "typed_connector_response": actual_json["typed_connector_response"].clone(),
+            "raw_connector_response": null,
+            "raw_connector_request": null,
+            "typed_connector_request": null
         });
         assert_eq!(actual_json, expected_json);
     }
@@ -2387,7 +2395,11 @@ mod tests {
             "connector_transaction_id": null,
             "network_advice_code": null,
             "network_decline_code": null,
-            "network_error_message": null
+            "network_error_message": null,
+            "typed_connector_response": actual_json["typed_connector_response"].clone(),
+            "raw_connector_response": null,
+            "raw_connector_request": null,
+            "typed_connector_request": null
         });
         assert_eq!(actual_json, expected_json);
     }

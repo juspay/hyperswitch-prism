@@ -179,7 +179,14 @@ macros::create_all_prerequisites!(
         where
             Self: ConnectorIntegrationV2<F, FCD, Req, Res>,
         {
-            let body = self.get_request_body(req)?;
+            let request_data = self.get_request_body(req)?;
+            let (body, typed_request_value) = match request_data {
+                Some(data) => (
+                    Some(data.content),
+                    data.typed_request.map(|msv| msv.inner().clone()),
+                ),
+                None => (None, None),
+            };
             let body_bytes = body
                 .as_ref()
                 .map(|content| content.get_inner_value().expose().into_bytes())
@@ -203,6 +210,7 @@ macros::create_all_prerequisites!(
                     .attach_default_headers()
                     .headers(headers)
                     .set_optional_body(body)
+                    .set_typed_connector_request(typed_request_value)
                     .add_certificate(self.get_certificate(req)?)
                     .add_certificate_key(self.get_certificate_key(req)?)
                     .add_ca_certificate_pem(self.get_ca_certificate(req)?)

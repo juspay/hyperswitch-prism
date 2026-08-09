@@ -345,7 +345,7 @@ macros::create_all_prerequisites!(
         let path: String = url.chars().skip(skip_len).collect();
         let sha256 = self.generate_digest(
             bankofamerica_req
-                .map(|req| req.get_inner_value().expose())
+                .map(|req| req.content.get_inner_value().expose())
                 .unwrap_or_default()
                 .as_bytes()
         );
