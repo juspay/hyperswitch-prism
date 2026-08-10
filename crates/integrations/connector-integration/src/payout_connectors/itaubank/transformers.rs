@@ -274,6 +274,7 @@ impl
                 bank_account_number,
                 bank_name,
                 ispb,
+                ..
             }))) => {
                 let tipo_pessoa = tax_id.clone().expose_option().map(|id| {
                     if id.len() == 11 {

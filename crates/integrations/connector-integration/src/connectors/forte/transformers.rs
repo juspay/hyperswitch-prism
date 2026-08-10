@@ -113,7 +113,9 @@ impl TryFrom<BankType> for ForteBankType {
             BankType::Bond
             | BankType::Transmission
             | BankType::Current
-            | BankType::SubscriptionShare => Err(IntegrationError::NotSupported {
+            | BankType::SubscriptionShare
+            | BankType::Salary
+            | BankType::Payment => Err(IntegrationError::NotSupported {
                 message: format!("Bank type {bank:?} is not supported by Forte"),
                 connector: "forte",
                 context: IntegrationErrorContext {
