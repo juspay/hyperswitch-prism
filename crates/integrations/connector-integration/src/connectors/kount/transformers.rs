@@ -1789,15 +1789,15 @@ impl KountCvvStatus {
 /// `transactions[].authorizationStatus.verificationResponse`.
 #[derive(Debug, Clone, Deserialize)]
 struct KountNotifyFeatureData {
-    avs: Option<String>,
-    cvv: Option<String>,
+    avs_result: Option<String>,
+    cvv_result: Option<String>,
 }
 
 /// Build the `transactions[].authorizationStatus` block from the payment
 /// status (`authResult`) and the notify request's `connector_feature_data`
-/// (`verificationResponse` — a JSON string carrying `avs`/`cvv`). Empty when
-/// neither a mappable payment status nor AVS/CVV data is present — matching
-/// the request's `skip_serializing_if` convention.
+/// (`verificationResponse` — a JSON string carrying `avs_result`/`cvv_result`).
+/// Empty when neither a mappable payment status nor AVS/CVV data is present —
+/// matching the request's `skip_serializing_if` convention.
 fn kount_update_transactions(
     payment_status: Option<AttemptStatus>,
     connector_feature_data: Option<&Secret<String>>,
@@ -1807,10 +1807,13 @@ fn kount_update_transactions(
     let feature_data = connector_feature_data
         .and_then(|data| serde_json::from_str::<KountNotifyFeatureData>(data.peek()).ok());
     let verification_response = feature_data.and_then(|feature_data| {
-        (feature_data.avs.is_some() || feature_data.cvv.is_some()).then_some(
+        (feature_data.avs_result.is_some() || feature_data.cvv_result.is_some()).then_some(
             KountVerificationResponse {
-                cvv_status: feature_data.cvv.as_deref().map(KountCvvStatus::from_str),
-                avs_status: feature_data.avs,
+                cvv_status: feature_data
+                    .cvv_result
+                    .as_deref()
+                    .map(KountCvvStatus::from_str),
+                avs_status: feature_data.avs_result,
             },
         )
     });
