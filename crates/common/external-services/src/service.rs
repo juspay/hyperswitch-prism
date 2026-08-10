@@ -5,12 +5,13 @@ use common_enums::ApiClientError;
 #[cfg(feature = "injector-client")]
 use common_utils::{
     consts::{X_API_TAG, X_API_URL, X_SESSION_ID},
-    events::{CompiledLogFields, EventStage, MaskedSerdeValue},
+    events::{EventStage, MaskedSerdeValue},
     request::TransportType,
 };
 #[cfg(all(feature = "injector-client", feature = "log-transformations"))]
 use common_utils::events::apply_log_fields;
 use common_utils::{
+    events::CompiledLogFields,
     ext_traits::AsyncExt,
     lineage,
     request::{Method, Request, RequestContent},
