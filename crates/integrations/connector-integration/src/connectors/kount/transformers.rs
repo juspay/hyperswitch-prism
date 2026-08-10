@@ -1776,8 +1776,8 @@ impl KountCvvStatus {
     /// to `Unknown` rather than failing the notify call.
     fn from_str(value: &str) -> Self {
         match value.trim().to_ascii_uppercase().as_str() {
-            "MATCH" | "M" | "Y" => Self::Match,
-            "NO_MATCH" | "NOMATCH" | "N" => Self::NoMatch,
+            "MATCH" => Self::Match,
+            "NO_MATCH" => Self::NoMatch,
             _ => Self::Unknown,
         }
     }
