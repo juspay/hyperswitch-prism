@@ -625,7 +625,7 @@
           "method": "Post",
           "headers": {
             "accept": "application/json",
-            "authorization": "Basic cHJvYmVfa2V5OjFGczNRc0JYYUxrU1lzUlQ2alYvaTNKSDdCSGZtbFN2ekMwYWtVOVA3TVk9",
+            "authorization": "Basic cHJvYmVfa2V5OkMvYURnSE1NNk52MzNDNFh0Q3psQXJjVFFMV2hsOXBNRmxueStia1pLZUk9",
             "content-type": "application/json",
             "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
             "via": "HyperSwitch"
