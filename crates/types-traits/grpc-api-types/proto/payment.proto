@@ -1113,6 +1113,8 @@ message OrderDetailsWithAmount {
   optional double discount_percentage = 21;
   // Discount type applied to this item
   optional string discount_type = 22;
+  // The URL of the product
+  optional string product_link = 20;
 }
 
 // Access token details

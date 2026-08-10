@@ -944,6 +944,10 @@ pub struct KountItem {
     /// order carries mandate info.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub recurring: Option<KountRecurring>,
+    #[serde(rename = "subCategory", skip_serializing_if = "Option::is_none")]
+    pub sub_category: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
 }
 
 /// Kount Orders `recurring` (RecurringDetails) block carried on a line item.
@@ -1445,6 +1449,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         is_digital: detail.requires_shipping.map(|ships| !ships),
                         sku: detail.sku.clone(),
                         recurring: recurring.clone(),
+                        sub_category: detail.sub_category.clone(),
+                        url: detail.product_link.clone(),
                     })
                 })
                 .collect::<Result<Vec<_>, _>>()?,
