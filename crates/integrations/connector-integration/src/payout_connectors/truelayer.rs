@@ -237,7 +237,13 @@ impl
             .secondary_base_url
             .as_ref()
             .ok_or(IntegrationError::FailedToObtainIntegrationUrl {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "TrueLayer payouts require secondary_base_url (the TrueLayer authentication server) to be configured for the connector."
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
             })?;
         Ok(format!("{base_url}/connect/token"))
     }
@@ -482,7 +488,13 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
         let connector_payout_id = req.request.connector_payout_id.as_ref().ok_or(
             IntegrationError::MissingRequiredField {
                 field_name: "connector_payout_id",
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "TrueLayer payout sync requires the connector_payout_id returned by the transfer call."
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
             },
         )?;
 

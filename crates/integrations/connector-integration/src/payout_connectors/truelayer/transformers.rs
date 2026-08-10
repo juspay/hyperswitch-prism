@@ -58,7 +58,13 @@ impl TryFrom<&ConnectorSpecificConfig> for TruelayerAuthType {
                 kid: kid.clone(),
             }),
             _ => Err(IntegrationError::FailedToObtainAuthType {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "TrueLayer payouts require ConnectorSpecificConfig::Truelayer with client_id and client_secret supplied via x-connector-config."
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
             }
             .into()),
         }
@@ -80,18 +86,36 @@ impl TryFrom<&ConnectorSpecificConfig> for TruelayerPayoutMetadata {
             merchant_account_id: auth.merchant_account_id.ok_or(
                 IntegrationError::MissingRequiredField {
                     field_name: "merchant_account_id",
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "TrueLayer payouts require merchant_account_id in the connector metadata; it identifies the TrueLayer merchant account funding the transfer."
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
                 },
             )?,
             private_key: auth
                 .private_key
                 .ok_or(IntegrationError::MissingRequiredField {
                     field_name: "private_key",
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "TrueLayer payouts require private_key in the connector metadata: a base64-encoded EC private key PEM used for ES512 JWS request signing."
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
                 })?,
             kid: auth.kid.ok_or(IntegrationError::MissingRequiredField {
                 field_name: "kid",
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "TrueLayer payouts require kid in the connector metadata; it must match the signing key registered in the TrueLayer console."
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
             })?,
         })
     }
@@ -512,7 +536,13 @@ pub fn generate_tl_signature(
     let payload = build_payload(method, path, headers, body);
     let pem = domain_types::utils::base64_decode(private_key).change_context(
         IntegrationError::RequestEncodingFailed {
-            context: Default::default(),
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "Failed to base64-decode the TrueLayer private_key from connector metadata; it must be the base64 encoding of an EC private key PEM."
+                        .to_string(),
+                ),
+                ..Default::default()
+            },
         },
     )?;
 
@@ -520,7 +550,13 @@ pub fn generate_tl_signature(
         ES512
             .signer_from_pem(&pem)
             .change_context(IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to build the ES512 signer from the TrueLayer private key; the decoded value must be a valid EC private key PEM."
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
             })?;
 
     let tl_headers = headers.keys().cloned().collect::<Vec<_>>().join(",");
@@ -531,17 +567,35 @@ pub fn generate_tl_signature(
     header
         .set_claim("tl_version", Some("2".into()))
         .change_context(IntegrationError::RequestEncodingFailed {
-            context: Default::default(),
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "Failed to set the tl_version claim on the TrueLayer JWS header."
+                        .to_string(),
+                ),
+                ..Default::default()
+            },
         })?;
     header
         .set_claim("tl_headers", Some(tl_headers.into()))
         .change_context(IntegrationError::RequestEncodingFailed {
-            context: Default::default(),
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "Failed to set the tl_headers claim on the TrueLayer JWS header."
+                        .to_string(),
+                ),
+                ..Default::default()
+            },
         })?;
 
     let jws = josekit::jws::serialize_compact(payload.as_bytes(), &header, &signer)
         .change_context(IntegrationError::RequestEncodingFailed {
-            context: Default::default(),
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "Failed to serialize the TrueLayer Tl-Signature JWS."
+                        .to_string(),
+                ),
+                ..Default::default()
+            },
         })?;
 
     let parts: Vec<&str> = jws.split('.').collect();
@@ -549,7 +603,13 @@ pub fn generate_tl_signature(
     match (parts.first(), parts.get(2)) {
         (Some(first), Some(third)) => Ok(format!("{first}..{third}")),
         _ => Err(IntegrationError::RequestEncodingFailed {
-            context: Default::default(),
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "The generated TrueLayer JWS did not contain the expected header and signature segments."
+                        .to_string(),
+                ),
+                ..Default::default()
+            },
         }
         .into()),
     }
