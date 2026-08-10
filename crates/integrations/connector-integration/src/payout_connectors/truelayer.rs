@@ -6,8 +6,9 @@ use common_enums::CurrencyUnit;
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
 use domain_types::{
     connector_flow::{
-        PayoutCreate, PayoutCreateLink, PayoutCreateRecipient, PayoutEnrollDisburseAccount,
-        PayoutGet, PayoutStage, PayoutTransfer, PayoutVoid, ServerAuthenticationToken,
+        PayoutCreate, PayoutCreateLink, PayoutCreateRecipient, PayoutEligibility,
+        PayoutEnrollDisburseAccount, PayoutGet, PayoutStage, PayoutTransfer, PayoutVoid,
+        ServerAuthenticationToken,
     },
     connector_types::{
         ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
@@ -20,9 +21,10 @@ use domain_types::{
     payouts::payouts_types::{
         PayoutCreateLinkRequest, PayoutCreateLinkResponse, PayoutCreateRecipientRequest,
         PayoutCreateRecipientResponse, PayoutCreateRequest, PayoutCreateResponse,
-        PayoutEnrollDisburseAccountRequest, PayoutEnrollDisburseAccountResponse, PayoutFlowData,
-        PayoutGetRequest, PayoutGetResponse, PayoutStageRequest, PayoutStageResponse,
-        PayoutTransferRequest, PayoutTransferResponse, PayoutVoidRequest, PayoutVoidResponse,
+        PayoutEligibilityRequest, PayoutEligibilityResponse, PayoutEnrollDisburseAccountRequest,
+        PayoutEnrollDisburseAccountResponse, PayoutFlowData, PayoutGetRequest, PayoutGetResponse,
+        PayoutStageRequest, PayoutStageResponse, PayoutTransferRequest, PayoutTransferResponse,
+        PayoutVoidRequest, PayoutVoidResponse,
     },
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -35,9 +37,9 @@ use interfaces::{
     api::ConnectorCommon,
     connector_integration_v2::ConnectorIntegrationV2,
     connector_types::{
-        PayoutCreateLinkV2, PayoutCreateRecipientV2, PayoutCreateV2, PayoutEnrollDisburseAccountV2,
-        PayoutGetV2, PayoutServiceTrait, PayoutStageV2, PayoutTransferV2, PayoutVoidV2,
-        ServerAuthentication,
+        PayoutCreateLinkV2, PayoutCreateRecipientV2, PayoutCreateV2, PayoutEligibilityV2,
+        PayoutEnrollDisburseAccountV2, PayoutGetV2, PayoutServiceTrait, PayoutStageV2,
+        PayoutTransferV2, PayoutVoidV2, ServerAuthentication,
     },
 };
 
@@ -606,4 +608,11 @@ impl_unimplemented_payout_flow!(
     PayoutEnrollDisburseAccountRequest,
     PayoutEnrollDisburseAccountResponse,
     "payout_enroll_disburse_account"
+);
+impl_unimplemented_payout_flow!(
+    PayoutEligibilityV2,
+    PayoutEligibility,
+    PayoutEligibilityRequest,
+    PayoutEligibilityResponse,
+    "payout_eligibility"
 );
