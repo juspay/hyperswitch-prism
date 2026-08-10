@@ -698,7 +698,9 @@ fn validate_id_token_nonce(
     let expected_nonce = parse_connector_feature_data(Some(feature_data))
         .ok()
         .and_then(|fd| fd.nonce);
-    let Some(expected) = expected_nonce else { return Ok(()) };
+    let Some(expected) = expected_nonce else {
+        return Ok(());
+    };
     let actual = extract_jwt_nonce(id_token);
     if actual.as_deref() == Some(expected.as_str()) {
         Ok(())
