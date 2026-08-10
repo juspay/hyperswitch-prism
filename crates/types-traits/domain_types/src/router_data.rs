@@ -856,6 +856,11 @@ pub enum ConnectorSpecificConfig {
         juspay_public_key: Secret<String>,
         base_url: Option<String>,
     },
+    Maya {
+        public_key: Secret<String>,
+        secret_key: Secret<String>,
+        base_url: Option<String>,
+    },
     TwocTwopPaco {
         access_token: Secret<String>,
         office_id: Secret<String>,
@@ -918,6 +923,14 @@ pub enum ConnectorSpecificConfig {
         public_key: Secret<String>,
         // Affirm private API key — HTTP Basic auth password.
         private_key: Secret<String>,
+        base_url: Option<String>,
+    },
+    Santander {
+        client_id: Secret<String>,
+        client_secret: Secret<String>,
+        workspace_id: String,
+        certificates: Option<Secret<String>>,
+        private_key: Option<Secret<String>>,
         base_url: Option<String>,
     },
     Kount {
@@ -1262,6 +1275,10 @@ impl ConnectorSpecificConfig {
                 client_id,
                 client_secret
             },
+            Maya {
+                public_key,
+                secret_key
+            },
             Juspay {
                 api_key,
                 merchant_id
@@ -1306,6 +1323,11 @@ impl ConnectorSpecificConfig {
             },
             Plaid { client_id, secret },
             Givepayments { api_key },
+            Santander {
+                client_id,
+                client_secret,
+                workspace_id
+            },
         )
     }
 
@@ -1716,6 +1738,10 @@ impl ConnectorSpecificConfig {
                     client_id,
                     client_secret
                 },
+                Maya {
+                    public_key,
+                    secret_key
+                },
                 Juspay {
                     api_key,
                     merchant_id
@@ -1761,6 +1787,11 @@ impl ConnectorSpecificConfig {
                 },
                 Plaid { client_id, secret },
                 Givepayments { api_key },
+                Santander {
+                    client_id,
+                    client_secret,
+                    workspace_id
+                },
             ),
             serde_json::Value::Object(connector_patch),
         );
@@ -2300,6 +2331,11 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 base_url: easebuzz.base_url,
                 secondary_base_url: easebuzz.secondary_base_url,
             }),
+            AuthType::Maya(maya) => Ok(Self::Maya {
+                public_key: maya.public_key.ok_or_else(err)?,
+                secret_key: maya.secret_key.ok_or_else(err)?,
+                base_url: maya.base_url,
+            }),
             AuthType::Juspay(juspay) => Ok(Self::Juspay {
                 api_key: juspay.api_key.ok_or_else(err)?,
                 merchant_id: juspay.merchant_id.ok_or_else(err)?,
@@ -2430,6 +2466,14 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             AuthType::Givepayments(givepayments) => Ok(Self::Givepayments {
                 api_key: givepayments.api_key.ok_or_else(err)?,
                 base_url: givepayments.base_url,
+            }),
+            AuthType::Santander(santander) => Ok(Self::Santander {
+                client_id: santander.client_id.ok_or_else(err)?,
+                client_secret: santander.client_secret.ok_or_else(err)?,
+                workspace_id: santander.workspace_id,
+                certificates: santander.certificates,
+                private_key: santander.private_key,
+                base_url: santander.base_url,
             }),
         }
     }
@@ -3483,6 +3527,14 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
+                ConnectorEnum::Maya => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Maya {
+                        public_key: api_key.clone(),
+                        secret_key: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
                 ConnectorEnum::Payconex => match auth {
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Payconex {
                         api_key: api_key.clone(),
@@ -3744,6 +3796,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
+                PayoutConnectorEnum::Santander => Err(err().into()),
             },
         }
     }

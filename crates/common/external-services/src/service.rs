@@ -108,6 +108,14 @@ pub trait ConnectorRequestReference {
 
 pub trait AdditionalHeaders {
     fn get_vault_headers(&self) -> Option<&HashMap<String, Secret<String>>>;
+
+    fn get_payment_method_header(&self) -> Option<String> {
+        None
+    }
+
+    fn get_payment_method_type_header(&self) -> Option<String> {
+        None
+    }
 }
 
 impl ConnectorRequestReference for domain_types::connector_types::PaymentFlowData {
@@ -143,6 +151,15 @@ impl AdditionalHeaders for domain_types::connector_types::VerifyWebhookSourceFlo
 impl AdditionalHeaders for domain_types::connector_types::PaymentFlowData {
     fn get_vault_headers(&self) -> Option<&HashMap<String, Secret<String>>> {
         self.vault_headers.as_ref()
+    }
+
+    fn get_payment_method_header(&self) -> Option<String> {
+        Some(self.payment_method.to_string())
+    }
+
+    fn get_payment_method_type_header(&self) -> Option<String> {
+        self.payment_method_type
+            .map(|payment_method_type| payment_method_type.to_string())
     }
 }
 
@@ -645,6 +662,20 @@ where
                         consts::X_MERCHANT_ID,
                         Maskable::Masked(Secret::new(event_params.merchant_id.to_string())),
                     );
+                    if let Some(payment_method) =
+                        router_data.resource_common_data.get_payment_method_header()
+                    {
+                        req.add_header(consts::X_PAYMENT_METHOD, Maskable::Normal(payment_method));
+                    }
+                    if let Some(payment_method_type) = router_data
+                        .resource_common_data
+                        .get_payment_method_type_header()
+                    {
+                        req.add_header(
+                            consts::X_PAYMENT_METHOD_TYPE,
+                            Maskable::Normal(payment_method_type),
+                        );
+                    }
                 }
                 req
             });

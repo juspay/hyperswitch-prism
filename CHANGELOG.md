@@ -19,6 +19,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.08.10.0
+
+### Features
+
+- **connector:** Add new connector - MAYA ([#2017](https://github.com/juspay/connector-service/pull/2017)) ([`69f745f`](https://github.com/juspay/connector-service/commit/69f745f8d62f803418838b575464df39d4aedc60))
+- **framework:** Add missing connector error code mapping ([#2078](https://github.com/juspay/connector-service/pull/2078)) ([`adacc01`](https://github.com/juspay/connector-service/commit/adacc0123fc3e0c58fa1c0f23885c837a8da7f9d))
+
+**Full Changelog:** [`2026.08.07.1...2026.08.10.0`](https://github.com/juspay/connector-service/compare/2026.08.07.1...2026.08.10.0)
+
+- - -
+
+## 2026.08.07.1
+
+### Features
+
+- **connector:** Add support for santander pix payouts ([#2061](https://github.com/juspay/connector-service/pull/2061)) ([`086e814`](https://github.com/juspay/connector-service/commit/086e814e91a66bf7c629ee8544633b5a211d41f3))
+
+**Full Changelog:** [`2026.08.07.0...2026.08.07.1`](https://github.com/juspay/connector-service/compare/2026.08.07.0...2026.08.07.1)
+
+- - -
+
+## 2026.08.07.0
+
+### Features
+
+- **webhooks:** Add merchant_transaction_id to RefundEventReference and MandateEventReference ([#2069](https://github.com/juspay/connector-service/pull/2069)) ([`efd6aee`](https://github.com/juspay/connector-service/commit/efd6aee864108c214383b7dc25c767391e7b40d1))
+- Add payment method headers in shadow mode ([#2030](https://github.com/juspay/connector-service/pull/2030)) ([`5cb7d5e`](https://github.com/juspay/connector-service/commit/5cb7d5ee63781d0e36de54e8e0841b4e428792f7))
+
+### Bug Fixes
+
+- **connector:** [tsys_transit] fix payment request for visa transactions ([#2059](https://github.com/juspay/connector-service/pull/2059)) ([`4764e2a`](https://github.com/juspay/connector-service/commit/4764e2a46251459092ad88b1af5e44f76ca8ff95))
+
+**Full Changelog:** [`2026.08.06.0...2026.08.07.0`](https://github.com/juspay/connector-service/compare/2026.08.06.0...2026.08.07.0)
+
+- - -
+
 ## 2026.08.06.0
 
 ### Features

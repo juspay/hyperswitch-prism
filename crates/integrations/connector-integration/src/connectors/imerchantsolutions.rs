@@ -201,6 +201,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     connector_refund_id: Some(webhook_body.psp_reference.clone()),
                     merchant_refund_id: Some(webhook_body.psp_reference),
                     connector_transaction_id: webhook_body.original_reference,
+                    merchant_transaction_id: None,
                 })
             }
         };
