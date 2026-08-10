@@ -24,10 +24,7 @@ pub mod types;
 pub use errors::{CustomResult, EventPublisherError, ParsingError, ValidationError};
 #[cfg(feature = "kafka")]
 pub use event_publisher::init_event_publisher;
-pub use events::{
-    emit_event_with_config, emit_event_with_config_redacting, without_keys,
-    MASKED_CONNECTOR_RESPONSE_KEY,
-};
+pub use events::emit_event_with_config;
 
 #[cfg(not(feature = "kafka"))]
 pub fn init_event_publisher(_config: &events::EventConfig) {}

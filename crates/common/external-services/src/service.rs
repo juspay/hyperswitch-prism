@@ -228,7 +228,7 @@ use common_utils::events::{Event, EventConfig, FlowName, RuntimeMetadata};
 use common_utils::types::ExecutionMode;
 #[cfg(feature = "injector-client")]
 // TokenData is now imported from hyperswitch_injector
-use common_utils::{consts, emit_event_with_config_redacting};
+use common_utils::{consts, emit_event_with_config};
 use error_stack::{report, ResultExt};
 use hyperswitch_masking::Maskable;
 #[cfg(feature = "injector-client")]
@@ -341,7 +341,6 @@ fn record_masked_connector_response<ResourceCommonData>(
     body: &Response,
     connector_name: &str,
     config: &domain_types::connector_response_masking::ConnectorResponseMaskingConfig,
-    event: Option<&mut Event>,
 ) where
     ResourceCommonData: RawConnectorRequestResponse,
 {
@@ -368,33 +367,7 @@ fn record_masked_connector_response<ResourceCommonData>(
         }
     }
 
-    // Onto the connector-call event, so a consumer can read it off the event stream. Attached
-    // whether or not we log it: `log_to_span` governs our own logs, not what we hand downstream.
-    // The logged copy of this event drops it again at the emit site.
-    if let (Some(event), Some(masked)) = (event, masked.as_deref()) {
-        event.add_masked_connector_response(masked);
-    }
-
     resource_common_data.set_masked_connector_response(masked);
-}
-
-/// Keys to drop from the logged copy of an event, leaving the published payload untouched.
-///
-/// Only ever the masked connector response, and only while the operator has declined to log it.
-/// Consumers still receive it either way — that separation is the whole point of `log_to_span`.
-#[cfg(feature = "connector-response-masking")]
-fn log_redacted_event_keys(event_params: &EventProcessingParams<'_>) -> &'static [&'static str] {
-    if event_params.connector_response_masking.log_to_span {
-        &[]
-    } else {
-        &[common_utils::MASKED_CONNECTOR_RESPONSE_KEY]
-    }
-}
-
-#[cfg(not(feature = "connector-response-masking"))]
-fn log_redacted_event_keys(_event_params: &EventProcessingParams<'_>) -> &'static [&'static str] {
-    // Nothing to redact: without the feature the field is never produced.
-    &[]
 }
 
 /// Handles the connector response, processing both successful and error responses
@@ -447,7 +420,6 @@ where
                             &body,
                             params.connector_name,
                             params.connector_response_masking,
-                            event.as_deref_mut(),
                         );
                     }
 
@@ -518,7 +490,6 @@ where
                             &body,
                             params.connector_name,
                             params.connector_response_masking,
-                            event.as_deref_mut(),
                         );
                     }
 
@@ -999,11 +970,7 @@ where
                         Err(transport_err) => Err(transport_err),
                     };
 
-                    emit_event_with_config_redacting(
-                        event,
-                        event_params.event_config,
-                        log_redacted_event_keys(&event_params),
-                    );
+                    emit_event_with_config(event, event_params.event_config);
                     result
                 }
                 None => Ok(router_data),
@@ -1121,11 +1088,7 @@ where
                         Err(publish_err) => Err(publish_err),
                     };
 
-                    emit_event_with_config_redacting(
-                        event,
-                        event_params.event_config,
-                        log_redacted_event_keys(&event_params),
-                    );
+                    emit_event_with_config(event, event_params.event_config);
                     result
                 }
                 None => Ok(router_data),
