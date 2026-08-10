@@ -502,7 +502,8 @@ jobs:
             echo "CONNECTOR_AUTH_FILE_PATH=${{ github.workspace }}/.github/test/creds.json" >> $GITHUB_ENV
             echo "Connector credentials available for tests"
           else
-            echo "No connector credentials available - tests will use default values"
+            echo "No connector credentials available"
+            exit 1
           fi
 
       - name: Free up disk space
@@ -560,6 +561,19 @@ jobs:
               --profile ci \
               -E "$SCHEMA_EXCLUDE"
           fi
+
+      - name: Run Stripe card Authorize certification via test_ucs
+        if: ${{ env.RUN_TESTS == 'true' }}
+        shell: bash
+        run: |
+          jq -e '.stripe' "${CONNECTOR_AUTH_FILE_PATH}" > /dev/null
+          ./scripts/run-tests \
+            --skip-setup \
+            --connector stripe \
+            --suite PaymentService/Authorize \
+            --scenario no3ds_auto_capture_credit_card \
+            --interface grpc \
+            --report
 
   # ── SDK Tests (FFI + gRPC) ────────────────────────────────────────────────
   # Builds all SDK binaries then runs gRPC tests first, followed by FFI tests
