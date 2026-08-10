@@ -7,10 +7,13 @@ use common_utils::events::apply_log_fields;
 #[cfg(feature = "injector-client")]
 use common_utils::{
     consts::{X_API_TAG, X_API_URL, X_SESSION_ID},
-    events::{CompiledLogFields, EventStage, MaskedSerdeValue},
+    events::{EventStage, MaskedSerdeValue},
     request::TransportType,
 };
 use common_utils::{
+    // `CompiledLogFields` is used by the ungated `EventProcessingParams` struct, so it must be
+    // imported unconditionally (the ffi build compiles this crate without `injector-client`).
+    events::CompiledLogFields,
     ext_traits::AsyncExt,
     lineage,
     request::{Method, Request, RequestContent},
