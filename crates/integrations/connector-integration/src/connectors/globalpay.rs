@@ -44,7 +44,7 @@ use transformers::{
 };
 
 use crate::connectors::macros;
-use crate::set_typed_response;
+use crate::finalize_connector_response;
 use crate::types::ResponseRouterData;
 use crate::with_error_response_body;
 use domain_types::errors::ConnectorError;
@@ -702,7 +702,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let request = globalpay::GlobalpayAccessTokenRequest::try_from(req)?;
-        let typed = macros::serialize_typed_msv(&request);
+        let typed =
+            events::MaskedSerdeValue::from_masked_optional(&request, "typed_connector_request");
         Ok(Some(common_utils::request::ConnectorRequestData::new(
             RequestContent::Json(Box::new(request)),
             typed,
@@ -769,7 +770,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 "globalpay: response body did not match the expected format; confirm API version and connector documentation."),
             )?;
 
-        set_typed_response!(event_builder, response, data, res.status_code)
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(

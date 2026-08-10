@@ -51,7 +51,7 @@ use transformers::{
 };
 
 use super::macros;
-use crate::{set_typed_response, types::ResponseRouterData, with_error_response_body};
+use crate::{finalize_connector_response, types::ResponseRouterData, with_error_response_body};
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 
 use domain_types::errors::ConnectorError;
@@ -558,7 +558,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         };
         let connector_req: BraintreePaymentsRequest =
             BraintreePaymentsRequest::try_from(connector_router_data)?;
-        let typed = macros::serialize_typed_msv(&connector_req);
+        let typed = events::MaskedSerdeValue::from_masked_optional(
+            &connector_req,
+            "typed_connector_request",
+        );
         Ok(Some(common_utils::request::ConnectorRequestData::new(
             common_utils::request::RequestContent::Json(Box::new(connector_req)),
             typed,
@@ -589,7 +592,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             res.status_code,
                         "braintree: response body did not match the expected format; confirm API version and connector documentation."),
                     )?;
-                set_typed_response!(event_builder, response, data, res.status_code)
+                finalize_connector_response!(event_builder, response, data, res.status_code)
             }
             false => {
                 let response: BraintreeAuthResponse = res
@@ -600,7 +603,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             res.status_code,
                         "braintree: response body did not match the expected format; confirm API version and connector documentation."),
                     )?;
-                set_typed_response!(event_builder, response, data, res.status_code)
+                finalize_connector_response!(event_builder, response, data, res.status_code)
             }
         }
     }

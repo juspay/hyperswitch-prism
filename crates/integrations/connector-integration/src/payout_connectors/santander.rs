@@ -47,7 +47,7 @@ use interfaces::{
     },
 };
 
-use crate::set_typed_response;
+use crate::finalize_connector_response;
 use crate::types::ResponseRouterData;
 use transformers::{
     SantanderAccessTokenRequest, SantanderAccessTokenResponse, SantanderAuthType,
@@ -266,7 +266,10 @@ impl
         >,
     ) -> CustomResult<Option<ConnectorRequestData>, IntegrationError> {
         let connector_req = SantanderAccessTokenRequest::try_from(req)?;
-        let typed = crate::connectors::macros::serialize_typed_msv(&connector_req);
+        let typed = events::MaskedSerdeValue::from_masked_optional(
+            &connector_req,
+            "typed_connector_request",
+        );
         Ok(Some(ConnectorRequestData::new(
             RequestContent::FormUrlEncoded(Box::new(connector_req)),
             typed,
@@ -298,8 +301,10 @@ impl
         match response {
             Ok(token_res) => {
                 event_builder.map(|i| i.set_connector_response(&token_res));
-                let typed =
-                    crate::connectors::macros::masked_serialize_connector_response(&token_res);
+                let typed = events::MaskedSerdeValue::from_masked_optional(
+                    &token_res,
+                    "connector_response",
+                );
                 let mut result = RouterDataV2 {
                     response: Ok(ServerAuthenticationTokenResponseData {
                         access_token: token_res.access_token.into(),
@@ -439,7 +444,10 @@ impl ConnectorIntegrationV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, P
         req: &RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>,
     ) -> CustomResult<Option<ConnectorRequestData>, IntegrationError> {
         let connector_req = SantanderCreateRequest::try_from(req)?;
-        let typed = crate::connectors::macros::serialize_typed_msv(&connector_req);
+        let typed = events::MaskedSerdeValue::from_masked_optional(
+            &connector_req,
+            "typed_connector_request",
+        );
         Ok(Some(ConnectorRequestData::new(
             RequestContent::Json(Box::new(connector_req)),
             typed,
@@ -472,7 +480,7 @@ impl ConnectorIntegrationV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, P
                 },
             })?;
 
-        set_typed_response!(event_builder, response, data, res.status_code)
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -588,7 +596,10 @@ impl
         >,
     ) -> CustomResult<Option<ConnectorRequestData>, IntegrationError> {
         let connector_req = SantanderTransferRequest::try_from(req)?;
-        let typed = crate::connectors::macros::serialize_typed_msv(&connector_req);
+        let typed = events::MaskedSerdeValue::from_masked_optional(
+            &connector_req,
+            "typed_connector_request",
+        );
         Ok(Some(ConnectorRequestData::new(
             RequestContent::Json(Box::new(connector_req)),
             typed,
@@ -621,7 +632,7 @@ impl
                 },
             })?;
 
-        set_typed_response!(event_builder, response, data, res.status_code)
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -752,7 +763,7 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
                 },
             })?;
 
-        set_typed_response!(event_builder, response, data, res.status_code)
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(

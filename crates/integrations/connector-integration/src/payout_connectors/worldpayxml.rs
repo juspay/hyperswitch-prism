@@ -46,7 +46,7 @@ use interfaces::{
 
 use crate::{
     connectors::worldpayxml::{requests, responses},
-    set_typed_response,
+    finalize_connector_response,
     types::ResponseRouterData,
     with_error_response_body,
 };
@@ -301,7 +301,10 @@ impl
         >,
     ) -> CustomResult<Option<ConnectorRequestData>, IntegrationError> {
         let connector_req = requests::WorldpayxmlPayoutTransferRequest::try_from(req)?;
-        let typed = crate::connectors::macros::serialize_typed_msv(&connector_req);
+        let typed = events::MaskedSerdeValue::from_masked_optional(
+            &connector_req,
+            "typed_connector_request",
+        );
         let content = Self::encode_soap_xml(&connector_req)?;
         Ok(Some(ConnectorRequestData::new(content, typed)))
     }
@@ -322,7 +325,7 @@ impl
     > {
         let response: responses::WorldpayxmlPayoutTransferResponse =
             Self::parse_xml_response(res.response, res.status_code)?;
-        set_typed_response!(event_builder, response, data, res.status_code)
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -374,7 +377,10 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
         req: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
     ) -> CustomResult<Option<ConnectorRequestData>, IntegrationError> {
         let connector_req = requests::WorldpayxmlPayoutGetRequest::try_from(req)?;
-        let typed = crate::connectors::macros::serialize_typed_msv(&connector_req);
+        let typed = events::MaskedSerdeValue::from_masked_optional(
+            &connector_req,
+            "typed_connector_request",
+        );
         let content = Self::encode_soap_xml(&connector_req)?;
         Ok(Some(ConnectorRequestData::new(content, typed)))
     }
@@ -390,7 +396,7 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
     > {
         let response: responses::WorldpayxmlPayoutGetResponse =
             Self::parse_xml_response(res.response, res.status_code)?;
-        set_typed_response!(event_builder, response, data, res.status_code)
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -442,7 +448,10 @@ impl ConnectorIntegrationV2<PayoutVoid, PayoutFlowData, PayoutVoidRequest, Payou
         req: &RouterDataV2<PayoutVoid, PayoutFlowData, PayoutVoidRequest, PayoutVoidResponse>,
     ) -> CustomResult<Option<ConnectorRequestData>, IntegrationError> {
         let connector_req = requests::WorldpayxmlPayoutVoidRequest::try_from(req)?;
-        let typed = crate::connectors::macros::serialize_typed_msv(&connector_req);
+        let typed = events::MaskedSerdeValue::from_masked_optional(
+            &connector_req,
+            "typed_connector_request",
+        );
         let content = Self::encode_soap_xml(&connector_req)?;
         Ok(Some(ConnectorRequestData::new(content, typed)))
     }
@@ -458,7 +467,7 @@ impl ConnectorIntegrationV2<PayoutVoid, PayoutFlowData, PayoutVoidRequest, Payou
     > {
         let response: responses::WorldpayxmlPayoutVoidResponse =
             Self::parse_xml_response(res.response, res.status_code)?;
-        set_typed_response!(event_builder, response, data, res.status_code)
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(

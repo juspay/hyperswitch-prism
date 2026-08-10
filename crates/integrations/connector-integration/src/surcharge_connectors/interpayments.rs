@@ -1,7 +1,7 @@
 pub mod transformers;
 
 use crate::{
-    common_macros, set_typed_response, types::ResponseRouterData, with_error_response_body,
+    common_macros, finalize_connector_response, types::ResponseRouterData, with_error_response_body,
 };
 use common_utils::{
     consts::NO_ERROR_MESSAGE,
@@ -204,7 +204,8 @@ impl
         >,
     ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let request = InterPaymentsSurchargeRequest::try_from(req)?;
-        let typed = crate::connectors::macros::serialize_typed_msv(&request);
+        let typed =
+            events::MaskedSerdeValue::from_masked_optional(&request, "typed_connector_request");
         Ok(Some(common_utils::request::ConnectorRequestData::new(
             common_utils::request::RequestContent::Json(Box::new(request)),
             typed,
@@ -269,7 +270,7 @@ impl
                 },
             })?;
 
-        set_typed_response!(event_builder, response, data, res.status_code)
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
     fn get_error_response_v2(
         &self,
@@ -370,7 +371,8 @@ impl
         >,
     ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let request = transformers::InterPaymentsPaymentSucceededRequest::from(req);
-        let typed = crate::connectors::macros::serialize_typed_msv(&request);
+        let typed =
+            events::MaskedSerdeValue::from_masked_optional(&request, "typed_connector_request");
         Ok(Some(common_utils::request::ConnectorRequestData::new(
             common_utils::request::RequestContent::Json(Box::new(request)),
             typed,
@@ -409,7 +411,8 @@ impl
             })?;
 
         use domain_types::connector_types::RawConnectorRequestResponse;
-        let masked = crate::connectors::macros::masked_serialize_connector_response(&response);
+        let masked =
+            events::MaskedSerdeValue::from_masked_optional(&response, "connector_response");
         if let Some(ref msv) = masked {
             if let Some(evt) = event_builder {
                 evt.response_data = Some(msv.clone());
@@ -529,7 +532,8 @@ impl
         >,
     ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let request = transformers::InterPaymentsRefundSucceededRequest::from(req);
-        let typed = crate::connectors::macros::serialize_typed_msv(&request);
+        let typed =
+            events::MaskedSerdeValue::from_masked_optional(&request, "typed_connector_request");
         Ok(Some(common_utils::request::ConnectorRequestData::new(
             common_utils::request::RequestContent::Json(Box::new(request)),
             typed,
@@ -568,7 +572,8 @@ impl
             })?;
 
         use domain_types::connector_types::RawConnectorRequestResponse;
-        let masked = crate::connectors::macros::masked_serialize_connector_response(&response);
+        let masked =
+            events::MaskedSerdeValue::from_masked_optional(&response, "connector_response");
         if let Some(ref msv) = masked {
             if let Some(evt) = event_builder {
                 evt.response_data = Some(msv.clone());

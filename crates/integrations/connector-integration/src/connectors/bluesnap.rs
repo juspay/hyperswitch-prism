@@ -35,7 +35,7 @@ use transformers::{
 };
 
 use super::macros;
-use crate::{set_typed_response, types::ResponseRouterData, with_error_response_body};
+use crate::{finalize_connector_response, types::ResponseRouterData, with_error_response_body};
 use domain_types::errors::ConnectorError;
 use domain_types::errors::{IntegrationError, WebhookError};
 
@@ -686,7 +686,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             pf_token: Some(hyperswitch_masking::Secret::new(pf_token.to_string())),
         };
 
-        set_typed_response!(event_builder, response, data, res.status_code)
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(

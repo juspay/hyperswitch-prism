@@ -38,7 +38,7 @@ use interfaces::{
     },
 };
 
-use crate::set_typed_response;
+use crate::finalize_connector_response;
 use crate::types::ResponseRouterData;
 use crate::with_error_response_body;
 use transformers::{
@@ -251,7 +251,10 @@ impl
         >,
     ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let connector_req = LoonioPayoutTransferRequest::try_from(req)?;
-        let typed = crate::connectors::macros::serialize_typed_msv(&connector_req);
+        let typed = events::MaskedSerdeValue::from_masked_optional(
+            &connector_req,
+            "typed_connector_request",
+        );
         Ok(Some(common_utils::request::ConnectorRequestData::new(
             common_utils::request::RequestContent::Json(Box::new(connector_req)),
             typed,
@@ -279,7 +282,7 @@ impl
                 context: Default::default(),
             })?;
 
-        set_typed_response!(event_builder, response, data, res.status_code)
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -346,7 +349,7 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
                 context: Default::default(),
             })?;
 
-        set_typed_response!(event_builder, response, data, res.status_code)
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(

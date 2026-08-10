@@ -36,7 +36,7 @@ use transformers as razorpayv2;
 
 use super::macros;
 use crate::connectors::razorpay::transformers::ForeignTryFrom;
-use crate::set_typed_response;
+use crate::finalize_connector_response;
 use crate::types::ResponseRouterData;
 use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
@@ -228,7 +228,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             ))?;
         let connector_req =
             razorpayv2::RazorpayV2CreateOrderRequest::try_from(&connector_router_data)?;
-        let typed = macros::serialize_typed_msv(&connector_req);
+        let typed = events::MaskedSerdeValue::from_masked_optional(
+            &connector_req,
+            "typed_connector_request",
+        );
         Ok(Some(common_utils::request::ConnectorRequestData::new(
             RequestContent::Json(Box::new(connector_req)),
             typed,
@@ -263,7 +266,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 "razorpayv2: response body did not match the expected format; confirm API version and connector documentation."),
             )?;
 
-        set_typed_response!(event_builder, response, data, res.status_code)
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -408,7 +411,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Always use v2 request format
         let connector_req =
             razorpayv2::RazorpayV2PaymentsRequest::try_from(&connector_router_data)?;
-        let typed = macros::serialize_typed_msv(&connector_req);
+        let typed = events::MaskedSerdeValue::from_masked_optional(
+            &connector_req,
+            "typed_connector_request",
+        );
         Ok(Some(common_utils::request::ConnectorRequestData::new(
             RequestContent::Json(Box::new(connector_req)),
             typed,
@@ -441,7 +447,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         match upi_response_result {
             Ok(upi_response) => {
                 // Serialize once for both event logging and typed_connector_response
-                let masked = macros::masked_serialize_connector_response(&upi_response);
+                let masked = events::MaskedSerdeValue::from_masked_optional(
+                    &upi_response,
+                    "connector_response",
+                );
                 if let Some(ref msv) = masked {
                     if let Some(evt) = event_builder {
                         evt.response_data = Some(msv.clone());
@@ -478,7 +487,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     )?;
 
                 // Serialize once for both event logging and typed_connector_response
-                let masked = macros::masked_serialize_connector_response(&response);
+                let masked =
+                    events::MaskedSerdeValue::from_masked_optional(&response, "connector_response");
                 if let Some(ref msv) = masked {
                     if let Some(evt) = event_builder {
                         evt.response_data = Some(msv.clone());
@@ -663,7 +673,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             )?;
 
         // Serialize once for both event logging and typed_connector_response
-        let masked = macros::masked_serialize_connector_response(&sync_response);
+        let masked =
+            events::MaskedSerdeValue::from_masked_optional(&sync_response, "connector_response");
         if let Some(ref msv) = masked {
             if let Some(evt) = event_builder {
                 evt.response_data = Some(msv.clone());
@@ -772,7 +783,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             )?;
 
         // Serialize once for both event logging and typed_connector_response
-        let masked = macros::masked_serialize_connector_response(&response);
+        let masked =
+            events::MaskedSerdeValue::from_masked_optional(&response, "connector_response");
         if let Some(ref msv) = masked {
             if let Some(evt) = event_builder {
                 evt.response_data = Some(msv.clone());
@@ -861,7 +873,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             DefaultPCIHolder,
         >::try_from((converted_amount, &req.request, None))?;
         let connector_req = razorpayv2::RazorpayV2RefundRequest::try_from(&connector_router_data)?;
-        let typed = macros::serialize_typed_msv(&connector_req);
+        let typed = events::MaskedSerdeValue::from_masked_optional(
+            &connector_req,
+            "typed_connector_request",
+        );
         Ok(Some(common_utils::request::ConnectorRequestData::new(
             RequestContent::Json(Box::new(connector_req)),
             typed,
@@ -889,7 +904,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             )?;
 
         // Serialize once for both event logging and typed_connector_response
-        let masked = macros::masked_serialize_connector_response(&response);
+        let masked =
+            events::MaskedSerdeValue::from_masked_optional(&response, "connector_response");
         if let Some(ref msv) = masked {
             if let Some(evt) = event_builder {
                 evt.response_data = Some(msv.clone());

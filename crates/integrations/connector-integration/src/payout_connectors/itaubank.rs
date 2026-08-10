@@ -43,7 +43,7 @@ use interfaces::{
     },
 };
 
-use crate::{set_typed_response, types::ResponseRouterData};
+use crate::{finalize_connector_response, types::ResponseRouterData};
 use transformers::{
     ItaubankAccessTokenRequest, ItaubankAccessTokenResponse, ItaubankAuthType,
     ItaubankErrorResponse, ItaubankPayoutGetResponse, ItaubankTransferRequest,
@@ -280,7 +280,10 @@ impl
         >,
     ) -> CustomResult<Option<ConnectorRequestData>, IntegrationError> {
         let connector_req = ItaubankAccessTokenRequest::try_from(req)?;
-        let typed = crate::connectors::macros::serialize_typed_msv(&connector_req);
+        let typed = events::MaskedSerdeValue::from_masked_optional(
+            &connector_req,
+            "typed_connector_request",
+        );
         Ok(Some(ConnectorRequestData::new(
             RequestContent::FormUrlEncoded(Box::new(connector_req)),
             typed,
@@ -313,7 +316,7 @@ impl
                 context: Default::default(),
             })?;
 
-        set_typed_response!(event_builder, response, data, res.status_code)
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -439,7 +442,10 @@ impl
         >,
     ) -> CustomResult<Option<ConnectorRequestData>, IntegrationError> {
         let connector_req = ItaubankTransferRequest::try_from(req)?;
-        let typed = crate::connectors::macros::serialize_typed_msv(&connector_req);
+        let typed = events::MaskedSerdeValue::from_masked_optional(
+            &connector_req,
+            "typed_connector_request",
+        );
         Ok(Some(ConnectorRequestData::new(
             RequestContent::Json(Box::new(connector_req)),
             typed,
@@ -467,7 +473,7 @@ impl
                 context: Default::default(),
             })?;
 
-        set_typed_response!(event_builder, response, data, res.status_code)
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -578,7 +584,7 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
                 context: Default::default(),
             })?;
 
-        set_typed_response!(event_builder, response, data, res.status_code)
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(

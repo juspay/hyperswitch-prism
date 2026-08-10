@@ -38,7 +38,7 @@ pub(crate) mod headers {
 use std::fmt::Debug;
 
 use super::macros;
-use crate::set_typed_response;
+use crate::finalize_connector_response;
 use crate::types::ResponseRouterData;
 
 // ===== MACRO PREREQUISITES =====
@@ -280,7 +280,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, errors::IntegrationError>
     {
         let connector_req = ItaubankAccessTokenRequest::try_from(req)?;
-        let typed = macros::serialize_typed_msv(&connector_req);
+        let typed = events::MaskedSerdeValue::from_masked_optional(
+            &connector_req,
+            "typed_connector_request",
+        );
         Ok(Some(common_utils::request::ConnectorRequestData::new(
             RequestContent::FormUrlEncoded(Box::new(connector_req)),
             typed,
@@ -311,7 +314,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         match response {
             Ok(response) => {
-                set_typed_response!(event_builder, response, data, res.status_code)
+                finalize_connector_response!(event_builder, response, data, res.status_code)
             }
             Err(_) => {
                 tracing::error!(

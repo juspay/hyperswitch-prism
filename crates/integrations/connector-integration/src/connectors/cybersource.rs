@@ -67,7 +67,7 @@ use transformers::{
 };
 
 use super::macros;
-use crate::{set_typed_response, types::ResponseRouterData, with_error_response_body};
+use crate::{finalize_connector_response, types::ResponseRouterData, with_error_response_body};
 use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
 
@@ -1070,7 +1070,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             router_data: req.clone(),
         };
         let request = bridge.request_body(input_data)?;
-        let typed = macros::serialize_typed_msv(&request);
+        let typed =
+            events::MaskedSerdeValue::from_masked_optional(&request, "typed_connector_request");
         Ok(Some(common_utils::request::ConnectorRequestData::new(
             common_utils::request::RequestContent::Json(Box::new(request)),
             typed,
@@ -1156,7 +1157,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             client_library,
             client_library_integrity,
         };
-        set_typed_response!(event_builder, response_body, data, res.status_code)
+        finalize_connector_response!(event_builder, response_body, data, res.status_code)
     }
     fn get_error_response_v2(
         &self,
@@ -1290,7 +1291,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         if matches!(res.status_code, 204) {
             let synthetic_response = serde_json::json!({"mandate_status": common_enums::MandateStatus::Revoked.to_string()});
-            let masked = macros::masked_serialize_connector_response(&synthetic_response);
+            let masked = events::MaskedSerdeValue::from_masked_optional(
+                &synthetic_response,
+                "connector_response",
+            );
             if let Some(ref msv) = masked {
                 if let Some(evt) = event_builder {
                     evt.response_data = Some(msv.clone());
@@ -1318,7 +1322,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
             let synthetic_response =
                 serde_json::json!({"response_string": response_string.clone()});
-            let masked = macros::masked_serialize_connector_response(&synthetic_response);
+            let masked = events::MaskedSerdeValue::from_masked_optional(
+                &synthetic_response,
+                "connector_response",
+            );
             if let Some(ref msv) = masked {
                 if let Some(evt) = event_builder {
                     evt.response_data = Some(msv.clone());

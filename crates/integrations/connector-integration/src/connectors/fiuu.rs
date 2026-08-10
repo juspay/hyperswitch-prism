@@ -52,8 +52,8 @@ use transformers::{
 
 use super::macros;
 use crate::{
-    set_typed_response, types::ResponseRouterData, utils::xml_utils::flatten_json_structure,
-    with_error_response_body,
+    finalize_connector_response, types::ResponseRouterData,
+    utils::xml_utils::flatten_json_structure, with_error_response_body,
 };
 use domain_types::errors::ConnectorError;
 use domain_types::errors::{IntegrationError, WebhookError};
@@ -640,7 +640,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             router_data: req.clone(),
         };
         let request = bridge.request_body(input_data)?;
-        let typed = macros::serialize_typed_msv(&request);
+        let typed =
+            events::MaskedSerdeValue::from_masked_optional(&request, "typed_connector_request");
         let form_data = <FiuuPaymentSyncRequest as GetFormData>::get_form_data(&request);
         Ok(Some(common_utils::request::ConnectorRequestData::new(
             macro_types::RequestContent::FormData(form_data),
@@ -675,7 +676,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     Err(error_stack::Report::from(crate::utils::response_deserialization_fail(res.status_code, "fiuu: response body did not match the expected format; confirm API version and connector documentation.")))
                         .attach_printable(format!("Expected content type to be text/plain;charset=UTF-8 , but received different content type as {content_header} in response"))?
                 }?;
-                set_typed_response!(event_builder, response, data, res.status_code)
+                finalize_connector_response!(event_builder, response, data, res.status_code)
             }
             None => {
                 // We don't get headers for payment webhook response handling
@@ -687,7 +688,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             res.status_code,
                         "fiuu: response body did not match the expected format; confirm API version and connector documentation."),
                     )?;
-                set_typed_response!(event_builder, response, data, res.status_code)
+                finalize_connector_response!(event_builder, response, data, res.status_code)
             }
         }
     }

@@ -35,7 +35,7 @@ use transformers::{
 };
 
 use super::macros;
-use crate::{set_typed_response, types::ResponseRouterData, with_error_response_body};
+use crate::{finalize_connector_response, types::ResponseRouterData, with_error_response_body};
 use domain_types::errors::{ConnectorError, IntegrationError};
 
 pub(crate) mod headers {
@@ -646,7 +646,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 "hipay",
             ))?;
 
-        set_typed_response!(event_builder, response, data, res.status_code)
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(

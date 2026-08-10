@@ -84,21 +84,6 @@ pub(crate) fn serialize_typed_connector_payload<T: serde::Serialize>(
         .map(|msv| msv.inner().to_string())
 }
 
-/// Masked-serialize once into a [`MaskedSerdeValue`], from which callers
-/// derive both the event field (`.inner()`) and the typed string
-/// (`.inner().to_string()`). This avoids calling `masked_serialize` twice.
-pub(crate) fn masked_serialize_connector_response<T: serde::Serialize>(
-    payload: &T,
-) -> Option<common_utils::events::MaskedSerdeValue> {
-    common_utils::events::MaskedSerdeValue::from_masked_optional(payload, "connector_response")
-}
-
-pub(crate) fn serialize_typed_msv<T: serde::Serialize>(
-    payload: &T,
-) -> Option<common_utils::events::MaskedSerdeValue> {
-    common_utils::events::MaskedSerdeValue::from_masked_optional(payload, "typed_connector_request")
-}
-
 pub struct NoRequestBody;
 pub struct NoRequestBodyTemplating;
 
@@ -220,7 +205,7 @@ macro_rules! expand_fn_get_request_body {
                     router_data: req.clone()
 };
                 let request = bridge.request_body(input_data)?;
-                let typed = macros::serialize_typed_msv(&request);
+                let typed = common_utils::events::MaskedSerdeValue::from_masked_optional(&request, "typed_connector_request");
                 let form_data = <$curl_req as GetFormData>::get_form_data(&request);
                 Ok(Some(macro_types::ConnectorRequestData::new(
                     macro_types::RequestContent::FormData(form_data),
@@ -251,7 +236,7 @@ macro_rules! expand_fn_get_request_body {
                     router_data: req.clone()
 };
                 let request = bridge.request_body(input_data)?;
-                let typed = macros::serialize_typed_msv(&request);
+                let typed = common_utils::events::MaskedSerdeValue::from_masked_optional(&request, "typed_connector_request");
                 let soap_xml = <$curl_req as GetSoapXml>::to_soap_xml(&request);
 
                 // Validate XML structure before sending
@@ -292,7 +277,7 @@ macro_rules! expand_fn_get_request_body {
                     router_data: req.clone()
 };
                 let request = bridge.request_body(input_data)?;
-                let typed = macros::serialize_typed_msv(&request);
+                let typed = common_utils::events::MaskedSerdeValue::from_masked_optional(&request, "typed_connector_request");
 
                 // Get dynamic content type based on runtime conditions
                 let content_type = self.get_dynamic_content_type(req)?;
@@ -335,7 +320,7 @@ macro_rules! expand_fn_get_request_body {
                     router_data: req.clone()
 };
                 let request = bridge.request_body(input_data)?;
-                let typed = macros::serialize_typed_msv(&request);
+                let typed = common_utils::events::MaskedSerdeValue::from_masked_optional(&request, "typed_connector_request");
                 Ok(Some(macro_types::ConnectorRequestData::new(
                     macro_types::RequestContent::$content_type(Box::new(request)),
                     typed,
@@ -371,7 +356,7 @@ macro_rules! expand_fn_get_request_body {
                     router_data: req.clone()
 };
                 let request = bridge.request_body(input_data)?;
-                let typed = macros::serialize_typed_msv(&request);
+                let typed = common_utils::events::MaskedSerdeValue::from_masked_optional(&request, "typed_connector_request");
                 if let Ok(masked_body) = hyperswitch_masking::masked_serialize(&request) {
                     tracing::info!(
                         connector = stringify!($connector),
@@ -436,8 +421,10 @@ macro_rules! expand_fn_handle_response {
 
             let response_body = bridge.response(response_bytes, res.status_code)?;
             // Serialize once: masked Value for event logging, String for typed_connector_response
-            let masked =
-                crate::connectors::macros::masked_serialize_connector_response(&response_body);
+            let masked = common_utils::events::MaskedSerdeValue::from_masked_optional(
+                &response_body,
+                "connector_response",
+            );
             if let Some(ref msv) = masked {
                 if let Some(evt) = event_builder {
                     evt.response_data = Some(msv.clone());
@@ -471,8 +458,10 @@ macro_rules! expand_fn_handle_response {
             paste::paste! {let bridge = self.[< $flow:snake >];}
             let response_body = bridge.response(res.response, res.status_code)?;
             // Serialize once: masked Value for event logging, String for typed_connector_response
-            let masked =
-                crate::connectors::macros::masked_serialize_connector_response(&response_body);
+            let masked = common_utils::events::MaskedSerdeValue::from_masked_optional(
+                &response_body,
+                "connector_response",
+            );
             if let Some(ref msv) = masked {
                 if let Some(evt) = event_builder {
                     evt.response_data = Some(msv.clone());

@@ -3,7 +3,8 @@ use std::fmt::Debug;
 use serde::Serialize;
 
 use crate::{
-    connectors::macros, set_typed_response, types::ResponseRouterData, with_error_response_body,
+    connectors::macros, finalize_connector_response, types::ResponseRouterData,
+    with_error_response_body,
 };
 use common_enums::CurrencyUnit;
 use common_utils::{
@@ -450,7 +451,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 "redsys: response body did not match the expected format; confirm API version and connector documentation."),
             )?;
 
-        set_typed_response!(event_builder, response, data, res.status_code)
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -627,7 +628,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 "redsys: response body did not match the expected format; confirm API version and connector documentation."),
             )?;
 
-        set_typed_response!(event_builder, response, data, res.status_code)
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(

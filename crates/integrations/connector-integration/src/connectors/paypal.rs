@@ -55,7 +55,7 @@ use crate::{
         PaypalRepeatPaymentResponse, PaypalSetupMandatesResponse, PaypalSyncResponse,
         PaypalZeroMandateRequest, RefundResponse, RefundSyncResponse,
     },
-    set_typed_response,
+    finalize_connector_response,
     types::ResponseRouterData,
     utils::{self, ConnectorErrorType, ConnectorErrorTypeMapping},
     with_error_response_body,
@@ -756,7 +756,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 router_data: req.to_owned(),
             };
             let connector_req = PaypalPaymentsRequest::try_from(connector_router_data)?;
-            let typed = macros::serialize_typed_msv(&connector_req);
+            let typed = events::MaskedSerdeValue::from_masked_optional(
+                &connector_req,
+                "typed_connector_request",
+            );
 
             Some(common_utils::request::ConnectorRequestData::new(
                 common_utils::request::RequestContent::Json(Box::new(connector_req)),
@@ -789,7 +792,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 "paypal",
             ))?;
 
-        set_typed_response!(event_builder, response, data, res.status_code)
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -1409,7 +1412,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 "paypal",
             ))?;
 
-        set_typed_response!(event_builder, response, data, res.status_code)
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -1484,7 +1487,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let verification_request = paypal::PaypalSourceVerificationRequest::try_from(&req.request)?;
-        let typed = macros::serialize_typed_msv(&verification_request);
+        let typed = events::MaskedSerdeValue::from_masked_optional(
+            &verification_request,
+            "typed_connector_request",
+        );
         Ok(Some(common_utils::request::ConnectorRequestData::new(
             common_utils::request::RequestContent::Json(Box::new(verification_request)),
             typed,
@@ -1517,7 +1523,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 res.status_code,
                 "paypal",
             ))?;
-        set_typed_response!(event_builder, verification_response, data, res.status_code)
+        finalize_connector_response!(event_builder, verification_response, data, res.status_code)
     }
 
     fn get_error_response_v2(

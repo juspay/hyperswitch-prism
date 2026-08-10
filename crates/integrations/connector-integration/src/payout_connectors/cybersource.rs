@@ -49,7 +49,7 @@ use ring::{digest, hmac};
 use time::OffsetDateTime;
 
 use crate::{
-    connectors::cybersource::transformers as cs_payments, set_typed_response,
+    connectors::cybersource::transformers as cs_payments, finalize_connector_response,
     types::ResponseRouterData, with_error_response_body,
 };
 use transformers::{CybersourceAuthType, CybersourceFulfillResponse, CybersourcePayoutContext};
@@ -482,7 +482,10 @@ impl
             req,
             CybersourcePayoutContext { total_amount },
         ))?;
-        let typed = crate::connectors::macros::serialize_typed_msv(&connector_req);
+        let typed = events::MaskedSerdeValue::from_masked_optional(
+            &connector_req,
+            "typed_connector_request",
+        );
         Ok(Some(common_utils::request::ConnectorRequestData::new(
             RequestContent::Json(Box::new(connector_req)),
             typed,
@@ -540,7 +543,7 @@ impl
             .change_context(ConnectorError::ResponseDeserializationFailed {
                 context: Default::default(),
             })?;
-        set_typed_response!(event_builder, response, data, res.status_code)
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(

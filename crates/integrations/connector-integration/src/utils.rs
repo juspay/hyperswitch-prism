@@ -80,10 +80,13 @@ macro_rules! with_response_body {
 ///
 /// Replaces the 12-line boilerplate block in every manual `handle_response_v2`.
 #[macro_export]
-macro_rules! set_typed_response {
+macro_rules! finalize_connector_response {
     ($event_builder:expr, $response:expr, $data:expr, $status_code:expr) => {{
         use domain_types::connector_types::RawConnectorRequestResponse;
-        let masked = $crate::connectors::macros::masked_serialize_connector_response(&$response);
+        let masked = common_utils::events::MaskedSerdeValue::from_masked_optional(
+            &$response,
+            "connector_response",
+        );
         if let Some(ref msv) = masked {
             if let Some(evt) = $event_builder {
                 evt.response_data = Some(msv.clone());

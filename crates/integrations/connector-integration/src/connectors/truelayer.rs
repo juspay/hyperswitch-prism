@@ -41,7 +41,7 @@ use transformers::{
 };
 
 use super::macros;
-use crate::{set_typed_response, types::ResponseRouterData, with_error_response_body};
+use crate::{finalize_connector_response, types::ResponseRouterData, with_error_response_body};
 
 // Trait for types that can provide access tokens
 pub trait AccessTokenProvider {
@@ -735,7 +735,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     res.status_code,
                 "truelayer: response body did not match the expected format; confirm API version and connector documentation."),
             )?;
-        set_typed_response!(event_builder, response, data, res.status_code)
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(

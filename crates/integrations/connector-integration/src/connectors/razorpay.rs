@@ -53,7 +53,7 @@ use serde::Serialize;
 use transformers::{self as razorpay, ForeignTryFrom};
 
 use crate::{
-    connectors::razorpayv2::transformers::RazorpayV2SyncResponse, set_typed_response,
+    connectors::razorpayv2::transformers::RazorpayV2SyncResponse, finalize_connector_response,
     types::ResponseRouterData, with_error_response_body,
 };
 
@@ -313,7 +313,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentMethodData::Upi(_) => {
                 let connector_req =
                     razorpay::RazorpayWebCollectRequest::try_from(&connector_router_data)?;
-                let typed = macros::serialize_typed_msv(&connector_req);
+                let typed = events::MaskedSerdeValue::from_masked_optional(
+                    &connector_req,
+                    "typed_connector_request",
+                );
                 Ok(Some(common_utils::request::ConnectorRequestData::new(
                     RequestContent::FormUrlEncoded(Box::new(connector_req)),
                     typed,
@@ -324,7 +327,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             ) => {
                 let connector_req =
                     razorpay::RazorpayNetbankingRequest::try_from(&connector_router_data)?;
-                let typed = macros::serialize_typed_msv(&connector_req);
+                let typed = events::MaskedSerdeValue::from_masked_optional(
+                    &connector_req,
+                    "typed_connector_request",
+                );
                 Ok(Some(common_utils::request::ConnectorRequestData::new(
                     RequestContent::Json(Box::new(connector_req)),
                     typed,
@@ -333,7 +339,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             _ => {
                 let connector_req =
                     razorpay::RazorpayPaymentRequest::try_from(&connector_router_data)?;
-                let typed = macros::serialize_typed_msv(&connector_req);
+                let typed = events::MaskedSerdeValue::from_masked_optional(
+                    &connector_req,
+                    "typed_connector_request",
+                );
                 Ok(Some(common_utils::request::ConnectorRequestData::new(
                     RequestContent::Json(Box::new(connector_req)),
                     typed,
@@ -370,7 +379,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 match upi_response_result {
                     Ok(upi_response) => {
                         // Serialize once for both event logging and typed_connector_response
-                        let masked = macros::masked_serialize_connector_response(&upi_response);
+                        let masked = events::MaskedSerdeValue::from_masked_optional(
+                            &upi_response,
+                            "connector_response",
+                        );
                         if let Some(ref msv) = masked {
                             if let Some(evt) = event_builder {
                                 evt.response_data = Some(msv.clone());
@@ -406,7 +418,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 "razorpay: response body did not match the expected format; confirm API version and connector documentation."),
                             )?;
 
-                        set_typed_response!(event_builder, response, data, res.status_code)
+                        finalize_connector_response!(event_builder, response, data, res.status_code)
                     }
                 }
             }
@@ -421,7 +433,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         "razorpay: response body did not match the expected format; confirm API version and connector documentation.")
                     })?;
 
-                set_typed_response!(event_builder, response, data, res.status_code)
+                finalize_connector_response!(event_builder, response, data, res.status_code)
             }
         }
     }
@@ -525,7 +537,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             )?;
 
         // Serialize once for both event logging and typed_connector_response
-        let masked = macros::masked_serialize_connector_response(&sync_response);
+        let masked =
+            events::MaskedSerdeValue::from_masked_optional(&sync_response, "connector_response");
         if let Some(ref msv) = masked {
             if let Some(evt) = event_builder {
                 evt.response_data = Some(msv.clone());
@@ -637,7 +650,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let connector_router_data =
             razorpay::RazorpayRouterData::try_from((converted_amount, req))?;
         let connector_req = razorpay::RazorpayOrderRequest::try_from(&connector_router_data)?;
-        let typed = macros::serialize_typed_msv(&connector_req);
+        let typed = events::MaskedSerdeValue::from_masked_optional(
+            &connector_req,
+            "typed_connector_request",
+        );
         Ok(Some(common_utils::request::ConnectorRequestData::new(
             RequestContent::FormUrlEncoded(Box::new(connector_req)),
             typed,
@@ -672,7 +688,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 "razorpay: response body did not match the expected format; confirm API version and connector documentation.")
             })?;
 
-        set_typed_response!(event_builder, response, data, res.status_code)
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -764,7 +780,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             razorpay::RazorpayRouterData::try_from((converted_amount, req))?;
         let connector_req =
             razorpay::RazorpaySessionTokenRequest::try_from(&connector_router_data)?;
-        let typed = macros::serialize_typed_msv(&connector_req);
+        let typed = events::MaskedSerdeValue::from_masked_optional(
+            &connector_req,
+            "typed_connector_request",
+        );
         Ok(Some(common_utils::request::ConnectorRequestData::new(
             RequestContent::FormUrlEncoded(Box::new(connector_req)),
             typed,
@@ -799,7 +818,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 "razorpay: response body did not match the expected format; confirm API version and connector documentation.")
             })?;
 
-        set_typed_response!(event_builder, response, data, res.status_code)
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -878,7 +897,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 "razorpay: response body did not match the expected format; confirm API version and connector documentation."),
             )?;
 
-        set_typed_response!(event_builder, response, data, res.status_code)
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -1034,7 +1053,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })?;
         let refund_router_data = razorpay::RazorpayRouterData::try_from((converted_amount, req))?;
         let connector_req = razorpay::RazorpayRefundRequest::try_from(&refund_router_data)?;
-        let typed = macros::serialize_typed_msv(&connector_req);
+        let typed = events::MaskedSerdeValue::from_masked_optional(
+            &connector_req,
+            "typed_connector_request",
+        );
         Ok(Some(common_utils::request::ConnectorRequestData::new(
             RequestContent::Json(Box::new(connector_req)),
             typed,
@@ -1059,7 +1081,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 "razorpay: response body did not match the expected format; confirm API version and connector documentation."),
             )?;
 
-        set_typed_response!(event_builder, response, data, res.status_code)
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -1142,7 +1164,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let connector_router_data =
             razorpay::RazorpayRouterData::try_from((converted_amount, req))?;
         let connector_req = razorpay::RazorpayCaptureRequest::try_from(&connector_router_data)?;
-        let typed = macros::serialize_typed_msv(&connector_req);
+        let typed = events::MaskedSerdeValue::from_masked_optional(
+            &connector_req,
+            "typed_connector_request",
+        );
         Ok(Some(common_utils::request::ConnectorRequestData::new(
             RequestContent::Json(Box::new(connector_req)),
             typed,
@@ -1170,7 +1195,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .attach_printable(format!("Failed to parse RazorpayCaptureResponse: {err:?}"))
             })?;
 
-        set_typed_response!(event_builder, response, data, res.status_code)
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(

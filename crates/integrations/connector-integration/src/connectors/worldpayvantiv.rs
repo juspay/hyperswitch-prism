@@ -47,7 +47,7 @@ use self::transformers::{
 };
 
 use super::macros;
-use crate::{set_typed_response, types::ResponseRouterData, utils, with_response_body};
+use crate::{finalize_connector_response, types::ResponseRouterData, utils, with_response_body};
 use domain_types::errors::{ConnectorError, IntegrationError, WebhookError};
 use error_stack::report;
 
@@ -134,7 +134,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             router_data: req.clone(),
             connector: self.clone(),
         })?;
-        let typed = macros::serialize_typed_msv(&request);
+        let typed =
+            events::MaskedSerdeValue::from_masked_optional(&request, "typed_connector_request");
         Ok(Some(common_utils::request::ConnectorRequestData::new(
             RequestContent::Xml(Box::new(request)),
             typed,
@@ -165,7 +166,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let response: CnpOnlineResponse = deserialize_xml_to_struct(&xml_str).change_context(
             utils::response_handling_fail_for_connector(res.status_code, "worldpayvantiv"),
         )?;
-        set_typed_response!(event_builder, response, data, res.status_code)
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -543,7 +544,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             router_data: req.clone(),
             connector: self.clone(),
         })?;
-        let typed = macros::serialize_typed_msv(&request);
+        let typed =
+            events::MaskedSerdeValue::from_masked_optional(&request, "typed_connector_request");
         Ok(Some(common_utils::request::ConnectorRequestData::new(
             RequestContent::Xml(Box::new(request)),
             typed,
@@ -564,7 +566,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let response: CnpOnlineResponse = deserialize_xml_to_struct(&xml_str).change_context(
             utils::response_handling_fail_for_connector(res.status_code, "worldpayvantiv"),
         )?;
-        set_typed_response!(event_builder, response, data, res.status_code)
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -611,7 +613,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             router_data: req.clone(),
             connector: self.clone(),
         })?;
-        let typed = macros::serialize_typed_msv(&request);
+        let typed =
+            events::MaskedSerdeValue::from_masked_optional(&request, "typed_connector_request");
         Ok(Some(common_utils::request::ConnectorRequestData::new(
             RequestContent::Xml(Box::new(request)),
             typed,
@@ -632,7 +635,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let response: CnpOnlineResponse = deserialize_xml_to_struct(&xml_str).change_context(
             utils::response_handling_fail_for_connector(res.status_code, "worldpayvantiv"),
         )?;
-        set_typed_response!(event_builder, response, data, res.status_code)
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -698,7 +701,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             router_data: req.clone(),
             connector: self.clone(),
         })?;
-        let typed = macros::serialize_typed_msv(&request);
+        let typed =
+            events::MaskedSerdeValue::from_masked_optional(&request, "typed_connector_request");
         Ok(Some(common_utils::request::ConnectorRequestData::new(
             RequestContent::Xml(Box::new(request)),
             typed,
@@ -724,7 +728,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let response: CnpOnlineResponse = deserialize_xml_to_struct(&xml_str).change_context(
             utils::response_handling_fail_for_connector(res.status_code, "worldpayvantiv"),
         )?;
-        set_typed_response!(event_builder, response, data, res.status_code)
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -771,7 +775,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             router_data: req.clone(),
             connector: self.clone(),
         })?;
-        let typed = macros::serialize_typed_msv(&request);
+        let typed =
+            events::MaskedSerdeValue::from_masked_optional(&request, "typed_connector_request");
         Ok(Some(common_utils::request::ConnectorRequestData::new(
             RequestContent::Xml(Box::new(request)),
             typed,
@@ -792,7 +797,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let response: CnpOnlineResponse = deserialize_xml_to_struct(&xml_str).change_context(
             utils::response_handling_fail_for_connector(res.status_code, "worldpayvantiv"),
         )?;
-        set_typed_response!(event_builder, response, data, res.status_code)
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -865,7 +870,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 res.status_code,
                 "worldpayvantiv",
             ))?;
-        set_typed_response!(event_builder, response, data, res.status_code)
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(

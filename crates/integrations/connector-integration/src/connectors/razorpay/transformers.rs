@@ -2168,7 +2168,7 @@ pub fn json_value_to_string(value: &serde_json::Value) -> String {
 }
 
 // ================================
-// TryFrom<ResponseRouterData> implementations for set_typed_response! macro
+// TryFrom<ResponseRouterData> implementations for finalize_connector_response! macro
 // ================================
 
 // Authorize flow (Card payments) - delegates to existing ForeignTryFrom,
