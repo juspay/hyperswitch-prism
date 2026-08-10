@@ -225,6 +225,8 @@ pub enum BankType {
     Current,
     Bond,
     SubscriptionShare,
+    Salary,
+    Payment,
 }
 
 #[derive(
@@ -1128,6 +1130,7 @@ pub enum PaymentMethodType {
     IndonesianBankTransfer,
     Skrill,
     Paysera,
+    Paymaya,
     QwikcilverWallet,
 }
 
