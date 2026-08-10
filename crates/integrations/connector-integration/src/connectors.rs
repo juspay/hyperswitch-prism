@@ -293,3 +293,6 @@ pub mod givepayments;
 pub use self::givepayments::Givepayments;
 pub mod tesouro;
 pub use self::tesouro::Tesouro;
+
+pub mod boost;
+pub use self::boost::Boost;

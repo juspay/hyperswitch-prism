@@ -773,5 +773,10 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             api_secret: k(),
             base_url: None,
         },
+        ConnectorEnum::Boost => ConnectorSpecificConfig::Boost {
+            client_id: k(),
+            merchant_secret: k(),
+            base_url: None,
+        },
     }
 }
