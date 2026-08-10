@@ -569,8 +569,7 @@ pub fn generate_tl_signature(
         .change_context(IntegrationError::RequestEncodingFailed {
             context: IntegrationErrorContext {
                 additional_context: Some(
-                    "Failed to set the tl_version claim on the TrueLayer JWS header."
-                        .to_string(),
+                    "Failed to set the tl_version claim on the TrueLayer JWS header.".to_string(),
                 ),
                 ..Default::default()
             },
@@ -580,8 +579,7 @@ pub fn generate_tl_signature(
         .change_context(IntegrationError::RequestEncodingFailed {
             context: IntegrationErrorContext {
                 additional_context: Some(
-                    "Failed to set the tl_headers claim on the TrueLayer JWS header."
-                        .to_string(),
+                    "Failed to set the tl_headers claim on the TrueLayer JWS header.".to_string(),
                 ),
                 ..Default::default()
             },
@@ -591,8 +589,7 @@ pub fn generate_tl_signature(
         .change_context(IntegrationError::RequestEncodingFailed {
             context: IntegrationErrorContext {
                 additional_context: Some(
-                    "Failed to serialize the TrueLayer Tl-Signature JWS."
-                        .to_string(),
+                    "Failed to serialize the TrueLayer Tl-Signature JWS.".to_string(),
                 ),
                 ..Default::default()
             },
