@@ -1332,59 +1332,65 @@ impl ForeignFrom<payment_method_data::UpiSource> for grpc_api_types::payments::U
     }
 }
 
-fn payment_method_data_to_proto_payment_method(
-    payment_method_data: PaymentMethodData<DefaultPCIHolder>,
-) -> Result<grpc_api_types::payments::PaymentMethod, error_stack::Report<ConnectorError>> {
-    use grpc_api_types::payments::payment_method::PaymentMethod as ProtoPaymentMethod;
+impl ForeignTryFrom<PaymentMethodData<DefaultPCIHolder>>
+    for grpc_api_types::payments::PaymentMethod
+{
+    type Error = ConnectorError;
 
-    let payment_method = match payment_method_data {
-        PaymentMethodData::BankRedirect(payment_method_data::BankRedirectData::OpenBanking {
-            account_number,
-            sort_code,
-            iban,
-            account_holder_name,
-            additional_details,
-        }) => {
-            let additional_details = additional_details
-                .map(|details| {
-                    serde_json::to_string(details.peek()).map(Secret::new).change_context(
-                        ConnectorError::ResponseHandlingFailed {
-                            context: ResponseTransformationErrorContext {
-                                additional_context: Some(
-                                    "Failed to serialize connector-returned Open Banking additional payment details"
-                                        .to_owned(),
-                                ),
-                                ..Default::default()
-                            },
-                        },
-                    )
-                })
-                .transpose()?;
+    fn foreign_try_from(
+        payment_method_data: PaymentMethodData<DefaultPCIHolder>,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        use grpc_api_types::payments::payment_method::PaymentMethod as ProtoPaymentMethod;
 
-            ProtoPaymentMethod::OpenBanking(grpc_api_types::payments::OpenBanking {
-                iban,
+        let payment_method = match payment_method_data {
+            PaymentMethodData::BankRedirect(payment_method_data::BankRedirectData::OpenBanking {
                 account_number,
                 sort_code,
+                iban,
                 account_holder_name,
                 additional_details,
-            })
-        }
-        _ => {
-            return Err(report!(ConnectorError::UnexpectedResponseError {
-                context: ResponseTransformationErrorContext {
-                    additional_context: Some(
-                        "connector_returned_payment_method_details cannot be represented as proto PaymentMethod yet"
-                            .to_owned(),
-                    ),
-                    ..Default::default()
-                },
-            }))
-        }
-    };
+            }) => {
+                let additional_details = additional_details
+                    .map(|details| {
+                        serde_json::to_string(details.peek()).map(Secret::new).change_context(
+                            ConnectorError::ResponseHandlingFailed {
+                                context: ResponseTransformationErrorContext {
+                                    additional_context: Some(
+                                        "Failed to serialize connector-returned Open Banking additional payment details"
+                                            .to_owned(),
+                                    ),
+                                    ..Default::default()
+                                },
+                            },
+                        )
+                    })
+                    .transpose()?;
 
-    Ok(grpc_api_types::payments::PaymentMethod {
-        payment_method: Some(payment_method),
-    })
+                ProtoPaymentMethod::OpenBanking(grpc_api_types::payments::OpenBanking {
+                    iban,
+                    account_number,
+                    sort_code,
+                    account_holder_name,
+                    additional_details,
+                })
+            }
+            _ => {
+                return Err(report!(ConnectorError::UnexpectedResponseError {
+                    context: ResponseTransformationErrorContext {
+                        additional_context: Some(
+                            "connector_returned_payment_method_details cannot be represented as proto PaymentMethod yet"
+                                .to_owned(),
+                        ),
+                        ..Default::default()
+                    },
+                }))
+            }
+        };
+
+        Ok(Self {
+            payment_method: Some(payment_method),
+        })
+    }
 }
 
 impl ForeignFrom<RawConnectorStatus> for grpc_api_types::payments::RawConnectorStatus {
@@ -8041,8 +8047,18 @@ pub fn generate_payment_sync_response(
                         .resource_common_data
                         .connector_returned_payment_method_details
                         .clone()
-                        .map(payment_method_data_to_proto_payment_method)
-                        .transpose()?,
+                        .and_then(|payment_method_data| {
+                            grpc_api_types::payments::PaymentMethod::foreign_try_from(
+                                payment_method_data,
+                            )
+                            .map_err(|error| {
+                                tracing::warn!(
+                                    ?error,
+                                    "Failed to convert connector_returned_payment_method_details; omitting it"
+                                );
+                            })
+                            .ok()
+                        }),
                 })
             }
             PaymentsResponseData::MultipleCaptureResponse {
