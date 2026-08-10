@@ -1114,7 +1114,7 @@ message OrderDetailsWithAmount {
   // Discount type applied to this item
   optional string discount_type = 22;
   // The URL of the product
-  optional string product_link = 20;
+  optional string product_link = 23;
 }
 
 // Access token details
