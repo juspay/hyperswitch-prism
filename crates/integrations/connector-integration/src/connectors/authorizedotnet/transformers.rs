@@ -3559,22 +3559,50 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetCreateConnectorCustomerResponse, 
 
         let mut new_router_data = router_data;
 
-        if let Some(profile_id) = response.customer_profile_id {
-            // Success - return the connector customer ID
-            new_router_data.response = Ok(ConnectorCustomerResponse {
-                connector_customer_id: profile_id,
-                status_code: http_code,
-            });
-        } else {
-            // Check if this is a "duplicate customer" error (E00039)
-            let first_error = response.messages.message.first();
-            let error_code = first_error.map(|m| m.code.as_str()).unwrap_or("");
-            let error_text = first_error.map(|m| m.text.as_str()).unwrap_or("");
-
-            if error_code == "E00039" {
-                // Extract customer profile ID from error message
-                // Message format: "A duplicate record with ID 933042598 already exists."
-                if let Some(existing_profile_id) = extract_customer_id_from_error(error_text) {
+        // Mirror the Direct (hyperswitch) authorizedotnet customer-response mapping so the
+        // shadow UCS leg classifies Ok/Err identically and avoids the router-data diff in
+        // hyperswitch-cloud#17236 (`router.keyDiff:response.Err`).
+        //
+        // The Ok/Err decision is gated on `messages.result_code` (NOT on the mere presence
+        // of `customer_profile_id`): Authorize.Net can return a `customerProfileId` alongside
+        // a `resultCode == "Error"` envelope, in which case Direct yields `Err` while the old
+        // prism logic yielded `Ok` — flipping `response.Err` between the two legs.
+        //
+        // Any error whose text carries an existing profile id ("... ID <digits> ...") is
+        // treated as an idempotent duplicate-success regardless of the error code (Direct does
+        // not special-case `E00039`). Error message/reason are shaped the same way as Direct:
+        // `message` = the result-code string ("Error"), `reason` = the joined message texts.
+        match response.messages.result_code {
+            ResultCode::Ok => match response.customer_profile_id {
+                Some(profile_id) => {
+                    new_router_data.response = Ok(ConnectorCustomerResponse {
+                        connector_customer_id: profile_id,
+                        status_code: http_code,
+                    });
+                }
+                None => {
+                    // resultCode Ok but no profile id — Direct treats this as a hard failure.
+                    new_router_data.response = Err(ErrorResponse {
+                        status_code: http_code,
+                        code: consts::NO_ERROR_CODE.to_string(),
+                        message: "Missing customer profile id from Authorizedotnet".to_string(),
+                        reason: Some(
+                            "Missing customer profile id from Authorizedotnet".to_string(),
+                        ),
+                        attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
+                        connector_transaction_id: None,
+                        network_decline_code: None,
+                        network_advice_code: None,
+                        network_error_message: None,
+                    });
+                }
+            },
+            ResultCode::Error => {
+                let first_error = response.messages.message.first();
+                if let Some(existing_profile_id) =
+                    first_error.and_then(|m| extract_customer_id_from_error(&m.text))
+                {
+                    // Duplicate customer profile already exists — treat as success (parity with Direct).
                     tracing::info!(
                         "Customer profile already exists with ID: {}, treating as success",
                         existing_profile_id
@@ -3584,32 +3612,28 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetCreateConnectorCustomerResponse, 
                         status_code: http_code,
                     });
                 } else {
-                    // Couldn't extract ID, return error
+                    let error_code = first_error
+                        .map(|m| m.code.clone())
+                        .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string());
+                    let error_reason = response
+                        .messages
+                        .message
+                        .iter()
+                        .map(|m| m.text.clone())
+                        .collect::<Vec<String>>()
+                        .join(" ");
                     new_router_data.response = Err(ErrorResponse {
                         status_code: http_code,
-                        code: error_code.to_string(),
-                        message: error_text.to_string(),
-                        reason: Some(error_text.to_string()),
-                        attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)), // Marking attempt as failure since we couldn't confirm existing profile ID
+                        code: error_code,
+                        message: "Error".to_string(),
+                        reason: Some(error_reason),
+                        attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                         connector_transaction_id: None,
                         network_decline_code: None,
                         network_advice_code: None,
                         network_error_message: None,
                     });
                 }
-            } else {
-                // Other error - return error response
-                new_router_data.response = Err(ErrorResponse {
-                    status_code: http_code,
-                    code: error_code.to_string(),
-                    message: error_text.to_string(),
-                    reason: Some(error_text.to_string()),
-                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)), // Marking attempt as failure for non-duplicate errors
-                    connector_transaction_id: None,
-                    network_decline_code: None,
-                    network_advice_code: None,
-                    network_error_message: None,
-                });
             }
         }
 
