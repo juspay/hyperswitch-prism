@@ -14538,8 +14538,8 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                     merchant_charge_id: err.connector_transaction_id,
                     connector_feature_data: None,
                     mandate_reference_details: None,
-                    raw_connector_response: None,
-                    masked_connector_response: None,
+                    raw_connector_response,
+                    masked_connector_response,
                     status_code: err.status_code as u32,
                     response_headers: router_data_v2
                         .resource_common_data

@@ -1,6 +1,20 @@
 //! Builds `masked_connector_response`: the connector's reply with every key preserved and every
 //! value masked unless that connector's configured list names it. Emitted in the same format the
 //! gateway used — JSON, XML or form-encoded.
+//!
+//! Every input here is gateway-controlled, and this must never be able to fail a payment, so the
+//! module opts itself into the panic lints. `domain_types` has no `[lints] workspace = true`
+//! stanza, unlike its sibling crates, so without this the file sits outside the checks CI enforces
+//! as errors everywhere else. Scoped to this module rather than the crate because `types.rs` alone
+//! is ~17k lines and cleaning it is separate work.
+#![warn(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::indexing_slicing,
+    clippy::as_conversions,
+    clippy::unreachable
+)]
 
 use std::collections::{HashMap, HashSet};
 
@@ -98,17 +112,31 @@ impl ConnectorResponseMaskingConfig {
     /// Keys whose values stay visible for `connector_name`. Built per request rather than cached,
     /// so a runtime config patch can never leave a stale set behind. No entry yields an empty set,
     /// as does an unrecognised name — masking every value is right either way.
-    pub fn keys_for(&self, connector_name: &str) -> HashSet<Box<str>> {
-        self.connector_keys
-            .get(connector_name)
-            .map(|keys| {
-                keys.split(',')
-                    .map(str::trim)
-                    .filter(|key| !key.is_empty())
-                    .map(|key| key.to_lowercase().into_boxed_str())
-                    .collect()
-            })
-            .unwrap_or_default()
+    pub fn keys_for(&self, connector_name: &str) -> MaskKeys {
+        let mut keys = MaskKeys::default();
+        let Some(configured) = self.connector_keys.get(connector_name) else {
+            return keys;
+        };
+
+        for entry in configured
+            .split(',')
+            .map(str::trim)
+            .filter(|entry| !entry.is_empty())
+        {
+            let entry = entry.to_lowercase();
+            if entry.contains('.') {
+                keys.paths.push(
+                    entry
+                        .split('.')
+                        .map(|segment| segment.to_owned().into_boxed_str())
+                        .collect(),
+                );
+            }
+            // Dotted entries land here too — see the field's documentation.
+            keys.names.insert(entry.into_boxed_str());
+        }
+
+        keys
     }
 }
 
@@ -159,23 +187,160 @@ impl Patch<ConnectorResponseMaskingConfigPatch> for ConnectorResponseMaskingConf
 const ALWAYS_MASKED_SUBSTRING: &[&str] = &[
     "cardnumber",
     "cardnum",
+    "cardno",
     "accountnumber",
+    "routingnumber",
+    "sortcode",
     "cvv",
     "cvc",
     "cvn",
+    "securitycode",
     "expmonth",
     "expyear",
     "expirydate",
+    "expirymonth",
+    "expiryyear",
+    "expirationdate",
+    "expirationmonth",
+    "expirationyear",
+    // Track data carries the PAN, the expiry and the discretionary data together. Also masks
+    // `trackingNumber`, which is over-masking we accept.
+    "track",
+    "pinblock",
     "secret",
     "token",
     "password",
     "signature",
     "apikey",
+    "privatekey",
+    "credential",
+    "checksum",
+    "hmac",
 ];
 
-/// Never revealed, matched **exactly**. `authorization` is here rather than above so it does not
-/// also block `authorizationCode`, which operators legitimately reveal.
-const ALWAYS_MASKED_EXACT: &[&str] = &["authorization"];
+/// Never revealed, matched **exactly**. Two reasons a name lands here rather than above:
+///
+/// - `authorization` would otherwise also block `authorizationCode`, which operators legitimately
+///   reveal.
+/// - The rest are too short to match as substrings without catching innocent words — `pan` occurs
+///   inside `company` and `japan`, `pin` inside `shipping`, `cid` inside `acidic`.
+///
+/// `pan` matters most: `peachpayments` names its card-number field exactly that, so without this
+/// entry a single allowlist line would hand back a full PAN.
+const ALWAYS_MASKED_EXACT: &[&str] = &[
+    "authorization",
+    "pan",
+    "iban",
+    "bban",
+    "pin",
+    "ssn",
+    "emv",
+    "csc",
+    "cid",
+    "ksn",
+    "jwt",
+];
+
+/// The keys one connector's configuration unmasks.
+///
+/// Two kinds of entry, because operators need both. A bare name — `authcode` — unmasks that key
+/// wherever it appears, at any depth. A dotted entry — `card.last4` — pins one exact location,
+/// counted from the body's root, which is how an operator reveals a generically-named field
+/// without also revealing every namesake elsewhere in the body.
+#[derive(Debug, Default, Clone)]
+pub struct MaskKeys {
+    /// Bare entries, matched against a single key name at any depth.
+    ///
+    /// Dotted entries are inserted here verbatim as well, because some gateways genuinely return
+    /// key names containing dots — Adyen's `bankAccount.iban` and `retry.attempt1.rawResponse` are
+    /// flat keys, not nesting. An entry that pins no path can still name one of those.
+    names: HashSet<Box<str>>,
+    /// Dotted entries split into segments, matched against the whole path from the root.
+    paths: Vec<Box<[Box<str>]>>,
+}
+
+impl MaskKeys {
+    /// Whether a bare entry names this key.
+    fn names_key(&self, key: &str) -> bool {
+        self.names.contains(key.to_ascii_lowercase().as_str())
+            // XML names may be prefixed (`s:authCode`); accept the local name too.
+            || key.rsplit_once(':').is_some_and(|(_, local)| {
+                self.names.contains(local.to_ascii_lowercase().as_str())
+            })
+    }
+
+    /// Whether a dotted entry pins exactly this location, given as segments from the root.
+    fn names_location(&self, segments: &[&str]) -> bool {
+        self.paths.iter().any(|entry| {
+            entry.len() == segments.len()
+                && entry
+                    .iter()
+                    .zip(segments)
+                    .all(|(want, have)| have.eq_ignore_ascii_case(want))
+        })
+    }
+
+    /// Whether this connector unmasks nothing at all.
+    #[cfg(test)]
+    fn is_empty(&self) -> bool {
+        self.names.is_empty() && self.paths.is_empty()
+    }
+
+    /// Whether any dotted entry is configured at all. Lets the maskers skip position tracking
+    /// entirely for the common case of a name-only configuration.
+    fn has_paths(&self) -> bool {
+        !self.paths.is_empty()
+    }
+}
+
+/// Where a key sits in a JSON body, as a chain back to the root.
+///
+/// A chain rather than a `Vec` so descending a level allocates nothing; matching walks up, which
+/// is the order the segments are already in.
+struct Path<'a> {
+    parent: Option<&'a Path<'a>>,
+    segment: &'a str,
+}
+
+impl Path<'_> {
+    /// Whether this location is exactly `segments`, read from the root.
+    fn is(&self, segments: &[Box<str>]) -> bool {
+        let mut here = Some(self);
+        let mut rest = segments;
+        while let Some((last, head)) = rest.split_last() {
+            let Some(node) = here else { return false };
+            if !node.segment.eq_ignore_ascii_case(last) {
+                return false;
+            }
+            here = node.parent;
+            rest = head;
+        }
+        // Anything left above means the entry named a deeper location than this one.
+        here.is_none()
+    }
+}
+
+/// Whether the key *itself* looks like card data rather than a field name.
+///
+/// Keys are emitted verbatim in every format — that is what makes the output readable — so a
+/// gateway that puts the value in key position, `{"declines":{"<PAN>":"expired"}}`, would echo it
+/// however well the values are masked. A long run of digits is the one key shape worth refusing:
+/// no real field name is a dozen consecutive digits, so the false-positive cost is nil.
+fn key_looks_like_card_data(key: &str) -> bool {
+    key.chars().filter(char::is_ascii_digit).count() >= 12
+        && key
+            .chars()
+            .all(|character| character.is_ascii_digit() || matches!(character, ' ' | '-' | '_'))
+}
+
+/// The key as it should appear in the output.
+fn emitted_key(key: &str) -> &str {
+    if key_looks_like_card_data(key) {
+        MASKED
+    } else {
+        key
+    }
+}
 
 /// Normalise a key for comparison: lowercase, alphanumerics only.
 fn normalize(key: &str) -> String {
@@ -196,28 +361,17 @@ fn is_always_masked(key: &str) -> bool {
             .any(|needle| normalized.contains(needle))
 }
 
-/// Whether the connector's configured list names this key.
-fn in_allowlist(keys: &HashSet<Box<str>>, key: &str) -> bool {
-    keys.contains(key.to_ascii_lowercase().as_str())
-        // XML names may be prefixed (`s:authCode`); accept the local name too.
-        || key
-            .rsplit_once(':')
-            .is_some_and(|(_, local)| keys.contains(local.to_ascii_lowercase().as_str()))
-}
-
 /// Whether this key's scalar value keeps its value.
+///
+/// `pinned` is whether a dotted entry names this exact location. The caller supplies it because
+/// JSON and XML track position differently — a chain for one, an element stack for the other —
+/// and form bodies are flat, so there is no position to speak of.
 ///
 /// Allowlist first: the denylist only ever overrides a key the allowlist would have revealed, so
 /// the keys it rejects are masked either way. Checking membership first skips the substring scan
 /// for the large majority of fields.
-fn allowed(keys: &HashSet<Box<str>>, key: &str) -> bool {
-    in_allowlist(keys, key) && !is_always_masked(key)
-}
-
-/// Namespace declarations are structural: masking them would break prefix resolution, and they
-/// never carry secrets.
-fn is_namespace_declaration(name: &str) -> bool {
-    name == "xmlns" || name.starts_with("xmlns:")
+fn allowed(keys: &MaskKeys, key: &str, pinned: bool) -> bool {
+    (pinned || keys.names_key(key)) && !is_always_masked(key)
 }
 
 /// Serializes a [`Value`], substituting `"***"` for scalars whose key is not allowed.
@@ -228,7 +382,9 @@ fn is_namespace_declaration(name: &str) -> bool {
 /// per key, arrays beneath it stay masked.
 struct Masked<'a> {
     value: &'a Value,
-    keys: &'a HashSet<Box<str>>,
+    keys: &'a MaskKeys,
+    /// Where this value sits, for dotted entries. `None` at the root.
+    at: Option<&'a Path<'a>>,
     mask: bool,
 }
 
@@ -242,12 +398,20 @@ impl Serialize for Masked<'_> {
             Value::Object(map) => {
                 let mut state = serializer.serialize_map(Some(map.len()))?;
                 for (key, value) in map {
+                    let here = Path {
+                        parent: self.at,
+                        segment: key,
+                    };
+                    // Only pay for position tracking when a dotted entry could use it.
+                    let pinned =
+                        self.keys.has_paths() && self.keys.paths.iter().any(|entry| here.is(entry));
                     state.serialize_entry(
-                        key,
-                        &Self {
+                        emitted_key(key),
+                        &Masked {
                             value,
                             keys: self.keys,
-                            mask: !allowed(self.keys, key),
+                            at: Some(&here),
+                            mask: !allowed(self.keys, key, pinned),
                         },
                     )?;
                 }
@@ -262,6 +426,8 @@ impl Serialize for Masked<'_> {
                     state.serialize_element(&Self {
                         value,
                         keys: self.keys,
+                        // An element has no name, so it cannot extend a dotted entry's path.
+                        at: self.at,
                         mask: true,
                     })?;
                 }
@@ -275,13 +441,14 @@ impl Serialize for Masked<'_> {
     }
 }
 
-fn mask_json(body: &[u8], keys: &HashSet<Box<str>>) -> Option<String> {
+fn mask_json(body: &[u8], keys: &MaskKeys) -> Option<String> {
     let value: Value = serde_json::from_slice(body).ok()?;
     serde_json::to_string(&Masked {
         // The root has no key to gate on — a bare scalar or an array of scalars must not be
         // revealed just because nothing named it. An object re-decides per key immediately.
         value: &value,
         keys,
+        at: None,
         mask: true,
     })
     .ok()
@@ -289,22 +456,28 @@ fn mask_json(body: &[u8], keys: &HashSet<Box<str>>) -> Option<String> {
 
 /// Rebuild a tag, masking attribute values whose name is not allowed. Values are unescaped first
 /// because `push_attribute` re-escapes.
-fn mask_attributes(tag: &BytesStart<'_>, keys: &HashSet<Box<str>>) -> BytesStart<'static> {
+///
+/// `xmlns:*` declarations get no exemption. They were once passed through untouched, reasoning
+/// that masking them breaks prefix resolution and that they never carry secrets — but the name is
+/// gateway-controlled, so `xmlns:cardnumber="<PAN>"` sailed past the denylist with an empty
+/// allowlist. A masked namespace URI costs nothing here: this output is a diagnostic artefact that
+/// nothing re-parses.
+fn mask_attributes(tag: &BytesStart<'_>, keys: &MaskKeys) -> BytesStart<'static> {
     let name = String::from_utf8_lossy(tag.name().as_ref()).into_owned();
     let mut rebuilt = BytesStart::new(name);
     for attribute in tag.attributes().flatten() {
         let key = String::from_utf8_lossy(attribute.key.as_ref()).into_owned();
-        if is_namespace_declaration(&key) || allowed(keys, &key) {
+        if allowed(keys, &key, false) {
             let value = attribute.unescape_value().unwrap_or_default();
-            rebuilt.push_attribute((key.as_str(), value.as_ref()));
+            rebuilt.push_attribute((emitted_key(&key), value.as_ref()));
         } else {
-            rebuilt.push_attribute((key.as_str(), MASKED));
+            rebuilt.push_attribute((emitted_key(&key), MASKED));
         }
     }
     rebuilt
 }
 
-fn mask_xml(body: &[u8], keys: &HashSet<Box<str>>) -> Option<String> {
+fn mask_xml(body: &[u8], keys: &MaskKeys) -> Option<String> {
     let text = std::str::from_utf8(body).ok()?;
     let mut reader = Reader::from_str(text);
     // Lenient: this is a diagnostic artefact, not a validator.
@@ -313,29 +486,51 @@ fn mask_xml(body: &[u8], keys: &HashSet<Box<str>>) -> Option<String> {
     let mut writer = Writer::new(Vec::new());
     // The element currently open; a Text/CData event belongs to it.
     let mut current: Option<String> = None;
+    // Elements still open, outermost first — the position a dotted entry pins.
+    let mut open: Vec<String> = Vec::new();
+    // Only the very first event may be a declaration; see the `Decl` arm.
+    let mut first_event = true;
+
+    // Whether a dotted entry names the element currently open.
+    fn pinned(keys: &MaskKeys, open: &[String]) -> bool {
+        keys.has_paths() && {
+            let segments: Vec<&str> = open.iter().map(String::as_str).collect();
+            keys.names_location(&segments)
+        }
+    }
 
     loop {
         match reader.read_event().ok()? {
             Event::Eof => break,
             Event::Start(tag) => {
-                current = Some(String::from_utf8_lossy(tag.name().as_ref()).into_owned());
+                let name = String::from_utf8_lossy(tag.name().as_ref()).into_owned();
+                open.push(name.clone());
+                current = Some(name);
                 writer
                     .write_event(Event::Start(mask_attributes(&tag, keys)))
                     .ok()?;
             }
             Event::Empty(tag) => {
+                // An empty element holds no text of its own, so anything following it belongs to
+                // the parent. Leaving `current` alone would attribute that text to this element's
+                // enclosing one: `<status>OK<pan/><PAN></status>` would inherit an allowed
+                // `status`. There is no parent name to fall back to, so mask.
+                current = None;
                 writer
                     .write_event(Event::Empty(mask_attributes(&tag, keys)))
                     .ok()?;
             }
             Event::End(tag) => {
                 current = None;
+                open.pop();
                 writer.write_event(Event::End(tag)).ok()?;
             }
             Event::Text(text) => {
                 // Whitespace between elements is layout, not data — never mask it.
                 let keep = text.iter().all(u8::is_ascii_whitespace)
-                    || current.as_deref().is_some_and(|name| allowed(keys, name));
+                    || current
+                        .as_deref()
+                        .is_some_and(|name| allowed(keys, name, pinned(keys, &open)));
                 if keep {
                     writer.write_event(Event::Text(text)).ok()?;
                 } else {
@@ -345,7 +540,10 @@ fn mask_xml(body: &[u8], keys: &HashSet<Box<str>>) -> Option<String> {
                 }
             }
             Event::CData(data) => {
-                if current.as_deref().is_some_and(|name| allowed(keys, name)) {
+                if current
+                    .as_deref()
+                    .is_some_and(|name| allowed(keys, name, pinned(keys, &open)))
+                {
                     writer.write_event(Event::CData(data)).ok()?;
                 } else {
                     writer
@@ -353,14 +551,19 @@ fn mask_xml(body: &[u8], keys: &HashSet<Box<str>>) -> Option<String> {
                         .ok()?;
                 }
             }
-            // The XML declaration is structural — version and encoding, never data.
-            Event::Decl(declaration) => {
+            // The XML declaration is structural — version and encoding, never data — but only the
+            // real one, at the top. `quick-xml` classifies *any* `<?xml …?>` as a declaration
+            // wherever it appears, and writes it through verbatim, so a gateway emitting
+            // `<r><?xml pan="<PAN>"?>` mid-document got a free pass. Later ones are dropped like
+            // any other processing instruction.
+            Event::Decl(declaration) if first_event => {
                 writer.write_event(Event::Decl(declaration)).ok()?;
             }
             // Comments are free text with no element name to gate on, so a gateway that echoes
             // the request into one would leak it. Keep the fact that a comment was there;
-            // discard what it said.
+            // discard what it said. Clears `current` for the same reason `Empty` does.
             Event::Comment(_) => {
+                current = None;
                 writer
                     .write_event(Event::Comment(BytesText::new(MASKED)))
                     .ok()?;
@@ -370,6 +573,7 @@ fn mask_xml(body: &[u8], keys: &HashSet<Box<str>>) -> Option<String> {
             // including a variant a future `quick-xml` adds — is dropped rather than forwarded.
             _ => {}
         }
+        first_event = false;
     }
 
     String::from_utf8(writer.into_inner()).ok()
@@ -386,23 +590,46 @@ fn mask_xml(body: &[u8], keys: &HashSet<Box<str>>) -> Option<String> {
 /// Deliberately all-or-nothing: a real form body with one valueless segment (`a=1&flag&b=2`) is
 /// stubbed whole rather than partly emitted. No gateway is known to send that shape, and losing a
 /// diagnostic is the cheaper failure here — relax it if one turns up.
+/// Bytes a form key may contain. Anything else — a space, comma, quote, brace, colon — means the
+/// body is prose, JSON or some other payload that merely happens to contain an `=`, and keys are
+/// emitted verbatim, so believing it would echo that payload in the clear.
+fn is_form_key_byte(byte: u8) -> bool {
+    byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-' | b'.' | b'[' | b']' | b'%' | b'+')
+}
+
+/// Longest key we will believe. Real form keys are short; a long unbroken run of key-legal bytes is
+/// a blob (base64, a JWT), not a key.
+const MAX_FORM_KEY_LEN: usize = 128;
+
 fn is_pair_shaped(body: &[u8]) -> bool {
-    let mut saw_pair = false;
+    // Tracks a pair with a *non-empty value*, not merely a pair. Base64 ends in `=` padding, which
+    // otherwise parses as one giant key with an empty value and gets echoed whole.
+    let mut saw_value = false;
     for segment in body.split(|byte| *byte == b'&') {
         // A trailing or doubled separator is not a pair either way.
         if segment.is_empty() {
             continue;
         }
-        match segment.iter().position(|byte| *byte == b'=') {
-            // No `=` at all, or nothing before it: no key to keep.
-            None | Some(0) => return false,
-            Some(_) => saw_pair = true,
+        // No `=` at all: no key to keep.
+        let Some(equals) = segment.iter().position(|byte| *byte == b'=') else {
+            return false;
+        };
+        let (key, value) = segment.split_at(equals);
+        if key.is_empty()
+            || key.len() > MAX_FORM_KEY_LEN
+            || !key.iter().all(|byte| is_form_key_byte(*byte))
+        {
+            return false;
+        }
+        // `value` still carries the `=` it was split on.
+        if value.len() > 1 {
+            saw_value = true;
         }
     }
-    saw_pair
+    saw_value
 }
 
-fn mask_form(body: &[u8], keys: &HashSet<Box<str>>) -> Option<String> {
+fn mask_form(body: &[u8], keys: &MaskKeys) -> Option<String> {
     // Some connectors (Fiuu) separate pairs with newlines rather than `&`. Left as-is, urlencoded
     // parsing folds the entire body into the first pair's value, so an allowlisted first key would
     // reveal every later line. Only literal newline bytes are rewritten, so a percent-encoded
@@ -426,11 +653,12 @@ fn mask_form(body: &[u8], keys: &HashSet<Box<str>>) -> Option<String> {
     let masked = pairs
         .into_iter()
         .map(|(key, value)| {
-            if allowed(keys, &key) {
-                (key, value)
+            let value = if allowed(keys, &key, false) {
+                value
             } else {
-                (key, MASKED.to_string())
-            }
+                MASKED.to_string()
+            };
+            (emitted_key(&key).to_string(), value)
         })
         .collect::<Vec<_>>();
     serde_urlencoded::to_string(masked).ok()
@@ -446,6 +674,13 @@ enum Format {
 
 /// Prefer the declared `Content-Type`; fall back to sniffing the first meaningful byte.
 fn detect(content_type: Option<&str>, body: &[u8]) -> Option<Format> {
+    let sniffed = match body.iter().find(|byte| !byte.is_ascii_whitespace()) {
+        Some(b'{' | b'[') => Format::Json,
+        Some(b'<') => Format::Xml,
+        Some(_) => Format::Form,
+        None => return None,
+    };
+
     if let Some(content_type) = content_type {
         let lowered = content_type.to_ascii_lowercase();
         if lowered.contains("json") {
@@ -455,16 +690,17 @@ fn detect(content_type: Option<&str>, body: &[u8]) -> Option<Format> {
             return Some(Format::Xml);
         }
         if lowered.contains("x-www-form-urlencoded") {
-            return Some(Format::Form);
+            // A declared form type does not override a body that plainly is not one. The form
+            // masker emits keys verbatim, so a gateway mislabelling its JSON or XML would
+            // otherwise get that body echoed in the clear.
+            return Some(match sniffed {
+                Format::Json | Format::Xml => sniffed,
+                Format::Form => Format::Form,
+            });
         }
     }
 
-    match body.iter().find(|byte| !byte.is_ascii_whitespace()) {
-        Some(b'{' | b'[') => Some(Format::Json),
-        Some(b'<') => Some(Format::Xml),
-        Some(_) => Some(Format::Form),
-        None => None,
-    }
+    Some(sniffed)
 }
 
 /// Mask `body` for `connector_name` and re-emit it in the same format.
@@ -501,6 +737,8 @@ pub fn mask_connector_response(
 }
 
 #[cfg(test)]
+// Tests assert, so they are exempt from the module's panic lints.
+#[allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing)]
 mod tests {
     use super::*;
 
@@ -553,10 +791,10 @@ mod tests {
     fn keys_for_splits_trims_and_lowercases() {
         let cfg = config(&[(PAYSAFE, " id , authCode ,, MerchantRefNum ")]);
         let keys = cfg.keys_for(PAYSAFE);
-        assert_eq!(keys.len(), 3);
-        assert!(keys.contains("id"));
-        assert!(keys.contains("authcode"));
-        assert!(keys.contains("merchantrefnum"));
+        assert_eq!(keys.names.len(), 3);
+        assert!(keys.names_key("id"));
+        assert!(keys.names_key("authcode"));
+        assert!(keys.names_key("merchantrefnum"));
     }
 
     #[test]
@@ -757,7 +995,11 @@ mod tests {
     }
 
     #[test]
-    fn xml_masks_attribute_values_and_keeps_namespaces() {
+    fn xml_masks_attribute_values_including_namespace_declarations() {
+        // Namespace declarations used to be passed through untouched, on the reasoning that they
+        // are structural and carry no data. The name is gateway-controlled, so that was a hole:
+        // see `xml_a_namespace_declaration_cannot_smuggle_a_value` below. The prefix is still
+        // visible; only the URI is masked, and nothing re-parses this output.
         let cfg = config(&[(ELAVON, "id")]);
         let out = mask_xml_body(
             &format!(r#"<root xmlns:s="urn:x"><item id="42" pan="{PAN}"/></root>"#),
@@ -765,7 +1007,7 @@ mod tests {
             &cfg,
         );
 
-        assert!(out.contains(r#"xmlns:s="urn:x""#), "namespace kept: {out}");
+        assert!(out.contains(r#"xmlns:s="***""#), "namespace masked: {out}");
         assert!(out.contains(r#"id="42""#));
         assert!(out.contains(r#"pan="***""#));
         assert!(!out.contains(PAN));
@@ -960,8 +1202,8 @@ mod tests {
 
         assert!(cfg.enabled);
         assert!(!cfg.log_to_span);
-        assert!(cfg.keys_for(PAYSAFE).contains("authcode"));
-        assert!(cfg.keys_for(ADYEN).contains("pspreference"));
+        assert!(cfg.keys_for(PAYSAFE).names_key("authcode"));
+        assert!(cfg.keys_for(ADYEN).names_key("pspreference"));
         assert!(cfg.keys_for("stripe").is_empty());
     }
 
@@ -1013,7 +1255,7 @@ mod tests {
     #[test]
     fn a_patch_takes_effect_without_any_rebuild_step() {
         let mut cfg = config(&[(PAYSAFE, "id")]);
-        assert!(cfg.keys_for(PAYSAFE).contains("id"));
+        assert!(cfg.keys_for(PAYSAFE).names_key("id"));
 
         cfg.apply(ConnectorResponseMaskingConfigPatch {
             enabled: None,
@@ -1026,7 +1268,210 @@ mod tests {
         });
 
         let keys = cfg.keys_for(PAYSAFE);
-        assert!(keys.contains("status"));
-        assert!(!keys.contains("id"), "stale key survived the patch");
+        assert!(keys.names_key("status"));
+        assert!(!keys.names_key("id"), "stale key survived the patch");
+    }
+
+    // -- bodies that are not really the format they were routed to ---------
+    //
+    // Keys are emitted verbatim, so believing a body is form-encoded when it is not echoes it.
+    // Each of these once came back in the clear with no configuration at all.
+
+    #[test]
+    fn prose_containing_an_equals_sign_is_not_a_form_body() {
+        let body = format!("Declined: card {PAN}, retry=true");
+        let out = mask_connector_response(body.as_bytes(), None, PAYSAFE, &config(&[])).unwrap();
+        assert!(!out.contains(PAN), "{out}");
+        assert_is_stub(&out, body.len());
+    }
+
+    #[test]
+    fn a_base64_blob_is_not_a_form_body() {
+        // The `=` padding satisfies "has a key and an `=`", so only a non-empty value tells the
+        // two apart. The blob decodes to a PAN, so asserting on the literal PAN is not enough.
+        let body = "eyJwYW4iOiI0MTExMTExMTExMTExMTExIn0=";
+        let out = mask_connector_response(body.as_bytes(), None, PAYSAFE, &config(&[])).unwrap();
+        assert!(!out.contains("eyJwYW4"), "blob echoed: {out}");
+        assert_is_stub(&out, body.len());
+    }
+
+    #[test]
+    fn a_declared_form_type_does_not_override_a_json_body() {
+        // A gateway mislabelling its own JSON must not route it to the masker that keeps keys.
+        let body = format!(r#"{{"pan":"{PAN}","sig":"a=b"}}"#);
+        let out = mask_connector_response(
+            body.as_bytes(),
+            Some("application/x-www-form-urlencoded"),
+            PAYSAFE,
+            &config(&[]),
+        )
+        .unwrap();
+        assert_eq!(out, r#"{"pan":"***","sig":"***"}"#);
+    }
+
+    #[test]
+    fn a_real_form_body_still_masks_as_a_form() {
+        // The guard above must not reject genuine form bodies — Fiuu's sync response shape.
+        let cfg = config(&[(FIUU, "status,tranid")]);
+        let out = mask_connector_response(
+            b"status=00&tranID=31530063&amount=1.00",
+            Some("application/x-www-form-urlencoded"),
+            FIUU,
+            &cfg,
+        )
+        .unwrap();
+        assert_eq!(out, "status=00&tranID=31530063&amount=***");
+    }
+
+    // -- data in key position ----------------------------------------------
+
+    #[test]
+    fn a_key_that_is_itself_card_data_is_masked() {
+        let body = format!(r#"{{"declines":{{"{PAN}":"expired"}}}}"#);
+        let out = mask_json_body(&body, PAYSAFE, &config(&[]));
+        assert!(!out.contains(PAN), "{out}");
+    }
+
+    // -- the denylist beats the configured list, for every entry -----------
+
+    #[test]
+    fn short_denylist_entries_survive_being_allowlisted() {
+        // `peachpayments` names its card-number field exactly `pan`, so this is the one that
+        // matters most. Each is exact-match: as substrings they would catch `company`,
+        // `shipping`, `acidic`.
+        for key in [
+            "pan", "iban", "bban", "pin", "ssn", "emv", "csc", "cid", "ksn", "jwt",
+        ] {
+            let out = mask_json_body(
+                &format!(r#"{{"{key}":"{PAN}"}}"#),
+                PAYSAFE,
+                &config(&[(PAYSAFE, key)]),
+            );
+            assert_eq!(out, format!(r#"{{"{key}":"***"}}"#), "`{key}` was revealed");
+        }
+    }
+
+    #[test]
+    fn spelling_variants_of_card_fields_survive_being_allowlisted() {
+        for key in [
+            "card_no",
+            "cardNo",
+            "expiry_month",
+            "expiry_year",
+            "expirationDate",
+            "track2",
+            "trackData",
+            "securityCode",
+            "routingNumber",
+            "sortCode",
+            "pinBlock",
+            "hmac",
+        ] {
+            let out = mask_json_body(
+                &format!(r#"{{"{key}":"{PAN}"}}"#),
+                PAYSAFE,
+                &config(&[(PAYSAFE, key)]),
+            );
+            assert!(!out.contains(PAN), "`{key}` was revealed: {out}");
+        }
+    }
+
+    // -- XML holes ---------------------------------------------------------
+
+    #[test]
+    fn xml_a_namespace_declaration_cannot_smuggle_a_value() {
+        // The attribute *name* is gateway-controlled, so passing `xmlns:*` through untouched let
+        // it carry anything with an empty allowlist.
+        let out = mask_xml_body(
+            &format!(r#"<r xmlns:cardnumber="{PAN}"><a>x</a></r>"#),
+            ELAVON,
+            &config(&[]),
+        );
+        assert!(!out.contains(PAN), "{out}");
+    }
+
+    #[test]
+    fn xml_only_a_leading_declaration_is_written_through() {
+        // quick-xml calls any `<?xml …?>` a declaration wherever it appears, and declarations are
+        // emitted verbatim while processing instructions are dropped.
+        let out = mask_xml_body(
+            &format!(r#"<r><?xml pan="{PAN}"?><a>b</a></r>"#),
+            ELAVON,
+            &config(&[]),
+        );
+        assert!(!out.contains(PAN), "{out}");
+
+        // The real one, at the top, still survives.
+        let leading = mask_xml_body(
+            &format!(r#"<?xml version="1.0"?><txn><a>{PAN}</a></txn>"#),
+            ELAVON,
+            &config(&[]),
+        );
+        assert!(
+            leading.starts_with("<?xml"),
+            "declaration dropped: {leading}"
+        );
+        assert!(!leading.contains(PAN));
+    }
+
+    #[test]
+    fn xml_text_after_a_self_closing_tag_does_not_inherit_the_parent() {
+        // `<pan/>` and `<pan></pan>` carry the same data; both must mask what follows.
+        let cfg = config(&[(ELAVON, "status")]);
+        let empty = mask_xml_body(&format!("<status>OK<pan/>{PAN}</status>"), ELAVON, &cfg);
+        assert!(!empty.contains(PAN), "self-closing sibling leaked: {empty}");
+
+        let paired = mask_xml_body(
+            &format!("<status>OK<pan></pan>{PAN}</status>"),
+            ELAVON,
+            &cfg,
+        );
+        assert!(!paired.contains(PAN), "paired sibling leaked: {paired}");
+    }
+
+    // -- allowlist semantics: bare name vs dotted path ---------------------
+
+    #[test]
+    fn a_bare_entry_unmasks_that_name_at_any_depth() {
+        let body = r#"{"z":"1","a":{"z":"2","y":"3"},"b":[{"z":"4"}]}"#;
+        assert_eq!(
+            mask_json_body(body, PAYSAFE, &config(&[(PAYSAFE, "z")])),
+            r#"{"z":"1","a":{"z":"2","y":"***"},"b":[{"z":"4"}]}"#
+        );
+    }
+
+    #[test]
+    fn a_dotted_entry_unmasks_only_that_location() {
+        let body = r#"{"z":"1","a":{"z":"2","y":"3"},"b":[{"z":"4"}]}"#;
+        assert_eq!(
+            mask_json_body(body, PAYSAFE, &config(&[(PAYSAFE, "a.z")])),
+            r#"{"z":"***","a":{"z":"2","y":"***"},"b":[{"z":"***"}]}"#
+        );
+    }
+
+    #[test]
+    fn a_dotted_entry_also_matches_a_literal_dotted_key_name() {
+        // Adyen returns `bankAccount.iban` and `retry.attempt1.rawResponse` as flat key names,
+        // not as nesting, so an entry that pins no path must still be able to name one.
+        let body = r#"{"additionalData":{"retry.attempt1.acquirer":"acq","authCode":"1234"}}"#;
+        let out = mask_json_body(
+            body,
+            PAYSAFE,
+            &config(&[(PAYSAFE, "retry.attempt1.acquirer")]),
+        );
+        assert!(out.contains(r#""retry.attempt1.acquirer":"acq""#), "{out}");
+        assert!(out.contains(r#""authCode":"***""#), "{out}");
+    }
+
+    #[test]
+    fn a_dotted_entry_resolves_as_a_path_when_one_exists() {
+        let body = r#"{"additionalData":{"authCode":"1234","other":"x"}}"#;
+        let out = mask_json_body(
+            body,
+            PAYSAFE,
+            &config(&[(PAYSAFE, "additionaldata.authcode")]),
+        );
+        assert!(out.contains(r#""authCode":"1234""#), "{out}");
+        assert!(out.contains(r#""other":"***""#), "{out}");
     }
 }
