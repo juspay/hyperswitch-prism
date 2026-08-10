@@ -30,6 +30,9 @@ buffer_limit = 100000
 "category" = { value = "INCOMING_API" }
 "schema_version" = { value = "V2" }
 "tag" = { value = "euler_logs" }
+# euler sends the tenant NAME as x-tenant-id (span `tenant_id`); relabel it to `tenant_name`.
+# euler overrides the real `tenant_id` (uuid) per-request via x-config-override.
+"tenant_name" = { source = "tenant_id" }
 "api_details.url" = { source = "uri" }
 "api_details.method" = { source = "action" }
 "api_details.res_code" = { source = "status_code" }
@@ -46,6 +49,7 @@ buffer_limit = 100000
 "category" = { value = "OUTGOING_API" }
 "schema_version" = { value = "V2" }
 "tag" = { value = "euler_logs" }
+"tenant_name" = { source = "tenant_id" }
 "api_details.url" = { source = "request.url" }
 "api_details.method" = { source = "request.method" }
 "api_details.req_headers" = { source = "request.headers" }
