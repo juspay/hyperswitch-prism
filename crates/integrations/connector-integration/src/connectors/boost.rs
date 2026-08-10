@@ -539,38 +539,41 @@ crate::connectors::macros::macro_connector_payout_implementation!(
 
 // ===== FLOW STATUS IMPLEMENTATIONS =====
 // Emits marker-trait impls AND stub ConnectorIntegrationV2 impls for every
-// flow listed. Each stub's get_url returns
-// IntegrationError::connector_flow_not_implemented(...).
+// flow listed. `not_implemented` surfaces connector_flow_not_implemented
+// (BCPG documents an API for this, it's just out of scope for this pass);
+// `not_supported` surfaces connector_flow_not_supported (BCPG's documented
+// API has no equivalent concept at all).
 //
 // Authorize, PSync, Refund, and RSync are implemented for real above (card-3DS
-// redirect flow) and therefore removed from this list. Capture and Void are
-// intentionally out of scope for this pass — BCPG has no documented capture
-// split (payments auto-capture on completion) and Void is deferred.
+// redirect flow) and therefore appear in neither list.
 crate::connectors::macros::macro_connector_flow_status_impls!(
     connector: Boost,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     not_implemented: [
-        Accept,
-        ClientAuthenticationToken,
+        // Same /v1/reversals endpoint as Refund; deferred to a follow-up.
+        Void,
         CreateConnectorCustomer,
         GetConnectorCustomer,
-        DefendDispute,
-        MandateRevoke,
-        Authenticate,
+        PaymentMethodToken,
+        SetupMandate,
+        RepeatPayment,
+        MandateRevoke
+    ],
+    not_supported: [
         Capture,
+        VoidPC,
+        VoidPostRefund,
         IncrementalAuthorization,
         CreateOrder,
-        PostAuthenticate,
+        Authenticate,
         PreAuthenticate,
-        PaymentMethodToken,
-        VoidPC,
-        Void,
-        VoidPostRefund,
-        RepeatPayment,
+        PostAuthenticate,
         ServerAuthenticationToken,
         ServerSessionAuthenticationToken,
-        SetupMandate,
-        SubmitEvidence
+        ClientAuthenticationToken,
+        Accept,
+        SubmitEvidence,
+        DefendDispute
     ],
 );

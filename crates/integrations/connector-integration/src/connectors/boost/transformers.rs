@@ -1,5 +1,5 @@
 use base64::Engine;
-use common_enums::{AttemptStatus, RefundStatus};
+use common_enums::{AttemptStatus, Currency, RefundStatus};
 use common_utils::{
     crypto::{self, SignMessage},
     date_time,
@@ -236,7 +236,7 @@ pub struct BoostPaymentInitRequest {
     #[serde(rename = "referenceId")]
     pub reference_id: String,
     pub amount: FloatMajorUnit,
-    pub currency: String,
+    pub currency: Currency,
     pub created: String,
     pub description: String,
     #[serde(rename = "paymentMethod", skip_serializing_if = "Option::is_none")]
@@ -355,7 +355,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .connector_request_reference_id
                 .clone(),
             amount,
-            currency: item.router_data.request.currency.to_string(),
+            currency: item.router_data.request.currency,
             created,
             description,
             payment_method: Some(BOOST_PAYMENT_METHOD_CARD.to_string()),
@@ -461,7 +461,7 @@ pub struct BoostReversalRequest {
     #[serde(rename = "paymentUuid")]
     pub payment_uuid: String,
     pub amount: FloatMajorUnit,
-    pub currency: String,
+    pub currency: Currency,
     pub created: String,
 }
 
@@ -507,7 +507,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             uuid: item.router_data.request.refund_id.clone(),
             payment_uuid: item.router_data.request.connector_transaction_id.clone(),
             amount,
-            currency: item.router_data.request.currency.to_string(),
+            currency: item.router_data.request.currency,
             created,
         })
     }
