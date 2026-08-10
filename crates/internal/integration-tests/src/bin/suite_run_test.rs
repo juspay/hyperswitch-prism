@@ -86,6 +86,7 @@ fn main() {
         plaintext: args.plaintext,
         backend: ExecutionBackend::Grpcurl,
         report: args.report,
+        skip_dependencies: false,
     };
 
     let mut report_entries = Vec::new();

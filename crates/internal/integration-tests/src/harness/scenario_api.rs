@@ -3365,6 +3365,7 @@ pub struct SuiteRunOptions<'a> {
     pub plaintext: bool,
     pub backend: ExecutionBackend,
     pub report: bool,
+    pub skip_dependencies: bool,
 }
 
 impl Default for SuiteRunOptions<'_> {
@@ -3376,6 +3377,7 @@ impl Default for SuiteRunOptions<'_> {
             plaintext: true,
             backend: ExecutionBackend::Grpcurl,
             report: false,
+            skip_dependencies: false,
         }
     }
 }
@@ -3410,32 +3412,36 @@ pub fn run_scenario_test_with_options(
     let mut passed = 0usize;
     let mut failed = 0usize;
 
-    let dependency_chain = execute_dependency_chain(
-        &target_suite_spec.depends_on,
-        connector,
-        options,
-        target_suite_spec.strict_dependencies,
-        &mut passed,
-        &mut failed,
-        &mut results,
-    )?;
-
-    let Some((
+    let (
         dependency_reqs,
         dependency_res,
         dependency_labels,
         explicit_context_entries,
         dependency_entries,
-    )) = dependency_chain
-    else {
-        return Ok(SuiteRunSummary {
-            suite: suite.to_string(),
-            connector: connector.to_string(),
-            passed,
-            failed,
-            skipped: 0,
-            results,
-        });
+    ) = if options.skip_dependencies {
+        (Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new())
+    } else {
+        let dependency_chain = execute_dependency_chain(
+            &target_suite_spec.depends_on,
+            connector,
+            options,
+            target_suite_spec.strict_dependencies,
+            &mut passed,
+            &mut failed,
+            &mut results,
+        )?;
+
+        let Some(context) = dependency_chain else {
+            return Ok(SuiteRunSummary {
+                suite: suite.to_string(),
+                connector: connector.to_string(),
+                passed,
+                failed,
+                skipped: 0,
+                results,
+            });
+        };
+        context
     };
 
     match execute_single_scenario_with_context(

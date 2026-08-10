@@ -17,6 +17,7 @@
 #   --interface grpc|sdk  Execution interface (default: grpc)
 #   --endpoint <addr>     Override gRPC endpoint (default: localhost:8000)
 #   --report              Write report.json + markdown test_report/ files
+#   --skip-dependencies   Run only the selected scenario without suite dependencies
 #   --no-server           Do not start/stop the gRPC server automatically
 #   --setup               Force re-run of the one-time setup wizard
 #   --skip-setup          Skip setup check entirely (assume setup is done)
@@ -112,7 +113,7 @@ while [[ $# -gt 0 ]]; do
       CARGO_EXTRA_FLAGS+=("$1" "${2:?$1 requires a value}")
       shift 2
       ;;
-    --all-connectors)
+    --all-connectors|--skip-dependencies)
       CARGO_EXTRA_FLAGS+=("$1")
       shift
       ;;
