@@ -5885,7 +5885,7 @@ message ConnectorSpecificConfig {
     // MAYA = 134
     MayaConfig maya = 143;
     // BOOST = 135
-    BoostConfig boost = 142;
+    BoostConfig boost = 144;
   }
 }
 
