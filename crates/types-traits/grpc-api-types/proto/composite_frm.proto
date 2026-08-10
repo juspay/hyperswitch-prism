@@ -49,8 +49,8 @@ message CompositeFrmPreRiskCheckRequest {
   // Order details
   repeated OrderDetailsWithAmount order_details = 6;
 
-  // Address information
-  optional Address address = 7;
+  // Billing / shipping address information
+  optional PaymentAddress payment_address = 7;
 
   // Additional metadata for the connector
   optional SecretString metadata = 8;
@@ -122,6 +122,9 @@ message CompositeFrmPostRiskCheckRequest {
 
   // Per-request idempotency / correlation token propagated from the parent composite request
   optional string merchant_request_id = 14;
+
+  // Billing / shipping address information
+  optional PaymentAddress payment_address = 15;
 }
 
 // ============================================================================

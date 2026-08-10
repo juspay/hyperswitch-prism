@@ -8582,6 +8582,11 @@ impl ForeignTryFrom<router_response_types::RedirectForm>
                     grpc_api_types::payments::HtmlData { html_data },
                 )),
             }),
+            router_response_types::RedirectForm::Script { script_data } => Ok(Self {
+                form_type: Some(grpc_api_types::payments::redirect_form::FormType::Script(
+                    grpc_api_types::payments::ScriptData { script_data },
+                )),
+            }),
             router_response_types::RedirectForm::Uri { uri } => Ok(Self {
                 form_type: Some(grpc_api_types::payments::redirect_form::FormType::Uri(
                     grpc_api_types::payments::UriData { uri },
@@ -12088,6 +12093,15 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                                     form_type: Some(
                                         grpc_api_types::payments::redirect_form::FormType::Html(
                                             grpc_api_types::payments::HtmlData { html_data },
+                                        ),
+                                    ),
+                                })
+                            }
+                            router_response_types::RedirectForm::Script { script_data } => {
+                                Ok(grpc_api_types::payments::RedirectForm {
+                                    form_type: Some(
+                                        grpc_api_types::payments::redirect_form::FormType::Script(
+                                            grpc_api_types::payments::ScriptData { script_data },
                                         ),
                                     ),
                                 })
@@ -16468,6 +16482,15 @@ pub fn generate_payment_pre_authenticate_response<T: PaymentMethodDataTypes>(
                                 ),
                             })
                         }
+                        router_response_types::RedirectForm::Script { script_data } => {
+                            Ok(grpc_api_types::payments::RedirectForm {
+                                form_type: Some(
+                                    grpc_api_types::payments::redirect_form::FormType::Script(
+                                        grpc_api_types::payments::ScriptData { script_data },
+                                    ),
+                                ),
+                            })
+                        }
                         router_response_types::RedirectForm::Uri { uri } => {
                             Ok(grpc_api_types::payments::RedirectForm {
                                 form_type: Some(
@@ -16688,6 +16711,15 @@ pub fn generate_payment_authenticate_response<T: PaymentMethodDataTypes>(
                                 form_type: Some(
                                     grpc_api_types::payments::redirect_form::FormType::Html(
                                         grpc_api_types::payments::HtmlData { html_data },
+                                    ),
+                                ),
+                            })
+                        }
+                        router_response_types::RedirectForm::Script { script_data } => {
+                            Ok(grpc_api_types::payments::RedirectForm {
+                                form_type: Some(
+                                    grpc_api_types::payments::redirect_form::FormType::Script(
+                                        grpc_api_types::payments::ScriptData { script_data },
                                     ),
                                 ),
                             })

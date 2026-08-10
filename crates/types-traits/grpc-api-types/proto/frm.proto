@@ -42,8 +42,8 @@ message FrmServicePreRiskCheckRequest {
   // Order details
   repeated OrderDetailsWithAmount order_details = 6;
 
-  // Address information
-  optional Address address = 7;
+  // Billing / shipping address information
+  optional PaymentAddress payment_address = 7;
 
   // Additional metadata for the connector
   optional SecretString metadata = 8;
@@ -133,6 +133,9 @@ message FrmServicePostRiskCheckRequest {
 
   // State Information
   optional ConnectorState state = 12;
+
+  // Billing / shipping address information
+  optional PaymentAddress payment_address = 13;
 }
 
 // Response for FrmService.PostRiskCheck

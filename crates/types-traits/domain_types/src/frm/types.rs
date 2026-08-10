@@ -10,7 +10,7 @@ use crate::{
     },
     errors::IntegrationError,
     mandates::MandateAmountData,
-    payment_address::{Address, OrderDetailsWithAmount, PaymentAddress},
+    payment_address::{OrderDetailsWithAmount, PaymentAddress},
     router_request_types::BrowserInformation,
     types::{Connectors, PaymentMethodDataAction},
     utils::{extract_merchant_id_from_metadata, ForeignFrom, ForeignTryFrom},
@@ -289,18 +289,14 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePreRiskCheckRequest> for PreR
             })?;
 
         let address = value
-            .address
-            .map(|grpc_address| {
-                Address::foreign_try_from(grpc_address).map(|address| {
-                    PaymentAddress::new(None, Some(address.clone()), Some(address), Some(false))
-                })
-            })
+            .payment_address
+            .map(PaymentAddress::foreign_try_from)
             .transpose()
             .change_context(IntegrationError::InvalidDataFormat {
-                field_name: "address",
+                field_name: "payment_address",
                 context: crate::errors::IntegrationErrorContext {
                     additional_context: Some(
-                        "Failed to parse address in pre-risk check".to_owned(),
+                        "Failed to parse payment_address in pre-risk check".to_owned(),
                     ),
                     ..Default::default()
                 },
@@ -436,6 +432,20 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePostRiskCheckRequest> for Pos
                 },
             })?;
 
+        let address = value
+            .payment_address
+            .map(PaymentAddress::foreign_try_from)
+            .transpose()
+            .change_context(IntegrationError::InvalidDataFormat {
+                field_name: "payment_address",
+                context: crate::errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to parse payment_address in post-risk check".to_owned(),
+                    ),
+                    ..Default::default()
+                },
+            })?;
+
         Ok(Self {
             amount: Money {
                 amount: MinorUnit::new(amount.minor_amount),
@@ -451,6 +461,7 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePostRiskCheckRequest> for Pos
             payment_status,
             connector_transaction_id: value.connector_transaction_id,
             payment_connector,
+            address,
         })
     }
 }
@@ -574,6 +585,7 @@ impl ForeignTryFrom<grpc_api_types::payments::FrmNotificationContent> for FrmPay
             merchant_transaction_id: payment_details.merchant_transaction_id,
             frm_decision,
             merchant_details: value.merchant_details.map(MerchantDetails::foreign_from),
+            connector_feature_data: value.connector_feature_data,
         })
     }
 }
