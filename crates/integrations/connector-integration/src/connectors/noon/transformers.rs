@@ -363,6 +363,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::CashfreeRedirect(_)
                 | WalletData::PayURedirect(_)
                 | WalletData::EaseBuzzRedirect(_)
+                | WalletData::PaymayaRedirect(_)
                 | WalletData::QwikcilverWalletDirect(_)
                 | WalletData::Skrill(_) => {
                     Err(error_stack::report!(IntegrationError::NotSupported {
@@ -968,6 +969,7 @@ impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
                 connector_refund_id: item.response.result.transaction.id,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             })
         };
         Ok(Self {
@@ -1036,6 +1038,7 @@ impl<F> TryFrom<ResponseRouterData<RefundSyncResponse, Self>>
                 connector_refund_id: noon_transaction.id.to_owned(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             })
         };
         Ok(Self {
@@ -1266,6 +1269,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         | WalletData::CashfreeRedirect(_)
                         | WalletData::PayURedirect(_)
                         | WalletData::EaseBuzzRedirect(_)
+                        | WalletData::PaymayaRedirect(_)
                         | WalletData::QwikcilverWalletDirect(_)
                         | WalletData::Skrill(_) => {
                             Err(error_stack::report!(IntegrationError::NotSupported {

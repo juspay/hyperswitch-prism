@@ -468,7 +468,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::PayURedirect(_)
                 | WalletData::EaseBuzzRedirect(_)
                 | WalletData::QwikcilverWalletDirect(_)
-                | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
+                | WalletData::Skrill(_)
+                | WalletData::PaymayaRedirect(_) => Err(IntegrationError::NotImplemented(
                     domain_types::utils::get_unimplemented_payment_method_error_message(
                         "Datatrans",
                     ),
@@ -1589,6 +1590,7 @@ impl TryFrom<ResponseRouterData<DatatransRefundResponse, Self>>
             connector_refund_id: item.response.transaction_id.clone(),
             refund_status: RefundStatus::Success, // 200 response indicates successful refund
             status_code: item.http_code,
+            acquirer_reference_number: None,
         };
 
         Ok(Self {
@@ -1688,6 +1690,7 @@ impl TryFrom<ResponseRouterData<DatatransRefundSyncResponse, Self>>
             connector_refund_id: response.transaction_id.clone(),
             refund_status,
             status_code: item.http_code,
+            acquirer_reference_number: None,
         };
 
         Ok(Self {

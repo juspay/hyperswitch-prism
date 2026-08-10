@@ -979,6 +979,7 @@ impl TryFrom<common_enums::PaymentMethodType> for StripePaymentMethodType {
             | common_enums::PaymentMethodType::Paysera
             | common_enums::PaymentMethodType::Tamara
             | common_enums::PaymentMethodType::Netbanking
+            | common_enums::PaymentMethodType::Paymaya
             | common_enums::PaymentMethodType::QwikcilverWallet => {
                 Err(IntegrationError::NotImplemented(
                     get_unimplemented_payment_method_error_message("stripe"),
@@ -1285,6 +1286,7 @@ fn get_stripe_payment_method_type_from_wallet_data(
         | WalletData::CashfreeRedirect(_)
         | WalletData::PayURedirect(_)
         | WalletData::EaseBuzzRedirect(_)
+        | WalletData::PaymayaRedirect(_)
         | WalletData::QwikcilverWalletDirect(_)
         | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
             get_unimplemented_payment_method_error_message("stripe"),
@@ -1628,7 +1630,10 @@ fn get_stripe_card_network(card_network: common_enums::CardNetwork) -> Option<St
         | common_enums::CardNetwork::Star
         | common_enums::CardNetwork::Accel
         | common_enums::CardNetwork::Pulse
-        | common_enums::CardNetwork::Nyce => None,
+        | common_enums::CardNetwork::Nyce
+        | common_enums::CardNetwork::Prop
+        | common_enums::CardNetwork::PrivateLabel
+        | common_enums::CardNetwork::Dinacard => None,
     }
 }
 
@@ -1775,6 +1780,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> TryF
             | WalletData::CashfreeRedirect(_)
             | WalletData::PayURedirect(_)
             | WalletData::EaseBuzzRedirect(_)
+            | WalletData::PaymayaRedirect(_)
             | WalletData::QwikcilverWalletDirect(_)
             | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),
@@ -4093,6 +4099,7 @@ pub(crate) fn get_webhook_reference(
                 connector_refund_id,
                 merchant_refund_id,
                 connector_transaction_id: event_object.payment_intent.clone(),
+                merchant_transaction_id: None,
             })
         }
     };
@@ -4193,7 +4200,8 @@ pub(crate) fn build_webhook_payment_response(
     Ok(WebhookDetailsResponse {
         resource_id: connector_transaction_id.map(ResponseId::ConnectorTransactionId),
         status,
-        connector_response_reference_id,
+        connector_response_reference_id: connector_response_reference_id.clone(),
+        connector_request_reference_id: connector_response_reference_id,
         mandate_reference: None,
         error_code,
         error_message,
@@ -4897,6 +4905,7 @@ impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
                 connector_refund_id: item.response.id,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             })
         };
 
@@ -4958,6 +4967,7 @@ impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
                 connector_refund_id: item.response.id,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             })
         };
 
@@ -5912,6 +5922,7 @@ impl<F, T> TryFrom<ResponseRouterData<StripeTokenResponse, Self>>
             response: Ok(PaymentMethodTokenResponse {
                 token,
                 connector_payment_method_id: None,
+                status_code: item.http_code,
             }),
             ..item.router_data
         })

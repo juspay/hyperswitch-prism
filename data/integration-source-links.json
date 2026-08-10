@@ -77,6 +77,19 @@
     "https://developer.peachpayments.com/docs/reference-webhooks",
     "https://peachpayments.docs.oppwa.com/reference/parameters"
   ],
+  "Maya": [
+    "https://developers.maya.ph/reference/one-time-payment-using-maya-wallet",
+    "https://developers.maya.ph/reference/createv2singlepayment",
+    "https://developers.maya.ph/reference/getpaymentstatusviapaymentid-1",
+    "https://developers.maya.ph/reference/cancelv1paymentviaidviapostmethod",
+    "https://developers.maya.ph/reference/receive-real-time-payment-information-using-webhooks",
+    "https://developers.maya.ph/reference/basic-authentication",
+    "https://developers.maya.ph/reference/payment-errors",
+    "https://developers.maya.ph/reference/authentication-and-api-key-error",
+    "https://developers.maya.ph/reference/payment-related-errors",
+    "https://developers.maya.ph/reference/payment-statuses",
+    "https://developers.maya.ph/reference/voids-and-refunds"
+  ],
   "WORLDPAYXML": [
     "http://dtd.worldpay.com/v1/ElemList.html",
     "http://dtd.worldpay.com/v1/paymentService_v1.dtd.html",

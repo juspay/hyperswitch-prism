@@ -210,6 +210,7 @@ mod tests {
                     attempt_id: "attempt_test".to_owned(),
                     status: common_enums::AttemptStatus::Pending,
                     payment_method: common_enums::PaymentMethod::BankDebit,
+                    payment_method_type: None,
                     description: None,
                     return_url: None,
                     order_details: None,
@@ -369,6 +370,7 @@ mod tests {
                     attempt_id: "attempt_test".to_owned(),
                     status: common_enums::AttemptStatus::Pending,
                     payment_method: common_enums::PaymentMethod::BankDebit,
+                    payment_method_type: None,
                     description: None,
                     return_url: None,
                     order_details: None,
@@ -452,6 +454,7 @@ mod tests {
                 numbers,
                 item: PlaidItem {
                     item_id: "item_001".to_owned(),
+                    institution_name: Some("Test Bank".to_owned()),
                 },
                 request_id: "req_001".to_owned(),
             };

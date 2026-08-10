@@ -23,6 +23,7 @@ connector_request_timeout = 30
 bypass_urls = ["localhost", "local"]
 
 [connectors]
+maya.base_url = "https://pg-sandbox.paymaya.com"
 tesouro.base_url = "https://api.sandbox.tesouro.com"
 kount.base_url = "https://api-sandbox.kount.com"
 kount.secondary_base_url = "https://login.kount.com"
@@ -134,6 +135,7 @@ truelayer.secondary_base_url = "https://auth.truelayer-sandbox.com"
 itaubank.base_url = "https://sandbox.devportal.itau.com.br"
 deutschebank.base_url = "https://api.sbx.baas.db.com"
 deutschebank.server_ca_bundle = ""
+santander.base_url = "https://trust-open-h.api.santander.com.br"
 trustly.base_url = "https://test.trustly.com/api/1"
 pinelabs_online.base_url = "https://pluraluat.v2.pinepg.in/api/pay/v1"
 easebuzz.base_url = "https://testpay.easebuzz.in"

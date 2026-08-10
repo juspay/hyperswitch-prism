@@ -13,7 +13,7 @@ use domain_types::{
         ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
         SetupMandateRequestData,
     },
-    errors::{ConnectorError, IntegrationError, WebhookError},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext, WebhookError},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{
         BankDebitData, DefaultPCIHolder, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
@@ -381,6 +381,42 @@ pub enum AccountType {
     BusinessChecking,
 }
 
+impl
+    TryFrom<(
+        Option<common_enums::BankType>,
+        Option<common_enums::BankHolderType>,
+    )> for AccountType
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        (bank_type, bank_holder_type): (
+            Option<common_enums::BankType>,
+            Option<common_enums::BankHolderType>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        match bank_type {
+            Some(common_enums::BankType::Savings) => Ok(Self::Savings),
+            Some(common_enums::BankType::Checking) | None => {
+                if let Some(common_enums::BankHolderType::Business) = bank_holder_type {
+                    Ok(Self::BusinessChecking)
+                } else {
+                    Ok(Self::Checking)
+                }
+            }
+            Some(bank) => Err(error_stack::report!(IntegrationError::NotSupported {
+                message: format!("Bank type {bank:?} is not supported by authorizedotnet"),
+                connector: "authorizedotnet",
+                context: IntegrationErrorContext {
+                    suggested_action: Some("Provide a valid bank account type".to_owned()),
+                    additional_context: None,
+                    doc_url: None,
+                },
+            })),
+        }
+    }
+}
+
 #[skip_serializing_none]
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -664,13 +700,8 @@ fn create_regular_transaction_request<
 
                     // Map bank_type and bank_holder_type to AccountType
                     // Business accounts with checking should use BusinessChecking
-                    let account_type = match (bank_type, bank_holder_type) {
-                        (Some(common_enums::BankType::Savings), _) => AccountType::Savings,
-                        (_, Some(common_enums::BankHolderType::Business)) => {
-                            AccountType::BusinessChecking
-                        }
-                        _ => AccountType::Checking
-};
+                    let account_type =
+                        AccountType::try_from((*bank_type, *bank_holder_type))?;
 
                     let bank_account_details = BankAccountDetails {
                         account_type,
@@ -2284,6 +2315,7 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetRefundResponse, Self>>
                 connector_refund_id: transaction_response.transaction_id.clone(),
                 refund_status,
                 status_code: http_code,
+                acquirer_reference_number: None,
             }),
         };
 
@@ -2910,6 +2942,7 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetRSyncResponse, Self>>
                     connector_refund_id: transaction.transaction_id,
                     refund_status,
                     status_code: http_code,
+                    acquirer_reference_number: None,
                 });
 
                 Ok(new_router_data)

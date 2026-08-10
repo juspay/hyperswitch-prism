@@ -685,7 +685,8 @@ fn wallet_to_juspay(
         | WalletData::Wero(_)
         | WalletData::Paze(_)
         | WalletData::QwikcilverWalletDirect(_)
-        | WalletData::Skrill(_) => Err(error_stack::report!(
+        | WalletData::Skrill(_)
+        | WalletData::PaymayaRedirect(_) => Err(error_stack::report!(
             errors::IntegrationError::NotImplemented(
                 format!("Juspay wallet variant not supported: {wallet:?}"),
                 Default::default(),
@@ -1208,6 +1209,7 @@ impl TryFrom<ResponseRouterData<JuspayRefundResponse, Self>>
                 connector_refund_id,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,
@@ -1263,6 +1265,7 @@ impl TryFrom<ResponseRouterData<JuspayRefundSyncResponse, Self>>
                 connector_refund_id: resolved_refund_id,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,

@@ -225,6 +225,8 @@ pub enum BankType {
     Current,
     Bond,
     SubscriptionShare,
+    Salary,
+    Payment,
 }
 
 #[derive(
@@ -1128,6 +1130,7 @@ pub enum PaymentMethodType {
     IndonesianBankTransfer,
     Skrill,
     Paysera,
+    Paymaya,
     QwikcilverWallet,
 }
 
@@ -1188,6 +1191,8 @@ pub enum RefundStatus {
     Success,
     #[serde(alias = "TransactionFailure")]
     TransactionFailure,
+    #[serde(alias = "Unknown")]
+    Unknown,
 }
 
 #[derive(
@@ -1614,6 +1619,12 @@ pub enum CardNetwork {
     Accel,
     #[serde(alias = "NYCE")]
     Nyce,
+    #[serde(alias = "PROP")]
+    Prop,
+    #[serde(alias = "PRIVATE LABEL")]
+    PrivateLabel,
+    #[serde(alias = "DINACARD")]
+    Dinacard,
 }
 
 impl CardNetwork {
@@ -1628,6 +1639,9 @@ impl CardNetwork {
                 | Self::Discover
                 | Self::CartesBancaires
                 | Self::UnionPay
+                | Self::Prop
+                | Self::PrivateLabel
+                | Self::Dinacard
         )
     }
 

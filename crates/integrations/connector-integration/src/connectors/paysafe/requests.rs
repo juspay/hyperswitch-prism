@@ -110,6 +110,17 @@ pub struct PaysafeSetupMandateRequest<T: PaymentMethodDataTypes> {
     pub three_ds: Option<ThreeDs>,
     pub profile: Option<PaysafeProfile>,
     pub billing_details: Option<PaysafeBillingDetails>,
+    /// Paysafe's escape hatch for accounts provisioned `THREE_D_S_TWO`: such an account
+    /// rejects a CARD payment handle that carries no `threeDs` block with
+    /// `5068 "threeDs may not be null or empty"`. Paysafe's own Google Pay request
+    /// examples send `skip3ds: true` for exactly this reason.
+    ///
+    /// Omitted entirely unless set, so the Skrill / Interac / PreAuthenticate bodies stay
+    /// byte-identical to the shadow-verified wire shape.
+    ///
+    /// NOTE the explicit rename: `rename_all = "camelCase"` would emit `skip3Ds`.
+    #[serde(rename = "skip3ds", skip_serializing_if = "Option::is_none")]
+    pub skip_3ds: Option<bool>,
 }
 
 /// PreAuthenticate (card + 3DS) reuses the payment-handle wire shape; a distinct alias keeps the
@@ -132,8 +143,11 @@ pub enum PaysafePaymentMethod<T: PaymentMethodDataTypes> {
         ach: PaysafeAch,
     },
     GooglePay {
+        // Boxed to keep this variant from dominating the enum's size: the decrypted token
+        // payload makes it far larger than the others. Mirrors `ApplePay` below. `Box` is
+        // transparent to serde, so the wire body is unchanged.
         #[serde(rename = "googlePay")]
-        google_pay: PaysafeGooglePay,
+        google_pay: Box<PaysafeGooglePay>,
     },
     ApplePay {
         #[serde(rename = "applePay")]
@@ -362,6 +376,11 @@ pub struct PaysafeGooglePayPaymentMethodDetails {
     pub expiration_year: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cryptogram: Option<Secret<String>>,
+    /// ECI indicator accompanying a network-token cryptogram. Paysafe defines it on the
+    /// `tokenWith3DS` schema, so it is only meaningful next to `CRYPTOGRAM_3DS`; a
+    /// `PAN_ONLY` token has none and the field is omitted.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub eci_indicator: Option<String>,
 }
 
 #[derive(Debug, Serialize, Clone, PartialEq)]

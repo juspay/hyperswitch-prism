@@ -341,6 +341,7 @@ impl TryFrom<&WalletData> for RazorpayWalletType {
             | WalletData::MbWay(_)
             | WalletData::Satispay(_)
             | WalletData::Wero(_)
+            | WalletData::PaymayaRedirect(_)
             | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
                 format!("Payment Method {wallet_data:?} not supported for Razorpay"),
                 Default::default(),
@@ -832,6 +833,7 @@ impl ForeignTryFrom<(RazorpayRefundResponse, Self, u16)>
             connector_refund_id: response.id,
             refund_status: status,
             status_code: http_code,
+            acquirer_reference_number: None,
         };
 
         Ok(Self {
@@ -859,6 +861,7 @@ impl ForeignTryFrom<(RazorpayRefundResponse, Self, u16)>
             connector_refund_id: response.id,
             refund_status: status,
             status_code: http_code,
+            acquirer_reference_number: None,
         };
 
         Ok(Self {

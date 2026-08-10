@@ -230,6 +230,9 @@ fn build_gpay_decrypted_tokenization_data(
             .get_card_no(),
     );
 
+    // Paysafe models the decrypted token as two distinct schemas: `tokenWith3DS`
+    // (CRYPTOGRAM_3DS + cryptogram + eciIndicator) and `panOnlyToken` (PAN_ONLY, no
+    // cryptogram field at all). Selecting on cryptogram presence maps onto them exactly.
     let auth_method = if decrypted_data.cryptogram.is_some() {
         PaysafeGooglePayAuthMethod::Cryptogram3Ds
     } else {
@@ -242,6 +245,11 @@ fn build_gpay_decrypted_tokenization_data(
         expiration_month,
         expiration_year,
         cryptogram: decrypted_data.cryptogram.clone(),
+        // Only carried by `tokenWith3DS`; a PAN_ONLY token has no ECI to send.
+        eci_indicator: decrypted_data
+            .cryptogram
+            .as_ref()
+            .and_then(|_| decrypted_data.eci_indicator.clone()),
     };
 
     // TODO(https://github.com/juspay/hyperswitch/issues/11684): HS parses
@@ -268,6 +276,62 @@ pub struct PaysafeMeta {
 }
 
 // Helper Functions
+
+/// Resolve `skip3ds` for a payment handle minted on the token (no-3DS) leg.
+///
+/// A Paysafe account provisioned `THREE_D_S_TWO` rejects any CARD payment handle that
+/// carries neither a `threeDs` block nor wallet-supplied authentication, with
+/// `5068 "threeDs may not be null or empty"`. This leg never sends `threeDs` — a card
+/// electing 3DS mints its handle in the PreAuthenticate flow instead — so the mandate has
+/// to be satisfied with `skip3ds`.
+///
+/// Wallets can never carry `threeDs`: Paysafe then applies card validation and demands
+/// `card.holderName`, but a `card` object may not coexist with `googlePay`/`applePay`
+/// ("exactly one payment method is required"). A wallet payment that carries no cryptogram
+/// therefore has no way to authenticate, so requesting `three_ds` on one cannot be honoured
+/// — that is rejected here rather than silently downgraded to `skip3ds`, which would skip
+/// SCA the merchant explicitly asked for.
+///
+/// Returns `None` (field omitted) wherever the current wire shape already succeeds:
+/// Apple Pay and Google Pay tokens that carry a cryptogram are authenticated by the wallet,
+/// and the redirect APMs are not subject to the card 3DS mandate.
+fn resolve_paysafe_skip_3ds<T: PaymentMethodDataTypes>(
+    payment_method_data: &PaymentMethodData<T>,
+    is_three_ds: bool,
+) -> Result<Option<bool>, error_stack::Report<IntegrationError>> {
+    match payment_method_data {
+        // This leg is the no-3DS card path by construction: a card electing 3DS mints its
+        // handle in PreAuthenticate, which sends a `threeDs` block instead.
+        PaymentMethodData::Card(_) => Ok(Some(true)),
+        PaymentMethodData::Wallet(WalletData::GooglePay(google_pay_data)) => {
+            match &google_pay_data.tokenization_data {
+                // Decrypted upstream: we can see whether the wallet authenticated.
+                GpayTokenizationData::Decrypted(decrypted) => {
+                    if decrypted.cryptogram.is_some() {
+                        // The wallet cryptogram is the authentication; Paysafe accepts it
+                        // in place of 3DS even on a THREE_D_S_TWO account.
+                        Ok(None)
+                    } else if is_three_ds {
+                        Err(IntegrationError::NotImplemented(
+                            "Paysafe: Google Pay cannot perform 3DS. A `threeDs` block may not accompany `googlePay` (Paysafe requires card.holderName, which cannot coexist with a wallet object). Use no_three_ds, or supply a wallet cryptogram (CRYPTOGRAM_3DS)."
+                                .to_string(),
+                            Default::default(),
+                        )
+                        .into())
+                    } else {
+                        Ok(Some(true))
+                    }
+                }
+                // Paysafe decrypts gateway-side, so the auth method is not visible here.
+                // Asserting `skip3ds` would claim 3DS was skipped for a token that may in
+                // fact carry a cryptogram, so the body is left as-is and Paysafe's own
+                // error surfaces on a 3DS-mandatory account.
+                GpayTokenizationData::Encrypted(_) => Ok(None),
+            }
+        }
+        _ => Ok(None),
+    }
+}
 
 fn create_paysafe_billing_details(
     resource_common_data: &PaymentFlowData,
@@ -640,6 +704,9 @@ where
             three_ds,
             profile,
             billing_details,
+            // Redirect APMs (Skrill / Interac / paysafecard) are not subject to the card
+            // 3DS mandate; keep their verified wire shape untouched.
+            skip_3ds: None,
         })
     }
 }
@@ -801,6 +868,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             three_ds: Some(three_ds),
             profile: None,
             billing_details,
+            // This leg exists to run 3DS, so the mandate is satisfied by `threeDs` itself.
+            skip_3ds: None,
         })
     }
 }
@@ -1186,9 +1255,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     let account_id = account_id.get_account_id(PaysafeAccountKind::CardNoThreeDs, currency)?;
                     (
                         PaysafePaymentMethod::GooglePay {
-                            google_pay: PaysafeGooglePay {
+                            google_pay: Box::new(PaysafeGooglePay {
                                 google_pay_payment_token,
-                            },
+                            }),
                         },
                         PaysafePaymentType::Card,
                         Some(account_id),
@@ -1533,6 +1602,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             three_ds: None, // No 3DS for PaymentMethodToken
             profile: None,
             billing_details,
+            // No `threeDs` on this leg, so a THREE_D_S_TWO account needs `skip3ds` for
+            // anything the wallet has not already authenticated. See
+            // `resolve_paysafe_skip_3ds`.
+            skip_3ds: resolve_paysafe_skip_3ds(
+                &router_data.request.payment_method_data,
+                router_data.resource_common_data.is_three_ds(),
+            )?,
         })))
     }
 }
@@ -1562,6 +1638,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaysafePaymentMethodT
             response: Ok(PaymentMethodTokenResponse {
                 token: item.response.payment_handle_token.peek().to_string(),
                 connector_payment_method_id: None,
+                status_code: item.http_code,
             }),
             ..router_data
         })
@@ -2644,6 +2721,7 @@ impl TryFrom<ResponseRouterData<PaysafeRefundResponse, Self>>
                 connector_refund_id: item.response.id.clone(),
                 refund_status: enums::RefundStatus::from(item.response.status),
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -2663,6 +2741,7 @@ impl TryFrom<ResponseRouterData<PaysafeRSyncResponse, Self>>
                 connector_refund_id: item.response.id.clone(),
                 refund_status: enums::RefundStatus::from(item.response.status),
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })

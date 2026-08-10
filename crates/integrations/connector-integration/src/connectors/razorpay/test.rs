@@ -68,6 +68,7 @@ mod tests {
                     attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
                     status: AttemptStatus::Pending,
                     payment_method: PaymentMethod::Card,
+                    payment_method_type: None,
                     description: None,
                     return_url: None,
                     order_details: None,
@@ -284,6 +285,7 @@ mod tests {
                     attempt_id: "MISSING_CARD_ID".to_string(),
                     status: AttemptStatus::Pending,
                     payment_method: PaymentMethod::Card,
+                    payment_method_type: None,
                     description: None,
                     return_url: None,
                     address: PaymentAddress::new(None, None, None, None),
@@ -438,6 +440,7 @@ mod tests {
                     attempt_id: "INVALID_ATTEMPT".to_string(),
                     status: AttemptStatus::Pending,
                     payment_method: PaymentMethod::Card,
+                    payment_method_type: None,
                     description: None,
                     return_url: None,
                     address: PaymentAddress::new(None, None, None, None),
@@ -602,6 +605,7 @@ mod tests {
                     attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
                     status: AttemptStatus::Pending,
                     payment_method: PaymentMethod::Card,
+                    payment_method_type: None,
                     description: None,
                     return_url: None,
                     address: PaymentAddress::new(
@@ -976,6 +980,7 @@ mod tests {
                 attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
                 status: AttemptStatus::Pending,
                 payment_method: PaymentMethod::Card,
+                payment_method_type: None,
                 description: None,
                 return_url: None,
                 address: PaymentAddress::new(
@@ -1186,6 +1191,7 @@ mod tests {
                 attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
                 status: AttemptStatus::Pending,
                 payment_method: PaymentMethod::Card,
+                payment_method_type: None,
                 description: None,
                 return_url: None,
                 address: PaymentAddress::new(
@@ -1398,6 +1404,7 @@ mod tests {
                     attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
                     status: common_enums::AttemptStatus::Pending,
                     payment_method: common_enums::PaymentMethod::Card,
+                    payment_method_type: None,
                     description: None,
                     return_url: None,
                     address: PaymentAddress::new(
@@ -1535,6 +1542,7 @@ mod tests {
                     attempt_id: "".to_string(),
                     status: common_enums::AttemptStatus::Pending,
                     payment_method: common_enums::PaymentMethod::Card,
+                    payment_method_type: None,
                     description: None,
                     return_url: None,
                     address: PaymentAddress::default(),
@@ -1663,6 +1671,7 @@ mod tests {
                     attempt_id: "invalid_attempt_id".to_string(),
                     status: AttemptStatus::Pending,
                     payment_method: PaymentMethod::Card,
+                    payment_method_type: None,
                     description: None,
                     return_url: None,
                     address: PaymentAddress::new(None, None, None, None),
@@ -1826,6 +1835,7 @@ mod tests {
                 attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
                 status: AttemptStatus::Pending,
                 payment_method: PaymentMethod::Card,
+                payment_method_type: None,
                 description: None,
                 return_url: None,
                 address: PaymentAddress::new(
@@ -1963,6 +1973,7 @@ mod tests {
                 attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
                 status: AttemptStatus::Pending,
                 payment_method: PaymentMethod::Card,
+                payment_method_type: None,
                 description: None,
                 return_url: None,
                 address: PaymentAddress::new(
@@ -2089,6 +2100,7 @@ mod tests {
                 attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
                 status: AttemptStatus::Pending,
                 payment_method: PaymentMethod::Card,
+                payment_method_type: None,
                 description: None,
                 return_url: None,
                 address: PaymentAddress::new(

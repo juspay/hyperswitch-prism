@@ -601,7 +601,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::PayURedirect(_)
                 | WalletData::EaseBuzzRedirect(_)
                 | WalletData::QwikcilverWalletDirect(_)
-            | WalletData::Skrill(_) => {
+                | WalletData::Skrill(_)
+                | WalletData::PaymayaRedirect(_) => {
                     Err(errors::IntegrationError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("Imerchantsolutions"),
                         errors::IntegrationErrorContext {
@@ -1597,6 +1598,7 @@ impl TryFrom<ResponseRouterData<ImerchantsolutionsRefundResponseData, Self>>
                 connector_refund_id: item.response.psp_reference.to_string(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -1660,6 +1662,7 @@ impl TryFrom<ResponseRouterData<ImerchantsolutionsRefundSyncResponse, Self>>
                         connector_refund_id,
                         refund_status,
                         status_code: http_code,
+                        acquirer_reference_number: None,
                     }),
                     ..router_data
                 })
@@ -1700,6 +1703,7 @@ impl TryFrom<ResponseRouterData<ImerchantsolutionsRefundSyncResponse, Self>>
                             connector_refund_id,
                             refund_status,
                             status_code: http_code,
+                            acquirer_reference_number: None,
                         }),
                         ..router_data
                     })

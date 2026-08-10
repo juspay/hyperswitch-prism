@@ -2947,6 +2947,7 @@ impl TryFrom<ResponseRouterData<TsysTransitReturnResponse, Self>>
             connector_refund_id,
             refund_status,
             status_code: item.http_code,
+            acquirer_reference_number: None,
         };
 
         Ok(Self {
@@ -3082,6 +3083,7 @@ impl TryFrom<ResponseRouterData<TsysTransitTransactionInquiryResponse, Self>>
             connector_refund_id,
             refund_status,
             status_code: item.http_code,
+            acquirer_reference_number: None,
         };
 
         Ok(Self {
@@ -3210,6 +3212,7 @@ impl TryFrom<ResponseRouterData<TsysTransitVoidPostRefundResponse, Self>>
                 connector_refund_id,
                 refund_status: void_post_refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..router_data.clone()
         })
@@ -3785,8 +3788,7 @@ fn repeat_payment_data_to_authorize<T: PaymentMethodDataTypes>(
         payment_channel: req
             .payment_channel
             .clone()
-            .or(payment_channel_from_metadata)
-            .or(Some(PaymentChannel::TelephoneOrder)),
+            .or(payment_channel_from_metadata),
         enable_partial_authorization: req.enable_partial_authorization,
         locale: req.locale.clone(),
         redirect_response: None,

@@ -239,6 +239,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             resource_id,
             status,
             connector_response_reference_id: None,
+            connector_request_reference_id: None,
             mandate_reference: None,
             error_code: None,
             error_message: None,

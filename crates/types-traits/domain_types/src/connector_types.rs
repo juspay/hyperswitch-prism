@@ -146,6 +146,7 @@ pub enum ConnectorEnum {
     PinelabsOnline,
     Easebuzz,
     Axisbank,
+    Maya,
     TsysTransit,
     TwocTwopPaco,
     Juspay,
@@ -240,6 +241,7 @@ pub enum PayoutConnectorEnum {
     Deutschebank,
     Worldpayxml,
     Cybersource,
+    Santander,
 }
 
 impl TryFrom<ConnectorEnum> for PayoutConnectorEnum {
@@ -292,6 +294,7 @@ impl ForeignTryFrom<AuthType> for PayoutConnectorEnum {
             AuthType::Deutschebank(_) => Ok(Self::Deutschebank),
             AuthType::Worldpayxml(_) => Ok(Self::Worldpayxml),
             AuthType::Cybersource(_) => Ok(Self::Cybersource),
+            AuthType::Santander(_) => Ok(Self::Santander),
             _ => Err(error_stack::Report::new(
                 IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -500,6 +503,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Easebuzz => Ok(Self::Easebuzz),
             grpc_api_types::payments::Connector::Imerchantsolutions => Ok(Self::Imerchantsolutions),
             grpc_api_types::payments::Connector::Axisbank => Ok(Self::Axisbank),
+            grpc_api_types::payments::Connector::Maya => Ok(Self::Maya),
             grpc_api_types::payments::Connector::TsysTransit => Ok(Self::TsysTransit),
             grpc_api_types::payments::Connector::TwocTwopPaco => Ok(Self::TwocTwopPaco),
             grpc_api_types::payments::Connector::Juspay => Ok(Self::Juspay),
@@ -767,6 +771,7 @@ pub struct PaymentFlowData {
     pub attempt_id: String,
     pub status: AttemptStatus,
     pub payment_method: PaymentMethod,
+    pub payment_method_type: Option<PaymentMethodType>,
     pub description: Option<String>,
     pub return_url: Option<String>,
     pub address: payment_address::PaymentAddress,
@@ -2083,6 +2088,7 @@ pub struct PaymentMethodTokenizationData<T: PaymentMethodDataTypes> {
 pub struct PaymentMethodTokenResponse {
     pub token: String,
     pub connector_payment_method_id: Option<String>,
+    pub status_code: u16,
 }
 
 #[derive(Debug, Clone)]
@@ -2675,6 +2681,7 @@ pub struct RefundsResponseData {
     pub connector_refund_id: String,
     pub refund_status: common_enums::RefundStatus,
     pub status_code: u16,
+    pub acquirer_reference_number: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -2782,6 +2789,7 @@ pub struct WebhookDetailsResponse {
     pub resource_id: Option<ResponseId>,
     pub status: AttemptStatus,
     pub connector_response_reference_id: Option<String>,
+    pub connector_request_reference_id: Option<String>,
     pub mandate_reference: Option<Box<MandateReference>>,
     pub error_code: Option<String>,
     pub error_message: Option<String>,
@@ -2840,6 +2848,8 @@ pub struct RefundWebhookReference {
     pub merchant_refund_id: Option<String>,
     /// PSP-assigned ID of the original payment this refund belongs to.
     pub connector_transaction_id: Option<String>,
+    /// Caller-assigned order / invoice ID echoed back by the connector.
+    pub merchant_transaction_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -2854,6 +2864,8 @@ pub struct DisputeWebhookReference {
 pub struct MandateWebhookReference {
     /// PSP-assigned mandate ID.
     pub connector_mandate_id: Option<String>,
+    /// Caller-assigned order / invoice ID echoed back by the connector.
+    pub merchant_transaction_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -4044,6 +4056,7 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                 payment_method_data::WalletData::CashfreeRedirect(_) => Self::CashfreeRedirect,
                 payment_method_data::WalletData::PayURedirect(_) => Self::PayURedirect,
                 payment_method_data::WalletData::EaseBuzzRedirect(_) => Self::EaseBuzzRedirect,
+                payment_method_data::WalletData::PaymayaRedirect(_) => Self::PaymayaRedirect,
                 payment_method_data::WalletData::QwikcilverWalletDirect(_) => {
                     Self::QwikcilverWalletDirect
                 }
@@ -5598,6 +5611,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Payconex(_) => Ok(Self::Payment(ConnectorEnum::Payconex)),
             AuthType::Kount(_) => Ok(Self::Payment(ConnectorEnum::Kount)),
             AuthType::Hyperswitch(_) => Ok(Self::Payment(ConnectorEnum::Hyperswitch)),
+            AuthType::Maya(_) => Ok(Self::Payment(ConnectorEnum::Maya)),
             AuthType::Tesouro(_) => Ok(Self::Payment(ConnectorEnum::Tesouro)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TsysTransit(_) => Ok(Self::Payment(ConnectorEnum::TsysTransit)),
@@ -5614,6 +5628,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Affirm(_) => Ok(Self::Payment(ConnectorEnum::Affirm)),
             AuthType::Plaid(_) => Ok(Self::Authenticator(AuthenticatorConnectorEnum::Plaid)),
             AuthType::Givepayments(_) => Ok(Self::Payment(ConnectorEnum::Givepayments)),
+            AuthType::Santander(_) => Ok(Self::Payout(PayoutConnectorEnum::Santander)),
         }
     }
 }

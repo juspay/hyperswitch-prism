@@ -799,6 +799,7 @@ impl TryFrom<ResponseRouterData<AffirmRefundResponse, Self>>
                 connector_refund_id: item.response.id.clone(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data.clone()
         })
@@ -851,6 +852,7 @@ impl TryFrom<ResponseRouterData<AffirmRSyncResponse, Self>>
                 connector_refund_id,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data.clone()
         })

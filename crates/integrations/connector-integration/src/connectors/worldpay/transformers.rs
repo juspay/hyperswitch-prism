@@ -234,6 +234,7 @@ fn fetch_payment_instrument<
             | WalletDataPaymentMethod::CashfreeRedirect(_)
             | WalletDataPaymentMethod::PayURedirect(_)
             | WalletDataPaymentMethod::EaseBuzzRedirect(_)
+            | WalletDataPaymentMethod::PaymayaRedirect(_)
             | WalletDataPaymentMethod::QwikcilverWalletDirect(_)
             | WalletDataPaymentMethod::Skrill(_) => {
                 Err(error_stack::report!(IntegrationError::NotSupported {
@@ -1314,6 +1315,7 @@ impl<F> TryFrom<ResponseRouterData<WorldpayPaymentsResponse, Self>>
             connector_refund_id: item.router_data.request.refund_id.clone(),
             refund_status,
             status_code: item.http_code,
+            acquirer_reference_number: None,
         });
 
         Ok(Self {
@@ -1343,6 +1345,7 @@ impl<F> TryFrom<ResponseRouterData<WorldpayEventResponse, Self>>
                 .clone(),
             refund_status,
             status_code: item.http_code,
+            acquirer_reference_number: None,
         });
 
         Ok(Self {

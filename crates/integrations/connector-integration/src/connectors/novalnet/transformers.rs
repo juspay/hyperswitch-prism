@@ -487,6 +487,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletDataPaymentMethod::CashfreeRedirect(_)
                 | WalletDataPaymentMethod::PayURedirect(_)
                 | WalletDataPaymentMethod::EaseBuzzRedirect(_)
+                | WalletDataPaymentMethod::PaymayaRedirect(_)
                 | WalletDataPaymentMethod::QwikcilverWalletDirect(_)
                 | WalletDataPaymentMethod::Skrill(_) => Err(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("novalnet"),
@@ -825,10 +826,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     transaction_id,
                 ));
                 Ok(Self {
-                    resource_common_data: PaymentFlowData {
-                        status: common_enums::AttemptStatus::Failure,
-                        ..item.router_data.resource_common_data
-                    },
                     response,
                     ..item.router_data
                 })
@@ -932,10 +929,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     transaction_id,
                 ));
                 Ok(Self {
-                    resource_common_data: PaymentFlowData {
-                        status: common_enums::AttemptStatus::Failure,
-                        ..item.router_data.resource_common_data
-                    },
                     response,
                     ..item.router_data
                 })
@@ -1035,10 +1028,6 @@ impl<
                     transaction_id,
                 ));
                 Ok(Self {
-                    resource_common_data: PaymentFlowData {
-                        status: common_enums::AttemptStatus::Failure,
-                        ..item.router_data.resource_common_data
-                    },
                     response,
                     ..item.router_data
                 })
@@ -1374,6 +1363,7 @@ impl<F> TryFrom<ResponseRouterData<NovalnetRefundResponse, Self>>
                         connector_refund_id: refund_id,
                         refund_status: common_enums::RefundStatus::from(transaction_status),
                         status_code: item.http_code,
+                        acquirer_reference_number: None,
                     }),
                     ..item.router_data
                 })
@@ -1556,10 +1546,6 @@ impl<F> TryFrom<ResponseRouterData<NovalnetPSyncResponse, Self>>
                     transaction_id,
                 ));
                 Ok(Self {
-                    resource_common_data: PaymentFlowData {
-                        status: common_enums::AttemptStatus::Failure,
-                        ..item.router_data.resource_common_data
-                    },
                     response,
                     ..item.router_data
                 })
@@ -1732,6 +1718,7 @@ impl<F> TryFrom<ResponseRouterData<NovalnetRefundSyncResponse, Self>>
                         connector_refund_id: refund_id,
                         refund_status: common_enums::RefundStatus::from(transaction_status),
                         status_code: item.http_code,
+                        acquirer_reference_number: None,
                     }),
                     ..item.router_data
                 })
@@ -2235,6 +2222,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletDataPaymentMethod::CashfreeRedirect(_)
                 | WalletDataPaymentMethod::PayURedirect(_)
                 | WalletDataPaymentMethod::EaseBuzzRedirect(_)
+                | WalletDataPaymentMethod::PaymayaRedirect(_)
                 | WalletDataPaymentMethod::QwikcilverWalletDirect(_)
                 | WalletDataPaymentMethod::Skrill(_) => Err(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("novalnet"),
@@ -2518,6 +2506,7 @@ impl TryFrom<NovalnetWebhookNotificationResponse> for WebhookDetailsResponse {
                                 .map(Box::new),
                             status_code: 200,
                             connector_response_reference_id: transaction_id.clone(),
+                            connector_request_reference_id: transaction_id.clone(),
                             error_code: None,
                             error_message: None,
                             raw_connector_response: None,
@@ -2548,6 +2537,7 @@ impl TryFrom<NovalnetWebhookNotificationResponse> for WebhookDetailsResponse {
                         status_code: 200,
                         mandate_reference: None,
                         connector_response_reference_id: None,
+                        connector_request_reference_id: None,
                         error_code: Some(notif.result.status.to_string()),
                         error_message: Some(notif.result.status_text),
                         raw_connector_response: None,

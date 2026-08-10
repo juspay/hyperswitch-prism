@@ -93,6 +93,15 @@ main h2 {
   font-size: 1.8rem;
 }
 
+.routing-info {
+  margin-bottom: 20px;
+  padding: 12px 16px;
+  background: #eff6ff;
+  border-left: 4px solid #2563eb;
+  border-radius: 6px;
+  color: #1e3a5f;
+}
+
 .products-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
