@@ -591,10 +591,6 @@ pub trait RawConnectorRequestResponse {
     fn set_raw_connector_request(&mut self, request: Option<Secret<String>>);
     fn get_raw_connector_request(&self) -> Option<Secret<String>>;
 
-    /// The same response body with every key preserved and every value masked unless the
-    /// connector's configured list names it. `String`, not `Secret<String>`: it is already
-    /// sanitized, and wrapping it would collapse it to a placeholder in logs — the very
-    /// problem this field exists to solve.
     fn set_masked_connector_response(&mut self, response: Option<String>);
     fn get_masked_connector_response(&self) -> Option<String>;
 }
@@ -796,7 +792,6 @@ pub struct PaymentFlowData {
     pub external_latency: Option<u128>,
     pub connectors: Connectors,
     pub raw_connector_response: Option<Secret<String>>,
-    /// Same body, values masked per the connector's config. Already sanitized — not a `Secret`.
     pub masked_connector_response: Option<String>,
     pub raw_connector_request: Option<Secret<String>>,
     pub vault_headers: Option<HashMap<String, Secret<String>>>,
@@ -2690,7 +2685,6 @@ pub struct RefundFlowData {
     pub connectors: Connectors,
     pub connector_request_reference_id: String,
     pub raw_connector_response: Option<Secret<String>>,
-    /// Same body, values masked per the connector's config. Already sanitized — not a `Secret`.
     pub masked_connector_response: Option<String>,
     pub connector_response_headers: Option<http::HeaderMap>,
     pub raw_connector_request: Option<Secret<String>>,
@@ -3735,7 +3729,6 @@ pub struct DisputeFlowData {
     pub defense_reason_code: Option<String>,
     pub connector_request_reference_id: String,
     pub raw_connector_response: Option<Secret<String>>,
-    /// Same body, values masked per the connector's config. Already sanitized — not a `Secret`.
     pub masked_connector_response: Option<String>,
     pub raw_connector_request: Option<Secret<String>>,
     pub connector_response_headers: Option<http::HeaderMap>,
@@ -3782,7 +3775,6 @@ pub struct VerifyWebhookSourceFlowData {
     pub connectors: Connectors,
     pub connector_request_reference_id: String,
     pub raw_connector_response: Option<Secret<String>>,
-    /// Same body, values masked per the connector's config. Already sanitized — not a `Secret`.
     pub masked_connector_response: Option<String>,
     pub raw_connector_request: Option<Secret<String>>,
     pub connector_response_headers: Option<http::HeaderMap>,
@@ -3830,7 +3822,6 @@ pub struct RefreshPaymentMethodFlowData {
     pub connector_request_reference_id: String,
     /// Provider's encrypted form only — never decrypted payment method data.
     pub raw_connector_response: Option<Secret<String>>,
-    /// Same body, values masked per the connector's config. Already sanitized — not a `Secret`.
     pub masked_connector_response: Option<String>,
     pub raw_connector_request: Option<Secret<String>>,
     pub connector_response_headers: Option<http::HeaderMap>,

@@ -1773,7 +1773,6 @@ message NotifyConnectorRequest {
   optional ConnectorState state = 5;
 }
 
-
 // Content of an event
 message NotifyConnectorContent {
   oneof content {
@@ -1784,7 +1783,6 @@ message NotifyConnectorContent {
     FrmNotificationContent frm_notification = 2;
   }
 }
-
 
 // Surcharge details object
 message SurchargeContent {
@@ -1882,7 +1880,6 @@ message EventContent {
     DisputeResponse disputes_response = 3;
   }
 }
-
 
 // Data for a multiple capture request
 message MultipleCaptureRequestData {
@@ -2642,9 +2639,6 @@ message PaymentServiceAuthorizeResponse {
 
   // Raw Response/Request for debugging
   optional SecretString raw_connector_response = 11;
-  // Selectively-masked view of the connector response: every key preserved,
-  // values masked unless the connector's configured list names them. Already
-  // sanitized, hence `string` and not `SecretString`.
   optional string masked_connector_response = 25;
   optional SecretString raw_connector_request = 12;
 
@@ -2784,9 +2778,6 @@ message PaymentServiceGetResponse {
 
   // Raw Response/Request for debugging
   optional SecretString raw_connector_response = 24;
-  // Selectively-masked view of the connector response: every key preserved,
-  // values masked unless the connector's configured list names them. Already
-  // sanitized, hence `string` and not `SecretString`.
   optional string masked_connector_response = 38;
   optional SecretString raw_connector_request = 25;
 
@@ -2808,7 +2799,6 @@ message PaymentServiceGetResponse {
   // per-value semantics. Absent when the connector doesn't distinguish phases.
   optional SettlementStatus settlement_status = 34;
   
-
   // Mandate reference details returned by the connector for future recurring payments.
   optional MandateReferenceDetails mandate_reference_details = 35;
   // The connector's reported status (code/message/reason).
@@ -2887,9 +2877,6 @@ message PaymentServiceVoidResponse {
 
   // Raw Response/Request for debugging
   optional SecretString raw_connector_response = 13;
-  // Selectively-masked view of the connector response: every key preserved,
-  // values masked unless the connector's configured list names them. Already
-  // sanitized, hence `string` and not `SecretString`.
   optional string masked_connector_response = 17;
 
   // Mandate reference details returned by the connector for future recurring payments.
@@ -2943,9 +2930,6 @@ message PaymentServiceReverseResponse {
   // Raw Request and Response for debugging
   optional SecretString raw_connector_request = 7;
   optional SecretString raw_connector_response = 8;
-  // Selectively-masked view of the connector response: every key preserved,
-  // values masked unless the connector's configured list names them. Already
-  // sanitized, hence `string` and not `SecretString`.
   optional string masked_connector_response = 11;
 
   // The connector's reported status for this response.
@@ -3068,9 +3052,6 @@ message MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse {
   optional ErrorInfo error = 2;
   uint32 status_code = 3;
   optional SecretString raw_connector_response = 4;
-  // Selectively-masked view of the connector response: every key preserved,
-  // values masked unless the connector's configured list names them. Already
-  // sanitized, hence `string` and not `SecretString`.
   optional string masked_connector_response = 6;
   optional SecretString raw_connector_request = 5;
 }
@@ -3162,9 +3143,6 @@ message PaymentServiceCaptureResponse {
 
   // Raw Response for debugging
   optional SecretString raw_connector_response = 16;
-  // Selectively-masked view of the connector response: every key preserved,
-  // values masked unless the connector's configured list names them. Already
-  // sanitized, hence `string` and not `SecretString`.
   optional string masked_connector_response = 19;
 
   // Another reference for the connector's transaction, returned in the connector's response.
@@ -3220,9 +3198,6 @@ message PaymentServiceCreateOrderResponse {
   // Raw Request/Response for debugging
   optional SecretString raw_connector_request = 7;
   optional SecretString raw_connector_response = 8;
-  // Selectively-masked view of the connector response: every key preserved,
-  // values masked unless the connector's configured list names them. Already
-  // sanitized, hence `string` and not `SecretString`.
   optional string masked_connector_response = 11;
 
   // SDK Session Data
@@ -3328,9 +3303,6 @@ message RefundResponse {
 
   // Raw Response/Request for debugging
   optional SecretString raw_connector_response = 21;
-  // Selectively-masked view of the connector response: every key preserved,
-  // values masked unless the connector's configured list names them. Already
-  // sanitized, hence `string` and not `SecretString`.
   optional string masked_connector_response = 27;
   optional SecretString raw_connector_request = 22;
 
@@ -3584,9 +3556,6 @@ message PaymentServiceSetupRecurringResponse {
 
   // Raw Response for debugging
   optional SecretString raw_connector_response = 18;
-  // Selectively-masked view of the connector response: every key preserved,
-  // values masked unless the connector's configured list names them. Already
-  // sanitized, hence `string` and not `SecretString`.
   optional string masked_connector_response = 20;
 }
 
@@ -3710,9 +3679,6 @@ message RecurringPaymentServiceChargeResponse {
 
   // Raw Response/Request for debugging
   optional SecretString raw_connector_response = 11;
-  // Selectively-masked view of the connector response: every key preserved,
-  // values masked unless the connector's configured list names them. Already
-  // sanitized, hence `string` and not `SecretString`.
   optional string masked_connector_response = 21;
   optional SecretString raw_connector_request = 12;
 
@@ -3768,9 +3734,6 @@ message RecurringPaymentServiceRevokeResponse {
 
   // Raw Response/Request for debugging
   optional SecretString raw_connector_response = 7;
-  // Selectively-masked view of the connector response: every key preserved,
-  // values masked unless the connector's configured list names them. Already
-  // sanitized, hence `string` and not `SecretString`.
   optional string masked_connector_response = 9;
   optional SecretString raw_connector_request = 8;
 }
@@ -3844,9 +3807,6 @@ message PaymentMethodAuthenticationServicePreAuthenticateResponse {
 
   // Raw Response for debugging
   optional SecretString raw_connector_response = 11;
-  // Selectively-masked view of the connector response: every key preserved,
-  // values masked unless the connector's configured list names them. Already
-  // sanitized, hence `string` and not `SecretString`.
   optional string masked_connector_response = 13;
   // Authentication Results
   optional AuthenticationData authentication_data = 12;
@@ -3925,9 +3885,6 @@ message PaymentMethodAuthenticationServiceAuthenticateResponse {
 
   // Raw Response for debugging
   optional SecretString raw_connector_response = 12;
-  // Selectively-masked view of the connector response: every key preserved,
-  // values masked unless the connector's configured list names them. Already
-  // sanitized, hence `string` and not `SecretString`.
   optional string masked_connector_response = 14;
 
   // The connector's reported status (code/message/reason).
@@ -4002,9 +3959,6 @@ message PaymentMethodAuthenticationServicePostAuthenticateResponse {
 
   // Raw Response for debugging
   optional SecretString raw_connector_response = 13;
-  // Selectively-masked view of the connector response: every key preserved,
-  // values masked unless the connector's configured list names them. Already
-  // sanitized, hence `string` and not `SecretString`.
   optional string masked_connector_response = 15;
 
   // The connector's reported status for this response.
@@ -4046,9 +4000,6 @@ message PaymentServiceIncrementalAuthorizationResponse {
   // Raw Request and Response for debugging
   optional SecretString raw_connector_request = 7;
   optional SecretString raw_connector_response = 8;
-  // Selectively-masked view of the connector response: every key preserved,
-  // values masked unless the connector's configured list names them. Already
-  // sanitized, hence `string` and not `SecretString`.
   optional string masked_connector_response = 9;
 }
 
@@ -4208,9 +4159,6 @@ message PaymentServiceVerifyRedirectResponseResponse {
 
   // Raw Response
   optional SecretString raw_connector_response = 7;
-  // Selectively-masked view of the connector response: every key preserved,
-  // values masked unless the connector's configured list names them. Already
-  // sanitized, hence `string` and not `SecretString`.
   optional string masked_connector_response = 8;
 }
 
@@ -4453,9 +4401,6 @@ message PaymentMethodServiceCreateResponse {
 
   // Raw Response/Request for debugging
   optional SecretString raw_connector_response = 9;
-  // Selectively-masked view of the connector response: every key preserved,
-  // values masked unless the connector's configured list names them. Already
-  // sanitized, hence `string` and not `SecretString`.
   optional string masked_connector_response = 11;
   optional SecretString raw_connector_request = 10;
 }
@@ -4491,9 +4436,6 @@ message PaymentMethodServiceGetResponse {
 
   // Raw Response/Request for debugging
   optional SecretString raw_connector_response = 9;
-  // Selectively-masked view of the connector response: every key preserved,
-  // values masked unless the connector's configured list names them. Already
-  // sanitized, hence `string` and not `SecretString`.
   optional string masked_connector_response = 11;
   optional SecretString raw_connector_request = 10;
 }
@@ -4511,9 +4453,6 @@ message PaymentMethodServiceRefreshResponse {
 
   // Raw Response/Request for debugging
   optional SecretString raw_connector_response = 5;
-  // Selectively-masked view of the connector response: every key preserved,
-  // values masked unless the connector's configured list names them. Already
-  // sanitized, hence `string` and not `SecretString`.
   optional string masked_connector_response = 7;
   optional SecretString raw_connector_request = 6;
 }
@@ -4668,9 +4607,6 @@ message PaymentMethodServiceRechargeResponse {
   uint32 status_code = 8;                          // HTTP status code from the connector
   map<string, string> response_headers = 9;        // Response headers from the connector
   optional SecretString raw_connector_response = 10; // Raw response from the connector for debugging
-  // Selectively-masked view of the connector response: every key preserved,
-  // values masked unless the connector's configured list names them. Already
-  // sanitized, hence `string` and not `SecretString`.
   optional string masked_connector_response = 12;
   optional SecretString raw_connector_request = 11;  // Raw request sent to the connector for debugging
 }
@@ -6219,9 +6155,6 @@ message PaymentMethodServiceEligibilityResponse {
 
   // Raw response received from the connector (for debugging).
   optional SecretString raw_connector_response = 5;
-  // Selectively-masked view of the connector response: every key preserved,
-  // values masked unless the connector's configured list names them. Already
-  // sanitized, hence `string` and not `SecretString`.
   optional string masked_connector_response = 7;
 
   // Response headers from the connector.

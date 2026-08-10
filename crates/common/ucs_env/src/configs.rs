@@ -10,14 +10,13 @@ use common_utils::{
     metadata::{HeaderMaskingConfig, HeaderMaskingConfigPatch},
     SuperpositionConfig,
 };
-use domain_types::{
-    connector_types::ConnectorEnum,
-    types::{Connectors, ConnectorsPatch, ProxyConfig, ProxyConfigPatch},
-};
-// Both names are needed in scope: `config_patch_derive::Patch` resolves the patch type by name.
 #[cfg(feature = "connector-response-masking")]
 use domain_types::connector_response_masking::{
     ConnectorResponseMaskingConfig, ConnectorResponseMaskingConfigPatch,
+};
+use domain_types::{
+    connector_types::ConnectorEnum,
+    types::{Connectors, ConnectorsPatch, ProxyConfig, ProxyConfigPatch},
 };
 
 use crate::{
@@ -39,9 +38,6 @@ pub struct Config {
     pub lineage: LineageConfig,
     #[serde(default)]
     pub unmasked_headers: HeaderMaskingConfig,
-    /// Per-connector key lists controlling which response values stay visible in
-    /// `masked_connector_response`. Compiled in only with the `connector-response-masking`
-    /// feature; otherwise the section is ignored wherever a config file sets it.
     #[cfg(feature = "connector-response-masking")]
     #[serde(default)]
     pub connector_response_masking: ConnectorResponseMaskingConfig,

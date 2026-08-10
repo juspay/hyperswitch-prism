@@ -289,13 +289,8 @@ where
     Ok(())
 }
 
-/// Serde key of the one response field that carries a connector's reply back to the caller.
 const MASKED_CONNECTOR_RESPONSE_KEY: &str = "masked_connector_response";
 
-/// Whether the operator asked for the masked connector response to reach our own logs.
-///
-/// Without the `connector-response-masking` feature the field is never populated, so there is
-/// nothing to strip and the answer does not matter.
 #[cfg(feature = "connector-response-masking")]
 fn should_log_masked(config: &configs::Config) -> bool {
     config.connector_response_masking.log_to_span
@@ -306,13 +301,6 @@ fn should_log_masked(_config: &configs::Config) -> bool {
     true
 }
 
-/// Serialize a gRPC response for logging, dropping `masked_connector_response` unless the operator
-/// opted into logging it.
-///
-/// That field already has its own log channel — `response.masked_body`, gated by the same flag in
-/// `external-services` — so while the flag is off it must not ride along inside a generic response
-/// payload either. Masked the same way the request side is (see `log_before_initialization`), so
-/// `Secret` fields are hidden by serde rather than relying on each field's `Debug`.
 fn response_for_logging<R>(response: &R, log_masked: bool) -> Value
 where
     R: serde::Serialize,
@@ -591,8 +579,6 @@ fn create_and_emit_grpc_event<R>(
     );
 
     match grpc_response {
-        // Same strip as the span field: the event payload is logged in full on every request
-        // (`emit_event_with_config`), so it is the second way the masked view would reach our logs.
         Ok(response) => grpc_event.set_grpc_success_response(&response_for_logging(
             response.get_ref(),
             should_log_masked(config),

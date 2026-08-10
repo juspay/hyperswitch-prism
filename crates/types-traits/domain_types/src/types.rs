@@ -16414,9 +16414,6 @@ impl ForeignTryFrom<(bool, RedirectDetailsResponse)>
             raw_connector_response: redirect_details_response
                 .raw_connector_response
                 .map(|response| response.into()),
-            // This response is assembled from a redirect verification rather than a connector
-            // HTTP call, so it never passes through `handle_connector_response` and there is no
-            // masked body to carry.
             masked_connector_response: None,
         })
     }

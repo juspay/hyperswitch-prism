@@ -3,7 +3,6 @@ name = "ucs_env"
 version = "0.1.0"
 edition = "2021"
 
-
 [dependencies]
 # First-party dependencies
 grpc-api-types = { path = "../../types-traits/grpc-api-types" }
@@ -68,8 +67,6 @@ build_info = { git = "https://github.com/juspay/framework-libs-rs", rev = "24356
 default = []
 kafka = ["tracing-kafka"]
 otel = ["dep:opentelemetry", "dep:opentelemetry-otlp", "dep:opentelemetry_sdk"]
-# Carry the `[connector_response_masking]` config section. Without it the section is absent from
-# `Config` and simply ignored wherever it appears in a config file.
 connector-response-masking = [
     "domain_types/connector-response-masking",
     "external-services/connector-response-masking",

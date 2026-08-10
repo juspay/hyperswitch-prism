@@ -327,14 +327,6 @@ fn flow_status_label(flow_status: &domain_types::router_data::FlowStatus) -> Str
     }
 }
 
-/// Build the selectively-masked view of a connector response and stash it on the flow data.
-///
-/// Reads the untouched response bytes, so this works whether or not `raw_connector_response`
-/// is being captured — the safe view can be on in production with raw capture off.
-///
-/// `connector_name` is a lookup key, not something to re-parse: it came from
-/// `ConnectorVariant::get_connector_name()`, and ingress already validated it against whichever
-/// connector enum matches the flow family.
 #[cfg(feature = "connector-response-masking")]
 fn record_masked_connector_response<ResourceCommonData>(
     resource_common_data: &mut ResourceCommonData,
@@ -344,7 +336,6 @@ fn record_masked_connector_response<ResourceCommonData>(
 ) where
     ResourceCommonData: RawConnectorRequestResponse,
 {
-    // By name: this HeaderMap is reqwest 0.11 (http 0.2), not the http 1.x in scope.
     let content_type = body
         .headers
         .as_ref()
@@ -358,8 +349,6 @@ fn record_masked_connector_response<ResourceCommonData>(
         config,
     );
 
-    // Gated separately from populating the field: the caller always gets the masked view back,
-    // but a copy only lands in our own logs where that is explicitly enabled.
     if config.log_to_span {
         if let Some(masked) = masked.as_deref() {
             tracing::Span::current()
@@ -410,7 +399,6 @@ where
                             .set_connector_response_headers(body.headers.clone());
                     }
 
-                    // Independent of `return_raw_connector_data`: this view is already sanitized.
                     #[cfg(feature = "connector-response-masking")]
                     if let Some(params) =
                         event_params.filter(|p| p.connector_response_masking.enabled)
@@ -480,7 +468,6 @@ where
                             .set_connector_response_headers(body.headers.clone());
                     }
 
-                    // A 4xx/5xx body is exactly when the masked view is most useful.
                     #[cfg(feature = "connector-response-masking")]
                     if let Some(params) =
                         event_params.filter(|p| p.connector_response_masking.enabled)
@@ -602,9 +589,6 @@ pub struct EventProcessingParams<'a> {
     pub tenant_id: &'a str,
     pub merchant_id: &'a str,
     pub return_raw_connector_data: bool,
-    /// Per-connector key lists driving `masked_connector_response`. Present only in a build with
-    /// the `connector-response-masking` feature, and gated at runtime by its own `enabled` flag —
-    /// deliberately independent of `return_raw_connector_data`.
     #[cfg(feature = "connector-response-masking")]
     pub connector_response_masking:
         &'a domain_types::connector_response_masking::ConnectorResponseMaskingConfig,

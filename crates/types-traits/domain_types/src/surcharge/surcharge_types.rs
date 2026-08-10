@@ -13,7 +13,6 @@ pub struct SurchargeFlowData {
     pub connector_request_reference_id: String,
     pub connectors: Connectors,
     pub raw_connector_response: Option<Secret<String>>,
-    /// Same body, values masked per the connector's config. Already sanitized — not a `Secret`.
     pub masked_connector_response: Option<String>,
     pub raw_connector_request: Option<Secret<String>>,
     pub connector_response_headers: Option<http::HeaderMap>,

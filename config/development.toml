@@ -238,49 +238,9 @@ enqueue_timeout_ms = 5000
 [unmasked_headers]
 keys = ["x-request-id","x-merchant-id","x-lineage-ids","x-reference-id","x-connector","x-tenant-id","x-shadow-mode","x-proxy-name"]
 
-# Selectively-masked view of the connector response, exposed as
-# `masked_connector_response`. Every key is preserved; a value is shown only if
-# that connector's list below names it. Gated separately from
-# `common.return_raw_connector_data`, so this can stay on where raw capture is off.
-#
-# This whole section only takes effect in a build compiled with
-# `--features connector-response-masking`. Without it the code is not in the binary and every
-# setting below is ignored, `enabled` included.
 [connector_response_masking]
-enabled = true
+enabled = false
 
-# Whether to ALSO write the masked view to our own logs (`response.masked_body`).
-# `enabled` above already returns it to the caller; this is the extra copy we retain,
-# so it stays off outside development.
-log_to_span = true
+log_to_span = false
 
-# Per-connector unmask lists, comma-separated and case-insensitive.
-# A connector with no entry gets every value masked (keys still visible).
-#
-# An entry is either a bare name or a dotted path:
-#   authCode              every key called authCode, AT ANY DEPTH
-#   additionalData.authCode   only that one location, counted from the body's root
-# A dotted entry also matches a key whose literal name contains dots, because some gateways
-# return those as flat names (Adyen's `bankAccount.iban`, `retry.attempt1.rawResponse`).
-#
-# MIND THE BARE FORM. It is a wildcard: listing a generic name like `number`, `value`, `id` or
-# `code` unmasks it everywhere in the body, including nested under `card`. Prefer the dotted form
-# whenever the name is not distinctive.
-#
-# Naming a key here reveals only that key's own value: an object below it is re-decided key by
-# key, and an array below it stays masked, since its elements have no key you could name. A value
-# that is itself a stringified payload is revealed whole, though — the keys inside a JSON string
-# are never parsed, so do not list a key whose value is an embedded document.
-# A key whose name looks like a full PAN, CVV, expiry or credential stays masked even if listed.
-# Truncated values (cardSummary, last4, cardBin) are not covered — name them if needed.
-# A body that is not JSON, XML or form-encoded has no keys to gate on, so it is replaced
-# wholesale by a stub carrying only its size.
-#
-# Names are validated against every connector enum — payment, surcharge, payout, FRM
-# and authenticator — so interpayments, deutschebank and plaid are valid keys here.
-#
-# Only one entry is seeded, as a worked example for testing. Add a line per
-# connector as you need its fields visible; an unknown connector name here will
-# abort startup rather than be ignored.
 [connector_response_masking.connector_keys]
-adyen = "pspreference,resultcode,merchantreference,refusalreason,eventcode,success"
