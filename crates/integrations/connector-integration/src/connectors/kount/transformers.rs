@@ -1705,11 +1705,50 @@ pub struct KountUpdateTransaction {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct KountAuthorizationStatus {
+    #[serde(rename = "authResult", skip_serializing_if = "Option::is_none")]
+    pub auth_result: Option<KountAuthResult>,
     #[serde(
         rename = "verificationResponse",
         skip_serializing_if = "Option::is_none"
     )]
     pub verification_response: Option<KountVerificationResponse>,
+}
+
+/// Kount authorization outcome (`transactions[].authorizationStatus.authResult`).
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum KountAuthResult {
+    Approved,
+    Declined,
+    Error,
+    Unknown,
+}
+
+impl KountAuthResult {
+    /// Map the internal attempt status to Kount's authResult. Reuses the same
+    /// success/decline categorization as `KountPaymentStatus::from_attempt_status`
+    /// (Charged/Authorized/Voided/Refunded-family => APPROVED, explicit
+    /// failure/decline-family => DECLINED); anything else maps to `Unknown`
+    /// rather than a guessed value.
+    fn from_attempt_status(status: AttemptStatus) -> Self {
+        match status {
+            AttemptStatus::Charged
+            | AttemptStatus::PartialCharged
+            | AttemptStatus::PartialChargedAndChargeable
+            | AttemptStatus::Authorized
+            | AttemptStatus::PartiallyAuthorized
+            | AttemptStatus::Voided
+            | AttemptStatus::VoidedPostCapture
+            | AttemptStatus::AutoRefunded => Self::Approved,
+            AttemptStatus::Failure
+            | AttemptStatus::AuthorizationFailed
+            | AttemptStatus::CaptureFailed
+            | AttemptStatus::RouterDeclined
+            | AttemptStatus::AuthenticationFailed
+            | AttemptStatus::VoidFailed => Self::Declined,
+            _ => Self::Unknown,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1754,27 +1793,35 @@ struct KountNotifyFeatureData {
     cvv: Option<String>,
 }
 
-/// Build the `transactions[].authorizationStatus.verificationResponse` block
-/// from the notify request's `connector_feature_data` (a JSON string carrying
-/// `avs`/`cvv`). Empty when the feature data is absent, unparsable, or carries
-/// neither field — matching the request's `skip_serializing_if` convention.
+/// Build the `transactions[].authorizationStatus` block from the payment
+/// status (`authResult`) and the notify request's `connector_feature_data`
+/// (`verificationResponse` — a JSON string carrying `avs`/`cvv`). Empty when
+/// neither a mappable payment status nor AVS/CVV data is present — matching
+/// the request's `skip_serializing_if` convention.
 fn kount_update_transactions(
+    payment_status: Option<AttemptStatus>,
     connector_feature_data: Option<&Secret<String>>,
 ) -> Vec<KountUpdateTransaction> {
+    let auth_result = payment_status.map(KountAuthResult::from_attempt_status);
+
     let feature_data = connector_feature_data
         .and_then(|data| serde_json::from_str::<KountNotifyFeatureData>(data.peek()).ok());
-    let Some(feature_data) = feature_data else {
-        return Vec::new();
-    };
-    if feature_data.avs.is_none() && feature_data.cvv.is_none() {
+    let verification_response = feature_data.and_then(|feature_data| {
+        (feature_data.avs.is_some() || feature_data.cvv.is_some()).then_some(
+            KountVerificationResponse {
+                cvv_status: feature_data.cvv.as_deref().map(KountCvvStatus::from_str),
+                avs_status: feature_data.avs,
+            },
+        )
+    });
+
+    if auth_result.is_none() && verification_response.is_none() {
         return Vec::new();
     }
     vec![KountUpdateTransaction {
         authorization_status: Some(KountAuthorizationStatus {
-            verification_response: Some(KountVerificationResponse {
-                cvv_status: feature_data.cvv.as_deref().map(KountCvvStatus::from_str),
-                avs_status: feature_data.avs,
-            }),
+            auth_result,
+            verification_response,
         }),
     }]
 }
@@ -1823,7 +1870,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             frm_disposition: req.frm_decision.and_then(KountDisposition::from_decision),
             merchant_category_code,
             merchant,
-            transactions: kount_update_transactions(req.connector_feature_data.as_ref()),
+            transactions: kount_update_transactions(
+                req.payment_status,
+                req.connector_feature_data.as_ref(),
+            ),
         })
     }
 }
