@@ -289,7 +289,43 @@ where
     Ok(())
 }
 
+#[cfg(feature = "connector-response-masking")]
 const MASKED_CONNECTOR_RESPONSE_KEY: &str = "masked_connector_response";
+
+#[cfg(feature = "connector-response-masking")]
+fn record_response_body<T>(span: &tracing::Span, response: &T, log_masked: bool)
+where
+    T: serde::Serialize + std::fmt::Debug,
+{
+    span.record(
+        "response_body",
+        response_for_logging(response, log_masked).to_string(),
+    );
+}
+
+#[cfg(not(feature = "connector-response-masking"))]
+fn record_response_body<T>(span: &tracing::Span, response: &T, _log_masked: bool)
+where
+    T: serde::Serialize + std::fmt::Debug,
+{
+    span.record("response_body", tracing::field::debug(response));
+}
+
+#[cfg(feature = "connector-response-masking")]
+fn set_event_response<T>(event: &mut Event, response: &T, log_masked: bool)
+where
+    T: serde::Serialize,
+{
+    event.set_grpc_success_response(&response_for_logging(response, log_masked));
+}
+
+#[cfg(not(feature = "connector-response-masking"))]
+fn set_event_response<T>(event: &mut Event, response: &T, _log_masked: bool)
+where
+    T: serde::Serialize,
+{
+    event.set_grpc_success_response(response);
+}
 
 #[cfg(feature = "connector-response-masking")]
 fn should_log_masked(config: &configs::Config) -> bool {
@@ -301,6 +337,7 @@ fn should_log_masked(_config: &configs::Config) -> bool {
     true
 }
 
+#[cfg(feature = "connector-response-masking")]
 fn response_for_logging<R>(response: &R, log_masked: bool) -> Value
 where
     R: serde::Serialize,
@@ -326,16 +363,13 @@ pub fn log_after_initialization<T>(
     result: &Result<tonic::Response<T>, tonic::Status>,
     log_masked: bool,
 ) where
-    T: serde::Serialize,
+    T: serde::Serialize + std::fmt::Debug,
 {
     let current_span = tracing::Span::current();
 
     match &result {
         Ok(response) => {
-            current_span.record(
-                "response_body",
-                response_for_logging(response.get_ref(), log_masked).to_string(),
-            );
+            record_response_body(&current_span, response.get_ref(), log_masked);
 
             let res_ref = response.get_ref();
 
@@ -579,10 +613,11 @@ fn create_and_emit_grpc_event<R>(
     );
 
     match grpc_response {
-        Ok(response) => grpc_event.set_grpc_success_response(&response_for_logging(
+        Ok(response) => set_event_response(
+            &mut grpc_event,
             response.get_ref(),
             should_log_masked(config),
-        )),
+        ),
         Err(error) => {
             grpc_event.set_grpc_error_response(error);
             grpc_event.set_error_response(&build_error_detail(error));
