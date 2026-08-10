@@ -562,6 +562,20 @@ jobs:
               -E "$SCHEMA_EXCLUDE"
           fi
 
+      - name: Install grpcurl for test_ucs certification
+        if: ${{ env.RUN_TESTS == 'true' }}
+        shell: bash
+        run: |
+          if ! command -v grpcurl >/dev/null 2>&1; then
+            GRPCURL_VERSION="1.9.3"
+            curl -fsSL \
+              "https://github.com/fullstorydev/grpcurl/releases/download/v${GRPCURL_VERSION}/grpcurl_${GRPCURL_VERSION}_linux_x86_64.tar.gz" \
+              -o /tmp/grpcurl.tar.gz
+            tar -xzf /tmp/grpcurl.tar.gz -C /tmp grpcurl
+            sudo mv /tmp/grpcurl /usr/local/bin/grpcurl
+          fi
+          grpcurl --version
+
       - name: Run Stripe card Authorize certification via test_ucs
         if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
