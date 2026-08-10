@@ -312,12 +312,7 @@ fn resolve_paysafe_skip_3ds<T: PaymentMethodDataTypes>(
                         // in place of 3DS even on a THREE_D_S_TWO account.
                         Ok(None)
                     } else if is_three_ds {
-                        Err(IntegrationError::NotImplemented(
-                            "Paysafe: Google Pay cannot perform 3DS. A `threeDs` block may not accompany `googlePay` (Paysafe requires card.holderName, which cannot coexist with a wallet object). Use no_three_ds, or supply a wallet cryptogram (CRYPTOGRAM_3DS)."
-                                .to_string(),
-                            Default::default(),
-                        )
-                        .into())
+                        Ok(None)
                     } else {
                         Ok(Some(true))
                     }
@@ -359,6 +354,38 @@ fn create_paysafe_billing_details(
     } else {
         Ok(None)
     }
+}
+
+fn create_paysafe_google_pay_billing_address(
+    resource_common_data: &PaymentFlowData,
+) -> Option<PaysafeGooglePayBillingAddress> {
+    let non_empty = |value: Option<Secret<String>>| value.filter(|v| !v.peek().trim().is_empty());
+
+    let name = non_empty(resource_common_data.get_optional_billing_full_name());
+    let address1 = non_empty(resource_common_data.get_optional_billing_line1());
+    let locality = non_empty(resource_common_data.get_optional_billing_city());
+    let administrative_area = non_empty(resource_common_data.get_optional_billing_state());
+    let postal_code = non_empty(resource_common_data.get_optional_billing_zip());
+    let country_code = resource_common_data.get_optional_billing_country();
+
+    if name.is_none()
+        && address1.is_none()
+        && locality.is_none()
+        && administrative_area.is_none()
+        && postal_code.is_none()
+        && country_code.is_none()
+    {
+        return None;
+    }
+
+    Some(PaysafeGooglePayBillingAddress {
+        name,
+        address1,
+        locality,
+        administrative_area,
+        postal_code,
+        country_code,
+    })
 }
 
 /// Whether this payment method is a Paysafe redirect APM that must create a payment
@@ -781,34 +808,71 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 },
             })?;
 
-        let req_card = match &router_data.request.payment_method_data {
-            Some(PaymentMethodData::Card(req_card)) => req_card,
+        // Card and Google Pay both authenticate through this leg. A Google Pay token with no
+        // cryptogram is non-SCA on its own, and Paysafe's guidance is to run it through a 3DS
+        // challenge (`allowedAuthMethods: ["PAN_ONLY"]`), which is what this builds.
+        let payment_method = match &router_data.request.payment_method_data {
+            Some(PaymentMethodData::Card(req_card)) => {
+                let card = PaysafeCard {
+                    card_num: req_card.card_number.clone(),
+                    card_expiry: PaysafeCardExpiry {
+                        month: req_card.card_exp_month.clone(),
+                        year: req_card.get_expiry_year_4_digit(),
+                    },
+                    // Paysafe rejects an empty-string cvv; omit it instead.
+                    cvv: if req_card.card_cvc.peek().is_empty() {
+                        None
+                    } else {
+                        Some(req_card.card_cvc.clone())
+                    },
+                    holder_name: req_card.card_holder_name.clone().or_else(|| {
+                        router_data
+                            .resource_common_data
+                            .get_optional_billing_full_name()
+                    }),
+                };
+                PaysafePaymentMethod::Card { card }
+            }
+            Some(PaymentMethodData::Wallet(WalletData::GooglePay(google_pay_data))) => {
+                let tokenization_data = match &google_pay_data.tokenization_data {
+                    GpayTokenizationData::Encrypted(encrypted) => {
+                        PaysafeGooglePayTokenizationData::Encrypted {
+                            token_type: encrypted.token_type.clone(),
+                            token: Secret::new(encrypted.token.clone()),
+                        }
+                    }
+                    GpayTokenizationData::Decrypted(decrypted_data) => {
+                        build_gpay_decrypted_tokenization_data(decrypted_data)?
+                    }
+                };
+                PaysafePaymentMethod::GooglePay {
+                    google_pay: Box::new(PaysafeGooglePay {
+                        google_pay_payment_token: PaysafeGooglePayPaymentToken {
+                            api_version: 2,
+                            api_version_minor: 0,
+                            payment_method_data: PaysafeGooglePayPaymentMethodData {
+                                pm_type: GOOGLE_PAY_PM_TYPE.to_string(),
+                                description: google_pay_data.description.clone(),
+                                info: PaysafeGooglePayCardInfo {
+                                    card_network: google_pay_data.info.card_network.clone(),
+                                    card_details: google_pay_data.info.card_details.clone(),
+                                    billing_address: create_paysafe_google_pay_billing_address(
+                                        &router_data.resource_common_data,
+                                    ),
+                                },
+                                tokenization_data,
+                            },
+                        },
+                    }),
+                }
+            }
             _ => {
                 return Err(IntegrationError::NotImplemented(
-                    "Paysafe PreAuthenticate only supports card + 3DS".to_string(),
+                    "Paysafe PreAuthenticate supports card + 3DS and Google Pay + 3DS".to_string(),
                     Default::default(),
                 )
                 .into())
             }
-        };
-
-        let card = PaysafeCard {
-            card_num: req_card.card_number.clone(),
-            card_expiry: PaysafeCardExpiry {
-                month: req_card.card_exp_month.clone(),
-                year: req_card.get_expiry_year_4_digit(),
-            },
-            // Paysafe rejects an empty-string cvv; omit it instead.
-            cvv: if req_card.card_cvc.peek().is_empty() {
-                None
-            } else {
-                Some(req_card.card_cvc.clone())
-            },
-            holder_name: req_card.card_holder_name.clone().or_else(|| {
-                router_data
-                    .resource_common_data
-                    .get_optional_billing_full_name()
-            }),
         };
         // Paysafe rejects a `threeDs` body on a non-3DS account (error 5040); use 3DS account.
         let account_id =
@@ -859,7 +923,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .clone(),
             amount,
             settle_with_auth,
-            payment_method: PaysafePaymentMethod::Card { card },
+            payment_method,
             currency_code: currency,
             payment_type: PaysafePaymentType::Card,
             transaction_type: TransactionType::Payment,
@@ -1247,6 +1311,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             info: PaysafeGooglePayCardInfo {
                                 card_network: google_pay_data.info.card_network.clone(),
                                 card_details: google_pay_data.info.card_details.clone(),
+                                billing_address: create_paysafe_google_pay_billing_address(
+                                    &router_data.resource_common_data,
+                                ),
                             },
                             tokenization_data,
                         },
