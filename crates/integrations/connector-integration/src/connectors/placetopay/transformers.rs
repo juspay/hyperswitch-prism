@@ -202,6 +202,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
@@ -648,6 +649,7 @@ impl<F> TryFrom<ResponseRouterData<PlacetopayRefundResponse, Self>>
                 connector_refund_id: item.response.internal_reference.to_string(),
                 refund_status: common_enums::RefundStatus::from(item.response.status.status),
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -704,6 +706,7 @@ impl<F> TryFrom<ResponseRouterData<PlacetopayRefundResponse, Self>>
                 connector_refund_id: item.response.internal_reference.to_string(),
                 refund_status: common_enums::RefundStatus::from(item.response.status.status),
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })

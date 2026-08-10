@@ -983,6 +983,7 @@ impl TryFrom<ResponseRouterData<BamboraapacRefundResponse, Self>>
             connector_refund_id: response.receipt.clone(),
             refund_status,
             status_code: item.http_code,
+            acquirer_reference_number: None,
         };
 
         Ok(Self {
@@ -1116,6 +1117,7 @@ impl TryFrom<ResponseRouterData<BamboraapacSyncResponse, Self>>
             connector_refund_id: response.receipt.clone(),
             refund_status,
             status_code: item.http_code,
+            acquirer_reference_number: None,
         };
 
         Ok(Self {
@@ -1339,6 +1341,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 connector_mandate_id: Some(connector_mandate_id.clone()),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: None,
+                mandate_metadata: None,
             })),
             connector_metadata: Some(serde_json::json!({
                 "customer_number": response.cust_number.clone(),

@@ -1254,6 +1254,7 @@ dependencies = [
  "base64 0.21.7",
  "bytes",
  "cbc",
+ "cpf_cnpj",
  "domain_types",
  "encoding_rs",
  "error-stack 0.4.1",
@@ -1285,6 +1286,7 @@ dependencies = [
  "ucs_cards",
  "ucs_common_enums",
  "ucs_common_utils",
+ "unidecode",
  "url 2.5.8",
  "urlencoding",
  "uuid",
@@ -1294,6 +1296,7 @@ dependencies = [
 name = "connector_request_kafka"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "domain_types",
  "error-stack 0.4.1",
  "hyperswitch_masking",
@@ -6950,6 +6953,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "sha1_smol"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bbfa15b3dddfee50a0fff136974b3e1bde555604ba463834a7eb7deb6417705d"
+
+[[package]]
 name = "sha2"
 version = "0.10.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8297,6 +8306,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_path_to_error",
+ "strum 0.26.3",
  "thiserror 1.0.69",
  "time 0.3.47",
  "tokio",
@@ -8398,6 +8408,12 @@ name = "unicode-xid"
 version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ebc1c04c71510c7f702b52b7c350734c9ff1295c464a03335b00bb84fc54f853"
+
+[[package]]
+name = "unidecode"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "402bb19d8e03f1d1a7450e2bd613980869438e0666331be3e073089124aa1adc"
 
 [[package]]
 name = "uniffi"
@@ -8641,6 +8657,7 @@ dependencies = [
  "getrandom 0.3.4",
  "js-sys",
  "serde_core",
+ "sha1_smol",
  "wasm-bindgen",
 ]
 

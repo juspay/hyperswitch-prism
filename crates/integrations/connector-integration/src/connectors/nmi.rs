@@ -11,11 +11,14 @@ use domain_types::{
         Void,
     },
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        ConnectorWebhookSecrets, EventType, PaymentFlowData, PaymentVoidData,
+        PaymentWebhookReference, PaymentsAuthorizeData, PaymentsCaptureData,
         PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        SetupMandateRequestData,
+        RefundSyncData, RefundWebhookDetailsResponse, RefundWebhookReference, RefundsData,
+        RefundsResponseData, RepeatPaymentData, RequestDetails, ResponseId,
+        SetupMandateRequestData, WebhookDetailsResponse, WebhookResourceReference,
     },
+    errors::WebhookError,
     payment_method_data::PaymentMethodDataTypes,
     router_data::ErrorResponse,
     router_data_v2::RouterDataV2,
@@ -109,6 +112,214 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for Nmi<T>
 {
+    /// HMAC-SHA256 over `"{nonce}.{raw_body}"` with the merchant webhook secret,
+    /// where nonce + signature come from the `webhook-signature` header
+    /// (`t=<nonce>,s=<hex signature>`). Ports the hyperswitch default
+    /// `verify_webhook_source` combined with NMI's overridden signature/message hooks.
+    fn verify_webhook_source(
+        &self,
+        request: RequestDetails,
+        connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<bool, error_stack::Report<WebhookError>> {
+        let connector_webhook_secrets = connector_webhook_secret
+            .ok_or_else(|| error_stack::report!(WebhookError::WebhookVerificationSecretNotFound))?;
+
+        let signature =
+            self.get_webhook_source_verification_signature(&request, &connector_webhook_secrets)?;
+        let message =
+            self.get_webhook_source_verification_message(&request, &connector_webhook_secrets)?;
+
+        use common_utils::crypto::SignMessage;
+        common_utils::crypto::HmacSha256
+            .sign_message(&connector_webhook_secrets.secret, &message)
+            .change_context(WebhookError::WebhookSourceVerificationFailed)
+            .attach_printable("Failed to sign the NMI webhook message with HMAC-SHA256")
+            .map(|expected_signature| expected_signature == signature)
+    }
+
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &RequestDetails,
+        _connector_webhook_secret: &ConnectorWebhookSecrets,
+    ) -> Result<Vec<u8>, error_stack::Report<WebhookError>> {
+        let sig_header = transformers::get_nmi_webhook_signature_header(request)?;
+
+        let (_nonce, signature) = transformers::parse_nmi_webhook_signature_header(sig_header)
+            .ok_or_else(|| error_stack::report!(WebhookError::WebhookSignatureNotFound))?;
+
+        // The header carries the signature hex-encoded; decode before comparing.
+        hex::decode(signature).change_context(WebhookError::WebhookSignatureNotFound)
+    }
+
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &RequestDetails,
+        _connector_webhook_secret: &ConnectorWebhookSecrets,
+    ) -> Result<Vec<u8>, error_stack::Report<WebhookError>> {
+        let sig_header = transformers::get_nmi_webhook_signature_header(request)?;
+
+        let (nonce, _signature) = transformers::parse_nmi_webhook_signature_header(sig_header)
+            .ok_or_else(|| error_stack::report!(WebhookError::WebhookSignatureNotFound))?;
+
+        // Byte-exact hyperswitch message: `format!("{}.{}", nonce, raw_body)`.
+        let message = format!("{}.{}", nonce, String::from_utf8_lossy(&request.body));
+        Ok(message.into_bytes())
+    }
+
+    fn get_event_type(
+        &self,
+        request: RequestDetails,
+    ) -> Result<EventType, error_stack::Report<WebhookError>> {
+        let event_type_body: transformers::NmiWebhookEventBody =
+            serde_json::from_slice(&request.body)
+                .change_context(WebhookError::WebhookResourceObjectNotFound)
+                .attach_printable("Failed to decode the NMI webhook event body")?;
+
+        Ok(transformers::get_nmi_webhook_event(
+            event_type_body.event_type,
+        ))
+    }
+
+    /// Ports HS `get_webhook_object_reference_id`: NMI echoes back the hyperswitch-side
+    /// identifier in `event_body.order_id` — the payment attempt id for payment actions
+    /// (`PaymentIdType::PaymentAttemptId`) and the refund id for refunds
+    /// (`RefundIdType::RefundId`). Both are caller-assigned (merchant) references, so the
+    /// connector-assigned id fields MUST stay `None` for the reference to normalise
+    /// identically to the Direct gateway.
+    fn get_webhook_event_reference(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
+        let reference_body: transformers::NmiWebhookObjectReference =
+            serde_json::from_slice(&request.body)
+                .change_context(WebhookError::WebhookResourceObjectNotFound)
+                .attach_printable("Failed to decode the NMI webhook object reference")?;
+
+        match reference_body.event_body.action.action_type {
+            transformers::NmiActionType::Sale
+            | transformers::NmiActionType::Auth
+            | transformers::NmiActionType::Capture
+            | transformers::NmiActionType::Void => Ok(Some(WebhookResourceReference::Payment(
+                PaymentWebhookReference {
+                    connector_transaction_id: None,
+                    merchant_transaction_id: Some(reference_body.event_body.order_id),
+                },
+            ))),
+            transformers::NmiActionType::Refund => Ok(Some(WebhookResourceReference::Refund(
+                RefundWebhookReference {
+                    connector_refund_id: None,
+                    merchant_refund_id: Some(reference_body.event_body.order_id),
+                    connector_transaction_id: None,
+                    merchant_transaction_id: None,
+                },
+            ))),
+            // HS maps `credit` to `WebhooksNotImplemented`.
+            transformers::NmiActionType::Credit => {
+                Err(error_stack::report!(WebhookError::WebhooksNotImplemented {
+                    operation: "nmi credit webhooks",
+                }))
+            }
+        }
+    }
+
+    fn process_payment_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+        _event_context: Option<domain_types::connector_types::EventContext>,
+    ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
+        let webhook_body: transformers::NmiWebhookBody = serde_json::from_slice(&request.body)
+            .change_context(WebhookError::WebhookResourceObjectNotFound)
+            .attach_printable("Failed to decode the NMI webhook body")?;
+
+        // HS reshapes payment webhooks into the PSync `SyncResponse` and maps
+        // `condition` -> NmiStatus -> AttemptStatus.
+        let status = common_enums::AttemptStatus::from(transformers::NmiStatus::from(
+            webhook_body.event_body.condition.clone(),
+        ));
+
+        Ok(WebhookDetailsResponse {
+            resource_id: Some(ResponseId::ConnectorTransactionId(
+                webhook_body.event_body.transaction_id.clone(),
+            )),
+            status,
+            connector_response_reference_id: None,
+            connector_request_reference_id: None,
+            mandate_reference: None,
+            error_code: None,
+            error_message: None,
+            error_reason: None,
+            raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
+            status_code: 200,
+            response_headers: None,
+            amount_captured: None,
+            minor_amount_captured: None,
+            network_txn_id: None,
+            payment_method_update: None,
+            sender_payment_instrument_id: None,
+        })
+    }
+
+    fn process_refund_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<RefundWebhookDetailsResponse, error_stack::Report<WebhookError>> {
+        let webhook_body: transformers::NmiWebhookBody = serde_json::from_slice(&request.body)
+            .change_context(WebhookError::WebhookResourceObjectNotFound)
+            .attach_printable("Failed to decode the NMI webhook body")?;
+
+        // `transaction_id` is the NMI-assigned id of the refund transaction;
+        // `condition` -> NmiStatus -> RefundStatus mirrors the HS mapping.
+        let status = common_enums::RefundStatus::from(transformers::NmiStatus::from(
+            webhook_body.event_body.condition.clone(),
+        ));
+
+        Ok(RefundWebhookDetailsResponse {
+            connector_refund_id: Some(webhook_body.event_body.transaction_id.clone()),
+            // NMI refund webhooks carry no reference to the original payment;
+            // `order_id` here is the merchant refund id (used for the reference).
+            merchant_transaction_id: None,
+            status,
+            connector_response_reference_id: None,
+            error_code: None,
+            error_message: None,
+            raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
+            status_code: 200,
+            response_headers: None,
+        })
+    }
+
+    /// Ports HS `get_webhook_resource_object`: payment actions (incl. `credit`) are
+    /// reshaped into the PSync-style `{"transaction":{...}}` object; refunds return
+    /// the webhook body as-is.
+    fn get_webhook_resource_object(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, error_stack::Report<WebhookError>>
+    {
+        let webhook_body: transformers::NmiWebhookBody = serde_json::from_slice(&request.body)
+            .change_context(WebhookError::WebhookResourceObjectNotFound)
+            .attach_printable("Failed to decode the NMI webhook body")?;
+
+        match webhook_body.event_body.action.action_type {
+            transformers::NmiActionType::Sale
+            | transformers::NmiActionType::Auth
+            | transformers::NmiActionType::Capture
+            | transformers::NmiActionType::Void
+            | transformers::NmiActionType::Credit => Ok(Box::new(
+                transformers::NmiWebhookSyncResponse::from(&webhook_body),
+            )),
+            transformers::NmiActionType::Refund => Ok(Box::new(webhook_body)),
+        }
+    }
+
+    fn sample_webhook_body(&self) -> &'static [u8] {
+        br#"{"event_type":"transaction.sale.success","event_body":{"transaction_id":"dummy_txn_001","order_id":"dummy_order_001","condition":"pendingsettlement","action":{"action_type":"sale"}}}"#
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::VerifyRedirectResponse for Nmi<T>
@@ -614,6 +825,7 @@ macros::macro_connector_flow_status_impls!(
         PostAuthenticate,
         MandateRevoke,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
     ],
     not_supported: [
         VoidPostRefund,

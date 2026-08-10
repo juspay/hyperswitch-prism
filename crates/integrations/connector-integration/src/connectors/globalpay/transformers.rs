@@ -973,6 +973,7 @@ impl TryFrom<ResponseRouterData<GlobalpayRefundResponse, Self>>
                 connector_refund_id: item.response.id.clone(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -995,6 +996,7 @@ impl TryFrom<ResponseRouterData<GlobalpayRefundResponse, Self>>
                 connector_refund_id: item.response.id.clone(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -1385,6 +1387,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<GlobalpaySetupMandate
             connector_mandate_id: Some(item.response.id.clone()),
             payment_method_id: None,
             connector_mandate_request_reference_id: None,
+            mandate_metadata: None,
         }));
 
         Ok(Self {

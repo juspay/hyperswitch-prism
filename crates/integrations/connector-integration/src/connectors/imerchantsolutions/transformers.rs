@@ -134,8 +134,10 @@ pub struct WalletToken {
     number: cards::CardNumber,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
-    nonce: Secret<String>,
-    eci: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    nonce: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    eci: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -448,32 +450,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                     },
                                 })?;
 
-                            let nonce =
-                                google_pay_decrypt_data.cryptogram.clone().ok_or_else(|| {
-                                    errors::IntegrationError::MissingRequiredField {
-                                        field_name: "cryptogram",
-                                        context: errors::IntegrationErrorContext {
-                                            suggested_action: Some("Verify that the Google Pay token contains a valid cryptogram.".to_string()),
-                                            doc_url: Some("https://imerchantsolutions.com/docs/partners#wallet-tokens".to_string()),
-                                            additional_context: Some("Required field 'cryptogram' was not present in the Google Pay decrypted payment data.".to_string()),
-                                        },
-                                    }
-                                })?;
-
-                            let eci =
-                                google_pay_decrypt_data
-                                    .eci_indicator
-                                    .clone()
-                                    .ok_or_else(|| {
-                                        errors::IntegrationError::MissingRequiredField {
-                                            field_name: "eci",
-                                            context: errors::IntegrationErrorContext {
-                                                suggested_action: Some("Verify that the Google Pay token contains a valid ECI indicator.".to_string()),
-                                                doc_url: Some("https://imerchantsolutions.com/docs/partners#wallet-tokens".to_string()),
-                                                additional_context: Some("Required field 'eci' was not present in the Google Pay decrypted payment data.".to_string()),
-                                            },
-                                        }
-                                    })?;
+                            let (nonce, eci) = match (
+                                google_pay_decrypt_data.cryptogram.clone(),
+                                google_pay_decrypt_data.eci_indicator.clone(),
+                            ) {
+                                (Some(cryptogram), Some(eci)) => (Some(cryptogram), Some(eci)),
+                                _ => (None, None),
+                            };
 
                             Ok(Some(WalletToken {
                                 wallet_type: WalletType::Googlepay,
@@ -531,24 +514,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             let expiry_month = decrypt_data.get_expiry_month();
                             let expiry_year = decrypt_data.get_four_digit_expiry_year();
 
-                            let eci = decrypt_data.payment_data.eci_indicator.clone().ok_or_else(
-                                || errors::IntegrationError::MissingRequiredField {
-                                    field_name: "eci",
-                                    context: errors::IntegrationErrorContext {
-                                        suggested_action: Some("Verify that the Apple Pay token contains a valid ECI indicator.".to_string()),
-                                        doc_url: Some("https://imerchantsolutions.com/docs/partners#wallet-tokens".to_string()),
-                                        additional_context: Some("Required field 'eci_indicator' was not present in the Apple Pay decrypted payment data.".to_string()),
-                                    },
-                                },
-                            )?;
-
                             Ok(Some(WalletToken {
                                 wallet_type: WalletType::Applepay,
                                 number: decrypt_data.application_primary_account_number.clone(),
                                 expiry_month,
                                 expiry_year,
-                                nonce: decrypt_data.payment_data.online_payment_cryptogram.clone(),
-                                eci,
+                                nonce: Some(decrypt_data.payment_data.online_payment_cryptogram.clone()),
+                                eci: decrypt_data.payment_data.eci_indicator.clone(),
                             }))
                         }
                         ApplePayPaymentData::Encrypted(_) => {
@@ -628,7 +600,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::CashfreeRedirect(_)
                 | WalletData::PayURedirect(_)
                 | WalletData::EaseBuzzRedirect(_)
-                | WalletData::QwikcilverWalletDirect(_) => {
+                | WalletData::QwikcilverWalletDirect(_)
+                | WalletData::Skrill(_)
+                | WalletData::PaymayaRedirect(_) => {
                     Err(errors::IntegrationError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("Imerchantsolutions"),
                         errors::IntegrationErrorContext {
@@ -655,6 +629,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_) => {
@@ -794,11 +769,13 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                     connector_mandate_id: Some(mandate_id.expose()),
                     payment_method_id: None,
                     connector_mandate_request_reference_id,
+                    mandate_metadata: None,
                 })
                 .unwrap_or(MandateReference {
                     connector_mandate_id: None,
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
                 });
             Ok(Self {
                 resource_common_data: PaymentFlowData {
@@ -927,9 +904,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             imerchantsolutions_metadata,
             item.router_data.request.is_auto_capture(),
         )?;
-        let shopper_reference = match item.router_data.resource_common_data.get_customer_id() {
-            Ok(customer_id) => Some(customer_id.get_string_repr().to_string()),
-            Err(err) => return Err(err),
+        let shopper_reference = {
+            let customer_id = item.router_data.resource_common_data.get_customer_id()?;
+            Some(customer_id.get_string_repr().to_string())
         };
         let stored_payment_method_id =
             item.router_data
@@ -1621,6 +1598,7 @@ impl TryFrom<ResponseRouterData<ImerchantsolutionsRefundResponseData, Self>>
                 connector_refund_id: item.response.psp_reference.to_string(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -1684,6 +1662,7 @@ impl TryFrom<ResponseRouterData<ImerchantsolutionsRefundSyncResponse, Self>>
                         connector_refund_id,
                         refund_status,
                         status_code: http_code,
+                        acquirer_reference_number: None,
                     }),
                     ..router_data
                 })
@@ -1724,6 +1703,7 @@ impl TryFrom<ResponseRouterData<ImerchantsolutionsRefundSyncResponse, Self>>
                             connector_refund_id,
                             refund_status,
                             status_code: http_code,
+                            acquirer_reference_number: None,
                         }),
                         ..router_data
                     })

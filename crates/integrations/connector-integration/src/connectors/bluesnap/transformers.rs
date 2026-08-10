@@ -117,7 +117,9 @@ fn map_ecp_account_type(
         (_, Some(common_enums::BankType::Transmission))
         | (_, Some(common_enums::BankType::Current))
         | (_, Some(common_enums::BankType::Bond))
-        | (_, Some(common_enums::BankType::SubscriptionShare)) => {
+        | (_, Some(common_enums::BankType::SubscriptionShare))
+        | (_, Some(common_enums::BankType::Salary))
+        | (_, Some(common_enums::BankType::Payment)) => {
             Err(IntegrationError::NotSupported {
                 message: format!("Bank type {bank_type:?} is not supported by BlueSnap"),
                 connector: "bluesnap",
@@ -859,6 +861,7 @@ impl TryFrom<ResponseRouterData<BluesnapRefundResponse, Self>>
                 connector_refund_id: item.response.refund_transaction_id.to_string(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -924,6 +927,7 @@ impl TryFrom<ResponseRouterData<BluesnapRefundSyncResponse, Self>>
                 connector_refund_id: item.response.transaction_id.clone(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })

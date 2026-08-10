@@ -3,6 +3,7 @@
 
 use grpc_api_types::payments::{
     CustomerServiceCreateRequest,
+    CustomerServiceGetRequest,
     DisputeServiceAcceptRequest,
     DisputeServiceDefendRequest,
     DisputeServiceSubmitEvidenceRequest,
@@ -13,6 +14,7 @@ use grpc_api_types::payments::{
     PaymentMethodAuthenticationServicePostAuthenticateRequest,
     PaymentMethodAuthenticationServicePreAuthenticateRequest,
     PaymentMethodServiceEligibilityRequest,
+    PaymentMethodServiceRefreshRequest,
     PaymentMethodServiceTokenizeRequest,
     PaymentServiceAuthorizeRequest,
     PaymentServiceCaptureRequest,
@@ -32,6 +34,7 @@ use grpc_api_types::payments::{
     RefundServiceGetRequest,
 };
 use grpc_api_types::payouts::{
+    PayoutMethodEligibilityRequest,
     PayoutServiceCreateLinkRequest,
     PayoutServiceCreateRecipientRequest,
     PayoutServiceCreateRequest,
@@ -60,6 +63,7 @@ use crate::handlers::payments::{
     create_server_authentication_token_req_handler, create_server_authentication_token_res_handler,
     create_server_session_authentication_token_req_handler, create_server_session_authentication_token_res_handler,
     customer_create_req_handler, customer_create_res_handler,
+    customer_get_req_handler, customer_get_res_handler,
     defend_req_handler, defend_res_handler,
     eligibility_req_handler, eligibility_res_handler,
     get_req_handler, get_res_handler,
@@ -67,6 +71,7 @@ use crate::handlers::payments::{
     payout_create_req_handler, payout_create_res_handler,
     payout_create_link_req_handler, payout_create_link_res_handler,
     payout_create_recipient_req_handler, payout_create_recipient_res_handler,
+    payout_eligibility_req_handler, payout_eligibility_res_handler,
     payout_enroll_disburse_account_req_handler, payout_enroll_disburse_account_res_handler,
     payout_get_req_handler, payout_get_res_handler,
     payout_stage_req_handler, payout_stage_res_handler,
@@ -79,6 +84,7 @@ use crate::handlers::payments::{
     proxy_authorize_req_handler, proxy_authorize_res_handler,
     proxy_setup_recurring_req_handler, proxy_setup_recurring_res_handler,
     recurring_revoke_req_handler, recurring_revoke_res_handler,
+    refresh_req_handler, refresh_res_handler,
     refund_req_handler, refund_res_handler,
     refund_get_req_handler, refund_get_res_handler,
     reverse_req_handler, reverse_res_handler,
@@ -111,6 +117,8 @@ define_ffi_flow!(create_server_authentication_token, MerchantAuthenticationServi
 define_ffi_flow!(create_server_session_authentication_token, MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest, create_server_session_authentication_token_req_handler, create_server_session_authentication_token_res_handler);
 // customer_create: CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information.
 define_ffi_flow!(customer_create, CustomerServiceCreateRequest, customer_create_req_handler, customer_create_res_handler);
+// customer_get: CustomerService.Get — Retrieves customer details from the payment processor. Callers typically use this before Create to implement get-or-create semantics for connectors that reject duplicates (e.g. Glomopay).
+define_ffi_flow!(customer_get, CustomerServiceGetRequest, customer_get_req_handler, customer_get_res_handler);
 // defend: DisputeService.Defend — Submit defense with reason code for dispute. Presents formal argument against customer's chargeback claim with supporting documentation.
 define_ffi_flow!(defend, DisputeServiceDefendRequest, defend_req_handler, defend_res_handler);
 // eligibility: PaymentMethodService.Eligibility — Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check)
@@ -125,6 +133,8 @@ define_ffi_flow!(payout_create, PayoutServiceCreateRequest, payout_create_req_ha
 define_ffi_flow!(payout_create_link, PayoutServiceCreateLinkRequest, payout_create_link_req_handler, payout_create_link_res_handler);
 // payout_create_recipient: PayoutService.CreateRecipient — Create payout recipient.
 define_ffi_flow!(payout_create_recipient, PayoutServiceCreateRecipientRequest, payout_create_recipient_req_handler, payout_create_recipient_res_handler);
+// payout_eligibility: PayoutService.Eligibility — Check eligibility of a payout before initiating it (e.g. SEPA VoP / payee verification).
+define_ffi_flow!(payout_eligibility, PayoutMethodEligibilityRequest, payout_eligibility_req_handler, payout_eligibility_res_handler);
 // payout_enroll_disburse_account: PayoutService.EnrollDisburseAccount — Enroll disburse account.
 define_ffi_flow!(payout_enroll_disburse_account, PayoutServiceEnrollDisburseAccountRequest, payout_enroll_disburse_account_req_handler, payout_enroll_disburse_account_res_handler);
 // payout_get: PayoutService.Get — Retrieve payout details.
@@ -149,6 +159,8 @@ define_ffi_flow!(proxy_authorize, PaymentServiceProxyAuthorizeRequest, proxy_aut
 define_ffi_flow!(proxy_setup_recurring, PaymentServiceProxySetupRecurringRequest, proxy_setup_recurring_req_handler, proxy_setup_recurring_res_handler);
 // recurring_revoke: RecurringPaymentService.Revoke — Cancel an existing recurring payment mandate. Stops future automatic charges on customer's stored consent for subscription cancellations.
 define_ffi_flow!(recurring_revoke, RecurringPaymentServiceRevokeRequest, recurring_revoke_req_handler, recurring_revoke_res_handler);
+// refresh: PaymentMethodService.Refresh — Refresh a payment method the caller already holds in full. The request carries the instrument itself, not a reference to it: use Refresh when you own the complete payment method details and the provider exposes an endpoint that evaluates them.
+define_ffi_flow!(refresh, PaymentMethodServiceRefreshRequest, refresh_req_handler, refresh_res_handler);
 // refund: PaymentService.Refund — Process a partial or full refund for a captured payment. Returns funds to the customer when goods are returned or services are cancelled.
 define_ffi_flow!(refund, PaymentServiceRefundRequest, refund_req_handler, refund_res_handler);
 // refund_get: RefundService.Get — Retrieve refund status from the payment processor. Tracks refund progress through processor settlement for accurate customer communication.

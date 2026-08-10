@@ -3,6 +3,7 @@ use common_utils::{
     errors::CustomResult,
     fp_utils,
     lineage::LineageIds,
+    request_metrics::ConnectorLatencyTracker,
 };
 use domain_types::{
     connector_types,
@@ -42,6 +43,8 @@ pub struct MetadataPayload {
     /// Named proxy to use for this request — matches a key in [proxy.proxies.*] config.
     /// If absent, resolved from shadow_mode: true → "shadow", false → "primary".
     pub proxy_name: Option<String>,
+    /// Request-scoped accumulator for outbound connector call latency.
+    pub connector_latency: ConnectorLatencyTracker,
 }
 
 pub fn get_metadata_payload(
@@ -74,6 +77,7 @@ pub fn get_metadata_payload(
         resource_id,
         environment,
         proxy_name,
+        connector_latency: ConnectorLatencyTracker::default(),
     })
 }
 
@@ -203,6 +207,28 @@ pub fn connector_variant_from_metadata(
                 })
             })?;
         Ok(connector_types::ConnectorVariant::Frm(connector))
+    } else if let Some(value) = metadata.get(consts::X_AUTHENTICATOR_CONNECTOR_NAME) {
+        // Priority 5: Check x-auth-connector header
+        let connector_str = value.to_str().map_err(|e| {
+            Report::new(IntegrationError::InvalidDataFormat {
+                field_name: "x-auth-connector",
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!("Invalid x-auth-connector header value: {e}")),
+                    ..Default::default()
+                },
+            })
+        })?;
+        let connector = connector_types::AuthenticatorConnectorEnum::from_str(connector_str)
+            .map_err(|e| {
+                Report::new(IntegrationError::InvalidDataFormat {
+                    field_name: "x-auth-connector",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(format!("Invalid authenticator connector: {e}")),
+                        ..Default::default()
+                    },
+                })
+            })?;
+        Ok(connector_types::ConnectorVariant::Authenticator(connector))
     } else {
         // Neither header found
         Err(Report::new(IntegrationError::MissingRequiredField {

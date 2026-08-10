@@ -23,7 +23,10 @@ trait SurchargeOperationsInternal {
     async fn internal_calculate(
         &self,
         request: RequestData<SurchargeServiceCalculateRequest>,
-    ) -> Result<tonic::Response<SurchargeServiceCalculateResponse>, tonic::Status>;
+    ) -> Result<
+        tonic::Response<SurchargeServiceCalculateResponse>,
+        error_stack::Report<ucs_env::error::GrpcError>,
+    >;
 }
 
 #[derive(Debug, Clone)]
@@ -79,7 +82,7 @@ impl SurchargeService for Surcharges {
             .get::<String>()
             .cloned()
             .unwrap_or_else(|| "SurchargeService".to_string());
-        let config = utils::get_config_from_request(&request)?;
+        let config = utils::get_config_from_request(&request).into_grpc_status()?;
         Box::pin(utils::grpc_logging_wrapper(
             request,
             &service_name,

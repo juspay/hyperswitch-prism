@@ -340,7 +340,9 @@ impl TryFrom<&WalletData> for RazorpayWalletType {
             | WalletData::RevolutPay(_)
             | WalletData::MbWay(_)
             | WalletData::Satispay(_)
-            | WalletData::Wero(_) => Err(IntegrationError::NotImplemented(
+            | WalletData::Wero(_)
+            | WalletData::PaymayaRedirect(_)
+            | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
                 format!("Payment Method {wallet_data:?} not supported for Razorpay"),
                 Default::default(),
             )),
@@ -567,6 +569,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
                 | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                 | PaymentMethodData::NetworkToken(_)
+                | PaymentMethodData::CardWithNoCvc(_)
                 | PaymentMethodData::MobilePayment(_)
                 | PaymentMethodData::OpenBanking(_)) => {
                     return Err(IntegrationError::NotImplemented(
@@ -830,6 +833,7 @@ impl ForeignTryFrom<(RazorpayRefundResponse, Self, u16)>
             connector_refund_id: response.id,
             refund_status: status,
             status_code: http_code,
+            acquirer_reference_number: None,
         };
 
         Ok(Self {
@@ -857,6 +861,7 @@ impl ForeignTryFrom<(RazorpayRefundResponse, Self, u16)>
             connector_refund_id: response.id,
             refund_status: status,
             status_code: http_code,
+            acquirer_reference_number: None,
         };
 
         Ok(Self {

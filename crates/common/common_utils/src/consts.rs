@@ -43,8 +43,14 @@ pub const X_SURCHARGE_CONNECTOR_NAME: &str = "x-surcharge-connector";
 pub const X_PAYOUT_CONNECTOR_NAME: &str = "x-payout-connector";
 /// Header key for frm connector identification
 pub const X_FRM_CONNECTOR_NAME: &str = "x-frm-connector";
+/// Header key for authenticator connector identification
+pub const X_AUTHENTICATOR_CONNECTOR_NAME: &str = "x-auth-connector";
 /// Header key for merchant identification
 pub const X_MERCHANT_ID: &str = "x-merchant-id";
+/// Header key for payment method identification
+pub const X_PAYMENT_METHOD: &str = "x-payment-method";
+/// Header key for payment method type identification
+pub const X_PAYMENT_METHOD_TYPE: &str = "x-payment-method-type";
 /// Header key for reference identification
 pub const X_REFERENCE_ID: &str = "x-reference-id";
 /// Header key for resource identification

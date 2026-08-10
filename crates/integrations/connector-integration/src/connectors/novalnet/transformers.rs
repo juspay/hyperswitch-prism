@@ -487,13 +487,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletDataPaymentMethod::CashfreeRedirect(_)
                 | WalletDataPaymentMethod::PayURedirect(_)
                 | WalletDataPaymentMethod::EaseBuzzRedirect(_)
-                | WalletDataPaymentMethod::QwikcilverWalletDirect(_) => {
-                    Err(IntegrationError::NotImplemented(
-                        utils::get_unimplemented_payment_method_error_message("novalnet"),
-                        Default::default(),
-                    )
-                    .into())
-                }
+                | WalletDataPaymentMethod::PaymayaRedirect(_)
+                | WalletDataPaymentMethod::QwikcilverWalletDirect(_)
+                | WalletDataPaymentMethod::Skrill(_) => Err(IntegrationError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("novalnet"),
+                    Default::default(),
+                )
+                .into()),
             },
             PaymentMethodData::BankDebit(ref bank_debit_data) => {
                 let payment_type = NovalNetPaymentTypes::try_from(
@@ -640,6 +640,7 @@ pub enum NovalnetTransactionStatus {
     Pending,
     Deactivated,
     Progress,
+    Error,
 }
 
 #[derive(Debug, Copy, Display, Clone, Serialize, Deserialize, PartialEq)]
@@ -660,7 +661,7 @@ impl From<NovalnetTransactionStatus> for common_enums::AttemptStatus {
             NovalnetTransactionStatus::Pending => Self::Pending,
             NovalnetTransactionStatus::Progress => Self::AuthenticationPending,
             NovalnetTransactionStatus::Deactivated => Self::Voided,
-            NovalnetTransactionStatus::Failure => Self::Failure,
+            NovalnetTransactionStatus::Failure | NovalnetTransactionStatus::Error => Self::Failure,
         }
     }
 }
@@ -796,6 +797,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 connector_mandate_id: Some(id.clone()),
                                 payment_method_id: None,
                                 connector_mandate_request_reference_id: None,
+                                mandate_metadata: None,
                             })
                             .map(Box::new),
                         connector_metadata: None,
@@ -824,10 +826,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     transaction_id,
                 ));
                 Ok(Self {
-                    resource_common_data: PaymentFlowData {
-                        status: common_enums::AttemptStatus::Failure,
-                        ..item.router_data.resource_common_data
-                    },
                     response,
                     ..item.router_data
                 })
@@ -902,6 +900,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 connector_mandate_id: Some(id.clone()),
                                 payment_method_id: None,
                                 connector_mandate_request_reference_id: None,
+                                mandate_metadata: None,
                             })
                             .map(Box::new),
                         connector_metadata: None,
@@ -930,10 +929,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     transaction_id,
                 ));
                 Ok(Self {
-                    resource_common_data: PaymentFlowData {
-                        status: common_enums::AttemptStatus::Failure,
-                        ..item.router_data.resource_common_data
-                    },
                     response,
                     ..item.router_data
                 })
@@ -1004,6 +999,7 @@ impl<
                                 connector_mandate_id: Some(id.clone()),
                                 payment_method_id: None,
                                 connector_mandate_request_reference_id: None,
+                                mandate_metadata: None,
                             })
                             .map(Box::new),
                         connector_metadata: None,
@@ -1296,6 +1292,7 @@ impl From<NovalnetTransactionStatus> for common_enums::RefundStatus {
             }
             NovalnetTransactionStatus::Pending => Self::Pending,
             NovalnetTransactionStatus::Failure
+            | NovalnetTransactionStatus::Error
             | NovalnetTransactionStatus::OnHold
             | NovalnetTransactionStatus::Deactivated
             | NovalnetTransactionStatus::Progress => Self::Failure,
@@ -1370,6 +1367,7 @@ impl<F> TryFrom<ResponseRouterData<NovalnetRefundResponse, Self>>
                         connector_refund_id: refund_id,
                         refund_status: common_enums::RefundStatus::from(transaction_status),
                         status_code: item.http_code,
+                        acquirer_reference_number: None,
                     }),
                     ..item.router_data
                 })
@@ -1523,6 +1521,7 @@ impl<F> TryFrom<ResponseRouterData<NovalnetPSyncResponse, Self>>
                                 connector_mandate_id: Some(id.clone()),
                                 payment_method_id: None,
                                 connector_mandate_request_reference_id: None,
+                                mandate_metadata: None,
                             })
                             .map(Box::new),
                         connector_metadata: None,
@@ -1551,10 +1550,6 @@ impl<F> TryFrom<ResponseRouterData<NovalnetPSyncResponse, Self>>
                     transaction_id,
                 ));
                 Ok(Self {
-                    resource_common_data: PaymentFlowData {
-                        status: common_enums::AttemptStatus::Failure,
-                        ..item.router_data.resource_common_data
-                    },
                     response,
                     ..item.router_data
                 })
@@ -1727,6 +1722,7 @@ impl<F> TryFrom<ResponseRouterData<NovalnetRefundSyncResponse, Self>>
                         connector_refund_id: refund_id,
                         refund_status: common_enums::RefundStatus::from(transaction_status),
                         status_code: item.http_code,
+                        acquirer_reference_number: None,
                     }),
                     ..item.router_data
                 })
@@ -2230,12 +2226,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletDataPaymentMethod::CashfreeRedirect(_)
                 | WalletDataPaymentMethod::PayURedirect(_)
                 | WalletDataPaymentMethod::EaseBuzzRedirect(_)
-                | WalletDataPaymentMethod::QwikcilverWalletDirect(_) => {
-                    Err(IntegrationError::NotImplemented(
-                        utils::get_unimplemented_payment_method_error_message("novalnet"),
-                        Default::default(),
-                    ))?
-                }
+                | WalletDataPaymentMethod::PaymayaRedirect(_)
+                | WalletDataPaymentMethod::QwikcilverWalletDirect(_)
+                | WalletDataPaymentMethod::Skrill(_) => Err(IntegrationError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("novalnet"),
+                    Default::default(),
+                ))?,
             },
             _ => Err(IntegrationError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("novalnet"),
@@ -2402,7 +2398,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 card_number: raw_card_details.card_number.clone(),
                                 card_expiry_month: raw_card_details.card_exp_month.clone(),
                                 card_expiry_year: raw_card_details.card_exp_year.clone(),
-                                scheme_tid: network_transaction_id.into(),
+                                scheme_tid: network_transaction_id.network_transaction_id.into(),
                             });
 
                         let transaction = NovalnetPaymentsRequestTransaction {
@@ -2509,10 +2505,12 @@ impl TryFrom<NovalnetWebhookNotificationResponse> for WebhookDetailsResponse {
                                     connector_mandate_id: Some(id.clone()),
                                     payment_method_id: None,
                                     connector_mandate_request_reference_id: None,
+                                    mandate_metadata: None,
                                 })
                                 .map(Box::new),
                             status_code: 200,
                             connector_response_reference_id: transaction_id.clone(),
+                            connector_request_reference_id: transaction_id.clone(),
                             error_code: None,
                             error_message: None,
                             raw_connector_response: None,
@@ -2543,6 +2541,7 @@ impl TryFrom<NovalnetWebhookNotificationResponse> for WebhookDetailsResponse {
                         status_code: 200,
                         mandate_reference: None,
                         connector_response_reference_id: None,
+                        connector_request_reference_id: None,
                         error_code: Some(notif.result.status.to_string()),
                         error_message: Some(notif.result.status_text),
                         raw_connector_response: None,
@@ -2584,6 +2583,7 @@ impl TryFrom<NovalnetWebhookNotificationResponseRefunds> for RefundWebhookDetail
 
                 Ok(Self {
                     connector_refund_id: Some(refund_id),
+                    merchant_transaction_id: None,
                     status: common_enums::RefundStatus::from(transaction_status),
                     status_code: 200,
                     connector_response_reference_id: None,
@@ -2596,6 +2596,7 @@ impl TryFrom<NovalnetWebhookNotificationResponseRefunds> for RefundWebhookDetail
             NovalnetAPIStatus::Failure => Ok(Self {
                 status: common_enums::RefundStatus::Failure,
                 connector_refund_id: Some(refund_id),
+                merchant_transaction_id: None,
                 status_code: 200,
                 connector_response_reference_id: None,
                 error_code: Some(notif.result.status.to_string()),
@@ -2756,6 +2757,7 @@ impl TryFrom<ResponseRouterData<NovalnetIncrementalAuthResponse, Self>>
                         common_enums::AuthorizationStatus::Processing
                     }
                     Some(NovalnetTransactionStatus::Failure)
+                    | Some(NovalnetTransactionStatus::Error)
                     | Some(NovalnetTransactionStatus::Deactivated) => {
                         common_enums::AuthorizationStatus::Failure
                     }

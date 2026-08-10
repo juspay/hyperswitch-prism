@@ -1,8 +1,12 @@
 use crate::types::ResponseRouterData;
 use common_utils::types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector};
 use domain_types::{
-    connector_flow::{PayoutGet, PayoutTransfer},
+    connector_flow::{PayoutGet, PayoutTransfer, ServerAuthenticationToken},
+    connector_types::{
+        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+    },
     errors::{ConnectorError, IntegrationError},
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payouts::{
         payout_method_data::{
             Bank, PayoutMethodData, PixBankTransfer, PixEmvBankTransfer, PixKeyBankTransfer,
@@ -71,6 +75,54 @@ pub struct ItauErrorFields {
     pub campo: String,
     // mensagem = message (validation error message for the field)
     pub mensagem: String,
+}
+
+// ===== ACCESS TOKEN REQUEST/RESPONSE =====
+
+const CLIENT_CREDENTIALS_GRANT_TYPE: &str = "client_credentials";
+
+#[derive(Debug, Serialize)]
+pub struct ItaubankAccessTokenRequest {
+    pub grant_type: String,
+    pub client_id: Secret<String>,
+    pub client_secret: Secret<String>,
+}
+
+impl
+    TryFrom<
+        &RouterDataV2<
+            ServerAuthenticationToken,
+            MerchantAuthenticationFlowData,
+            ServerAuthenticationTokenRequestData,
+            ServerAuthenticationTokenResponseData,
+        >,
+    > for ItaubankAccessTokenRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        req: &RouterDataV2<
+            ServerAuthenticationToken,
+            MerchantAuthenticationFlowData,
+            ServerAuthenticationTokenRequestData,
+            ServerAuthenticationTokenResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let auth = ItaubankAuthType::try_from(&req.connector_config)?;
+        Ok(Self {
+            grant_type: CLIENT_CREDENTIALS_GRANT_TYPE.to_string(),
+            client_id: auth.client_id,
+            client_secret: auth.client_secret,
+        })
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ItaubankAccessTokenResponse {
+    pub access_token: String,
+    pub token_type: Option<String>,
+    // Token lifetime in seconds, as returned by Itaú OAuth.
+    pub expires_in: Option<i64>,
 }
 
 // ===== PAYOUT TRANSFER REQUEST/RESPONSE =====
@@ -222,6 +274,7 @@ impl
                 bank_account_number,
                 bank_name,
                 ispb,
+                ..
             }))) => {
                 let tipo_pessoa = tax_id.clone().expose_option().map(|id| {
                     if id.len() == 11 {

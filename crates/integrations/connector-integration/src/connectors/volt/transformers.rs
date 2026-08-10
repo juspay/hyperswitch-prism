@@ -291,6 +291,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
@@ -694,6 +695,7 @@ impl<F> TryFrom<RefundsResponseRouterData<F, RefundResponse>>
                 connector_refund_id: item.response.id.to_string(),
                 refund_status: common_enums::RefundStatus::Pending, //We get Refund Status only by Webhooks
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })

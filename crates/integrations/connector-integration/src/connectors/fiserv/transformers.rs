@@ -541,6 +541,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
             | PaymentMethodData::Upi(_)
+            | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
@@ -1106,6 +1107,7 @@ impl<F> TryFrom<ResponseRouterData<FiservRefundResponse, Self>>
                 }),
             refund_status,
             status_code: http_code,
+            acquirer_reference_number: None,
         };
 
         if refund_status == enums::RefundStatus::Failure {
@@ -1174,6 +1176,7 @@ impl<F> TryFrom<ResponseRouterData<FiservRefundSyncResponse, Self>>
                 }),
             refund_status,
             status_code: http_code,
+            acquirer_reference_number: None,
         };
 
         if refund_status == enums::RefundStatus::Failure {

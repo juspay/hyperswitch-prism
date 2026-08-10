@@ -10,12 +10,13 @@ import sys
 from payments import PaymentClient
 from payments import MerchantAuthenticationClient
 from payments import CustomerClient
+from payments import EventClient
 from payments import RecurringPaymentClient
 from payments import RefundClient
 from payments import PaymentMethodClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
-SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "customer_create", "get", "incremental_authorization", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "token_authorize", "tokenize", "void"]
+SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "customer_create", "get", "incremental_authorization", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "token_authorize", "tokenize", "void"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -67,7 +68,7 @@ def _build_capture_request(connector_transaction_id: str):
 def _build_create_client_authentication_token_request():
     return payment_pb2.MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest(
         merchant_client_session_id="probe_sdk_session_001",  # Infrastructure.
-        payment=payment_pb2.PaymentClientAuthenticationContext(  # FrmClientAuthenticationContext frm = 5; // future: device fingerprinting PayoutClientAuthenticationContext payout = 6; // future: payout verification widget.
+        payment=payment_pb2.PaymentClientAuthenticationContext(
             amount=payment_pb2.Money(
                 minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
                 currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
@@ -102,6 +103,16 @@ def _build_incremental_authorization_request():
             currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
         ),
         reason="incremental_auth_probe",  # Optional Fields.
+    )
+
+def _build_parse_event_request():
+    return payment_pb2.EventServiceParseRequest(
+        request_details=payment_pb2.RequestDetails(
+            method=payment_pb2.HttpMethod.Value("HTTP_METHOD_POST"),  # HTTP method of the request (e.g., GET, POST).
+            uri="https://example.com/webhook",  # URI of the request.
+            headers={},  # Headers of the HTTP request.
+            body="{\"id\":\"evt_probe_001\",\"type\":\"payment_intent.succeeded\",\"data\":{\"object\":{\"id\":\"pi_probe_001\",\"object\":\"payment_intent\",\"amount\":1000,\"currency\":\"usd\",\"created\":1700000000,\"status\":\"succeeded\"}}}".encode(),  # Body of the HTTP request.
+        ),
     )
 
 def _build_proxy_authorize_request():
@@ -429,6 +440,15 @@ async def process_incremental_authorization(merchant_transaction_id: str, config
     incremental_response = await payment_client.incremental_authorization(_build_incremental_authorization_request())
 
     return {"status": incremental_response.status}
+
+
+async def process_parse_event(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: EventService.ParseEvent"""
+    event_client = EventClient(config)
+
+    parse_response = event_client.parse_event(_build_parse_event_request())
+
+    return {"event_type": parse_response.event_type}
 
 
 async def process_proxy_authorize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

@@ -302,7 +302,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 ),
             ),
             status,
-            connector_response_reference_id: Some(connector_order_id),
+            connector_response_reference_id: Some(connector_order_id.clone()),
+            connector_request_reference_id: Some(connector_order_id),
             error_code: None,
             error_message: None,
             raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
@@ -810,5 +811,6 @@ macros::macro_connector_flow_status_impls!(
         DefendDispute,
         ServerAuthenticationToken,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
     ],
 );

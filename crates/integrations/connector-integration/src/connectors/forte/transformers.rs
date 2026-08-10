@@ -113,7 +113,9 @@ impl TryFrom<BankType> for ForteBankType {
             BankType::Bond
             | BankType::Transmission
             | BankType::Current
-            | BankType::SubscriptionShare => Err(IntegrationError::NotSupported {
+            | BankType::SubscriptionShare
+            | BankType::Salary
+            | BankType::Payment => Err(IntegrationError::NotSupported {
                 message: format!("Bank type {bank:?} is not supported by Forte"),
                 connector: "forte",
                 context: IntegrationErrorContext {
@@ -341,6 +343,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
@@ -937,6 +940,7 @@ impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
                 connector_refund_id: item.response.transaction_id,
                 refund_status: enums::RefundStatus::from(item.response.response.response_code),
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -963,6 +967,7 @@ impl<F> TryFrom<ResponseRouterData<RefundSyncResponse, Self>>
                 connector_refund_id: item.response.transaction_id,
                 refund_status: enums::RefundStatus::from(item.response.status),
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
