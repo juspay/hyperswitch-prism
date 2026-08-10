@@ -199,7 +199,6 @@ pub struct GrabpayConnectorFeatureData {
     pub redirect_uri: Option<String>,
     pub partner_tx_id: Option<String>,
     pub currency: Option<Currency>,
-    pub request_code: Option<String>,
     #[serde(rename = "txID")]
     pub tx_id: Option<String>,
 }
@@ -294,6 +293,8 @@ pub enum GrabpayPaymentStatus {
     Authorised,
     AuthorisationDeclined,
     TransactionAlreadyExist,
+    #[serde(other)]
+    Unknown,
 }
 
 impl From<GrabpayPaymentStatus> for AttemptStatus {
@@ -307,6 +308,7 @@ impl From<GrabpayPaymentStatus> for AttemptStatus {
                 Self::Pending
             }
             GrabpayPaymentStatus::Authorised => Self::Authorized,
+            GrabpayPaymentStatus::Unknown => Self::Pending,
         }
     }
 }
@@ -321,6 +323,8 @@ pub enum GrabpayRefundStatus {
     AuthorisationDeclined,
     Processing,
     TransactionAlreadyExist,
+    #[serde(other)]
+    Unknown,
 }
 
 impl From<GrabpayRefundStatus> for RefundStatus {
@@ -333,6 +337,7 @@ impl From<GrabpayRefundStatus> for RefundStatus {
             GrabpayRefundStatus::Processing | GrabpayRefundStatus::TransactionAlreadyExist => {
                 Self::Pending
             }
+            GrabpayRefundStatus::Unknown => Self::Pending,
         }
     }
 }
@@ -436,6 +441,7 @@ pub fn grabpay_webhook_event_type(
             GrabpayRefundStatus::Processing | GrabpayRefundStatus::TransactionAlreadyExist => {
                 EventType::RefundProcessing
             }
+            GrabpayRefundStatus::Unknown => EventType::IncomingWebhookEventUnspecified,
         })
     } else {
         let status = parse_webhook_status::<GrabpayPaymentStatus>(webhook_body)?;
@@ -448,6 +454,7 @@ pub fn grabpay_webhook_event_type(
                 EventType::PaymentIntentProcessing
             }
             GrabpayPaymentStatus::Authorised => EventType::PaymentIntentAuthorizationSuccess,
+            GrabpayPaymentStatus::Unknown => EventType::IncomingWebhookEventUnspecified,
         })
     }
 }
@@ -499,6 +506,7 @@ pub struct GrabpayServerSessionAuthenticationTokenRequest {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct GrabpayServerSessionAuthenticationTokenResponse {
     pub access_token: Secret<String>,
+    pub id_token: Option<String>,
     pub token_type: Option<String>,
     pub expires_in: Option<i64>,
 }
@@ -649,12 +657,53 @@ impl TryFrom<ConnectorResponseData<GrabpayServerSessionAuthenticationTokenRespon
     fn try_from(
         item: ConnectorResponseData<GrabpayServerSessionAuthenticationTokenResponse, Self>,
     ) -> Result<Self, Self::Error> {
+        if let Err(msg) = validate_id_token_nonce(
+            &item.response.id_token,
+            &item.router_data.resource_common_data.connector_feature_data,
+        ) {
+            return Err(errors::ConnectorError::ResponseDeserializationFailed {
+                context: errors::ResponseTransformationErrorContext {
+                    http_status_code: Some(item.http_code),
+                    additional_context: Some(msg),
+                },
+            }
+            .into());
+        }
+
         Ok(Self {
             response: Ok(ServerSessionAuthenticationTokenResponseData {
                 session_token: item.response.access_token.peek().to_string(),
             }),
             ..item.router_data
         })
+    }
+}
+
+fn extract_jwt_nonce(id_token: &str) -> Option<String> {
+    use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
+    let payload = id_token.split('.').nth(1)?;
+    let decoded = URL_SAFE_NO_PAD.decode(payload).ok()?;
+    let claims: serde_json::Value = serde_json::from_slice(&decoded).ok()?;
+    claims.get("nonce")?.as_str().map(String::from)
+}
+
+fn validate_id_token_nonce(
+    id_token: &Option<String>,
+    connector_feature_data: &Option<SecretSerdeValue>,
+) -> Result<(), String> {
+    let (Some(id_token), Some(feature_data)) = (id_token.as_ref(), connector_feature_data.as_ref())
+    else {
+        return Ok(());
+    };
+    let expected_nonce = parse_connector_feature_data(Some(feature_data))
+        .ok()
+        .and_then(|fd| fd.nonce);
+    let Some(expected) = expected_nonce else { return Ok(()) };
+    let actual = extract_jwt_nonce(id_token);
+    if actual.as_deref() == Some(expected.as_str()) {
+        Ok(())
+    } else {
+        Err("GrabPay id_token nonce mismatch".to_string())
     }
 }
 
@@ -1262,7 +1311,8 @@ fn build_authenticate_redirect_context<
 pub(crate) fn validate_partner_tx_id(
     partner_tx_id: &str,
 ) -> Result<(), error_stack::Report<errors::IntegrationError>> {
-    let is_valid = partner_tx_id.len() <= 32
+    let is_valid = !partner_tx_id.is_empty()
+        && partner_tx_id.len() <= 32
         && partner_tx_id
             .bytes()
             .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'));
@@ -1274,7 +1324,7 @@ pub(crate) fn validate_partner_tx_id(
             errors::IntegrationError::InvalidDataFormat {
                 field_name: "connector_request_reference_id",
                 context: grabpay_integration_context(
-                    "GrabPay partnerTxID must be at most 32 ASCII alphanumeric, hyphen, or underscore characters"
+                    "GrabPay partnerTxID must be non-empty and at most 32 ASCII alphanumeric, hyphen, or underscore characters"
                 )
             }
         ))
@@ -1295,7 +1345,6 @@ fn parse_connector_feature_data(
             redirect_uri: None,
             partner_tx_id: None,
             currency: None,
-            request_code: None,
             tx_id: None,
         }),
     }
@@ -1357,6 +1406,14 @@ fn build_complete_connector_feature_data(
             serde_json::json!(session_token),
         );
     }
+
+    // Strip OAuth-only fields that are dead after the token exchange completes.
+    metadata.remove("code_verifier");
+    metadata.remove("nonce");
+    metadata.remove("state");
+    metadata.remove("code");
+    metadata.remove("callback_state");
+    metadata.remove("redirect_uri");
 
     connector_metadata
 }
