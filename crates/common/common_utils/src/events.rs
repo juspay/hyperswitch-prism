@@ -673,9 +673,7 @@ fn deep_merge_json(target: &mut serde_json::Value, source: serde_json::Value) {
         (target, source)
     {
         for (key, value) in source_map {
-            let entry = target_map
-                .entry(key)
-                .or_insert(serde_json::Value::Null);
+            let entry = target_map.entry(key).or_insert(serde_json::Value::Null);
             if entry.is_object() && value.is_object() {
                 deep_merge_json(entry, value);
             } else {

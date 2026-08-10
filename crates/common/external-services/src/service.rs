@@ -2,14 +2,14 @@ use std::{collections::HashMap, str::FromStr, sync::RwLock, time::Duration};
 
 use base64::Engine;
 use common_enums::ApiClientError;
+#[cfg(all(feature = "injector-client", feature = "log-transformations"))]
+use common_utils::events::apply_log_fields;
 #[cfg(feature = "injector-client")]
 use common_utils::{
     consts::{X_API_TAG, X_API_URL, X_SESSION_ID},
     events::{CompiledLogFields, EventStage, MaskedSerdeValue},
     request::TransportType,
 };
-#[cfg(all(feature = "injector-client", feature = "log-transformations"))]
-use common_utils::events::apply_log_fields;
 use common_utils::{
     ext_traits::AsyncExt,
     lineage,

@@ -701,7 +701,6 @@ impl Payments {
             ))
         })?;
 
-
         let event_params = EventProcessingParams {
             connector_name: &connector.get_connector_name(),
             service_name,
@@ -2735,7 +2734,6 @@ impl PaymentMethod {
                 },
             ))
         })?;
-
 
         let event_params = EventProcessingParams {
             connector_name: &metadata_payload.connector.get_connector_name(),
