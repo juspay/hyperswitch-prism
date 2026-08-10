@@ -19,6 +19,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.08.10.0
+
+### Features
+
+- **connector:** Add new connector - MAYA ([#2017](https://github.com/juspay/connector-service/pull/2017)) ([`69f745f`](https://github.com/juspay/connector-service/commit/69f745f8d62f803418838b575464df39d4aedc60))
+- **framework:** Add missing connector error code mapping ([#2078](https://github.com/juspay/connector-service/pull/2078)) ([`adacc01`](https://github.com/juspay/connector-service/commit/adacc0123fc3e0c58fa1c0f23885c837a8da7f9d))
+
+**Full Changelog:** [`2026.08.07.1...2026.08.10.0`](https://github.com/juspay/connector-service/compare/2026.08.07.1...2026.08.10.0)
+
+- - -
+
 ## 2026.08.07.1
 
 ### Features

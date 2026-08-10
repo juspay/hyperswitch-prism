@@ -830,10 +830,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     transaction_id,
                 ));
                 Ok(Self {
-                    resource_common_data: PaymentFlowData {
-                        status: common_enums::AttemptStatus::Failure,
-                        ..item.router_data.resource_common_data
-                    },
                     response,
                     ..item.router_data
                 })
@@ -937,10 +933,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     transaction_id,
                 ));
                 Ok(Self {
-                    resource_common_data: PaymentFlowData {
-                        status: common_enums::AttemptStatus::Failure,
-                        ..item.router_data.resource_common_data
-                    },
                     response,
                     ..item.router_data
                 })
@@ -1562,10 +1554,6 @@ impl<F> TryFrom<ResponseRouterData<NovalnetPSyncResponse, Self>>
                     transaction_id,
                 ));
                 Ok(Self {
-                    resource_common_data: PaymentFlowData {
-                        status: common_enums::AttemptStatus::Failure,
-                        ..item.router_data.resource_common_data
-                    },
                     response,
                     ..item.router_data
                 })
