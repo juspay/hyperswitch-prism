@@ -3487,13 +3487,17 @@ pub fn run_scenario_test_with_options(
     let mut failed = 0usize;
 
     if options.skip_dependencies {
-        let scenario_def = scenarios.get(scenario).ok_or_else(|| ScenarioError::ScenarioNotFound {
-            suite: suite.to_string(),
-            scenario: scenario.to_string(),
-        })?;
-        if let Some(unmet) =
-            first_context_map_target_missing_from_scenario(&target_suite_spec, &scenario_def.grpc_req)
-        {
+        let scenario_def =
+            scenarios
+                .get(scenario)
+                .ok_or_else(|| ScenarioError::ScenarioNotFound {
+                    suite: suite.to_string(),
+                    scenario: scenario.to_string(),
+                })?;
+        if let Some(unmet) = first_context_map_target_missing_from_scenario(
+            &target_suite_spec,
+            &scenario_def.grpc_req,
+        ) {
             return Err(ScenarioError::DependenciesRequired {
                 suite: suite.to_string(),
                 scenario: scenario.to_string(),
@@ -6090,17 +6094,17 @@ grpc-status: 0
         // output is genuinely needed here, not a sibling variant choice.
         let scenario_req = json!({"state": {"access_token": {"token": {"value": ""}}}});
         let missing = first_context_map_target_missing_from_scenario(&suite_spec, &scenario_req);
-        assert_eq!(
-            missing,
-            Some("state.access_token.token.value".to_string())
-        );
+        assert_eq!(missing, Some("state.access_token.token.value".to_string()));
 
         // Scenario supplies its own literal at the exact target path — dependency is redundant.
         let scenario_req_self_sufficient = json!({
             "state": {"access_token": {"token": {"value": "already_have_a_token"}}}
         });
         assert_eq!(
-            first_context_map_target_missing_from_scenario(&suite_spec, &scenario_req_self_sufficient),
+            first_context_map_target_missing_from_scenario(
+                &suite_spec,
+                &scenario_req_self_sufficient
+            ),
             None
         );
     }
