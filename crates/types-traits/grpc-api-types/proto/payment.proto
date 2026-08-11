@@ -2600,6 +2600,9 @@ message PaymentServiceAuthorizeRequest {
   // Currency conversion quote and decision data passed through the
   // authorization flow for future connector-specific processing.
   optional CurrencyConversionData currency_conversion_data = 51;
+
+  // Connector-specific intent metadata for the transaction.
+  optional SecretString connector_intent_metadata = 52;
 }
 
 // Partner / external-platform application details.
@@ -3098,6 +3101,9 @@ message PaymentServiceCaptureRequest {
 
   // Split payment configuration (platform fees, transfers, etc.)
   optional SplitPaymentsDetails split_payments = 14;
+
+  // Connector-specific intent metadata for the transaction.
+  optional SecretString connector_intent_metadata = 15;
 }
 
 // Response message for a payment capture operation
@@ -3652,6 +3658,9 @@ message RecurringPaymentServiceChargeRequest {
 
   // Channel through which the repeat payment was initiated.
   optional PaymentChannel payment_channel = 38;
+
+  // Connector-specific intent metadata for the transaction.
+  optional SecretString connector_intent_metadata = 39;
 }
 
 // Response message for repeat payment operation

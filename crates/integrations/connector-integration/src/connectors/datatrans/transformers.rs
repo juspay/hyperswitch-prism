@@ -14,8 +14,8 @@ use domain_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
         ConnectorSpecificClientAuthenticationResponse,
         DatatransClientAuthenticationResponse as DatatransClientAuthenticationResponseDomain,
-        MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
-        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
+        DatatransConnectorMetadataData, MandateReference, MandateReferenceId, PaymentFlowData,
+        PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
@@ -28,7 +28,8 @@ use domain_types::{
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer};
+use time::{format_description::well_known::Rfc3339, PrimitiveDateTime};
 
 // Error message constants
 const DEFAULT_ERROR_CODE: &str = "UNKNOWN_ERROR";
@@ -79,6 +80,20 @@ fn datatrans_context(additional_context: &str) -> IntegrationErrorContext {
         additional_context: Some(additional_context.to_string()),
         ..Default::default()
     }
+}
+
+fn serialize_transaction_date_as_rfc3339<S>(
+    date_time: &Option<PrimitiveDateTime>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    date_time
+        .map(|date_time| date_time.assume_utc().format(&Rfc3339))
+        .transpose()
+        .map_err(serde::ser::Error::custom)?
+        .serialize(serializer)
 }
 
 #[derive(Debug, Clone)]
@@ -263,6 +278,65 @@ pub struct DatatransPaymentsRequest<
     pub pay: Option<DatatransGooglePayRequest>,
     #[serde(rename = "APL", skip_serializing_if = "Option::is_none")]
     pub apl: Option<DatatransApplePayRequest>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mcp: Option<MCPData>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MCPData {
+    /// The targeted currency.
+    pub currency: Currency,
+    /// The amount in the targeted currency.
+    pub amount: i64,
+    /// Conversion rate received from the currency rates endpoint. Required for dynamic MCP.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub conversion_rate: Option<f64>,
+    /// Transaction datetime received from the currency rates endpoint.
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        serialize_with = "serialize_transaction_date_as_rfc3339"
+    )]
+    pub transaction_date: Option<PrimitiveDateTime>,
+    /// RetrievalReferenceNumber received from the currency rates endpoint.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub retrieval_reference_number: Option<String>,
+    pub user_id: String,
+    /// The provider for multi currency processing.
+    pub provider: String,
+    /// Reason indicator received from the acquirer.
+    pub reason_indicator: String,
+}
+
+impl From<DatatransConnectorMetadataData> for MCPData {
+    fn from(data: DatatransConnectorMetadataData) -> Self {
+        Self {
+            currency: data.currency,
+            amount: data.amount,
+            conversion_rate: data.conversion_rate,
+            transaction_date: data.transaction_date,
+            retrieval_reference_number: data.retrieval_reference_number,
+            user_id: data.user_id,
+            provider: data.provider,
+            reason_indicator: data.reason_indicator,
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CaptureMCPData {
+    pub currency: Currency,
+    pub amount: i64,
+}
+
+impl From<&DatatransConnectorMetadataData> for CaptureMCPData {
+    fn from(data: &DatatransConnectorMetadataData) -> Self {
+        Self {
+            currency: data.currency,
+            amount: data.amount,
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -509,6 +583,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             ),
             pay,
             apl,
+            mcp: router_data
+                .request
+                .connector_intent_metadata
+                .as_ref()
+                .and_then(|metadata| metadata.peek().datatrans.clone().map(MCPData::from)),
         })
     }
 }
@@ -823,6 +902,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 }),
             pay: None,
             apl: None,
+            mcp: None,
         })
     }
 }
@@ -1061,6 +1141,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             option: None,
             pay: None,
             apl: None,
+            mcp: router_data
+                .request
+                .connector_intent_metadata
+                .as_ref()
+                .and_then(|metadata| metadata.peek().datatrans.clone().map(MCPData::from)),
         })
     }
 }
@@ -1435,6 +1520,8 @@ pub struct DatatransCaptureRequest {
     pub refno: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub refno2: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mcp: Option<CaptureMCPData>,
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -1465,6 +1552,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .connector_request_reference_id
                 .clone(),
             refno2: None,
+            mcp: router_data
+                .request
+                .connector_intent_metadata
+                .as_ref()
+                .and_then(|metadata| metadata.peek().datatrans.as_ref().map(CaptureMCPData::from)),
         })
     }
 }
