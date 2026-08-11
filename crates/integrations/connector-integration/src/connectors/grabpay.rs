@@ -997,6 +997,16 @@ fn process_grabpay_redirect_response(
     let code = get_query_param(request, "code");
     let state = get_query_param(request, "state");
     let error = get_query_param(request, "error");
+
+    if let Some(error_code) = error {
+        return Err(error_stack::report!(IntegrationError::InvalidDataFormat {
+            field_name: "error",
+            context: grabpay_integration_context(format!(
+                "GrabPay redirect failed: {error_code}"
+            )),
+        }));
+    }
+
     let connector_feature_data =
         build_redirect_connector_feature_data(base_connector_feature_data, &code, &state)?;
 
@@ -1004,7 +1014,7 @@ fn process_grabpay_redirect_response(
         resource_id: None,
         status: None,
         connector_response_reference_id: None,
-        error_code: error,
+        error_code: None,
         error_message: None,
         error_reason: None,
         response_amount: None,

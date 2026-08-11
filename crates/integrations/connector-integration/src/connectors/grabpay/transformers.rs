@@ -293,8 +293,9 @@ pub enum GrabpayPaymentStatus {
     Authorised,
     AuthorisationDeclined,
     TransactionAlreadyExist,
-    #[serde(other)]
-    Unknown,
+    #[serde(untagged)]
+    #[strum(default)]
+    Unknown(String),
 }
 
 impl From<GrabpayPaymentStatus> for AttemptStatus {
@@ -308,7 +309,7 @@ impl From<GrabpayPaymentStatus> for AttemptStatus {
                 Self::Pending
             }
             GrabpayPaymentStatus::Authorised => Self::Authorized,
-            GrabpayPaymentStatus::Unknown => Self::Pending,
+            GrabpayPaymentStatus::Unknown(_) => Self::Pending,
         }
     }
 }
@@ -323,8 +324,9 @@ pub enum GrabpayRefundStatus {
     AuthorisationDeclined,
     Processing,
     TransactionAlreadyExist,
-    #[serde(other)]
-    Unknown,
+    #[serde(untagged)]
+    #[strum(default)]
+    Unknown(String),
 }
 
 impl From<GrabpayRefundStatus> for RefundStatus {
@@ -337,7 +339,7 @@ impl From<GrabpayRefundStatus> for RefundStatus {
             GrabpayRefundStatus::Processing | GrabpayRefundStatus::TransactionAlreadyExist => {
                 Self::Pending
             }
-            GrabpayRefundStatus::Unknown => Self::Pending,
+            GrabpayRefundStatus::Unknown(_) => Self::Pending,
         }
     }
 }
@@ -441,7 +443,7 @@ pub fn grabpay_webhook_event_type(
             GrabpayRefundStatus::Processing | GrabpayRefundStatus::TransactionAlreadyExist => {
                 EventType::RefundProcessing
             }
-            GrabpayRefundStatus::Unknown => EventType::IncomingWebhookEventUnspecified,
+            GrabpayRefundStatus::Unknown(_) => EventType::IncomingWebhookEventUnspecified,
         })
     } else {
         let status = parse_webhook_status::<GrabpayPaymentStatus>(webhook_body)?;
@@ -454,7 +456,7 @@ pub fn grabpay_webhook_event_type(
                 EventType::PaymentIntentProcessing
             }
             GrabpayPaymentStatus::Authorised => EventType::PaymentIntentAuthorizationSuccess,
-            GrabpayPaymentStatus::Unknown => EventType::IncomingWebhookEventUnspecified,
+            GrabpayPaymentStatus::Unknown(_) => EventType::IncomingWebhookEventUnspecified,
         })
     }
 }
@@ -834,6 +836,11 @@ impl TryFrom<ConnectorResponseData<GrabpayChargeCompleteResponse, Self>>
     fn try_from(
         item: ConnectorResponseData<GrabpayChargeCompleteResponse, Self>,
     ) -> Result<Self, Self::Error> {
+        let session_token = item
+            .router_data
+            .resource_common_data
+            .get_session_token()
+            .ok();
         let response = item.response;
         let status = AttemptStatus::from(response.tx_status.clone());
         let resource_id = match item.router_data.response.as_ref() {
@@ -842,19 +849,20 @@ impl TryFrom<ConnectorResponseData<GrabpayChargeCompleteResponse, Self>>
             }
             _ => ResponseId::ConnectorTransactionId(response.tx_id.clone()),
         };
+        let connector_metadata = build_complete_connector_feature_data(
+            item.router_data
+                .resource_common_data
+                .connector_feature_data
+                .as_ref(),
+            &response,
+            session_token.as_deref(),
+        );
 
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id,
                 redirection_data: None,
-                connector_metadata: Some(serde_json::json!({
-                    "txID": response.tx_id,
-                    "status": response.status,
-                    "paymentMethod": response.payment_method,
-                    "description": response.description,
-                    "txStatus": response.tx_status,
-                    "reason": response.reason,
-                })),
+                connector_metadata: Some(connector_metadata),
                 mandate_reference: None,
                 network_txn_id: None,
                 network_txn_link_id: None,
