@@ -11,7 +11,7 @@ use domain_types::{
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payouts::{
-        payout_method_data::{BankRedirect, PayoutMethodData},
+        payout_method_data::{Bank, PayoutMethodData},
         payouts_types::{
             PayoutFlowData, PayoutGetRequest, PayoutGetResponse, PayoutTransferRequest,
             PayoutTransferResponse,
@@ -291,19 +291,17 @@ impl
         });
 
         let beneficiary = match req.request.payout_method_data.as_ref() {
-            Some(PayoutMethodData::BankRedirect(BankRedirect::OpenBankingUk(open_banking))) => {
-                TruelayerBeneficiary {
-                    _type: TruelayerBeneficiaryType::ExternalAccount,
-                    reference: reference.clone(),
-                    account_holder_name: Some(open_banking.account_holder_name.clone()),
-                    account_identifier: Some(TruelayerAccountIdentifier {
-                        _type: "iban".to_string(),
-                        iban: open_banking.iban.clone(),
-                    }),
-                    payment_source_id: None,
-                    user_id: None,
-                }
-            }
+            Some(PayoutMethodData::Bank(Bank::OpenBanking(open_banking))) => TruelayerBeneficiary {
+                _type: TruelayerBeneficiaryType::ExternalAccount,
+                reference: reference.clone(),
+                account_holder_name: Some(open_banking.account_holder_name.clone()),
+                account_identifier: Some(TruelayerAccountIdentifier {
+                    _type: "iban".to_string(),
+                    iban: open_banking.iban.clone(),
+                }),
+                payment_source_id: None,
+                user_id: None,
+            },
             Some(PayoutMethodData::Passthrough(passthrough)) => {
                 let user_id = req
                     .request

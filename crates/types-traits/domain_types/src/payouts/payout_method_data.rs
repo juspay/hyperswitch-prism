@@ -79,6 +79,7 @@ pub enum Bank {
     Pix(PixBankTransfer),
     PixKey(PixKeyBankTransfer),
     PixEmv(PixEmvBankTransfer),
+    OpenBanking(OpenBanking),
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug)]
@@ -195,6 +196,14 @@ pub enum BankRedirect {
 pub struct Interac {
     /// Customer email linked with interac account
     pub email: Email,
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug)]
+pub struct OpenBanking {
+    /// Account holder name
+    pub account_holder_name: Secret<String>,
+    /// International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.
+    pub iban: Secret<String>,
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug)]

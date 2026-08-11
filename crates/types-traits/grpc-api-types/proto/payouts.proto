@@ -194,6 +194,13 @@ message OpenBankingUkPayout {
   SecretString iban = 2;
 }
 
+message OpenBankingPayout {
+  // The name of the account holder
+  SecretString account_holder_name = 1;
+  // The International Bank Account Number (IBAN)
+  SecretString iban = 2;
+}
+
 message Passthrough {
   // The token provided by the payment service provider
   string psp_token = 1;
@@ -229,6 +236,7 @@ message PayoutMethod {
     // BANK TRANSFER METHODS
     PixKeyBankTransferPayout pix_key = 12;
     PixEmvBankTransferPayout pix_emv = 13;
+    OpenBankingPayout open_banking = 14;
   }
 }
 

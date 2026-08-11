@@ -851,6 +851,50 @@ impl ForeignTryFrom<grpc_api_types::payouts::InteracPayout>
     }
 }
 
+impl ForeignTryFrom<grpc_api_types::payouts::OpenBankingPayout>
+    for payouts::payout_method_data::OpenBanking
+{
+    type Error = IntegrationError;
+    fn foreign_try_from(
+        ob: grpc_api_types::payouts::OpenBankingPayout,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        Ok(payouts::payout_method_data::OpenBanking {
+            account_holder_name: ::hyperswitch_masking::Secret::new(
+                ob.account_holder_name
+                    .ok_or_else(|| {
+                        error_stack::report!(IntegrationError::MissingRequiredField {
+                            field_name: "account_holder_name",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "Account holder name is required for OpenBanking".to_owned()
+                                ),
+                                ..Default::default()
+                            },
+                        })
+                    })?
+                    .peek()
+                    .to_string(),
+            ),
+            iban: ::hyperswitch_masking::Secret::new(
+                ob.iban
+                    .ok_or_else(|| {
+                        error_stack::report!(IntegrationError::MissingRequiredField {
+                            field_name: "iban",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "IBAN is required for OpenBanking".to_owned()
+                                ),
+                                ..Default::default()
+                            },
+                        })
+                    })?
+                    .peek()
+                    .to_string(),
+            ),
+        })
+    }
+}
+
 impl ForeignTryFrom<grpc_api_types::payouts::OpenBankingUkPayout>
     for payouts::payout_method_data::OpenBankingUk
 {
@@ -1008,6 +1052,11 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutMethod>
                     payouts::payout_method_data::OpenBankingUk::foreign_try_from(open_banking_uk)?,
                 ),
             )),
+            grpc_api_types::payouts::payout_method::PayoutMethodData::OpenBanking(open_banking) => {
+                Ok(Self::Bank(payouts::payout_method_data::Bank::OpenBanking(
+                    payouts::payout_method_data::OpenBanking::foreign_try_from(open_banking)?,
+                )))
+            }
             grpc_api_types::payouts::payout_method::PayoutMethodData::Passthrough(passthrough) => {
                 Ok(Self::Passthrough(
                     payouts::payout_method_data::Passthrough::foreign_try_from(passthrough)?,
