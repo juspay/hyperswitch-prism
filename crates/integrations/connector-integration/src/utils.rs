@@ -92,16 +92,14 @@ macro_rules! finalize_connector_response {
                 evt.response_data = Some(msv.clone());
             }
         }
-        let mut result = RouterDataV2::try_from(ResponseRouterData {
-            response: $response,
-            router_data: $data.clone(),
-            http_code: $status_code,
-        })
-        .map_err(|e| {
-            e.change_context($crate::ConnectorError::ResponseHandlingFailed {
-                context: Default::default(),
-            })
-        })?;
+        let mut result = error_stack::ResultExt::change_context(
+            RouterDataV2::try_from(ResponseRouterData {
+                response: $response,
+                router_data: $data.clone(),
+                http_code: $status_code,
+            }),
+            $crate::ConnectorError::response_handling_failed($status_code),
+        )?;
         result
             .resource_common_data
             .set_typed_connector_response(masked.as_ref().map(|m| m.inner().to_string()));
