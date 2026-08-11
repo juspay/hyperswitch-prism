@@ -418,6 +418,6 @@ pub struct PayoutEligibilityResponse {
     pub connector_payout_id: Option<String>,
     pub payout_eligible: Option<bool>,
     pub status_code: u16,
-    pub connector_metadata: Option<serde_json::Value>,
+    pub connector_metadata: Option<common_utils::pii::SecretSerdeValue>,
     pub connector_eligibility_reference_id: Option<String>,
 }

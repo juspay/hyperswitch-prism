@@ -2263,10 +2263,11 @@ pub fn generate_payout_eligibility_response(
             let payout_status = grpc_api_types::payouts::payout_enums::PayoutStatus::foreign_from(
                 response.payout_status,
             ) as i32;
-            let connector_metadata = response
-                .connector_metadata
-                .as_ref()
-                .map(|value| hyperswitch_masking::Secret::new(value.to_string()));
+            let connector_metadata = response.connector_metadata.as_ref().map(|value| {
+                hyperswitch_masking::Secret::new(
+                    hyperswitch_masking::PeekInterface::peek(value).to_string(),
+                )
+            });
 
             Ok(grpc_api_types::payouts::PayoutMethodEligibilityResponse {
                 merchant_payout_id: response.merchant_payout_id,

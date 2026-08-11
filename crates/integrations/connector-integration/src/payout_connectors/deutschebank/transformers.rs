@@ -291,7 +291,9 @@ pub fn build_eligibility_response(
                 connector_payout_id: None,
                 payout_eligible: Some(true),
                 status_code: http_code,
-                connector_metadata: Some(serde_json::Value::Object(connector_metadata)),
+                connector_metadata: Some(Secret::new(serde_json::Value::Object(
+                    connector_metadata,
+                ))),
                 connector_eligibility_reference_id: Some(vop_id),
             })
         }
