@@ -577,6 +577,7 @@ pub struct EventProcessingParams<'a> {
         response.status_code = Empty,
         message_ = "Golden Log Line (outgoing)",
         latency = Empty,
+        latency_ms = Empty,
     )
 )]
 #[allow(clippy::too_many_arguments)]
@@ -1083,6 +1084,8 @@ where
 
     let elapsed = start.elapsed().as_millis();
     tracing::Span::current().record("latency", elapsed);
+    // Additive numeric latency (euler `latency` is a number). `latency` (string) left as-is.
+    tracing::Span::current().record("latency_ms", u64::try_from(elapsed).unwrap_or(u64::MAX));
     // Apply outgoing log fields (transformations + static values) before emitting the golden log line
     #[cfg(feature = "log-transformations")]
     if event_params.log_fields_enabled {

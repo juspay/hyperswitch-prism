@@ -425,6 +425,13 @@ where
 
         let duration = start_time.elapsed().as_millis();
         current_span.record("response_time", duration);
+        // Additive numeric latency (euler `latency` is a number). `response_time` is left as-is.
+        log_utils::Storage::with_current_span_mut(|storage| {
+            storage.record_value(
+                "latency_ms",
+                serde_json::Value::from(u64::try_from(duration).unwrap_or(u64::MAX)),
+            );
+        });
         result
     }
     .await;
@@ -493,6 +500,13 @@ where
 
         let duration = start_time.elapsed().as_millis();
         current_span.record("response_time", duration);
+        // Additive numeric latency (euler `latency` is a number). `response_time` is left as-is.
+        log_utils::Storage::with_current_span_mut(|storage| {
+            storage.record_value(
+                "latency_ms",
+                serde_json::Value::from(u64::try_from(duration).unwrap_or(u64::MAX)),
+            );
+        });
         result
     }
     .await;

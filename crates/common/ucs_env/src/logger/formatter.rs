@@ -11,7 +11,7 @@ use std::{
 use common_utils::consts::{
     LOG_FILE as FILE, LOG_FN as FN, LOG_FULL_NAME as FULL_NAME, LOG_HOSTNAME as HOSTNAME,
     LOG_LEVEL as LEVEL, LOG_LINE as LINE, LOG_MESSAGE as MESSAGE, LOG_PID as PID,
-    LOG_SERVICE as SERVICE, LOG_TARGET as TARGET, LOG_TIME as TIME,
+    LOG_SERVICE as SERVICE, LOG_TARGET as TARGET, LOG_TIME as TIME, LOG_TIMESTAMP as TIMESTAMP,
 };
 use once_cell::sync::Lazy;
 use serde::ser::{SerializeMap, Serializer};
@@ -45,6 +45,7 @@ pub static IMPLICIT_KEYS: Lazy<rustc_hash::FxHashSet<&str>> = Lazy::new(|| {
     set.insert(FN);
     set.insert(FULL_NAME);
     set.insert(TIME);
+    set.insert(TIMESTAMP);
 
     set
 });
@@ -164,6 +165,8 @@ where
             .serialize_entry(FULL_NAME, &format_args!("{}::{}", metadata.target(), name))?;
         if let Ok(time) = &time::OffsetDateTime::now_utc().format(&Iso8601::DEFAULT) {
             map_serializer.serialize_entry(TIME, time)?;
+            // Additive euler-schema alias: emit `timestamp` alongside `time` (same value).
+            map_serializer.serialize_entry(TIMESTAMP, time)?;
         }
 
         // Write down implicit default entries.
