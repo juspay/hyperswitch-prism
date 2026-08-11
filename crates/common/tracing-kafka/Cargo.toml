@@ -11,7 +11,7 @@ rdkafka = "0.36"
 serde_json = { workspace = true }
 tokio = "1.0"
 thiserror = { workspace = true }
-log_utils = { git = "https://github.com/juspay/framework-libs-rs", rev = "243562041252fe5897ce888d20b715ffdc3767ce", package = "log_utils", features = ["tracing"] }
+log_utils = { git = "https://github.com/AmitsinghTanwar007/framework-libs-rs", rev = "8cc2e171e42ec831fd0def4cccdf1bfafacdb89a", package = "log_utils", features = ["tracing"] }
 
 # Optional dependencies for metrics
 prometheus = { version = "0.13", optional = true }
