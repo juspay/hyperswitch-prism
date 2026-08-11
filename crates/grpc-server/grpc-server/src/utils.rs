@@ -4,10 +4,12 @@ pub use ucs_interface_common::config::*;
 pub use ucs_interface_common::flow::*;
 pub use ucs_interface_common::metadata::*;
 
+#[cfg(feature = "log-transformations")]
+use common_utils::events::apply_log_fields;
 use common_utils::{
     consts::{self, Env},
     errors::CustomResult,
-    events::{Event, EventStage, FlowName, MaskedSerdeValue},
+    events::{CompiledLogFields, Event, EventStage, FlowName, MaskedSerdeValue},
     lineage::LineageIds,
     superposition_config::{get_connector_urls, ConnectorUrls, SuperpositionConfig},
     types::ExecutionMode,
@@ -289,8 +291,11 @@ where
     Ok(())
 }
 
-pub fn log_after_initialization<T>(result: &Result<tonic::Response<T>, tonic::Status>)
-where
+pub fn log_after_initialization<T>(
+    result: &Result<tonic::Response<T>, tonic::Status>,
+    log_fields_enabled: bool,
+    log_fields: &CompiledLogFields,
+) where
     T: serde::Serialize + std::fmt::Debug,
 {
     let current_span = tracing::Span::current();
@@ -325,6 +330,16 @@ where
             current_span.record("error_message", status.message());
             current_span.record("status_code", status.code().to_string());
         }
+    }
+    // Apply unified log fields (transformations + static values) before emitting the golden log line
+    #[cfg(feature = "log-transformations")]
+    if log_fields_enabled {
+        apply_log_fields(log_fields);
+    }
+    #[cfg(not(feature = "log-transformations"))]
+    {
+        let _ = log_fields;
+        let _ = log_fields_enabled;
     }
     tracing::info!("Golden Log Line (incoming - response)");
 }
@@ -376,7 +391,11 @@ where
     .await;
 
     let grpc_response = handler_result.into_grpc_status();
-    log_after_initialization(&grpc_response);
+    log_after_initialization(
+        &grpc_response,
+        config.log_fields.enabled,
+        &config.log_fields.incoming,
+    );
 
     #[cfg(feature = "otel")]
     observe_internal_latency(
@@ -440,7 +459,11 @@ where
     .await;
 
     let grpc_response = handler_result.into_grpc_status();
-    log_after_initialization(&grpc_response);
+    log_after_initialization(
+        &grpc_response,
+        config.log_fields.enabled,
+        &config.log_fields.incoming,
+    );
 
     #[cfg(feature = "otel")]
     observe_internal_latency(
@@ -710,6 +733,8 @@ macro_rules! implement_connector_operation {
                 merchant_id: metadata_payload.merchant_id.as_str(),
                 return_raw_connector_data: config.common.return_raw_connector_data,
                 connector_latency: metadata_payload.connector_latency.clone(),
+                log_fields_enabled: config.log_fields.enabled,
+                log_fields: &config.log_fields.outgoing,
             };
 
             // The connector round-trip is identical for both holders → written once,
@@ -1071,6 +1096,8 @@ macro_rules! implement_connector_operation {
                 merchant_id: metadata_payload.merchant_id.as_str(),
                 return_raw_connector_data: config.common.return_raw_connector_data,
                 connector_latency: metadata_payload.connector_latency.clone(),
+                log_fields_enabled: config.log_fields.enabled,
+                log_fields: &config.log_fields.outgoing,
             };
             let call_connector_action = connector_integration.get_call_connector_action();
             let response_result = external_services::service::execute_connector_processing_step(
