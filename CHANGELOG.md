@@ -19,6 +19,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.08.11.1
+
+### Features
+
+- **paysafe:** Support Google Pay PAN_ONLY with 3DS challenge ([#2087](https://github.com/juspay/connector-service/pull/2087)) ([`a96f01d`](https://github.com/juspay/connector-service/commit/a96f01d01ec38d092c68eb0d13a696c59835cca9))
+
+### Bug Fixes
+
+- **kount:** Made changes in Order info payload ([#2083](https://github.com/juspay/connector-service/pull/2083)) ([`f7d0ee9`](https://github.com/juspay/connector-service/commit/f7d0ee96e8a0cad14e5ec8fa0cf5efc22d5ad442))
+
+**Full Changelog:** [`2026.08.11.0...2026.08.11.1`](https://github.com/juspay/connector-service/compare/2026.08.11.0...2026.08.11.1)
+
+- - -
+
 ## 2026.08.11.0
 
 ### Bug Fixes
