@@ -159,6 +159,7 @@ pub enum ConnectorEnum {
     Affirm,
     Kount,
     Givepayments,
+    Grabpay,
     Tesouro,
 }
 
@@ -516,6 +517,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Tesouro => Ok(Self::Tesouro),
             grpc_api_types::payments::Connector::Glomopay => Ok(Self::Glomopay),
             grpc_api_types::payments::Connector::Givepayments => Ok(Self::Givepayments),
+            grpc_api_types::payments::Connector::Grabpay => Ok(Self::Grabpay),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -2761,6 +2763,7 @@ pub struct RedirectDetailsResponse {
     pub error_message: Option<String>,
     pub error_reason: Option<String>,
     pub raw_connector_response: Option<String>,
+    pub connector_feature_data: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -3978,6 +3981,7 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                     Self::ApplePayThirdPartySdk
                 }
                 payment_method_data::WalletData::DanaRedirect {} => Self::DanaRedirect,
+                payment_method_data::WalletData::GrabpayRedirect {} => Self::GrabpayRedirect,
                 payment_method_data::WalletData::GooglePay(_) => Self::GooglePay,
                 payment_method_data::WalletData::GooglePayRedirect(_) => Self::GooglePayRedirect,
                 payment_method_data::WalletData::GooglePayThirdPartySdk(_) => {
@@ -5563,6 +5567,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Payconex(_) => Ok(Self::Payment(ConnectorEnum::Payconex)),
             AuthType::Kount(_) => Ok(Self::Payment(ConnectorEnum::Kount)),
             AuthType::Hyperswitch(_) => Ok(Self::Payment(ConnectorEnum::Hyperswitch)),
+            AuthType::Grabpay(_) => Ok(Self::Payment(ConnectorEnum::Grabpay)),
             AuthType::Maya(_) => Ok(Self::Payment(ConnectorEnum::Maya)),
             AuthType::Tesouro(_) => Ok(Self::Payment(ConnectorEnum::Tesouro)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),

@@ -898,6 +898,7 @@ enum Connector {
   TESOURO = 132;
   SANTANDER = 133;
   MAYA = 134;
+  GRABPAY = 135;
 }
 
 // Payment method types
@@ -1018,6 +1019,7 @@ enum PaymentMethodType {
   QWIKCILVER_WALLET = 113;
   SKRILL = 114;
   PAYMAYA = 115;
+  GRAB_PAY = 116;
 }
 
 // Product type enumeration
@@ -4133,6 +4135,9 @@ message PaymentServiceVerifyRedirectResponseRequest {
 
   // Security
   optional RedirectResponseSecrets redirect_response_secrets = 3;
+
+  // Connector-owned metadata from the original redirect flow.
+  optional SecretString connector_feature_data = 4;
 }
 
 // Response message for VerifyRedirectResponse
@@ -4155,6 +4160,9 @@ message PaymentServiceVerifyRedirectResponseResponse {
 
   // Raw Response
   optional SecretString raw_connector_response = 7;
+
+  // Connector-specific metadata produced while parsing the redirect response.
+  optional SecretString connector_feature_data = 8;
 }
 
 // ============================================================================
@@ -5560,6 +5568,15 @@ message GlomopayConfig {
   optional string base_url = 50;
 }
 
+message GrabpayConfig {
+  SecretString partner_id = 1;
+  SecretString partner_secret = 2;
+  SecretString client_id = 3;
+  SecretString client_secret = 4;
+  SecretString merchant_id = 5;
+  optional string base_url = 50;
+}
+
 message TesouroConfig {
   SecretString api_key = 1;
   SecretString key1 = 2;
@@ -5879,6 +5896,8 @@ message ConnectorSpecificConfig {
     SantanderConfig santander = 142;
     // MAYA = 143
     MayaConfig maya = 143;
+    // GRABPAY = 144
+    GrabpayConfig grabpay = 144;
   }
 }
 
