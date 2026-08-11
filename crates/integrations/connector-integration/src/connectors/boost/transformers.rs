@@ -30,7 +30,13 @@ pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::genera
 /// BCPG's `paymentMethod` value for the card-redirect flow (section 3.2.1).
 const BOOST_PAYMENT_METHOD_CARD: &str = "card";
 
+const FIELD_PROBE_FROZEN_TIMESTAMP_ENV_VAR: &str = "UCS_FIELD_PROBE_FROZEN_TIMESTAMP";
+
 fn stable_created_timestamp() -> Result<String, error_stack::Report<errors::IntegrationError>> {
+    if let Ok(frozen) = std::env::var(FIELD_PROBE_FROZEN_TIMESTAMP_ENV_VAR) {
+        return Ok(frozen);
+    }
+
     let ts = date_time::date_as_yyyymmddthhmmssmmmz().change_context(
         errors::IntegrationError::RequestEncodingFailed {
             context: errors::IntegrationErrorContext {
