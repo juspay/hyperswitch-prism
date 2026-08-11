@@ -2626,7 +2626,9 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
                 Ok(PaymentMethodType::WeChatPay)
             }
             grpc_api_types::payments::PaymentMethodType::AliPay => Ok(PaymentMethodType::AliPay),
-            grpc_api_types::payments::PaymentMethodType::AliPayHk => Ok(PaymentMethodType::AliPayHk),
+            grpc_api_types::payments::PaymentMethodType::AliPayHk => {
+                Ok(PaymentMethodType::AliPayHk)
+            }
             grpc_api_types::payments::PaymentMethodType::Gcash => Ok(PaymentMethodType::Gcash),
             grpc_api_types::payments::PaymentMethodType::Cashapp => Ok(PaymentMethodType::Cashapp),
             grpc_api_types::payments::PaymentMethodType::SepaBankTransfer => {
