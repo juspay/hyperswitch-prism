@@ -64,36 +64,30 @@ const FORM_URL_ENCODED: &str = "application/x-www-form-urlencoded";
 const KOUNT_WEB_SDK_URL: &str =
     "https://cdn.jsdelivr.net/npm/@kount/kount-web-client-sdk@2.2.3/+esm";
 
-/// Build the Device Data Collection (DDC) HTML returned by the PreAuthenticate
-/// step. Rendered in the shopper's browser; makes **no** server-side call to
-/// Kount. Follows the Kount Web Client SDK contract: `clientID` is the
-/// Kount-assigned merchant/client id, `environment` is `TEST`/`PROD`, callbacks
-/// live inside the config object, and the session id is passed as the second
-/// argument to `kountSDK(config, sessionID)`.
+/// Build the Device Data Collection (DDC) script snippet returned by the
+/// PreAuthenticate step. Rendered in the shopper's browser; makes **no**
+/// server-side call to Kount. Follows the Kount Web Client SDK contract:
+/// `clientID` is the Kount-assigned merchant/client id, `environment` is
+/// `TEST`/`PROD`, callbacks live inside the config object, and the session id
+/// is passed as the second argument to `kountSDK(config, sessionID)`.
 ///
-/// `return_url` is the merchant's own continuation URL: on `collect-end` the
-/// form posts there so the browser returns to the merchant flow. Kount is not
-/// involved in this hop and never receives the URL — DDC correlates purely by
-/// `sessionID`. When `return_url` is `None` the form self-submits.
-pub fn build_ddc_html(
-    client_id: &str,
-    session_id: &str,
-    sandbox: bool,
-    return_url: Option<&str>,
-) -> String {
+/// Returns only the `<script>` tag — no wrapping HTML document and no
+/// `<form>`. The embedding page owns the client-side contract: on
+/// `collect-end` the script submits `#kount-ddc-form` if the page provides
+/// one (with its own `action` pointing wherever it wants to continue on
+/// completion), falling back to the first `<form>` on the page otherwise.
+/// This function takes no `return_url`/continuation URL — Kount is not
+/// involved in that hop and never receives
+/// it; DDC correlates purely by `sessionID`.
+pub fn build_ddc_script(client_id: &str, session_id: &str, sandbox: bool) -> String {
     let environment = if sandbox { "TEST" } else { "PROD" };
     // Contextual output-encoding: `client_id` (from the access-token JWT) and
-    // `session_id` are interpolated into a JS string literal; `return_url` into
-    // an HTML attribute. Encode each for its context so no value can break out.
+    // `session_id` are interpolated into a JS string literal — encode for that
+    // context so no value can break out of the string.
     let client_id = js_string_escape(client_id);
     let session_id = js_string_escape(session_id);
-    let form_action = return_url
-        .map(|url| format!(r#" action="{}""#, html_attr_escape(url)))
-        .unwrap_or_default();
     format!(
-        r#"<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>
-<form id="kount-ddc-form" method="POST"{form_action}></form>
-<script type="module">
+        r#"<script type="module">
   import kountSDK from "{KOUNT_WEB_SDK_URL}";
   const kountConfig = {{
     clientID: "{client_id}",
@@ -101,12 +95,11 @@ pub fn build_ddc_html(
     isSinglePageApp: false,
     isDebugEnabled: false,
     callbacks: {{
-      "collect-end": function () {{ document.getElementById("kount-ddc-form").submit(); }}
+      "collect-end": function () {{ const f = document.getElementById("kount-ddc-form"); if (f) {{ f.submit(); }} else {{ document.querySelector("form").submit(); }} }}
     }}
   }};
   kountSDK(kountConfig, "{session_id}");
-</script>
-</body></html>"#
+</script>"#
     )
 }
 
@@ -127,15 +120,6 @@ fn js_string_escape(input: &str) -> String {
         }
     }
     out
-}
-
-/// Escape a value for safe inclusion inside a double-quoted HTML attribute.
-fn html_attr_escape(input: &str) -> String {
-    input
-        .replace('&', "&amp;")
-        .replace('"', "&quot;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
 }
 
 /// Decode the (unverified) OAuth access-token JWT claims. Reads the payload
@@ -499,8 +483,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .as_deref()
             .map(access_token_is_sandbox)
             .unwrap_or(true);
-        let return_url = data.request.router_return_url.as_ref().map(|u| u.as_str());
-        let html = build_ddc_html(&client_id, &session_id, sandbox, return_url);
+        let script = build_ddc_script(&client_id, &session_id, sandbox);
 
         let mut router_data = data.clone();
         router_data.resource_common_data.status =
@@ -508,7 +491,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         router_data.response = Ok(PaymentsResponseData::PreAuthenticateResponse {
             resource_id: None,
             authentication_data: None,
-            redirection_data: Some(Box::new(RedirectForm::Html { html_data: html })),
+            redirection_data: Some(Box::new(RedirectForm::Script {
+                script_data: script,
+            })),
             connector_response_reference_id: Some(
                 data.resource_common_data
                     .connector_request_reference_id

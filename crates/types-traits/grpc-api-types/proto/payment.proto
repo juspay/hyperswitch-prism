@@ -1611,6 +1611,10 @@ message RedirectForm {
     // Generic hosted-iframe redirection: load `endpoint` in an iframe and
     // attach the connector-built `events` postMessage listener.
     HostedIframeData hosted_iframe = 7;
+
+    // A standalone script snippet (e.g. a device-data-collection script), when
+    // the connector returns script content instead of a full HTML document.
+    ScriptData script = 8;
   }
 }
 
@@ -1630,6 +1634,12 @@ message FormData {
 message HtmlData {
   // The HTML content as a string.
   string html_data = 1;
+}
+
+// Represents a standalone script snippet for redirection
+message ScriptData {
+  // The script content as a string (e.g. a `<script>` tag).
+  string script_data = 1;
 }
 
 // Represents URI data for direct redirection
@@ -1839,6 +1849,9 @@ message FrmNotificationContent {
 
   // Merchant details for risk scoring.
   optional MerchantDetails merchant_details = 8;
+
+  // Connector-specific feature data (e.g. AVS/CVV verification results) for the notify call.
+  optional SecretString connector_feature_data = 9;
 }
 
 // FRM payment success details
