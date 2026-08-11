@@ -7263,11 +7263,11 @@ impl ForeignFrom<router_data::FlowStatus> for grpc_api_types::payments::PaymentS
             router_data::FlowStatus::Payment(attempt_status) => {
                 grpc_api_types::payments::PaymentStatus::foreign_from(attempt_status)
             }
-            // For Refund/Dispute/Payout in payment context, this shouldn't happen
+            // For Refund/Dispute in payment context, this shouldn't happen
             // but we provide sensible defaults
-            router_data::FlowStatus::Refund(_)
-            | router_data::FlowStatus::Dispute(_)
-            | router_data::FlowStatus::Payout(_) => Self::Unspecified,
+            router_data::FlowStatus::Refund(_) | router_data::FlowStatus::Dispute(_) => {
+                Self::Unspecified
+            }
         }
     }
 }
@@ -7279,10 +7279,10 @@ impl ForeignFrom<router_data::FlowStatus> for grpc_api_types::payments::RefundSt
             router_data::FlowStatus::Refund(refund_status) => {
                 grpc_api_types::payments::RefundStatus::foreign_from(refund_status)
             }
-            // For Payment/Dispute/Payout in refund context, map to failure
-            router_data::FlowStatus::Payment(_)
-            | router_data::FlowStatus::Dispute(_)
-            | router_data::FlowStatus::Payout(_) => Self::RefundFailure,
+            // For Payment/Dispute in refund context, map to failure
+            router_data::FlowStatus::Payment(_) | router_data::FlowStatus::Dispute(_) => {
+                Self::RefundFailure
+            }
         }
     }
 }
@@ -7294,10 +7294,10 @@ impl ForeignFrom<router_data::FlowStatus> for grpc_api_types::payments::DisputeS
             router_data::FlowStatus::Dispute(dispute_status) => {
                 grpc_api_types::payments::DisputeStatus::foreign_from(dispute_status)
             }
-            // For Payment/Refund/Payout in dispute context, map to default/unspecified
-            router_data::FlowStatus::Payment(_)
-            | router_data::FlowStatus::Refund(_)
-            | router_data::FlowStatus::Payout(_) => Self::default(),
+            // For Payment/Refund in dispute context, map to default/unspecified
+            router_data::FlowStatus::Payment(_) | router_data::FlowStatus::Refund(_) => {
+                Self::default()
+            }
         }
     }
 }
@@ -7337,12 +7337,6 @@ impl ForeignFrom<&router_data::FlowStatus> for grpc_api_types::payments::FlowSta
                         ),
                     ),
                 }
-            }
-            // The proto oneof covers payment, refund and dispute only. A payout status
-            // is reported on the response's own `payout_status` field, so there is
-            // nothing to set here.
-            router_data::FlowStatus::Payout(_) => {
-                grpc_api_types::payments::FlowStatus { status: None }
             }
         }
     }

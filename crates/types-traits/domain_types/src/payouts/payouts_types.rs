@@ -121,6 +121,7 @@ pub struct PayoutTransferRequest {
     pub address: Option<PayoutAddress>,
     pub source_bank_data: Option<Bank>,
     pub customer: Option<PayoutCustomer>,
+    pub eligibility_reference_id: Option<String>,
 }
 
 impl PayoutTransferRequest {
