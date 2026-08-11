@@ -48,16 +48,16 @@ tokio = { version = "1.48.0", features = [
 tonic = { workspace = true }
 tonic-reflection = "0.14.0"
 http = "1.2.0"
-log_utils = { git = "https://github.com/juspay/framework-libs-rs", rev = "243562041252fe5897ce888d20b715ffdc3767ce", package = "log_utils", features = [
+log_utils = { git = "https://github.com/juspay/framework-libs-rs", rev = "76613f5d0c72fd3d26a3403ae859c2a7545e8dd2", package = "log_utils", features = [
     "tracing",
 ] }
-build_info = { git = "https://github.com/juspay/framework-libs-rs", rev = "243562041252fe5897ce888d20b715ffdc3767ce", package = "build_info", features = [
+build_info = { git = "https://github.com/juspay/framework-libs-rs", rev = "76613f5d0c72fd3d26a3403ae859c2a7545e8dd2", package = "build_info", features = [
     "cargo-workspace",
     "framework-libs-members-env",
 ] }
 
 [build-dependencies]
-build_info = { git = "https://github.com/juspay/framework-libs-rs", rev = "243562041252fe5897ce888d20b715ffdc3767ce", package = "build_info", features = [
+build_info = { git = "https://github.com/juspay/framework-libs-rs", rev = "76613f5d0c72fd3d26a3403ae859c2a7545e8dd2", package = "build_info", features = [
     "cargo-workspace-build",
     "vergen-gix-build",
     "framework-libs-members-env",
@@ -71,6 +71,7 @@ connector-response-masking = [
     "domain_types/connector-response-masking",
     "external-services/connector-response-masking",
 ]
+log-transformations = ["common_utils/log-transformations"]
 
 [lints]
 workspace = true

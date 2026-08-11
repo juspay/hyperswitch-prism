@@ -507,6 +507,8 @@ impl EventServiceImpl {
             #[cfg(feature = "connector-response-masking")]
             connector_response_masking: &config.connector_response_masking,
             connector_latency: metadata_payload.connector_latency.clone(),
+            log_fields_enabled: config.log_fields.enabled,
+            log_fields: &config.log_fields.outgoing,
         };
 
         let response_result = Box::pin(
@@ -618,6 +620,8 @@ impl EventServiceImpl {
             #[cfg(feature = "connector-response-masking")]
             connector_response_masking: &config.connector_response_masking,
             connector_latency: metadata_payload.connector_latency.clone(),
+            log_fields_enabled: config.log_fields.enabled,
+            log_fields: &config.log_fields.outgoing,
         };
 
         let response_result = Box::pin(
@@ -729,6 +733,8 @@ impl EventServiceImpl {
             #[cfg(feature = "connector-response-masking")]
             connector_response_masking: &config.connector_response_masking,
             connector_latency: metadata_payload.connector_latency.clone(),
+            log_fields_enabled: config.log_fields.enabled,
+            log_fields: &config.log_fields.outgoing,
         };
 
         let response_result = Box::pin(
@@ -837,6 +843,8 @@ impl EventServiceImpl {
             #[cfg(feature = "connector-response-masking")]
             connector_response_masking: &config.connector_response_masking,
             connector_latency: metadata_payload.connector_latency.clone(),
+            log_fields_enabled: config.log_fields.enabled,
+            log_fields: &config.log_fields.outgoing,
         };
 
         let response_result = Box::pin(
@@ -945,6 +953,8 @@ impl EventServiceImpl {
             #[cfg(feature = "connector-response-masking")]
             connector_response_masking: &config.connector_response_masking,
             connector_latency: metadata_payload.connector_latency.clone(),
+            log_fields_enabled: config.log_fields.enabled,
+            log_fields: &config.log_fields.outgoing,
         };
 
         let response_result = Box::pin(
@@ -1043,6 +1053,8 @@ async fn verify_webhook_source_external(
         #[cfg(feature = "connector-response-masking")]
         connector_response_masking: &config.connector_response_masking,
         connector_latency: metadata_payload.connector_latency.clone(),
+        log_fields_enabled: config.log_fields.enabled,
+        log_fields: &config.log_fields.outgoing,
     };
 
     match Box::pin(

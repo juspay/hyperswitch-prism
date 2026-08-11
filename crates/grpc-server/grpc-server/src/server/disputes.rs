@@ -187,6 +187,8 @@ impl DisputeService for Disputes {
                         #[cfg(feature = "connector-response-masking")]
                         connector_response_masking: &config.connector_response_masking,
                         connector_latency,
+                        log_fields_enabled: config.log_fields.enabled,
+                        log_fields: &config.log_fields.outgoing,
                     };
 
                     let response = Box::pin(
@@ -429,6 +431,8 @@ impl DisputeService for Disputes {
                         #[cfg(feature = "connector-response-masking")]
                         connector_response_masking: &config.connector_response_masking,
                         connector_latency,
+                        log_fields_enabled: config.log_fields.enabled,
+                        log_fields: &config.log_fields.outgoing,
                     };
 
                     let response = Box::pin(

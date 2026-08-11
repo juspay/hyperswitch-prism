@@ -44,7 +44,7 @@ ENV SCCACHE_CACHE_SIZE=5G
 
 # Cook dependencies using cargo-chef with caching
 RUN --mount=type=cache,target=/sccache \
-    cargo chef cook --release --features kafka,connector-request-kafka,otel --recipe-path recipe.json
+    cargo chef cook --release --features kafka,connector-request-kafka,otel,log-transformations,connector-response-masking --recipe-path recipe.json
 
 # Install additional build-time dependencies
 RUN apt-get update \
@@ -57,7 +57,7 @@ RUN apt-get update \
 # Build only the binary shipped by the runtime stage; skips test/SDK crates.
 COPY . .
 RUN --mount=type=cache,target=/sccache \
-    cargo build --release --features kafka,connector-request-kafka,otel,connector-response-masking -p grpc-server
+    cargo build --release --features kafka,connector-request-kafka,otel,log-transformations,connector-response-masking -p grpc-server
 
 # Output sccache statistics
 RUN sccache --show-stats

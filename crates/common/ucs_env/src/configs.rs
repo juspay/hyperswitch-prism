@@ -6,7 +6,10 @@ use std::sync::Arc;
 use common_utils::{
     connector_request_kafka::{ConnectorRequestKafkaConfig, ConnectorRequestKafkaConfigPatch},
     consts,
-    events::{EventConfig, EventConfigPatch, RuntimeMetadata, RuntimeMetadataPatch},
+    events::{
+        CompiledLogFieldsConfig, EventConfig, EventConfigPatch, RuntimeMetadata,
+        RuntimeMetadataPatch,
+    },
     metadata::{HeaderMaskingConfig, HeaderMaskingConfigPatch},
     SuperpositionConfig,
 };
@@ -58,6 +61,12 @@ pub struct Config {
     #[serde(skip)]
     #[patch(ignore)]
     pub superposition_config: Option<Arc<SuperpositionConfig>>,
+    /// Pre-compiled log fields for golden log lines.
+    /// Compiled at startup from `[log.fields.incoming]` and `[log.fields.outgoing]`.
+    /// Recompiled per-request when `x-config-override` patches `log.fields`.
+    #[serde(skip)]
+    #[patch(ignore)]
+    pub log_fields: Arc<CompiledLogFieldsConfig>,
 }
 
 #[derive(Clone, Deserialize, Debug, Default, Serialize, PartialEq, config_patch_derive::Patch)]
@@ -333,6 +342,22 @@ impl WebhookSourceVerificationCall {
 }
 
 impl Config {
+    /// Recompute derived / cached fields from the raw config values.
+    ///
+    /// Call this after deserialization **and** after applying a config-override patch.
+    /// Any `#[serde(skip)] #[patch(ignore)]` field that is derived from patchable
+    /// config should be rebuilt here.
+    pub fn post_patch_processing(&mut self) {
+        #[cfg(feature = "log-transformations")]
+        {
+            self.log_fields = Arc::new(CompiledLogFieldsConfig::compile(
+                self.log.fields.enabled,
+                &self.log.fields.incoming,
+                &self.log.fields.outgoing,
+            ));
+        }
+    }
+
     /// Function to build the configuration by picking it from default locations
     pub fn new() -> Result<Self, config::ConfigError> {
         Self::new_with_config_path(None)
@@ -367,6 +392,12 @@ impl Config {
             eprintln!("Unable to deserialize application configuration: {error}");
             error.into_inner()
         })?;
+
+        let config = {
+            let mut config = config;
+            config.post_patch_processing();
+            config
+        };
 
         // Validate the environment field
         config.common.validate()?;

@@ -561,6 +561,7 @@ impl Payments {
         })?;
 
         // Execute connector processing
+
         let event_params = EventProcessingParams {
             connector_name: &connector.get_connector_name(),
             service_name,
@@ -580,6 +581,8 @@ impl Payments {
             #[cfg(feature = "connector-response-masking")]
             connector_response_masking: &config.connector_response_masking,
             connector_latency: metadata_payload.connector_latency.clone(),
+            log_fields_enabled: config.log_fields.enabled,
+            log_fields: &config.log_fields.outgoing,
         };
 
         // Execute connector processing - ONLY the authorize call
@@ -720,6 +723,8 @@ impl Payments {
             #[cfg(feature = "connector-response-masking")]
             connector_response_masking: &config.connector_response_masking,
             connector_latency: metadata_payload.connector_latency.clone(),
+            log_fields_enabled: config.log_fields.enabled,
+            log_fields: &config.log_fields.outgoing,
         };
 
         let response = Box::pin(
@@ -1117,6 +1122,7 @@ impl PaymentService for Payments {
                             }))
                         })?;
 
+
                     let event_params = EventProcessingParams {
                         connector_name: &connector.get_connector_name(),
                         service_name: &service_name,
@@ -1136,6 +1142,8 @@ impl PaymentService for Payments {
                         #[cfg(feature = "connector-response-masking")]
                         connector_response_masking: &config.connector_response_masking,
                 connector_latency: metadata_payload.connector_latency.clone(),
+                        log_fields_enabled: config.log_fields.enabled,
+            log_fields: &config.log_fields.outgoing,
                     };
 
                     // handle_response field removed from proto (field 5 reserved)
@@ -2599,6 +2607,7 @@ impl PaymentMethod {
         })?;
 
         // Execute connector processing
+
         let event_params = EventProcessingParams {
             connector_name: &connector.get_connector_name(),
             service_name,
@@ -2618,6 +2627,8 @@ impl PaymentMethod {
             #[cfg(feature = "connector-response-masking")]
             connector_response_masking: &config.connector_response_masking,
             connector_latency: metadata_payload.connector_latency.clone(),
+            log_fields_enabled: config.log_fields.enabled,
+            log_fields: &config.log_fields.outgoing,
         };
 
         let response = Box::pin(
@@ -2757,6 +2768,8 @@ impl PaymentMethod {
             connector_response_masking: &config.connector_response_masking,
             connector_latency: metadata_payload.connector_latency.clone(),
             runtime_metadata: &config.runtime_metadata,
+            log_fields_enabled: config.log_fields.enabled,
+            log_fields: &config.log_fields.outgoing,
         };
 
         let response = Box::pin(
@@ -2856,6 +2869,7 @@ impl MerchantAuthentication {
             })?;
 
         // Create event processing parameters
+
         let external_event_params = EventProcessingParams {
             connector_name,
             service_name,
@@ -2875,6 +2889,8 @@ impl MerchantAuthentication {
             #[cfg(feature = "connector-response-masking")]
             connector_response_masking: &config.connector_response_masking,
             connector_latency: event_params.connector_latency.clone(),
+            log_fields_enabled: config.log_fields.enabled,
+            log_fields: &config.log_fields.outgoing,
         };
 
         // Execute connector processing
@@ -2999,6 +3015,7 @@ impl MerchantAuthentication {
             })?;
 
         // Execute connector processing
+
         let external_event_params = EventProcessingParams {
             connector_name,
             service_name,
@@ -3018,6 +3035,8 @@ impl MerchantAuthentication {
             #[cfg(feature = "connector-response-masking")]
             connector_response_masking: &config.connector_response_masking,
             connector_latency: event_params.connector_latency.clone(),
+            log_fields_enabled: config.log_fields.enabled,
+            log_fields: &config.log_fields.outgoing,
         };
 
         let response = Box::pin(
@@ -3580,6 +3599,7 @@ impl RecurringPaymentService for RecurringPayments {
                             }))
                         })?;
 
+
                     let event_params = EventProcessingParams {
                         connector_name: &metadata_payload.connector.get_connector_name(),
                         service_name: &service_name,
@@ -3599,6 +3619,8 @@ impl RecurringPaymentService for RecurringPayments {
                         #[cfg(feature = "connector-response-masking")]
                         connector_response_masking: &config.connector_response_masking,
                 connector_latency: metadata_payload.connector_latency.clone(),
+                        log_fields_enabled: config.log_fields.enabled,
+            log_fields: &config.log_fields.outgoing,
                     };
 
                     let response = Box::pin(
