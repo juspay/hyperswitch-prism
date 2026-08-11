@@ -18,6 +18,7 @@ pub const SUPPORTED_FLOWS: &[&str] = &[
     "authorize",
     "get",
     "parse_event",
+    "proxy_authorize",
     "recurring_charge",
     "refund",
     "refund_get",
@@ -128,6 +129,45 @@ pub fn build_parse_event_request() -> EventServiceParseRequest {
             body: "{\"id\": \"GS_EV_pmV0LOyQvHYnG1VNZD2QeE\",\"created_at\": \"1661990400\",\"type\": \"payment.captured\",\"data\": { \"type\": \"payment\", \"object\": { \"id\": \"GS_TXN_cKP1ctmwThYaA5UJrUG67A\", \"id\": \"GS_TXN_cKP1ctmwThYaA5UJrUG67A\", \"created_at\": 1661990400, \"updated_at\": 1661990400, \"settled_at\": null, \"status\": \"successful\", \"processing_state\": \"captured\", \"total_amount\": 500, \"net_amount\": 500, \"fee_amount\": 44, \"fees_paid_by\": \"merchant\", \"description\": \"\", \"reversal_status\": \"not_reversed\", \"billing_descriptor\": \"1OFFICESUPPLIESSTORE\", \"risk\": { \"quarantine\": false, \"risk_level\": \"low\", \"assessment\": \"\" }, \"paymethod\": { \"type\": \"card\", \"card\": { \"id\": \"GS_PMC_7cmafx7A532uIiZaGRsE4D\", \"created_at\": 1661990400, \"updated_at\": 1661990400, \"brand\": \"visa\", \"name\": \"Jack Francis\", \"number_last4\": \"1111\", \"exp_year\": 2023, \"exp_month\": 8, \"is_debit\": false, \"user\": \"GS_USR_5z9QxI1cG1YAAZGV9nos4B\", \"address\": null }}, \"customer\": \"GS_CUS_2rbzrEaeBNwNMafRxKBfSb\", \"merchant\": \"GS_MER_OVC3SKymD34SH5NjEhPa8D\" }}, \"merchant\": \"GS_MER_OVC3SKymD34SH5NjEhPa8D\"}".as_bytes().to_vec(),  // Body of the HTTP request.
             ..Default::default()
         }),
+    }
+}
+
+pub fn build_proxy_authorize_request() -> PaymentServiceProxyAuthorizeRequest {
+    PaymentServiceProxyAuthorizeRequest {
+        merchant_transaction_id: Some("probe_proxy_txn_001".to_string()),
+        amount: Some(Money {
+            minor_amount: 1000,             // Amount in minor units (e.g., 1000 = $10.00).
+            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+        }),
+        card_proxy: Some(ProxyCardDetails {
+            // Card proxy for vault-aliased payments (VGS, Basis Theory, Spreedly). Real card values are substituted by the proxy before reaching the connector.
+            card_number: Some(Secret::new("4111111111111111".to_string())), // Card Identification.
+            card_exp_month: Some(Secret::new("03".to_string())),
+            card_exp_year: Some(Secret::new("2030".to_string())),
+            card_cvc: Some(Secret::new("123".to_string())),
+            card_holder_name: Some(Secret::new("John Doe".to_string())), // Cardholder Information.
+            card_network: Some(CardNetwork::Visa.into()),
+            ..Default::default()
+        }),
+        customer: Some(Customer {
+            email: Some(Secret::new("test@example.com".to_string())), // Customer's email address.
+            ..Default::default()
+        }),
+        address: Some(PaymentAddress {
+            billing_address: Some(Address {
+                ..Default::default()
+            }),
+            ..Default::default()
+        }),
+        capture_method: Some(CaptureMethod::Automatic.into()),
+        auth_type: AuthenticationType::NoThreeDs.into(),
+        return_url: Some("https://example.com/return".to_string()),
+        browser_info: Some(BrowserInformation {
+            user_agent: Some("Mozilla/5.0 (probe-bot)".to_string()),
+            ip_address: Some("1.2.3.4".to_string()), // Device Information.
+            ..Default::default()
+        }),
+        ..Default::default()
     }
 }
 
@@ -354,6 +394,18 @@ pub async fn process_parse_event(
     Ok(format!("{response:?}"))
 }
 
+// Flow: PaymentService.ProxyAuthorize
+#[allow(dead_code)]
+pub async fn process_proxy_authorize(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .proxy_authorize(build_proxy_authorize_request(), &HashMap::new(), None)
+        .await?;
+    Ok(format!("status: {:?}", response.status()))
+}
+
 // Flow: RecurringPaymentService.Charge
 #[allow(dead_code)]
 pub async fn process_recurring_charge(
@@ -392,10 +444,11 @@ async fn main() {
         "process_authorize" => process_authorize(&client, "txn_001").await,
         "process_get" => process_get(&client, "txn_001").await,
         "process_parse_event" => process_parse_event(&client, "txn_001").await,
+        "process_proxy_authorize" => process_proxy_authorize(&client, "txn_001").await,
         "process_recurring_charge" => process_recurring_charge(&client, "txn_001").await,
         "process_refund_get" => process_refund_get(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_refund, process_get_payment, process_authorize, process_get, process_parse_event, process_recurring_charge, process_refund_get", flow);
+            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_refund, process_get_payment, process_authorize, process_get, process_parse_event, process_proxy_authorize, process_recurring_charge, process_refund_get", flow);
             return;
         }
     };
