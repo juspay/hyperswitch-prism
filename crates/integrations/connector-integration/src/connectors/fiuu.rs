@@ -935,6 +935,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     merchant_refund_id: None,
                     // txn_id is the connector ID of the original payment.
                     connector_transaction_id: Some(r.txn_id),
+                    merchant_transaction_id: None,
                 })
             }
         };

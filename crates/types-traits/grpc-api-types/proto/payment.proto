@@ -896,6 +896,8 @@ enum Connector {
   GLOMOPAY = 130;
   GIVEPAYMENTS = 131;
   TESOURO = 132;
+  SANTANDER = 133;
+  MAYA = 134;
 }
 
 // Payment method types
@@ -1015,6 +1017,7 @@ enum PaymentMethodType {
   OPEN_BANKING = 112;
   QWIKCILVER_WALLET = 113;
   SKRILL = 114;
+  PAYMAYA = 115;
 }
 
 // Product type enumeration
@@ -4016,6 +4019,7 @@ message RefundEventReference {
   optional string connector_refund_id      = 1;
   optional string merchant_refund_id       = 2;
   optional string connector_transaction_id = 3;  // Parent payment ID, if present.
+  optional string merchant_transaction_id  = 4;
 }
 
 // IDs extracted from a dispute webhook.
@@ -4030,6 +4034,7 @@ message DisputeEventReference {
 // IDs extracted from a mandate webhook.
 message MandateEventReference {
   optional string connector_mandate_id = 1;
+  optional string merchant_transaction_id = 2;
 }
 
 // IDs extracted from a payout webhook.
@@ -5226,6 +5231,15 @@ message ItaubankConfig {
   optional string secondary_base_url = 51;
 }
 
+message SantanderConfig {
+  SecretString client_id = 1;
+  SecretString client_secret = 2;
+  string workspace_id = 3;
+  optional SecretString certificates = 4;
+  optional SecretString private_key = 5;
+  optional string base_url = 50;
+}
+
 message GigadatConfig {
   SecretString campaign_id = 1;
   SecretString access_token = 2;
@@ -5421,6 +5435,12 @@ message AxisbankConfig {
   SecretString juspay_kid = 4;
   SecretString merchant_private_key = 5;
   SecretString juspay_public_key = 6;
+  optional string base_url = 50;
+}
+
+message MayaConfig {
+  SecretString public_key = 1;
+  SecretString secret_key = 2;
   optional string base_url = 50;
 }
 
@@ -5858,6 +5878,10 @@ message ConnectorSpecificConfig {
     DeutschebankConfig deutschebank = 140;
     // PLAID = 141
     PlaidConfig plaid = 141;
+    // SANTANDER = 142
+    SantanderConfig santander = 142;
+    // MAYA = 143
+    MayaConfig maya = 143;
   }
 }
 
