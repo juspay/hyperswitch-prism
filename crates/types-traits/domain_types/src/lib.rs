@@ -2,7 +2,6 @@
 
 pub mod api;
 pub mod connector_flow;
-#[cfg(feature = "connector-response-masking")]
 pub mod connector_response_masking;
 pub mod connector_types;
 pub mod errors;

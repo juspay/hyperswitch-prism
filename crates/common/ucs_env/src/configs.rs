@@ -10,7 +10,6 @@ use common_utils::{
     metadata::{HeaderMaskingConfig, HeaderMaskingConfigPatch},
     SuperpositionConfig,
 };
-#[cfg(feature = "connector-response-masking")]
 use domain_types::connector_response_masking::{
     ConnectorResponseMaskingConfig, ConnectorResponseMaskingConfigPatch,
 };
@@ -38,7 +37,6 @@ pub struct Config {
     pub lineage: LineageConfig,
     #[serde(default)]
     pub unmasked_headers: HeaderMaskingConfig,
-    #[cfg(feature = "connector-response-masking")]
     #[serde(default)]
     pub connector_response_masking: ConnectorResponseMaskingConfig,
     #[serde(default)]

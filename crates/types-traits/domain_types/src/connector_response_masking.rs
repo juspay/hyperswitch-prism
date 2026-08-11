@@ -7,13 +7,26 @@
     clippy::unreachable
 )]
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
+#[cfg(feature = "connector-response-masking")]
+use std::collections::HashSet;
 
+#[cfg(feature = "connector-response-masking")]
 use quick_xml::events::{BytesStart, BytesText, Event};
+#[cfg(feature = "connector-response-masking")]
 use quick_xml::{Reader, Writer};
+#[cfg(feature = "connector-response-masking")]
 use serde::ser::{SerializeMap, SerializeSeq};
-use serde::{Deserialize, Serialize, Serializer};
+#[cfg(feature = "connector-response-masking")]
+use serde::Serializer;
+use serde::{Deserialize, Serialize};
+#[cfg(feature = "connector-response-masking")]
 use serde_json::Value;
+
+#[cfg(feature = "connector-response-masking")]
+use crate::connector_types::RawConnectorRequestResponse;
+#[cfg(feature = "connector-response-masking")]
+use crate::router_response_types::Response;
 
 use common_utils::config_patch::Patch;
 
@@ -22,6 +35,7 @@ use crate::connector_types::{
     SurchargeConnectorEnum,
 };
 
+#[cfg(feature = "connector-response-masking")]
 pub const MASKED: &str = "***";
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
@@ -67,6 +81,7 @@ where
 }
 
 impl ConnectorResponseMaskingConfig {
+    #[cfg(feature = "connector-response-masking")]
     pub fn keys_for(&self, connector_name: &str) -> MaskKeys {
         let mut keys = MaskKeys::default();
         let Some(configured) = self.connector_keys.get(connector_name) else {
@@ -103,17 +118,44 @@ pub struct ConnectorResponseMaskingConfigPatch {
     pub connector_keys: Option<HashMap<Box<str>, String>>,
 }
 
+/// Deliberately does not validate, unlike [`deserialize_connector_keys`].
+///
+/// This runs on the per-request `x-config-override` header. Rejecting a name here fails
+/// deserialization of the whole `ConfigPatch`, and the middleware then returns without ever calling
+/// the handler — so a typo in a diagnostic setting would cost a payment. Names are checked in
+/// [`Patch::apply`] instead, where a bad one can be dropped harmlessly. A typo in a config *file*
+/// still aborts startup, via the strict deserializer on the base config.
 fn deserialize_optional_connector_keys<'de, D>(
     deserializer: D,
 ) -> Result<Option<HashMap<Box<str>, String>>, D::Error>
 where
     D: serde::Deserializer<'de>,
 {
-    deserialize_connector_keys(deserializer).map(Some)
+    Ok(Some(
+        HashMap::<String, String>::deserialize(deserializer)?
+            .into_iter()
+            .map(|(name, keys)| (name.to_lowercase().into_boxed_str(), keys))
+            .collect(),
+    ))
 }
 
 impl Patch<ConnectorResponseMaskingConfigPatch> for ConnectorResponseMaskingConfig {
     fn apply(&mut self, patch: ConnectorResponseMaskingConfigPatch) {
+        // A name we do not recognise means the caller is describing a connector we cannot resolve,
+        // so the rest of the block cannot be trusted either: drop it whole and keep our own config.
+        // Warn rather than fail — this arrives on a request header, and masking is a diagnostic.
+        if let Some(unknown) = patch
+            .connector_keys
+            .as_ref()
+            .and_then(|keys| keys.keys().find(|name| !is_known_connector(name)))
+        {
+            tracing::warn!(
+                connector = %unknown,
+                "unknown connector in connector_response_masking override; ignoring the whole block"
+            );
+            return;
+        }
+
         if let Some(enabled) = patch.enabled {
             self.enabled = enabled;
         }
@@ -126,6 +168,7 @@ impl Patch<ConnectorResponseMaskingConfigPatch> for ConnectorResponseMaskingConf
     }
 }
 
+#[cfg(feature = "connector-response-masking")]
 const ALWAYS_MASKED_SUBSTRING: &[&str] = &[
     "cardnumber",
     "cardnum",
@@ -158,6 +201,7 @@ const ALWAYS_MASKED_SUBSTRING: &[&str] = &[
     "hmac",
 ];
 
+#[cfg(feature = "connector-response-masking")]
 const ALWAYS_MASKED_EXACT: &[&str] = &[
     "authorization",
     "pan",
@@ -173,11 +217,13 @@ const ALWAYS_MASKED_EXACT: &[&str] = &[
 ];
 
 #[derive(Debug, Default, Clone)]
+#[cfg(feature = "connector-response-masking")]
 pub struct MaskKeys {
     names: HashSet<Box<str>>,
     paths: Vec<Box<[Box<str>]>>,
 }
 
+#[cfg(feature = "connector-response-masking")]
 impl MaskKeys {
     fn names_key(&self, key: &str) -> bool {
         self.names.contains(key.to_ascii_lowercase().as_str())
@@ -206,11 +252,13 @@ impl MaskKeys {
     }
 }
 
+#[cfg(feature = "connector-response-masking")]
 struct Path<'a> {
     parent: Option<&'a Path<'a>>,
     segment: &'a str,
 }
 
+#[cfg(feature = "connector-response-masking")]
 impl Path<'_> {
     fn is(&self, segments: &[Box<str>]) -> bool {
         let mut here = Some(self);
@@ -227,6 +275,7 @@ impl Path<'_> {
     }
 }
 
+#[cfg(feature = "connector-response-masking")]
 fn key_looks_like_card_data(key: &str) -> bool {
     key.chars().filter(char::is_ascii_digit).count() >= 12
         && key
@@ -234,6 +283,7 @@ fn key_looks_like_card_data(key: &str) -> bool {
             .all(|character| character.is_ascii_digit() || matches!(character, ' ' | '-' | '_'))
 }
 
+#[cfg(feature = "connector-response-masking")]
 fn emitted_key(key: &str) -> &str {
     if key_looks_like_card_data(key) {
         MASKED
@@ -242,6 +292,7 @@ fn emitted_key(key: &str) -> &str {
     }
 }
 
+#[cfg(feature = "connector-response-masking")]
 fn normalize(key: &str) -> String {
     key.chars()
         .filter(char::is_ascii_alphanumeric)
@@ -249,6 +300,7 @@ fn normalize(key: &str) -> String {
         .collect()
 }
 
+#[cfg(feature = "connector-response-masking")]
 fn is_always_masked(key: &str) -> bool {
     let normalized = normalize(key);
     ALWAYS_MASKED_EXACT
@@ -259,10 +311,12 @@ fn is_always_masked(key: &str) -> bool {
             .any(|needle| normalized.contains(needle))
 }
 
+#[cfg(feature = "connector-response-masking")]
 fn allowed(keys: &MaskKeys, key: &str, pinned: bool) -> bool {
     (pinned || keys.names_key(key)) && !is_always_masked(key)
 }
 
+#[cfg(feature = "connector-response-masking")]
 struct Masked<'a> {
     value: &'a Value,
     keys: &'a MaskKeys,
@@ -270,6 +324,7 @@ struct Masked<'a> {
     mask: bool,
 }
 
+#[cfg(feature = "connector-response-masking")]
 impl Serialize for Masked<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -316,6 +371,7 @@ impl Serialize for Masked<'_> {
     }
 }
 
+#[cfg(feature = "connector-response-masking")]
 fn mask_json(body: &[u8], keys: &MaskKeys) -> Option<String> {
     let value: Value = serde_json::from_slice(body).ok()?;
     serde_json::to_string(&Masked {
@@ -327,6 +383,7 @@ fn mask_json(body: &[u8], keys: &MaskKeys) -> Option<String> {
     .ok()
 }
 
+#[cfg(feature = "connector-response-masking")]
 fn mask_attributes(tag: &BytesStart<'_>, keys: &MaskKeys) -> BytesStart<'static> {
     let name = String::from_utf8_lossy(tag.name().as_ref()).into_owned();
     let mut rebuilt = BytesStart::new(name);
@@ -342,6 +399,7 @@ fn mask_attributes(tag: &BytesStart<'_>, keys: &MaskKeys) -> BytesStart<'static>
     rebuilt
 }
 
+#[cfg(feature = "connector-response-masking")]
 fn mask_xml(body: &[u8], keys: &MaskKeys) -> Option<String> {
     let text = std::str::from_utf8(body).ok()?;
     let mut reader = Reader::from_str(text);
@@ -423,12 +481,15 @@ fn mask_xml(body: &[u8], keys: &MaskKeys) -> Option<String> {
     String::from_utf8(writer.into_inner()).ok()
 }
 
+#[cfg(feature = "connector-response-masking")]
 fn is_form_key_byte(byte: u8) -> bool {
     byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-' | b'.' | b'[' | b']' | b'%' | b'+')
 }
 
+#[cfg(feature = "connector-response-masking")]
 const MAX_FORM_KEY_LEN: usize = 128;
 
+#[cfg(feature = "connector-response-masking")]
 fn is_pair_shaped(body: &[u8]) -> bool {
     let mut saw_value = false;
     for segment in body.split(|byte| *byte == b'&') {
@@ -452,6 +513,7 @@ fn is_pair_shaped(body: &[u8]) -> bool {
     saw_value
 }
 
+#[cfg(feature = "connector-response-masking")]
 fn mask_form(body: &[u8], keys: &MaskKeys) -> Option<String> {
     let normalised: Vec<u8> = body
         .iter()
@@ -481,12 +543,14 @@ fn mask_form(body: &[u8], keys: &MaskKeys) -> Option<String> {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg(feature = "connector-response-masking")]
 enum Format {
     Json,
     Xml,
     Form,
 }
 
+#[cfg(feature = "connector-response-masking")]
 fn detect(content_type: Option<&str>, body: &[u8]) -> Option<Format> {
     let sniffed = match body.iter().find(|byte| !byte.is_ascii_whitespace()) {
         Some(b'{' | b'[') => Format::Json,
@@ -514,6 +578,7 @@ fn detect(content_type: Option<&str>, body: &[u8]) -> Option<Format> {
     Some(sniffed)
 }
 
+#[cfg(feature = "connector-response-masking")]
 pub fn mask_connector_response(
     body: &[u8],
     content_type: Option<&str>,
@@ -538,7 +603,47 @@ pub fn mask_connector_response(
     Some(masked.unwrap_or_else(|| format!(r#"{{"_format":"unparsable","_bytes":{}}}"#, body.len())))
 }
 
-#[cfg(test)]
+/// Build the masked view of a connector response and stash it on the flow data.
+///
+/// Lives here rather than in `external-services` so the whole feature sits behind one crate's
+/// `#[cfg]`: everything it touches — the trait, `Response`, the config — is already in this crate.
+#[cfg(feature = "connector-response-masking")]
+pub fn record_masked_connector_response<ResourceCommonData>(
+    resource_common_data: &mut ResourceCommonData,
+    body: &Response,
+    connector_name: &str,
+    config: &ConnectorResponseMaskingConfig,
+) where
+    ResourceCommonData: RawConnectorRequestResponse,
+{
+    let content_type = body
+        .headers
+        .as_ref()
+        .and_then(|headers| headers.get("content-type"))
+        .and_then(|value| value.to_str().ok());
+
+    let masked = mask_connector_response(&body.response, content_type, connector_name, config);
+
+    // Metadata only. The body itself goes no further than `log_to_span` allows, which is the whole
+    // point of that flag; content type and size are what explain an unexpected stub.
+    tracing::debug!(
+        connector = connector_name,
+        content_type = content_type.unwrap_or("<none>"),
+        masked_bytes = masked.as_deref().map(str::len),
+        "built masked connector response"
+    );
+
+    if config.log_to_span {
+        if let Some(masked) = masked.as_deref() {
+            tracing::Span::current()
+                .record("response.masked_body", tracing::field::display(masked));
+        }
+    }
+
+    resource_common_data.set_masked_connector_response(masked);
+}
+
+#[cfg(all(test, feature = "connector-response-masking"))]
 #[allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing)]
 mod tests {
     use super::*;
@@ -990,29 +1095,6 @@ mod tests {
     }
 
     #[test]
-    fn an_unknown_connector_name_is_rejected_at_load() {
-        let toml = r#"
-            enabled = true
-            [connector_keys]
-            paysafee = "id,status"
-        "#;
-        let err = toml::from_str::<ConnectorResponseMaskingConfig>(toml)
-            .expect_err("an unknown connector name must not deserialize");
-        assert!(
-            err.to_string().contains("paysafee"),
-            "error should name the bad key: {err}"
-        );
-    }
-
-    #[test]
-    fn defaults_are_off() {
-        let cfg = ConnectorResponseMaskingConfig::default();
-        assert!(!cfg.enabled);
-        assert!(!cfg.log_to_span);
-        assert!(cfg.connector_keys.is_empty());
-    }
-
-    #[test]
     fn a_patch_takes_effect_without_any_rebuild_step() {
         let mut cfg = config(&[(PAYSAFE, "id")]);
         assert!(cfg.keys_for(PAYSAFE).names_key("id"));
@@ -1205,5 +1287,86 @@ mod tests {
         );
         assert!(out.contains(r#""authCode":"1234""#), "{out}");
         assert!(out.contains(r#""other":"***""#), "{out}");
+    }
+}
+
+// Config parsing and patching do not need the engine, so these run in a default build too — which
+// is the build where a rejected override would fail a payment.
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
+mod config_tests {
+    use super::*;
+
+    #[test]
+    fn an_unknown_connector_name_is_rejected_at_load() {
+        let toml = r#"
+            enabled = true
+            [connector_keys]
+            paysafee = "id,status"
+        "#;
+        let err = toml::from_str::<ConnectorResponseMaskingConfig>(toml)
+            .expect_err("an unknown connector name must not deserialize");
+        assert!(
+            err.to_string().contains("paysafee"),
+            "error should name the bad key: {err}"
+        );
+    }
+
+    #[test]
+    fn defaults_are_off() {
+        let cfg = ConnectorResponseMaskingConfig::default();
+        assert!(!cfg.enabled);
+        assert!(!cfg.log_to_span);
+        assert!(cfg.connector_keys.is_empty());
+    }
+
+    #[test]
+    fn an_unknown_connector_in_an_override_never_fails_deserialization() {
+        // The same name that aborts startup above must not error here: this path is the
+        // `x-config-override` header, and an error would reject the request before the handler
+        // runs, so a typo in a diagnostic setting would cost a payment.
+        let patch: ConnectorResponseMaskingConfigPatch =
+            serde_json::from_str(r#"{"enabled":true,"connector_keys":{"paysafee":"id"}}"#)
+                .expect("a per-request override must never fail to deserialize");
+
+        let mut cfg = ConnectorResponseMaskingConfig::default();
+        cfg.apply(patch);
+
+        assert!(
+            !cfg.enabled,
+            "the unknown name should discard the whole block"
+        );
+        assert!(cfg.connector_keys.is_empty());
+    }
+
+    #[test]
+    fn an_override_naming_only_known_connectors_still_applies() {
+        let patch: ConnectorResponseMaskingConfigPatch =
+            serde_json::from_str(r#"{"enabled":true,"connector_keys":{"adyen":"resultCode"}}"#)
+                .expect("valid override");
+
+        let mut cfg = ConnectorResponseMaskingConfig::default();
+        cfg.apply(patch);
+
+        assert!(cfg.enabled);
+        assert_eq!(
+            cfg.connector_keys.get("adyen").map(String::as_str),
+            Some("resultCode")
+        );
+    }
+
+    #[test]
+    fn an_override_mixing_known_and_unknown_applies_nothing() {
+        // Whole-block, not per-entry: a half-applied override is harder to reason about than none.
+        let patch: ConnectorResponseMaskingConfigPatch = serde_json::from_str(
+            r#"{"enabled":true,"connector_keys":{"adyen":"resultCode","paysafee":"id"}}"#,
+        )
+        .expect("must still deserialize");
+
+        let mut cfg = ConnectorResponseMaskingConfig::default();
+        cfg.apply(patch);
+
+        assert!(!cfg.enabled);
+        assert!(cfg.connector_keys.is_empty());
     }
 }

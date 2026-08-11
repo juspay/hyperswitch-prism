@@ -344,38 +344,6 @@ fn flow_status_label(flow_status: &domain_types::router_data::FlowStatus) -> Str
     }
 }
 
-#[cfg(feature = "connector-response-masking")]
-fn record_masked_connector_response<ResourceCommonData>(
-    resource_common_data: &mut ResourceCommonData,
-    body: &Response,
-    connector_name: &str,
-    config: &domain_types::connector_response_masking::ConnectorResponseMaskingConfig,
-) where
-    ResourceCommonData: RawConnectorRequestResponse,
-{
-    let content_type = body
-        .headers
-        .as_ref()
-        .and_then(|headers| headers.get("content-type"))
-        .and_then(|value| value.to_str().ok());
-
-    let masked = domain_types::connector_response_masking::mask_connector_response(
-        &body.response,
-        content_type,
-        connector_name,
-        config,
-    );
-
-    if config.log_to_span {
-        if let Some(masked) = masked.as_deref() {
-            tracing::Span::current()
-                .record("response.masked_body", tracing::field::display(masked));
-        }
-    }
-
-    resource_common_data.set_masked_connector_response(masked);
-}
-
 /// Handles the connector response, processing both successful and error responses
 #[allow(clippy::too_many_arguments)]
 pub fn handle_connector_response<F, ResourceCommonData, Req, Resp>(
@@ -420,7 +388,7 @@ where
                     if let Some(params) =
                         event_params.filter(|p| p.connector_response_masking.enabled)
                     {
-                        record_masked_connector_response(
+                        domain_types::connector_response_masking::record_masked_connector_response(
                             &mut updated_router_data.resource_common_data,
                             &body,
                             params.connector_name,
@@ -489,7 +457,7 @@ where
                     if let Some(params) =
                         event_params.filter(|p| p.connector_response_masking.enabled)
                     {
-                        record_masked_connector_response(
+                        domain_types::connector_response_masking::record_masked_connector_response(
                             &mut updated_router_data.resource_common_data,
                             &body,
                             params.connector_name,
