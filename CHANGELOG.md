@@ -19,6 +19,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.08.11.3
+
+### Features
+
+- **fiservcommercehub:** Fallback PSync to referenceMerchantOrderId when connector_transaction_id is absent ([#2088](https://github.com/juspay/connector-service/pull/2088)) ([`f39ec0c`](https://github.com/juspay/connector-service/commit/f39ec0c7d193addae0aa5528a60cf71b4eb96528))
+- **logs:** Config-driven log transformations and static values for golden log lines ([#2075](https://github.com/juspay/connector-service/pull/2075)) ([`4562af9`](https://github.com/juspay/connector-service/commit/4562af9659a3dae433da505fa91fcef35011f040))
+
+### Bug Fixes
+
+- **config:** Add missing plaid enum value to superposition connector dimension ([#2090](https://github.com/juspay/connector-service/pull/2090)) ([`fd34be9`](https://github.com/juspay/connector-service/commit/fd34be9f85320ef9e51c06d73144ddbf89f441d4))
+
+### Refactors
+
+- **connector:** Use cancellation reason in VoidPostRefund flow ([#2091](https://github.com/juspay/connector-service/pull/2091)) ([`9c34127`](https://github.com/juspay/connector-service/commit/9c34127c0dac2743c306843cd41403e614f01536))
+
+**Full Changelog:** [`2026.08.11.2...2026.08.11.3`](https://github.com/juspay/connector-service/compare/2026.08.11.2...2026.08.11.3)
+
+- - -
+
 ## 2026.08.11.2
 
 ### Features
