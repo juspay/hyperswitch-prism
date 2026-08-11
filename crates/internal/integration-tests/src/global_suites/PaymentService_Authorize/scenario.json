@@ -31,7 +31,9 @@
           "value": "auto_generate"
         },
         "id": "auto_generate",
-        "phone_number": "auto_generate",
+        "phone_number": {
+          "value": "auto_generate"
+        },
         "connector_customer_id": ""
       },
       "state": {
@@ -191,7 +193,9 @@
           "value": "auto_generate"
         },
         "id": "auto_generate",
-        "phone_number": "auto_generate",
+        "phone_number": {
+          "value": "auto_generate"
+        },
         "connector_customer_id": ""
       },
       "state": {
@@ -351,7 +355,9 @@
           "value": "auto_generate"
         },
         "id": "auto_generate",
-        "phone_number": "auto_generate",
+        "phone_number": {
+          "value": "auto_generate"
+        },
         "connector_customer_id": ""
       },
       "state": {
@@ -511,7 +517,9 @@
           "value": "auto_generate"
         },
         "id": "auto_generate",
-        "phone_number": "auto_generate",
+        "phone_number": {
+          "value": "auto_generate"
+        },
         "connector_customer_id": ""
       },
       "state": {
@@ -671,7 +679,9 @@
           "value": "auto_generate"
         },
         "id": "auto_generate",
-        "phone_number": "auto_generate",
+        "phone_number": {
+          "value": "auto_generate"
+        },
         "connector_customer_id": ""
       },
       "state": {
@@ -830,7 +840,9 @@
           "value": "auto_generate"
         },
         "id": "auto_generate",
-        "phone_number": "auto_generate",
+        "phone_number": {
+          "value": "auto_generate"
+        },
         "connector_customer_id": ""
       },
       "state": {
@@ -974,7 +986,9 @@
           "value": "auto_generate"
         },
         "id": "auto_generate",
-        "phone_number": "auto_generate",
+        "phone_number": {
+          "value": "auto_generate"
+        },
         "connector_customer_id": ""
       },
       "state": {
@@ -1119,7 +1133,9 @@
           "value": "auto_generate"
         },
         "id": "auto_generate",
-        "phone_number": "auto_generate",
+        "phone_number": {
+          "value": "auto_generate"
+        },
         "connector_customer_id": ""
       },
       "state": {
@@ -1277,7 +1293,9 @@
           "value": "auto_generate"
         },
         "id": "auto_generate",
-        "phone_number": "auto_generate",
+        "phone_number": {
+          "value": "auto_generate"
+        },
         "connector_customer_id": ""
       },
       "state": {
@@ -1422,7 +1440,9 @@
           "value": "auto_generate"
         },
         "id": "auto_generate",
-        "phone_number": "auto_generate",
+        "phone_number": {
+          "value": "auto_generate"
+        },
         "connector_customer_id": ""
       },
       "state": {
@@ -1567,7 +1587,9 @@
           "value": "auto_generate"
         },
         "id": "auto_generate",
-        "phone_number": "auto_generate",
+        "phone_number": {
+          "value": "auto_generate"
+        },
         "connector_customer_id": ""
       },
       "state": {
@@ -1712,7 +1734,9 @@
           "value": "auto_generate"
         },
         "id": "auto_generate",
-        "phone_number": "auto_generate",
+        "phone_number": {
+          "value": "auto_generate"
+        },
         "connector_customer_id": ""
       },
       "state": {
@@ -1874,7 +1898,9 @@
           "value": "auto_generate"
         },
         "id": "auto_generate",
-        "phone_number": "auto_generate",
+        "phone_number": {
+          "value": "auto_generate"
+        },
         "connector_customer_id": ""
       },
       "state": {
@@ -2019,7 +2045,9 @@
           "value": "auto_generate"
         },
         "id": "auto_generate",
-        "phone_number": "auto_generate",
+        "phone_number": {
+          "value": "auto_generate"
+        },
         "connector_customer_id": ""
       },
       "state": {
@@ -2164,7 +2192,9 @@
           "value": "auto_generate"
         },
         "id": "auto_generate",
-        "phone_number": "auto_generate",
+        "phone_number": {
+          "value": "auto_generate"
+        },
         "connector_customer_id": ""
       },
       "state": {
@@ -2309,7 +2339,9 @@
           "value": "auto_generate"
         },
         "id": "auto_generate",
-        "phone_number": "auto_generate",
+        "phone_number": {
+          "value": "auto_generate"
+        },
         "connector_customer_id": ""
       },
       "state": {
@@ -2454,7 +2486,9 @@
           "value": "auto_generate"
         },
         "id": "auto_generate",
-        "phone_number": "auto_generate",
+        "phone_number": {
+          "value": "auto_generate"
+        },
         "connector_customer_id": ""
       },
       "state": {
@@ -2599,7 +2633,9 @@
           "value": "auto_generate"
         },
         "id": "auto_generate",
-        "phone_number": "auto_generate",
+        "phone_number": {
+          "value": "auto_generate"
+        },
         "connector_customer_id": ""
       },
       "state": {
@@ -2744,7 +2780,9 @@
           "value": "auto_generate"
         },
         "id": "auto_generate",
-        "phone_number": "auto_generate",
+        "phone_number": {
+          "value": "auto_generate"
+        },
         "connector_customer_id": ""
       },
       "state": {
@@ -2893,7 +2931,9 @@
           "value": "auto_generate"
         },
         "id": "auto_generate",
-        "phone_number": "auto_generate",
+        "phone_number": {
+          "value": "auto_generate"
+        },
         "connector_customer_id": ""
       },
       "state": {
@@ -3037,7 +3077,9 @@
           "value": "auto_generate"
         },
         "id": "auto_generate",
-        "phone_number": "auto_generate",
+        "phone_number": {
+          "value": "auto_generate"
+        },
         "connector_customer_id": ""
       },
       "state": {
@@ -3181,7 +3223,9 @@
           "value": "auto_generate"
         },
         "id": "auto_generate",
-        "phone_number": "auto_generate",
+        "phone_number": {
+          "value": "auto_generate"
+        },
         "connector_customer_id": ""
       },
       "state": {
