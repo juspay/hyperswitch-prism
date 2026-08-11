@@ -3735,6 +3735,7 @@ pub enum FlowStatus {
     Payment(common_enums::enums::AttemptStatus),
     Refund(common_enums::enums::RefundStatus),
     Dispute(common_enums::enums::DisputeStatus),
+    Payout(common_enums::enums::PayoutStatus),
 }
 
 impl FlowStatus {
@@ -3758,6 +3759,14 @@ impl FlowStatus {
     pub fn as_dispute_status(&self) -> Option<common_enums::enums::DisputeStatus> {
         match self {
             FlowStatus::Dispute(status) => Some(*status),
+            _ => None,
+        }
+    }
+
+    /// Extract PayoutStatus if this is a Payout variant
+    pub fn as_payout_status(&self) -> Option<common_enums::enums::PayoutStatus> {
+        match self {
+            FlowStatus::Payout(status) => Some(*status),
             _ => None,
         }
     }

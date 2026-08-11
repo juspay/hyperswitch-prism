@@ -2262,25 +2262,6 @@ pub fn generate_payout_eligibility_response(
             let payout_status = grpc_api_types::payouts::payout_enums::PayoutStatus::foreign_from(
                 response.payout_status,
             ) as i32;
-            // A connector-declared refusal (e.g. Deutsche Bank VoP NMTC/NOAP) is a
-            // successful call with a negative verdict, so the reason travels in
-            // `error` alongside the terminal status rather than as a transport error.
-            let error =
-                response
-                    .error_code
-                    .clone()
-                    .map(|code| grpc_api_types::payouts::ErrorInfo {
-                        unified_details: None,
-                        connector_details: Some(grpc_api_types::payouts::ConnectorErrorDetails {
-                            code: Some(code),
-                            message: response.error_message.clone(),
-                            reason: response.error_message.clone(),
-                            connector_transaction_id: response.connector_payout_id.clone(),
-                            status: None,
-                        }),
-                        issuer_details: None,
-                    });
-
             let connector_metadata = response
                 .connector_metadata
                 .as_ref()
@@ -2291,24 +2272,30 @@ pub fn generate_payout_eligibility_response(
                 payout_status: Some(payout_status),
                 connector_payout_id: response.connector_payout_id,
                 payout_eligible: response.payout_eligible,
-                error,
+                error: None,
                 status_code: u32::from(response.status_code),
                 connector_metadata,
                 eligibility_reference_id: response.eligibility_reference_id,
             })
         }
-        Err(err) => Ok(grpc_api_types::payouts::PayoutMethodEligibilityResponse {
+        Err(err) => {
+            let refused_status = err
+                .attempt_status
+                .as_ref()
+                .and_then(|status| status.as_payout_status());
+
+            let payout_status = refused_status.map_or(
+                grpc_api_types::payouts::payout_enums::PayoutStatus::Pending,
+                grpc_api_types::payouts::payout_enums::PayoutStatus::foreign_from,
+            );
+
+            Ok(grpc_api_types::payouts::PayoutMethodEligibilityResponse {
             merchant_payout_id: Some(router_data_v2.resource_common_data.payout_id),
-            payout_status: Some(
-                grpc_api_types::payouts::payout_enums::PayoutStatus::Pending as i32,
-            ),
-            connector_payout_id: err.connector_transaction_id.clone(),
-            // Transport / connector errors (timeout, 5xx, TLS, auth, signature) mean
-            // eligibility is *unknown* — not that the payee is ineligible. `Some(false)`
-            // is reserved for the connector-declared NOAP/NMTC path.
-            payout_eligible: None,
+            payout_status: Some(payout_status as i32),
+            connector_payout_id: None,
+            payout_eligible: refused_status.map(|_| false),
             connector_metadata: None,
-            eligibility_reference_id: None,
+            eligibility_reference_id: err.connector_transaction_id.clone(),
             error: Some(grpc_api_types::payouts::ErrorInfo {
                 unified_details: None,
                 connector_details: Some(grpc_api_types::payouts::ConnectorErrorDetails {
@@ -2321,7 +2308,8 @@ pub fn generate_payout_eligibility_response(
                 issuer_details: None,
             }),
             status_code: u32::from(err.status_code),
-        }),
+            })
+        }
     }
 }
 

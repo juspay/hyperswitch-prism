@@ -13,7 +13,7 @@ use domain_types::{
             PayoutGetResponse, PayoutTransferRequest, PayoutTransferResponse,
         },
     },
-    router_data::ConnectorSpecificConfig,
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     utils,
 };
@@ -260,11 +260,15 @@ pub fn derive_message_id(merchant_id: &str, reference: &str) -> String {
     .to_string()
 }
 
+/// Builds the eligibility outcome for a VoP response.
+///
+/// A conclusive refusal (`NMTC` / `NOAP`) is reported as an `ErrorResponse`.
+/// `MTCH` / `CMTC` are successes.
 pub fn build_eligibility_response(
     vop_body: DeutschebankVopResponse,
     vop_id: String,
     http_code: u16,
-) -> Result<PayoutEligibilityResponse, error_stack::Report<ConnectorError>> {
+) -> Result<Result<PayoutEligibilityResponse, ErrorResponse>, error_stack::Report<ConnectorError>> {
     let match_status =
         vop_body
             .match_status
@@ -282,22 +286,23 @@ pub fn build_eligibility_response(
         DeutschebankVopMatchStatus::Mtch | DeutschebankVopMatchStatus::Cmtc
     );
 
-    // Surface the refusal to the merchant. Only the conclusive no-match verdicts
-    // carry an error; `MTCH` and `CMTC` are successes and stay clean. `CMTC` is a
-    // near-match that DB still permits, so its advisory text is reported through
-    // `connector_metadata` rather than as an error.
-    let (error_code, error_message) = if is_eligible {
-        (None, None)
-    } else {
-        (
-            Some(match_status.code().to_string()),
-            vop_body.additional_info.clone(),
-        )
-    };
+    if !is_eligible {
+        return Ok(Err(ErrorResponse {
+            code: match_status.code().to_string(),
+            message: vop_body
+                .additional_info
+                .clone()
+                .unwrap_or_else(|| match_status.code().to_string()),
+            reason: vop_body.additional_info.clone(),
+            status_code: http_code,
+            attempt_status: Some(FlowStatus::Payout(payout_status)),
+            connector_transaction_id: Some(vop_id),
+            network_decline_code: None,
+            network_advice_code: None,
+            network_error_message: None,
+        }));
+    }
 
-    // On a successful verdict the outcome is not an error, so it travels as
-    // metadata instead: the verdict itself plus DB's explanation. A refusal
-    // already carries both in `error_code` / `error_message`, so it gets none.
     let connector_metadata = is_eligible.then(|| {
         let mut metadata = serde_json::Map::new();
         metadata.insert(
@@ -318,17 +323,15 @@ pub fn build_eligibility_response(
     // transfer overwriting `connector_payout_id`.
     let connector_payout_id = is_eligible.then(|| vop_id.clone());
 
-    Ok(PayoutEligibilityResponse {
+    Ok(Ok(PayoutEligibilityResponse {
         merchant_payout_id: None,
         payout_status,
         connector_payout_id,
         payout_eligible: Some(is_eligible),
         status_code: http_code,
-        error_code,
-        error_message,
         connector_metadata,
         eligibility_reference_id: Some(vop_id),
-    })
+    }))
 }
 
 impl TryFrom<ResponseRouterData<DeutschebankVopResponse, Self>>
@@ -356,7 +359,7 @@ impl TryFrom<ResponseRouterData<DeutschebankVopResponse, Self>>
         );
         let response = build_eligibility_response(item.response, vop_id, item.http_code)?;
         Ok(Self {
-            response: Ok(response),
+            response,
             ..item.router_data
         })
     }

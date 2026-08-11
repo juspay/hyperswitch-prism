@@ -417,8 +417,6 @@ pub struct PayoutEligibilityResponse {
     pub connector_payout_id: Option<String>,
     pub payout_eligible: Option<bool>,
     pub status_code: u16,
-    pub error_code: Option<String>,
-    pub error_message: Option<String>,
     pub connector_metadata: Option<serde_json::Value>,
     pub eligibility_reference_id: Option<String>,
 }
