@@ -579,6 +579,7 @@ impl Payments {
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
             connector_latency: metadata_payload.connector_latency.clone(),
+            log_fields_enabled: config.log_fields.enabled,
             log_fields: &config.log_fields.outgoing,
         };
 
@@ -718,6 +719,7 @@ impl Payments {
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
             connector_latency: metadata_payload.connector_latency.clone(),
+            log_fields_enabled: config.log_fields.enabled,
             log_fields: &config.log_fields.outgoing,
         };
 
@@ -1134,7 +1136,8 @@ impl PaymentService for Payments {
                         merchant_id: metadata_payload.merchant_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
                 connector_latency: metadata_payload.connector_latency.clone(),
-                        log_fields: &config.log_fields.outgoing,
+                        log_fields_enabled: config.log_fields.enabled,
+            log_fields: &config.log_fields.outgoing,
                     };
 
                     // handle_response field removed from proto (field 5 reserved)
@@ -2614,6 +2617,7 @@ impl PaymentMethod {
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
             connector_latency: metadata_payload.connector_latency.clone(),
+            log_fields_enabled: config.log_fields.enabled,
             log_fields: &config.log_fields.outgoing,
         };
 
@@ -2752,6 +2756,7 @@ impl PaymentMethod {
             return_raw_connector_data: config.common.return_raw_connector_data,
             connector_latency: metadata_payload.connector_latency.clone(),
             runtime_metadata: &config.runtime_metadata,
+            log_fields_enabled: config.log_fields.enabled,
             log_fields: &config.log_fields.outgoing,
         };
 
@@ -2870,6 +2875,7 @@ impl MerchantAuthentication {
             merchant_id: event_params.merchant_id,
             return_raw_connector_data: config.common.return_raw_connector_data,
             connector_latency: event_params.connector_latency.clone(),
+            log_fields_enabled: config.log_fields.enabled,
             log_fields: &config.log_fields.outgoing,
         };
 
@@ -3013,6 +3019,7 @@ impl MerchantAuthentication {
             merchant_id: event_params.merchant_id,
             return_raw_connector_data: config.common.return_raw_connector_data,
             connector_latency: event_params.connector_latency.clone(),
+            log_fields_enabled: config.log_fields.enabled,
             log_fields: &config.log_fields.outgoing,
         };
 
@@ -3594,7 +3601,8 @@ impl RecurringPaymentService for RecurringPayments {
                         merchant_id: metadata_payload.merchant_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
                 connector_latency: metadata_payload.connector_latency.clone(),
-                        log_fields: &config.log_fields.outgoing,
+                        log_fields_enabled: config.log_fields.enabled,
+            log_fields: &config.log_fields.outgoing,
                     };
 
                     let response = Box::pin(

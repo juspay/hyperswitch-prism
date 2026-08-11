@@ -293,6 +293,7 @@ where
 
 pub fn log_after_initialization<T>(
     result: &Result<tonic::Response<T>, tonic::Status>,
+    log_fields_enabled: bool,
     log_fields: &CompiledLogFields,
 ) where
     T: serde::Serialize + std::fmt::Debug,
@@ -332,9 +333,14 @@ pub fn log_after_initialization<T>(
     }
     // Apply unified log fields (transformations + static values) before emitting the golden log line
     #[cfg(feature = "log-transformations")]
-    apply_log_fields(log_fields);
+    if log_fields_enabled {
+        apply_log_fields(log_fields);
+    }
     #[cfg(not(feature = "log-transformations"))]
-    let _ = log_fields;
+    {
+        let _ = log_fields;
+        let _ = log_fields_enabled;
+    }
     tracing::info!("Golden Log Line (incoming - response)");
 }
 
@@ -385,7 +391,7 @@ where
     .await;
 
     let grpc_response = handler_result.into_grpc_status();
-    log_after_initialization(&grpc_response, &config.log_fields.incoming);
+    log_after_initialization(&grpc_response, config.log_fields.enabled, &config.log_fields.incoming);
 
     #[cfg(feature = "otel")]
     observe_internal_latency(
@@ -449,7 +455,7 @@ where
     .await;
 
     let grpc_response = handler_result.into_grpc_status();
-    log_after_initialization(&grpc_response, &config.log_fields.incoming);
+    log_after_initialization(&grpc_response, config.log_fields.enabled, &config.log_fields.incoming);
 
     #[cfg(feature = "otel")]
     observe_internal_latency(
@@ -719,6 +725,7 @@ macro_rules! implement_connector_operation {
                 merchant_id: metadata_payload.merchant_id.as_str(),
                 return_raw_connector_data: config.common.return_raw_connector_data,
                 connector_latency: metadata_payload.connector_latency.clone(),
+                log_fields_enabled: config.log_fields.enabled,
                 log_fields: &config.log_fields.outgoing,
             };
 
@@ -1081,6 +1088,7 @@ macro_rules! implement_connector_operation {
                 merchant_id: metadata_payload.merchant_id.as_str(),
                 return_raw_connector_data: config.common.return_raw_connector_data,
                 connector_latency: metadata_payload.connector_latency.clone(),
+                log_fields_enabled: config.log_fields.enabled,
                 log_fields: &config.log_fields.outgoing,
             };
             let call_connector_action = connector_integration.get_call_connector_action();

@@ -562,16 +562,21 @@ impl CompiledLogFields {
 /// Holds compiled fields for both golden log lines.
 #[derive(Debug, Clone, Default)]
 pub struct CompiledLogFieldsConfig {
+    /// Runtime kill-switch: when `false`, `apply_log_fields` is skipped even
+    /// though the `log-transformations` feature is compiled in.
+    pub enabled: bool,
     pub incoming: CompiledLogFields,
     pub outgoing: CompiledLogFields,
 }
 
 impl CompiledLogFieldsConfig {
     pub fn compile(
+        enabled: bool,
         incoming: &HashMap<String, LogFieldEntry>,
         outgoing: &HashMap<String, LogFieldEntry>,
     ) -> Self {
         Self {
+            enabled,
             incoming: CompiledLogFields::compile(incoming),
             outgoing: CompiledLogFields::compile(outgoing),
         }

@@ -17,6 +17,11 @@ use serde::{Deserialize, Serialize};
 /// override entries are added to / replace matching base entries; unmentioned entries stay.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct LogFields {
+    /// Runtime toggle: when `false`, compiled log fields are not applied
+    /// even though the `log-transformations` feature is compiled in.
+    /// Defaults to `false` — must be explicitly enabled in config.
+    #[serde(default)]
+    pub enabled: bool,
     #[serde(default)]
     pub incoming: HashMap<String, LogFieldEntry>,
     #[serde(default)]
@@ -29,12 +34,16 @@ pub struct LogFields {
 /// new keys are added, existing keys are overwritten, absent keys are kept.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct LogFieldsPatch {
+    pub enabled: Option<bool>,
     pub incoming: Option<HashMap<String, LogFieldEntry>>,
     pub outgoing: Option<HashMap<String, LogFieldEntry>>,
 }
 
 impl Patch<LogFieldsPatch> for LogFields {
     fn apply(&mut self, patch: LogFieldsPatch) {
+        if let Some(enabled) = patch.enabled {
+            self.enabled = enabled;
+        }
         if let Some(incoming) = patch.incoming {
             self.incoming.extend(incoming);
         }
