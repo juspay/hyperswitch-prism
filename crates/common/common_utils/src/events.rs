@@ -638,7 +638,7 @@ fn stringify_event_payloads(result: &mut serde_json::Value) {
         return;
     };
 
-    for field in ["request_data", "response_data"] {
+    for field in ["request_data", "response_data", "error"] {
         let Some(value) = obj.get_mut(field) else {
             continue;
         };
