@@ -1,4 +1,5 @@
 #![allow(clippy::expect_used)]
+#![allow(clippy::panic)]
 
 use common_utils::SuperpositionConfig;
 use ucs_env::configs;
