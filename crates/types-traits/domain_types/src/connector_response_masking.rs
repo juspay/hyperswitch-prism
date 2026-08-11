@@ -232,7 +232,7 @@ impl MaskKeys {
                 .is_some_and(|(_, local)| self.names.contains(local.to_ascii_lowercase().as_str()))
     }
 
-    fn names_location(&self, segments: &[&str]) -> bool {
+    fn names_location(&self, segments: &[String]) -> bool {
         self.paths.iter().any(|entry| {
             entry.len() == segments.len()
                 && entry
@@ -387,13 +387,18 @@ fn mask_json(body: &[u8], keys: &MaskKeys) -> Option<String> {
 fn mask_attributes(tag: &BytesStart<'_>, keys: &MaskKeys) -> BytesStart<'static> {
     let name = String::from_utf8_lossy(tag.name().as_ref()).into_owned();
     let mut rebuilt = BytesStart::new(name);
-    for attribute in tag.attributes().flatten() {
+    // quick-xml's duplicate-attribute check is quadratic in attributes-per-element, and the error
+    // it produces is exactly what `flatten` discards. Skip it.
+    let mut attributes = tag.attributes();
+    attributes.with_checks(false);
+
+    for attribute in attributes.flatten() {
         let key = String::from_utf8_lossy(attribute.key.as_ref()).into_owned();
         if allowed(keys, &key, false) {
             let value = attribute.unescape_value().unwrap_or_default();
-            rebuilt.push_attribute((emitted_key(&key), value.as_ref()));
+            rebuilt.push_attribute((key.as_str(), value.as_ref()));
         } else {
-            rebuilt.push_attribute((emitted_key(&key), MASKED));
+            rebuilt.push_attribute((key.as_str(), MASKED));
         }
     }
     rebuilt
@@ -411,10 +416,7 @@ fn mask_xml(body: &[u8], keys: &MaskKeys) -> Option<String> {
     let mut first_event = true;
 
     fn pinned(keys: &MaskKeys, open: &[String]) -> bool {
-        keys.has_paths() && {
-            let segments: Vec<&str> = open.iter().map(String::as_str).collect();
-            keys.names_location(&segments)
-        }
+        keys.has_paths() && keys.names_location(open)
     }
 
     loop {
@@ -1287,6 +1289,77 @@ mod tests {
         );
         assert!(out.contains(r#""authCode":"1234""#), "{out}");
         assert!(out.contains(r#""other":"***""#), "{out}");
+    }
+
+    #[test]
+    fn a_multipart_body_yields_the_stub() {
+        let body = format!(
+            "--x9Y\r\nContent-Disposition: form-data; name=\"pan\"\r\n\r\n{PAN}\r\n--x9Y--\r\n"
+        );
+        let out = mask_connector_response(
+            body.as_bytes(),
+            Some("multipart/form-data; boundary=x9Y"),
+            PAYSAFE,
+            &config(&[]),
+        )
+        .unwrap();
+
+        assert!(!out.contains(PAN), "{out}");
+        assert_is_stub(&out, body.len());
+    }
+
+    /// A boundary may legally contain `=`, `-`, `_`, `+` and `.` — every one of which
+    /// [`is_form_key_byte`] accepts. The part header is what stops it being read as a form.
+    #[test]
+    fn a_multipart_body_whose_boundary_contains_an_equals_still_stubs() {
+        let body = format!(
+            "--a=b\r\nContent-Disposition: form-data; name=\"pan\"\r\n\r\n{PAN}\r\n--a=b--\r\n"
+        );
+        let out = mask_connector_response(
+            body.as_bytes(),
+            Some("multipart/form-data; boundary=a=b"),
+            PAYSAFE,
+            &config(&[]),
+        )
+        .unwrap();
+
+        assert!(!out.contains(PAN), "{out}");
+        assert_is_stub(&out, body.len());
+    }
+
+    /// `pinned` used to rebuild a `Vec<&str>` of the whole open-element stack per text node, which
+    /// is quadratic in depth. `check_end_names(false)` means these tags never close, so the stack
+    /// only grows. Without the fix this does not finish.
+    #[test]
+    fn deeply_nested_xml_with_a_configured_path_stays_linear() {
+        let body = format!("<r>{}", "<a>x".repeat(20_000));
+        let out = mask_xml_body(&body, ELAVON, &config(&[(ELAVON, "r.a")]));
+        assert!(!out.is_empty());
+    }
+
+    #[test]
+    fn an_allowlisted_attribute_value_survives_an_unresolvable_entity() {
+        let cfg = config(&[(ELAVON, "redirecturl")]);
+        let out = mask_xml_body(
+            r#"<r><item redirectUrl="https://acs.test/3ds?a=1&amp;b=2"/></r>"#,
+            ELAVON,
+            &cfg,
+        );
+        assert!(out.contains("acs.test"), "value should survive: {out}");
+    }
+
+    /// XML names cannot legally be card data, so they are emitted as-is rather than substituted —
+    /// `***` is not a valid XML name and is not injective.
+    #[test]
+    fn a_card_shaped_xml_attribute_name_is_emitted_verbatim_not_as_a_mask() {
+        let out = mask_xml_body(
+            &format!(r#"<r><item {PAN}="secret" {PAN}9="other"/></r>"#),
+            ELAVON,
+            &config(&[]),
+        );
+        assert!(out.contains(&format!("{PAN}=")), "name kept: {out}");
+        assert!(!out.contains("***=\"***\""), "no collapsed name: {out}");
+        assert!(!out.contains("secret"), "value still masked: {out}");
     }
 }
 

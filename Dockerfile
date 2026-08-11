@@ -57,7 +57,7 @@ RUN apt-get update \
 # Build only the binary shipped by the runtime stage; skips test/SDK crates.
 COPY . .
 RUN --mount=type=cache,target=/sccache \
-    cargo build --release --features kafka,connector-request-kafka,otel -p grpc-server
+    cargo build --release --features kafka,connector-request-kafka,otel,connector-response-masking -p grpc-server
 
 # Output sccache statistics
 RUN sccache --show-stats
