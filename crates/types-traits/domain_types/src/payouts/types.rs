@@ -2290,24 +2290,24 @@ pub fn generate_payout_eligibility_response(
             );
 
             Ok(grpc_api_types::payouts::PayoutMethodEligibilityResponse {
-            merchant_payout_id: Some(router_data_v2.resource_common_data.payout_id),
-            payout_status: Some(payout_status as i32),
-            connector_payout_id: None,
-            payout_eligible: refused_status.map(|_| false),
-            connector_metadata: None,
-            eligibility_reference_id: err.connector_transaction_id.clone(),
-            error: Some(grpc_api_types::payouts::ErrorInfo {
-                unified_details: None,
-                connector_details: Some(grpc_api_types::payouts::ConnectorErrorDetails {
-                    code: Some(err.code.clone()),
-                    message: Some(err.message.clone()),
-                    reason: err.reason.clone(),
-                    connector_transaction_id: err.connector_transaction_id.clone(),
-                    status: None,
+                merchant_payout_id: Some(router_data_v2.resource_common_data.payout_id),
+                payout_status: Some(payout_status as i32),
+                connector_payout_id: None,
+                payout_eligible: refused_status.map(|_| false),
+                connector_metadata: None,
+                eligibility_reference_id: err.connector_transaction_id.clone(),
+                error: Some(grpc_api_types::payouts::ErrorInfo {
+                    unified_details: None,
+                    connector_details: Some(grpc_api_types::payouts::ConnectorErrorDetails {
+                        code: Some(err.code.clone()),
+                        message: Some(err.message.clone()),
+                        reason: err.reason.clone(),
+                        connector_transaction_id: err.connector_transaction_id.clone(),
+                        status: None,
+                    }),
+                    issuer_details: None,
                 }),
-                issuer_details: None,
-            }),
-            status_code: u32::from(err.status_code),
+                status_code: u32::from(err.status_code),
             })
         }
     }
