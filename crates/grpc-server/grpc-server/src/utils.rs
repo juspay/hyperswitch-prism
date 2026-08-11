@@ -9,7 +9,10 @@ use common_utils::events::apply_log_fields;
 use common_utils::{
     consts::{self, Env},
     errors::CustomResult,
-    events::{CompiledLogFields, Event, EventStage, FlowName, MaskedSerdeValue},
+    events::{
+        record_json_fields_on_span, CompiledLogFields, Event, EventStage, FlowName,
+        MaskedSerdeValue,
+    },
     lineage::LineageIds,
     superposition_config::{get_connector_urls, ConnectorUrls, SuperpositionConfig},
     types::ExecutionMode,
@@ -273,16 +276,17 @@ where
         ..
     } = metadata_payload;
     let current_span = tracing::Span::current();
-    let req_body_json = match hyperswitch_masking::masked_serialize(&request_data.payload) {
-        Ok(masked_value) => masked_value.to_string(),
-        Err(e) => {
-            tracing::error!("Masked serialization error: {:?}", e);
-            "<masked serialization error>".to_string()
-        }
-    };
     let connector_name = connector.get_connector_name();
     current_span.record("service_name", service_name);
-    current_span.record("request_body", req_body_json);
+    match hyperswitch_masking::masked_serialize(&request_data.payload) {
+        Ok(masked_value) => {
+            record_json_fields_on_span(vec![("request_body", masked_value)]);
+        }
+        Err(e) => {
+            tracing::error!("Masked serialization error: {:?}", e);
+            current_span.record("request_body", "<masked serialization error>");
+        }
+    };
     current_span.record("gateway", connector_name);
     current_span.record("merchant_id", merchant_id);
     current_span.record("tenant_id", tenant_id);
@@ -302,9 +306,17 @@ pub fn log_after_initialization<T>(
 
     match &result {
         Ok(response) => {
-            current_span.record("response_body", tracing::field::debug(response.get_ref()));
-
             let res_ref = response.get_ref();
+
+            // Record response_body as structured JSON
+            match serde_json::to_value(res_ref) {
+                Ok(json_value) => {
+                    record_json_fields_on_span(vec![("response_body", json_value.clone())]);
+                }
+                Err(_) => {
+                    current_span.record("response_body", tracing::field::debug(res_ref));
+                }
+            }
 
             // Try converting to JSON Value
             if let Ok(Value::Object(map)) = serde_json::to_value(res_ref) {
@@ -391,7 +403,11 @@ where
     .await;
 
     let grpc_response = handler_result.into_grpc_status();
-    log_after_initialization(&grpc_response, config.log_fields.enabled, &config.log_fields.incoming);
+    log_after_initialization(
+        &grpc_response,
+        config.log_fields.enabled,
+        &config.log_fields.incoming,
+    );
 
     #[cfg(feature = "otel")]
     observe_internal_latency(
@@ -455,7 +471,11 @@ where
     .await;
 
     let grpc_response = handler_result.into_grpc_status();
-    log_after_initialization(&grpc_response, config.log_fields.enabled, &config.log_fields.incoming);
+    log_after_initialization(
+        &grpc_response,
+        config.log_fields.enabled,
+        &config.log_fields.incoming,
+    );
 
     #[cfg(feature = "otel")]
     observe_internal_latency(

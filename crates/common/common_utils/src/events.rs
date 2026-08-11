@@ -672,6 +672,39 @@ pub fn apply_log_fields(compiled: &CompiledLogFields) {
     });
 }
 
+/// Record one or more key-value pairs as structured JSON directly into the
+/// current tracing span's storage.  Values written this way are emitted as
+/// proper nested JSON by the log formatter — no escaping.
+///
+/// All reserved-key filtering happens **outside** the span lock to avoid
+/// deadlocks (the storage layer logs a warning for reserved keys, which would
+/// re-enter the subscriber).
+pub fn record_json_fields_on_span(fields: Vec<(&'static str, serde_json::Value)>) {
+    let fields: Vec<_> = fields
+        .into_iter()
+        .filter(|(key, _)| {
+            if log_utils::Storage::is_reserved(key) {
+                tracing::warn!(
+                    "Span field `{key}` is reserved by the logging infrastructure, skipping"
+                );
+                false
+            } else {
+                true
+            }
+        })
+        .collect();
+
+    if fields.is_empty() {
+        return;
+    }
+
+    log_utils::Storage::with_current_span_mut(|storage| {
+        for (key, value) in fields {
+            storage.record_value(key, value);
+        }
+    });
+}
+
 /// Recursively merge `source` JSON object into `target`.
 /// Keys in `source` overwrite matching keys in `target`.
 /// Nested objects are merged recursively.
@@ -774,17 +807,15 @@ pub fn emit_event_with_config(event: Event, config: &EventConfig) {
             return;
         }
     };
-    let event_json = serde_json::to_string(&processed_event)
-        .unwrap_or_else(|e| format!("{{\"error\":\"Failed to serialize event: {}\"}}", e));
     tracing::info!(
         events_enabled = config.enabled,
-        "Event processed (Kafka publishing: {}) - Event JSON: {}",
+        event = %processed_event,
+        "Event processed (Kafka publishing: {})",
         if config.enabled {
             "enabled"
         } else {
             "disabled"
         },
-        event_json
     );
     #[cfg(feature = "kafka")]
     crate::event_publisher::publish_event_to_kafka(&event, processed_event, config);
