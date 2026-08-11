@@ -672,6 +672,24 @@ pub fn apply_log_fields(compiled: &CompiledLogFields) {
     });
 }
 
+/// Convert a set of headers with `Maskable` values into a `serde_json::Value` object.
+/// Normal values are preserved; masked values are replaced with `"***"`.
+pub fn maskable_headers_to_json<'a>(
+    headers: impl IntoIterator<Item = &'a (String, hyperswitch_masking::Maskable<String>)>,
+) -> serde_json::Value {
+    headers
+        .into_iter()
+        .map(|(k, v)| {
+            let val = match v {
+                hyperswitch_masking::Maskable::Normal(s) => s.clone(),
+                hyperswitch_masking::Maskable::Masked(_) => "***".to_string(),
+            };
+            (k.clone(), serde_json::Value::String(val))
+        })
+        .collect::<serde_json::Map<String, serde_json::Value>>()
+        .into()
+}
+
 /// Record one or more key-value pairs as structured JSON directly into the
 /// current tracing span's storage.  Values written this way are emitted as
 /// proper nested JSON by the log formatter — no escaping.
@@ -807,15 +825,17 @@ pub fn emit_event_with_config(event: Event, config: &EventConfig) {
             return;
         }
     };
+    let event_json = serde_json::to_string(&processed_event)
+        .unwrap_or_else(|e| format!("{{\"error\":\"Failed to serialize event: {}\"}}", e));
     tracing::info!(
         events_enabled = config.enabled,
-        event = %processed_event,
-        "Event processed (Kafka publishing: {})",
+        "Event processed (Kafka publishing: {}) - Event JSON: {}",
         if config.enabled {
             "enabled"
         } else {
             "disabled"
         },
+        event_json
     );
     #[cfg(feature = "kafka")]
     crate::event_publisher::publish_event_to_kafka(&event, processed_event, config);

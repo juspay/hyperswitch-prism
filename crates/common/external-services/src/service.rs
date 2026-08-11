@@ -11,7 +11,7 @@ use common_utils::{
     request::TransportType,
 };
 use common_utils::{
-    events::{record_json_fields_on_span, CompiledLogFields},
+    events::{maskable_headers_to_json, record_json_fields_on_span, CompiledLogFields},
     ext_traits::AsyncExt,
     lineage,
     request::{Method, Request, RequestContent},
@@ -747,18 +747,10 @@ where
 
                     let masked_headers = request.headers.clone();
                     tracing::info!(headers=?masked_headers, "headers of connector request");
-                    let headers_json: serde_json::Value = masked_headers
-                        .iter()
-                        .map(|(k, v)| {
-                            let val = match v {
-                                Maskable::Normal(s) => s.clone(),
-                                Maskable::Masked(_) => "***".to_string(),
-                            };
-                            (k.clone(), serde_json::Value::String(val))
-                        })
-                        .collect::<serde_json::Map<String, serde_json::Value>>()
-                        .into();
-                    record_json_fields_on_span(vec![("request.headers", headers_json)]);
+                    record_json_fields_on_span(vec![(
+                        "request.headers",
+                        maskable_headers_to_json(&masked_headers),
+                    )]);
 
                     let masked_request = mask_connector_request(&request.body);
                     tracing::info!(request=?masked_request, "request of connector");
@@ -983,18 +975,10 @@ where
 
                     let masked_headers = record.headers.clone();
                     tracing::info!(headers=?masked_headers, "headers of connector request");
-                    let headers_json: serde_json::Value = masked_headers
-                        .iter()
-                        .map(|(k, v)| {
-                            let val = match v {
-                                Maskable::Normal(s) => s.clone(),
-                                Maskable::Masked(_) => "***".to_string(),
-                            };
-                            (k.clone(), serde_json::Value::String(val))
-                        })
-                        .collect::<serde_json::Map<String, serde_json::Value>>()
-                        .into();
-                    record_json_fields_on_span(vec![("request.headers", headers_json)]);
+                    record_json_fields_on_span(vec![(
+                        "request.headers",
+                        maskable_headers_to_json(&masked_headers),
+                    )]);
 
                     let masked_request = mask_connector_request(&record.payload);
                     tracing::info!(request=?masked_request, "request of connector");

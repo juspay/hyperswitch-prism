@@ -308,10 +308,10 @@ pub fn log_after_initialization<T>(
         Ok(response) => {
             let res_ref = response.get_ref();
 
-            // Record response_body as structured JSON
-            match serde_json::to_value(res_ref) {
-                Ok(json_value) => {
-                    record_json_fields_on_span(vec![("response_body", json_value.clone())]);
+            // Record response_body as structured JSON with masking
+            match hyperswitch_masking::masked_serialize(res_ref) {
+                Ok(masked_value) => {
+                    record_json_fields_on_span(vec![("response_body", masked_value.clone())]);
                 }
                 Err(_) => {
                     current_span.record("response_body", tracing::field::debug(res_ref));
