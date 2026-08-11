@@ -270,14 +270,32 @@ pub fn build_eligibility_response(
     vop_id: String,
     http_code: u16,
 ) -> Result<PayoutEligibilityResponse, ErrorResponse> {
-    let payout_status = PayoutStatus::from(match_status);
-    let is_eligible = matches!(
-        match_status,
-        DeutschebankVopMatchStatus::Mtch | DeutschebankVopMatchStatus::Cmtc
-    );
+    match match_status {
+        // A match or a close match permits the payout.
+        DeutschebankVopMatchStatus::Mtch | DeutschebankVopMatchStatus::Cmtc => {
+            let mut connector_metadata = serde_json::Map::new();
+            connector_metadata.insert(
+                "vop_status".to_string(),
+                serde_json::Value::String(match_status.code().to_string()),
+            );
+            if let Some(info) = vop_body.additional_info.clone() {
+                connector_metadata.insert(
+                    "additional_info".to_string(),
+                    serde_json::Value::String(info),
+                );
+            }
 
-    if !is_eligible {
-        return Err(ErrorResponse {
+            Ok(PayoutEligibilityResponse {
+                merchant_payout_id: None,
+                payout_status: PayoutStatus::from(match_status),
+                connector_payout_id: None,
+                payout_eligible: Some(true),
+                status_code: http_code,
+                connector_metadata: Some(serde_json::Value::Object(connector_metadata)),
+                connector_eligibility_reference_id: Some(vop_id),
+            })
+        }
+        DeutschebankVopMatchStatus::Noap | DeutschebankVopMatchStatus::Nmtc => Err(ErrorResponse {
             code: match_status.code().to_string(),
             message: vop_body
                 .additional_info
@@ -290,31 +308,8 @@ pub fn build_eligibility_response(
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
-        });
+        }),
     }
-
-    // Only eligible verdicts reach here; refusals returned above.
-    let mut connector_metadata = serde_json::Map::new();
-    connector_metadata.insert(
-        "vop_status".to_string(),
-        serde_json::Value::String(match_status.code().to_string()),
-    );
-    if let Some(info) = vop_body.additional_info.clone() {
-        connector_metadata.insert(
-            "additional_info".to_string(),
-            serde_json::Value::String(info),
-        );
-    }
-
-    Ok(PayoutEligibilityResponse {
-        merchant_payout_id: None,
-        payout_status,
-        connector_payout_id: None,
-        payout_eligible: Some(true),
-        status_code: http_code,
-        connector_metadata: Some(serde_json::Value::Object(connector_metadata)),
-        connector_eligibility_reference_id: Some(vop_id),
-    })
 }
 
 impl TryFrom<ResponseRouterData<DeutschebankVopResponse, Self>>
