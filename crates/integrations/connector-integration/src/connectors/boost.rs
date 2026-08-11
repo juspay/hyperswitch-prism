@@ -26,7 +26,7 @@ use serde::Serialize;
 use transformers::{
     self as boost, BoostPaymentInitRequest, BoostPaymentInitResponse, BoostPaymentSyncResponse,
     BoostReversalRequest, BoostReversalResponse,
-    BoostReversalResponse as BoostReversalSyncResponse,
+    BoostReversalResponse as BoostReversalSyncResponse, BoostWebhookBody,
 };
 
 use super::macros;
@@ -510,9 +510,103 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+// ===== INCOMING WEBHOOK IMPLEMENTATION =====
+// BCPG POSTs a single payment-result payload (success or failure) to the
+// `callbackUrl` supplied at Authorize/Init (see BoostPaymentInitRequest's
+// callback_url field, wired from PaymentsAuthorizeData::webhook_url). The
+// payload's `status` field reuses the exact same vocabulary as PSync's
+// `status`, so this reuses BoostPaymentStatus and its existing
+// `From<BoostPaymentStatus> for AttemptStatus` mapping rather than
+// duplicating status logic.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for Boost<T>
 {
+    fn sample_webhook_body(&self) -> &'static [u8] {
+        br#"{"timestamp":"2025-09-09T01:22:50.650398229Z","uuid":"5e3cc113-0426-44e2-985b-f90bdddd06e8","amount":1,"currency":"MYR","created":"2025-09-09T01:22:06.739Z","description":"Payment","status":"succeeded","paymentMethod":"card","referenceId":"Llof2a6I0EdVmURL7YoL"}"#
+    }
+
+    fn get_webhook_integrity_checks(&self) -> Vec<WebhookIntegrityCheck> {
+        // BCPG's callback payload carries no signature/HMAC of any kind (see
+        // verify_webhook_source below), so this webhook can never be
+        // cryptographically verified. Require the platform to corroborate the
+        // claimed status against an authenticated PSync call (GET
+        // /v1/payments/refs/{referenceId}) before acting on it — this is the
+        // safety net for a connector that can't verify its own webhooks.
+        vec![WebhookIntegrityCheck::ConnectorTransactionId]
+    }
+
+    fn verify_webhook_source(
+        &self,
+        _request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<bool, error_stack::Report<errors::WebhookError>> {
+        // BCPG's integration guideline (section 4.1, Message Level Security)
+        // only documents outgoing merchant->BCPG request signing (HMAC-SHA256
+        // over method+path+body, see BoostAuthType::build_signed_auth_header).
+        // There is no documented inbound signature header, shared secret, or
+        // verification mechanism for callbackUrl POSTs. Hardcode to false
+        // (unverified) so callers fall back to the authenticated-PSync
+        // corroboration required by get_webhook_integrity_checks above,
+        // rather than fabricating a verification scheme BCPG never specified.
+        Ok(false)
+    }
+
+    fn get_event_type(
+        &self,
+        request: RequestDetails,
+    ) -> Result<EventType, error_stack::Report<errors::WebhookError>> {
+        let payload: BoostWebhookBody = request
+            .body
+            .parse_struct("BoostWebhookBody")
+            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)
+            .attach_printable("Failed to parse Boost webhook body to determine event type")?;
+        Ok(payload.get_event_type())
+    }
+
+    fn get_webhook_event_reference(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<errors::WebhookError>> {
+        let payload: BoostWebhookBody = request
+            .body
+            .parse_struct("BoostWebhookBody")
+            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)
+            .attach_printable(
+                "Failed to parse Boost webhook body to build the webhook reference",
+            )?;
+        Ok(Some(payload.into_webhook_event_reference()))
+    }
+
+    fn process_payment_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+        _event_context: Option<EventContext>,
+    ) -> Result<WebhookDetailsResponse, error_stack::Report<errors::WebhookError>> {
+        let payload: BoostWebhookBody = request
+            .body
+            .parse_struct("BoostWebhookBody")
+            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)
+            .attach_printable("Failed to parse Boost webhook body")?;
+        Ok(payload.into_webhook_details_response(200, &request.body))
+    }
+
+    fn get_webhook_resource_object(
+        &self,
+        request: RequestDetails,
+    ) -> Result<
+        Box<dyn hyperswitch_masking::ErasedMaskSerialize>,
+        error_stack::Report<errors::WebhookError>,
+    > {
+        let payload: BoostWebhookBody = request
+            .body
+            .parse_struct("BoostWebhookBody")
+            .change_context(errors::WebhookError::WebhookResourceObjectNotFound)
+            .attach_printable("Failed to parse Boost webhook resource object")?;
+        Ok(Box::new(payload))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

@@ -581,9 +581,7 @@ connector_base_url = "https://api.wellsfargo.com/payments/v1/"
 _context_ = { connector = "zift" }
 connector_base_url = "https://api.zift.io/"
 
-# Boost Connect (BCPG) — no production URL documented yet; same host used
-# across sandbox/development/production until BCPG provides one (see
-# config/production.toml for the same note).
+# Boost Connect (BCPG) — staging host, used as the default (sandbox/development).
 [[overrides]]
 _context_ = { connector = "boost" }
 connector_base_url = "https://stage-api.boostconnect.biz/gateway"
@@ -928,3 +926,8 @@ connector_base_url = "https://api-platform.flywire.com"
 [[overrides]]
 _context_ = { connector = "flywire", environment = "development" }
 connector_base_url = "https://api-platform-sandbox.flywire.com"
+
+# Boost Connect (BCPG) Production
+[[overrides]]
+_context_ = { connector = "boost", environment = "production" }
+connector_base_url = "https://api.boostconnect.biz/gateway"

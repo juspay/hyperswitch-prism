@@ -24,7 +24,7 @@ bypass_urls = ["localhost", "local"]
 
 [connectors]
 maya.base_url = "https://pg.maya.ph"
-boost.base_url = "https://stage-api.boostconnect.biz/gateway"
+boost.base_url = "https://api.boostconnect.biz/gateway"
 tesouro.base_url = "https://api.tesouro.com"
 kount.base_url = "https://api.kount.com"
 kount.secondary_base_url = "https://login.kount.com"
