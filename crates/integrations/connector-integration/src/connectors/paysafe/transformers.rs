@@ -356,36 +356,51 @@ fn create_paysafe_billing_details(
     }
 }
 
-fn create_paysafe_google_pay_billing_address(
-    resource_common_data: &PaymentFlowData,
-) -> Option<PaysafeGooglePayBillingAddress> {
-    let non_empty = |value: Option<Secret<String>>| value.filter(|v| !v.peek().trim().is_empty());
+/// Google Pay `paymentMethodData.info.billingAddress`.
+///
+/// With a `threeDs` block present Paysafe applies card validation, and this is the only
+/// place a wallet payment can carry the holder name (error 5068 otherwise) — a top-level
+/// `card` object may not coexist with `googlePay`. Every field is optional on the wire,
+/// so the only failure is "the merchant sent no billing address at all"; callers use
+/// `.ok()` to omit the block rather than serialise an empty object.
+impl TryFrom<&PaymentFlowData> for PaysafeGooglePayBillingAddress {
+    type Error = IntegrationError;
 
-    let name = non_empty(resource_common_data.get_optional_billing_full_name());
-    let address1 = non_empty(resource_common_data.get_optional_billing_line1());
-    let locality = non_empty(resource_common_data.get_optional_billing_city());
-    let administrative_area = non_empty(resource_common_data.get_optional_billing_state());
-    let postal_code = non_empty(resource_common_data.get_optional_billing_zip());
-    let country_code = resource_common_data.get_optional_billing_country();
+    fn try_from(resource_common_data: &PaymentFlowData) -> Result<Self, Self::Error> {
+        // Paysafe rejects optional strings that are present but empty (error 5068), so
+        // blank values must be omitted rather than sent as "".
+        let non_empty =
+            |value: Option<Secret<String>>| value.filter(|v| !v.peek().trim().is_empty());
 
-    if name.is_none()
-        && address1.is_none()
-        && locality.is_none()
-        && administrative_area.is_none()
-        && postal_code.is_none()
-        && country_code.is_none()
-    {
-        return None;
+        let name = non_empty(resource_common_data.get_optional_billing_full_name());
+        let address1 = non_empty(resource_common_data.get_optional_billing_line1());
+        let locality = non_empty(resource_common_data.get_optional_billing_city());
+        let administrative_area = non_empty(resource_common_data.get_optional_billing_state());
+        let postal_code = non_empty(resource_common_data.get_optional_billing_zip());
+        let country_code = resource_common_data.get_optional_billing_country();
+
+        if name.is_none()
+            && address1.is_none()
+            && locality.is_none()
+            && administrative_area.is_none()
+            && postal_code.is_none()
+            && country_code.is_none()
+        {
+            return Err(IntegrationError::MissingRequiredField {
+                field_name: "billing_address",
+                context: Default::default(),
+            });
+        }
+
+        Ok(Self {
+            name,
+            address1,
+            locality,
+            administrative_area,
+            postal_code,
+            country_code,
+        })
     }
-
-    Some(PaysafeGooglePayBillingAddress {
-        name,
-        address1,
-        locality,
-        administrative_area,
-        postal_code,
-        country_code,
-    })
 }
 
 /// Whether this payment method is a Paysafe redirect APM that must create a payment
@@ -856,9 +871,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 info: PaysafeGooglePayCardInfo {
                                     card_network: google_pay_data.info.card_network.clone(),
                                     card_details: google_pay_data.info.card_details.clone(),
-                                    billing_address: create_paysafe_google_pay_billing_address(
+                                    billing_address: PaysafeGooglePayBillingAddress::try_from(
                                         &router_data.resource_common_data,
-                                    ),
+                                    )
+                                    .ok(),
                                 },
                                 tokenization_data,
                             },
@@ -1311,9 +1327,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             info: PaysafeGooglePayCardInfo {
                                 card_network: google_pay_data.info.card_network.clone(),
                                 card_details: google_pay_data.info.card_details.clone(),
-                                billing_address: create_paysafe_google_pay_billing_address(
+                                billing_address: PaysafeGooglePayBillingAddress::try_from(
                                     &router_data.resource_common_data,
-                                ),
+                                )
+                                .ok(),
                             },
                             tokenization_data,
                         },
