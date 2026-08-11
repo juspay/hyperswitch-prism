@@ -7,11 +7,11 @@ use common_utils::events::apply_log_fields;
 #[cfg(feature = "injector-client")]
 use common_utils::{
     consts::{X_API_TAG, X_API_URL, X_SESSION_ID},
-    events::{maskable_headers_to_json, record_json_fields_on_span, EventStage, MaskedSerdeValue},
+    events::{maskable_headers_to_json, EventStage, MaskedSerdeValue},
     request::TransportType,
 };
 use common_utils::{
-    events::CompiledLogFields,
+    events::{record_json_fields_on_span, CompiledLogFields},
     ext_traits::AsyncExt,
     lineage,
     request::{Method, Request, RequestContent},
