@@ -1365,6 +1365,80 @@ pub fn apply_context_map(
     }
 }
 
+/// Determines whether a scenario can safely run with `--skip-dependencies`.
+///
+/// Every `context_map` entry across the suite's declared dependencies names a
+/// `target_path` the dependency chain would otherwise fill in via
+/// [`apply_context_map`]. A scenario only stands on its own if, for every one
+/// of those paths, one of two things is true:
+///
+/// - it already supplies a real (non-null) value at that exact path, or
+/// - the path's immediate parent is a proto `oneof` container where the
+///   scenario populated a *different* sibling variant instead (e.g. it chose
+///   `payment_method.card` over `payment_method.token`) — the target is then
+///   structurally inapplicable, not missing.
+///
+/// Anything else means the request genuinely depends on a dependency's
+/// output and must not skip it. `--skip-dependencies` is therefore not a
+/// trusted override: it is a request that this check must independently
+/// confirm before it takes effect. Returns the first target path found to be
+/// truly unmet, if any.
+fn first_context_map_target_missing_from_scenario(
+    suite_spec: &SuiteSpec,
+    scenario_grpc_req: &Value,
+) -> Option<String> {
+    for dependency in &suite_spec.depends_on {
+        let Some(context_map) = dependency.context_map() else {
+            continue;
+        };
+        for target_path in context_map.keys() {
+            let has_own_value = lookup_json_path_with_case_fallback(scenario_grpc_req, target_path)
+                .is_some_and(|value| !value.is_null() && value != "");
+            if has_own_value {
+                continue;
+            }
+            if parent_has_different_populated_variant(scenario_grpc_req, target_path) {
+                continue;
+            }
+            return Some(target_path.clone());
+        }
+    }
+    None
+}
+
+/// True if `target_path` resolves partway before disappearing, and the last
+/// object reached along the way is populated with a sibling key other than
+/// the one the path needed next — the signature of a proto `oneof` where a
+/// different variant was chosen (e.g. `payment_method.card` populated instead
+/// of `payment_method.token`, so `payment_method.token.token.value` never
+/// resolves past `payment_method`).
+fn parent_has_different_populated_variant(scenario_grpc_req: &Value, target_path: &str) -> bool {
+    let segments: Vec<&str> = target_path.split('.').collect();
+    let mut current = scenario_grpc_req;
+
+    for (i, segment) in segments.iter().enumerate() {
+        let Some(next) = lookup_json_path_with_case_fallback(current, segment) else {
+            // `current` is the last object successfully reached; `segment`
+            // is the key that was expected next but isn't present. If
+            // `current` instead holds a different, populated key, that's a
+            // sibling oneof variant rather than a genuinely absent value.
+            let Some(current_obj) = current.as_object() else {
+                return false;
+            };
+            return current_obj
+                .iter()
+                .any(|(key, value)| key != *segment && !value.is_null());
+        };
+        if i == segments.len() - 1 {
+            // Fully resolved — this is the "has its own value" case, handled
+            // by the caller before this function is reached.
+            return false;
+        }
+        current = next;
+    }
+    false
+}
+
 /// Like `set_json_path_value` but creates intermediate objects if they don't exist.
 fn deep_set_json_path(root: &mut Value, path: &str, value: Value) -> bool {
     let segments: Vec<&str> = path.split('.').collect();
@@ -3411,6 +3485,22 @@ pub fn run_scenario_test_with_options(
     let mut results = Vec::new();
     let mut passed = 0usize;
     let mut failed = 0usize;
+
+    if options.skip_dependencies {
+        let scenario_def = scenarios.get(scenario).ok_or_else(|| ScenarioError::ScenarioNotFound {
+            suite: suite.to_string(),
+            scenario: scenario.to_string(),
+        })?;
+        if let Some(unmet) =
+            first_context_map_target_missing_from_scenario(&target_suite_spec, &scenario_def.grpc_req)
+        {
+            return Err(ScenarioError::DependenciesRequired {
+                suite: suite.to_string(),
+                scenario: scenario.to_string(),
+                target_path: unmet,
+            });
+        }
+    }
 
     let (
         dependency_reqs,
@@ -5971,6 +6061,109 @@ grpc-status: 0
         apply_context_map(&collected, &mut req);
 
         assert_eq!(req["state"]["access_token"]["token_type"], json!("Bearer"));
+    }
+
+    #[test]
+    fn skip_dependencies_rejected_when_scenario_needs_dependency_output() {
+        use super::first_context_map_target_missing_from_scenario;
+        use crate::harness::scenario_types::{DependencyScope, SuiteDependency, SuiteSpec};
+
+        let suite_spec = SuiteSpec {
+            suite: "Test/Suite".to_string(),
+            suite_type: "dependent".to_string(),
+            depends_on: vec![SuiteDependency::SuiteWithScenario {
+                suite: "MerchantAuthenticationService/CreateServerAuthenticationToken".to_string(),
+                scenario: None,
+                context_map: Some(HashMap::from([(
+                    "state.access_token.token.value".to_string(),
+                    "res.access_token".to_string(),
+                )])),
+            }],
+            strict_dependencies: false,
+            dependency_scope: DependencyScope::Scenario,
+            grpc_method: None,
+            alias_for: None,
+        };
+
+        // `state` is not a oneof — its `access_token` field is a plain required
+        // struct the scenario left as an empty placeholder, so the dependency's
+        // output is genuinely needed here, not a sibling variant choice.
+        let scenario_req = json!({"state": {"access_token": {"token": {"value": ""}}}});
+        let missing = first_context_map_target_missing_from_scenario(&suite_spec, &scenario_req);
+        assert_eq!(
+            missing,
+            Some("state.access_token.token.value".to_string())
+        );
+
+        // Scenario supplies its own literal at the exact target path — dependency is redundant.
+        let scenario_req_self_sufficient = json!({
+            "state": {"access_token": {"token": {"value": "already_have_a_token"}}}
+        });
+        assert_eq!(
+            first_context_map_target_missing_from_scenario(&suite_spec, &scenario_req_self_sufficient),
+            None
+        );
+    }
+
+    #[test]
+    fn skip_dependencies_allows_oneof_sibling_variant_selection() {
+        use super::first_context_map_target_missing_from_scenario;
+        use crate::harness::scenario_types::{DependencyScope, SuiteDependency, SuiteSpec};
+
+        let suite_spec = SuiteSpec {
+            suite: "Test/Suite".to_string(),
+            suite_type: "dependent".to_string(),
+            depends_on: vec![SuiteDependency::SuiteWithScenario {
+                suite: "PaymentMethodService/Tokenize".to_string(),
+                scenario: None,
+                context_map: Some(HashMap::from([(
+                    "payment_method.token.token.value".to_string(),
+                    "res.payment_method_token".to_string(),
+                )])),
+            }],
+            strict_dependencies: false,
+            dependency_scope: DependencyScope::Scenario,
+            grpc_method: None,
+            alias_for: None,
+        };
+
+        // `payment_method` is a proto oneof; the scenario chose `card` instead
+        // of `token`, so the `token` target is structurally inapplicable, not
+        // a missing/unmet dependency.
+        let scenario_req = json!({"payment_method": {"card": {"card_number": {"value": "4111"}}}});
+        assert_eq!(
+            first_context_map_target_missing_from_scenario(&suite_spec, &scenario_req),
+            None
+        );
+
+        // But an entirely empty payment_method (no variant chosen at all) is
+        // a genuine gap — nothing proves the dependency is unnecessary here.
+        let scenario_req_empty = json!({"payment_method": {}});
+        assert_eq!(
+            first_context_map_target_missing_from_scenario(&suite_spec, &scenario_req_empty),
+            Some("payment_method.token.token.value".to_string())
+        );
+    }
+
+    #[test]
+    fn stripe_authorize_credit_card_scenario_is_safe_to_skip_dependencies() {
+        use super::first_context_map_target_missing_from_scenario;
+
+        let suite_spec = load_suite_spec("PaymentService/Authorize")
+            .expect("PaymentService/Authorize suite spec should load");
+        let scenarios = load_suite_scenarios("PaymentService/Authorize")
+            .expect("PaymentService/Authorize scenarios should load");
+        let scenario = &scenarios["no3ds_auto_capture_credit_card"];
+
+        // This is the certified CI scenario running with --skip-dependencies;
+        // it must keep providing every value the suite's dependencies would
+        // otherwise inject, or CI's own check (not just this test) will start
+        // failing the certification job.
+        assert_eq!(
+            first_context_map_target_missing_from_scenario(&suite_spec, &scenario.grpc_req),
+            None,
+            "certified Stripe scenario no longer supplies its own value for a dependency-mapped field"
+        );
     }
 
     #[test]

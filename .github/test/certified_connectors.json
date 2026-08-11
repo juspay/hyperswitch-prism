@@ -1,0 +1,11 @@
+{
+  "$schema_note": "Connectors in this list are certified against real sandbox APIs on every PR that touches shared/core/proto code, or that touches the connector's own files. Adding a connector here is a reviewed change and requires: (1) live sandbox credentials present in the CI creds file, (2) a working scenario+assert in its suite spec, verified to pass with --skip-dependencies decided deliberately per scenario. Do not add a connector here speculatively.",
+  "connectors": [
+    {
+      "name": "stripe",
+      "suite": "PaymentService/Authorize",
+      "scenario": "no3ds_auto_capture_credit_card",
+      "skip_dependencies": true
+    }
+  ]
+}

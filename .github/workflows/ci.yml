@@ -58,6 +58,7 @@ jobs:
       any-rs: ${{ steps.filter.outputs.any-rs }}
       ci: ${{ steps.filter.outputs.ci }}
       connector-names: ${{ steps.connector-names.outputs.list }}
+      certified-connectors-touched: ${{ steps.certified-connectors.outputs.touched }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -122,6 +123,23 @@ jobs:
             sort -u | paste -sd ',' -)
           echo "list=$names" >> $GITHUB_OUTPUT
           echo "Changed connectors: $names"
+
+      - name: Check whether changed connectors are certified
+        id: certified-connectors
+        if: steps.connector-names.outputs.list != ''
+        shell: bash
+        run: |
+          touched="false"
+          IFS=',' read -ra CONNECTORS <<< "${{ steps.connector-names.outputs.list }}"
+          for c in "${CONNECTORS[@]}"; do
+            if jq -e --arg c "$c" '.connectors[] | select(.name == $c)' \
+              .github/test/certified_connectors.json > /dev/null; then
+              touched="true"
+              break
+            fi
+          done
+          echo "touched=$touched" >> $GITHUB_OUTPUT
+          echo "Certified connector touched: $touched"
 
   # ── Fast Checks ───────────────────────────────────────────────────────────
 
@@ -562,8 +580,33 @@ jobs:
               -E "$SCHEMA_EXCLUDE"
           fi
 
-      - name: Install grpcurl for test_ucs certification
+      # Certification runs a real gRPC call against each certified connector's
+      # live sandbox to catch shared/core/proto regressions that a compile-only
+      # check can't see. Scope:
+      #   - core/proto/CI/shared-harness changes -> whole certified manifest
+      #     (a break here can affect any connector, certified or not)
+      #   - connector-only PR touching a certified connector's files -> whole
+      #     manifest too (cheap; avoids tracking per-connector step identity)
+      #   - connector-only PR NOT touching a certified connector -> skipped
+      - name: Determine whether connector certification should run
         if: ${{ env.RUN_TESTS == 'true' }}
+        id: cert-gate
+        shell: bash
+        run: |
+          CORE_CHANGED="${{ needs.changes.outputs.rust-core }}"
+          PROTO_CHANGED="${{ needs.changes.outputs.proto }}"
+          CI_CHANGED="${{ needs.changes.outputs.ci }}"
+          CERTIFIED_TOUCHED="${{ needs.changes.outputs.certified-connectors-touched }}"
+
+          if [[ "${CORE_CHANGED}" == "true" || "${PROTO_CHANGED}" == "true" || "${CI_CHANGED}" == "true" || "${CERTIFIED_TOUCHED}" == "true" ]]; then
+            echo "run=true" >> $GITHUB_OUTPUT
+          else
+            echo "run=false" >> $GITHUB_OUTPUT
+            echo "Skipping certification — no core/proto/CI/certified-connector changes detected"
+          fi
+
+      - name: Install grpcurl for test_ucs certification
+        if: ${{ env.RUN_TESTS == 'true' && steps.cert-gate.outputs.run == 'true' }}
         shell: bash
         run: |
           if ! command -v grpcurl >/dev/null 2>&1; then
@@ -576,19 +619,62 @@ jobs:
           fi
           grpcurl --version
 
-      - name: Run Stripe card Authorize certification via test_ucs
-        if: ${{ env.RUN_TESTS == 'true' }}
+      - name: Run certified connector authorizations via test_ucs
+        if: ${{ env.RUN_TESTS == 'true' && steps.cert-gate.outputs.run == 'true' }}
         shell: bash
         run: |
-          jq -e '.stripe' "${CONNECTOR_AUTH_FILE_PATH}" > /dev/null
-          ./scripts/run-tests \
-            --skip-setup \
-            --connector stripe \
-            --suite PaymentService/Authorize \
-            --scenario no3ds_auto_capture_credit_card \
-            --skip-dependencies \
-            --interface grpc \
-            --report
+          manifest=".github/test/certified_connectors.json"
+          count=$(jq '.connectors | length' "$manifest")
+
+          if [[ "$count" -eq 0 ]]; then
+            echo "No certified connectors configured — nothing to run"
+            exit 0
+          fi
+
+          failures=0
+          for i in $(seq 0 $((count - 1))); do
+            name=$(jq -r ".connectors[$i].name" "$manifest")
+            suite=$(jq -r ".connectors[$i].suite" "$manifest")
+            scenario=$(jq -r ".connectors[$i].scenario" "$manifest")
+            skip_deps=$(jq -r ".connectors[$i].skip_dependencies // false" "$manifest")
+
+            if ! jq -e --arg c "$name" 'has($c)' "${CONNECTOR_AUTH_FILE_PATH}" > /dev/null; then
+              echo "::error::Certified connector '$name' has no entry in the CI credentials file — cannot certify"
+              failures=$((failures + 1))
+              continue
+            fi
+
+            echo "::group::Certifying $name ($suite / $scenario)"
+            args=(--skip-setup --connector "$name" --suite "$suite" --scenario "$scenario" --interface grpc --report)
+            [[ "$skip_deps" == "true" ]] && args+=(--skip-dependencies)
+
+            # A real transformer/proto regression fails every attempt, so this
+            # retry only buys back the CI runs a genuine sandbox hiccup (timeout,
+            # transient 5xx from the connector) would otherwise cost an innocent PR.
+            attempt=1
+            max_attempts=3
+            succeeded="false"
+            until [[ "$attempt" -gt "$max_attempts" ]]; do
+              if ./scripts/run-tests "${args[@]}"; then
+                succeeded="true"
+                break
+              fi
+              echo "::warning::Attempt $attempt/$max_attempts failed for $name ($suite / $scenario)"
+              attempt=$((attempt + 1))
+              [[ "$attempt" -le "$max_attempts" ]] && sleep 10
+            done
+
+            if [[ "$succeeded" != "true" ]]; then
+              echo "::error::Certification failed for $name ($suite / $scenario) after $max_attempts attempts"
+              failures=$((failures + 1))
+            fi
+            echo "::endgroup::"
+          done
+
+          if [[ "$failures" -gt 0 ]]; then
+            echo "::error::$failures certified connector(s) failed certification"
+            exit 1
+          fi
 
   # ── SDK Tests (FFI + gRPC) ────────────────────────────────────────────────
   # Builds all SDK binaries then runs gRPC tests first, followed by FFI tests
