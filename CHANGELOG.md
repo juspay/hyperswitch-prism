@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.08.11.0
+
+### Bug Fixes
+
+- **netcetera:** Fix Authenticate response parity and card-proxy expiry handling ([#2070](https://github.com/juspay/connector-service/pull/2070)) ([`dffd562`](https://github.com/juspay/connector-service/commit/dffd562e04a04c8a9e9f32e2b8b9a66bd259f0be))
+
+**Full Changelog:** [`2026.08.10.1...2026.08.11.0`](https://github.com/juspay/connector-service/compare/2026.08.10.1...2026.08.11.0)
+
+- - -
+
 ## 2026.08.10.1
 
 ### Bug Fixes
