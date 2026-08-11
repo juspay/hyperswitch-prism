@@ -71,10 +71,14 @@ const KOUNT_WEB_SDK_URL: &str =
 /// `TEST`/`PROD`, callbacks live inside the config object, and the session id
 /// is passed as the second argument to `kountSDK(config, sessionID)`.
 ///
-/// `return_url` is the merchant's own continuation URL: on `collect-end` the
-/// form posts there so the browser returns to the merchant flow (set as the
-/// form's `action` attribute by the embedding page). Kount is not involved in
-/// this hop and never receives the URL — DDC correlates purely by `sessionID`.
+/// Returns only the `<script>` tag — no wrapping HTML document and no
+/// `<form>`. The embedding page owns the client-side contract: on
+/// `collect-end` the script submits `#kount-ddc-form` if the page provides
+/// one (with its own `action` pointing wherever it wants to continue on
+/// completion), falling back to the first `<form>` on the page otherwise.
+/// This function takes no `return_url`/continuation URL — Kount is not
+/// involved in that hop and never receives
+/// it; DDC correlates purely by `sessionID`.
 pub fn build_ddc_script(client_id: &str, session_id: &str, sandbox: bool) -> String {
     let environment = if sandbox { "TEST" } else { "PROD" };
     // Contextual output-encoding: `client_id` (from the access-token JWT) and
@@ -91,7 +95,7 @@ pub fn build_ddc_script(client_id: &str, session_id: &str, sandbox: bool) -> Str
     isSinglePageApp: false,
     isDebugEnabled: false,
     callbacks: {{
-      "collect-end": function () {{ document.getElementById("kount-ddc-form").submit(); }}
+      "collect-end": function () {{ const f = document.getElementById("kount-ddc-form"); if (f) {{ f.submit(); }} else {{ document.querySelector("form").submit(); }} }}
     }}
   }};
   kountSDK(kountConfig, "{session_id}");

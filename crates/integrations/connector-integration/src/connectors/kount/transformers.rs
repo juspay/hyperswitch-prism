@@ -1771,8 +1771,7 @@ pub enum KountCvvStatus {
 
 impl KountCvvStatus {
     /// Lenient parse of a caller-supplied CVV result string. Accepts Kount's own
-    /// tokens ("MATCH"/"NO_MATCH"/"UNKNOWN") as well as common single-letter
-    /// processor codes ("M"/"Y" and "N"), case-insensitively; anything else maps
+    /// tokens ("MATCH"/"NO_MATCH") case-insensitively; anything else maps
     /// to `Unknown` rather than failing the notify call.
     fn from_str(value: &str) -> Self {
         match value.trim().to_ascii_uppercase().as_str() {
@@ -1804,8 +1803,22 @@ fn kount_update_transactions(
 ) -> Vec<KountUpdateTransaction> {
     let auth_result = payment_status.map(KountAuthResult::from_attempt_status);
 
-    let feature_data = connector_feature_data
-        .and_then(|data| serde_json::from_str::<KountNotifyFeatureData>(data.peek()).ok());
+    // Malformed `connector_feature_data` (bad JSON, or keys that don't match
+    // `avs_result`/`cvv_result`) would otherwise silently deserialize to
+    // `KountNotifyFeatureData { avs_result: None, cvv_result: None }` —
+    // indistinguishable from a caller who simply didn't send AVS/CVV data.
+    // Surface the parse failure so a caller keying mistake is visible instead
+    // of the block just vanishing from the Update Order call.
+    let feature_data = connector_feature_data.and_then(|data| {
+        serde_json::from_str::<KountNotifyFeatureData>(data.peek())
+            .inspect_err(|err| {
+                tracing::warn!(
+                    error = %err,
+                    "Kount notify connector_feature_data failed to parse as {{avs_result, cvv_result}}; AVS/CVV will not be relayed to Kount"
+                );
+            })
+            .ok()
+    });
     let verification_response = feature_data.and_then(|feature_data| {
         (feature_data.avs_result.is_some() || feature_data.cvv_result.is_some()).then_some(
             KountVerificationResponse {
