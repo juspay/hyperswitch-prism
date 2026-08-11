@@ -1947,7 +1947,17 @@ impl<
                             account_holder_name: open_banking.account_holder_name,
                             additional_details: open_banking
                                 .additional_details
-                                .and_then(|details| serde_json::from_str(details.peek()).ok().map(Secret::new)),
+                                .and_then(|details| {
+                                    serde_json::from_str(details.peek())
+                                        .map(Secret::new)
+                                        .map_err(|error| {
+                                            tracing::warn!(
+                                                ?error,
+                                                "Failed to parse Open Banking additional_details; continuing without it"
+                                            );
+                                        })
+                                        .ok()
+                                }),
                         },
                     ))
                 }

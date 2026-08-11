@@ -404,17 +404,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
                 let metadata = TruelayerMetadata::try_from(&item.router_data.connector_config)?;
 
-                let provider_selection = if additional_details.is_some()
+                let provider_id = additional_details
+                    .as_ref()
+                    .and_then(|details| details.peek().get("provider_id"))
+                    .and_then(|pid| pid.as_str())
+                    .map(|s| s.to_string());
+
+                let provider_selection = if provider_id.is_some()
                     && account_holder_name.is_some()
                     && ((account_number.is_some() && sort_code.is_some()) || iban.is_some())
                 {
                     ProviderSelection {
                         _type: ProviderSelectionType::Preselected,
-                        provider_id: additional_details
-                            .as_ref()
-                            .and_then(|details| details.peek().get("provider_id"))
-                            .and_then(|pid| pid.as_str())
-                            .map(|s| s.to_string()),
+                        provider_id: provider_id.clone(),
                         remitter: Some(Remitter {
                             account_holder_name: account_holder_name.clone(),
                             account_identifier: if account_number.is_some() && sort_code.is_some() {
@@ -739,19 +741,27 @@ impl<F, T> TryFrom<ResponseRouterData<TruelayerPSyncResponseData, Self>>
                         .and_then(|pm| pm.provider_selection.as_ref())
                         .and_then(|ps| ps.provider_id.clone());
 
+                    let has_returned_open_banking_details = provider_id.is_some()
+                        && account_holder_name.is_some()
+                        && ((account_number.is_some() && sort_code.is_some()) || iban.is_some());
+
                     let additional_details = provider_id
                         .map(|pid| Secret::new(serde_json::json!({ "provider_id": pid })));
 
                     let connector_returned_payment_method_details =
-                        PaymentMethodData::<DefaultPCIHolder>::BankRedirect(
-                            BankRedirectData::OpenBanking {
-                                account_number,
-                                sort_code,
-                                iban,
-                                account_holder_name,
-                                additional_details,
-                            },
-                        );
+                        if has_returned_open_banking_details {
+                            Some(PaymentMethodData::<DefaultPCIHolder>::BankRedirect(
+                                BankRedirectData::OpenBanking {
+                                    account_number,
+                                    sort_code,
+                                    iban,
+                                    account_holder_name,
+                                    additional_details,
+                                },
+                            ))
+                        } else {
+                            None
+                        };
 
                     Ok(Self {
                         resource_common_data: PaymentFlowData {
@@ -759,9 +769,7 @@ impl<F, T> TryFrom<ResponseRouterData<TruelayerPSyncResponseData, Self>>
                             sender_payment_instrument_id: response
                                 .payment_source
                                 .and_then(|source| source.id),
-                            connector_returned_payment_method_details: Some(
-                                connector_returned_payment_method_details,
-                            ),
+                            connector_returned_payment_method_details,
                             ..item.router_data.resource_common_data
                         },
                         response: Ok(PaymentsResponseData::TransactionResponse {
