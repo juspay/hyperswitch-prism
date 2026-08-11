@@ -60,8 +60,11 @@ fn main() {
     // this tool captures verbatim into a checked-in golden file (e.g. Boost's
     // request signature, which is computed over a body containing `created`).
     // Without this, every regeneration produces a different signature/hash,
-    // and CI's auto-fix bot commits a "fix" for it on every single run, forever. 
-    std::env::set_var("UCS_FIELD_PROBE_FROZEN_TIMESTAMP", "2024-01-01T00:00:00.000Z");
+    // and CI's auto-fix bot commits a "fix" for it on every single run, forever.
+    std::env::set_var(
+        "UCS_FIELD_PROBE_FROZEN_TIMESTAMP",
+        "2024-01-01T00:00:00.000Z",
+    );
 
     // Load config first (initializes PROBE_CONFIG)
     let config = get_config();
