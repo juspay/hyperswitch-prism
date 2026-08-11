@@ -303,33 +303,31 @@ pub fn build_eligibility_response(
         }));
     }
 
-    let connector_metadata = is_eligible.then(|| {
-        let mut metadata = serde_json::Map::new();
-        metadata.insert(
-            "vop_status".to_string(),
-            serde_json::Value::String(match_status.code().to_string()),
+    // Only eligible verdicts reach here; refusals returned above.
+    let mut connector_metadata = serde_json::Map::new();
+    connector_metadata.insert(
+        "vop_status".to_string(),
+        serde_json::Value::String(match_status.code().to_string()),
+    );
+    if let Some(info) = vop_body.additional_info.clone() {
+        connector_metadata.insert(
+            "additional_info".to_string(),
+            serde_json::Value::String(info),
         );
-        if let Some(info) = vop_body.additional_info.clone() {
-            metadata.insert(
-                "additional_info".to_string(),
-                serde_json::Value::String(info),
-            );
-        }
-        serde_json::Value::Object(metadata)
-    });
-
-    // Only an eligible payee yields a payout id to act on; the VoP reference is
-    // reported separately so a refusal is still traceable, and so it survives the
-    // transfer overwriting `connector_payout_id`.
-    let connector_payout_id = is_eligible.then(|| vop_id.clone());
+    }
 
     Ok(Ok(PayoutEligibilityResponse {
         merchant_payout_id: None,
         payout_status,
-        connector_payout_id,
-        payout_eligible: Some(is_eligible),
+        // The VoP id, which the subsequent transfer is authorised against. It is not
+        // the transaction's own reference: the transfer replaces it with the SEPA
+        // `endToEndIdentification`, which is what the status enquiry keys on. The
+        // check's own reference is therefore also reported on
+        // `eligibility_reference_id`, which survives that overwrite.
+        connector_payout_id: Some(vop_id.clone()),
+        payout_eligible: Some(true),
         status_code: http_code,
-        connector_metadata,
+        connector_metadata: Some(serde_json::Value::Object(connector_metadata)),
         eligibility_reference_id: Some(vop_id),
     }))
 }
