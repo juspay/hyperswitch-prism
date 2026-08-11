@@ -595,18 +595,18 @@ macros::macro_connector_implementation!(
                 PayoutTransferResponse,
             >,
         ) -> CustomResult<Option<Request>, IntegrationError> {
-            let vop_id = req.request.eligibility_reference_id.clone().ok_or_else(|| {
+            let vop_id = req.request.connector_eligibility_reference_id.clone().ok_or_else(|| {
                 IntegrationError::MissingRequiredField {
-                    field_name: "eligibility_reference_id",
+                    field_name: "connector_eligibility_reference_id",
                     context: IntegrationErrorContext {
                         additional_context: Some(
                             "Deutsche Bank SEPA payment requires the VoP-ID from a prior \
-                             PayoutEligibility call in `eligibility_reference_id`"
+                             PayoutEligibility call in `connector_eligibility_reference_id`"
                                 .to_string(),
                         ),
                         suggested_action: Some(
                             "Call PayoutService/Eligibility first and pass the returned \
-                             `eligibilityReferenceId` on Transfer."
+                             `connectorEligibilityReferenceId` on Transfer."
                                 .to_string(),
                         ),
                         doc_url: None,

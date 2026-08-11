@@ -323,7 +323,7 @@ message PayoutServiceTransferRequest {
   optional string description = 15;
   // Connector's reference for a prior eligibility check, when the processor
   // requires it to authorise the transfer.
-  optional string eligibility_reference_id = 16;
+  optional string connector_eligibility_reference_id = 16;
 }
 
 // Response message for transferring a payout
@@ -584,6 +584,6 @@ message PayoutMethodEligibilityResponse {
   // `connector_payout_id` (which is only set when the payee is eligible, and is
   // later replaced by the transfer's id). Set for every verdict — including
   // refusals — so the check remains traceable for reconciliation.
-  optional string eligibility_reference_id = 8;
+  optional string connector_eligibility_reference_id = 8;
 }
 

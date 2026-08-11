@@ -1163,7 +1163,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceTransferRequest>
                 .transpose()?,
             customer,
             address,
-            eligibility_reference_id: value.eligibility_reference_id,
+            connector_eligibility_reference_id: value.connector_eligibility_reference_id,
         })
     }
 }
@@ -2276,7 +2276,7 @@ pub fn generate_payout_eligibility_response(
                 error: None,
                 status_code: u32::from(response.status_code),
                 connector_metadata,
-                eligibility_reference_id: response.eligibility_reference_id,
+                connector_eligibility_reference_id: response.connector_eligibility_reference_id,
             })
         }
 
@@ -2289,7 +2289,7 @@ pub fn generate_payout_eligibility_response(
             connector_payout_id: None,
             payout_eligible: Some(false),
             connector_metadata: None,
-            eligibility_reference_id: err.connector_transaction_id.clone(),
+            connector_eligibility_reference_id: err.connector_transaction_id.clone(),
             error: Some(grpc_api_types::payouts::ErrorInfo {
                 unified_details: None,
                 connector_details: Some(grpc_api_types::payouts::ConnectorErrorDetails {
