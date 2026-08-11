@@ -1001,9 +1001,7 @@ fn process_grabpay_redirect_response(
     if let Some(error_code) = error {
         return Err(error_stack::report!(IntegrationError::InvalidDataFormat {
             field_name: "error",
-            context: grabpay_integration_context(format!(
-                "GrabPay redirect failed: {error_code}"
-            )),
+            context: grabpay_integration_context(format!("GrabPay redirect failed: {error_code}")),
         }));
     }
 
