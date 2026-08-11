@@ -19,6 +19,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.08.11.2
+
+### Features
+
+- **connector:** GrabPay connector integration ([#2063](https://github.com/juspay/connector-service/pull/2063)) ([`aefd947`](https://github.com/juspay/connector-service/commit/aefd947fbedda01382e81a43eb80aa5983ca51e1))
+
+### Bug Fixes
+
+- **kount:** Map billing/shipping addresses, relay AVS/CVV, and return DDC script only ([#2081](https://github.com/juspay/connector-service/pull/2081)) ([`02e4716`](https://github.com/juspay/connector-service/commit/02e471697207a2d8a8bf50ab944eaf17fe7df1a9))
+
+**Full Changelog:** [`2026.08.11.1...2026.08.11.2`](https://github.com/juspay/connector-service/compare/2026.08.11.1...2026.08.11.2)
+
+- - -
+
 ## 2026.08.11.1
 
 ### Features
