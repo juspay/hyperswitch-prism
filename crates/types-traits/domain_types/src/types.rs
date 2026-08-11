@@ -5049,6 +5049,7 @@ impl ForeignTryFrom<grpc_api_types::payments::OrderDetailsWithAmount> for OrderD
             discount_name: item.discount_name,
             discount_percentage: item.discount_percentage,
             discount_type: item.discount_type,
+            product_link: item.product_link,
         })
     }
 }
