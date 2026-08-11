@@ -174,8 +174,6 @@ pub const LOG_FN: &str = "fn";
 pub const LOG_FULL_NAME: &str = "full_name";
 /// Log field for timestamp
 pub const LOG_TIME: &str = "time";
-/// Additive euler-schema alias for the timestamp, emitted alongside `time`.
-pub const LOG_TIMESTAMP: &str = "timestamp";
 
 /// Constant variable for name
 pub const NAME: &str = "UCS";
