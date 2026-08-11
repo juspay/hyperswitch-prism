@@ -1205,7 +1205,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 terminal_id: auth.terminal_id.clone(),
             },
             reference_transaction_details: FiservcommercehubReferenceTransactionDetails {
-                reference_transaction_id: Some(router_data.request.connector_transaction_id.clone()),
+                reference_transaction_id: Some(
+                    router_data.request.connector_transaction_id.clone(),
+                ),
                 reference_merchant_transaction_id: None,
             },
         })
@@ -1411,7 +1413,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 terminal_id: auth.terminal_id.clone(),
             },
             reference_transaction_details: FiservcommercehubReferenceTransactionDetails {
-                reference_transaction_id: Some(router_data.request.connector_transaction_id.clone()),
+                reference_transaction_id: Some(
+                    router_data.request.connector_transaction_id.clone(),
+                ),
                 reference_merchant_transaction_id: None,
             },
         })
