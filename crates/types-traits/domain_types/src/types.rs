@@ -424,6 +424,7 @@ pub struct Connectors {
     pub kount: ConnectorParams,
     pub plaid: ConnectorParams,
     pub givepayments: ConnectorParams,
+    pub grabpay: ConnectorParams,
     pub tesouro: ConnectorParams,
     pub santander: ConnectorParams,
 }
@@ -1500,6 +1501,9 @@ impl<
                     Self::Wallet(payment_method_data::WalletData::GcashRedirect(
                         payment_method_data::GcashRedirection {},
                     )),
+                ),
+                grpc_api_types::payments::payment_method::PaymentMethod::GrabpayRedirect(_) => Ok(
+                    Self::Wallet(payment_method_data::WalletData::GrabpayRedirect {}),
                 ),
                 grpc_api_types::payments::payment_method::PaymentMethod::DanaRedirect(_) => Ok(
                     Self::Wallet(payment_method_data::WalletData::DanaRedirect {}),
@@ -2627,6 +2631,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             }
             grpc_api_types::payments::PaymentMethodType::AliPay => Ok(PaymentMethodType::AliPay),
             grpc_api_types::payments::PaymentMethodType::Gcash => Ok(PaymentMethodType::Gcash),
+            grpc_api_types::payments::PaymentMethodType::GrabPay => Ok(PaymentMethodType::Grabpay),
             grpc_api_types::payments::PaymentMethodType::Cashapp => Ok(PaymentMethodType::Cashapp),
             grpc_api_types::payments::PaymentMethodType::SepaBankTransfer => {
                 Ok(PaymentMethodType::SepaBankTransfer)
@@ -2783,6 +2788,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 grpc_api_types::payments::payment_method::PaymentMethod::AliPayHkRedirect(_) => Ok(Some(PaymentMethodType::AliPayHk)),
                 grpc_api_types::payments::payment_method::PaymentMethod::DanaRedirect(_) => Ok(Some(PaymentMethodType::Dana)),
                 grpc_api_types::payments::payment_method::PaymentMethod::GcashRedirect(_) => Ok(Some(PaymentMethodType::Gcash)),
+                grpc_api_types::payments::payment_method::PaymentMethod::GrabpayRedirect(_) => Ok(Some(PaymentMethodType::Grabpay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::GoPayRedirect(_) => Ok(Some(PaymentMethodType::GoPay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::KakaoPayRedirect(_) => Ok(Some(PaymentMethodType::KakaoPay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::MbWayRedirect(_) => Ok(Some(PaymentMethodType::MbWay)),
@@ -3607,8 +3613,24 @@ impl ForeignTryFrom<grpc_api_types::payments::ProxyCardDetails>
                 //card number token is already stored in token_data , so we can update the value to internal transformation value.
                 "{{$card_number}}".to_string().into(),
             ),
-            card_exp_month: "{{$card_exp_month}}".to_string().into(),
-            card_exp_year: "{{$card_exp_year}}".to_string().into(),
+            // Unlike card_number/card_cvc, expiry can't stay a vault placeholder: connectors
+            // (e.g. Netcetera's cardholderAccount.cardExpiryDate) derive a combined/truncated
+            // format from card_exp_month + card_exp_year before the request ever reaches the
+            // injector, and that derivation is a no-op on opaque "{{$...}}" text — it only
+            // works on the real value. card_exp_month/year are plaintext on the wire already
+            // (never vault-aliased), so send them through as-is.
+            card_exp_month: card
+                .card_exp_month
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "payment_method.card_proxy.card_exp_month",
+                    context: IntegrationErrorContext::default(),
+                })?,
+            card_exp_year: card
+                .card_exp_year
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "payment_method.card_proxy.card_exp_year",
+                    context: IntegrationErrorContext::default(),
+                })?,
             card_cvc: "{{$card_cvc}}".to_string().into(),
             card_issuer: card.card_issuer,
             card_network,
@@ -5033,6 +5055,7 @@ impl ForeignTryFrom<grpc_api_types::payments::OrderDetailsWithAmount> for OrderD
             discount_name: item.discount_name,
             discount_percentage: item.discount_percentage,
             discount_type: item.discount_type,
+            product_link: item.product_link,
         })
     }
 }
@@ -6743,6 +6766,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::GcashRedirect(_)),
+            } => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::GrabpayRedirect(_)),
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
@@ -8510,6 +8537,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::Paymaya => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::QwikcilverWallet => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::Skrill => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethodType::GrabPay => Ok(Self::Wallet),
 
             grpc_api_types::payments::PaymentMethodType::UpiCollect => Ok(Self::Upi),
             grpc_api_types::payments::PaymentMethodType::UpiIntent => Ok(Self::Upi),
@@ -8624,6 +8652,11 @@ impl ForeignTryFrom<router_response_types::RedirectForm>
             router_response_types::RedirectForm::Html { html_data } => Ok(Self {
                 form_type: Some(grpc_api_types::payments::redirect_form::FormType::Html(
                     grpc_api_types::payments::HtmlData { html_data },
+                )),
+            }),
+            router_response_types::RedirectForm::Script { script_data } => Ok(Self {
+                form_type: Some(grpc_api_types::payments::redirect_form::FormType::Script(
+                    grpc_api_types::payments::ScriptData { script_data },
                 )),
             }),
             router_response_types::RedirectForm::Uri { uri } => Ok(Self {
@@ -12176,6 +12209,15 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                                     ),
                                 })
                             }
+                            router_response_types::RedirectForm::Script { script_data } => {
+                                Ok(grpc_api_types::payments::RedirectForm {
+                                    form_type: Some(
+                                        grpc_api_types::payments::redirect_form::FormType::Script(
+                                            grpc_api_types::payments::ScriptData { script_data },
+                                        ),
+                                    ),
+                                })
+                            }
                             router_response_types::RedirectForm::Nmi {
                                 amount,
                                 public_key,
@@ -12751,6 +12793,7 @@ pub enum PaymentMethodDataType {
     ApplePayRedirect,
     ApplePayThirdPartySdk,
     DanaRedirect,
+    GrabpayRedirect,
     DuitNow,
     GooglePay,
     GooglePayRedirect,
@@ -16502,6 +16545,9 @@ impl ForeignTryFrom<(bool, RedirectDetailsResponse)>
             raw_connector_response: redirect_details_response
                 .raw_connector_response
                 .map(|response| response.into()),
+            connector_feature_data: redirect_details_response
+                .connector_feature_data
+                .map(|feature_data| feature_data.into()),
             masked_connector_response: None,
         })
     }
@@ -16581,6 +16627,15 @@ pub fn generate_payment_pre_authenticate_response<T: PaymentMethodDataTypes>(
                                 form_type: Some(
                                     grpc_api_types::payments::redirect_form::FormType::Html(
                                         grpc_api_types::payments::HtmlData { html_data },
+                                    ),
+                                ),
+                            })
+                        }
+                        router_response_types::RedirectForm::Script { script_data } => {
+                            Ok(grpc_api_types::payments::RedirectForm {
+                                form_type: Some(
+                                    grpc_api_types::payments::redirect_form::FormType::Script(
+                                        grpc_api_types::payments::ScriptData { script_data },
                                     ),
                                 ),
                             })
@@ -16810,6 +16865,15 @@ pub fn generate_payment_authenticate_response<T: PaymentMethodDataTypes>(
                                 form_type: Some(
                                     grpc_api_types::payments::redirect_form::FormType::Html(
                                         grpc_api_types::payments::HtmlData { html_data },
+                                    ),
+                                ),
+                            })
+                        }
+                        router_response_types::RedirectForm::Script { script_data } => {
+                            Ok(grpc_api_types::payments::RedirectForm {
+                                form_type: Some(
+                                    grpc_api_types::payments::redirect_form::FormType::Script(
+                                        grpc_api_types::payments::ScriptData { script_data },
                                     ),
                                 ),
                             })

@@ -772,6 +772,14 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             api_key: k(),
             base_url: None,
         },
+        ConnectorEnum::Grabpay => ConnectorSpecificConfig::Grabpay {
+            partner_id: k(),
+            partner_secret: k(),
+            client_id: k(),
+            client_secret: k(),
+            merchant_id: k(),
+            base_url: None,
+        },
         ConnectorEnum::Tesouro => ConnectorSpecificConfig::Tesouro {
             api_key: k(),
             key1: k(),

@@ -113,6 +113,7 @@ pub struct PostRiskCheckRequest {
     pub payment_status: Option<AttemptStatus>,
     pub connector_transaction_id: Option<String>,
     pub payment_connector: Option<grpc_api_types::payments::Connector>,
+    pub address: Option<PaymentAddress>,
 }
 
 /// Response data for post-risk check
@@ -137,6 +138,8 @@ pub struct FrmPaymentOutcomeRequest {
     pub frm_decision: Option<FrmDecision>,
     /// Merchant details (id + MCC) for the Update Order call.
     pub merchant_details: Option<MerchantDetails>,
+    /// Connector-specific feature data (e.g. AVS/CVV verification results) for the Update Order call.
+    pub connector_feature_data: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone)]

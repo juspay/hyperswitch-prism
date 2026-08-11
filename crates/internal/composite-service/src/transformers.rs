@@ -1212,6 +1212,7 @@ impl
         Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
     )> for grpc_api_types::frm::FrmServicePreRiskCheckRequest
 {
+    #[allow(deprecated)]
     fn foreign_from(
         (item, access_token_response): (
             &grpc_api_types::frm::CompositeFrmPreRiskCheckRequest,
@@ -1237,6 +1238,7 @@ impl
             merchant_transaction_id: item.merchant_transaction_id.clone(),
             order_details: item.order_details.clone(),
             address: item.address.clone(),
+            payment_address: item.payment_address.clone(),
             metadata: item.metadata.clone(),
             connector_feature_data: item.connector_feature_data.clone(),
             test_mode: item.test_mode,
@@ -1331,6 +1333,7 @@ impl
             payment_status: item.payment_status,
             connector_transaction_id: item.connector_transaction_id.clone(),
             payment_connector: item.payment_connector,
+            payment_address: item.payment_address.clone(),
             state: Some(ConnectorState {
                 access_token,
                 connector_customer_id,
