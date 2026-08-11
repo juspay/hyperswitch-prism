@@ -462,6 +462,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletDataPaymentMethod::ApplePayRedirect(_)
                 | WalletDataPaymentMethod::ApplePayThirdPartySdk(_)
                 | WalletDataPaymentMethod::DanaRedirect {}
+                | WalletDataPaymentMethod::GrabpayRedirect {}
                 | WalletDataPaymentMethod::GooglePayRedirect(_)
                 | WalletDataPaymentMethod::GooglePayThirdPartySdk(_)
                 | WalletDataPaymentMethod::MbWayRedirect(_)
@@ -487,6 +488,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletDataPaymentMethod::CashfreeRedirect(_)
                 | WalletDataPaymentMethod::PayURedirect(_)
                 | WalletDataPaymentMethod::EaseBuzzRedirect(_)
+                | WalletDataPaymentMethod::PaymayaRedirect(_)
                 | WalletDataPaymentMethod::QwikcilverWalletDirect(_)
                 | WalletDataPaymentMethod::Skrill(_) => Err(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("novalnet"),
@@ -825,10 +827,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     transaction_id,
                 ));
                 Ok(Self {
-                    resource_common_data: PaymentFlowData {
-                        status: common_enums::AttemptStatus::Failure,
-                        ..item.router_data.resource_common_data
-                    },
                     response,
                     ..item.router_data
                 })
@@ -932,10 +930,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     transaction_id,
                 ));
                 Ok(Self {
-                    resource_common_data: PaymentFlowData {
-                        status: common_enums::AttemptStatus::Failure,
-                        ..item.router_data.resource_common_data
-                    },
                     response,
                     ..item.router_data
                 })
@@ -1035,10 +1029,6 @@ impl<
                     transaction_id,
                 ));
                 Ok(Self {
-                    resource_common_data: PaymentFlowData {
-                        status: common_enums::AttemptStatus::Failure,
-                        ..item.router_data.resource_common_data
-                    },
                     response,
                     ..item.router_data
                 })
@@ -1557,10 +1547,6 @@ impl<F> TryFrom<ResponseRouterData<NovalnetPSyncResponse, Self>>
                     transaction_id,
                 ));
                 Ok(Self {
-                    resource_common_data: PaymentFlowData {
-                        status: common_enums::AttemptStatus::Failure,
-                        ..item.router_data.resource_common_data
-                    },
                     response,
                     ..item.router_data
                 })
@@ -2183,6 +2169,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletDataPaymentMethod::ApplePayRedirect(_)
                 | WalletDataPaymentMethod::ApplePayThirdPartySdk(_)
                 | WalletDataPaymentMethod::DanaRedirect {}
+                | WalletDataPaymentMethod::GrabpayRedirect {}
                 | WalletDataPaymentMethod::GooglePayRedirect(_)
                 | WalletDataPaymentMethod::GooglePayThirdPartySdk(_)
                 | WalletDataPaymentMethod::MbWayRedirect(_)
@@ -2237,6 +2224,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletDataPaymentMethod::CashfreeRedirect(_)
                 | WalletDataPaymentMethod::PayURedirect(_)
                 | WalletDataPaymentMethod::EaseBuzzRedirect(_)
+                | WalletDataPaymentMethod::PaymayaRedirect(_)
                 | WalletDataPaymentMethod::QwikcilverWalletDirect(_)
                 | WalletDataPaymentMethod::Skrill(_) => Err(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("novalnet"),

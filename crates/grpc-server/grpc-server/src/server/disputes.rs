@@ -185,6 +185,7 @@ impl DisputeService for Disputes {
                         merchant_id: merchant_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
                         connector_latency,
+                        log_fields_enabled: config.log_fields.enabled,
                         log_fields: &config.log_fields.outgoing,
                     };
 
@@ -426,6 +427,7 @@ impl DisputeService for Disputes {
                         merchant_id: merchant_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
                         connector_latency,
+                        log_fields_enabled: config.log_fields.enabled,
                         log_fields: &config.log_fields.outgoing,
                     };
 

@@ -675,7 +675,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"currency\":\"USD\",\"refno\":\"probe_proxy_txn_001\",\"amount\":1000,\"card\":{\"expiryMonth\":\"{{$card_exp_month}}\",\"expiryYear\":\"{{$card_exp_year}}\",\"number\":\"{{$card_number}}\",\"cvv\":\"{{$card_cvc}}\",\"type\":\"PLAIN\"},\"autoSettle\":true,\"option\":null}"
+          "body": "{\"currency\":\"USD\",\"refno\":\"probe_proxy_txn_001\",\"amount\":1000,\"card\":{\"expiryMonth\":\"03\",\"expiryYear\":\"30\",\"number\":\"{{$card_number}}\",\"cvv\":\"{{$card_cvc}}\",\"type\":\"PLAIN\"},\"autoSettle\":true,\"option\":null}"
         }
       }
     },
@@ -717,7 +717,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"currency\":\"USD\",\"refno\":\"probe_proxy_mandate_001\",\"card\":{\"expiryMonth\":\"{{$card_exp_month}}\",\"expiryYear\":\"{{$card_exp_year}}\",\"number\":\"{{$card_number}}\",\"cvv\":\"{{$card_cvc}}\",\"type\":\"PLAIN\",\"3D\":{\"cardholder\":{\"cardholderName\":\"John\",\"email\":\"test@example.com\"}}},\"autoSettle\":true,\"redirect\":{\"successUrl\":null,\"cancelUrl\":null,\"errorUrl\":null},\"option\":{\"createAlias\":true}}"
+          "body": "{\"currency\":\"USD\",\"refno\":\"probe_proxy_mandate_001\",\"card\":{\"expiryMonth\":\"03\",\"expiryYear\":\"30\",\"number\":\"{{$card_number}}\",\"cvv\":\"{{$card_cvc}}\",\"type\":\"PLAIN\",\"3D\":{\"cardholder\":{\"cardholderName\":\"John\",\"email\":\"test@example.com\"}}},\"autoSettle\":true,\"redirect\":{\"successUrl\":null,\"cancelUrl\":null,\"errorUrl\":null},\"option\":{\"createAlias\":true}}"
         }
       }
     },

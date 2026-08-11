@@ -944,6 +944,10 @@ pub struct KountItem {
     /// order carries mandate info.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub recurring: Option<KountRecurring>,
+    #[serde(rename = "subCategory", skip_serializing_if = "Option::is_none")]
+    pub sub_category: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
 }
 
 /// Kount Orders `recurring` (RecurringDetails) block carried on a line item.
@@ -1445,6 +1449,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         is_digital: detail.requires_shipping.map(|ships| !ships),
                         sku: detail.sku.clone(),
                         recurring: recurring.clone(),
+                        sub_category: detail.sub_category.clone(),
+                        url: detail.product_link.clone(),
                     })
                 })
                 .collect::<Result<Vec<_>, _>>()?,
@@ -1467,33 +1473,26 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 KountFulfillmentType::Digital
             });
 
-        // Billing / shipping persons from the payment address.
+        // Billing / shipping persons from the payment address. The FRM request
+        // carries a real PaymentAddress with independently-set billing and
+        // shipping addresses (see FrmServicePreRiskCheckRequest.payment_address).
         let address = req.address.as_ref();
         let billed_person = address
-            .and_then(|addr| {
-                addr.get_payment_billing()
-                    .or_else(|| addr.get_payment_method_billing())
-            })
+            .and_then(|addr| addr.get_payment_billing())
             .and_then(kount_person_from_address)
             .or_else(|| {
                 req.customer_info
                     .as_ref()
                     .and_then(kount_person_from_customer)
             });
-        // Fulfillment recipient: identity (name / email / phone) from customer
-        // info, with the order address attached (customer info has no address).
-        // Prefer the shipping address; fall back to billing, since the FRM request
-        // carries a single address that maps to billing (shipping is unset).
-        let recipient_address = address
-            .and_then(|addr| addr.get_shipping().or_else(|| addr.get_payment_billing()))
+        // Fulfillment recipient: built entirely from the shipping address (name,
+        // email, phone, and postal address) — no fallback to customer_info or to
+        // billing. If no shipping address was supplied, no fulfillment recipient
+        // is sent at all.
+        let fulfillment = address
+            .and_then(|addr| addr.get_shipping())
             .and_then(kount_person_from_address)
-            .and_then(|person| person.address);
-        let fulfillment = req
-            .customer_info
-            .as_ref()
-            .and_then(kount_person_from_customer)
-            .map(|mut recipient| {
-                recipient.address = recipient_address;
+            .map(|recipient| {
                 vec![KountFulfillment {
                     fulfillment_type,
                     recipient_person: Some(recipient),
@@ -1695,6 +1694,158 @@ pub struct KountUpdateOrderRequest {
     /// Merchant details (id), when provided.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub merchant: Option<KountMerchant>,
+    /// Per-transaction authorization/verification results (AVS/CVV), when the
+    /// notify request carries connector-specific feature data for them.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub transactions: Vec<KountUpdateTransaction>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct KountUpdateTransaction {
+    #[serde(
+        rename = "authorizationStatus",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub authorization_status: Option<KountAuthorizationStatus>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct KountAuthorizationStatus {
+    #[serde(rename = "authResult", skip_serializing_if = "Option::is_none")]
+    pub auth_result: Option<KountAuthResult>,
+    #[serde(
+        rename = "verificationResponse",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub verification_response: Option<KountVerificationResponse>,
+}
+
+/// Kount authorization outcome (`transactions[].authorizationStatus.authResult`).
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum KountAuthResult {
+    Approved,
+    Declined,
+    Error,
+    Unknown,
+}
+
+impl KountAuthResult {
+    /// Map the internal attempt status to Kount's authResult. Reuses the same
+    /// success/decline categorization as `KountPaymentStatus::from_attempt_status`
+    /// (Charged/Authorized/Voided/Refunded-family => APPROVED, explicit
+    /// failure/decline-family => DECLINED); anything else maps to `Unknown`
+    /// rather than a guessed value.
+    fn from_attempt_status(status: AttemptStatus) -> Self {
+        match status {
+            AttemptStatus::Charged
+            | AttemptStatus::PartialCharged
+            | AttemptStatus::PartialChargedAndChargeable
+            | AttemptStatus::Authorized
+            | AttemptStatus::PartiallyAuthorized
+            | AttemptStatus::Voided
+            | AttemptStatus::VoidedPostCapture
+            | AttemptStatus::AutoRefunded => Self::Approved,
+            AttemptStatus::Failure
+            | AttemptStatus::AuthorizationFailed
+            | AttemptStatus::CaptureFailed
+            | AttemptStatus::RouterDeclined
+            | AttemptStatus::AuthenticationFailed
+            | AttemptStatus::VoidFailed => Self::Declined,
+            _ => Self::Unknown,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct KountVerificationResponse {
+    #[serde(rename = "cvvStatus", skip_serializing_if = "Option::is_none")]
+    pub cvv_status: Option<KountCvvStatus>,
+    /// Kount's single-letter AVS response code (e.g. "Y", "N"), passed through as-is.
+    #[serde(rename = "avsStatus", skip_serializing_if = "Option::is_none")]
+    pub avs_status: Option<String>,
+}
+
+/// Kount CVV verification result (`transactions[].authorizationStatus.verificationResponse.cvvStatus`).
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum KountCvvStatus {
+    Match,
+    NoMatch,
+    Unknown,
+}
+
+impl KountCvvStatus {
+    /// Lenient parse of a caller-supplied CVV result string. Accepts Kount's own
+    /// tokens ("MATCH"/"NO_MATCH") case-insensitively; anything else maps
+    /// to `Unknown` rather than failing the notify call.
+    fn from_str(value: &str) -> Self {
+        match value.trim().to_ascii_uppercase().as_str() {
+            "MATCH" => Self::Match,
+            "NO_MATCH" => Self::NoMatch,
+            _ => Self::Unknown,
+        }
+    }
+}
+
+/// Connector-specific feature data accepted on the FRM notify request. Carries
+/// AVS/CVV verification results (from the payment connector's authorization) so
+/// Kount's Update Order call can relay them under
+/// `transactions[].authorizationStatus.verificationResponse`.
+#[derive(Debug, Clone, Deserialize)]
+struct KountNotifyFeatureData {
+    avs_result: Option<String>,
+    cvv_result: Option<String>,
+}
+
+/// Build the `transactions[].authorizationStatus` block from the payment
+/// status (`authResult`) and the notify request's `connector_feature_data`
+/// (`verificationResponse` — a JSON string carrying `avs_result`/`cvv_result`).
+/// Empty when neither a mappable payment status nor AVS/CVV data is present —
+/// matching the request's `skip_serializing_if` convention.
+fn kount_update_transactions(
+    payment_status: Option<AttemptStatus>,
+    connector_feature_data: Option<&Secret<String>>,
+) -> Vec<KountUpdateTransaction> {
+    let auth_result = payment_status.map(KountAuthResult::from_attempt_status);
+
+    // Malformed `connector_feature_data` (bad JSON, or keys that don't match
+    // `avs_result`/`cvv_result`) would otherwise silently deserialize to
+    // `KountNotifyFeatureData { avs_result: None, cvv_result: None }` —
+    // indistinguishable from a caller who simply didn't send AVS/CVV data.
+    // Surface the parse failure so a caller keying mistake is visible instead
+    // of the block just vanishing from the Update Order call.
+    let feature_data = connector_feature_data.and_then(|data| {
+        serde_json::from_str::<KountNotifyFeatureData>(data.peek())
+            .inspect_err(|err| {
+                tracing::warn!(
+                    error = %err,
+                    "Kount notify connector_feature_data failed to parse as {{avs_result, cvv_result}}; AVS/CVV will not be relayed to Kount"
+                );
+            })
+            .ok()
+    });
+    let verification_response = feature_data.and_then(|feature_data| {
+        (feature_data.avs_result.is_some() || feature_data.cvv_result.is_some()).then_some(
+            KountVerificationResponse {
+                cvv_status: feature_data
+                    .cvv_result
+                    .as_deref()
+                    .map(KountCvvStatus::from_str),
+                avs_status: feature_data.avs_result,
+            },
+        )
+    });
+
+    if auth_result.is_none() && verification_response.is_none() {
+        return Vec::new();
+    }
+    vec![KountUpdateTransaction {
+        authorization_status: Some(KountAuthorizationStatus {
+            auth_result,
+            verification_response,
+        }),
+    }]
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -1741,6 +1892,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             frm_disposition: req.frm_decision.and_then(KountDisposition::from_decision),
             merchant_category_code,
             merchant,
+            transactions: kount_update_transactions(
+                req.payment_status,
+                req.connector_feature_data.as_ref(),
+            ),
         })
     }
 }

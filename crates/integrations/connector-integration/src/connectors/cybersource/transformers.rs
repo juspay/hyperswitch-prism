@@ -290,6 +290,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     | WalletData::ApplePayRedirect(_)
                     | WalletData::ApplePayThirdPartySdk(_)
                     | WalletData::DanaRedirect {}
+                    | WalletData::GrabpayRedirect {}
                     | WalletData::GooglePayRedirect(_)
                     | WalletData::GooglePayThirdPartySdk(_)
                     | WalletData::MbWayRedirect(_)
@@ -315,6 +316,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     | WalletData::CashfreeRedirect(_)
                     | WalletData::PayURedirect(_)
                     | WalletData::EaseBuzzRedirect(_)
+                    | WalletData::PaymayaRedirect(_)
                     | WalletData::QwikcilverWalletDirect(_)
                     | WalletData::Skrill(_) => {
                         Err(error_stack::report!(IntegrationError::NotSupported {
@@ -2202,7 +2204,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     Some(common_enums::BankType::Transmission)
                     | Some(common_enums::BankType::Current)
                     | Some(common_enums::BankType::Bond)
-                    | Some(common_enums::BankType::SubscriptionShare) => {
+                    | Some(common_enums::BankType::SubscriptionShare)
+                    | Some(common_enums::BankType::Salary)
+                    | Some(common_enums::BankType::Payment) => {
                         return Err(error_stack::report!(IntegrationError::NotSupported {
                             message:
                                 domain_types::utils::get_unimplemented_payment_method_error_message(
@@ -2505,6 +2509,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::ApplePayRedirect(_)
                 | WalletData::ApplePayThirdPartySdk(_)
                 | WalletData::DanaRedirect {}
+                | WalletData::GrabpayRedirect {}
                 | WalletData::GooglePayRedirect(_)
                 | WalletData::GooglePayThirdPartySdk(_)
                 | WalletData::MbWayRedirect(_)
@@ -2529,6 +2534,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::CashfreeRedirect(_)
                 | WalletData::PayURedirect(_)
                 | WalletData::EaseBuzzRedirect(_)
+                | WalletData::PaymayaRedirect(_)
                 | WalletData::QwikcilverWalletDirect(_)
                 | WalletData::Skrill(_) => {
                     Err(error_stack::report!(IntegrationError::NotSupported {

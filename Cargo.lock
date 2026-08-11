@@ -861,7 +861,7 @@ dependencies = [
 [[package]]
 name = "build_info"
 version = "0.1.0"
-source = "git+https://github.com/juspay/framework-libs-rs?rev=5d0b5824b2a82dafae492f9930c95060507d91b4#5d0b5824b2a82dafae492f9930c95060507d91b4"
+source = "git+https://github.com/juspay/framework-libs-rs?rev=76613f5d0c72fd3d26a3403ae859c2a7545e8dd2#76613f5d0c72fd3d26a3403ae859c2a7545e8dd2"
 dependencies = [
  "cargo_metadata 0.23.1",
  "vergen-gix",
@@ -1318,6 +1318,7 @@ dependencies = [
  "base64 0.21.7",
  "bytes",
  "cbc",
+ "cpf_cnpj",
  "domain_types",
  "encoding_rs",
  "error-stack 0.4.1",
@@ -4569,7 +4570,7 @@ dependencies = [
 [[package]]
 name = "log_utils"
 version = "0.1.0"
-source = "git+https://github.com/juspay/framework-libs-rs?rev=5d0b5824b2a82dafae492f9930c95060507d91b4#5d0b5824b2a82dafae492f9930c95060507d91b4"
+source = "git+https://github.com/juspay/framework-libs-rs?rev=76613f5d0c72fd3d26a3403ae859c2a7545e8dd2#76613f5d0c72fd3d26a3403ae859c2a7545e8dd2"
 dependencies = [
  "gethostname 1.1.0",
  "rustc-hash 2.1.3",

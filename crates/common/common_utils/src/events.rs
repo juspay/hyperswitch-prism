@@ -1,6 +1,9 @@
+#[cfg(feature = "log-transformations")]
+use std::borrow::Cow;
+use std::collections::HashMap;
+
 use hyperswitch_masking::ErasedMaskSerialize;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 use crate::errors::EventPublisherError;
 use crate::types::ExecutionMode;
@@ -559,16 +562,21 @@ impl CompiledLogFields {
 /// Holds compiled fields for both golden log lines.
 #[derive(Debug, Clone, Default)]
 pub struct CompiledLogFieldsConfig {
+    /// Runtime kill-switch: when `false`, `apply_log_fields` is skipped even
+    /// though the `log-transformations` feature is compiled in.
+    pub enabled: bool,
     pub incoming: CompiledLogFields,
     pub outgoing: CompiledLogFields,
 }
 
 impl CompiledLogFieldsConfig {
     pub fn compile(
+        enabled: bool,
         incoming: &HashMap<String, LogFieldEntry>,
         outgoing: &HashMap<String, LogFieldEntry>,
     ) -> Self {
         Self {
+            enabled,
             incoming: CompiledLogFields::compile(incoming),
             outgoing: CompiledLogFields::compile(outgoing),
         }
@@ -590,7 +598,7 @@ pub fn apply_log_fields(compiled: &CompiledLogFields) {
     }
 
     // Snapshot span storage (needed for Source entries to read current values).
-    let snapshot: Option<HashMap<String, serde_json::Value>> =
+    let snapshot: Option<HashMap<Cow<'static, str>, serde_json::Value>> =
         log_utils::Storage::with_current_span(|storage| storage.values().clone());
 
     // Build writes: for each rule, resolve the value and group by root key.
@@ -650,16 +658,16 @@ pub fn apply_log_fields(compiled: &CompiledLogFields) {
         for (key, value) in writes {
             if value.is_object() {
                 // Deep-merge with existing object if present
-                if let Some(existing) = storage.values().get(&key).cloned() {
+                if let Some(existing) = storage.values().get(key.as_str()).cloned() {
                     if existing.is_object() {
                         let mut merged = existing;
                         deep_merge_json(&mut merged, value);
-                        storage.record_value(&key, merged);
+                        storage.record_value(key, merged);
                         continue;
                     }
                 }
             }
-            storage.record_value(&key, value);
+            storage.record_value(key, value);
         }
     });
 }

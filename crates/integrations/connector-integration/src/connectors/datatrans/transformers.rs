@@ -441,6 +441,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::ApplePayRedirect(_)
                 | WalletData::ApplePayThirdPartySdk(_)
                 | WalletData::DanaRedirect {}
+                | WalletData::GrabpayRedirect {}
                 | WalletData::GooglePayRedirect(_)
                 | WalletData::GooglePayThirdPartySdk(_)
                 | WalletData::MbWayRedirect(_)
@@ -468,7 +469,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::PayURedirect(_)
                 | WalletData::EaseBuzzRedirect(_)
                 | WalletData::QwikcilverWalletDirect(_)
-                | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
+                | WalletData::Skrill(_)
+                | WalletData::PaymayaRedirect(_) => Err(IntegrationError::NotImplemented(
                     domain_types::utils::get_unimplemented_payment_method_error_message(
                         "Datatrans",
                     ),

@@ -206,7 +206,7 @@ fn fetch_payment_instrument<
             | WalletDataPaymentMethod::GcashRedirect(_)
             | WalletDataPaymentMethod::ApplePayRedirect(_)
             | WalletDataPaymentMethod::ApplePayThirdPartySdk(_)
-            | WalletDataPaymentMethod::DanaRedirect {}
+            | WalletDataPaymentMethod::DanaRedirect {} | WalletDataPaymentMethod::GrabpayRedirect {}
             | WalletDataPaymentMethod::GooglePayRedirect(_)
             | WalletDataPaymentMethod::GooglePayThirdPartySdk(_)
             | WalletDataPaymentMethod::MbWayRedirect(_)
@@ -234,6 +234,7 @@ fn fetch_payment_instrument<
             | WalletDataPaymentMethod::CashfreeRedirect(_)
             | WalletDataPaymentMethod::PayURedirect(_)
             | WalletDataPaymentMethod::EaseBuzzRedirect(_)
+            | WalletDataPaymentMethod::PaymayaRedirect(_)
             | WalletDataPaymentMethod::QwikcilverWalletDirect(_)
             | WalletDataPaymentMethod::Skrill(_) => {
                 Err(error_stack::report!(IntegrationError::NotSupported {

@@ -505,6 +505,7 @@ impl EventServiceImpl {
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
             connector_latency: metadata_payload.connector_latency.clone(),
+            log_fields_enabled: config.log_fields.enabled,
             log_fields: &config.log_fields.outgoing,
         };
 
@@ -615,6 +616,7 @@ impl EventServiceImpl {
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
             connector_latency: metadata_payload.connector_latency.clone(),
+            log_fields_enabled: config.log_fields.enabled,
             log_fields: &config.log_fields.outgoing,
         };
 
@@ -725,6 +727,7 @@ impl EventServiceImpl {
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
             connector_latency: metadata_payload.connector_latency.clone(),
+            log_fields_enabled: config.log_fields.enabled,
             log_fields: &config.log_fields.outgoing,
         };
 
@@ -832,6 +835,7 @@ impl EventServiceImpl {
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
             connector_latency: metadata_payload.connector_latency.clone(),
+            log_fields_enabled: config.log_fields.enabled,
             log_fields: &config.log_fields.outgoing,
         };
 
@@ -939,6 +943,7 @@ impl EventServiceImpl {
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
             connector_latency: metadata_payload.connector_latency.clone(),
+            log_fields_enabled: config.log_fields.enabled,
             log_fields: &config.log_fields.outgoing,
         };
 
@@ -1035,6 +1040,7 @@ async fn verify_webhook_source_external(
         merchant_id: metadata_payload.merchant_id.as_str(),
         return_raw_connector_data: config.common.return_raw_connector_data,
         connector_latency: metadata_payload.connector_latency.clone(),
+        log_fields_enabled: config.log_fields.enabled,
         log_fields: &config.log_fields.outgoing,
     };
 

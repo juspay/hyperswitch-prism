@@ -12,7 +12,7 @@ anyhow = "1.0"
 rdkafka = { version = "0.36", optional = true }
 tracing-kafka = { path = "../tracing-kafka", optional = true }
 tracing = { workspace = true }
-log_utils = { git = "https://github.com/juspay/framework-libs-rs", rev = "5d0b5824b2a82dafae492f9930c95060507d91b4", package = "log_utils", features = ["tracing", "tracing-storage-api"] }
+log_utils = { git = "https://github.com/juspay/framework-libs-rs", rev = "76613f5d0c72fd3d26a3403ae859c2a7545e8dd2", package = "log_utils", features = ["tracing", "tracing-storage-api"] }
 once_cell = "1.19"
 chrono = "0.4.31"
 

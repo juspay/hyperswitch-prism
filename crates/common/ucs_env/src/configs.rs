@@ -346,6 +346,7 @@ impl Config {
         #[cfg(feature = "log-transformations")]
         {
             self.log_fields = Arc::new(CompiledLogFieldsConfig::compile(
+                self.log.fields.enabled,
                 &self.log.fields.incoming,
                 &self.log.fields.outgoing,
             ));

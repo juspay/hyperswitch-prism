@@ -556,6 +556,8 @@ pub struct EventProcessingParams<'a> {
     pub merchant_id: &'a str,
     pub return_raw_connector_data: bool,
     pub connector_latency: ConnectorLatencyTracker,
+    /// Runtime kill-switch for log field application.
+    pub log_fields_enabled: bool,
     /// Pre-compiled log fields (transformations + static values) for golden log lines.
     pub log_fields: &'a CompiledLogFields,
 }
@@ -1083,7 +1085,9 @@ where
     tracing::Span::current().record("latency", elapsed);
     // Apply outgoing log fields (transformations + static values) before emitting the golden log line
     #[cfg(feature = "log-transformations")]
-    apply_log_fields(event_params.log_fields);
+    if event_params.log_fields_enabled {
+        apply_log_fields(event_params.log_fields);
+    }
     tracing::info!(tag = ?Tag::OutgoingApi, log_type = "api", "Outgoing Request completed");
     result_with_integrity_check
 }

@@ -1,0 +1,736 @@
+{
+  "connector": "maya",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for maya"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "AchBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "Affirm": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "Afterpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "Alfamart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "AliPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "ApplePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "Bacs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "BacsBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "BancontactCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "BcaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "Becs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "Bizum": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "Blik": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "Bluecode": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "Boleto": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "Card": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "CashappQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "ClassicReward": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Dana": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "Efecty": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "Eft": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "Eps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "FamilyMart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "GCash": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "Giropay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "GoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "GooglePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "Ideal": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "Indomaret": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "InstantBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "Interac": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "KakaoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "Klarna": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "Lawson": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "LocalBankRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "LocalBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "MbWay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "Mifinity": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "MiniStop": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Momo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "Netbanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "OpenBanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "OpenBankingUk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "Oxxo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "PagoEfectivo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "PayEasy": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "PaySafeCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "PaypalRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "PaypalSdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "PhonePeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "Pix": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "Przelewy24": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "Pse": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "RedCompra": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "RedPagos": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "RevolutPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "SamsungPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "Satispay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "Seicomart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "Sepa": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "SepaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "SevenEleven": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "Skrill": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "Sofort": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "Swish": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "TouchNGo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "Trustly": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "Twint": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "UpiCollect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "UpiIntent": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "UpiQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "Vipps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "WeChatPayQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      },
+      "Wero": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: capture flow for maya"
+      }
+    },
+    "create_client_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: client_authentication_token flow for maya"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_order flow for maya"
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_authentication_token flow for maya"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_session_authentication_token flow for maya"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for maya"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: get_connector_customer flow for maya"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by maya connector"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by maya connector"
+      }
+    },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by maya connector"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by maya connector"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://pg-sandbox.paymaya.com/payments/v1/payments/probe_connector_txn_001",
+          "method": "Get",
+          "headers": {
+            "authorization": "Basic cHJvYmVfc2VjcmV0Og==",
+            "via": "HyperSwitch"
+          },
+          "body": null
+        }
+      }
+    },
+    "handle_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{}"
+        }
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: incremental_authorization flow for maya"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{}"
+        }
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for maya"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for maya"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for maya"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: repeat_payment flow for maya"
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for maya"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: domain_types::connector_flow::RefreshPaymentMethod flow for maya"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "payment_amount": 1000,
+          "refund_amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "reason": "customer_request"
+        },
+        "sample": {
+          "url": "https://pg-sandbox.paymaya.com/payments/v1/payments/probe_connector_txn_001/refunds",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfc2VjcmV0Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"totalAmount\":{\"amount\":10.0,\"currency\":\"USD\"},\"reason\":\"Customer requested refund\"}"
+        }
+      }
+    },
+    "refund_get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "refund_id": "probe_refund_id_001"
+        },
+        "sample": {
+          "url": "https://pg-sandbox.paymaya.com/payments/v1/payments/probe_connector_txn_001/refunds/probe_refund_id_001",
+          "method": "Get",
+          "headers": {
+            "authorization": "Basic cHJvYmVfc2VjcmV0Og==",
+            "via": "HyperSwitch"
+          },
+          "body": null
+        }
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by maya connector"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for maya"
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Maya. Maya supports only the PayMaya wallet redirect payment method"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for maya"
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for maya"
+      }
+    },
+    "verify_redirect": {
+      "default": {
+        "status": "supported"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_void_id": "probe_void_001",
+          "connector_transaction_id": "probe_connector_txn_001"
+        },
+        "sample": {
+          "url": "https://pg-sandbox.paymaya.com/payments/v1/payments/probe_connector_txn_001/voids",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfc2VjcmV0Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"reason\":\"Customer requested void\"}"
+        }
+      }
+    }
+  }
+}

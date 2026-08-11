@@ -320,6 +320,7 @@ impl TryFrom<&WalletData> for RazorpayWalletType {
             | WalletData::ApplePayRedirect(_)
             | WalletData::ApplePayThirdPartySdk(_)
             | WalletData::DanaRedirect {}
+            | WalletData::GrabpayRedirect {}
             | WalletData::GooglePay(_)
             | WalletData::GooglePayRedirect(_)
             | WalletData::GooglePayThirdPartySdk(_)
@@ -341,6 +342,7 @@ impl TryFrom<&WalletData> for RazorpayWalletType {
             | WalletData::MbWay(_)
             | WalletData::Satispay(_)
             | WalletData::Wero(_)
+            | WalletData::PaymayaRedirect(_)
             | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
                 format!("Payment Method {wallet_data:?} not supported for Razorpay"),
                 Default::default(),
