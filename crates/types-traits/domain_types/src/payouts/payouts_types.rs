@@ -121,6 +121,7 @@ pub struct PayoutTransferRequest {
     pub address: Option<PayoutAddress>,
     pub source_bank_data: Option<Bank>,
     pub customer: Option<PayoutCustomer>,
+    pub metadata: Option<common_utils::pii::SecretSerdeValue>,
 }
 
 impl PayoutTransferRequest {

@@ -1,7 +1,7 @@
 use super::{
     macros,
     sanlam_common::transformers::{
-        self as absa_sanlam, AbsaSanlamPaymentsRequest, AbsaSanlamPaymentsResponse,
+        self as absa_sanlam, AbsaSanlamPaymentsRequest, KafkaEnqueueResponse,
     },
 };
 use crate::types::ResponseRouterData;
@@ -199,7 +199,7 @@ macros::create_all_prerequisites!(
         (
             flow: Authorize,
             request_body: AbsaSanlamPaymentsRequest,
-            response_body: AbsaSanlamPaymentsResponse,
+            response_body: KafkaEnqueueResponse,
             router_data: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         )
     ],
@@ -236,7 +236,7 @@ macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: AbsaSanlam,
     curl_request: Json(AbsaSanlamPaymentsRequest),
-    curl_response: AbsaSanlamPaymentsResponse,
+    curl_response: KafkaEnqueueResponse,
     flow_name: Authorize,
     resource_common_data: PaymentFlowData,
     flow_request: PaymentsAuthorizeData<T>,

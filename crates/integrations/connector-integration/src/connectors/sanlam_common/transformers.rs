@@ -83,7 +83,6 @@ pub struct AbsaSanlamPaymentsRequest {
     pub user_reference: String,
     pub amount: MinorUnit,
     pub currency: Currency,
-    #[serde(rename = "payment_method")]
     pub payment_method: AbsaSanlamPaymentMethod,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub statement_descriptor: Option<String>,
@@ -393,8 +392,8 @@ impl TryFrom<BankType> for AbsaSanlamBankType {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct AbsaSanlamPaymentsResponse {
-    pub status: AbsaSanlamPaymentEnqueueStatus,
+pub struct KafkaEnqueueResponse {
+    pub status: KafkaEnqueueStatus,
     pub topic: String,
     pub error_code: Option<String>,
     pub error_message: Option<String>,
@@ -402,20 +401,18 @@ pub struct AbsaSanlamPaymentsResponse {
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum AbsaSanlamPaymentEnqueueStatus {
+pub enum KafkaEnqueueStatus {
     Queued,
     Rejected,
     Unknown,
 }
 
 impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    TryFrom<ResponseRouterData<AbsaSanlamPaymentsResponse, Self>>
+    TryFrom<ResponseRouterData<KafkaEnqueueResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
-    fn try_from(
-        item: ResponseRouterData<AbsaSanlamPaymentsResponse, Self>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: ResponseRouterData<KafkaEnqueueResponse, Self>) -> Result<Self, Self::Error> {
         let status = AttemptStatus::from(item.response.status);
         let response = if is_payment_failure(status) {
             Err(ErrorResponse {
@@ -463,13 +460,11 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
     }
 }
 
-impl From<AbsaSanlamPaymentEnqueueStatus> for AttemptStatus {
-    fn from(status: AbsaSanlamPaymentEnqueueStatus) -> Self {
+impl From<KafkaEnqueueStatus> for AttemptStatus {
+    fn from(status: KafkaEnqueueStatus) -> Self {
         match status {
-            AbsaSanlamPaymentEnqueueStatus::Queued | AbsaSanlamPaymentEnqueueStatus::Unknown => {
-                Self::Pending
-            }
-            AbsaSanlamPaymentEnqueueStatus::Rejected => Self::Failure,
+            KafkaEnqueueStatus::Queued | KafkaEnqueueStatus::Unknown => Self::Pending,
+            KafkaEnqueueStatus::Rejected => Self::Failure,
         }
     }
 }

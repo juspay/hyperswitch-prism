@@ -3684,6 +3684,14 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                 }
             }
             connector_types::ConnectorVariant::Payout(connector_enum) => match connector_enum {
+                PayoutConnectorEnum::AbsaSanlam => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::AbsaSanlam {
+                        api_key: api_key.clone(),
+                        merchant_id: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
                 PayoutConnectorEnum::Loonio => match auth {
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Loonio {
                         merchant_id: api_key.clone(),

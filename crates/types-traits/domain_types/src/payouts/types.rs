@@ -680,6 +680,39 @@ impl ForeignTryFrom<grpc_api_types::payouts::PixEmvBankTransferPayout>
     }
 }
 
+impl ForeignTryFrom<grpc_api_types::payouts::EftBankTransferPayout>
+    for payouts::payout_method_data::EftBankTransfer
+{
+    type Error = IntegrationError;
+    fn foreign_try_from(
+        eft: grpc_api_types::payouts::EftBankTransferPayout,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        Ok(Self {
+            bank_name: match eft.bank_name() {
+                grpc_api_types::payouts::BankNames::Unspecified => None,
+                _ => Some(common_enums::BankNames::foreign_try_from(eft.bank_name())?),
+            },
+            bank_type: match eft.bank_type() {
+                grpc_api_types::payouts::BankType::Unspecified => None,
+                _ => Some(common_enums::BankType::foreign_try_from(eft.bank_type())?),
+            },
+            bank_account_holder_name: eft.bank_account_holder_name,
+            bank_account_number: eft.bank_account_number.ok_or(
+                IntegrationError::InvalidDataFormat {
+                    field_name: "bank_account_number",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Bank account number is required for Eft".to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                },
+            )?,
+            branch_code: eft.branch_code,
+        })
+    }
+}
+
 impl ForeignTryFrom<grpc_api_types::payouts::ApplePayDecrypt>
     for payouts::payout_method_data::ApplePayDecrypt
 {
@@ -977,6 +1010,11 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutMethod>
                     payouts::payout_method_data::PixEmvBankTransfer::foreign_try_from(pix_emv)?,
                 )))
             }
+            grpc_api_types::payouts::payout_method::PayoutMethodData::Eft(eft) => {
+                Ok(Self::Bank(payouts::payout_method_data::Bank::Eft(
+                    payouts::payout_method_data::EftBankTransfer::foreign_try_from(eft)?,
+                )))
+            }
             grpc_api_types::payouts::payout_method::PayoutMethodData::ApplePayDecrypt(
                 apple_pay_decrypt,
             ) => Ok(Self::Wallet(
@@ -1184,6 +1222,10 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceTransferRequest>
                 .transpose()?,
             customer,
             address,
+            metadata: value
+                .metadata
+                .map(|m| common_utils::pii::SecretSerdeValue::foreign_try_from((m, "metadata")))
+                .transpose()?,
         })
     }
 }
