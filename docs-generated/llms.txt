@@ -139,7 +139,7 @@ connector_id: boost
 doc: docs/connectors/boost.md
 scenarios: none
 payment_methods: none
-flows: get, refund, refund_get
+flows: get, handle_event, parse_event, refund, refund_get
 examples_python: none
 
 ## Braintree

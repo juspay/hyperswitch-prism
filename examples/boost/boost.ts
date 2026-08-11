@@ -5,9 +5,9 @@
 // Boost — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx boost.ts checkout_autocapture
 
-import { PaymentClient, RefundClient, types } from 'hyperswitch-prism';
-const { Environment, Currency } = types;
-export const SUPPORTED_FLOWS = ["get", "refund", "refund_get"];
+import { PaymentClient, EventClient, RefundClient, types } from 'hyperswitch-prism';
+const { Environment, Currency, HttpMethod } = types;
+export const SUPPORTED_FLOWS = ["get", "parse_event", "refund", "refund_get"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -30,6 +30,31 @@ function _buildGetRequest(connectorTransactionId: string): types.IPaymentService
         "amount": {  // Amount Information.
             "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
             "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+    };
+}
+
+function _buildHandleEventRequest(): types.IEventServiceHandleRequest {
+    return {
+        "merchantEventId": "probe_event_001",  // Caller-supplied correlation key, echoed in the response. Not used by UCS for processing.
+        "requestDetails": {
+            "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
+            "uri": "https://example.com/webhook",  // URI of the request.
+            "headers": {  // Headers of the HTTP request.
+            },
+            "body": new Uint8Array(Buffer.from("{\"timestamp\":\"2025-09-09T01:22:50.650398229Z\",\"uuid\":\"5e3cc113-0426-44e2-985b-f90bdddd06e8\",\"amount\":1,\"currency\":\"MYR\",\"created\":\"2025-09-09T01:22:06.739Z\",\"description\":\"Payment\",\"status\":\"succeeded\",\"paymentMethod\":\"card\",\"referenceId\":\"Llof2a6I0EdVmURL7YoL\"}", "utf-8"))  // Body of the HTTP request.
+        }
+    };
+}
+
+function _buildParseEventRequest(): types.IEventServiceParseRequest {
+    return {
+        "requestDetails": {
+            "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
+            "uri": "https://example.com/webhook",  // URI of the request.
+            "headers": {  // Headers of the HTTP request.
+            },
+            "body": new Uint8Array(Buffer.from("{\"timestamp\":\"2025-09-09T01:22:50.650398229Z\",\"uuid\":\"5e3cc113-0426-44e2-985b-f90bdddd06e8\",\"amount\":1,\"currency\":\"MYR\",\"created\":\"2025-09-09T01:22:06.739Z\",\"description\":\"Payment\",\"status\":\"succeeded\",\"paymentMethod\":\"card\",\"referenceId\":\"Llof2a6I0EdVmURL7YoL\"}", "utf-8"))  // Body of the HTTP request.
         }
     };
 }
@@ -66,6 +91,24 @@ async function get(merchantTransactionId: string, config: types.IConnectorConfig
     return getResponse;
 }
 
+// Flow: EventService.HandleEvent
+async function handleEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const eventClient = new EventClient(config);
+
+    const handleResponse = await eventClient.handleEvent(_buildHandleEventRequest());
+
+    return handleResponse;
+}
+
+// Flow: EventService.ParseEvent
+async function parseEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const eventClient = new EventClient(config);
+
+    const parseResponse = await eventClient.parseEvent(_buildParseEventRequest());
+
+    return parseResponse;
+}
+
 // Flow: PaymentService.Refund
 async function refund(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -87,7 +130,7 @@ async function refundGet(merchantTransactionId: string, config: types.IConnector
 
 // Export all process* functions for the smoke test
 export {
-    get, refund, refundGet, _buildGetRequest, _buildRefundRequest, _buildRefundGetRequest
+    get, handleEvent, parseEvent, refund, refundGet, _buildGetRequest, _buildHandleEventRequest, _buildParseEventRequest, _buildRefundRequest, _buildRefundGetRequest
 };
 
 // CLI runner

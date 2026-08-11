@@ -10,7 +10,7 @@ use hyperswitch_payments_client::ConnectorClient;
 use std::collections::HashMap;
 
 #[allow(dead_code)]
-pub const SUPPORTED_FLOWS: &[&str] = &["get", "refund", "refund_get"];
+pub const SUPPORTED_FLOWS: &[&str] = &["get", "parse_event", "refund", "refund_get"];
 
 #[allow(dead_code)]
 fn build_client() -> ConnectorClient {
@@ -45,6 +45,33 @@ pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetReq
             currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
         }),
         ..Default::default()
+    }
+}
+
+#[allow(dead_code)]
+pub fn build_handle_event_request() -> EventServiceHandleRequest {
+    EventServiceHandleRequest {
+        merchant_event_id: Some("probe_event_001".to_string()),  // Caller-supplied correlation key, echoed in the response. Not used by UCS for processing.
+        request_details: Some(RequestDetails {
+            method: HttpMethod::Post.into(),  // HTTP method of the request (e.g., GET, POST).
+            uri: Some("https://example.com/webhook".to_string()),  // URI of the request.
+            headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
+            body: "{\"timestamp\":\"2025-09-09T01:22:50.650398229Z\",\"uuid\":\"5e3cc113-0426-44e2-985b-f90bdddd06e8\",\"amount\":1,\"currency\":\"MYR\",\"created\":\"2025-09-09T01:22:06.739Z\",\"description\":\"Payment\",\"status\":\"succeeded\",\"paymentMethod\":\"card\",\"referenceId\":\"Llof2a6I0EdVmURL7YoL\"}".as_bytes().to_vec(),  // Body of the HTTP request.
+            ..Default::default()
+        }),
+        ..Default::default()
+    }
+}
+
+pub fn build_parse_event_request() -> EventServiceParseRequest {
+    EventServiceParseRequest {
+        request_details: Some(RequestDetails {
+            method: HttpMethod::Post.into(),  // HTTP method of the request (e.g., GET, POST).
+            uri: Some("https://example.com/webhook".to_string()),  // URI of the request.
+            headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
+            body: "{\"timestamp\":\"2025-09-09T01:22:50.650398229Z\",\"uuid\":\"5e3cc113-0426-44e2-985b-f90bdddd06e8\",\"amount\":1,\"currency\":\"MYR\",\"created\":\"2025-09-09T01:22:06.739Z\",\"description\":\"Payment\",\"status\":\"succeeded\",\"paymentMethod\":\"card\",\"referenceId\":\"Llof2a6I0EdVmURL7YoL\"}".as_bytes().to_vec(),  // Body of the HTTP request.
+            ..Default::default()
+        }),
     }
 }
 
@@ -87,6 +114,16 @@ pub async fn process_get(
     Ok(format!("status: {:?}", response.status()))
 }
 
+// Flow: EventService.ParseEvent
+#[allow(dead_code)]
+pub async fn process_parse_event(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client.parse_event(build_parse_event_request())?;
+    Ok(format!("{response:?}"))
+}
+
 // Flow: PaymentService.Refund
 #[allow(dead_code)]
 pub async fn process_refund(
@@ -124,13 +161,11 @@ async fn main() {
         .unwrap_or_else(|| "process_get".to_string());
     let result: Result<String, Box<dyn std::error::Error>> = match flow.as_str() {
         "process_get" => process_get(&client, "txn_001").await,
+        "process_parse_event" => process_parse_event(&client, "txn_001").await,
         "process_refund" => process_refund(&client, "txn_001").await,
         "process_refund_get" => process_refund_get(&client, "txn_001").await,
         _ => {
-            eprintln!(
-                "Unknown flow: {}. Available: process_get, process_refund, process_refund_get",
-                flow
-            );
+            eprintln!("Unknown flow: {}. Available: process_get, process_parse_event, process_refund, process_refund_get", flow);
             return;
         }
     };

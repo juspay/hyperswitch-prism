@@ -116,6 +116,8 @@ let config = ConnectorConfig {
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [EventService.HandleEvent](#eventservicehandleevent) | Events | `EventServiceHandleRequest` |
+| [EventService.ParseEvent](#eventserviceparseevent) | Events | `EventServiceParseRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
 | [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
 
@@ -130,7 +132,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/boost/boost.py) · [TypeScript](../../examples/boost/boost.ts#L61) · [Kotlin](../../examples/boost/boost.kt#L64) · [Rust](../../examples/boost/boost.rs)
+**Examples:** [Python](../../examples/boost/boost.py) · [TypeScript](../../examples/boost/boost.ts#L86) · [Kotlin](../../examples/boost/boost.kt#L66) · [Rust](../../examples/boost/boost.rs)
 
 #### PaymentService.Refund
 
@@ -141,7 +143,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/boost/boost.py) · [TypeScript](../../examples/boost/boost.ts#L70) · [Kotlin](../../examples/boost/boost.kt#L72) · [Rust](../../examples/boost/boost.rs)
+**Examples:** [Python](../../examples/boost/boost.py) · [TypeScript](../../examples/boost/boost.ts#L113) · [Kotlin](../../examples/boost/boost.kt#L105) · [Rust](../../examples/boost/boost.rs)
 
 ### Refunds
 
@@ -154,4 +156,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/boost/boost.py) · [TypeScript](../../examples/boost/boost.ts#L79) · [Kotlin](../../examples/boost/boost.kt#L82) · [Rust](../../examples/boost/boost.rs)
+**Examples:** [Python](../../examples/boost/boost.py) · [TypeScript](../../examples/boost/boost.ts#L122) · [Kotlin](../../examples/boost/boost.kt#L115) · [Rust](../../examples/boost/boost.rs)
