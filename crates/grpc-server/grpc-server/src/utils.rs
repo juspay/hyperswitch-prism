@@ -391,7 +391,11 @@ where
     .await;
 
     let grpc_response = handler_result.into_grpc_status();
-    log_after_initialization(&grpc_response, config.log_fields.enabled, &config.log_fields.incoming);
+    log_after_initialization(
+        &grpc_response,
+        config.log_fields.enabled,
+        &config.log_fields.incoming,
+    );
 
     #[cfg(feature = "otel")]
     observe_internal_latency(
@@ -455,7 +459,11 @@ where
     .await;
 
     let grpc_response = handler_result.into_grpc_status();
-    log_after_initialization(&grpc_response, config.log_fields.enabled, &config.log_fields.incoming);
+    log_after_initialization(
+        &grpc_response,
+        config.log_fields.enabled,
+        &config.log_fields.incoming,
+    );
 
     #[cfg(feature = "otel")]
     observe_internal_latency(
