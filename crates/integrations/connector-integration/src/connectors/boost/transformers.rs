@@ -4,7 +4,7 @@ use common_utils::{
     crypto::{self, SignMessage},
     date_time,
     pii::Email,
-    types::FloatMajorUnit,
+    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
 use domain_types::{
     connector_flow::{Authorize, PSync, RSync, Refund},
@@ -636,6 +636,28 @@ impl BoostWebhookBody {
         raw_body: &[u8],
     ) -> WebhookDetailsResponse {
         let status = AttemptStatus::from(self.status);
+
+        let minor_amount_captured = match (self.amount, self.currency) {
+            (Some(amount), Some(currency)) => {
+                match FloatMajorUnitForConnector.convert_back(amount, currency) {
+                    Ok(minor_unit) => Some(minor_unit),
+                    Err(err) => {
+                        tracing::warn!(
+                            error = ?err,
+                            amount = ?amount,
+                            currency = ?currency,
+                            "Failed to convert Boost webhook amount to minor units; \
+                             leaving amount_captured/minor_amount_captured unset"
+                        );
+                        None
+                    }
+                }
+            }
+            _ => None,
+        };
+        let amount_captured =
+            minor_amount_captured.map(|minor_unit| minor_unit.get_amount_as_i64());
+
         WebhookDetailsResponse {
             resource_id: Some(ResponseId::ConnectorTransactionId(self.uuid.clone())),
             status,
@@ -651,8 +673,8 @@ impl BoostWebhookBody {
             raw_connector_response: Some(String::from_utf8_lossy(raw_body).to_string()),
             status_code: http_code,
             response_headers: None,
-            amount_captured: None,
-            minor_amount_captured: None,
+            amount_captured,
+            minor_amount_captured,
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,

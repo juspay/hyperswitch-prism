@@ -529,10 +529,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // BCPG's callback payload carries no signature/HMAC of any kind (see
         // verify_webhook_source below), so this webhook can never be
         // cryptographically verified. Require the platform to corroborate the
-        // claimed status against an authenticated PSync call (GET
-        // /v1/payments/refs/{referenceId}) before acting on it — this is the
-        // safety net for a connector that can't verify its own webhooks.
-        vec![WebhookIntegrityCheck::ConnectorTransactionId]
+        // claimed connector_transaction_id and amount against an authenticated
+        // PSync call (GET /v1/payments/refs/{referenceId}) before acting on
+        // it. NOT declaring Currency here: WebhookDetailsResponse has no
+        // currency field to expose (only amount_captured/minor_amount_captured),
+        // so there is nothing for a caller to actually compare — declaring the
+        // check without backing data would be misleading.
+        vec![
+            WebhookIntegrityCheck::ConnectorTransactionId,
+            WebhookIntegrityCheck::Amount,
+        ]
     }
 
     fn verify_webhook_source(
