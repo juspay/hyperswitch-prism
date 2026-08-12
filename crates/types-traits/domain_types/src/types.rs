@@ -2697,9 +2697,6 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::Alfamart => {
                 Ok(PaymentMethodType::Alfamart)
             }
-            grpc_api_types::payments::PaymentMethodType::AliPayHk => {
-                Ok(PaymentMethodType::AliPayHk)
-            }
             grpc_api_types::payments::PaymentMethodType::Alma => Ok(PaymentMethodType::Alma),
             grpc_api_types::payments::PaymentMethodType::Bacs => Ok(PaymentMethodType::Bacs),
             grpc_api_types::payments::PaymentMethodType::BancontactCard => {
