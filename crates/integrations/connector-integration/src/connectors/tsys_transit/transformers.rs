@@ -2498,7 +2498,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         log_tsys_transit_response("Authorize", item.http_code, response);
         let body = response.body();
 
-        let status = AttemptStatus::Pending; // map_authorize_status(response);
+        let status = map_authorize_status(response);
         if matches!(status, AttemptStatus::Failure) {
             return Ok(Self {
                 resource_common_data: PaymentFlowData {
@@ -2913,7 +2913,7 @@ impl TryFrom<ResponseRouterData<TsysTransitReturnResponse, Self>>
         let response = &item.response;
         log_tsys_transit_response("Refund", item.http_code, response);
 
-        let refund_status = RefundStatus::Pending; // map_refund_status(response);
+        let refund_status = map_refund_status(response);
 
         if matches!(refund_status, RefundStatus::Failure) {
             return Ok(Self {
@@ -3006,7 +3006,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 fn get_refund_status(item: &TsysTransitTransactionDetails) -> Option<RefundStatus> {
     let transaction_type = item.transaction_type.to_lowercase();
-    if transaction_type.contains("return") {
+    if transaction_type.contains("return") || (transaction_type.contains("sale") && transaction_type.contains("void")) {
         match item.transaction_status {
             Some(TsysTransitTransactionStatus::Approved) => Some(RefundStatus::Success),
             Some(TsysTransitTransactionStatus::Decline)
