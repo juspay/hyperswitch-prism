@@ -673,7 +673,8 @@ pub fn apply_log_fields(compiled: &CompiledLogFields) {
 }
 
 /// Convert a set of headers with `Maskable` values into a `serde_json::Value` object.
-/// Normal values are preserved; masked values are replaced with `"***"`.
+/// Normal values are preserved as-is; masked values use the standard masking format
+/// from `Maskable`'s `Debug` implementation.
 pub fn maskable_headers_to_json<'a>(
     headers: impl IntoIterator<Item = &'a (String, hyperswitch_masking::Maskable<String>)>,
 ) -> serde_json::Value {
@@ -682,7 +683,7 @@ pub fn maskable_headers_to_json<'a>(
         .map(|(k, v)| {
             let val = match v {
                 hyperswitch_masking::Maskable::Normal(s) => s.clone(),
-                hyperswitch_masking::Maskable::Masked(_) => "***".to_string(),
+                hyperswitch_masking::Maskable::Masked(secret) => format!("{secret:?}"),
             };
             (k.clone(), serde_json::Value::String(val))
         })
