@@ -219,6 +219,9 @@ pub struct Passthrough {
     /// PSP token generated for the payout method
     pub psp_token: Secret<String>,
 
+    /// PSP customer ID
+    pub psp_customer_id: Option<Secret<String>>,
+
     /// Payout method type of the token
     pub token_type: common_enums::PaymentMethodType,
 }

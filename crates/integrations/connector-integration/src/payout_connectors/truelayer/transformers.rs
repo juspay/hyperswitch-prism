@@ -240,7 +240,7 @@ pub struct TruelayerBeneficiary {
     #[serde(skip_serializing_if = "Option::is_none")]
     payment_source_id: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    user_id: Option<String>,
+    user_id: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -302,32 +302,14 @@ impl
                 payment_source_id: None,
                 user_id: None,
             },
-            Some(PayoutMethodData::Passthrough(passthrough)) => {
-                let user_id = req
-                    .request
-                    .customer
-                    .as_ref()
-                    .and_then(|customer| customer.connector_customer_id.clone())
-                    .ok_or(IntegrationError::MissingRequiredField {
-                        field_name: "customer.connector_customer_id",
-                        context: IntegrationErrorContext {
-                            additional_context: Some(
-                                "TrueLayer closed-loop payouts require the TrueLayer user id"
-                                    .to_string(),
-                            ),
-                            ..Default::default()
-                        },
-                    })?;
-
-                TruelayerBeneficiary {
-                    _type: TruelayerBeneficiaryType::PaymentSource,
-                    reference: reference.clone(),
-                    account_holder_name: None,
-                    account_identifier: None,
-                    payment_source_id: Some(passthrough.psp_token.clone()),
-                    user_id: Some(user_id),
-                }
-            }
+            Some(PayoutMethodData::Passthrough(passthrough)) => TruelayerBeneficiary {
+                _type: TruelayerBeneficiaryType::PaymentSource,
+                reference: reference.clone(),
+                account_holder_name: None,
+                account_identifier: None,
+                payment_source_id: Some(passthrough.psp_token.clone()),
+                user_id: passthrough.psp_customer_id.clone(),
+            },
             Some(_) | None => {
                 return Err(IntegrationError::connector_feature_not_supported(
                     "truelayer",

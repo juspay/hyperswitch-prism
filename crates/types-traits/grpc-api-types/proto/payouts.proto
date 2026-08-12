@@ -206,6 +206,8 @@ message Passthrough {
   string psp_token = 1;
   // The type of the tokenized payment method
   PaymentMethodType token_type = 2;
+  // The customer identifier held by the payment service provider for this token
+  optional SecretString psp_customer_id = 3;
 }
 
 // PayoutMethod represents a payout instrument used to process a payout
