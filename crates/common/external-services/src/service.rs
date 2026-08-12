@@ -7,13 +7,13 @@ use common_utils::events::apply_log_fields;
 #[cfg(feature = "injector-client")]
 use common_utils::{
     consts::{X_API_TAG, X_API_URL, X_SESSION_ID},
-    events::{EventStage, MaskedSerdeValue},
+    events::{maskable_headers_to_json, EventStage, MaskedSerdeValue},
     request::TransportType,
 };
 use common_utils::{
     // `CompiledLogFields` is used by the ungated `EventProcessingParams` struct, so it must be
     // imported unconditionally (the ffi build compiles this crate without `injector-client`).
-    events::CompiledLogFields,
+    events::{record_json_fields_on_span, CompiledLogFields},
     ext_traits::AsyncExt,
     lineage,
     request::{Method, Request, RequestContent},
@@ -397,16 +397,20 @@ where
 
                     // Log response body and headers using properly masked data from connector
                     if let Some(evt) = event.as_deref_mut() {
+                        let mut json_fields: Vec<(&'static str, serde_json::Value)> = Vec::new();
+
                         if let Some(response_data) = &evt.response_data {
-                            tracing::Span::current().record(
-                                "response.body",
-                                tracing::field::display(response_data.inner()),
-                            );
+                            json_fields.push(("response.body", response_data.inner().clone()));
                         }
 
                         // Log response headers from event (already masked)
-                        tracing::Span::current()
-                            .record("response.headers", tracing::field::debug(&evt.headers));
+                        if let Ok(headers_json) = serde_json::to_value(&evt.headers) {
+                            json_fields.push(("response.headers", headers_json));
+                        }
+
+                        if !json_fields.is_empty() {
+                            record_json_fields_on_span(json_fields);
+                        }
                     }
 
                     handle_response_result?
@@ -746,13 +750,14 @@ where
 
                     let masked_headers = request.headers.clone();
                     tracing::info!(headers=?masked_headers, "headers of connector request");
-                    tracing::Span::current()
-                        .record("request.headers", tracing::field::debug(&masked_headers));
+                    record_json_fields_on_span(vec![(
+                        "request.headers",
+                        maskable_headers_to_json(&masked_headers),
+                    )]);
 
                     let masked_request = mask_connector_request(&request.body);
                     tracing::info!(request=?masked_request, "request of connector");
-                    tracing::Span::current()
-                        .record("request.body", tracing::field::display(&masked_request));
+                    record_json_fields_on_span(vec![("request.body", masked_request.clone())]);
 
                     let response = if let Some(token_data) = token_data {
                         tracing::debug!(
@@ -973,13 +978,14 @@ where
 
                     let masked_headers = record.headers.clone();
                     tracing::info!(headers=?masked_headers, "headers of connector request");
-                    tracing::Span::current()
-                        .record("request.headers", tracing::field::debug(&record.headers));
+                    record_json_fields_on_span(vec![(
+                        "request.headers",
+                        maskable_headers_to_json(&masked_headers),
+                    )]);
 
                     let masked_request = mask_connector_request(&record.payload);
                     tracing::info!(request=?masked_request, "request of connector");
-                    tracing::Span::current()
-                        .record("request.body", tracing::field::display(&masked_request));
+                    record_json_fields_on_span(vec![("request.body", masked_request.clone())]);
 
                     let response = publish_to_kafka(record)
                         .await

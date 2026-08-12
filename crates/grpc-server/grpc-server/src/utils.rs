@@ -9,7 +9,10 @@ use common_utils::events::apply_log_fields;
 use common_utils::{
     consts::{self, Env},
     errors::CustomResult,
-    events::{CompiledLogFields, Event, EventStage, FlowName, MaskedSerdeValue},
+    events::{
+        record_json_fields_on_span, CompiledLogFields, Event, EventStage, FlowName,
+        MaskedSerdeValue,
+    },
     lineage::LineageIds,
     superposition_config::{get_connector_urls, ConnectorUrls, SuperpositionConfig},
     types::ExecutionMode,
@@ -279,13 +282,16 @@ where
     let masked_body = hyperswitch_masking::masked_serialize(&request_data.payload)
         .map_err(|e| tracing::error!("Masked serialization error: {:?}", e))
         .ok();
-    let req_body_json = masked_body
-        .as_ref()
-        .map(ToString::to_string)
-        .unwrap_or_else(|| "<masked serialization error>".to_string());
     let connector_name = connector.get_connector_name();
     current_span.record("service_name", service_name);
-    current_span.record("request_body", req_body_json);
+    match masked_body.as_ref() {
+        Some(masked_value) => {
+            record_json_fields_on_span(vec![("request_body", masked_value.clone())]);
+        }
+        None => {
+            current_span.record("request_body", "<masked serialization error>");
+        }
+    };
     current_span.record("gateway", connector_name);
     current_span.record("merchant_id", merchant_id);
     current_span.record("tenant_id", tenant_id);
@@ -338,9 +344,18 @@ pub fn log_after_initialization<T>(
         Ok(response) => {
             // Success HTTP status; euler's `res_code` is present on every line.
             current_span.record("status_code", 200_i64);
-            current_span.record("response_body", tracing::field::debug(response.get_ref()));
 
             let res_ref = response.get_ref();
+
+            // Record response_body as structured JSON with masking
+            match hyperswitch_masking::masked_serialize(res_ref) {
+                Ok(masked_value) => {
+                    record_json_fields_on_span(vec![("response_body", masked_value.clone())]);
+                }
+                Err(_) => {
+                    current_span.record("response_body", tracing::field::debug(res_ref));
+                }
+            }
 
             // Try converting to JSON Value
             if let Ok(Value::Object(map)) = serde_json::to_value(res_ref) {
