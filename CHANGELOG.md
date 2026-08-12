@@ -19,6 +19,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.08.12.1
+
+### Features
+
+- **logs:** Euler-compatible log structure with structured JSON fields ([#2094](https://github.com/juspay/connector-service/pull/2094)) ([`194eb39`](https://github.com/juspay/connector-service/commit/194eb394b072ed1a5f74ee6b7e5c93d843d272e7))
+
+### Bug Fixes
+
+- **fiservcommercehub:** Send normalized expiry year during MIT ([#2084](https://github.com/juspay/connector-service/pull/2084)) ([`cda6f23`](https://github.com/juspay/connector-service/commit/cda6f23ad673ceb0f57414384a27518aa2caac1f))
+- **frm:** Drop payment_address field, promote address to PaymentAddress ([#2095](https://github.com/juspay/connector-service/pull/2095)) ([`5069a94`](https://github.com/juspay/connector-service/commit/5069a947be73cdfe87d97ce44958250b20da5755))
+- **maya:** Return merchant transaction id in webhook event reference ([#2099](https://github.com/juspay/connector-service/pull/2099)) ([`1e83374`](https://github.com/juspay/connector-service/commit/1e8337459306b8dfaa020cca62dc1d8c27f69fd3))
+- **superposition:** Temporarily remove kount from superposition config ([#2101](https://github.com/juspay/connector-service/pull/2101)) ([`3e7f35b`](https://github.com/juspay/connector-service/commit/3e7f35bc9a3d4ae73c3799834bffab6839ed962a))
+
+**Full Changelog:** [`2026.08.12.0...2026.08.12.1`](https://github.com/juspay/connector-service/compare/2026.08.12.0...2026.08.12.1)
+
+- - -
+
 ## 2026.08.12.0
 
 ### Features
