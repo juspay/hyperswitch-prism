@@ -19,6 +19,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.08.12.0
+
+### Features
+
+- **payouts:** Surface vop response ([#2074](https://github.com/juspay/connector-service/pull/2074)) ([`e6f3af5`](https://github.com/juspay/connector-service/commit/e6f3af5cc20476a47f9ab19c66d7ed696b586dea))
+
+### Bug Fixes
+
+- **core:** Add ali_pay_hk to payment method type conversions ([#2092](https://github.com/juspay/connector-service/pull/2092)) ([`9355031`](https://github.com/juspay/connector-service/commit/935503116dea9fc04b3eff4be256fc2dda58760a))
+
+**Full Changelog:** [`2026.08.11.3...2026.08.12.0`](https://github.com/juspay/connector-service/compare/2026.08.11.3...2026.08.12.0)
+
+- - -
+
 ## 2026.08.11.3
 
 ### Features

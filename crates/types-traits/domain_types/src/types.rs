@@ -2634,6 +2634,9 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
                 Ok(PaymentMethodType::WeChatPay)
             }
             grpc_api_types::payments::PaymentMethodType::AliPay => Ok(PaymentMethodType::AliPay),
+            grpc_api_types::payments::PaymentMethodType::AliPayHk => {
+                Ok(PaymentMethodType::AliPayHk)
+            }
             grpc_api_types::payments::PaymentMethodType::Gcash => Ok(PaymentMethodType::Gcash),
             grpc_api_types::payments::PaymentMethodType::GrabPay => Ok(PaymentMethodType::Grabpay),
             grpc_api_types::payments::PaymentMethodType::Cashapp => Ok(PaymentMethodType::Cashapp),
@@ -8483,6 +8486,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::PayPal => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::WeChatPay => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::AliPay => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethodType::AliPayHk => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::Cashapp => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::RevolutPay => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::MbWay => Ok(Self::Wallet),
