@@ -4201,10 +4201,10 @@ message PaymentServiceVerifyRedirectResponseResponse {
 
   // Raw Response
   optional SecretString raw_connector_response = 7;
-  optional SecretString typed_connector_response = 8;
+  optional SecretString typed_connector_response = 9;
 
   // Connector-specific metadata produced while parsing the redirect response.
-  optional SecretString connector_feature_data = 9;
+  optional SecretString connector_feature_data = 8;
 }
 
 // ============================================================================
