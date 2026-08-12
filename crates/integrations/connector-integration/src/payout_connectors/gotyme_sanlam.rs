@@ -369,5 +369,6 @@ macros::macro_connector_payout_implementation!(
         PayoutCreateLink,
         PayoutCreateRecipient,
         PayoutEnrollDisburseAccount,
+        PayoutEligibility,
     ],
 );

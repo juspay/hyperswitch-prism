@@ -345,6 +345,7 @@ fn flow_status_label(flow_status: &domain_types::router_data::FlowStatus) -> Str
         FlowStatus::Payment(status) => format!("payment_{status}"),
         FlowStatus::Refund(status) => format!("refund_{status}"),
         FlowStatus::Dispute(status) => format!("dispute_{status}"),
+        FlowStatus::Payout(status) => format!("payout_{status}"),
     }
 }
 
