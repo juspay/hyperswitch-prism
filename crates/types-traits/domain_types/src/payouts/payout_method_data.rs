@@ -190,12 +190,6 @@ pub struct PayshapProxyBankTransfer {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
-pub enum PayshapProxyType {
-    Cellphone,
-    ShapId,
-}
-
-#[derive(Eq, PartialEq, Clone, Debug)]
 pub enum Wallet {
     ApplePayDecrypt(ApplePayDecrypt),
     Paypal(Paypal),

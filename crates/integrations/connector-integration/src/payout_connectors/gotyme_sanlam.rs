@@ -30,7 +30,7 @@ use interfaces::{
     connector_types::{PayoutGetV2, PayoutServiceTrait, PayoutTransferV2, ServerAuthentication},
 };
 
-use crate::{connectors::macros, types::ResponseRouterData};
+use crate::{connectors::macros, types::ResponseRouterData, utils::response_deserialization_fail};
 use transformers::{
     GotymeSanlamAuthType, GotymeSanlamErrorResponse, GotymeSanlamPayoutGetRequest,
     GotymeSanlamPayoutResponse, GotymeSanlamPayoutRouterData, GotymeSanlamPayoutTransferRequest,
@@ -117,7 +117,7 @@ impl ConnectorCommon for GotymeSanlamPayouts {
         let response: GotymeSanlamErrorResponse = res
             .response
             .parse_struct("GotymeSanlamErrorResponse")
-            .change_context(crate::utils::response_deserialization_fail(
+            .change_context(response_deserialization_fail(
                 res.status_code,
                 "gotyme_sanlam: response body did not match the expected error format",
             ))?;
@@ -132,6 +132,7 @@ impl ConnectorCommon for GotymeSanlamPayouts {
                 .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
             message: response
                 .error_message
+                .or(response.message)
                 .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
             reason: None,
             attempt_status: None,
@@ -255,9 +256,12 @@ impl
         let response: GotymeSanlamPayoutResponse = res
             .response
             .parse_struct("GotymeSanlamPayoutResponse")
-            .change_context(ConnectorError::ResponseDeserializationFailed {
-                context: Default::default(),
-            })?;
+            .change_context(
+                response_deserialization_fail(
+                    res.status_code,
+                    "Response body did not match the expected format; confirm API version and connector documentation."
+                )
+            )?;
 
         event_builder.map(|i| i.set_connector_response(&response));
         tracing::info!(response=?response, "response from connector");
@@ -286,10 +290,6 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
 {
     fn get_http_method(&self) -> common_utils::request::Method {
         common_utils::request::Method::Post
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        "application/json"
     }
 
     fn get_url(
@@ -329,9 +329,12 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
         let response: GotymeSanlamPayoutResponse = res
             .response
             .parse_struct("GotymeSanlamPayoutResponse")
-            .change_context(ConnectorError::ResponseDeserializationFailed {
-                context: Default::default(),
-            })?;
+            .change_context(
+                response_deserialization_fail(
+                    res.status_code,
+                    "Response body did not match the expected format; confirm API version and connector documentation."
+                )
+            )?;
 
         event_builder.map(|i| i.set_connector_response(&response));
         tracing::info!(response=?response, "response from connector");

@@ -70,11 +70,12 @@ impl<T> From<(StringMajorUnit, T)> for GotymeSanlamPayoutRouterData<T> {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "camelCase")]
 pub struct GotymeSanlamErrorResponse {
     pub error_code: Option<String>,
     pub error_title: Option<String>,
     pub error_message: Option<String>,
+    pub message: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -221,7 +222,17 @@ impl
             ) => Err(IntegrationError::NotSupported {
                 message: get_unimplemented_payment_method_error_message("GotymeSanlam"),
                 connector: "GotymeSanlam",
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "GotymeSanlam payout transfer does not support the provided payout method data variant"
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Provide either `payshap` or `payshap_proxy` as payout method data"
+                            .to_string(),
+                    ),
+                    doc_url: None,
+                },
             })?,
             None => Err(IntegrationError::MissingRequiredField {
                 field_name: "payout_method_data",
