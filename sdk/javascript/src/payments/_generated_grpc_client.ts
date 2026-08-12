@@ -343,6 +343,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   InteracPayout: ["email"],
   OpenBankingUkPayout: ["accountHolderName", "iban"],
   OpenBankingPayout: ["accountHolderName", "iban"],
+  Passthrough: ["pspCustomerId"],
   PayoutServiceCreateRequest: ["connectorFeatureData", "accessToken"],
   PayoutServiceTransferRequest: ["accessToken"],
   PayoutServiceStageRequest: ["accessToken"],
