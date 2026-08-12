@@ -3006,7 +3006,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 fn get_refund_status(item: &TsysTransitTransactionDetails) -> Option<RefundStatus> {
     let transaction_type = item.transaction_type.to_lowercase();
-    if transaction_type.contains("return") || (transaction_type.contains("sale") && transaction_type.contains("void")) {
+    if transaction_type.contains("return")
+        || (transaction_type.contains("sale") && transaction_type.contains("void"))
+    {
         match item.transaction_status {
             Some(TsysTransitTransactionStatus::Approved) => Some(RefundStatus::Success),
             Some(TsysTransitTransactionStatus::Decline)
