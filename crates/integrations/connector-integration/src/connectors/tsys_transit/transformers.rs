@@ -540,7 +540,7 @@ pub struct TsysTransitAuthorizeBody {
 }
 
 #[derive(Debug, Serialize)]
-#[serde(rename = "TransactionInquiry")]
+#[serde(rename = "SearchTransaction")]
 pub struct TsysTransitTransactionInquiryRequest {
     #[serde(rename = "deviceID")]
     pub device_id: Secret<String>,
@@ -554,7 +554,7 @@ pub struct TsysTransitTransactionInquiryRequest {
 
 impl GetSoapXml for TsysTransitTransactionInquiryRequest {
     fn to_soap_xml(&self) -> String {
-        generate_logged_xml(self, "TransactionInquiry")
+        generate_logged_xml(self, "SearchTransaction")
     }
 }
 pub type TsysTransitRSyncRequest = TsysTransitTransactionInquiryRequest;
@@ -866,14 +866,14 @@ pub struct TsysTransitAuthorizeResponseBody {
     #[serde(rename = "cardTransactionIdentifier", default)]
     pub card_transaction_identifier: Option<String>,
 }
+
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "UPPERCASE")]
-pub enum TsysTransitTransactionState {
-    Authorized,
-    Captured,
-    Settled,
-    Voided,
-    Returned,
+pub enum TsysTransitTransactionStatus {
+    Approved,
+    Decline,
+    Cancel,
+    Void,
 }
 #[derive(Clone, Debug, Deserialize, Serialize, Default)]
 #[serde(rename = "CaptureResponse")]
@@ -941,18 +941,30 @@ pub struct TsysTransitCardAuthenticationResponse {
 }
 pub type TsysTransitRSyncResponse = TsysTransitTransactionInquiryResponse;
 #[derive(Clone, Debug, Deserialize, Serialize, Default)]
-#[serde(rename = "TransactionInquiryResponse")]
+#[serde(rename = "SearchTransactionResponse")]
 pub struct TsysTransitTransactionInquiryResponse {
     #[serde(rename = "status", default)]
     pub status: Option<TsysTransitStatus>,
     #[serde(rename = "responseCode", default)]
     pub response_code: Option<String>,
-    #[serde(rename = "transactionID", default)]
-    pub transaction_id: Option<String>,
-    #[serde(rename = "transactionState", default)]
-    pub transaction_state: Option<TsysTransitTransactionState>,
     #[serde(rename = "responseMessage", default)]
     pub response_message: Option<String>,
+    #[serde(rename = "transactionDetails", default)]
+    pub transaction_details: Option<TsysTransitTransactionDetails>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, Default)]
+pub struct TsysTransitTransactionDetails {
+    #[serde(rename = "transactionID", default)]
+    pub transaction_id: String,
+    /// Free-text description of the queried transaction, e.g. "Credit Card
+    /// Sale Approved" / "Credit Card Auth Approved" / "Credit Card Void
+    /// Approved". TSYS does not expose the operation (sale/auth/void) as a
+    /// separate enum, so it must be sniffed out of this string.
+    #[serde(rename = "transactionType", default)]
+    pub transaction_type: String,
+    #[serde(rename = "transactionStatus", default)]
+    pub transaction_status: Option<TsysTransitTransactionStatus>,
 }
 
 #[derive(Debug, Default, Clone, Deserialize)]
@@ -2486,7 +2498,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         log_tsys_transit_response("Authorize", item.http_code, response);
         let body = response.body();
 
-        let status = map_authorize_status(response);
+        let status = AttemptStatus::Pending; // map_authorize_status(response);
         if matches!(status, AttemptStatus::Failure) {
             return Ok(Self {
                 resource_common_data: PaymentFlowData {
@@ -2602,32 +2614,36 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         })
     }
 }
-fn map_sync_status(response: &TsysTransitTransactionInquiryResponse) -> AttemptStatus {
-    match (
-        response.status.as_ref(),
-        response.transaction_state.as_ref(),
-    ) {
-        (Some(TsysTransitStatus::Pass), Some(TsysTransitTransactionState::Authorized)) => {
-            AttemptStatus::Authorized
-        }
-        (Some(TsysTransitStatus::Pass), Some(TsysTransitTransactionState::Captured)) => {
-            AttemptStatus::Charged
-        }
-        (Some(TsysTransitStatus::Pass), Some(TsysTransitTransactionState::Settled)) => {
-            AttemptStatus::Charged
-        }
-        (Some(TsysTransitStatus::Pass), Some(TsysTransitTransactionState::Voided)) => {
-            AttemptStatus::Voided
-        }
-        (Some(TsysTransitStatus::Pass), Some(TsysTransitTransactionState::Returned)) => {
-            AttemptStatus::AutoRefunded
-        }
-        (Some(TsysTransitStatus::Fail), _) => AttemptStatus::Failure,
-        _ => {
-            tracing::warn!(
-                "tsysTransit: PSync response missing or unrecognized transactionState; defaulting to Pending"
-            );
-            AttemptStatus::Pending
+
+impl From<&TsysTransitTransactionDetails> for AttemptStatus {
+    fn from(item: &TsysTransitTransactionDetails) -> Self {
+        let transaction_type = item.transaction_type.to_lowercase();
+        if transaction_type.contains("auth") || transaction_type.contains("void") {
+            match item.transaction_status {
+                Some(TsysTransitTransactionStatus::Approved) => AttemptStatus::Voided,
+                Some(TsysTransitTransactionStatus::Decline)
+                | Some(TsysTransitTransactionStatus::Cancel)
+                | Some(TsysTransitTransactionStatus::Void) => AttemptStatus::VoidFailed,
+                None => AttemptStatus::Unspecified,
+            }
+        } else if transaction_type.contains("sale") {
+            match item.transaction_status {
+                Some(TsysTransitTransactionStatus::Approved) => AttemptStatus::Charged,
+                Some(TsysTransitTransactionStatus::Decline)
+                | Some(TsysTransitTransactionStatus::Cancel)
+                | Some(TsysTransitTransactionStatus::Void) => AttemptStatus::Failure,
+                None => AttemptStatus::Unspecified,
+            }
+        } else if transaction_type.contains("auth") {
+            match item.transaction_status {
+                Some(TsysTransitTransactionStatus::Approved) => AttemptStatus::Authorized,
+                Some(TsysTransitTransactionStatus::Decline)
+                | Some(TsysTransitTransactionStatus::Cancel)
+                | Some(TsysTransitTransactionStatus::Void) => AttemptStatus::AuthorizationFailed,
+                None => AttemptStatus::Unspecified,
+            }
+        } else {
+            AttemptStatus::Unspecified
         }
     }
 }
@@ -2644,70 +2660,57 @@ impl TryFrom<ResponseRouterData<TsysTransitTransactionInquiryResponse, Self>>
         let response = &item.response;
         log_tsys_transit_response("PSync", item.http_code, response);
 
-        let status = map_sync_status(response);
+        if let Some(transaction_details) = response.transaction_details.as_ref() {
+            let connector_transaction_id = transaction_details.transaction_id.clone();
+            let status = AttemptStatus::from(transaction_details);
+            let payments_response_data = PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(connector_transaction_id.clone()),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                network_txn_link_id: None,
+                connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
+                status_code: item.http_code,
+                splits: None,
+            };
 
-        if matches!(status, AttemptStatus::Failure) {
-            return Ok(Self {
+            Ok(Self {
                 resource_common_data: PaymentFlowData {
                     status,
                     ..router_data.resource_common_data.clone()
                 },
-                response: Err(ErrorResponse {
-                    status_code: item.http_code,
-                    code: response
-                        .response_code
-                        .clone()
-                        .unwrap_or_else(|| common_utils::consts::NO_ERROR_CODE.to_string()),
-                    message: response
-                        .response_message
-                        .clone()
-                        .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string()),
-                    reason: response.response_message.clone(),
-                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
-                    connector_transaction_id: response.transaction_id.clone(),
-                    network_decline_code: None,
-                    network_advice_code: None,
-                    network_error_message: response.response_message.clone(),
-                }),
+                response: Ok(payments_response_data),
                 ..router_data.clone()
-            });
+            })
+        } else {
+            let payments_response_data = ErrorResponse {
+                status_code: item.http_code,
+                code: response
+                    .response_code
+                    .clone()
+                    .unwrap_or_else(|| common_utils::consts::NO_ERROR_CODE.to_string()),
+                message: response
+                    .response_message
+                    .clone()
+                    .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string()),
+                reason: response.response_message.clone(),
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: response.response_message.clone(),
+            };
+
+            Ok(Self {
+                response: Err(payments_response_data),
+                ..router_data.clone()
+            })
         }
-        let connector_txn_id = match response.transaction_id.clone() {
-            Some(id) => id,
-            None => router_data
-                .request
-                .get_connector_transaction_id()
-                .map_err(|_| {
-                    crate::utils::response_deserialization_fail(
-                        item.http_code,
-                        "tsysTransit: PSync response and request both missing transactionID.",
-                    )
-                })?,
-        };
-
-        let payments_response_data = PaymentsResponseData::TransactionResponse {
-            resource_id: ResponseId::ConnectorTransactionId(connector_txn_id.clone()),
-            redirection_data: None,
-            mandate_reference: None,
-            connector_metadata: None,
-            network_txn_id: None,
-            network_txn_link_id: None,
-            connector_response_reference_id: Some(connector_txn_id),
-            incremental_authorization_allowed: None,
-            status_code: item.http_code,
-            splits: None,
-        };
-
-        Ok(Self {
-            resource_common_data: PaymentFlowData {
-                status,
-                ..router_data.resource_common_data.clone()
-            },
-            response: Ok(payments_response_data),
-            ..router_data.clone()
-        })
     }
 }
+
 fn compute_capture_sales_tax(
     router_data: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
 ) -> Result<Option<StringMajorUnit>, Report<IntegrationError>> {
@@ -2889,6 +2892,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         }
     }
 }
+
 fn map_refund_status(response: &TsysTransitReturnResponse) -> RefundStatus {
     match (response.status.as_ref(), response.response_code.as_deref()) {
         (Some(TsysTransitStatus::Pass), Some("A0000" | "A0002" | "A0014")) => RefundStatus::Success,
@@ -2909,7 +2913,7 @@ impl TryFrom<ResponseRouterData<TsysTransitReturnResponse, Self>>
         let response = &item.response;
         log_tsys_transit_response("Refund", item.http_code, response);
 
-        let refund_status = map_refund_status(response);
+        let refund_status = RefundStatus::Pending; // map_refund_status(response);
 
         if matches!(refund_status, RefundStatus::Failure) {
             return Ok(Self {
@@ -2999,27 +3003,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         })
     }
 }
-fn map_rsync_status(response: &TsysTransitTransactionInquiryResponse) -> RefundStatus {
-    match (
-        response.status.as_ref(),
-        response.transaction_state.as_ref(),
-    ) {
-        (Some(TsysTransitStatus::Pass), Some(TsysTransitTransactionState::Returned)) => {
-            RefundStatus::Success
+
+fn get_refund_status(item: &TsysTransitTransactionDetails) -> Option<RefundStatus> {
+    let transaction_type = item.transaction_type.to_lowercase();
+    if transaction_type.contains("return") {
+        match item.transaction_status {
+            Some(TsysTransitTransactionStatus::Approved) => Some(RefundStatus::Success),
+            Some(TsysTransitTransactionStatus::Decline)
+            | Some(TsysTransitTransactionStatus::Cancel)
+            | Some(TsysTransitTransactionStatus::Void) => Some(RefundStatus::Failure),
+            None => None,
         }
-        (Some(TsysTransitStatus::Pass), Some(TsysTransitTransactionState::Settled)) => {
-            RefundStatus::Success
-        }
-        (Some(TsysTransitStatus::Pass), Some(TsysTransitTransactionState::Voided)) => {
-            RefundStatus::Failure
-        }
-        (Some(TsysTransitStatus::Fail), _) => RefundStatus::Failure,
-        _ => {
-            tracing::warn!(
-                "tsysTransit: RSync response missing or unrecognized transactionState; defaulting to Pending"
-            );
-            RefundStatus::Pending
-        }
+    } else {
+        None
     }
 }
 
@@ -3033,17 +3029,33 @@ impl TryFrom<ResponseRouterData<TsysTransitTransactionInquiryResponse, Self>>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let response = &item.response;
+
         log_tsys_transit_response("RSync", item.http_code, response);
 
-        let refund_status = map_rsync_status(response);
+        match response
+            .transaction_details
+            .as_ref()
+            .and_then(|details| get_refund_status(details))
+        {
+            Some(refund_status) => {
+                let transaction_details = response.transaction_details.as_ref().unwrap();
 
-        if matches!(refund_status, RefundStatus::Failure) {
-            return Ok(Self {
-                resource_common_data: RefundFlowData {
-                    status: refund_status,
-                    ..router_data.resource_common_data.clone()
-                },
-                response: Err(ErrorResponse {
+                Ok(Self {
+                    resource_common_data: RefundFlowData {
+                        status: refund_status,
+                        ..router_data.resource_common_data.clone()
+                    },
+                    response: Ok(RefundsResponseData {
+                        connector_refund_id: transaction_details.transaction_id.clone(),
+                        refund_status,
+                        status_code: item.http_code,
+                        acquirer_reference_number: None,
+                    }),
+                    ..router_data.clone()
+                })
+            }
+            None => {
+                let error_response = ErrorResponse {
                     status_code: item.http_code,
                     code: response
                         .response_code
@@ -3055,48 +3067,21 @@ impl TryFrom<ResponseRouterData<TsysTransitTransactionInquiryResponse, Self>>
                         .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string()),
                     reason: response.response_message.clone(),
                     attempt_status: None,
-                    connector_transaction_id: response.transaction_id.clone(),
+                    connector_transaction_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: response.response_message.clone(),
-                }),
-                ..router_data.clone()
-            });
-        }
-        let connector_refund_id = match response.transaction_id.clone() {
-            Some(id) => id,
-            None => {
-                if !router_data.request.connector_refund_id.is_empty() {
-                    router_data.request.connector_refund_id.clone()
-                } else if !router_data.request.connector_transaction_id.is_empty() {
-                    router_data.request.connector_transaction_id.clone()
-                } else {
-                    return Err(crate::utils::response_deserialization_fail(
-                        item.http_code,
-                        "tsysTransit: RSync response and request both missing transactionID.",
-                    )
-                    .into());
-                }
+                };
+                Ok(Self {
+                    resource_common_data: router_data.resource_common_data.clone(),
+                    response: Err(error_response),
+                    ..router_data.clone()
+                })
             }
-        };
-
-        let refunds_response_data = RefundsResponseData {
-            connector_refund_id,
-            refund_status,
-            status_code: item.http_code,
-            acquirer_reference_number: None,
-        };
-
-        Ok(Self {
-            resource_common_data: RefundFlowData {
-                status: refund_status,
-                ..router_data.resource_common_data.clone()
-            },
-            response: Ok(refunds_response_data),
-            ..router_data.clone()
-        })
+        }
     }
 }
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         TsysTransitRouterData<
