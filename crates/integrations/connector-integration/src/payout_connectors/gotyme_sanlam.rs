@@ -95,11 +95,8 @@ impl ConnectorCommon for GotymeSanlamPayouts {
         &self,
         auth_type: &ConnectorSpecificConfig,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-        let auth = GotymeSanlamAuthType::try_from(auth_type).change_context(
-            IntegrationError::FailedToObtainAuthType {
-                context: Default::default(),
-            },
-        )?;
+        let auth = GotymeSanlamAuthType::try_from(auth_type)?;
+
         Ok(vec![
             (
                 headers::X_API_KEY.to_string(),
@@ -193,7 +190,7 @@ impl
     }
 
     fn get_content_type(&self) -> &'static str {
-        "application/json"
+        self.common_get_content_type()
     }
 
     fn get_url(
@@ -294,6 +291,10 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
 {
     fn get_http_method(&self) -> common_utils::request::Method {
         common_utils::request::Method::Post
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
     }
 
     fn get_url(
