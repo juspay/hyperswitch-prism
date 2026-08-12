@@ -660,7 +660,7 @@
             "powertranz-powertranzpassword": "probe_pass",
             "via": "HyperSwitch"
           },
-          "body": "{\"TransactionIdentifier\":\"00000000-0000-0000-0000-000000000000\",\"TotalAmount\":10.0,\"CurrencyCode\":\"840\",\"ThreeDSecure\":false,\"Source\":{\"CardholderName\":\"John Doe\",\"CardPan\":\"{{$card_number}}\",\"CardCvv\":\"{{$card_cvc}}\",\"CardExpiration\":\"{{$card_exp_year}}{{$card_exp_month}}\"},\"OrderIdentifier\":\"probe_proxy_txn_001\",\"ExtendedData\":null}"
+          "body": "{\"TransactionIdentifier\":\"00000000-0000-0000-0000-000000000000\",\"TotalAmount\":10.0,\"CurrencyCode\":\"840\",\"ThreeDSecure\":false,\"Source\":{\"CardholderName\":\"John Doe\",\"CardPan\":\"{{$card_number}}\",\"CardCvv\":\"{{$card_cvc}}\",\"CardExpiration\":\"3003\"},\"OrderIdentifier\":\"probe_proxy_txn_001\",\"ExtendedData\":null}"
         }
       }
     },
@@ -700,7 +700,7 @@
             "powertranz-powertranzpassword": "probe_pass",
             "via": "HyperSwitch"
           },
-          "body": "{\"TransactionIdentifier\":\"00000000-0000-0000-0000-000000000000\",\"TotalAmount\":0.0,\"CurrencyCode\":\"840\",\"ThreeDSecure\":false,\"Source\":{\"CardholderName\":\"John Doe\",\"CardPan\":\"{{$card_number}}\",\"CardCvv\":\"{{$card_cvc}}\",\"CardExpiration\":\"{{$card_exp_year}}{{$card_exp_month}}\"},\"OrderIdentifier\":\"probe_proxy_mandate_001\",\"ExtendedData\":null}"
+          "body": "{\"TransactionIdentifier\":\"00000000-0000-0000-0000-000000000000\",\"TotalAmount\":0.0,\"CurrencyCode\":\"840\",\"ThreeDSecure\":false,\"Source\":{\"CardholderName\":\"John Doe\",\"CardPan\":\"{{$card_number}}\",\"CardCvv\":\"{{$card_cvc}}\",\"CardExpiration\":\"3003\"},\"OrderIdentifier\":\"probe_proxy_mandate_001\",\"ExtendedData\":null}"
         }
       }
     },
@@ -714,6 +714,11 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: mandate_revoke flow for powertranz"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "refund": {

@@ -797,6 +797,7 @@ impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
                 connector_refund_id: item.response.transaction_id.to_string(),
                 refund_status: common_enums::RefundStatus::from(item.response),
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -813,6 +814,7 @@ impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
                 connector_refund_id: item.response.transaction_id.to_string(),
                 refund_status: common_enums::RefundStatus::from(item.response),
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })

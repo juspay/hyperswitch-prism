@@ -984,7 +984,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "entityId=probe_id&amount=10.00&currency=USD&paymentType=DB&card.number=%7B%7B%24card_number%7D%7D&card.holder=John&card.expiryMonth=%7B%7B%24card_exp_month%7D%7D&card.expiryYear=%7B%7B%24card_exp_year%7D%7D&card.cvv=%7B%7B%24card_cvc%7D%7D&paymentBrand=VISA&shopperResultUrl=https%3A%2F%2Fexample.com%2Freturn"
+          "body": "entityId=probe_id&amount=10.00&currency=USD&paymentType=DB&card.number=%7B%7B%24card_number%7D%7D&card.holder=John&card.expiryMonth=03&card.expiryYear=2030&card.cvv=%7B%7B%24card_cvc%7D%7D&paymentBrand=VISA&shopperResultUrl=https%3A%2F%2Fexample.com%2Freturn"
         }
       }
     },
@@ -1023,7 +1023,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "entityId=probe_id&paymentBrand=VISA&card.number=%7B%7B%24card_number%7D%7D&card.holder=John+Doe&card.expiryMonth=%7B%7B%24card_exp_month%7D%7D&card.expiryYear=%7B%7B%24card_exp_year%7D%7D&card.cvv=%7B%7B%24card_cvc%7D%7D&paymentBrand=VISA"
+          "body": "entityId=probe_id&paymentBrand=VISA&card.number=%7B%7B%24card_number%7D%7D&card.holder=John+Doe&card.expiryMonth=03&card.expiryYear=2030&card.cvv=%7B%7B%24card_cvc%7D%7D&paymentBrand=VISA"
         }
       }
     },
@@ -1068,6 +1068,11 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: mandate_revoke flow for aci"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "refund": {

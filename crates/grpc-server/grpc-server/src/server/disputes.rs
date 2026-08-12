@@ -118,6 +118,7 @@ impl DisputeService for Disputes {
                         tenant_id,
                         merchant_id,
                         connector_latency,
+                        environment,
                         ..
                     } = request_data.extracted_metadata;
                     let connector_data: ConnectorData<DefaultPCIHolder> =
@@ -144,9 +145,11 @@ impl DisputeService for Disputes {
                     let dispute_data = SubmitEvidenceData::foreign_try_from(payload.clone())
                         .map_err(|e| e.to_grpc_error())?;
 
-                    let connectors = utils::connectors_with_connector_config_overrides(
-                        &connector_config,
+                    let connectors = utils::apply_url_overrides(
                         &config,
+                        &connector,
+                        &connector_config,
+                        environment.as_deref(),
                     )
                     .to_grpc_error()?;
 
@@ -172,6 +175,7 @@ impl DisputeService for Disputes {
                         service_type: utils::service_type_str(&config.server.type_),
                         flow_name: common_utils::events::FlowName::SubmitEvidence,
                         event_config: &config.events,
+                        runtime_metadata: &config.runtime_metadata,
                         request_id: &request_id,
                         lineage_ids: &lineage_ids,
                         reference_id: &reference_id,
@@ -182,6 +186,8 @@ impl DisputeService for Disputes {
                         merchant_id: merchant_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
                         connector_latency,
+                        log_fields_enabled: config.log_fields.enabled,
+                        log_fields: &config.log_fields.outgoing,
                     };
 
                     let response = Box::pin(
@@ -356,6 +362,7 @@ impl DisputeService for Disputes {
                         tenant_id,
                         merchant_id,
                         connector_latency,
+                        environment,
                         ..
                     } = request_data.extracted_metadata;
                     let connector_data: ConnectorData<DefaultPCIHolder> =
@@ -382,9 +389,11 @@ impl DisputeService for Disputes {
                     let dispute_data = AcceptDisputeData::foreign_try_from(payload.clone())
                         .map_err(|e| e.to_grpc_error())?;
 
-                    let connectors = utils::connectors_with_connector_config_overrides(
-                        &connector_config,
+                    let connectors = utils::apply_url_overrides(
                         &config,
+                        &connector,
+                        &connector_config,
+                        environment.as_deref(),
                     )
                     .to_grpc_error()?;
 
@@ -411,6 +420,7 @@ impl DisputeService for Disputes {
                         service_type: utils::service_type_str(&config.server.type_),
                         flow_name: common_utils::events::FlowName::AcceptDispute,
                         event_config: &config.events,
+                        runtime_metadata: &config.runtime_metadata,
                         request_id: &request_id,
                         lineage_ids: &lineage_ids,
                         reference_id: &reference_id,
@@ -421,6 +431,8 @@ impl DisputeService for Disputes {
                         merchant_id: merchant_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
                         connector_latency,
+                        log_fields_enabled: config.log_fields.enabled,
+                        log_fields: &config.log_fields.outgoing,
                     };
 
                     let response = Box::pin(

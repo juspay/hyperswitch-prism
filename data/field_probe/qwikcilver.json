@@ -593,6 +593,11 @@
         "error": "mandate_revoke flow not supported by qwikcilver connector"
       }
     },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "refund": {
       "default": {
         "status": "error",

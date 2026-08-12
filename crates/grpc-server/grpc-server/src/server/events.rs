@@ -497,6 +497,7 @@ impl EventServiceImpl {
             service_type: utils::service_type_str(&config.server.type_),
             flow_name: FlowName::NotifyConnector,
             event_config: &config.events,
+            runtime_metadata: &config.runtime_metadata,
             request_id: &req.event_id,
             lineage_ids: &metadata_payload.lineage_ids,
             reference_id: &metadata_payload.reference_id,
@@ -507,6 +508,8 @@ impl EventServiceImpl {
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
             connector_latency: metadata_payload.connector_latency.clone(),
+            log_fields_enabled: config.log_fields.enabled,
+            log_fields: &config.log_fields.outgoing,
         };
 
         let response_result = Box::pin(
@@ -605,6 +608,7 @@ impl EventServiceImpl {
             service_type: utils::service_type_str(&config.server.type_),
             flow_name: FlowName::NotifyConnector,
             event_config: &config.events,
+            runtime_metadata: &config.runtime_metadata,
             request_id: &req.event_id,
             lineage_ids: &metadata_payload.lineage_ids,
             reference_id: &metadata_payload.reference_id,
@@ -615,6 +619,8 @@ impl EventServiceImpl {
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
             connector_latency: metadata_payload.connector_latency.clone(),
+            log_fields_enabled: config.log_fields.enabled,
+            log_fields: &config.log_fields.outgoing,
         };
 
         let response_result = Box::pin(
@@ -713,6 +719,7 @@ impl EventServiceImpl {
             service_type: utils::service_type_str(&config.server.type_),
             flow_name: FlowName::NotifyConnector,
             event_config: &config.events,
+            runtime_metadata: &config.runtime_metadata,
             request_id: &req.event_id,
             lineage_ids: &metadata_payload.lineage_ids,
             reference_id: &metadata_payload.reference_id,
@@ -723,6 +730,8 @@ impl EventServiceImpl {
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
             connector_latency: metadata_payload.connector_latency.clone(),
+            log_fields_enabled: config.log_fields.enabled,
+            log_fields: &config.log_fields.outgoing,
         };
 
         let response_result = Box::pin(
@@ -818,6 +827,7 @@ impl EventServiceImpl {
             service_type: utils::service_type_str(&config.server.type_),
             flow_name: FlowName::NotifyConnector,
             event_config: &config.events,
+            runtime_metadata: &config.runtime_metadata,
             request_id: &req.event_id,
             lineage_ids: &metadata_payload.lineage_ids,
             reference_id: &metadata_payload.reference_id,
@@ -828,6 +838,8 @@ impl EventServiceImpl {
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
             connector_latency: metadata_payload.connector_latency.clone(),
+            log_fields_enabled: config.log_fields.enabled,
+            log_fields: &config.log_fields.outgoing,
         };
 
         let response_result = Box::pin(
@@ -923,6 +935,7 @@ impl EventServiceImpl {
             service_type: utils::service_type_str(&config.server.type_),
             flow_name: FlowName::NotifyConnector,
             event_config: &config.events,
+            runtime_metadata: &config.runtime_metadata,
             request_id: &req.event_id,
             lineage_ids: &metadata_payload.lineage_ids,
             reference_id: &metadata_payload.reference_id,
@@ -933,6 +946,8 @@ impl EventServiceImpl {
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
             connector_latency: metadata_payload.connector_latency.clone(),
+            log_fields_enabled: config.log_fields.enabled,
+            log_fields: &config.log_fields.outgoing,
         };
 
         let response_result = Box::pin(
@@ -1017,6 +1032,7 @@ async fn verify_webhook_source_external(
         service_type: utils::service_type_str(&config.server.type_),
         flow_name: FlowName::IncomingWebhook,
         event_config: &config.events,
+        runtime_metadata: &config.runtime_metadata,
         request_id: &metadata_payload.request_id,
         lineage_ids: &metadata_payload.lineage_ids,
         reference_id: &metadata_payload.reference_id,
@@ -1027,6 +1043,8 @@ async fn verify_webhook_source_external(
         merchant_id: metadata_payload.merchant_id.as_str(),
         return_raw_connector_data: config.common.return_raw_connector_data,
         connector_latency: metadata_payload.connector_latency.clone(),
+        log_fields_enabled: config.log_fields.enabled,
+        log_fields: &config.log_fields.outgoing,
     };
 
     match Box::pin(

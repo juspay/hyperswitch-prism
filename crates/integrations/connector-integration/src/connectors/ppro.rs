@@ -265,7 +265,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 charge.payment_charge_id.clone(),
             )),
             status,
-            connector_response_reference_id: charge.merchant_payment_charge_reference,
+            connector_response_reference_id: charge.merchant_payment_charge_reference.clone(),
+            connector_request_reference_id: charge.merchant_payment_charge_reference,
             error_code,
             error_message,
             error_reason,
@@ -401,6 +402,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn process_redirect_response(
         &self,
         request: &RequestDetails,
+        _connector_feature_data: Option<&hyperswitch_masking::Secret<String>>,
     ) -> CustomResult<RedirectDetailsResponse, IntegrationError> {
         let charge_id = request.query_params.as_deref().and_then(|qs| {
             url::form_urlencoded::parse(qs.as_bytes())
@@ -417,6 +419,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             error_reason: None,
             response_amount: None,
             raw_connector_response: None,
+            connector_feature_data: None,
         })
     }
 }

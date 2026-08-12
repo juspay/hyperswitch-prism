@@ -225,6 +225,8 @@ pub enum BankType {
     Current,
     Bond,
     SubscriptionShare,
+    Salary,
+    Payment,
 }
 
 #[derive(
@@ -461,6 +463,14 @@ pub enum BankNames {
     CapitecBusiness,
     AfricanBank,
     AfricanBankBusiness,
+    // Indonesian banks (used by Airwallex bank_transfer). CimbNiaga is the
+    // Indonesian CIMB Niaga, distinct from the Malaysian CimbBank above.
+    BankMandiri,
+    BankDanamon,
+    BankNegaraIndonesia,
+    BankRakyatIndonesia,
+    CimbNiaga,
+    PermataBank,
 }
 
 /// Specifies the regulated name for a card network, primarily used for US debit card routing regulations.
@@ -1042,6 +1052,7 @@ pub enum PaymentMethodType {
     Giropay,
     Givex,
     GooglePay,
+    Grabpay,
     GoPay,
     Gcash,
     Ideal,
@@ -1120,6 +1131,7 @@ pub enum PaymentMethodType {
     IndonesianBankTransfer,
     Skrill,
     Paysera,
+    Paymaya,
     QwikcilverWallet,
 }
 
@@ -1132,6 +1144,7 @@ impl PaymentMethodType {
         match self {
             Self::ApplePay => "Apple Pay".to_string(),
             Self::GooglePay => "Google Pay".to_string(),
+            Self::Grabpay => "GrabPay".to_string(),
             Self::SamsungPay => "Samsung Pay".to_string(),
             Self::AliPay => "AliPay".to_string(),
             Self::WeChatPay => "WeChat Pay".to_string(),
@@ -1180,6 +1193,8 @@ pub enum RefundStatus {
     Success,
     #[serde(alias = "TransactionFailure")]
     TransactionFailure,
+    #[serde(alias = "Unknown")]
+    Unknown,
 }
 
 #[derive(
@@ -1272,7 +1287,15 @@ pub enum PayoutStatus {
     Reversed,
     #[default]
     Pending,
+    /// Non-terminal: the payout method/payee was found ineligible but the payout
+    /// is not conclusively closed (kept for backward compatibility; no terminal
+    /// webhook is emitted for this status).
     Ineligible,
+    /// Terminal: the payout was conclusively refused by the processor (e.g. a
+    /// Verification-of-Payee "no match" / "could not verify" outcome). Unlike
+    /// [`PayoutStatus::Ineligible`] this is a final state and triggers a terminal
+    /// failure webhook to the merchant.
+    NotPermitted,
     RequiresCreation,
     RequiresConfirmation,
     RequiresPayoutMethodData,
@@ -1598,6 +1621,12 @@ pub enum CardNetwork {
     Accel,
     #[serde(alias = "NYCE")]
     Nyce,
+    #[serde(alias = "PROP")]
+    Prop,
+    #[serde(alias = "PRIVATE LABEL")]
+    PrivateLabel,
+    #[serde(alias = "DINACARD")]
+    Dinacard,
 }
 
 impl CardNetwork {
@@ -1612,6 +1641,9 @@ impl CardNetwork {
                 | Self::Discover
                 | Self::CartesBancaires
                 | Self::UnionPay
+                | Self::Prop
+                | Self::PrivateLabel
+                | Self::Dinacard
         )
     }
 

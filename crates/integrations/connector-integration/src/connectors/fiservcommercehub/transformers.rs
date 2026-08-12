@@ -39,7 +39,6 @@ const FISERV_PAYMENT_METHOD_ENCRYPTION_URL: &str =
     "https://developer.fiserv.com/product/CommerceHub/docs/Payment-Methods/Payment-Methods.mdx";
 const FISERV_PAYMENT_AUTHENTICATION_URL: &str =
     "https://developer.fiserv.com/product/CommerceHub/docs/Developer-Resources/Authentication/Authentication.mdx";
-const FISERV_PSYNC_API_VERSION_URL: &str ="https://developer.fiserv.com/product/CommerceHub/api/post/payments/v1/transaction-inquiry?branch=active&version=1.26.0602";
 const FISERV_CHARGES_API_VERSION_URL: &str = "https://developer.fiserv.com/product/CommerceHub/api/post/payments/v1/charges?branch=active&version=1.26.0602";
 const FISERV_TOKEN_API_VERSION_URL: &str = "https://developer.fiserv.com/product/CommerceHub/api/post/payments-vas/v1/tokens?branch=active&version=1.26.0602";
 #[derive(Debug)]
@@ -70,15 +69,18 @@ fn encrypt_card_data<T: PaymentMethodDataTypes>(
         })?;
     let expiration_month = card.card_exp_month.peek().to_string();
     let expiration_year = card.get_expiry_year_4_digit().peek().to_string();
+    let security_code = card.card_cvc.peek().to_string();
 
-    let plain_block = format!("{card_data}{name_on_card}{expiration_month}{expiration_year}");
+    let plain_block =
+        format!("{card_data}{name_on_card}{expiration_month}{expiration_year}{security_code}");
 
     let card_data_len = card_data.len();
     let name_on_card_len = name_on_card.len();
     let expiration_month_len = expiration_month.len();
     let expiration_year_len = expiration_year.len();
+    let security_code_len = security_code.len();
     let encryption_block_fields = format!(
-        "card.cardData:{card_data_len},card.nameOnCard:{name_on_card_len},card.expirationMonth:{expiration_month_len},card.expirationYear:{expiration_year_len}"
+        "card.cardData:{card_data_len},card.nameOnCard:{name_on_card_len},card.expirationMonth:{expiration_month_len},card.expirationYear:{expiration_year_len},card.securityCode:{security_code_len}"
     );
 
     let encrypted_bytes = RsaOaepSha256::encrypt(public_key_der, plain_block.as_bytes())
@@ -996,7 +998,10 @@ pub struct FiservcommercehubPSyncMerchantDetails {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FiservcommercehubReferenceTransactionDetails {
-    pub reference_transaction_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reference_transaction_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reference_merchant_transaction_id: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -1024,26 +1029,41 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let router_data = item.router_data;
         let auth = FiservcommercehubAuthType::try_from(&router_data.connector_config)?;
+
         let connector_transaction_id = router_data
             .request
             .connector_transaction_id
             .get_connector_transaction_id()
-            .change_context(errors::IntegrationError::MissingConnectorTransactionID {
-                context: errors::IntegrationErrorContext {
-                    additional_context: Some(
-                        "connector_transaction_id is required for PSync".to_string(),
-                    ),
-                    doc_url: Some(FISERV_PSYNC_API_VERSION_URL.to_string()),
-                    ..Default::default()
-                },
-            })?;
+            .inspect_err(|_| {
+                tracing::warn!(
+                    "fiservcommercehub PSync: connector_transaction_id not present,
+                     falling back to connector_request_reference_id"
+                );
+            })
+            .ok()
+            .filter(|id| !id.is_empty());
+
+        let connector_request_reference_id = router_data
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
+
+        let reference_transaction_details = match connector_transaction_id {
+            Some(txn_id) => FiservcommercehubReferenceTransactionDetails {
+                reference_transaction_id: Some(txn_id),
+                reference_merchant_transaction_id: None,
+            },
+            None => FiservcommercehubReferenceTransactionDetails {
+                reference_transaction_id: None,
+                reference_merchant_transaction_id: Some(connector_request_reference_id),
+            },
+        };
+
         Ok(Self {
             merchant_details: FiservcommercehubPSyncMerchantDetails {
                 merchant_id: auth.merchant_id.clone(),
             },
-            reference_transaction_details: FiservcommercehubReferenceTransactionDetails {
-                reference_transaction_id: connector_transaction_id,
-            },
+            reference_transaction_details,
         })
     }
 }
@@ -1095,10 +1115,20 @@ impl TryFrom<ResponseRouterData<FiservcommercehubPSyncResponse, Self>>
             .transaction_processing_details
             .as_ref()
             .map(|txn| txn.transaction_id.clone());
+        let resource_id = connector_transaction_id
+            .clone()
+            .map(ResponseId::ConnectorTransactionId)
+            .unwrap_or_else(|| {
+                tracing::warn!(
+                    "fiservcommercehub PSync: connector_transaction_id absent in response, 
+                     resource_id set to NoResponseId"
+                );
+                ResponseId::NoResponseId
+            });
         let response = build_payment_response(
             status,
             item.http_code,
-            ResponseId::NoResponseId,
+            resource_id,
             connector_transaction_id,
             None,
             None,
@@ -1175,7 +1205,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 terminal_id: auth.terminal_id.clone(),
             },
             reference_transaction_details: FiservcommercehubReferenceTransactionDetails {
-                reference_transaction_id: router_data.request.connector_transaction_id.clone(),
+                reference_transaction_id: Some(
+                    router_data.request.connector_transaction_id.clone(),
+                ),
+                reference_merchant_transaction_id: None,
             },
         })
     }
@@ -1213,6 +1246,7 @@ impl TryFrom<ResponseRouterData<FiservcommercehubRefundResponse, Self>>
                 connector_refund_id: txn.transaction_id.clone(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,
@@ -1257,7 +1291,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 merchant_id: auth.merchant_id.clone(),
             },
             reference_transaction_details: FiservcommercehubReferenceTransactionDetails {
-                reference_transaction_id: router_data.request.connector_refund_id.clone(),
+                reference_transaction_id: Some(router_data.request.connector_refund_id.clone()),
+                reference_merchant_transaction_id: None,
             },
         })
     }
@@ -1312,6 +1347,7 @@ impl TryFrom<ResponseRouterData<FiservcommercehubRSyncResponse, Self>>
                 connector_refund_id,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,
@@ -1377,7 +1413,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 terminal_id: auth.terminal_id.clone(),
             },
             reference_transaction_details: FiservcommercehubReferenceTransactionDetails {
-                reference_transaction_id: router_data.request.connector_transaction_id.clone(),
+                reference_transaction_id: Some(
+                    router_data.request.connector_transaction_id.clone(),
+                ),
+                reference_merchant_transaction_id: None,
             },
         })
     }
@@ -1604,7 +1643,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 terminal_id: auth.terminal_id.clone(),
             },
             reference_transaction_details: FiservcommercehubReferenceTransactionDetails {
-                reference_transaction_id: connector_transaction_id,
+                reference_transaction_id: Some(connector_transaction_id),
+                reference_merchant_transaction_id: None,
             },
             // Note: Capture flow doesn't currently receive authentication_data
             // in PaymentsCaptureData. Set to None unless Fiserv requires it.
@@ -1765,7 +1805,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     match (&card_info.card_exp_month, &card_info.card_exp_year) {
                         (Some(month), Some(year)) => Some(FiservcommercehubTokenCardInfo {
                             expiration_month: month.clone(),
-                            expiration_year: year.clone(),
+                            expiration_year: utils::expand_expiry_year_to_four_digits(year),
                         }),
                         _ => None,
                     }

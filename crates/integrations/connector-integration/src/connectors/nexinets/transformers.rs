@@ -667,6 +667,7 @@ impl<F> TryFrom<ResponseRouterData<NexinetsRefundResponse, Self>>
                 connector_refund_id: item.response.transaction_id,
                 refund_status: enums::RefundStatus::from(item.response.status),
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -685,6 +686,7 @@ impl<F> TryFrom<ResponseRouterData<NexinetsRefundResponse, Self>>
                 connector_refund_id: item.response.transaction_id,
                 refund_status: enums::RefundStatus::from(item.response.status),
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -871,6 +873,7 @@ fn get_wallet_details<
         | WalletData::ApplePayRedirect(_)
         | WalletData::ApplePayThirdPartySdk(_)
         | WalletData::DanaRedirect { .. }
+        | WalletData::GrabpayRedirect { .. }
         | WalletData::GooglePay(_)
         | WalletData::GooglePayRedirect(_)
         | WalletData::GooglePayThirdPartySdk(_)
@@ -897,6 +900,7 @@ fn get_wallet_details<
         | WalletData::CashfreeRedirect(_)
         | WalletData::PayURedirect(_)
         | WalletData::EaseBuzzRedirect(_)
+        | WalletData::PaymayaRedirect(_)
         | WalletData::QwikcilverWalletDirect(_)
         | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("nexinets"),

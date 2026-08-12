@@ -260,6 +260,9 @@ pub mod juspay_upi_stack;
 pub mod axisbank;
 pub use self::axisbank::Axisbank;
 
+pub mod maya;
+pub use self::maya::Maya;
+
 pub mod tsys_transit;
 pub use self::tsys_transit::TsysTransit;
 pub mod twoc_twop_paco;
@@ -288,3 +291,11 @@ pub use self::affirm::Affirm;
 
 pub mod kount;
 pub use self::kount::Kount;
+
+pub mod givepayments;
+pub use self::givepayments::Givepayments;
+
+pub mod grabpay;
+pub use self::grabpay::Grabpay;
+pub mod tesouro;
+pub use self::tesouro::Tesouro;

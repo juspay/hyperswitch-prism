@@ -110,6 +110,17 @@ pub struct PaysafeSetupMandateRequest<T: PaymentMethodDataTypes> {
     pub three_ds: Option<ThreeDs>,
     pub profile: Option<PaysafeProfile>,
     pub billing_details: Option<PaysafeBillingDetails>,
+    /// Paysafe's escape hatch for accounts provisioned `THREE_D_S_TWO`: such an account
+    /// rejects a CARD payment handle that carries no `threeDs` block with
+    /// `5068 "threeDs may not be null or empty"`. Paysafe's own Google Pay request
+    /// examples send `skip3ds: true` for exactly this reason.
+    ///
+    /// Omitted entirely unless set, so the Skrill / Interac / PreAuthenticate bodies stay
+    /// byte-identical to the shadow-verified wire shape.
+    ///
+    /// NOTE the explicit rename: `rename_all = "camelCase"` would emit `skip3Ds`.
+    #[serde(rename = "skip3ds", skip_serializing_if = "Option::is_none")]
+    pub skip_3ds: Option<bool>,
 }
 
 /// PreAuthenticate (card + 3DS) reuses the payment-handle wire shape; a distinct alias keeps the
@@ -132,8 +143,11 @@ pub enum PaysafePaymentMethod<T: PaymentMethodDataTypes> {
         ach: PaysafeAch,
     },
     GooglePay {
+        // Boxed to keep this variant from dominating the enum's size: the decrypted token
+        // payload makes it far larger than the others. Mirrors `ApplePay` below. `Box` is
+        // transparent to serde, so the wire body is unchanged.
         #[serde(rename = "googlePay")]
-        google_pay: PaysafeGooglePay,
+        google_pay: Box<PaysafeGooglePay>,
     },
     ApplePay {
         #[serde(rename = "applePay")]
@@ -319,16 +333,49 @@ pub struct PaysafeGooglePayPaymentMethodData {
 pub struct PaysafeGooglePayCardInfo {
     pub card_network: String,
     pub card_details: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub billing_address: Option<PaysafeGooglePayBillingAddress>,
 }
 
 #[derive(Debug, Serialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct PaysafeGooglePayTokenizationData {
-    /// Always "PAYMENT_GATEWAY"
-    #[serde(rename = "type")]
-    pub token_type: String,
-    /// The decrypted Google Pay token data
-    pub decrypted_token: PaysafeGooglePayDecryptedToken,
+pub struct PaysafeGooglePayBillingAddress {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub address1: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub locality: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub administrative_area: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub postal_code: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub country_code: Option<common_enums::CountryAlpha2>,
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(untagged)]
+pub enum PaysafeGooglePayTokenizationData {
+    /// Pre-decrypted token forwarded as `decryptedToken` (upstream decrypted).
+    Decrypted {
+        /// Always "PAYMENT_GATEWAY"
+        #[serde(rename = "type")]
+        token_type: String,
+        /// The decrypted Google Pay token data
+        #[serde(rename = "decryptedToken")]
+        decrypted_token: PaysafeGooglePayDecryptedToken,
+    },
+    /// Raw encrypted Google Pay SDK token passed through for Paysafe to
+    /// decrypt gateway-side (requires the merchant's Google Pay
+    /// gatewayMerchantId to be provisioned with Paysafe).
+    Encrypted {
+        /// Always "PAYMENT_GATEWAY"
+        #[serde(rename = "type")]
+        token_type: String,
+        /// The raw `tokenizationData.token` string from the Google Pay SDK
+        token: Secret<String>,
+    },
 }
 
 #[derive(Debug, Serialize, Clone, PartialEq)]
@@ -344,10 +391,15 @@ pub struct PaysafeGooglePayDecryptedToken {
 pub struct PaysafeGooglePayPaymentMethodDetails {
     pub auth_method: PaysafeGooglePayAuthMethod,
     pub pan: Secret<String>,
-    pub expiration_month: u8,
-    pub expiration_year: u16,
+    pub expiration_month: Secret<String>,
+    pub expiration_year: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cryptogram: Option<Secret<String>>,
+    /// ECI indicator accompanying a network-token cryptogram. Paysafe defines it on the
+    /// `tokenWith3DS` schema, so it is only meaningful next to `CRYPTOGRAM_3DS`; a
+    /// `PAN_ONLY` token has none and the field is omitted.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub eci_indicator: Option<String>,
 }
 
 #[derive(Debug, Serialize, Clone, PartialEq)]
@@ -501,6 +553,30 @@ pub enum PaysafeAuthorizeRequest<T: PaymentMethodDataTypes> {
     PaymentHandle(Box<PaysafeSetupMandateRequest<T>>),
 }
 
+/// Tokenize request body — one of two Paysafe calls:
+///
+/// `Handle`: mint a new payment handle (card/wallet payload). With a Paysafe
+/// customer, cards go straight to the customer vault (MULTI_USE); wallets can
+/// only mint SINGLE_USE handles this way (the vault endpoint rejects raw
+/// applePay/googlePay objects with 5068 "CARD object must be present").
+///
+/// `VaultFromHandle`: wallet recurring leg 2 — convert an existing single-use
+/// wallet handle into a customer-vaulted MULTI_USE (paymentType CARD) handle
+/// via `POST v1/customers/{id}/paymenthandles {paymentHandleTokenFrom}`,
+/// mirroring Paysafe's documented Apple Pay / Google Pay recurring flow.
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum PaysafePaymentMethodTokenRequest<T: PaymentMethodDataTypes> {
+    VaultFromHandle(PaysafeVaultFromHandleRequest),
+    Handle(Box<PaysafeSetupMandateRequest<T>>),
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeVaultFromHandleRequest {
+    pub merchant_ref_num: String,
+    pub payment_handle_token_from: Secret<String>,
+}
+
 // Type aliases for flows
-pub type PaysafePaymentMethodTokenRequest<T> = PaysafeSetupMandateRequest<T>;
 pub type PaysafeRepeatPaymentRequest = PaysafePaymentsRequest;

@@ -12,7 +12,8 @@ use domain_types::{
     connector_types::{
         self, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
         PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
+        RawConnectorStatus, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        ResponseId,
     },
     errors,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, WalletData},
@@ -1241,6 +1242,8 @@ pub enum PacoPaymentStatus {
     V,
     /// Refunded.
     R,
+    /// Refund Initiated.
+    RI,
     /// Incomplete (3DS challenge in flight or pending).
     I,
     /// Pending.
@@ -1262,16 +1265,29 @@ pub enum PacoPaymentStep {
     ST,
     /// Voided.
     VD,
-    /// Refunded (final).
+    /// Refunded (final, success).
     RF,
-    /// Refund Requested (in flight).
+    /// Refund Rejected (terminal failure). NOTE: per PACO docs this is
+    /// *rejected*, not "requested" — https://devzone.2c2p.com/docs/payment-step
     RR,
+    /// Refund Settled (final, success).
+    RS,
+    /// Refund Initiated (in flight).
+    RI,
+    /// Refund Pending for reviewed (in flight).
+    RP,
+    /// Refund Pending for Third-party Review (in flight).
+    RP2,
+    /// Refund Pending for Bank Approval (in flight).
+    RP3,
+    /// Refund Expired on Approval (terminal failure).
+    RE,
+    /// Refund Expired (terminal failure).
+    RX,
     /// Awaiting Challenge.
     AC,
     /// Initiated / Pending.
     IN,
-    /// Pending refund.
-    RP,
     /// Hosted page generated.
     GP,
     /// Pending Response from acquirer.
@@ -1305,12 +1321,21 @@ fn map_attempt_status(status: &PacoPaymentStatus, step: &PacoPaymentStep) -> Att
 }
 
 fn map_refund_status(status: &PacoPaymentStatus, step: &PacoPaymentStep) -> RefundStatus {
+    use PacoPaymentStatus as St;
+    use PacoPaymentStep as Sp;
     match (status, step) {
-        (PacoPaymentStatus::R, PacoPaymentStep::RF) => RefundStatus::Success,
-        (PacoPaymentStatus::R, PacoPaymentStep::RR) => RefundStatus::Pending,
-        (PacoPaymentStatus::P, PacoPaymentStep::RP) => RefundStatus::Pending,
-        (PacoPaymentStatus::V, PacoPaymentStep::VD) => RefundStatus::Success,
-        (PacoPaymentStatus::F, _) => RefundStatus::Failure,
+        // Terminal success — refund disbursed.
+        (St::R, Sp::RF) | (St::R, Sp::RS) => RefundStatus::Success,
+
+        // In-flight — refund accepted, downstream not yet final. RSync polls
+        // to a terminal state; never report these as failed.
+        (St::RI, Sp::RI) | (St::R, Sp::RP) | (St::R, Sp::RP2) | (St::R, Sp::RP3) => {
+            RefundStatus::Pending
+        }
+
+        // Terminal failure. RR = "Refund Rejected", RE/RX = expired.
+        (St::R, Sp::RR) | (St::R, Sp::RE) | (St::R, Sp::RX) | (St::F, _) => RefundStatus::Failure,
+
         (s, st) => {
             tracing::warn!(
                 target: "twoc_twop_paco",
@@ -1325,79 +1350,89 @@ fn map_refund_status(status: &PacoPaymentStatus, step: &PacoPaymentStep) -> Refu
 
 /// PACO refund response codes, classified by terminal/in-flight state.
 ///
-/// Source: https://devzone.2c2p.com/docs/api-response-code (sections relevant
-/// to /Refund/refund). Codes outside this enum fall into the `Unknown` arm and
-/// are classified as `Pending` (see `From<PacoRefundResponseCode> for
-/// RefundStatus` for why — duplicate-refund safety).
+/// Every code and its meaning is transcribed verbatim from the official table
+/// at https://devzone.2c2p.com/docs/api-response-code. Codes outside this enum
+/// fall into the `Unknown` arm and are classified as `Pending` (see
+/// `From<PacoRefundResponseCode> for RefundStatus` for why — duplicate-refund
+/// safety).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PacoRefundResponseCode {
     // --- Terminal Success ---
+    /// "Refunded"
     #[serde(rename = "PC-B052407")]
     Refunded,
-    #[serde(rename = "PC-B053501")]
-    RefundDisbursementSuccess,
 
     // --- In-flight / Pending (refund accepted, downstream not yet final) ---
-    #[serde(rename = "PC-B053502")]
-    RefundRequestAccepted,
-    #[serde(rename = "PC-B053557")]
-    RefundPendingReview,
-    #[serde(rename = "PC-B053563")]
-    PendingExternalPartyReview,
+    /// "Refund pending."
     #[serde(rename = "PC-B054042")]
     RefundPending,
-    #[serde(rename = "PC-B054046")]
-    InsufficientFundsForRefund,
-    #[serde(rename = "PC-B054048")]
-    SubMerchantInsufficientFunds,
 
     // --- Terminal Failure (request validation + downstream rejection) ---
+    /// "Refund Rejected"
+    #[serde(rename = "PC-B052408")]
+    RefundRejected,
+    /// "Refund Failed"
+    #[serde(rename = "PC-B052409")]
+    RefundFailed,
+    /// "Invalid refund amount. Refund amount cannot be negative or more than
+    /// refundable amount."
     #[serde(rename = "PC-B050040")]
     InvalidRefundAmount,
+    /// "Invalid refund item. Reference Number should be unique and not-empty in
+    /// refund item."
     #[serde(rename = "PC-B050041")]
     InvalidRefundItemReference,
+    /// "Invalid refund request. Itemized refund request feature is not available
+    /// for this company."
     #[serde(rename = "PC-B050042")]
     ItemizedRefundUnavailable,
-    #[serde(rename = "PC-B050043")]
-    RefundItemsExceedRefundable,
+    /// "Invalid refund items' amount. Refund items' amount cannot be more than
+    /// refundable amount."
+    #[serde(rename = "PC-B050052")]
+    InvalidRefundItemsAmount,
+    /// "Transaction cannot be refunded."
     #[serde(rename = "PC-B050053")]
     TransactionCannotBeRefunded,
-    #[serde(rename = "PC-B050054")]
+    /// "Invalid refund number."
+    #[serde(rename = "PC-B050066")]
     InvalidRefundNumber,
-    #[serde(rename = "PC-B050055")]
+    /// "Invalid refund request. The refund API feature is not available for this
+    /// company."
+    #[serde(rename = "PC-B050096")]
     RefundApiFeatureUnavailable,
-    #[serde(rename = "PC-B050056")]
-    RefundAmountInvalid,
-    #[serde(rename = "PC-B050057")]
-    CannotRefundMoreThanTransaction,
-    #[serde(rename = "PC-B050058")]
-    RefundExceedsTransactionAmount,
-    #[serde(rename = "PC-B050059")]
+    /// "Unable to refund more than transaction amount."
+    #[serde(rename = "PC-B054030")]
+    UnableToRefundMoreThanTransaction,
+    /// "Refund amount is more than transaction amount."
+    #[serde(rename = "PC-B054040")]
+    RefundAmountExceedsTransaction,
+    /// "Refund not allowed."
+    #[serde(rename = "PC-B054041")]
     RefundNotAllowed,
-    #[serde(rename = "PC-B050060")]
-    PartialRefundNotAllowed,
-    #[serde(rename = "PC-B050061")]
-    SubMerchantRefundExceedsTransaction,
-    #[serde(rename = "PC-B050062")]
-    RefundExceededAllowableTimeframe,
-    #[serde(rename = "PC-B053503")]
-    RefundRejected,
-    #[serde(rename = "PC-B053504")]
-    RefundFailed,
-    #[serde(rename = "PC-B053505")]
-    RefundRejectedByBank,
-    #[serde(rename = "PC-B053506")]
-    RefundEmailDeliveryFailed,
-    #[serde(rename = "PC-B053507")]
-    RefundCancelled,
-    #[serde(rename = "PC-B053508")]
-    RefundLinkExpired,
+    /// "Partial refund not allowed."
     #[serde(rename = "PC-B054043")]
-    RefundRejectedByReviewer,
+    PartialRefundNotAllowed,
+    /// "Refund rejected."
     #[serde(rename = "PC-B054044")]
     RefundRejectedGeneric,
+    /// "Refund failed."
     #[serde(rename = "PC-B054045")]
     RefundFailedGeneric,
+    /// "Insufficient funds to perform refund."
+    #[serde(rename = "PC-B054046")]
+    InsufficientFundsForRefund,
+    /// "Sub Merchant refund amount is more than transaction amount."
+    #[serde(rename = "PC-B054047")]
+    SubMerchantRefundExceedsTransaction,
+    /// "Sub merchant has insufficient funds to perform refund."
+    #[serde(rename = "PC-B054048")]
+    SubMerchantInsufficientFunds,
+    /// "Refund exceeded allowable timeframe."
+    #[serde(rename = "PC-B054054")]
+    RefundExceededAllowableTimeframe,
+    /// "Refund items amount does not match the provided refund amount."
+    #[serde(rename = "PC-B054507")]
+    RefundItemsAmountMismatch,
 
     /// Catch-all for unenumerated PC-Bxxxxxx codes. Resolves to Pending so we
     /// don't tell a merchant a refund failed when PACO may actually have
@@ -1410,7 +1445,7 @@ impl From<PacoRefundResponseCode> for RefundStatus {
     fn from(code: PacoRefundResponseCode) -> Self {
         use PacoRefundResponseCode::*;
         match code {
-            Refunded | RefundDisbursementSuccess => Self::Success,
+            Refunded => Self::Success,
 
             // Why Unknown → Pending (not Failure): returning Failure on an
             // unknown code is dangerous for refunds. If PACO actually
@@ -1419,37 +1454,28 @@ impl From<PacoRefundResponseCode> for RefundStatus {
             // refund → real money loss. Pending is recoverable: RSync will
             // poll, return a known code, and reclassify correctly. The raw
             // PC-Bxxxxxx string is still surfaced for ops grep-ability.
-            RefundRequestAccepted
-            | RefundPendingReview
-            | PendingExternalPartyReview
-            | RefundPending
-            | InsufficientFundsForRefund
-            | SubMerchantInsufficientFunds
-            | Unknown => Self::Pending,
+            RefundPending | Unknown => Self::Pending,
 
-            InvalidRefundAmount
+            RefundRejected
+            | RefundFailed
+            | InvalidRefundAmount
             | InvalidRefundItemReference
             | ItemizedRefundUnavailable
-            | RefundItemsExceedRefundable
+            | InvalidRefundItemsAmount
             | TransactionCannotBeRefunded
             | InvalidRefundNumber
             | RefundApiFeatureUnavailable
-            | RefundAmountInvalid
-            | CannotRefundMoreThanTransaction
-            | RefundExceedsTransactionAmount
+            | UnableToRefundMoreThanTransaction
+            | RefundAmountExceedsTransaction
             | RefundNotAllowed
             | PartialRefundNotAllowed
-            | SubMerchantRefundExceedsTransaction
-            | RefundExceededAllowableTimeframe
-            | RefundRejected
-            | RefundFailed
-            | RefundRejectedByBank
-            | RefundEmailDeliveryFailed
-            | RefundCancelled
-            | RefundLinkExpired
-            | RefundRejectedByReviewer
             | RefundRejectedGeneric
-            | RefundFailedGeneric => Self::Failure,
+            | RefundFailedGeneric
+            | InsufficientFundsForRefund
+            | SubMerchantRefundExceedsTransaction
+            | SubMerchantInsufficientFunds
+            | RefundExceededAllowableTimeframe
+            | RefundItemsAmountMismatch => Self::Failure,
         }
     }
 }
@@ -1737,11 +1763,13 @@ where
             .clone()
             .map(ResponseId::ConnectorTransactionId)
             .unwrap_or(ResponseId::NoResponseId);
+        let raw_connector_status = raw_connector_status_from_paco(&api_response, &prior);
 
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
                 raw_connector_response: serde_json::to_string(&response).ok().map(Secret::new),
+                raw_connector_status,
                 ..router_data.resource_common_data
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -1806,11 +1834,13 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
         let resource_id = txn_id
             .map(ResponseId::ConnectorTransactionId)
             .unwrap_or(ResponseId::NoResponseId);
+        let raw_connector_status = raw_connector_status_from_paco(&api_response, &prior);
 
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
                 raw_connector_response: serde_json::to_string(&response).ok().map(Secret::new),
+                raw_connector_status,
                 ..router_data.resource_common_data
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -1875,11 +1905,13 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
         let resource_id = txn_id
             .map(ResponseId::ConnectorTransactionId)
             .unwrap_or(ResponseId::NoResponseId);
+        let raw_connector_status = raw_connector_status_from_paco(&api_response, &prior);
 
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
                 raw_connector_response: serde_json::to_string(&response).ok().map(Secret::new),
+                raw_connector_status,
                 ..router_data.resource_common_data
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -1944,11 +1976,13 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
         let resource_id = txn_id
             .map(ResponseId::ConnectorTransactionId)
             .unwrap_or(ResponseId::NoResponseId);
+        let raw_connector_status = raw_connector_status_from_paco(&api_response, &prior);
 
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
                 raw_connector_response: serde_json::to_string(&response).ok().map(Secret::new),
+                raw_connector_status,
                 ..router_data.resource_common_data
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -1982,6 +2016,9 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
             http_code,
         } = item;
         let result = response.flat_data_block();
+        let prior = result
+            .as_ref()
+            .and_then(|b| b.prior_payment_response_details.clone());
 
         let refund_status = match result.as_ref().and_then(|b| b.payment_status_info.as_ref()) {
             Some(info) => map_refund_status(&info.payment_status, &info.payment_step),
@@ -1994,10 +2031,7 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
             .unwrap_or_else(|| router_data.request.refund_id.clone());
 
         if refund_status == RefundStatus::Failure {
-            let (code, message) = error_code_message(
-                &response.api_response,
-                &result.and_then(|b| b.prior_payment_response_details),
-            );
+            let (code, message) = refund_error_code_message(&response.api_response, &prior);
             let error = ErrorResponse {
                 code,
                 message: message.clone(),
@@ -2020,16 +2054,20 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
             });
         }
 
+        let raw_connector_status = raw_connector_status_from_paco(&response.api_response, &prior);
+
         Ok(Self {
             resource_common_data: RefundFlowData {
                 status: refund_status,
                 raw_connector_response: serde_json::to_string(&response).ok().map(Secret::new),
+                raw_connector_status,
                 ..router_data.resource_common_data
             },
             response: Ok(RefundsResponseData {
                 connector_refund_id,
                 refund_status,
                 status_code: http_code,
+                acquirer_reference_number: None,
             }),
             ..router_data
         })
@@ -2190,11 +2228,13 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoInquiryResponse, Self>>
             .clone()
             .map(ResponseId::ConnectorTransactionId)
             .unwrap_or(ResponseId::NoResponseId);
+        let raw_connector_status = raw_connector_status_from_paco(&response.api_response, &None);
 
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
                 raw_connector_response: serde_json::to_string(&response).ok().map(Secret::new),
+                raw_connector_status,
                 ..router_data.resource_common_data
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -2289,16 +2329,20 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoInquiryResponse, Self>>
             });
         }
 
+        let raw_connector_status = raw_connector_status_from_paco(&response.api_response, &None);
+
         Ok(Self {
             resource_common_data: RefundFlowData {
                 status: refund_status,
                 raw_connector_response: serde_json::to_string(&response).ok().map(Secret::new),
+                raw_connector_status,
                 ..router_data.resource_common_data
             },
             response: Ok(RefundsResponseData {
                 connector_refund_id,
                 refund_status,
                 status_code: http_code,
+                acquirer_reference_number: None,
             }),
             ..router_data
         })
@@ -2349,6 +2393,57 @@ pub fn error_code_message(
         .or(api_msg)
         .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string());
     (code, message)
+}
+
+/// Refund-flow variant of [`error_code_message`] that prefers the refund call's
+/// own `apiResponse` over `priorPaymentResponseDetails`.
+pub fn refund_error_code_message(
+    api_response: &Option<PacoApiResponse>,
+    prior: &Option<PacoPriorPaymentResponseDetails>,
+) -> (String, String) {
+    let api_code = api_response.as_ref().and_then(|a| a.response_code.clone());
+    let api_msg = api_response
+        .as_ref()
+        .and_then(|a| a.response_description.clone());
+    let prior_code = prior.as_ref().and_then(|p| p.response_code.clone());
+    let prior_msg = prior.as_ref().and_then(|p| p.response_description.clone());
+    let code = api_code
+        .or(prior_code)
+        .unwrap_or_else(|| NO_ERROR_CODE.to_string());
+    let message = api_msg
+        .or(prior_msg)
+        .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string());
+    (code, message)
+}
+
+/// Builds the raw connector status from PACO's `response_code` / `response_description`.
+/// Prefer the prior-payment details when present, fall back to the top-level `api_response`.
+fn raw_connector_status_from_paco(
+    api_response: &Option<PacoApiResponse>,
+    prior: &Option<PacoPriorPaymentResponseDetails>,
+) -> Option<RawConnectorStatus> {
+    let code = prior
+        .as_ref()
+        .and_then(|prior_details| prior_details.response_code.clone())
+        .or_else(|| {
+            api_response
+                .as_ref()
+                .and_then(|api| api.response_code.clone())
+        });
+    let message = prior
+        .as_ref()
+        .and_then(|prior_details| prior_details.response_description.clone())
+        .or_else(|| {
+            api_response
+                .as_ref()
+                .and_then(|api| api.response_description.clone())
+        });
+
+    (code.is_some() || message.is_some()).then_some(RawConnectorStatus {
+        code,
+        message,
+        reason: None,
+    })
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

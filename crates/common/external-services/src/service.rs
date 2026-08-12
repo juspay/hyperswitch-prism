@@ -2,6 +2,8 @@ use std::{collections::HashMap, str::FromStr, sync::RwLock, time::Duration};
 
 use base64::Engine;
 use common_enums::ApiClientError;
+#[cfg(all(feature = "injector-client", feature = "log-transformations"))]
+use common_utils::events::apply_log_fields;
 #[cfg(feature = "injector-client")]
 use common_utils::{
     consts::{X_API_TAG, X_API_URL, X_SESSION_ID},
@@ -9,6 +11,7 @@ use common_utils::{
     request::TransportType,
 };
 use common_utils::{
+    events::CompiledLogFields,
     ext_traits::AsyncExt,
     lineage,
     metadata::HeaderMaskingConfig,
@@ -109,6 +112,14 @@ pub trait ConnectorRequestReference {
 
 pub trait AdditionalHeaders {
     fn get_vault_headers(&self) -> Option<&HashMap<String, Secret<String>>>;
+
+    fn get_payment_method_header(&self) -> Option<String> {
+        None
+    }
+
+    fn get_payment_method_type_header(&self) -> Option<String> {
+        None
+    }
 }
 
 impl ConnectorRequestReference for domain_types::connector_types::PaymentFlowData {
@@ -123,6 +134,18 @@ impl ConnectorRequestReference for domain_types::connector_types::VerifyWebhookS
     }
 }
 
+impl ConnectorRequestReference for domain_types::connector_types::RefreshPaymentMethodFlowData {
+    fn get_connector_request_reference_id(&self) -> &str {
+        &self.connector_request_reference_id
+    }
+}
+
+impl AdditionalHeaders for domain_types::connector_types::RefreshPaymentMethodFlowData {
+    fn get_vault_headers(&self) -> Option<&HashMap<String, Secret<String>>> {
+        None
+    }
+}
+
 impl AdditionalHeaders for domain_types::connector_types::VerifyWebhookSourceFlowData {
     fn get_vault_headers(&self) -> Option<&HashMap<String, Secret<String>>> {
         None
@@ -132,6 +155,15 @@ impl AdditionalHeaders for domain_types::connector_types::VerifyWebhookSourceFlo
 impl AdditionalHeaders for domain_types::connector_types::PaymentFlowData {
     fn get_vault_headers(&self) -> Option<&HashMap<String, Secret<String>>> {
         self.vault_headers.as_ref()
+    }
+
+    fn get_payment_method_header(&self) -> Option<String> {
+        Some(self.payment_method.to_string())
+    }
+
+    fn get_payment_method_type_header(&self) -> Option<String> {
+        self.payment_method_type
+            .map(|payment_method_type| payment_method_type.to_string())
     }
 }
 
@@ -212,7 +244,7 @@ impl AdditionalHeaders for domain_types::frm::frm_types::FrmFlowData {
         None
     }
 }
-use common_utils::events::{Event, EventConfig, FlowName};
+use common_utils::events::{Event, EventConfig, FlowName, RuntimeMetadata};
 #[cfg(feature = "injector-client")]
 use common_utils::types::ExecutionMode;
 #[cfg(feature = "injector-client")]
@@ -267,6 +299,11 @@ impl GetFlowStatus for domain_types::connector_types::RefundFlowData {
     }
 }
 impl GetFlowStatus for domain_types::connector_types::DisputeFlowData {
+    fn flow_status(&self) -> Option<domain_types::router_data::FlowStatus> {
+        None
+    }
+}
+impl GetFlowStatus for domain_types::connector_types::RefreshPaymentMethodFlowData {
     fn flow_status(&self) -> Option<domain_types::router_data::FlowStatus> {
         None
     }
@@ -535,6 +572,8 @@ pub struct EventProcessingParams<'a> {
     pub service_type: &'a str,
     pub flow_name: FlowName,
     pub event_config: &'a EventConfig,
+    /// Deployment/runtime identity threaded from application state, stamped onto every event.
+    pub runtime_metadata: &'a RuntimeMetadata,
     pub request_id: &'a str,
     pub lineage_ids: &'a lineage::LineageIds<'a>,
     pub reference_id: &'a Option<String>,
@@ -546,6 +585,10 @@ pub struct EventProcessingParams<'a> {
     pub merchant_id: &'a str,
     pub return_raw_connector_data: bool,
     pub connector_latency: ConnectorLatencyTracker,
+    /// Runtime kill-switch for log field application.
+    pub log_fields_enabled: bool,
+    /// Pre-compiled log fields (transformations + static values) for golden log lines.
+    pub log_fields: &'a CompiledLogFields,
 }
 
 #[cfg(feature = "injector-client")]
@@ -657,6 +700,20 @@ where
                         consts::X_MERCHANT_ID,
                         Maskable::Masked(Secret::new(event_params.merchant_id.to_string())),
                     );
+                    if let Some(payment_method) =
+                        router_data.resource_common_data.get_payment_method_header()
+                    {
+                        req.add_header(consts::X_PAYMENT_METHOD, Maskable::Normal(payment_method));
+                    }
+                    if let Some(payment_method_type) = router_data
+                        .resource_common_data
+                        .get_payment_method_type_header()
+                    {
+                        req.add_header(
+                            consts::X_PAYMENT_METHOD_TYPE,
+                            Maskable::Normal(payment_method_type),
+                        );
+                    }
                 }
                 req
             });
@@ -1053,6 +1110,11 @@ where
 
     let elapsed = start.elapsed().as_millis();
     tracing::Span::current().record("latency", elapsed);
+    // Apply outgoing log fields (transformations + static values) before emitting the golden log line
+    #[cfg(feature = "log-transformations")]
+    if event_params.log_fields_enabled {
+        apply_log_fields(event_params.log_fields);
+    }
     tracing::info!(tag = ?Tag::OutgoingApi, log_type = "api", "Outgoing Request completed");
     result_with_integrity_check
 }
@@ -1106,6 +1168,9 @@ fn create_event(
         headers: event_headers,
         additional_fields: HashMap::new(),
         lineage_ids: event_params.lineage_ids.to_owned(),
+        // Deployment/runtime identity (compiled version + optional app/deployment/pod), threaded
+        // from application state; serialized as top-level event fields.
+        runtime_metadata: event_params.runtime_metadata.clone(),
     };
 
     event.add_reference_id(event_params.reference_id.as_deref());
@@ -1144,6 +1209,7 @@ pub async fn call_connector_api(
         proxy_name,
         request.certificate,
         request.certificate_key,
+        request.ca_certificate,
         test_mode,
     )?;
 
@@ -1303,6 +1369,7 @@ pub fn create_client(
     proxy_name: &str,
     client_certificate: Option<Secret<String>>,
     client_certificate_key: Option<Secret<String>>,
+    ca_certificate_pem: Option<Secret<String>>,
     test_mode: bool,
 ) -> CustomResult<Client, ApiClientError> {
     match (client_certificate.clone(), client_certificate_key.clone()) {
@@ -1311,18 +1378,21 @@ pub fn create_client(
                 get_client_builder(proxy_config, should_bypass_proxy, proxy_name, test_mode)?;
 
             let identity = create_identity_from_certificate_and_key(
-                encoded_certificate.clone(),
+                encoded_certificate,
                 encoded_certificate_key,
             )?;
-            let certificate_list = create_certificate(encoded_certificate)?;
-            let client_builder = certificate_list
+            // NOTE: the client identity certificate is no longer registered as a root CA.
+            // Server verification now uses webpki roots plus ca_certificate_pem only.
+            let client_builder = ca_certificate_pem
+                .map(create_certificate)
+                .transpose()?
+                .unwrap_or_default()
                 .into_iter()
-                .fold(client_builder, |client_builder, certificate| {
-                    client_builder.add_root_certificate(certificate)
-                });
+                .fold(
+                    client_builder.identity(identity).use_rustls_tls(),
+                    |b, ca| b.add_root_certificate(ca),
+                );
             client_builder
-                .identity(identity)
-                .use_rustls_tls()
                 .build()
                 .change_context(ApiClientError::ClientConstructionFailed)
                 .attach_printable("Failed to construct client with certificate and certificate key")
@@ -1539,6 +1609,16 @@ pub fn create_identity_from_certificate_and_key(
         .change_context(ApiClientError::CertificateDecodeFailed)
 }
 
+/// Single PEM-bundle parser used by BOTH runtime client construction
+/// ([`create_certificate`]) and config-load validation, so the two can never
+/// drift apart (e.g. one switching to `from_pem` while the other doesn't).
+pub fn parse_ca_pem_bundle(
+    pem: &[u8],
+) -> Result<Vec<reqwest::Certificate>, error_stack::Report<ApiClientError>> {
+    reqwest::Certificate::from_pem_bundle(pem)
+        .change_context(ApiClientError::CertificateDecodeFailed)
+}
+
 pub fn create_certificate(
     encoded_certificate: Secret<String>,
 ) -> Result<Vec<reqwest::Certificate>, error_stack::Report<ApiClientError>> {
@@ -1548,8 +1628,7 @@ pub fn create_certificate(
 
     let certificate = String::from_utf8(decoded_certificate)
         .change_context(ApiClientError::CertificateDecodeFailed)?;
-    reqwest::Certificate::from_pem_bundle(certificate.as_bytes())
-        .change_context(ApiClientError::CertificateDecodeFailed)
+    parse_ca_pem_bundle(certificate.as_bytes())
 }
 
 async fn handle_response(

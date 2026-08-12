@@ -60,6 +60,77 @@ message Money {
   Currency currency = 2; // ISO 4217 currency code (e.g., "USD", "EUR")
 }
 
+// Quote details associated with a currency conversion decision.
+message CurrencyConversionQuote {
+  // Order amount for the transaction, expressed in the merchant's currency.
+  Money merchant_order_amount = 1;
+
+  // Decimal exchange rate for this currency conversion quote.
+  // It converts merchant_order_amount.currency to PaymentServiceAuthorizeRequest.amount.currency.
+  // For an accepted DCC offer, PaymentServiceAuthorizeRequest.amount is the payable amount in the cardholder currency.
+  optional string exchange_rate = 2;
+
+  // Quote identifier assigned by the connector or rate provider.
+  optional string connector_quote_id = 3;
+
+  // Exchange-rate identifier required to reference the quoted rate.
+  optional string exchange_rate_id = 4;
+
+  // Name of the CC provider that supplied the quote.
+  optional string provider = 5;
+
+  // Source used by the provider to determine the exchange rate.
+  optional string rate_source = 6;
+
+  // Percentage markup included in the exchange rate, represented exactly as
+  // supplied by the provider (for example, "3.50").
+  optional string markup_percentage = 7;
+
+  // Monetary amount of the markup included in the quote.
+  optional Money markup_amount = 8;
+
+  // Type of currency conversion: DCC, MCP, or MCC.
+  optional CurrencyConversionType currency_conversion_type = 9;
+
+  // Time when the quote was created, in Unix epoch seconds.
+  optional int64 quoted_at = 10;
+
+  // Time when the quote expires, in Unix epoch seconds.
+  optional int64 expires_at = 11;
+}
+
+// Identifies the currency conversion model used for the payment.
+enum CurrencyConversionType {
+  // Currency conversion type was not provided or could not be determined.
+  CURRENCY_CONVERSION_TYPE_UNSPECIFIED = 0;
+  // Dynamic Currency Conversion (DCC).
+  CURRENCY_CONVERSION_TYPE_DCC = 1;
+  // Multi-Currency Pricing (MCP).
+  CURRENCY_CONVERSION_TYPE_MCP = 2;
+  // Merchant Currency Conversion (MCC).
+  CURRENCY_CONVERSION_TYPE_MCC = 3;
+}
+
+// Indicates the customer's decision for a currency conversion offer.
+enum CurrencyConversionDecision {
+  // Currency conversion decision was not provided or could not be determined.
+  CURRENCY_CONVERSION_DECISION_UNSPECIFIED = 0;
+  // The customer accepted the currency conversion offer.
+  CURRENCY_CONVERSION_DECISION_ACCEPTED = 1;
+  // The customer declined the currency conversion offer.
+  CURRENCY_CONVERSION_DECISION_DECLINED = 2;
+  // Currency conversion does not apply to this payment.
+  CURRENCY_CONVERSION_DECISION_NOT_APPLICABLE = 3;
+}
+
+// Contains the customer's currency conversion decision and the quote presented to them.
+message CurrencyConversionData {
+  // Customer's decision for the currency conversion offer.
+  CurrencyConversionDecision decision = 1;
+  // Currency conversion quote presented to the customer, when available.
+  optional CurrencyConversionQuote quote = 2;
+}
+
 // Permissions wraps a repeated string field to allow optional presence
 // Used for fields like permissions where absence is semantically different from empty
 message Permissions {
@@ -823,6 +894,11 @@ enum Connector {
   KOUNT = 128;
   FLYWIRE = 129;
   GLOMOPAY = 130;
+  GIVEPAYMENTS = 131;
+  TESOURO = 132;
+  SANTANDER = 133;
+  MAYA = 134;
+  GRABPAY = 135;
 }
 
 // Payment method types
@@ -942,6 +1018,8 @@ enum PaymentMethodType {
   OPEN_BANKING = 112;
   QWIKCILVER_WALLET = 113;
   SKRILL = 114;
+  PAYMAYA = 115;
+  GRAB_PAY = 116;
 }
 
 // Product type enumeration
@@ -1031,6 +1109,14 @@ message OrderDetailsWithAmount {
   optional string commodity_code = 18;
   // Discount amount applied to a single unit (in minor currency units)
   optional int64 unit_discount_amount = 19;
+  // Discount name applied to this item
+  optional string discount_name = 20;
+  // Discount percentage applied to this item
+  optional double discount_percentage = 21;
+  // Discount type applied to this item
+  optional string discount_type = 22;
+  // The URL of the product
+  optional string product_link = 23;
 }
 
 // Access token details
@@ -1525,6 +1611,10 @@ message RedirectForm {
     // Generic hosted-iframe redirection: load `endpoint` in an iframe and
     // attach the connector-built `events` postMessage listener.
     HostedIframeData hosted_iframe = 7;
+
+    // A standalone script snippet (e.g. a device-data-collection script), when
+    // the connector returns script content instead of a full HTML document.
+    ScriptData script = 8;
   }
 }
 
@@ -1544,6 +1634,12 @@ message FormData {
 message HtmlData {
   // The HTML content as a string.
   string html_data = 1;
+}
+
+// Represents a standalone script snippet for redirection
+message ScriptData {
+  // The script content as a string (e.g. a `<script>` tag).
+  string script_data = 1;
 }
 
 // Represents URI data for direct redirection
@@ -1753,6 +1849,9 @@ message FrmNotificationContent {
 
   // Merchant details for risk scoring.
   optional MerchantDetails merchant_details = 8;
+
+  // Connector-specific feature data (e.g. AVS/CVV verification results) for the notify call.
+  optional SecretString connector_feature_data = 9;
 }
 
 // FRM payment success details
@@ -2178,8 +2277,8 @@ message RevolutClientAuthenticationResponse {
 
 // Plaid Link SDK initialization data — link_token for Plaid Link initialization
 message PlaidClientAuthenticationResponse {
-  string link_token = 1;                          // Required: The Plaid Link token
-  optional int64 expires_in_seconds = 2;          // Expiration timestamp (seconds since epoch)
+  SecretString link_token = 1;                    // Required: The Plaid Link token
+  optional int64 expires_in_seconds = 2;          // Seconds until the link_token expires
   optional string hosted_link_url = 3;            // Hosted Link URL (if enabled)
 }
 
@@ -2514,6 +2613,10 @@ message PaymentServiceAuthorizeRequest {
   optional Money surcharge_amount = 49;
 
   optional PartnerMerchantIdentifierDetails partner_merchant_identifier_details = 50;
+
+  // Currency conversion quote and decision data passed through the
+  // authorization flow for future connector-specific processing.
+  optional CurrencyConversionData currency_conversion_data = 51;
 }
 
 // Partner / external-platform application details.
@@ -2583,6 +2686,11 @@ message PaymentServiceAuthorizeResponse {
   optional MandateReferenceDetails mandate_reference_details = 22;
   // The connector's reported status (code/message/reason).
   optional RawConnectorStatus raw_connector_status = 23;
+
+  // Another reference for the connector's transaction, returned in the connector's response.
+  // Distinct from connector_transaction_id — e.g. Stripe charge ID (ch_xxx), order codes, invoice numbers.
+  optional string connector_reference_id = 24;
+
 }
 
 // Request message for synchronizing payment status
@@ -2717,6 +2825,10 @@ message PaymentServiceGetResponse {
   optional MandateReferenceDetails mandate_reference_details = 35;
   // The connector's reported status (code/message/reason).
   optional RawConnectorStatus raw_connector_status = 36;
+
+  // Another reference for the connector's transaction, returned in the connector's response.
+  // Distinct from connector_transaction_id — e.g. Stripe charge ID (ch_xxx), order codes, invoice numbers.
+  optional string connector_reference_id = 37;
 }
 
 // Request message for voiding a payment
@@ -2792,6 +2904,10 @@ message PaymentServiceVoidResponse {
   optional MandateReferenceDetails mandate_reference_details = 14;
   // The connector's reported status (code/message/reason).
   optional RawConnectorStatus raw_connector_status = 15;
+
+  // Another reference for the connector's transaction, returned in the connector's response.
+  // Distinct from connector_transaction_id — e.g. Stripe charge ID (ch_xxx), order codes, invoice numbers.
+  optional string connector_reference_id = 16;
 }
 
 // Request message for reversing a captured payment if not yet settled (similar
@@ -2835,6 +2951,13 @@ message PaymentServiceReverseResponse {
   // Raw Request and Response for debugging
   optional SecretString raw_connector_request = 7;
   optional SecretString raw_connector_response = 8;
+
+  // The connector's reported status for this response.
+  optional RawConnectorStatus raw_connector_status = 9;
+
+  // Another reference for the connector's transaction, returned in the connector's response.
+  // Distinct from connector_transaction_id — e.g. Stripe charge ID (ch_xxx), order codes, invoice numbers.
+  optional string connector_reference_id = 10;
 }
 
 // Request message for creating an access token
@@ -3039,6 +3162,10 @@ message PaymentServiceCaptureResponse {
 
   // Raw Response for debugging
   optional SecretString raw_connector_response = 16;
+
+  // Another reference for the connector's transaction, returned in the connector's response.
+  // Distinct from connector_transaction_id — e.g. Stripe charge ID (ch_xxx), order codes, invoice numbers.
+  optional string connector_reference_id = 18;
 }
 
 // Request message for creating an order
@@ -3065,6 +3192,10 @@ message PaymentServiceCreateOrderRequest {
   // Payment Method Type
   optional PaymentMethodType payment_method_type =
       8; // The type of payment method (e.g., apple_pay, google_pay)
+
+  // Order line items. Required by some connectors (e.g. Airwallex PayLater /
+  // Klarna) when creating the order/payment-intent.
+  repeated OrderDetailsWithAmount order_details = 9;
 }
 
 // Response message for create order operation
@@ -3089,6 +3220,9 @@ message PaymentServiceCreateOrderResponse {
   // SDK Session Data
   optional ClientAuthenticationTokenData session_data =
       9; // SDK session data for wallets (Apple Pay, Google Pay) and other SDK types
+
+  // The connector's reported status for this response.
+  optional RawConnectorStatus raw_connector_status = 10;
 }
 
 // Request message for processing a refund
@@ -3198,6 +3332,10 @@ message RefundResponse {
   optional string merchant_transaction_id = 24;
   // The connector's reported status (code/message/reason).
   optional RawConnectorStatus raw_connector_status = 25;
+
+  // Another reference for the connector's transaction, returned in the connector's response.
+  // Distinct from connector_refund_id — e.g. secondary refund references, invoice numbers.
+  optional string connector_reference_id = 26;
 }
 
 // Request message for voiding/reversing a refund before settlement.
@@ -3280,6 +3418,9 @@ message DisputeResponse {
 
   // Raw Request for debugging
   optional SecretString raw_connector_request = 18;
+
+  // Another reference for the connector's transaction, returned in the connector's response.
+  optional string connector_reference_id = 19;
 }
 
 // Request message for setting up a mandate
@@ -3577,6 +3718,10 @@ message RecurringPaymentServiceChargeResponse {
 
   // The connector's reported status (code/message/reason).
   optional RawConnectorStatus raw_connector_status = 19;
+
+  // A scheme-generated reference that Mastercard intends to use for tracking and linking transactions across the ecosystem.
+  // Distinct from network_transaction_id.
+  optional string network_txn_link_id = 20;
 }
 
 // Request message for a mandate revoke operation
@@ -3752,6 +3897,9 @@ message PaymentMethodAuthenticationServiceAuthenticateResponse {
 
   // Raw Response for debugging
   optional SecretString raw_connector_response = 12;
+
+  // The connector's reported status (code/message/reason).
+  optional RawConnectorStatus raw_connector_status = 13;
 }
 
 // Request message for post-authentication step
@@ -3822,6 +3970,9 @@ message PaymentMethodAuthenticationServicePostAuthenticateResponse {
 
   // Raw Response for debugging
   optional SecretString raw_connector_response = 13;
+
+  // The connector's reported status for this response.
+  optional RawConnectorStatus raw_connector_status = 14;
 }
 
 // Request message for incremental authorization
@@ -3880,6 +4031,7 @@ message RefundEventReference {
   optional string connector_refund_id      = 1;
   optional string merchant_refund_id       = 2;
   optional string connector_transaction_id = 3;  // Parent payment ID, if present.
+  optional string merchant_transaction_id  = 4;
 }
 
 // IDs extracted from a dispute webhook.
@@ -3894,6 +4046,7 @@ message DisputeEventReference {
 // IDs extracted from a mandate webhook.
 message MandateEventReference {
   optional string connector_mandate_id = 1;
+  optional string merchant_transaction_id = 2;
 }
 
 // IDs extracted from a payout webhook.
@@ -3995,6 +4148,9 @@ message PaymentServiceVerifyRedirectResponseRequest {
 
   // Security
   optional RedirectResponseSecrets redirect_response_secrets = 3;
+
+  // Connector-owned metadata from the original redirect flow.
+  optional SecretString connector_feature_data = 4;
 }
 
 // Response message for VerifyRedirectResponse
@@ -4017,6 +4173,9 @@ message PaymentServiceVerifyRedirectResponseResponse {
 
   // Raw Response
   optional SecretString raw_connector_response = 7;
+
+  // Connector-specific metadata produced while parsing the redirect response.
+  optional SecretString connector_feature_data = 8;
 }
 
 // ============================================================================
@@ -4295,6 +4454,45 @@ message PaymentMethodServiceGetResponse {
   optional SecretString raw_connector_request = 10;
 }
 
+// Refresh a stored card against the network updater.
+message PaymentMethodServiceRefreshRequest {
+  PaymentMethod payment_method = 1;
+}
+
+message PaymentMethodServiceRefreshResponse {
+  RefreshResult result = 1;
+  uint32 status_code = 2;                   // HTTP status code from the connector
+  optional ErrorInfo error = 3;             // Error details if the call failed
+  map<string, string> response_headers = 4; // Response headers from the connector
+
+  // Raw Response/Request for debugging
+  optional SecretString raw_connector_response = 5;
+  optional SecretString raw_connector_request = 6;
+}
+
+// One arm per instrument; each carries its own outcome type.
+message RefreshResult {
+  oneof result {
+    CardRefreshResult card = 1;
+  }
+}
+
+message CardRefreshResult {
+  CardRefreshOutcome outcome = 1;
+  CardDetailsWithNoCvc card = 2;
+}
+
+enum CardRefreshOutcome {
+  // Unmapped network code, or a failure when `error` is set. Branch on `error`.
+  CARD_REFRESH_OUTCOME_UNSPECIFIED = 0;
+  CARD_REFRESH_ACCOUNT_UPDATED = 1;     // Card reissued; the returned card is the new one
+  CARD_REFRESH_EXPIRY_UPDATED = 2;      // Same card number, new expiry
+  CARD_REFRESH_NO_CHANGE = 3;           // Stored card is current
+  CARD_REFRESH_CLOSED = 4;              // Account closed; stop using the card
+  CARD_REFRESH_NOT_FOUND = 5;           // No update available; card not found, or the BIN is not participating
+  CARD_REFRESH_CONTACT_ISSUER = 6;      // Issuer advises contacting the cardholder
+}
+
 // Status of a recharge operation
 enum RechargeStatus {
   RECHARGE_STATUS_UNSPECIFIED = 0; // Default unspecified status
@@ -4353,7 +4551,7 @@ message BankAccountDetails {
 
 // Individual bank account credential with routing details
 message BankAccount {
-  string account_name = 1;                       // Account display name
+  SecretString account_name = 1;                 // Account display name
   SecretString account_id = 2;                   // Unique account identifier
   optional BankType bank_type = 3;               // Account type: checking, savings
   optional BankHolderType bank_holder_type = 4;  // Bank holder type
@@ -4364,6 +4562,7 @@ message BankAccount {
     BankAccountDetailsBacs bacs = 8;             // UK BACS
     BankAccountDetailsSepa sepa = 9;             // EU SEPA
   }
+  optional string bank_name = 10;                // Name of the financial institution
 }
 
 // ACH bank account details (United States)
@@ -4820,6 +5019,14 @@ message LoonioConfig {
   optional string base_url = 50;
 }
 
+message DeutschebankConfig {
+  SecretString customer_identifier = 1;
+  SecretString key_id = 2;
+  SecretString signing_private_key = 3;
+  SecretString client_certificate_bundle = 4;
+  optional string base_url = 50;
+}
+
 message PaysafeConfig {
   SecretString username = 1;
   SecretString password = 2;
@@ -5048,6 +5255,15 @@ message ItaubankConfig {
   optional string secondary_base_url = 51;
 }
 
+message SantanderConfig {
+  SecretString client_id = 1;
+  SecretString client_secret = 2;
+  string workspace_id = 3;
+  optional SecretString certificates = 4;
+  optional SecretString private_key = 5;
+  optional string base_url = 50;
+}
+
 message GigadatConfig {
   SecretString campaign_id = 1;
   SecretString access_token = 2;
@@ -5233,6 +5449,11 @@ message ImerchantsolutionsConfig {
   optional string base_url = 3;
 }
 
+message GivepaymentsConfig {
+  SecretString api_key = 1;
+  optional string base_url = 2;
+}
+
 message AxisbankConfig {
   SecretString merchant_kid = 3;
   SecretString juspay_kid = 4;
@@ -5241,10 +5462,19 @@ message AxisbankConfig {
   optional string base_url = 50;
 }
 
+message MayaConfig {
+  SecretString public_key = 1;
+  SecretString secret_key = 2;
+  optional string base_url = 50;
+}
+
 message TsysTransitConfig {
   SecretString device_id = 1;
   SecretString transaction_key = 2;
   SecretString developer_id = 3;
+  optional SecretString merchant_street_address = 4;
+  optional SecretString customer_service_phone_number = 5;
+  optional string merchant_url = 6;
   optional string base_url = 50;
 }
 
@@ -5257,6 +5487,16 @@ message FlywireConfig {
   // Flywire recipient code (3-letter or 5-alphanumeric, e.g. "ZENDD").
   // Drives currency, payout target, required institutional fields.
   string recipient_id = 3;
+  optional string base_url = 50;
+}
+
+message PlaidConfig {
+  // Plaid client_id — used as `client_id` in every API request body.
+  SecretString client_id = 1;
+  // Plaid secret — used as `secret` in every API request body.
+  SecretString secret = 2;
+  // Application name displayed to users in the Plaid Link UI.
+  optional string client_name = 3;
   optional string base_url = 50;
 }
 
@@ -5304,6 +5544,11 @@ message InterpaymentsConfig {
 message JuspayConfig {
   SecretString api_key = 1;
   SecretString merchant_id = 2;
+
+  optional SecretString juspay_encryption_public_key = 3;
+  optional SecretString response_decryption_private_key = 4;
+  optional SecretString card_sync_key_id = 5;
+
   optional string base_url = 50;
 }
 
@@ -5339,6 +5584,22 @@ message HyperswitchConfig {
 
 message GlomopayConfig {
   SecretString api_key = 1;
+  optional string base_url = 50;
+}
+
+message GrabpayConfig {
+  SecretString partner_id = 1;
+  SecretString partner_secret = 2;
+  SecretString client_id = 3;
+  SecretString client_secret = 4;
+  SecretString merchant_id = 5;
+  optional string base_url = 50;
+}
+
+message TesouroConfig {
+  SecretString api_key = 1;
+  SecretString key1 = 2;
+  SecretString api_secret = 3;
   optional string base_url = 50;
 }
 
@@ -5624,6 +5885,7 @@ message ConnectorSpecificConfig {
 
     // PAYCONEX = 124
     PayconexConfig payconex = 129;
+
     // QWIKCILVER = 125
     QwikcilverConfig qwikcilver = 130;
     // CHECKOUT = 126
@@ -5638,10 +5900,25 @@ message ConnectorSpecificConfig {
     AffirmConfig affirm = 135;
     // FLYWIRE = 129
     FlywireConfig flywire = 136;
-    // GLOMOPAY = 130
+    // GLOMOPAY = 137
     GlomopayConfig glomopay = 137;
-    // GOTYME_SANLAM = 138
-    GotymeSanlamConfig gotyme_sanlam = 138;
+    // GIVEPAYMENTS = 138
+    GivepaymentsConfig givepayments = 138;
+
+    // TESOURO = 139
+    TesouroConfig tesouro = 139;
+    // DEUTSCHEBANK = 140
+    DeutschebankConfig deutschebank = 140;
+    // PLAID = 141
+    PlaidConfig plaid = 141;
+    // SANTANDER = 142
+    SantanderConfig santander = 142;
+    // MAYA = 143
+    MayaConfig maya = 143;
+    // GRABPAY = 144
+    GrabpayConfig grabpay = 144;
+    // GOTYME_SANLAM = 145
+    GotymeSanlamConfig gotyme_sanlam = 145;
   }
 }
 

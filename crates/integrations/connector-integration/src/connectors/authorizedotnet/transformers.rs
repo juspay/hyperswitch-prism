@@ -13,7 +13,7 @@ use domain_types::{
         ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
         SetupMandateRequestData,
     },
-    errors::{ConnectorError, IntegrationError, WebhookError},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext, WebhookError},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{
         BankDebitData, DefaultPCIHolder, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
@@ -42,6 +42,12 @@ type ResponseError = error_stack::Report<ConnectorError>;
 // Constants
 const MAX_ID_LENGTH: usize = 20;
 const ADDRESS_MAX_LENGTH: usize = 60; // Authorize.Net address field max length
+
+// Authorize.Net transient server-side error codes: returned (HTTP 200) with no
+// transaction record while the underlying payment is unchanged. On a psync poll
+// these are not a payment failure, so we keep the existing state (mirroring HS).
+const TRANSIENT_ERROR_SERVER_BUSY: &str = "E00053"; // "server too busy"
+const TRANSIENT_ERROR_MAINTENANCE: &str = "E00104"; // "server in maintenance"
 
 // Helper function for concatenating address lines with length constraints
 fn get_address_line(
@@ -293,7 +299,13 @@ impl ForeignTryFrom<serde_json::Value> for Vec<UserField> {
         let mut vector = Self::new();
 
         if let serde_json::Value::Object(obj) = metadata {
-            for (key, value) in obj {
+            // Sort keys alphabetically so the outbound userField order is deterministic
+            // and matches hyperswitch's native authorizedotnet request (which parses
+            // metadata into a BTreeMap<String, Value> for the same purpose), regardless
+            // of the insertion/storage order the metadata JSON arrived in.
+            let sorted: std::collections::BTreeMap<String, serde_json::Value> =
+                obj.into_iter().collect();
+            for (key, value) in sorted {
                 vector.push(UserField {
                     name: key,
                     value: match value {
@@ -367,6 +379,42 @@ pub enum AccountType {
     Checking,
     Savings,
     BusinessChecking,
+}
+
+impl
+    TryFrom<(
+        Option<common_enums::BankType>,
+        Option<common_enums::BankHolderType>,
+    )> for AccountType
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        (bank_type, bank_holder_type): (
+            Option<common_enums::BankType>,
+            Option<common_enums::BankHolderType>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        match bank_type {
+            Some(common_enums::BankType::Savings) => Ok(Self::Savings),
+            Some(common_enums::BankType::Checking) | None => {
+                if let Some(common_enums::BankHolderType::Business) = bank_holder_type {
+                    Ok(Self::BusinessChecking)
+                } else {
+                    Ok(Self::Checking)
+                }
+            }
+            Some(bank) => Err(error_stack::report!(IntegrationError::NotSupported {
+                message: format!("Bank type {bank:?} is not supported by authorizedotnet"),
+                connector: "authorizedotnet",
+                context: IntegrationErrorContext {
+                    suggested_action: Some("Provide a valid bank account type".to_owned()),
+                    additional_context: None,
+                    doc_url: None,
+                },
+            })),
+        }
+    }
 }
 
 #[skip_serializing_none]
@@ -652,13 +700,8 @@ fn create_regular_transaction_request<
 
                     // Map bank_type and bank_holder_type to AccountType
                     // Business accounts with checking should use BusinessChecking
-                    let account_type = match (bank_type, bank_holder_type) {
-                        (Some(common_enums::BankType::Savings), _) => AccountType::Savings,
-                        (_, Some(common_enums::BankHolderType::Business)) => {
-                            AccountType::BusinessChecking
-                        }
-                        _ => AccountType::Checking
-};
+                    let account_type =
+                        AccountType::try_from((*bank_type, *bank_holder_type))?;
 
                     let bank_account_details = BankAccountDetails {
                         account_type,
@@ -2272,10 +2315,33 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetRefundResponse, Self>>
                 connector_refund_id: transaction_response.transaction_id.clone(),
                 refund_status,
                 status_code: http_code,
+                acquirer_reference_number: None,
             }),
         };
 
         Ok(new_router_data)
+    }
+}
+
+/// Build an `ErrorResponse` from Authorize.Net's `ResponseMessages`, mirroring
+/// hyperswitch's `get_err_response`: use the first message's code/text and leave
+/// `attempt_status: None` so the caller preserves the prior attempt status.
+fn get_err_response(status_code: u16, messages: ResponseMessages) -> ErrorResponse {
+    let first = messages.message.first();
+    ErrorResponse {
+        code: first
+            .map(|m| m.code.clone())
+            .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+        message: first
+            .map(|m| m.text.clone())
+            .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+        reason: first.map(|m| m.text.clone()),
+        status_code,
+        attempt_status: None,
+        connector_transaction_id: None,
+        network_decline_code: None,
+        network_advice_code: None,
+        network_error_message: None,
     }
 }
 
@@ -2326,49 +2392,20 @@ impl<F> TryFrom<ResponseRouterData<AuthorizedotnetPSyncResponse, Self>>
                 Ok(new_router_data)
             }
             None => {
-                // Handle missing transaction response
-                let status = match response.messages.result_code {
-                    ResultCode::Error => AttemptStatus::Failure,
-                    ResultCode::Ok => AttemptStatus::Pending,
-                };
-
-                let error_response = ErrorResponse {
-                    status_code: http_code,
-                    code: response
-                        .messages
-                        .message
-                        .first()
-                        .map(|m| m.code.clone())
-                        .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-                    message: response
-                        .messages
-                        .message
-                        .first()
-                        .map(|m| m.text.clone())
-                        .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-                    reason: Some(
-                        response
-                            .messages
-                            .message
-                            .first()
-                            .map(|m| m.text.clone())
-                            .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-                    ),
-                    attempt_status: Some(FlowStatus::Payment(status)),
-                    connector_transaction_id: None,
-                    network_decline_code: None,
-                    network_advice_code: None,
-                    network_error_message: None,
-                };
-
-                // Update router data with status and error response
-                let mut new_router_data = router_data;
-                let mut resource_common_data = new_router_data.resource_common_data.clone();
-                resource_common_data.status = status;
-                new_router_data.resource_common_data = resource_common_data;
-                new_router_data.response = Err(error_response);
-
-                Ok(new_router_data)
+                // A psync response with no transaction record. Transient server-side
+                // conditions (server busy / maintenance) are not a payment failure, so
+                // mirror hyperswitch and keep the existing router data unchanged;
+                // otherwise surface the connector error while preserving the prior
+                // attempt status (as hyperswitch's `get_err_response` does).
+                match response.messages.message.iter().find(|m| {
+                    m.code == TRANSIENT_ERROR_SERVER_BUSY || m.code == TRANSIENT_ERROR_MAINTENANCE
+                }) {
+                    Some(_) => Ok(router_data),
+                    None => Ok(Self {
+                        response: Err(get_err_response(http_code, response.messages)),
+                        ..router_data
+                    }),
+                }
             }
         }
     }
@@ -2905,6 +2942,7 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetRSyncResponse, Self>>
                     connector_refund_id: transaction.transaction_id,
                     refund_status,
                     status_code: http_code,
+                    acquirer_reference_number: None,
                 });
 
                 Ok(new_router_data)

@@ -803,6 +803,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         connector_refund_id: webhook_body.refund_id,
                         merchant_refund_id: None,
                         connector_transaction_id: Some(webhook_body.payment_id.clone()),
+                        merchant_transaction_id: None,
                     },
                 )
             }
@@ -849,6 +850,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ),
             status,
             connector_response_reference_id: None,
+            connector_request_reference_id: None,
             mandate_reference: None,
             error_code,
             error_message,

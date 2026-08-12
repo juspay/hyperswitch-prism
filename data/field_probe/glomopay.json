@@ -683,7 +683,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"order_id\":\"connector_order_id\",\"method\":\"card\",\"sequence\":\"initial\",\"card\":{\"holder_name\":\"John Doe\",\"number\":\"{{$card_number}}\",\"expiry_month\":\"{{$card_exp_month}}\",\"expiry_year\":\"{{$card_exp_year}}\",\"cvv\":\"{{$card_cvc}}\"},\"callback_url\":\"https://example.com/return\",\"request_id\":\"probe_proxy_txn_001\"}"
+          "body": "{\"order_id\":\"connector_order_id\",\"method\":\"card\",\"sequence\":\"initial\",\"card\":{\"holder_name\":\"John Doe\",\"number\":\"{{$card_number}}\",\"expiry_month\":\"03\",\"expiry_year\":\"30\",\"cvv\":\"{{$card_cvc}}\"},\"callback_url\":\"https://example.com/return\",\"request_id\":\"probe_proxy_txn_001\"}"
         }
       }
     },
@@ -703,6 +703,11 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: mandate_revoke flow for glomopay"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "refund": {

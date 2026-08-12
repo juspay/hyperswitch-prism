@@ -668,7 +668,7 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"requestType\":\"PaymentCardSaleTransaction\",\"merchantTransactionId\":\"probe_proxy_txn_001\",\"transactionAmount\":{\"total\":\"10.00\",\"currency\":\"USD\"},\"order\":{\"orderId\":\"probe_proxy_txn_001\"},\"paymentMethod\":{\"paymentCard\":{\"number\":\"{{$card_number}}\",\"expiryDate\":{\"month\":\"{{$card_exp_month}}\",\"year\":\"{{$card_exp_year}}\"},\"securityCode\":\"{{$card_cvc}}\"}}}"
+          "body": "{\"requestType\":\"PaymentCardSaleTransaction\",\"merchantTransactionId\":\"probe_proxy_txn_001\",\"transactionAmount\":{\"total\":\"10.00\",\"currency\":\"USD\"},\"order\":{\"orderId\":\"probe_proxy_txn_001\"},\"paymentMethod\":{\"paymentCard\":{\"number\":\"{{$card_number}}\",\"expiryDate\":{\"month\":\"03\",\"year\":\"30\"},\"securityCode\":\"{{$card_cvc}}\"}}}"
         }
       }
     },
@@ -688,6 +688,11 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: mandate_revoke flow for fiservemea"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "refund": {

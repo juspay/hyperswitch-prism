@@ -1573,6 +1573,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::ApplePayRedirect(_)
                 | WalletData::ApplePayThirdPartySdk(_)
                 | WalletData::DanaRedirect {}
+                | WalletData::GrabpayRedirect {}
                 | WalletData::BluecodeRedirect {}
                 | WalletData::GooglePayRedirect(_)
                 | WalletData::GooglePayThirdPartySdk(_)
@@ -1598,6 +1599,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::CashfreeRedirect(_)
                 | WalletData::PayURedirect(_)
                 | WalletData::EaseBuzzRedirect(_)
+                | WalletData::PaymayaRedirect(_)
                 | WalletData::QwikcilverWalletDirect(_)
                 | WalletData::Skrill(_) => {
                     Err(error_stack::report!(IntegrationError::NotSupported {
@@ -2191,6 +2193,12 @@ pub struct PaypalOrdersResponse {
     status: Option<PaypalOrderStatus>,
     purchase_units: Vec<PurchaseUnitItem>,
     payment_source: Option<PaymentSourceItemResponse>,
+    payer: Option<Payer>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Payer {
+    payer_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -2212,6 +2220,7 @@ pub struct PaypalRedirectResponse {
     purchase_units: Vec<RedirectPurchaseUnitItem>,
     links: Vec<PaypalLinks>,
     payment_source: Option<PaymentSourceItemResponse>,
+    payer: Option<Payer>,
 }
 
 // Note: Don't change order of deserialization of variant, priority is in descending order
@@ -2246,6 +2255,7 @@ pub struct PaypalPaymentsSyncResponse {
     amount: OrderAmount,
     invoice_id: Option<String>,
     supplementary_data: PaypalSupplementaryData,
+    payer: Option<Payer>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -2435,6 +2445,11 @@ where
             false => Ok(Self {
                 resource_common_data: PaymentFlowData {
                     status,
+                    sender_payment_instrument_id: item
+                        .response
+                        .payer
+                        .as_ref()
+                        .and_then(|payer| payer.payer_id.clone()),
                     ..item.router_data.resource_common_data
                 },
                 response: Ok(PaymentsResponseData::TransactionResponse {
@@ -2575,6 +2590,11 @@ impl TryFrom<ResponseRouterData<PaypalRedirectResponse, Self>>
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
+                sender_payment_instrument_id: item
+                    .response
+                    .payer
+                    .as_ref()
+                    .and_then(|payer| payer.payer_id.clone()),
                 ..item.router_data.resource_common_data
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -2739,6 +2759,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
+                sender_payment_instrument_id: item
+                    .response
+                    .payer
+                    .as_ref()
+                    .and_then(|payer| payer.payer_id.clone()),
                 ..item.router_data.resource_common_data
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -2805,6 +2830,11 @@ impl<F, T> TryFrom<ResponseRouterData<PaypalPaymentsSyncResponse, Self>>
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status: common_enums::AttemptStatus::from(item.response.status),
+                sender_payment_instrument_id: item
+                    .response
+                    .payer
+                    .as_ref()
+                    .and_then(|payer| payer.payer_id.clone()),
                 ..item.router_data.resource_common_data
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -3438,6 +3468,7 @@ impl TryFrom<ResponseRouterData<RefundResponse, Self>>
                 connector_refund_id: item.response.id,
                 refund_status: common_enums::RefundStatus::from(item.response.status),
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -3465,6 +3496,7 @@ impl TryFrom<ResponseRouterData<RefundSyncResponse, Self>>
                 connector_refund_id: item.response.id,
                 refund_status: common_enums::RefundStatus::from(item.response.status),
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -4121,8 +4153,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let customer_id = item
             .router_data
             .request
-            .customer_id
+            .customer
             .as_ref()
+            .and_then(|c| c.customer_id.as_ref())
             .map(|id| id.get_string_repr().to_string());
 
         Ok(Self { customer_id })

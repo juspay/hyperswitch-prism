@@ -652,7 +652,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "VERSION=00104&TYPE=00003&SITE=probe_site&RANG=probe_rank&CLE=probe_key&NUMQUESTION=000000000&MONTANT=1000&DEVISE=840&REFERENCE=probe_proxy_txn_001&DATEQ=00000000000000&PORTEUR=%7B%7B%24card_number%7D%7D&DATEVAL=%7B%7B%24card_exp_month%7D%7D%7B%7B%24card_exp_year%7D%7D&CVV=%7B%7B%24card_cvc%7D%7D&ACTIVITE=024"
+          "body": "VERSION=00104&TYPE=00003&SITE=probe_site&RANG=probe_rank&CLE=probe_key&NUMQUESTION=000000000&MONTANT=1000&DEVISE=840&REFERENCE=probe_proxy_txn_001&DATEQ=00000000000000&PORTEUR=%7B%7B%24card_number%7D%7D&DATEVAL=0330&CVV=%7B%7B%24card_cvc%7D%7D&ACTIVITE=024"
         }
       }
     },
@@ -690,7 +690,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "VERSION=00104&TYPE=00056&SITE=probe_site&RANG=probe_rank&CLE=probe_key&NUMQUESTION=000000000&MONTANT=0&DEVISE=840&REFERENCE=probe_proxy_mandate_001&DATEQ=00000000000000&PORTEUR=%7B%7B%24card_number%7D%7D&DATEVAL=%7B%7B%24card_exp_month%7D%7D%7B%7B%24card_exp_year%7D%7D&CVV=%7B%7B%24card_cvc%7D%7D&REFABONNE=probe_proxy_mandate_001&ACTIVITE=024"
+          "body": "VERSION=00104&TYPE=00056&SITE=probe_site&RANG=probe_rank&CLE=probe_key&NUMQUESTION=000000000&MONTANT=0&DEVISE=840&REFERENCE=probe_proxy_mandate_001&DATEQ=00000000000000&PORTEUR=%7B%7B%24card_number%7D%7D&DATEVAL=0330&CVV=%7B%7B%24card_cvc%7D%7D&REFABONNE=probe_proxy_mandate_001&ACTIVITE=024"
         }
       }
     },
@@ -704,6 +704,11 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: mandate_revoke flow for paybox"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "refund": {

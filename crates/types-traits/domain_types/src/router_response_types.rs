@@ -60,6 +60,9 @@ pub enum RedirectForm {
     Uri {
         uri: String,
     },
+    Script {
+        script_data: String, // A standalone script snippet
+    },
 }
 
 impl From<(url::Url, Method)> for RedirectForm {
