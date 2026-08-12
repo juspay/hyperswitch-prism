@@ -106,8 +106,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> connector_types::AuthenticationStep {
         use connector_types::{AuthenticationStep, RedirectState};
 
+        // Wallets take this path too: a Google Pay token with no cryptogram is non-SCA on its
+        // own, and Paysafe's guidance is to authenticate it with a 3DS challenge rather than
+        // skip 3DS. The wallet payload rides the same PreAuthenticate -> Authenticate ->
+        // Authorize chain as a card, since only that leg surfaces the ACS redirect.
         if auth_type == common_enums::AuthenticationType::ThreeDs
-            && payment_method == PaymentMethod::Card
+            && matches!(payment_method, PaymentMethod::Card | PaymentMethod::Wallet)
         {
             match (redirect_state, completed_step) {
                 (RedirectState::InitialRequest, _) => AuthenticationStep::PreAuthenticate,

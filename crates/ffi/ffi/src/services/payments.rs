@@ -1015,6 +1015,8 @@ pub fn verify_redirect_response_transformer(
     use domain_types::utils::ForeignTryFrom as _;
     use interfaces::verification::ConnectorSourceVerificationSecrets;
 
+    let connector_feature_data = payload.connector_feature_data;
+
     let request_details_proto = payload.request_details.ok_or_else(|| {
         Box::new(ConnectorError {
             error_message: "Missing required field: request_details".to_string(),
@@ -1076,7 +1078,7 @@ pub fn verify_redirect_response_transformer(
 
     let redirect_details = connector_data
         .connector
-        .process_redirect_response(&updated_request_details)
+        .process_redirect_response(&updated_request_details, connector_feature_data.as_ref())
         .map_err(|e| {
             Box::new(ConnectorError {
                 error_message: format!("{e}"),

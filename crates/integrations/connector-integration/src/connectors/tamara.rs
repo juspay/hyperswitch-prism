@@ -357,6 +357,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn process_redirect_response(
         &self,
         request: &RequestDetails,
+        _connector_feature_data: Option<&hyperswitch_masking::Secret<String>>,
     ) -> CustomResult<RedirectDetailsResponse, IntegrationError> {
         let order_id = get_query_param(request, "orderId");
 
@@ -369,6 +370,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             error_reason: None,
             response_amount: None,
             raw_connector_response: None,
+            connector_feature_data: None,
         })
     }
 }

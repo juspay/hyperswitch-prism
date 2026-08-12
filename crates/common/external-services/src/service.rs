@@ -2,6 +2,8 @@ use std::{collections::HashMap, str::FromStr, sync::RwLock, time::Duration};
 
 use base64::Engine;
 use common_enums::ApiClientError;
+#[cfg(all(feature = "injector-client", feature = "log-transformations"))]
+use common_utils::events::apply_log_fields;
 #[cfg(feature = "injector-client")]
 use common_utils::{
     consts::{X_API_TAG, X_API_URL, X_SESSION_ID},
@@ -9,6 +11,7 @@ use common_utils::{
     request::TransportType,
 };
 use common_utils::{
+    events::CompiledLogFields,
     ext_traits::AsyncExt,
     lineage,
     request::{Method, Request, RequestContent},
@@ -575,6 +578,10 @@ pub struct EventProcessingParams<'a> {
     pub merchant_id: &'a str,
     pub return_raw_connector_data: bool,
     pub connector_latency: ConnectorLatencyTracker,
+    /// Runtime kill-switch for log field application.
+    pub log_fields_enabled: bool,
+    /// Pre-compiled log fields (transformations + static values) for golden log lines.
+    pub log_fields: &'a CompiledLogFields,
 }
 
 #[cfg(feature = "injector-client")]
@@ -1135,6 +1142,11 @@ where
 
     let elapsed = start.elapsed().as_millis();
     tracing::Span::current().record("latency", elapsed);
+    // Apply outgoing log fields (transformations + static values) before emitting the golden log line
+    #[cfg(feature = "log-transformations")]
+    if event_params.log_fields_enabled {
+        apply_log_fields(event_params.log_fields);
+    }
     tracing::info!(tag = ?Tag::OutgoingApi, log_type = "api", "Outgoing Request completed");
     result_with_integrity_check
 }

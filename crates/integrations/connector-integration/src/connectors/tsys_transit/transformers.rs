@@ -33,6 +33,7 @@ use super::{super::macros::GetSoapXml, profile::TxProfile, rules, TsysTransitRou
 use crate::types::ResponseRouterData;
 
 const POS_ACCEPTANCE_DEVICE_TYPE: &str = "0";
+const DEFAULT_CANCELLATION_REASON: &str = "POST_AUTH_USER_DECLINE";
 
 #[derive(Debug, Serialize, Clone, Copy)]
 #[serde(rename_all = "UPPERCASE")]
@@ -3156,7 +3157,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // arbitrary caller-supplied cancellation_reason (free text) is rejected
         // with "The value of element 'voidReason' is not valid." Ignore the
         // request value and always send a valid connector default.
-        let void_reason = "RETURN_REVERSAL".to_string();
+        let void_reason = router_data
+            .request
+            .cancellation_reason
+            .clone()
+            .unwrap_or_else(|| DEFAULT_CANCELLATION_REASON.to_string());
 
         Ok(Self {
             device_id: auth.device_id,

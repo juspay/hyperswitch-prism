@@ -42,8 +42,9 @@ message FrmServicePreRiskCheckRequest {
   // Order details
   repeated OrderDetailsWithAmount order_details = 6;
 
-  // Address information
-  optional Address address = 7;
+  // Deprecated: a single address cannot represent independent billing and
+  // shipping addresses. Use `payment_address` instead.
+  optional Address address = 7 [deprecated = true];
 
   // Additional metadata for the connector
   optional SecretString metadata = 8;
@@ -59,11 +60,14 @@ message FrmServicePreRiskCheckRequest {
 
   // Recurring / mandate details for subscription risk scoring. Reuses the shared
   // MandateAmountData (from payment.proto): `amount` is the per-period billing
-  // amount, `frequency` the billing period. 
+  // amount, `frequency` the billing period.
   optional MandateAmountData mandate_details = 12;
 
   // Merchant details (id + MCC) for risk scoring.
   optional MerchantDetails merchant_details = 13;
+
+  // Billing / shipping address information. Supersedes the deprecated `address`.
+  optional PaymentAddress payment_address = 14;
 }
 
 // Response for FrmService.PreRiskCheck
@@ -135,6 +139,9 @@ message FrmServicePostRiskCheckRequest {
 
   // State Information
   optional ConnectorState state = 12;
+
+  // Billing / shipping address information
+  optional PaymentAddress payment_address = 13;
 }
 
 // Response for FrmService.PostRiskCheck

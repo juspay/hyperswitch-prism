@@ -614,6 +614,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn process_redirect_response(
         &self,
         _request: &RequestDetails,
+        _connector_feature_data: Option<&hyperswitch_masking::Secret<String>>,
     ) -> CustomResult<RedirectDetailsResponse, errors::IntegrationError> {
         // Maya is a redirect-only connector. The redirect body carries no
         // meaningful payment state; final status is confirmed via PSync or
@@ -628,6 +629,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             error_reason: None,
             response_amount: None,
             raw_connector_response: None,
+            connector_feature_data: None,
         })
     }
 }

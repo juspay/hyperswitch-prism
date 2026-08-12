@@ -19,6 +19,94 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.08.12.0
+
+### Features
+
+- **payouts:** Surface vop response ([#2074](https://github.com/juspay/connector-service/pull/2074)) ([`e6f3af5`](https://github.com/juspay/connector-service/commit/e6f3af5cc20476a47f9ab19c66d7ed696b586dea))
+
+### Bug Fixes
+
+- **core:** Add ali_pay_hk to payment method type conversions ([#2092](https://github.com/juspay/connector-service/pull/2092)) ([`9355031`](https://github.com/juspay/connector-service/commit/935503116dea9fc04b3eff4be256fc2dda58760a))
+
+**Full Changelog:** [`2026.08.11.3...2026.08.12.0`](https://github.com/juspay/connector-service/compare/2026.08.11.3...2026.08.12.0)
+
+- - -
+
+## 2026.08.11.3
+
+### Features
+
+- **fiservcommercehub:** Fallback PSync to referenceMerchantOrderId when connector_transaction_id is absent ([#2088](https://github.com/juspay/connector-service/pull/2088)) ([`f39ec0c`](https://github.com/juspay/connector-service/commit/f39ec0c7d193addae0aa5528a60cf71b4eb96528))
+- **logs:** Config-driven log transformations and static values for golden log lines ([#2075](https://github.com/juspay/connector-service/pull/2075)) ([`4562af9`](https://github.com/juspay/connector-service/commit/4562af9659a3dae433da505fa91fcef35011f040))
+
+### Bug Fixes
+
+- **config:** Add missing plaid enum value to superposition connector dimension ([#2090](https://github.com/juspay/connector-service/pull/2090)) ([`fd34be9`](https://github.com/juspay/connector-service/commit/fd34be9f85320ef9e51c06d73144ddbf89f441d4))
+
+### Refactors
+
+- **connector:** Use cancellation reason in VoidPostRefund flow ([#2091](https://github.com/juspay/connector-service/pull/2091)) ([`9c34127`](https://github.com/juspay/connector-service/commit/9c34127c0dac2743c306843cd41403e614f01536))
+
+**Full Changelog:** [`2026.08.11.2...2026.08.11.3`](https://github.com/juspay/connector-service/compare/2026.08.11.2...2026.08.11.3)
+
+- - -
+
+## 2026.08.11.2
+
+### Features
+
+- **connector:** GrabPay connector integration ([#2063](https://github.com/juspay/connector-service/pull/2063)) ([`aefd947`](https://github.com/juspay/connector-service/commit/aefd947fbedda01382e81a43eb80aa5983ca51e1))
+
+### Bug Fixes
+
+- **kount:** Map billing/shipping addresses, relay AVS/CVV, and return DDC script only ([#2081](https://github.com/juspay/connector-service/pull/2081)) ([`02e4716`](https://github.com/juspay/connector-service/commit/02e471697207a2d8a8bf50ab944eaf17fe7df1a9))
+
+**Full Changelog:** [`2026.08.11.1...2026.08.11.2`](https://github.com/juspay/connector-service/compare/2026.08.11.1...2026.08.11.2)
+
+- - -
+
+## 2026.08.11.1
+
+### Features
+
+- **paysafe:** Support Google Pay PAN_ONLY with 3DS challenge ([#2087](https://github.com/juspay/connector-service/pull/2087)) ([`a96f01d`](https://github.com/juspay/connector-service/commit/a96f01d01ec38d092c68eb0d13a696c59835cca9))
+
+### Bug Fixes
+
+- **kount:** Made changes in Order info payload ([#2083](https://github.com/juspay/connector-service/pull/2083)) ([`f7d0ee9`](https://github.com/juspay/connector-service/commit/f7d0ee96e8a0cad14e5ec8fa0cf5efc22d5ad442))
+
+**Full Changelog:** [`2026.08.11.0...2026.08.11.1`](https://github.com/juspay/connector-service/compare/2026.08.11.0...2026.08.11.1)
+
+- - -
+
+## 2026.08.11.0
+
+### Bug Fixes
+
+- **netcetera:** Fix Authenticate response parity and card-proxy expiry handling ([#2070](https://github.com/juspay/connector-service/pull/2070)) ([`dffd562`](https://github.com/juspay/connector-service/commit/dffd562e04a04c8a9e9f32e2b8b9a66bd259f0be))
+
+**Full Changelog:** [`2026.08.10.1...2026.08.11.0`](https://github.com/juspay/connector-service/compare/2026.08.10.1...2026.08.11.0)
+
+- - -
+
+## 2026.08.10.1
+
+### Bug Fixes
+
+- **connector:** [fiuu] revert hardcoded Failure status on error arm ([#2079](https://github.com/juspay/connector-service/pull/2079)) ([`1797013`](https://github.com/juspay/connector-service/commit/1797013fcdb009af57ff606257cf4004e7a976c3))
+- **novalnet:**
+  - Keep attempt status on API FAILURE to match Hyperswitch (issue #17033) ([#1680](https://github.com/juspay/connector-service/pull/1680)) ([`13a5707`](https://github.com/juspay/connector-service/commit/13a570713950f3e2bfa4a1c198917e011de96bf1))
+  - Preserve attempt status on PSync API failure ([#17031](https://github.com/juspay/connector-service/pull/17031)) ([#1668](https://github.com/juspay/connector-service/pull/1668)) ([`e430007`](https://github.com/juspay/connector-service/commit/e430007866d11debd81a5c2172e7d3ea95438ed2))
+  - Keep attempt status on SetupMandate API FAILURE to match Hyperswitch ([#1853](https://github.com/juspay/connector-service/pull/1853)) ([`992d9c3`](https://github.com/juspay/connector-service/commit/992d9c3929ea8c3d9168ef4f098030e7ed15b37a))
+  - Preserve attempt status on repeat_payment API failure ([#17033](https://github.com/juspay/connector-service/pull/17033)) ([#1633](https://github.com/juspay/connector-service/pull/1633)) ([`e8d0408`](https://github.com/juspay/connector-service/commit/e8d0408bb5efbb3ea30593a258bbd7f2227ae7c7))
+- **paysafe:** Forward eciIndicator and implement no_three_ds via skip3ds ([#2073](https://github.com/juspay/connector-service/pull/2073)) ([`8b542bb`](https://github.com/juspay/connector-service/commit/8b542bbfab71bbb7bd33a5ce54a76e1dfd4e2a17))
+- Increase Kotlin compiler file size limit ([#2082](https://github.com/juspay/connector-service/pull/2082)) ([`3878190`](https://github.com/juspay/connector-service/commit/3878190ac6cd24150b5ed2bf8c0d83a14410f25b))
+
+**Full Changelog:** [`2026.08.10.0...2026.08.10.1`](https://github.com/juspay/connector-service/compare/2026.08.10.0...2026.08.10.1)
+
+- - -
+
 ## 2026.08.10.0
 
 ### Features

@@ -288,6 +288,7 @@ default_impl_verify_webhook_source_v2!(
         Kount,
         Hyperswitch,
         Affirm,
+        Grabpay,
         Tesouro,
     ],
 );
@@ -996,6 +997,7 @@ default_impl_refresh_payment_method_v2!(
     Givepayments,
     Globalpay,
     Glomopay,
+    Grabpay,
     Helcim,
     Hipay,
     Hyperpg,

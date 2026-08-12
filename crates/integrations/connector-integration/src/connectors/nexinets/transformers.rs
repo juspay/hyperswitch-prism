@@ -873,6 +873,7 @@ fn get_wallet_details<
         | WalletData::ApplePayRedirect(_)
         | WalletData::ApplePayThirdPartySdk(_)
         | WalletData::DanaRedirect { .. }
+        | WalletData::GrabpayRedirect { .. }
         | WalletData::GooglePay(_)
         | WalletData::GooglePayRedirect(_)
         | WalletData::GooglePayThirdPartySdk(_)

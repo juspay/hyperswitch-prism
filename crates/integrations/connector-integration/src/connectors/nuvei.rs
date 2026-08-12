@@ -96,7 +96,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Nuvei<T>
 {
-    fn should_do_session_token(&self) -> bool {
+    fn should_do_session_token(
+        &self,
+        _connector_feature_data: Option<&hyperswitch_masking::Secret<String>>,
+    ) -> bool {
         true
     }
 }

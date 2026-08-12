@@ -1399,7 +1399,7 @@ macro_rules! create_amount_converter_wrapper {
                 /// Convert connector amount back to MinorUnit.
                 ///
                 /// Returns generic ParsingError - caller should change_context appropriately:
-                /// ```
+                /// ```ignore
                 /// // In response transformation:
                 /// let amount = Convertor::convert_back(response.amount, currency)
                 ///     .change_context(crate::utils::response_handling_fail_for_connector(http_code, "macros"))?;
@@ -2084,6 +2084,39 @@ macro_rules! expand_flow_status_impl {
             flow_common_data: ::domain_types::connector_types::PaymentFlowData,
             request: ::domain_types::connector_types::PaymentMethodTokenizationData<$g>,
             response: ::domain_types::connector_types::PaymentMethodTokenResponse,
+        );
+    };
+    (connector: $c:ident, flow: Recharge, status: $st:ident, generic_type: $g:tt, [$($b:tt)*]) => {
+        impl<$g: $($b)*> ::interfaces::connector_types::RechargeV2 for $c<$g> {}
+        $crate::connectors::macros::flow_status_emit!(
+            connector: $c, status: $st, generic_type: $g, [$($b)*],
+            flow: ::domain_types::connector_flow::Recharge,
+            flow_name: "recharge",
+            flow_common_data: ::domain_types::connector_types::PaymentFlowData,
+            request: ::domain_types::connector_types::RechargeRequestData,
+            response: ::domain_types::connector_types::RechargeResponseData,
+        );
+    };
+    (connector: $c:ident, flow: CreatePaymentMethod, status: $st:ident, generic_type: $g:tt, [$($b:tt)*]) => {
+        impl<$g: $($b)*> ::interfaces::connector_types::CreatePaymentMethodV2 for $c<$g> {}
+        $crate::connectors::macros::flow_status_emit!(
+            connector: $c, status: $st, generic_type: $g, [$($b)*],
+            flow: ::domain_types::connector_flow::CreatePaymentMethod,
+            flow_name: "create_payment_method",
+            flow_common_data: ::domain_types::connector_types::PaymentFlowData,
+            request: ::domain_types::connector_types::CreatePaymentMethodData,
+            response: ::domain_types::connector_types::CreatePaymentMethodResponseData,
+        );
+    };
+    (connector: $c:ident, flow: GetPaymentMethod, status: $st:ident, generic_type: $g:tt, [$($b:tt)*]) => {
+        impl<$g: $($b)*> ::interfaces::connector_types::GetPaymentMethodV2 for $c<$g> {}
+        $crate::connectors::macros::flow_status_emit!(
+            connector: $c, status: $st, generic_type: $g, [$($b)*],
+            flow: ::domain_types::connector_flow::GetPaymentMethod,
+            flow_name: "get_payment_method",
+            flow_common_data: ::domain_types::connector_types::PaymentFlowData,
+            request: ::domain_types::connector_types::GetPaymentMethodData,
+            response: ::domain_types::connector_types::GetPaymentMethodResponseData,
         );
     };
     (connector: $c:ident, flow: PreAuthenticate, status: $st:ident, generic_type: $g:tt, [$($b:tt)*]) => {
