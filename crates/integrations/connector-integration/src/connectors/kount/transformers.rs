@@ -1475,7 +1475,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // Billing / shipping persons from the payment address. The FRM request
         // carries a real PaymentAddress with independently-set billing and
-        // shipping addresses (see FrmServicePreRiskCheckRequest.payment_address).
+        // shipping addresses (see FrmServicePreRiskCheckRequest.address).
         let address = req.address.as_ref();
         let billed_person = address
             .and_then(|addr| addr.get_payment_billing())
