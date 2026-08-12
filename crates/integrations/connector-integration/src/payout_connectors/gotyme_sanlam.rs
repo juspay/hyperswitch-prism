@@ -2,8 +2,12 @@ pub mod transformers;
 
 use common_enums::CurrencyUnit;
 use common_utils::{
-    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE}, errors::CustomResult, events, ext_traits::ByteSliceExt,
-    request::RequestContent, AmountConvertor, StringMajorUnit, StringMajorUnitForConnector,
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
+    errors::CustomResult,
+    events,
+    ext_traits::ByteSliceExt,
+    request::RequestContent,
+    AmountConvertor, StringMajorUnit, StringMajorUnitForConnector,
 };
 use domain_types::{
     connector_flow::{PayoutGet, PayoutTransfer, ServerAuthenticationToken},

@@ -228,9 +228,7 @@ impl PayoutConnectorData {
             PayoutConnectorEnum::Cybersource => {
                 Box::new(payout_connectors::CybersourcePayouts::new())
             }
-            PayoutConnectorEnum::Santander => {
-                Box::new(payout_connectors::SantanderPayouts::new())
-            }
+            PayoutConnectorEnum::Santander => Box::new(payout_connectors::SantanderPayouts::new()),
             PayoutConnectorEnum::GotymeSanlam => {
                 Box::new(payout_connectors::GotymeSanlamPayouts::new())
             }

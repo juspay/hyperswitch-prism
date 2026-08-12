@@ -329,10 +329,7 @@ pub fn log_after_initialization<T>(
         Err(status) => {
             current_span.record("error_message", status.message());
             current_span.record("status_code", status.code().to_string());
-            current_span.record(
-                "error_response_details",
-                tracing::field::debug(status),
-            );
+            current_span.record("error_response_details", tracing::field::debug(status));
         }
     }
     // Apply unified log fields (transformations + static values) before emitting the golden log line
