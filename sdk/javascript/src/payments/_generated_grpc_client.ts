@@ -355,8 +355,8 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   PayoutServiceCreateRecipientRequest: ["accessToken"],
   PayoutServiceEnrollDisburseAccountRequest: ["accessToken"],
   PayoutMethodEligibilityRequest: ["connectorFeatureData", "accessToken"],
-  ConnectorError: ["rawConnectorResponse", "rawConnectorRequest"],
   PayoutMethodEligibilityResponse: ["connectorMetadata"],
+  ConnectorError: ["rawConnectorResponse", "rawConnectorRequest"],
   SurchargeServiceCalculateRequest: ["postalCode"],
 };
 
