@@ -23,6 +23,7 @@ connector_request_timeout = 30
 bypass_urls = ["localhost", "local"]
 
 [connectors]
+citigate.base_url = "https://gw-test.cgate.tech"
 grabpay.base_url = "https://partner-api.grab.com/grabpay/partner/v2"
 maya.base_url = "https://pg.maya.ph"
 boost.base_url = "https://api.boostconnect.biz/gateway"

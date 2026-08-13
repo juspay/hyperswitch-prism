@@ -791,5 +791,10 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             merchant_secret: k(),
             base_url: None,
         },
+        ConnectorEnum::Citigate => ConnectorSpecificConfig::Citigate {
+            api_key: k(),
+            key1: k(),
+            base_url: None,
+        },
     }
 }

@@ -162,6 +162,7 @@ pub enum ConnectorEnum {
     Grabpay,
     Tesouro,
     Boost,
+    Citigate,
 }
 
 // snake case for enum variants
@@ -520,6 +521,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Givepayments => Ok(Self::Givepayments),
             grpc_api_types::payments::Connector::Boost => Ok(Self::Boost),
             grpc_api_types::payments::Connector::Grabpay => Ok(Self::Grabpay),
+            grpc_api_types::payments::Connector::Citigate => Ok(Self::Citigate),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -5667,6 +5669,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Maya(_) => Ok(Self::Payment(ConnectorEnum::Maya)),
             AuthType::Tesouro(_) => Ok(Self::Payment(ConnectorEnum::Tesouro)),
             AuthType::Boost(_) => Ok(Self::Payment(ConnectorEnum::Boost)),
+            AuthType::Citigate(_) => Ok(Self::Payment(ConnectorEnum::Citigate)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TsysTransit(_) => Ok(Self::Payment(ConnectorEnum::TsysTransit)),
             AuthType::TwocTwopPaco(_) => Ok(Self::Payment(ConnectorEnum::TwocTwopPaco)),
