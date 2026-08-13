@@ -44,6 +44,8 @@ code, run tests, or review quality yourself. Spawn subagents and coordinate thei
 | Enum definitions | `crates/common/common_enums/src/enums.rs` |
 | Domain utilities | `crates/types-traits/domain_types/src/utils.rs` |
 | Macro definitions | `crates/integrations/connector-integration/src/connectors/macros/` |
+| Superposition URLs | `config/superposition.toml` |
+| URL patching (`Connectors::apply`) | `crates/types-traits/domain_types/src/types.rs` |
 
 ## Critical Conventions
 
@@ -57,6 +59,10 @@ These rules apply to ALL subagents. Include them in every subagent prompt.
 - Check `references/utility-functions.md` before implementing custom helpers
 - No `unwrap()`, no fields hardcoded to `None`, no unnecessary `.clone()`
 - Auth data accessed via `req.connector_config` (NOT `connector_auth_type`)
+- ALWAYS register connector base URLs in `config/superposition.toml` (dimension enum + sandbox &
+  production `connector_base_url` overrides) AND add the connector to `Connectors::apply` in
+  `crates/types-traits/domain_types/src/types.rs` for dynamic URL patching. The scaffold script
+  does NOT do this — it is a mandatory manual step.
 
 ---
 
@@ -111,8 +117,11 @@ Do NOT attempt to infer API details from any other source. A tech spec is mandat
 - Sets up `create_amount_converter_wrapper!` macro
 - Implements `ConnectorCommon` trait (id, content_type, base_url, auth_header, error_response)
 - Adds required trait markers (ConnectorServiceTrait, SourceVerification, BodyDecoding)
+- Registers connector base URLs in `config/superposition.toml` (dimension enum + sandbox/production
+  overrides) and adds the URL-patching match arm in `types.rs` `Connectors::apply` (scaffold script
+  does NOT do this)
 
-**Outputs:** scaffold created, build passing, files list
+**Outputs:** scaffold created, superposition URLs registered + URL patching wired, build passing, files list
 
 **Gate:** Build must pass before proceeding.
 

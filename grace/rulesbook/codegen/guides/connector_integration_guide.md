@@ -171,6 +171,52 @@ impl TryFrom<&ConnectorAuthType> for ConnectorNameAuthType {
 }
 ```
 
+#### Step 2.3: Superposition URL Registration & Dynamic URL Patching (MANDATORY)
+
+> **⚠️ The scaffold script (`add_connector.sh`) does NOT do this.** It only writes `base_url`
+> into `development/sandbox/production.toml` and updates the proto enum, `ConnectorEnum`, and
+> `ConnectorSpecificConfig`. You MUST make BOTH edits below for every new connector, otherwise the
+> connector ships without dynamic URL patching from superposition. Reference: PR
+> [juspay/hyperswitch-prism#2118](https://github.com/juspay/hyperswitch-prism/pull/2118).
+
+**Naming convention** (e.g. `twoc_twop_paco` ↔ `ConnectorEnum::TwocTwopPaco`):
+- superposition enum value, `_context_ = { connector = "..." }`, and `patched.<field>` → **snake_case** (`{connector_name}`)
+- `ConnectorEnum::<Variant>` → **PascalCase** (`{ConnectorName}`)
+
+**A. `config/superposition.toml`**
+
+1. Add `"{connector_name}"` to the `connector` dimension `enum` list under `[dimensions]`.
+2. Append override blocks at the END of the file (sandbox/default + production):
+
+```toml
+# {ConnectorName}
+[[overrides]]
+_context_ = { connector = "{connector_name}" }
+connector_base_url = "{sandbox_base_url}"
+
+# {ConnectorName} Production
+[[overrides]]
+_context_ = { connector = "{connector_name}", environment = "production" }
+connector_base_url = "{production_base_url}"
+```
+
+**B. `crates/types-traits/domain_types/src/types.rs` → `Connectors::apply()`**
+
+1. Add a match arm BEFORE the `_ =>` fallback:
+
+```rust
+ConnectorEnum::{ConnectorName} => {
+    patched.{connector_name}.apply(params_patch);
+}
+```
+
+2. Add `{connector_name}` to the "Supported connectors:" list in the `_ =>` fallback error message
+   (this list is surfaced when an unsupported connector is requested for URL patching).
+
+> Connectors with extra URL fields (e.g. TrustPay uses `ConnectorParamsWithMoreUrls`) build a
+> connector-specific patch struct instead of using `params_patch` directly — mirror the nearest
+> existing arm for such cases.
+
 ### Phase 3: Flow Implementation
 
 > **📖 Pattern Reference:** For detailed implementation patterns, see:

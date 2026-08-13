@@ -54,8 +54,8 @@ Output format:
 
 ## Subagent 2: Foundation Setup
 
-**Inputs**: connector_name, base_url
-**Outputs**: scaffold created, build passes, convention check results
+**Inputs**: connector_name, base_url, production_base_url
+**Outputs**: scaffold created, superposition URLs registered + URL patching wired, build passes, convention check results
 
 ```
 Set up the foundation for the {ConnectorName} connector.
@@ -95,11 +95,43 @@ Set up the foundation for the {ConnectorName} connector.
    - SourceVerification
    - BodyDecoding
 
-8. Verify: cargo build --package connector-integration
+8. Register connector base URLs in superposition + enable dynamic URL patching (MANDATORY).
+   The scaffold script does NOT do this. You MUST make BOTH edits below, or the connector
+   ships without dynamic URL patching from superposition.
+   Naming: superposition enum value / _context_ / patched.<field> use snake_case
+   ({connector_name}); ConnectorEnum::<Variant> uses PascalCase ({ConnectorName}).
+
+   a. config/superposition.toml
+      - Add "{connector_name}" to the `connector` dimension enum under [dimensions].
+      - Append override blocks at the END of the file (sandbox default + production):
+
+        # {ConnectorName}
+        [[overrides]]
+        _context_ = { connector = "{connector_name}" }
+        connector_base_url = "{sandbox_base_url}"
+
+        # {ConnectorName} Production
+        [[overrides]]
+        _context_ = { connector = "{connector_name}", environment = "production" }
+        connector_base_url = "{production_base_url}"
+
+   b. crates/types-traits/domain_types/src/types.rs  ->  Connectors::apply()
+      - Add a match arm BEFORE the `_ =>` fallback:
+
+        ConnectorEnum::{ConnectorName} => {
+            patched.{connector_name}.apply(params_patch);
+        }
+
+      - Add "{connector_name}" to the "Supported connectors:" list in the `_ =>` error message.
+
+9. Verify: cargo build --package connector-integration
 
 Output:
   STATUS: SUCCESS | FAILED
   FILES_CREATED: [list of files]
+  FILES_MODIFIED: [config/superposition.toml, crates/types-traits/domain_types/src/types.rs, ...]
+  SUPERPOSITION_URLS_REGISTERED: YES | NO
+  URL_PATCHING_WIRED: YES | NO
   BUILD: PASS | FAIL
   CONVENTION_VIOLATIONS: [none] or [list]
 ```
