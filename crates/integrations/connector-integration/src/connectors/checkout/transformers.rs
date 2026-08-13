@@ -82,6 +82,12 @@ pub struct WalletSource {
 /// Constants for ACH payment type
 const ACH_PAYMENT_TYPE: &str = "ach";
 const ACH_COUNTRY_US: &str = "US";
+/// Source `type` Checkout expects for a wallet token Hyperswitch has decrypted into a network token.
+const NETWORK_TOKEN_TYPE: &str = "network_token";
+const APPLE_PAY_TOKEN_TYPE: &str = "applepay";
+const GOOGLE_PAY_TOKEN_TYPE: &str = "googlepay";
+/// Google Pay does not surface an ECI of its own, and Checkout requires one on network tokens.
+const GOOGLE_PAY_DEFAULT_ECI: &str = "06";
 
 /// Checkout.com ACH account holder type (mapped from common_enums::BankHolderType)
 #[derive(Debug, Serialize)]
@@ -425,6 +431,94 @@ fn split_account_holder_name(
     }
 }
 
+/// Builds the Checkout payment source for a wallet whose token Hyperswitch has already decrypted.
+///
+/// Checkout only accepts wallets in the network-token shape (PAN + cryptogram), so a token that is
+/// still encrypted is rejected here rather than forwarded. Shared by the Authorize and SetupMandate
+/// flows so a zero-amount mandate setup accepts the same wallets as a regular payment.
+fn build_predecrypted_wallet_source<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+>(
+    wallet_data: &WalletData,
+    billing_address: Option<CheckoutAddress>,
+) -> Result<PaymentSource<T>, error_stack::Report<IntegrationError>> {
+    match wallet_data {
+        WalletData::GooglePay(google_pay_data) => match &google_pay_data.tokenization_data {
+            domain_types::payment_method_data::GpayTokenizationData::Decrypted(
+                google_pay_decrypted_data,
+            ) => {
+                let expiry_month = google_pay_decrypted_data
+                    .get_expiry_month()
+                    .change_context(IntegrationError::InvalidDataFormat {
+                        field_name: "google_pay_decrypted_data.card_exp_month",
+                        context: Default::default(),
+                    })?;
+
+                let expiry_year = google_pay_decrypted_data
+                    .get_four_digit_expiry_year()
+                    .change_context(IntegrationError::InvalidDataFormat {
+                        field_name: "google_pay_decrypted_data.card_exp_year",
+                        context: Default::default(),
+                    })?;
+
+                Ok(PaymentSource::GooglePayPredecrypt(Box::new(
+                    GooglePayPredecrypt {
+                        _type: NETWORK_TOKEN_TYPE.to_string(),
+                        token: google_pay_decrypted_data
+                            .application_primary_account_number
+                            .clone(),
+                        token_type: GOOGLE_PAY_TOKEN_TYPE.to_string(),
+                        expiry_month,
+                        expiry_year,
+                        eci: GOOGLE_PAY_DEFAULT_ECI.to_string(),
+                        cryptogram: google_pay_decrypted_data.cryptogram.clone(),
+                        billing_address,
+                    },
+                )))
+            }
+            domain_types::payment_method_data::GpayTokenizationData::Encrypted(_) => {
+                Err(IntegrationError::MissingRequiredField {
+                    field_name: "google_pay_decrypted_data",
+                    context: Default::default(),
+                }
+                .into())
+            }
+        },
+        WalletData::ApplePay(apple_pay_data) => match apple_pay_data
+            .payment_data
+            .get_decrypted_apple_pay_payment_data_optional()
+        {
+            Some(apple_pay_decrypt_data) => Ok(PaymentSource::ApplePayPredecrypt(Box::new(
+                ApplePayPredecrypt {
+                    token: apple_pay_decrypt_data
+                        .application_primary_account_number
+                        .clone(),
+                    decrypt_type: NETWORK_TOKEN_TYPE.to_string(),
+                    token_type: APPLE_PAY_TOKEN_TYPE.to_string(),
+                    expiry_month: apple_pay_decrypt_data.get_expiry_month(),
+                    expiry_year: apple_pay_decrypt_data.get_four_digit_expiry_year(),
+                    eci: apple_pay_decrypt_data.payment_data.eci_indicator.clone(),
+                    cryptogram: apple_pay_decrypt_data
+                        .payment_data
+                        .online_payment_cryptogram
+                        .clone(),
+                    billing_address,
+                },
+            ))),
+            None => Err(IntegrationError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("checkout"),
+                Default::default(),
+            )
+            .into()),
+        },
+        _ => Err(IntegrationError::NotImplemented(
+            utils::get_unimplemented_payment_method_error_message("checkout"),
+            Default::default(),
+        )
+        .into()),
+    }
+}
+
 fn build_metadata(
     metadata: Option<Secret<serde_json::Value>>,
     partner_merchant_identifier_details: Option<&PartnerMerchantIdentifierDetails>,
@@ -534,176 +628,90 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .get_optional_billing_country(),
         });
 
-        let (source_var, previous_payment_id, merchant_initiated, store_for_future_use) = match item
-            .router_data
-            .request
-            .payment_method_data
-            .clone()
-        {
-            PaymentMethodData::Card(ccard) => {
-                let (first_name, last_name) = split_account_holder_name(ccard.card_holder_name);
+        let (source_var, previous_payment_id, merchant_initiated, store_for_future_use) =
+            match item.router_data.request.payment_method_data.clone() {
+                PaymentMethodData::Card(ccard) => {
+                    let (first_name, last_name) = split_account_holder_name(ccard.card_holder_name);
 
-                let payment_source = PaymentSource::Card(CardSource {
-                    source_type: CheckoutSourceTypes::Card,
-                    number: ccard.card_number.clone(),
-                    expiry_month: ccard.card_exp_month.clone(),
-                    expiry_year: ccard.card_exp_year.clone(),
-                    cvv: Some(ccard.card_cvc),
-                    billing_address: billing_details,
-                    account_holder: Some(CheckoutAccountHolderDetails {
-                        first_name,
-                        last_name,
-                    }),
-                });
-                Ok((payment_source, None, Some(false), store_for_future_use))
-            }
-            PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                WalletData::GooglePay(google_pay_data) => {
-                    match &google_pay_data.tokenization_data {
-                        domain_types::payment_method_data::GpayTokenizationData::Decrypted(
-                            google_pay_decrypted_data,
-                        ) => {
-                            let token = google_pay_decrypted_data
-                                .application_primary_account_number
-                                .clone();
+                    let payment_source = PaymentSource::Card(CardSource {
+                        source_type: CheckoutSourceTypes::Card,
+                        number: ccard.card_number.clone(),
+                        expiry_month: ccard.card_exp_month.clone(),
+                        expiry_year: ccard.card_exp_year.clone(),
+                        cvv: Some(ccard.card_cvc),
+                        billing_address: billing_details,
+                        account_holder: Some(CheckoutAccountHolderDetails {
+                            first_name,
+                            last_name,
+                        }),
+                    });
+                    Ok((payment_source, None, Some(false), store_for_future_use))
+                }
+                PaymentMethodData::Wallet(wallet_data) => {
+                    let p_source = build_predecrypted_wallet_source(&wallet_data, billing_details)?;
+                    Ok((p_source, None, Some(false), store_for_future_use))
+                }
+                PaymentMethodData::BankDebit(BankDebitData::AchBankDebit {
+                    account_number,
+                    routing_number,
+                    bank_account_holder_name,
+                    card_holder_name,
+                    bank_holder_type,
+                    bank_type,
+                    ..
+                }) => {
+                    // Get account holder name from bank_account_holder_name, card_holder_name, or billing details
+                    let holder_name = bank_account_holder_name.or(card_holder_name).or_else(|| {
+                        item.router_data
+                            .resource_common_data
+                            .get_billing_full_name()
+                            .ok()
+                    });
 
-                            let expiry_month = google_pay_decrypted_data
-                                .get_expiry_month()
-                                .change_context(IntegrationError::InvalidDataFormat {
-                                    field_name: "google_pay_decrypted_data.card_exp_month",
-                                    context: Default::default(),
-                                })?;
+                    // Map bank_holder_type to Checkout's expected format
+                    let holder_type: CheckoutAchHolderType = bank_holder_type
+                        .map(Into::into)
+                        .unwrap_or(CheckoutAchHolderType::Individual);
 
-                            let expiry_year = google_pay_decrypted_data
-                                .get_four_digit_expiry_year()
-                                .change_context(IntegrationError::InvalidDataFormat {
-                                    field_name: "google_pay_decrypted_data.card_exp_year",
-                                    context: Default::default(),
-                                })?;
-
-                            let cryptogram = google_pay_decrypted_data.cryptogram.clone();
-
-                            let p_source =
-                                PaymentSource::GooglePayPredecrypt(Box::new(GooglePayPredecrypt {
-                                    _type: "network_token".to_string(),
-                                    token,
-                                    token_type: "googlepay".to_string(),
-                                    expiry_month,
-                                    expiry_year,
-                                    eci: "06".to_string(),
-                                    cryptogram,
-                                    billing_address: billing_details,
-                                }));
-
-                            Ok((p_source, None, Some(false), store_for_future_use))
-                        }
-                        domain_types::payment_method_data::GpayTokenizationData::Encrypted(_) => {
-                            Err(IntegrationError::MissingRequiredField {
-                                field_name: "google_pay_decrypted_data",
-                                context: Default::default(),
+                    // Only include account_holder when a name is available to avoid
+                    // sending null first_name/last_name which causes ACH validation errors
+                    let account_holder = match holder_name {
+                        Some(name) => {
+                            let (first_name, last_name) = split_account_holder_name(Some(name));
+                            Some(AchAccountHolder {
+                                holder_type,
+                                first_name,
+                                last_name,
                             })
                         }
-                    }
-                }
-                WalletData::ApplePay(apple_pay_data) => {
-                    match apple_pay_data
-                        .payment_data
-                        .get_decrypted_apple_pay_payment_data_optional()
-                    {
-                        Some(apple_pay_decrypt_data) => {
-                            let exp_month = apple_pay_decrypt_data.get_expiry_month();
-                            let expiry_year_4_digit =
-                                apple_pay_decrypt_data.get_four_digit_expiry_year();
-                            let p_source =
-                                PaymentSource::ApplePayPredecrypt(Box::new(ApplePayPredecrypt {
-                                    token: apple_pay_decrypt_data
-                                        .application_primary_account_number
-                                        .clone(),
-                                    decrypt_type: "network_token".to_string(),
-                                    token_type: "applepay".to_string(),
-                                    expiry_month: exp_month,
-                                    expiry_year: expiry_year_4_digit,
-                                    eci: apple_pay_decrypt_data.payment_data.eci_indicator.clone(),
-                                    cryptogram: apple_pay_decrypt_data
-                                        .payment_data
-                                        .online_payment_cryptogram
-                                        .clone(),
-                                    billing_address: billing_details,
-                                }));
-                            Ok((p_source, None, Some(false), store_for_future_use))
-                        }
-                        None => Err(IntegrationError::NotImplemented(
-                            utils::get_unimplemented_payment_method_error_message("checkout"),
-                            Default::default(),
-                        )),
-                    }
+                        None => None,
+                    };
+
+                    let account_type = CheckoutBankType::try_from(
+                        bank_type.unwrap_or(common_enums::BankType::Savings),
+                    )?;
+
+                    let payment_source = PaymentSource::AchBankDebit(AchBankDebitSource {
+                        source_type: ACH_PAYMENT_TYPE.to_string(),
+                        account_type,
+                        country: ACH_COUNTRY_US.to_string(),
+                        account_number: account_number.clone(),
+                        routing_number: routing_number.clone(),
+                        account_holder,
+                    });
+                    // For ACH bank debit, we typically want to store for future use if it's a mandate payment
+                    let store_for_future = if item.router_data.request.is_mandate_payment() {
+                        Some(true)
+                    } else {
+                        store_for_future_use
+                    };
+                    Ok((payment_source, None, Some(false), store_for_future))
                 }
                 _ => Err(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("checkout"),
                     Default::default(),
                 )),
-            },
-            PaymentMethodData::BankDebit(BankDebitData::AchBankDebit {
-                account_number,
-                routing_number,
-                bank_account_holder_name,
-                card_holder_name,
-                bank_holder_type,
-                bank_type,
-                ..
-            }) => {
-                // Get account holder name from bank_account_holder_name, card_holder_name, or billing details
-                let holder_name = bank_account_holder_name.or(card_holder_name).or_else(|| {
-                    item.router_data
-                        .resource_common_data
-                        .get_billing_full_name()
-                        .ok()
-                });
-
-                // Map bank_holder_type to Checkout's expected format
-                let holder_type: CheckoutAchHolderType = bank_holder_type
-                    .map(Into::into)
-                    .unwrap_or(CheckoutAchHolderType::Individual);
-
-                // Only include account_holder when a name is available to avoid
-                // sending null first_name/last_name which causes ACH validation errors
-                let account_holder = match holder_name {
-                    Some(name) => {
-                        let (first_name, last_name) = split_account_holder_name(Some(name));
-                        Some(AchAccountHolder {
-                            holder_type,
-                            first_name,
-                            last_name,
-                        })
-                    }
-                    None => None,
-                };
-
-                let account_type = CheckoutBankType::try_from(
-                    bank_type.unwrap_or(common_enums::BankType::Savings),
-                )?;
-
-                let payment_source = PaymentSource::AchBankDebit(AchBankDebitSource {
-                    source_type: ACH_PAYMENT_TYPE.to_string(),
-                    account_type,
-                    country: ACH_COUNTRY_US.to_string(),
-                    account_number: account_number.clone(),
-                    routing_number: routing_number.clone(),
-                    account_holder,
-                });
-                // For ACH bank debit, we typically want to store for future use if it's a mandate payment
-                let store_for_future = if item.router_data.request.is_mandate_payment() {
-                    Some(true)
-                } else {
-                    store_for_future_use
-                };
-                Ok((payment_source, None, Some(false), store_for_future))
-            }
-            _ => Err(IntegrationError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("checkout"),
-                Default::default(),
-            )),
-        }?;
+            }?;
 
         let authentication_data = item.router_data.request.authentication_data.as_ref();
 
@@ -1323,6 +1331,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     routing_number: routing_number.clone(),
                     account_holder,
                 });
+                Ok((payment_source, None, Some(false), payment_type, Some(true)))
+            }
+            // Apple Pay / Google Pay tokens that Hyperswitch decrypted can seed a mandate the same
+            // way a raw card can, so a zero-amount setup must accept them too.
+            PaymentMethodData::Wallet(wallet_data) => {
+                let payment_source =
+                    build_predecrypted_wallet_source(&wallet_data, billing_details)?;
                 Ok((payment_source, None, Some(false), payment_type, Some(true)))
             }
             _ => Err(IntegrationError::NotImplemented(
