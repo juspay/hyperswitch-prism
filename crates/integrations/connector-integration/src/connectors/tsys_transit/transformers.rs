@@ -16,7 +16,10 @@ use domain_types::{
         RecurringMandatePaymentData, RefundFlowData, RefundSyncData, RefundVoidPostRefundData,
         RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
-    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
+    errors::{
+        ConnectorError, IntegrationError, IntegrationErrorContext,
+        ResponseTransformationErrorContext,
+    },
     payment_method_data::{
         Card, CardDetailsForNetworkTransactionId, PaymentMethodData, PaymentMethodDataTypes,
     },
@@ -2614,30 +2617,30 @@ impl From<&TsysTransitTransactionDetails> for AttemptStatus {
         let transaction_type = item.transaction_type.to_lowercase();
         if transaction_type.contains("auth") || transaction_type.contains("void") {
             match item.transaction_status {
-                Some(TsysTransitTransactionStatus::Approved) => AttemptStatus::Voided,
+                Some(TsysTransitTransactionStatus::Approved) => Self::Voided,
                 Some(TsysTransitTransactionStatus::Decline)
                 | Some(TsysTransitTransactionStatus::Cancel)
-                | Some(TsysTransitTransactionStatus::Void) => AttemptStatus::VoidFailed,
-                None => AttemptStatus::Unspecified,
+                | Some(TsysTransitTransactionStatus::Void) => Self::VoidFailed,
+                None => Self::Unspecified,
             }
         } else if transaction_type.contains("sale") {
             match item.transaction_status {
-                Some(TsysTransitTransactionStatus::Approved) => AttemptStatus::Charged,
+                Some(TsysTransitTransactionStatus::Approved) => Self::Charged,
                 Some(TsysTransitTransactionStatus::Decline)
                 | Some(TsysTransitTransactionStatus::Cancel)
-                | Some(TsysTransitTransactionStatus::Void) => AttemptStatus::Failure,
-                None => AttemptStatus::Unspecified,
+                | Some(TsysTransitTransactionStatus::Void) => Self::Failure,
+                None => Self::Unspecified,
             }
         } else if transaction_type.contains("auth") {
             match item.transaction_status {
-                Some(TsysTransitTransactionStatus::Approved) => AttemptStatus::Authorized,
+                Some(TsysTransitTransactionStatus::Approved) => Self::Authorized,
                 Some(TsysTransitTransactionStatus::Decline)
                 | Some(TsysTransitTransactionStatus::Cancel)
-                | Some(TsysTransitTransactionStatus::Void) => AttemptStatus::AuthorizationFailed,
-                None => AttemptStatus::Unspecified,
+                | Some(TsysTransitTransactionStatus::Void) => Self::AuthorizationFailed,
+                None => Self::Unspecified,
             }
         } else {
-            AttemptStatus::Unspecified
+            Self::Unspecified
         }
     }
 }
@@ -3032,10 +3035,13 @@ impl TryFrom<ResponseRouterData<TsysTransitTransactionInquiryResponse, Self>>
         match response
             .transaction_details
             .as_ref()
-            .and_then(|details| get_refund_status(details))
+            .and_then(get_refund_status)
         {
             Some(refund_status) => {
-                let transaction_details = response.transaction_details.as_ref().unwrap();
+                let transaction_details = response.transaction_details.as_ref().ok_or(ConnectorError::ResponseHandlingFailed { context: ResponseTransformationErrorContext {
+                        http_status_code: Some(item.http_code),
+                        additional_context: Some("tsysTransit: RSync response missing transactionDetails".to_string()),
+                } })?;
                 // In rsync response error reason is not returned
                 Ok(Self {
                     resource_common_data: RefundFlowData {
@@ -3056,7 +3062,7 @@ impl TryFrom<ResponseRouterData<TsysTransitTransactionInquiryResponse, Self>>
                 let refund_status = RefundStatus::Unknown;
                 let refund_response = RefundsResponseData {
                     connector_refund_id: router_data.request.connector_refund_id.clone(),
-                    refund_status: refund_status.clone(),
+                    refund_status,
                     status_code: item.http_code,
                     acquirer_reference_number: None,
                 };
