@@ -1951,8 +1951,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             }),
                         )))
                     }
-                    // Without a cryptogram/ECI there is nothing wallet-specific left to send, so
-                    // fall back to presenting the decrypted PAN as a plain card.
+                    // A PAN_ONLY Google Pay token carries no cryptogram/ECI, so there is nothing
+                    // wallet-specific left to send and the decrypted PAN goes over as a plain card.
+                    //
+                    // OSS builds `StripeCardData` here. That type is generic over the PAN holder
+                    // (`RawCardNumber<T>`), which cannot be built from the concrete `CardNumber` a
+                    // decrypted token yields, so we reuse the non-generic card variant instead. The
+                    // two serialize identically: the only fields `StripeCardData` adds are
+                    // `request_{incremental,extended}_authorization`, both `None` here and both
+                    // skipped on serialization.
                     _ => Ok(Self::CardNetworkTransactionId(
                         StripeCardNetworkTransactionIdData {
                             payment_method_data_type: StripePaymentMethodType::Card,
