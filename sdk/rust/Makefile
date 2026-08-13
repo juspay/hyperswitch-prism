@@ -36,11 +36,16 @@ WEBHOOK_SMOKE_TEST_BIN := $(REPO_ROOT)/target/$(PLATFORM)/$(PROFILE)/smoke-test-
 # In CI (GITHUB_ACTIONS set), use cached binaries if available. Locally, always use cargo run.
 test-package: build-ffi-lib ## Build FFI → Run Rust smoke test (+ webhook smoke)
 	@echo "Running Rust smoke test..."
-	@if [ -n "$(GITHUB_ACTIONS)" ] && [ -f "$(SMOKE_TEST_BIN)" ]; then \
+	@CREDS=$(REPO_ROOT)/creds.json; \
+	if [ ! -f "$$CREDS" ]; then \
+		echo "  Note: creds.json not found, using creds_dummy.json placeholder credentials"; \
+		CREDS=$(REPO_ROOT)/creds_dummy.json; \
+	fi; \
+	if [ -n "$(GITHUB_ACTIONS)" ] && [ -f "$(SMOKE_TEST_BIN)" ]; then \
 		echo "Using cached smoke test binary (CI mode)..."; \
-		cd $(REPO_ROOT) && HARNESS_DIR=$(SDK_ROOT)/../../examples CONNECTORS=$(CONNECTORS) $(SMOKE_TEST_BIN) --connectors $(CONNECTORS) 2>&1; \
+		cd $(REPO_ROOT) && HARNESS_DIR=$(SDK_ROOT)/../../examples CONNECTORS=$(CONNECTORS) $(SMOKE_TEST_BIN) --creds-file "$$CREDS" --connectors $(CONNECTORS) 2>&1; \
 	else \
-		cd $(REPO_ROOT) && HARNESS_DIR=$(SDK_ROOT)/../../examples CONNECTORS=$(CONNECTORS) cargo run --profile $(PROFILE) --target $(PLATFORM) -p hyperswitch-smoke-test -- --connectors $(CONNECTORS) 2>&1; \
+		cd $(REPO_ROOT) && HARNESS_DIR=$(SDK_ROOT)/../../examples CONNECTORS=$(CONNECTORS) cargo run --profile $(PROFILE) --target $(PLATFORM) -p hyperswitch-smoke-test -- --creds-file "$$CREDS" --connectors $(CONNECTORS) 2>&1; \
 	fi
 	@echo "Running webhook smoke test..."
 	@if [ -n "$(GITHUB_ACTIONS)" ] && [ -f "$(WEBHOOK_SMOKE_TEST_BIN)" ]; then \
