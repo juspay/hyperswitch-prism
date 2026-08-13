@@ -84,6 +84,9 @@ const ACH_PAYMENT_TYPE: &str = "ach";
 const ACH_COUNTRY_US: &str = "US";
 /// Source `type` Checkout expects for a wallet token Hyperswitch has decrypted into a network token.
 const NETWORK_TOKEN_TYPE: &str = "network_token";
+/// Documentation for the connector-decryption path, surfaced on the errors that ask for a token.
+const CHECKOUT_TOKENS_DOC_URL: &str =
+    "https://api-reference.checkout.com/tag/Tokens/#operation/requestAToken";
 const APPLE_PAY_TOKEN_TYPE: &str = "applepay";
 const GOOGLE_PAY_TOKEN_TYPE: &str = "googlepay";
 /// Google Pay does not surface an ECI of its own, and Checkout requires one on network tokens.
@@ -431,11 +434,55 @@ fn split_account_holder_name(
     }
 }
 
+/// Error for a wallet payload that is still encrypted.
+///
+/// Checkout decrypts wallet payloads at its end, but only behind a separate `POST /tokens` call
+/// that is authenticated with the account's *public* key and yields a single-use `tok_...`. A
+/// `POST /payments` request cannot carry the raw wallet payload, so the exchange has to happen
+/// before Authorize is invoked; the resulting token is then handed back on
+/// `payment_method.token` and consumed as `source.type = "token"`.
+fn encrypted_wallet_needs_token(wallet_name: &str) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::NotSupported {
+        message: format!("{wallet_name} payload that is still encrypted"),
+        connector: "checkout",
+        context: IntegrationErrorContext {
+            suggested_action: Some(
+                "Exchange the encrypted wallet payload for a Checkout token via POST /tokens \
+                 (authenticated with the public key) and send the resulting `tok_...` on \
+                 `payment_method.token`, or supply the wallet already decrypted as a network token"
+                    .to_owned(),
+            ),
+            doc_url: Some(CHECKOUT_TOKENS_DOC_URL.to_owned()),
+            additional_context: None,
+        },
+    })
+}
+
+/// Builds the Checkout payment source for a Checkout-issued reference token (`tok_...`).
+///
+/// This is the tail of the connector-decryption path: the wallet payload was handed to Checkout's
+/// `POST /tokens` endpoint, Checkout decrypted it and returned a single-use token, and the payment
+/// itself just references that token. Mirrors hyperswitch's `PaymentMethodToken::Token` ->
+/// `PaymentSource::Wallets { source_type: Token }` mapping.
+fn build_wallet_token_source<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+>(
+    token: Secret<String>,
+    billing_address: Option<CheckoutAddress>,
+) -> PaymentSource<T> {
+    PaymentSource::Wallets(WalletSource {
+        source_type: CheckoutSourceTypes::Token,
+        token,
+        billing_address,
+    })
+}
+
 /// Builds the Checkout payment source for a wallet whose token Hyperswitch has already decrypted.
 ///
-/// Checkout only accepts wallets in the network-token shape (PAN + cryptogram), so a token that is
-/// still encrypted is rejected here rather than forwarded. Shared by the Authorize and SetupMandate
-/// flows so a zero-amount mandate setup accepts the same wallets as a regular payment.
+/// Checkout accepts a decrypted wallet in the network-token shape (PAN + cryptogram). A wallet that
+/// is still encrypted has to go through Checkout's `POST /tokens` exchange first — see
+/// [`encrypted_wallet_needs_token`] and [`build_wallet_token_source`]. Shared by the Authorize and
+/// SetupMandate flows so a zero-amount mandate setup accepts the same wallets as a regular payment.
 fn build_predecrypted_wallet_source<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 >(
@@ -477,11 +524,7 @@ fn build_predecrypted_wallet_source<
                 )))
             }
             domain_types::payment_method_data::GpayTokenizationData::Encrypted(_) => {
-                Err(IntegrationError::MissingRequiredField {
-                    field_name: "google_pay_decrypted_data",
-                    context: Default::default(),
-                }
-                .into())
+                Err(encrypted_wallet_needs_token("Google Pay"))
             }
         },
         WalletData::ApplePay(apple_pay_data) => match apple_pay_data
@@ -505,11 +548,7 @@ fn build_predecrypted_wallet_source<
                     billing_address,
                 },
             ))),
-            None => Err(IntegrationError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("checkout"),
-                Default::default(),
-            )
-            .into()),
+            None => Err(encrypted_wallet_needs_token("Apple Pay")),
         },
         _ => Err(IntegrationError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("checkout"),
@@ -650,6 +689,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 PaymentMethodData::Wallet(wallet_data) => {
                     let p_source = build_predecrypted_wallet_source(&wallet_data, billing_details)?;
                     Ok((p_source, None, Some(false), store_for_future_use))
+                }
+                // Connector-decryption path: the wallet payload was already exchanged for a
+                // Checkout token (`tok_...`) via `POST /tokens`, so the payment only references
+                // it. The token is single-use and expires 15 minutes after it was issued.
+                PaymentMethodData::PaymentMethodToken(token_data) => {
+                    let payment_source =
+                        build_wallet_token_source(token_data.token, billing_details);
+                    Ok((payment_source, None, Some(false), store_for_future_use))
                 }
                 PaymentMethodData::BankDebit(BankDebitData::AchBankDebit {
                     account_number,
@@ -1338,6 +1385,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentMethodData::Wallet(wallet_data) => {
                 let payment_source =
                     build_predecrypted_wallet_source(&wallet_data, billing_details)?;
+                Ok((payment_source, None, Some(false), payment_type, Some(true)))
+            }
+            // Connector-decryption path: same as Authorize, the wallet payload was already
+            // exchanged for a Checkout token, so the mandate setup only references it.
+            PaymentMethodData::PaymentMethodToken(token_data) => {
+                let payment_source = build_wallet_token_source(token_data.token, billing_details);
                 Ok((payment_source, None, Some(false), payment_type, Some(true)))
             }
             _ => Err(IntegrationError::NotImplemented(
