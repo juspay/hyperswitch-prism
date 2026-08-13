@@ -899,6 +899,7 @@ enum Connector {
   SANTANDER = 133;
   MAYA = 134;
   GRABPAY = 135;
+  BOOST = 136;
 }
 
 // Payment method types
@@ -5597,6 +5598,12 @@ message TesouroConfig {
   optional string base_url = 50;
 }
 
+message BoostConfig {
+  SecretString client_id = 1;
+  SecretString merchant_secret = 2;
+  optional string base_url = 50;
+}
+
 // ConnectorSpecificConfig message with oneof containing all connector
 // configurations. Comment above each field (e.g. "// PAYPAL = 62") is the
 // Connector enum value from this file;
@@ -5903,14 +5910,16 @@ message ConnectorSpecificConfig {
     TesouroConfig tesouro = 139;
     // DEUTSCHEBANK = 140
     DeutschebankConfig deutschebank = 140;
-    // PLAID = 141
+    // PLAID = 87
     PlaidConfig plaid = 141;
-    // SANTANDER = 142
+    // SANTANDER = 133
     SantanderConfig santander = 142;
-    // MAYA = 143
+    // MAYA = 134
     MayaConfig maya = 143;
-    // GRABPAY = 144
+    // GRABPAY = 135
     GrabpayConfig grabpay = 144;
+    // BOOST = 136
+    BoostConfig boost = 145;
   }
 }
 
