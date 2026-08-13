@@ -16,7 +16,7 @@ use domain_types::{
     router_data_v2::RouterDataV2,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
@@ -186,15 +186,35 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .change_context(IntegrationError::RequestEncodingFailed {
                         context: Default::default(),
                     })?;
-                let calida_mca_metadata = CalidaMetadataObject::try_from(
-                    &item.router_data.resource_common_data.get_connector_meta()?,
-                )?;
+                let shop_name = match &item.router_data.connector_config {
+                    ConnectorSpecificConfig::Calida {
+                        shop_name: Some(shop_name),
+                        ..
+                    } => shop_name.clone().expose().to_owned(),
+                    // Backward-compatible fallback for requests without shop_name in connector config.
+                    _ => {
+                        let calida_mca_metadata = CalidaMetadataObject::try_from(
+                            &item
+                                .router_data
+                                .resource_common_data
+                                .connector_feature_data
+                                .clone()
+                                .ok_or_else(|| {
+                                    IntegrationError::MissingRequiredField {
+                                        field_name: "shop_name",
+                                        context: Default::default(),
+                                    }
+                                })?,
+                        )?;
+                        calida_mca_metadata.shop_name
+                    }
+                };
 
                 Ok(Self {
                     amount,
                     currency: item.router_data.request.currency,
                     payment_provider: "bluecode_payment".to_string(),
-                    shop_name: calida_mca_metadata.shop_name.clone(),
+                    shop_name,
                     reference: item
                         .router_data
                         .resource_common_data
