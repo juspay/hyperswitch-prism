@@ -431,6 +431,7 @@ fn create_payment_capture_request(transaction_id: &str) -> PaymentServiceCapture
         merchant_order_id: None,
         split_payments: None,
         merchant_request_id: None,
+        connector_intent_metadata: None,
     }
 }
 
