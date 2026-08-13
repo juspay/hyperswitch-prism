@@ -289,6 +289,9 @@ pub use self::flywire::Flywire;
 pub mod affirm;
 pub use self::affirm::Affirm;
 
+pub mod moneris;
+pub use self::moneris::Moneris;
+
 pub mod kount;
 pub use self::kount::Kount;
 

@@ -5604,6 +5604,13 @@ message BoostConfig {
   optional string base_url = 50;
 }
 
+message MonerisConfig {
+  SecretString client_secret = 1;
+  SecretString merchant_id = 2;
+  SecretString client_id = 3;
+  optional string base_url = 50;
+}
+
 // ConnectorSpecificConfig message with oneof containing all connector
 // configurations. Comment above each field (e.g. "// PAYPAL = 62") is the
 // Connector enum value from this file;
@@ -5920,6 +5927,8 @@ message ConnectorSpecificConfig {
     GrabpayConfig grabpay = 144;
     // BOOST = 136
     BoostConfig boost = 145;
+    // MONERIS = 137
+    MonerisConfig moneris = 146;
   }
 }
 

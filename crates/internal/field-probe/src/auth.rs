@@ -308,6 +308,12 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             base_url: None,
             secondary_base_url: None,
         },
+        ConnectorEnum::Moneris => ConnectorSpecificConfig::Moneris {
+            client_secret: s(),
+            merchant_id: m(),
+            client_id: id(),
+            base_url: None,
+        },
         ConnectorEnum::Nmi => ConnectorSpecificConfig::Nmi {
             api_key: k(),
             public_key: None,
