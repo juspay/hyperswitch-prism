@@ -492,8 +492,24 @@
     },
     "capture": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: capture flow for citigate"
+        "status": "supported",
+        "proto_request": {
+          "merchant_capture_id": "probe_capture_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount_to_capture": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://gw-test.cgate.tech/orion/interface/json.ashx",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"PaymentTypeID\":\"1\",\"TransTypeID\":\"3\",\"MerchantName\":\"probe_key\",\"MerchantPassword\":\"probe_key\",\"MerchantRef\":\"probe_capture_001\",\"TransactionID\":\"probe_connector_txn_001\"}"
+        }
       }
     },
     "create_client_authentication_token": {
@@ -687,14 +703,45 @@
     },
     "refund": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: refund flow for citigate"
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "payment_amount": 1000,
+          "refund_amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "reason": "customer_request"
+        },
+        "sample": {
+          "url": "https://gw-test.cgate.tech/orion/interface/json.ashx",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"PaymentTypeID\":\"1\",\"TransTypeID\":\"5\",\"MerchantName\":\"probe_key\",\"MerchantPassword\":\"probe_key\",\"MerchantRef\":\"probe_refund_001\",\"TransactionID\":\"probe_connector_txn_001\"}"
+        }
       }
     },
     "refund_get": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: refund_sync flow for citigate"
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "refund_id": "probe_refund_id_001"
+        },
+        "sample": {
+          "url": "https://gw-test.cgate.tech/orion/interface/json.ashx",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"PaymentTypeID\":\"1\",\"TransTypeID\":\"8\",\"MerchantName\":\"probe_key\",\"MerchantPassword\":\"probe_key\",\"MerchantRef\":\"probe_refund_001\"}"
+        }
       }
     },
     "reverse": {
@@ -734,8 +781,20 @@
     },
     "void": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: void flow for citigate"
+        "status": "supported",
+        "proto_request": {
+          "merchant_void_id": "probe_void_001",
+          "connector_transaction_id": "probe_connector_txn_001"
+        },
+        "sample": {
+          "url": "https://gw-test.cgate.tech/orion/interface/json.ashx",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"PaymentTypeID\":\"1\",\"TransTypeID\":\"4\",\"MerchantName\":\"probe_key\",\"MerchantPassword\":\"probe_key\",\"MerchantRef\":\"probe_void_001\",\"TransactionID\":\"probe_connector_txn_001\"}"
+        }
       }
     }
   }
