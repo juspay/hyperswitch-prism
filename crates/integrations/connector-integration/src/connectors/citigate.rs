@@ -7,8 +7,9 @@
 //! [`ConnectorCommon::get_auth_header`] contributes no headers.
 //!
 //! Implemented scope: Card / Authorize (Purchase), one-time, non-3DS and the 3DS
-//! user-redirect path, plus the Transaction Status Check (`TransTypeID = 8`) that
-//! resolves the payment once the cardholder returns from the ACS page.
+//! user-redirect path; the Transaction Status Check (`TransTypeID = 8`), which
+//! serves as both PSync and RSync; and the post-authorization operations Capture
+//! (`3`), Void / Cancel (`4`) and Refund (`5`).
 
 pub mod transformers;
 
@@ -17,9 +18,11 @@ use std::fmt::Debug;
 use common_enums::CurrencyUnit;
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
 use domain_types::{
-    connector_flow::{Authorize, PSync},
+    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
     connector_types::{
-        PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
@@ -36,8 +39,10 @@ use interfaces::{
 };
 use serde::Serialize;
 use transformers::{
-    self as citigate, CitigatePaymentsRequest, CitigatePaymentsResponse, CitigateSyncRequest,
-    CitigateSyncResponse,
+    self as citigate, CitigateCaptureRequest, CitigateCaptureResponse, CitigatePaymentsRequest,
+    CitigatePaymentsResponse, CitigateRefundRequest, CitigateRefundResponse,
+    CitigateRefundSyncRequest, CitigateRefundSyncResponse, CitigateSyncRequest,
+    CitigateSyncResponse, CitigateVoidRequest, CitigateVoidResponse,
 };
 
 use super::macros;
@@ -71,6 +76,30 @@ macros::create_all_prerequisites!(
             request_body: CitigateSyncRequest,
             response_body: CitigateSyncResponse,
             router_data: RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
+        ),
+        (
+            flow: Capture,
+            request_body: CitigateCaptureRequest,
+            response_body: CitigateCaptureResponse,
+            router_data: RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
+        ),
+        (
+            flow: Void,
+            request_body: CitigateVoidRequest,
+            response_body: CitigateVoidResponse,
+            router_data: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ),
+        (
+            flow: Refund,
+            request_body: CitigateRefundRequest,
+            response_body: CitigateRefundResponse,
+            router_data: RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+        ),
+        (
+            flow: RSync,
+            request_body: CitigateRefundSyncRequest,
+            response_body: CitigateRefundSyncResponse,
+            router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
         )
     ],
     amount_converters: [],
@@ -220,6 +249,146 @@ macros::macro_connector_implementation!(
     }
 );
 
+// Capture Flow — settle an open authorisation, PaymentTypeID = 1, TransTypeID = 3.
+// Full capture only: the request has no Amount field.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Citigate,
+    curl_request: Json(CitigateCaptureRequest),
+    curl_response: CitigateCaptureResponse,
+    flow_name: Capture,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsCaptureData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!(
+                "{}{}",
+                self.connector_base_url_payments(req),
+                CITIGATE_JSON_INTERFACE_PATH
+            ))
+        }
+    }
+);
+
+// Void Flow — cancel an open authorisation, PaymentTypeID = 1, TransTypeID = 4.
+// Full void only, and the cancellation reason cannot be transmitted.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Citigate,
+    curl_request: Json(CitigateVoidRequest),
+    curl_response: CitigateVoidResponse,
+    flow_name: Void,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentVoidData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!(
+                "{}{}",
+                self.connector_base_url_payments(req),
+                CITIGATE_JSON_INTERFACE_PATH
+            ))
+        }
+    }
+);
+
+// Refund Flow — PaymentTypeID = 1, TransTypeID = 5. Refunds carry RefundFlowData
+// rather than PaymentFlowData, so the base URL is read directly here.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Citigate,
+    curl_request: Json(CitigateRefundRequest),
+    curl_response: CitigateRefundResponse,
+    flow_name: Refund,
+    resource_common_data: RefundFlowData,
+    flow_request: RefundsData,
+    flow_response: RefundsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!(
+                "{}{}",
+                req.resource_common_data.connectors.citigate.base_url,
+                CITIGATE_JSON_INTERFACE_PATH
+            ))
+        }
+    }
+);
+
+// RSync Flow — the same Transaction Status Check as PSync (TransTypeID = 8), but
+// keyed on the refund leg's MerchantRef rather than the payment's.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Citigate,
+    curl_request: Json(CitigateRefundSyncRequest),
+    curl_response: CitigateRefundSyncResponse,
+    flow_name: RSync,
+    resource_common_data: RefundFlowData,
+    flow_request: RefundSyncData,
+    flow_response: RefundsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!(
+                "{}{}",
+                req.resource_common_data.connectors.citigate.base_url,
+                CITIGATE_JSON_INTERFACE_PATH
+            ))
+        }
+    }
+);
+
 // ===== CONNECTOR SERVICE TRAIT IMPLEMENTATION =====
 // Aggregate trait - composes all other connector traits.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -235,6 +404,26 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Citigate<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentCapture for Citigate<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentVoidV2 for Citigate<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::RefundV2 for Citigate<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::RefundSyncV2 for Citigate<T>
 {
 }
 
@@ -277,9 +466,9 @@ macros::macro_connector_payout_implementation!(
 );
 
 // ===== FLOW STATUS IMPLEMENTATIONS =====
-// Every flow other than Authorize and PSync is stubbed: the Citigate JSON
-// interface does support capture / cancel / refund on the same endpoint, but they
-// are out of scope for this integration.
+// Every flow other than Authorize, PSync, Capture, Void, Refund and RSync is
+// stubbed: the Citigate JSON interface exposes no other operation on the card
+// payment type.
 macros::macro_connector_flow_status_impls!(
     connector: Citigate,
     generic_type: T,
@@ -291,16 +480,12 @@ macros::macro_connector_flow_status_impls!(
         DefendDispute,
         MandateRevoke,
         Authenticate,
-        Capture,
         IncrementalAuthorization,
         CreateOrder,
         PostAuthenticate,
         PreAuthenticate,
         PaymentMethodToken,
         VoidPC,
-        Void,
-        RSync,
-        Refund,
         RepeatPayment,
         ServerAuthenticationToken,
         ServerSessionAuthenticationToken,

@@ -6,17 +6,20 @@
 //! also carried in the body, so there are no auth headers.
 //!
 //! Scope of this module: Card / Authorize (Purchase, `TransTypeID = 0`), one-time,
-//! non-3DS **and** the 3DS user-redirect path, plus the Transaction Status Check
-//! (`TransTypeID = 8`) that resolves the payment after the cardholder returns.
+//! non-3DS **and** the 3DS user-redirect path, the Transaction Status Check
+//! (`TransTypeID = 8`) used for both PSync and RSync, and the post-authorization
+//! operations Capture (`3`), Void / Cancel (`4`) and Refund (`5`).
 
 use std::collections::HashMap;
 
-use common_enums::{AttemptStatus, AuthenticationType, CardNetwork};
+use common_enums::{AttemptStatus, AuthenticationType, CardNetwork, RefundStatus};
 use common_utils::{pii::Email, types::StringMinorUnit, Method};
 use domain_types::{
-    connector_flow::{Authorize, PSync},
+    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
     connector_types::{
-        PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, ResponseId,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, ResponseId,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{Card, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
@@ -35,7 +38,13 @@ use crate::types::ResponseRouterData;
 const PAYMENT_TYPE_ID_CARD: &str = "1";
 /// `TransTypeID` for a purchase (UCS `Authorize`).
 const TRANS_TYPE_ID_PURCHASE: &str = "0";
-/// `TransTypeID` for a transaction status check (UCS `PSync`).
+/// `TransTypeID` for settling an open authorisation (UCS `Capture`).
+const TRANS_TYPE_ID_CAPTURE: &str = "3";
+/// `TransTypeID` for cancelling an open authorisation (UCS `Void`).
+const TRANS_TYPE_ID_CANCEL: &str = "4";
+/// `TransTypeID` for refunding a sale or a captured authorisation (UCS `Refund`).
+const TRANS_TYPE_ID_REFUND: &str = "5";
+/// `TransTypeID` for a transaction status check (UCS `PSync` **and** `RSync`).
 const TRANS_TYPE_ID_STATUS_CHECK: &str = "8";
 
 /// `ResponseCode` returned for an approved transaction.
@@ -111,12 +120,27 @@ pub enum CitigateBrand {
     Maestro,
 }
 
-fn unsupported_brand(detail: String) -> error_stack::Report<IntegrationError> {
+fn not_supported(detail: String) -> error_stack::Report<IntegrationError> {
     error_stack::report!(IntegrationError::NotSupported {
         message: detail,
         connector: "citigate",
         context: IntegrationErrorContext::default(),
     })
+}
+
+/// `MerchantRef` is mandatory on every Citigate request and is the *only* key a
+/// Transaction Status Check can be resolved by, so an empty reference is rejected
+/// up front rather than sent and refused by the gateway.
+fn required_merchant_ref(reference: &str) -> Result<String, error_stack::Report<IntegrationError>> {
+    if reference.is_empty() {
+        return Err(error_stack::report!(
+            IntegrationError::MissingRequiredField {
+                field_name: "merchant_transaction_id",
+                context: IntegrationErrorContext::default(),
+            }
+        ));
+    }
+    Ok(reference.to_string())
 }
 
 /// Resolve the Citigate `Brand` from the supplied card network, falling back to BIN
@@ -131,7 +155,7 @@ fn get_citigate_brand<T: PaymentMethodDataTypes>(
             CardNetwork::AmericanExpress => Ok(CitigateBrand::Amex),
             CardNetwork::DinersClub => Ok(CitigateBrand::Diners),
             CardNetwork::Maestro => Ok(CitigateBrand::Maestro),
-            other => Err(unsupported_brand(format!("Card network {other:?}"))),
+            other => Err(not_supported(format!("Card network {other:?}"))),
         };
     }
 
@@ -141,7 +165,7 @@ fn get_citigate_brand<T: PaymentMethodDataTypes>(
         CardIssuer::AmericanExpress => Ok(CitigateBrand::Amex),
         CardIssuer::DinersClub => Ok(CitigateBrand::Diners),
         CardIssuer::Maestro => Ok(CitigateBrand::Maestro),
-        other => Err(unsupported_brand(format!("Card issuer {other:?}"))),
+        other => Err(not_supported(format!("Card issuer {other:?}"))),
     }
 }
 
@@ -588,6 +612,83 @@ impl CitigatePaymentsResponse {
         }))
     }
 
+    /// Metadata for Capture and Void, whose response `TransactionID` identifies a
+    /// **new** leg (auth `310` -> capture `312`) rather than the payment. UCS's
+    /// `resource_id` must keep pointing at the original authorisation, so the leg id
+    /// is retained here instead.
+    fn leg_connector_metadata(&self) -> Option<serde_json::Value> {
+        let leg_transaction_id = self.connector_transaction_id();
+        if leg_transaction_id.is_none()
+            && self.business_case.is_none()
+            && self.descriptor.is_none()
+            && self.bank.is_none()
+        {
+            return None;
+        }
+        Some(serde_json::json!({
+            "business_case": self.business_case,
+            "descriptor": self.descriptor,
+            "bank": self.bank,
+            "leg_transaction_id": leg_transaction_id,
+        }))
+    }
+
+    /// `true` when the gateway approved a post-authorization operation
+    /// (Capture / Void / Refund). These flows have neither a redirect (`600`) nor a
+    /// pending state, so `ResponseCode` alone decides the outcome.
+    fn is_approved(&self) -> bool {
+        self.response_code() == RESPONSE_CODE_APPROVED
+    }
+
+    /// Capture status. On approval the response echoes `TransTypeID 3` and carries a
+    /// **new** capture-leg `TransactionID`.
+    fn capture_attempt_status(&self) -> AttemptStatus {
+        if self.is_approved() {
+            AttemptStatus::Charged
+        } else {
+            // Includes `561` — the auth was already captured, quite possibly by
+            // Citigate's own 48-96h auto-capture service, which cannot be disabled.
+            AttemptStatus::CaptureFailed
+        }
+    }
+
+    /// Void / Cancel status. On approval the response echoes `TransTypeID 4`.
+    fn void_attempt_status(&self) -> AttemptStatus {
+        if self.is_approved() {
+            AttemptStatus::Voided
+        } else {
+            // `561` here means the auth is no longer open and a Refund is the
+            // correct operation instead.
+            AttemptStatus::VoidFailed
+        }
+    }
+
+    /// Refund status. `605` ("Bank does not support API refunds") is a failure of
+    /// the API call even though Citigate logs a manual refund out of band; nothing
+    /// in this flow can resolve that, so it is reported as a failure verbatim.
+    fn refund_status(&self) -> RefundStatus {
+        if self.is_approved() {
+            RefundStatus::Success
+        } else {
+            RefundStatus::Failure
+        }
+    }
+
+    /// RSync status. The Status Check reports the `TransTypeID` of the transaction
+    /// the `MerchantRef` resolved to, so only a refund leg (`5`) may be reported as
+    /// a settled refund.
+    fn refund_sync_status(&self) -> RefundStatus {
+        match (self.response_code(), self.trans_type_id()) {
+            (RESPONSE_CODE_APPROVED, RESP_TRANS_TYPE_REFUND) => RefundStatus::Success,
+            // The refund leg exists but has not reached a terminal state yet.
+            (RESPONSE_CODE_APPROVED, _) | (RESPONSE_CODE_UNDOCUMENTED, RESP_TRANS_TYPE_PENDING) => {
+                RefundStatus::Pending
+            }
+            // `999` + `TransTypeID 99` is "MerchantRef not found".
+            _ => RefundStatus::Failure,
+        }
+    }
+
     pub fn to_error_response(&self, http_code: u16) -> ErrorResponse {
         self.to_error_response_with_status(http_code, self.failure_status())
     }
@@ -597,6 +698,18 @@ impl CitigatePaymentsResponse {
         http_code: u16,
         attempt_status: AttemptStatus,
     ) -> ErrorResponse {
+        self.to_flow_error_response(http_code, FlowStatus::Payment(attempt_status))
+    }
+
+    fn to_refund_error_response(
+        &self,
+        http_code: u16,
+        refund_status: RefundStatus,
+    ) -> ErrorResponse {
+        self.to_flow_error_response(http_code, FlowStatus::Refund(refund_status))
+    }
+
+    fn to_flow_error_response(&self, http_code: u16, flow_status: FlowStatus) -> ErrorResponse {
         let message = self
             .response_description
             .clone()
@@ -615,13 +728,17 @@ impl CitigatePaymentsResponse {
                 .unwrap_or_else(|| "NO_RESPONSE_CODE".to_string()),
             message,
             reason,
-            attempt_status: Some(FlowStatus::Payment(attempt_status)),
+            attempt_status: Some(flow_status),
             connector_transaction_id: self.connector_transaction_id(),
             network_decline_code: is_bank_decline.then(|| self.bank_code.clone()).flatten(),
             network_advice_code: None,
             network_error_message: is_bank_decline
                 .then(|| self.bank_description.clone())
                 .flatten(),
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         }
     }
 }
@@ -709,25 +826,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = &item.router_data;
         let auth = CitigateAuthType::try_from(&router_data.connector_config)?;
 
-        let merchant_ref = router_data
-            .resource_common_data
-            .connector_request_reference_id
-            .clone();
-        if merchant_ref.is_empty() {
-            return Err(error_stack::report!(
-                IntegrationError::MissingRequiredField {
-                    field_name: "merchant_transaction_id",
-                    context: IntegrationErrorContext::default(),
-                }
-            ));
-        }
-
         Ok(Self {
             payment_type_id: PAYMENT_TYPE_ID_CARD.to_string(),
             trans_type_id: TRANS_TYPE_ID_STATUS_CHECK.to_string(),
             merchant_name: auth.merchant_name,
             merchant_password: auth.merchant_password,
-            merchant_ref,
+            merchant_ref: required_merchant_ref(
+                &router_data
+                    .resource_common_data
+                    .connector_request_reference_id,
+            )?,
         })
     }
 }
@@ -779,6 +887,431 @@ impl TryFrom<ResponseRouterData<CitigateSyncResponse, Self>> for SyncRouterData 
             }),
             resource_common_data: PaymentFlowData {
                 status: response.sync_attempt_status(),
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// =============================================================================
+// CAPTURE (`TransTypeID = 3`)
+// =============================================================================
+
+/// Capture request — settles an open authorisation.
+///
+/// The documented field list has exactly six entries and **no `Amount`**: Citigate
+/// cannot perform a partial, multiple or incremental capture.
+#[derive(Debug, Serialize)]
+pub struct CitigateCaptureRequest {
+    #[serde(rename = "PaymentTypeID")]
+    pub payment_type_id: String,
+    #[serde(rename = "TransTypeID")]
+    pub trans_type_id: String,
+    #[serde(rename = "MerchantName")]
+    pub merchant_name: Secret<String>,
+    #[serde(rename = "MerchantPassword")]
+    pub merchant_password: Secret<String>,
+    #[serde(rename = "MerchantRef")]
+    pub merchant_ref: String,
+    /// The transaction reference from the original authorisation.
+    #[serde(rename = "TransactionID")]
+    pub transaction_id: String,
+}
+
+type CaptureRouterData =
+    RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>;
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<CitigateRouterData<CaptureRouterData, T>> for CitigateCaptureRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(item: CitigateRouterData<CaptureRouterData, T>) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let request = &router_data.request;
+
+        // Fail fast rather than silently capturing an amount the caller did not ask
+        // for: the wire format simply has nowhere to put one.
+        if request.is_multiple_capture() {
+            return Err(not_supported("Multiple partial captures".to_string()));
+        }
+        if let Some(authorized) = router_data.resource_common_data.minor_amount_authorized {
+            if authorized != request.minor_amount_to_capture {
+                return Err(not_supported("Partial capture".to_string()));
+            }
+        }
+
+        let auth = CitigateAuthType::try_from(&router_data.connector_config)?;
+
+        Ok(Self {
+            payment_type_id: PAYMENT_TYPE_ID_CARD.to_string(),
+            trans_type_id: TRANS_TYPE_ID_CAPTURE.to_string(),
+            merchant_name: auth.merchant_name,
+            merchant_password: auth.merchant_password,
+            merchant_ref: required_merchant_ref(
+                &router_data
+                    .resource_common_data
+                    .connector_request_reference_id,
+            )?,
+            transaction_id: request.get_connector_transaction_id()?,
+        })
+    }
+}
+
+/// Capture answers with the shared response envelope; the newtype exists only to
+/// give the macro framework a distinct response type per flow.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct CitigateCaptureResponse(pub CitigatePaymentsResponse);
+
+impl TryFrom<ResponseRouterData<CitigateCaptureResponse, Self>> for CaptureRouterData {
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<CitigateCaptureResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response.0;
+        let status = response.capture_attempt_status();
+
+        if !response.is_approved() {
+            return Ok(Self {
+                response: Err(response.to_error_response_with_status(item.http_code, status)),
+                resource_common_data: PaymentFlowData {
+                    status,
+                    ..item.router_data.resource_common_data
+                },
+                ..item.router_data
+            });
+        }
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                // The response `TransactionID` is the new capture leg, not the
+                // payment — keep the id every later operation and PSync key off.
+                resource_id: item.router_data.request.connector_transaction_id.clone(),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: response.leg_connector_metadata(),
+                network_txn_id: None,
+                network_txn_link_id: None,
+                connector_response_reference_id: response.merchant_ref.clone(),
+                incremental_authorization_allowed: None,
+                splits: None,
+                status_code: item.http_code,
+            }),
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// =============================================================================
+// VOID / CANCEL (`TransTypeID = 4`)
+// =============================================================================
+
+/// Cancel request — voids an open authorisation.
+///
+/// Same six fields as Capture. There is no `Amount` (a void always cancels the
+/// whole authorisation) and no field able to carry a cancellation reason.
+#[derive(Debug, Serialize)]
+pub struct CitigateVoidRequest {
+    #[serde(rename = "PaymentTypeID")]
+    pub payment_type_id: String,
+    #[serde(rename = "TransTypeID")]
+    pub trans_type_id: String,
+    #[serde(rename = "MerchantName")]
+    pub merchant_name: Secret<String>,
+    #[serde(rename = "MerchantPassword")]
+    pub merchant_password: Secret<String>,
+    #[serde(rename = "MerchantRef")]
+    pub merchant_ref: String,
+    /// The transaction reference from the original authorisation.
+    #[serde(rename = "TransactionID")]
+    pub transaction_id: String,
+}
+
+type VoidRouterData = RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>;
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<CitigateRouterData<VoidRouterData, T>> for CitigateVoidRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(item: CitigateRouterData<VoidRouterData, T>) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let request = &router_data.request;
+
+        if let (Some(requested), Some(authorized)) = (
+            request.amount,
+            router_data.resource_common_data.minor_amount_authorized,
+        ) {
+            if requested != authorized {
+                return Err(not_supported("Partial void".to_string()));
+            }
+        }
+
+        let auth = CitigateAuthType::try_from(&router_data.connector_config)?;
+
+        Ok(Self {
+            payment_type_id: PAYMENT_TYPE_ID_CARD.to_string(),
+            trans_type_id: TRANS_TYPE_ID_CANCEL.to_string(),
+            merchant_name: auth.merchant_name,
+            merchant_password: auth.merchant_password,
+            merchant_ref: required_merchant_ref(
+                &router_data
+                    .resource_common_data
+                    .connector_request_reference_id,
+            )?,
+            transaction_id: request.connector_transaction_id.clone(),
+        })
+    }
+}
+
+/// Cancel answers with the shared response envelope.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct CitigateVoidResponse(pub CitigatePaymentsResponse);
+
+impl TryFrom<ResponseRouterData<CitigateVoidResponse, Self>> for VoidRouterData {
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(item: ResponseRouterData<CitigateVoidResponse, Self>) -> Result<Self, Self::Error> {
+        let response = item.response.0;
+        let status = response.void_attempt_status();
+
+        if !response.is_approved() {
+            return Ok(Self {
+                response: Err(response.to_error_response_with_status(item.http_code, status)),
+                resource_common_data: PaymentFlowData {
+                    status,
+                    ..item.router_data.resource_common_data
+                },
+                ..item.router_data
+            });
+        }
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                // As with Capture, the response `TransactionID` is the new cancel
+                // leg and must not replace the payment's id.
+                resource_id: ResponseId::ConnectorTransactionId(
+                    item.router_data.request.connector_transaction_id.clone(),
+                ),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: response.leg_connector_metadata(),
+                network_txn_id: None,
+                network_txn_link_id: None,
+                connector_response_reference_id: response.merchant_ref.clone(),
+                incremental_authorization_allowed: None,
+                splits: None,
+                status_code: item.http_code,
+            }),
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// =============================================================================
+// REFUND (`TransTypeID = 5`)
+// =============================================================================
+
+/// Refund request — refunds a sale, or an authorisation that has been captured
+/// (including one auto-captured by Citigate, in which case the *authorisation's*
+/// `TransactionID` is still the correct value to send).
+#[derive(Debug, Serialize)]
+pub struct CitigateRefundRequest {
+    #[serde(rename = "PaymentTypeID")]
+    pub payment_type_id: String,
+    #[serde(rename = "TransTypeID")]
+    pub trans_type_id: String,
+    #[serde(rename = "MerchantName")]
+    pub merchant_name: Secret<String>,
+    #[serde(rename = "MerchantPassword")]
+    pub merchant_password: Secret<String>,
+    /// Also the RSync lookup key — the Status Check cannot be keyed on anything else.
+    #[serde(rename = "MerchantRef")]
+    pub merchant_ref: String,
+    #[serde(rename = "TransactionID")]
+    pub transaction_id: String,
+    /// Omitted for a full refund, which is both the documented default and the only
+    /// form that works on an account where partial refunds have not been enabled
+    /// (the default; sending an `Amount` there is rejected with `629`).
+    #[serde(rename = "Amount", skip_serializing_if = "Option::is_none")]
+    pub amount: Option<StringMinorUnit>,
+}
+
+type RefundRouterData = RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>;
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<CitigateRouterData<RefundRouterData, T>> for CitigateRefundRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(item: CitigateRouterData<RefundRouterData, T>) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let request = &router_data.request;
+        let auth = CitigateAuthType::try_from(&router_data.connector_config)?;
+
+        let amount = if request.minor_refund_amount == request.minor_payment_amount {
+            None
+        } else {
+            Some(CitigateAmountConvertor::convert(
+                request.minor_refund_amount,
+                request.currency,
+            )?)
+        };
+
+        Ok(Self {
+            payment_type_id: PAYMENT_TYPE_ID_CARD.to_string(),
+            trans_type_id: TRANS_TYPE_ID_REFUND.to_string(),
+            merchant_name: auth.merchant_name,
+            merchant_password: auth.merchant_password,
+            merchant_ref: required_merchant_ref(
+                &router_data
+                    .resource_common_data
+                    .connector_request_reference_id,
+            )?,
+            transaction_id: request.connector_transaction_id.clone(),
+            amount,
+        })
+    }
+}
+
+/// Refund answers with the shared response envelope.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct CitigateRefundResponse(pub CitigatePaymentsResponse);
+
+impl TryFrom<ResponseRouterData<CitigateRefundResponse, Self>> for RefundRouterData {
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<CitigateRefundResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response.0;
+        let refund_status = response.refund_status();
+
+        if !response.is_approved() {
+            return Ok(Self {
+                response: Err(response.to_refund_error_response(item.http_code, refund_status)),
+                resource_common_data: RefundFlowData {
+                    status: refund_status,
+                    ..item.router_data.resource_common_data
+                },
+                ..item.router_data
+            });
+        }
+
+        // Here the new leg id *is* the refund, so it becomes `connector_refund_id`.
+        let connector_refund_id = response
+            .connector_transaction_id()
+            .unwrap_or_else(|| item.router_data.request.refund_id.clone());
+
+        Ok(Self {
+            response: Ok(RefundsResponseData {
+                connector_refund_id,
+                refund_status,
+                status_code: item.http_code,
+                acquirer_reference_number: None,
+            }),
+            resource_common_data: RefundFlowData {
+                status: refund_status,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// =============================================================================
+// RSYNC — TRANSACTION STATUS CHECK ON THE REFUND'S `MerchantRef`
+// =============================================================================
+
+/// Refund status check. Byte-identical on the wire to [`CitigateSyncRequest`] — the
+/// only thing that makes a `TransTypeID = 8` call an RSync rather than a PSync is
+/// that the `MerchantRef` is the **refund's** reference. Keying it on
+/// `connector_refund_id` (a Citigate `TransactionID`, which the status check has no
+/// field for) or on the Authorize `MerchantRef` would silently resolve the payment
+/// leg instead.
+#[derive(Debug, Serialize)]
+#[serde(transparent)]
+pub struct CitigateRefundSyncRequest(pub CitigateSyncRequest);
+
+type RefundSyncRouterData =
+    RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>;
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<CitigateRouterData<RefundSyncRouterData, T>> for CitigateRefundSyncRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(item: CitigateRouterData<RefundSyncRouterData, T>) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let auth = CitigateAuthType::try_from(&router_data.connector_config)?;
+
+        Ok(Self(CitigateSyncRequest {
+            payment_type_id: PAYMENT_TYPE_ID_CARD.to_string(),
+            trans_type_id: TRANS_TYPE_ID_STATUS_CHECK.to_string(),
+            merchant_name: auth.merchant_name,
+            merchant_password: auth.merchant_password,
+            // The RefundSync RouterData carries the same
+            // `connector_request_reference_id` the Refund request used.
+            merchant_ref: required_merchant_ref(
+                &router_data
+                    .resource_common_data
+                    .connector_request_reference_id,
+            )?,
+        }))
+    }
+}
+
+/// The refund status check answers with the shared response envelope.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct CitigateRefundSyncResponse(pub CitigatePaymentsResponse);
+
+impl TryFrom<ResponseRouterData<CitigateRefundSyncResponse, Self>> for RefundSyncRouterData {
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<CitigateRefundSyncResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response.0;
+        let refund_status = response.refund_sync_status();
+
+        if refund_status == RefundStatus::Failure {
+            return Ok(Self {
+                response: Err(response.to_refund_error_response(item.http_code, refund_status)),
+                resource_common_data: RefundFlowData {
+                    status: refund_status,
+                    ..item.router_data.resource_common_data
+                },
+                ..item.router_data
+            });
+        }
+
+        let connector_refund_id = response
+            .connector_transaction_id()
+            .unwrap_or_else(|| item.router_data.request.connector_refund_id.clone());
+
+        Ok(Self {
+            response: Ok(RefundsResponseData {
+                connector_refund_id,
+                refund_status,
+                status_code: item.http_code,
+                acquirer_reference_number: None,
+            }),
+            resource_common_data: RefundFlowData {
+                status: refund_status,
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
