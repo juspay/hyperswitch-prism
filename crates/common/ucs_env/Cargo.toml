@@ -68,6 +68,10 @@ build_info = { git = "https://github.com/juspay/framework-libs-rs", rev = "24356
 default = []
 kafka = ["tracing-kafka"]
 otel = ["dep:opentelemetry", "dep:opentelemetry-otlp", "dep:opentelemetry_sdk"]
+# Déjà record/replay. At this layer the feature is dependency-free: it only gates the
+# typed `[deja]` config surface (plain serde types). Boundary instrumentation and the
+# `deja` crate dependency are wired in later crates/PRs.
+deja = []
 
 [lints]
 workspace = true
