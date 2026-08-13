@@ -5,12 +5,13 @@ use common_utils::{
     types::MinorUnit,
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, RepeatPayment, SetupMandate, Void},
+    connector_flow::{Authorize, Capture, PaymentMethodToken, RepeatPayment, SetupMandate, Void},
     connector_types::{
         MandateReference, MandateReferenceId, PartnerMerchantIdentifierDetails, PaymentFlowData,
-        PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        RepeatPaymentData, ResponseId, SetupMandateRequestData,
+        PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        ResponseId, SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{
@@ -259,6 +260,34 @@ pub struct CheckoutAuthType {
     pub api_key: Secret<String>,
     pub processing_channel_id: Secret<String>,
     pub api_secret: Secret<String>,
+    /// Account public key (`pk_...`). Only `POST /tokens` accepts it — see
+    /// [`CheckoutAuthType::get_public_key`].
+    pub public_key: Option<Secret<String>>,
+}
+
+impl CheckoutAuthType {
+    /// Returns the public key required by Checkout's `POST /tokens` endpoint.
+    ///
+    /// Checkout authenticates the tokenization endpoint with the account's *public* key
+    /// (`pk_...`); the secret key used everywhere else is rejected with `403`. The key is
+    /// optional on the connector config because only merchants tokenizing encrypted wallets
+    /// through UCS need it, so a missing key has to surface as an actionable error here.
+    pub fn get_public_key(&self) -> Result<&Secret<String>, error_stack::Report<IntegrationError>> {
+        self.public_key.as_ref().ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "connector_config.checkout.public_key",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Set `public_key` (the `pk_...` key from the Checkout dashboard) on the \
+                         Checkout connector config; POST /tokens rejects the secret key"
+                            .to_owned(),
+                    ),
+                    doc_url: Some(CHECKOUT_TOKENS_DOC_URL.to_owned()),
+                    additional_context: None,
+                },
+            })
+        })
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -399,6 +428,7 @@ impl TryFrom<&ConnectorSpecificConfig> for CheckoutAuthType {
             api_key,
             api_secret,
             processing_channel_id,
+            public_key,
             ..
         } = auth_type
         {
@@ -406,6 +436,7 @@ impl TryFrom<&ConnectorSpecificConfig> for CheckoutAuthType {
                 api_key: api_key.to_owned(),
                 api_secret: api_secret.to_owned(),
                 processing_channel_id: processing_channel_id.to_owned(),
+                public_key: public_key.to_owned(),
             })
         } else {
             Err(IntegrationError::FailedToObtainAuthType {
@@ -434,22 +465,33 @@ fn split_account_holder_name(
     }
 }
 
-/// Error for a wallet payload that is still encrypted.
+/// Error for a wallet payload that reaches Authorize while still encrypted.
 ///
 /// Checkout decrypts wallet payloads at its end, but only behind a separate `POST /tokens` call
 /// that is authenticated with the account's *public* key and yields a single-use `tok_...`. A
 /// `POST /payments` request cannot carry the raw wallet payload, so the exchange has to happen
 /// before Authorize is invoked; the resulting token is then handed back on
 /// `payment_method.token` and consumed as `source.type = "token"`.
+///
+/// UCS now performs that exchange itself — see the `PaymentMethodToken` flow
+/// ([`CheckoutTokenRequest`]) exposed as `PaymentMethodService/Tokenize`. So this is no longer
+/// "Checkout cannot do this"; it is "this payload is at the wrong step of a two-call sequence".
+/// The arm is deliberately kept rather than tokenizing inline from Authorize: Checkout's tokens
+/// are single-use and expire 15 minutes after issue, so minting one inside Authorize would hide a
+/// second network call (with different credentials, and its own failure modes) behind a flow the
+/// caller believes is one request, and would silently double-charge nothing but double-spend the
+/// token on any Authorize retry. Keeping the two calls explicit also lets the caller reuse a token
+/// across Authorize and SetupMandate, which is what the tail of this path already supports.
 fn encrypted_wallet_needs_token(wallet_name: &str) -> error_stack::Report<IntegrationError> {
     error_stack::report!(IntegrationError::NotSupported {
         message: format!("{wallet_name} payload that is still encrypted"),
         connector: "checkout",
         context: IntegrationErrorContext {
             suggested_action: Some(
-                "Exchange the encrypted wallet payload for a Checkout token via POST /tokens \
-                 (authenticated with the public key) and send the resulting `tok_...` on \
-                 `payment_method.token`, or supply the wallet already decrypted as a network token"
+                "Call PaymentMethodService/Tokenize on this connector first — it performs \
+                 Checkout's POST /tokens exchange (authenticated with the account public key) — \
+                 then send the returned `tok_...` on `payment_method.token`, or supply the wallet \
+                 already decrypted as a network token"
                     .to_owned(),
             ),
             doc_url: Some(CHECKOUT_TOKENS_DOC_URL.to_owned()),
@@ -555,6 +597,128 @@ fn build_predecrypted_wallet_source<
             Default::default(),
         )
         .into()),
+    }
+}
+
+/// Request body for Checkout's `POST /tokens` — the connector-decryption head.
+///
+/// Checkout wants the *raw* wallet payload exactly as the wallet SDK produced it, wrapped in a
+/// discriminator: `{"type": "applepay" | "googlepay", "token_data": { .. }}`. The response is a
+/// single-use `tok_...` that `POST /payments` then consumes as `source.type = "token"` (see
+/// [`build_wallet_token_source`]).
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "lowercase")]
+#[serde(tag = "type", content = "token_data")]
+pub enum CheckoutTokenRequest {
+    Googlepay(CheckoutGooglePayData),
+    Applepay(Box<CheckoutApplePayData>),
+}
+
+/// Google Pay `PaymentData.paymentMethodData.tokenizationData.token`, parsed out of the opaque
+/// JSON string the Google Pay SDK hands over.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CheckoutGooglePayData {
+    protocol_version: Secret<String>,
+    signature: Secret<String>,
+    signed_message: Secret<String>,
+}
+
+/// Apple Pay `PKPaymentToken.paymentData`, parsed out of the base64 blob the Apple Pay SDK
+/// hands over.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CheckoutApplePayData {
+    version: Secret<String>,
+    data: Secret<String>,
+    signature: Secret<String>,
+    header: CheckoutApplePayHeader,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CheckoutApplePayHeader {
+    ephemeral_public_key: Secret<String>,
+    public_key_hash: Secret<String>,
+    transaction_id: Secret<String>,
+}
+
+/// Response of `POST /tokens`. Checkout echoes the request `type` and expiry alongside the token;
+/// only the token is load-bearing for the payment that follows.
+#[derive(Debug, Deserialize, Serialize)]
+pub struct CheckoutTokenResponse {
+    token: Secret<String>,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        CheckoutRouterData<
+            RouterDataV2<
+                PaymentMethodToken,
+                PaymentFlowData,
+                PaymentMethodTokenizationData<T>,
+                PaymentMethodTokenResponse,
+            >,
+            T,
+        >,
+    > for CheckoutTokenRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        item: CheckoutRouterData<
+            RouterDataV2<
+                PaymentMethodToken,
+                PaymentFlowData,
+                PaymentMethodTokenizationData<T>,
+                PaymentMethodTokenResponse,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        match &item.router_data.request.payment_method_data {
+            PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                WalletData::GooglePay(_) => Ok(Self::Googlepay(
+                    wallet_data.get_wallet_token_as_json("Google Pay".to_string())?,
+                )),
+                WalletData::ApplePay(_) => Ok(Self::Applepay(Box::new(
+                    wallet_data.get_wallet_token_as_json("Apple Pay".to_string())?,
+                ))),
+                _ => Err(IntegrationError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("checkout"),
+                    Default::default(),
+                )
+                .into()),
+            },
+            _ => Err(IntegrationError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("checkout"),
+                Default::default(),
+            )
+            .into()),
+        }
+    }
+}
+
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<CheckoutTokenResponse, Self>>
+    for RouterDataV2<
+        PaymentMethodToken,
+        PaymentFlowData,
+        PaymentMethodTokenizationData<T>,
+        PaymentMethodTokenResponse,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<CheckoutTokenResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(PaymentMethodTokenResponse {
+                token: item.response.token.expose(),
+                // Checkout's `tok_...` is single-use and expires after 15 minutes, so it is
+                // not a durable payment method identifier.
+                connector_payment_method_id: None,
+                status_code: item.http_code,
+            }),
+            ..item.router_data
+        })
     }
 }
 

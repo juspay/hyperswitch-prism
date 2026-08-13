@@ -4923,6 +4923,12 @@ message CheckoutConfig {
   SecretString api_key = 1;
   SecretString api_secret = 2;
   SecretString processing_channel_id = 3;
+  // Account public key (`pk_...`). Checkout's `POST /tokens` endpoint — the wallet
+  // tokenization exchange — is authenticated with the public key and rejects the
+  // secret key with 403. Every other endpoint uses `api_secret` (`sk_...`), so this
+  // is only required by merchants who tokenize encrypted Apple Pay / Google Pay
+  // payloads through UCS.
+  SecretString public_key = 4;
   optional string base_url = 50;
 }
 
