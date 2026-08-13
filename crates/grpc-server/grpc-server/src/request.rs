@@ -16,6 +16,10 @@ use ucs_interface_common::metadata::{
     merchant_id_from_metadata, proxy_name_from_metadata, request_id_from_metadata,
     tenant_id_from_metadata,
 };
+
+/// Deprecated header carrying the typed connector config (kept for backward compatibility).
+const X_CONNECTOR_AUTH_DEPRECATED: &str = "x-connector-auth";
+
 /// Structured request data with secure metadata access.
 /// This is the gRPC-specific wrapper around `InterfaceRequestData` that
 /// provides non-optional extensions for backward compatibility.
@@ -81,24 +85,19 @@ fn extract_routing_metadata_only(
     let tenant_id = tenant_id_from_metadata(metadata).unwrap_or_default();
     let request_id = request_id_from_metadata(metadata).unwrap_or_default();
 
-    // For webhooks, connector config is optional — some connectors embed webhook secrets
-    // inside the config (e.g. for external source verification). Use it when present,
-    // otherwise fall back to NoKey so callers can still proceed.
-    // The connector name is always required and will error if absent.
-    let x_auth_value = metadata.get(consts::X_AUTH).and_then(|v| v.to_str().ok());
-
-    let (connector, connector_config) = match x_auth_value {
-        // If X_AUTH is "NoKey", skip full auth parsing and hardcode connector_config to NoKey.
-        // This is a special convention used by certain webhook flows that don't require auth credentials.
-        Some(v) if v.eq_ignore_ascii_case("NoKey") => {
-            let connector = connector_variant_from_metadata(metadata)?;
-            (connector, ConnectorSpecificConfig::NoKey)
-        }
-        // For all other cases, resolve connector and config through the standard metadata parsing.
-        _ => {
-            let (connector, connector_config) = connector_and_config_from_metadata(metadata)?;
-            (connector, connector_config)
-        }
+    // For webhooks, connector credentials are optional. Resolve the config from the
+    // typed `x-connector-config` header, falling back to the deprecated
+    // `x-connector-auth` header. When neither is present, use NoKey so the webhook can
+    // still be routed and processed. The connector name header is always required.
+    let (connector, connector_config) = match metadata
+        .get(consts::X_CONNECTOR_CONFIG)
+        .or_else(|| metadata.get(X_CONNECTOR_AUTH_DEPRECATED))
+    {
+        Some(_) => connector_and_config_from_metadata(metadata)?,
+        None => (
+            connector_variant_from_metadata(metadata)?,
+            ConnectorSpecificConfig::NoKey,
+        ),
     };
 
     // Extract optional fields

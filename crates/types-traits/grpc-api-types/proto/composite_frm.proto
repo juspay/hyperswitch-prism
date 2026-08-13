@@ -49,9 +49,8 @@ message CompositeFrmPreRiskCheckRequest {
   // Order details
   repeated OrderDetailsWithAmount order_details = 6;
 
-  // Deprecated: a single address cannot represent independent billing and
-  // shipping addresses. Use `payment_address` instead.
-  optional Address address = 7 [deprecated = true];
+  // Billing / shipping address information
+  optional PaymentAddress address = 7;
 
   // Additional metadata for the connector
   optional SecretString metadata = 8;
@@ -77,9 +76,6 @@ message CompositeFrmPreRiskCheckRequest {
 
   // Merchant details (id + MCC) for risk scoring.
   optional MerchantDetails merchant_details = 15;
-
-  // Billing / shipping address information. Supersedes the deprecated `address`.
-  optional PaymentAddress payment_address = 16;
 }
 
 // Composite request for PostRiskCheck that includes all fields from
@@ -128,7 +124,7 @@ message CompositeFrmPostRiskCheckRequest {
   optional string merchant_request_id = 14;
 
   // Billing / shipping address information
-  optional PaymentAddress payment_address = 15;
+  optional PaymentAddress address = 15;
 }
 
 // ============================================================================

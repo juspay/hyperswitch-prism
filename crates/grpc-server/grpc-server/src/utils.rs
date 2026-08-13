@@ -9,7 +9,10 @@ use common_utils::events::apply_log_fields;
 use common_utils::{
     consts::{self, Env},
     errors::CustomResult,
-    events::{CompiledLogFields, Event, EventStage, FlowName, MaskedSerdeValue},
+    events::{
+        record_json_fields_on_span, CompiledLogFields, Event, EventStage, FlowName,
+        MaskedSerdeValue,
+    },
     lineage::LineageIds,
     superposition_config::{get_connector_urls, ConnectorUrls, SuperpositionConfig},
     types::ExecutionMode,
@@ -273,16 +276,17 @@ where
         ..
     } = metadata_payload;
     let current_span = tracing::Span::current();
-    let req_body_json = match hyperswitch_masking::masked_serialize(&request_data.payload) {
-        Ok(masked_value) => masked_value.to_string(),
-        Err(e) => {
-            tracing::error!("Masked serialization error: {:?}", e);
-            "<masked serialization error>".to_string()
-        }
-    };
     let connector_name = connector.get_connector_name();
     current_span.record("service_name", service_name);
-    current_span.record("request_body", req_body_json);
+    match hyperswitch_masking::masked_serialize(&request_data.payload) {
+        Ok(masked_value) => {
+            record_json_fields_on_span(vec![("request_body", masked_value)]);
+        }
+        Err(e) => {
+            tracing::error!("Masked serialization error: {:?}", e);
+            current_span.record("request_body", "<masked serialization error>");
+        }
+    };
     current_span.record("gateway", connector_name);
     current_span.record("merchant_id", merchant_id);
     current_span.record("tenant_id", tenant_id);
@@ -295,22 +299,29 @@ where
 const MASKED_CONNECTOR_RESPONSE_KEY: &str = "masked_connector_response";
 
 #[cfg(feature = "connector-response-masking")]
-fn record_response_body<T>(span: &tracing::Span, response: &T, log_masked: bool)
+fn record_response_body<T>(response: &T, log_masked: bool)
 where
     T: serde::Serialize + std::fmt::Debug,
 {
-    span.record(
+    record_json_fields_on_span(vec![(
         "response_body",
-        response_for_logging(response, log_masked).to_string(),
-    );
+        response_for_logging(response, log_masked),
+    )]);
 }
 
 #[cfg(not(feature = "connector-response-masking"))]
-fn record_response_body<T>(span: &tracing::Span, response: &T, _log_masked: bool)
+fn record_response_body<T>(response: &T, _log_masked: bool)
 where
     T: serde::Serialize + std::fmt::Debug,
 {
-    span.record("response_body", tracing::field::debug(response));
+    match hyperswitch_masking::masked_serialize(response) {
+        Ok(masked_value) => {
+            record_json_fields_on_span(vec![("response_body", masked_value)]);
+        }
+        Err(_) => {
+            tracing::Span::current().record("response_body", tracing::field::debug(response));
+        }
+    }
 }
 
 #[cfg(feature = "connector-response-masking")]
@@ -373,9 +384,10 @@ pub fn log_after_initialization<T>(
 
     match &result {
         Ok(response) => {
-            record_response_body(&current_span, response.get_ref(), log_masked);
-
             let res_ref = response.get_ref();
+
+            // Record response_body as structured JSON with masking
+            record_response_body(res_ref, log_masked);
 
             // Try converting to JSON Value
             if let Ok(Value::Object(map)) = serde_json::to_value(res_ref) {

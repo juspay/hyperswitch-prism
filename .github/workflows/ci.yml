@@ -90,6 +90,7 @@ jobs:
               - 'crates/**'
               - 'Cargo.toml'
               - 'Cargo.lock'
+              - 'config/**'
             sdk:
               - 'sdk/**'
               - 'crates/ffi/**'
@@ -417,6 +418,9 @@ jobs:
 
       - name: Run Connector Specs Coverage Check
         run: cargo run --all-features --bin check_connector_specs
+
+      - name: Run Superposition Config Validation
+        run: cargo test -p grpc-server --all-features --test test_superposition_config
 
   # ── Tests ─────────────────────────────────────────────────────────────────
 
