@@ -44,6 +44,8 @@ Use this operation to move funds to the destination payout method.
 | `browserInfo` | BrowserInformation | No | Information about the user's browser. |
 | `accessToken` | SecretString | No | Access token for the connector, if required. |
 | `sourceBankData` | SourceBankData | No | Details of the bank account from which the payout is funded. |
+| `description` | string | No | Description of the payout. |
+| `connectorEligibilityReferenceId` | string | No | Connector's reference for a prior eligibility check, when the processor requires it to authorise the transfer. |
 
 ## Response Fields
 
