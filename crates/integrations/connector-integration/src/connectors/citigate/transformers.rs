@@ -6,17 +6,23 @@
 //! also carried in the body, so there are no auth headers.
 //!
 //! Scope of this module: Card / Authorize (Purchase, `TransTypeID = 0`), one-time,
-//! non-3DS.
+//! non-3DS **and** the 3DS user-redirect path, plus the Transaction Status Check
+//! (`TransTypeID = 8`) that resolves the payment after the cardholder returns.
 
-use common_enums::{AttemptStatus, CardNetwork};
-use common_utils::{pii::Email, types::StringMinorUnit};
+use std::collections::HashMap;
+
+use common_enums::{AttemptStatus, AuthenticationType, CardNetwork};
+use common_utils::{pii::Email, types::StringMinorUnit, Method};
 use domain_types::{
-    connector_flow::Authorize,
-    connector_types::{PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, ResponseId},
+    connector_flow::{Authorize, PSync},
+    connector_types::{
+        PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, ResponseId,
+    },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{Card, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
+    router_response_types::RedirectForm,
     utils::{get_card_issuer, CardIssuer},
 };
 use hyperswitch_masking::{PeekInterface, Secret};
@@ -29,9 +35,13 @@ use crate::types::ResponseRouterData;
 const PAYMENT_TYPE_ID_CARD: &str = "1";
 /// `TransTypeID` for a purchase (UCS `Authorize`).
 const TRANS_TYPE_ID_PURCHASE: &str = "0";
+/// `TransTypeID` for a transaction status check (UCS `PSync`).
+const TRANS_TYPE_ID_STATUS_CHECK: &str = "8";
 
 /// `ResponseCode` returned for an approved transaction.
 const RESPONSE_CODE_APPROVED: &str = "0";
+/// `ResponseCode` returned when the cardholder failed 3D authentication at the ACS.
+const RESPONSE_CODE_3D_AUTH_FAILURE: &str = "103";
 /// `ResponseCode` returned when a cardholder redirect (3DS) is required.
 const RESPONSE_CODE_REDIRECT_REQUIRED: &str = "600";
 /// Undocumented `ResponseCode` observed on Status Check responses; discriminated on
@@ -42,6 +52,8 @@ const RESPONSE_CODE_UNDOCUMENTED: &str = "999";
 const RESP_TRANS_TYPE_SALE: &str = "1";
 const RESP_TRANS_TYPE_AUTHORISE: &str = "2";
 const RESP_TRANS_TYPE_CAPTURE: &str = "3";
+const RESP_TRANS_TYPE_CANCEL: &str = "4";
+const RESP_TRANS_TYPE_REFUND: &str = "5";
 const RESP_TRANS_TYPE_PENDING: &str = "6";
 
 /// `TransactionID` value Citigate returns when no transaction was created.
@@ -192,6 +204,18 @@ pub struct CitigatePaymentsRequest<T: PaymentMethodDataTypes> {
     pub telephone: Option<Secret<String>>,
     #[serde(rename = "UserIP")]
     pub user_ip: Secret<String>,
+    /// `Y**` — mandatory on 3D-Secure-enabled MIDs, ignored elsewhere. Citigate
+    /// POSTs the cardholder back here once the redirect transaction is approved.
+    #[serde(rename = "SuccessURL", skip_serializing_if = "Option::is_none")]
+    pub success_url: Option<String>,
+    /// `Y**` — the declined counterpart of `SuccessURL`. UCS has a single return
+    /// URL and re-derives the outcome with PSync rather than from the landing URL,
+    /// so both carry the same value.
+    #[serde(rename = "FailURL", skip_serializing_if = "Option::is_none")]
+    pub fail_url: Option<String>,
+    /// `Y**` — receives the server-side POST that carries the final result.
+    #[serde(rename = "CallbackURL", skip_serializing_if = "Option::is_none")]
+    pub callback_url: Option<String>,
 }
 
 type AuthorizeRouterData<T> =
@@ -213,6 +237,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 )))
             }
         };
+
+        // The gateway predates 3DS2: there is no field anywhere in the interface to
+        // carry an externally obtained CAVV / ECI / dsTransId, so merchant-provided
+        // authentication data cannot be honoured.
+        if router_data.request.authentication_data.is_some() {
+            return Err(error_stack::report!(IntegrationError::NotSupported {
+                message: "External/merchant-provided 3DS authentication data".to_string(),
+                connector: "citigate",
+                context: IntegrationErrorContext::default(),
+            }));
+        }
 
         let auth = CitigateAuthType::try_from(&router_data.connector_config)?;
         let common = &router_data.resource_common_data;
@@ -237,6 +272,40 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // `UserIP` is documented as mandatory (`Y`). Fail loudly rather than let the
         // gateway reject the transaction with ResponseCode 535.
         let user_ip = router_data.request.get_ip_address()?;
+
+        // 3DS is an attribute of the MID, not of the transaction: there is no
+        // `3ds`/`no_3ds` request flag anywhere in the interface, and the gateway may
+        // ask for a redirect "irrespective of MID type". The three `Y**` URLs are
+        // therefore forwarded whenever the caller supplied them — a non-3D MID
+        // simply ignores them — but are required up front when the caller did ask
+        // for 3DS, so a missing URL surfaces here instead of as ResponseCode
+        // 584 / 585 / 586.
+        let return_url = router_data
+            .request
+            .router_return_url
+            .clone()
+            .or_else(|| router_data.request.complete_authorize_url.clone())
+            .or_else(|| common.return_url.clone());
+        let callback_url = router_data.request.webhook_url.clone();
+
+        if common.auth_type == AuthenticationType::ThreeDs {
+            if return_url.is_none() {
+                return Err(error_stack::report!(
+                    IntegrationError::MissingRequiredField {
+                        field_name: "router_return_url",
+                        context: IntegrationErrorContext::default(),
+                    }
+                ));
+            }
+            if callback_url.is_none() {
+                return Err(error_stack::report!(
+                    IntegrationError::MissingRequiredField {
+                        field_name: "webhook_url",
+                        context: IntegrationErrorContext::default(),
+                    }
+                ));
+            }
+        }
 
         Ok(Self {
             payment_type_id: PAYMENT_TYPE_ID_CARD.to_string(),
@@ -263,6 +332,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             email,
             telephone: common.get_optional_billing_phone_number(),
             user_ip: Secret::new(user_ip.peek().to_string()),
+            success_url: return_url.clone(),
+            fail_url: return_url,
+            callback_url,
         })
     }
 }
@@ -384,17 +456,21 @@ impl CitigatePaymentsResponse {
         self.trans_type_id.as_deref().unwrap_or_default()
     }
 
-    /// `true` when the gateway approved the transaction, or reported it as still
-    /// pending (`999` + `TransTypeID 6`).
+    /// `true` when the gateway approved the transaction, asked for a cardholder
+    /// redirect (`600`), or reported it as still pending (`999` + `TransTypeID 6`).
     fn is_success(&self) -> bool {
         match self.response_code() {
             RESPONSE_CODE_APPROVED => true,
+            // `600` is the normal first answer on a 3D-enabled MID and must travel
+            // through the success arm — but only if the gateway actually told us
+            // where to send the cardholder.
+            RESPONSE_CODE_REDIRECT_REQUIRED => self.redirect_form().is_some(),
             RESPONSE_CODE_UNDOCUMENTED => self.trans_type_id() == RESP_TRANS_TYPE_PENDING,
             _ => false,
         }
     }
 
-    /// Status for an approved / pending Authorize response.
+    /// Status for an approved / redirecting / pending Authorize response.
     fn attempt_status(&self) -> AttemptStatus {
         match self.response_code() {
             RESPONSE_CODE_APPROVED => match self.trans_type_id() {
@@ -405,6 +481,9 @@ impl CitigatePaymentsResponse {
                 RESP_TRANS_TYPE_AUTHORISE => AttemptStatus::Authorized,
                 _ => AttemptStatus::Pending,
             },
+            // Cardholder must be sent to the ACS page; the response `TransTypeID`
+            // is not yet meaningful and only settles once the redirect completes.
+            RESPONSE_CODE_REDIRECT_REQUIRED => AttemptStatus::AuthenticationPending,
             _ => AttemptStatus::Pending,
         }
     }
@@ -412,10 +491,71 @@ impl CitigatePaymentsResponse {
     /// Status attached to a failed Authorize response.
     fn failure_status(&self) -> AttemptStatus {
         match self.response_code() {
-            // Redirect (3DS) is out of scope for this integration: surface it as an
-            // authentication failure rather than silently reporting a plain failure.
-            RESPONSE_CODE_REDIRECT_REQUIRED => AttemptStatus::AuthenticationFailed,
+            // Cardholder failed / abandoned authentication at the ACS, or the
+            // gateway asked for a redirect without telling us where to.
+            RESPONSE_CODE_3D_AUTH_FAILURE | RESPONSE_CODE_REDIRECT_REQUIRED => {
+                AttemptStatus::AuthenticationFailed
+            }
             _ => AttemptStatus::AuthorizationFailed,
+        }
+    }
+
+    /// Where to send the cardholder when the gateway demanded a redirect.
+    ///
+    /// `RedirectURL` is an absolute URL whose query string is an opaque token, so
+    /// it is handed over verbatim as a `GET` with no form fields — there is no
+    /// `PaReq`/`creq` to post. It is only populated on `ResponseCode 600`, and the
+    /// PDF's own sample carries a stray leading space, hence the `trim`.
+    fn redirect_form(&self) -> Option<RedirectForm> {
+        if self.response_code() != RESPONSE_CODE_REDIRECT_REQUIRED {
+            return None;
+        }
+        self.redirect_url
+            .as_deref()
+            .map(str::trim)
+            .filter(|url| !url.is_empty())
+            .map(|url| RedirectForm::Form {
+                endpoint: url.to_string(),
+                method: Method::Get,
+                form_fields: HashMap::new(),
+            })
+    }
+
+    /// `true` when a Status Check answered with a usable state. `600` cannot be
+    /// acted upon in a pull-based sync (there is no browser to redirect), so it is
+    /// reported as "redirect not consumed yet", i.e. still pending.
+    fn sync_is_success(&self) -> bool {
+        match self.response_code() {
+            RESPONSE_CODE_APPROVED | RESPONSE_CODE_REDIRECT_REQUIRED => true,
+            RESPONSE_CODE_UNDOCUMENTED => self.trans_type_id() == RESP_TRANS_TYPE_PENDING,
+            _ => false,
+        }
+    }
+
+    /// Status Check status. The response `TransTypeID` describes the *original*
+    /// transaction, so it is what decides the terminal state after a 3DS redirect.
+    fn sync_attempt_status(&self) -> AttemptStatus {
+        match self.response_code() {
+            RESPONSE_CODE_APPROVED => match self.trans_type_id() {
+                // A 3D MID runs a sale, so a completed 3DS payment is charged.
+                RESP_TRANS_TYPE_SALE | RESP_TRANS_TYPE_CAPTURE | RESP_TRANS_TYPE_REFUND => {
+                    AttemptStatus::Charged
+                }
+                RESP_TRANS_TYPE_AUTHORISE => AttemptStatus::Authorized,
+                RESP_TRANS_TYPE_CANCEL => AttemptStatus::Voided,
+                _ => AttemptStatus::Pending,
+            },
+            // `6` (still processing) and an unconsumed `600` both mean "keep polling".
+            _ => AttemptStatus::Pending,
+        }
+    }
+
+    /// Status attached to a failed Status Check. `TransTypeID 99` means the
+    /// `MerchantName` + `MerchantPassword` + `MerchantRef` triple matched nothing.
+    fn sync_failure_status(&self) -> AttemptStatus {
+        match self.response_code() {
+            RESPONSE_CODE_3D_AUTH_FAILURE => AttemptStatus::AuthenticationFailed,
+            _ => AttemptStatus::Failure,
         }
     }
 
@@ -449,6 +589,14 @@ impl CitigatePaymentsResponse {
     }
 
     pub fn to_error_response(&self, http_code: u16) -> ErrorResponse {
+        self.to_error_response_with_status(http_code, self.failure_status())
+    }
+
+    fn to_error_response_with_status(
+        &self,
+        http_code: u16,
+        attempt_status: AttemptStatus,
+    ) -> ErrorResponse {
         let message = self
             .response_description
             .clone()
@@ -467,7 +615,7 @@ impl CitigatePaymentsResponse {
                 .unwrap_or_else(|| "NO_RESPONSE_CODE".to_string()),
             message,
             reason,
-            attempt_status: Some(FlowStatus::Payment(self.failure_status())),
+            attempt_status: Some(FlowStatus::Payment(attempt_status)),
             connector_transaction_id: self.connector_transaction_id(),
             network_decline_code: is_bank_decline.then(|| self.bank_code.clone()).flatten(),
             network_advice_code: None,
@@ -507,7 +655,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<CitigatePaymentsRespo
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id,
-                redirection_data: None,
+                redirection_data: response.redirect_form().map(Box::new),
                 mandate_reference: None,
                 connector_metadata: response.connector_metadata(),
                 network_txn_id: None,
@@ -519,6 +667,118 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<CitigatePaymentsRespo
             }),
             resource_common_data: PaymentFlowData {
                 status: response.attempt_status(),
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// =============================================================================
+// PSYNC — TRANSACTION STATUS CHECK (`TransTypeID = 8`)
+// =============================================================================
+
+/// Transaction Status Check request.
+///
+/// The lookup key is the `MerchantName` + `MerchantPassword` + `MerchantRef`
+/// triple — **not** the `TransactionID`. Querying with a different MID than the
+/// one that created the payment therefore reports a perfectly good transaction as
+/// `TransTypeID 99` / "MerchantRef not found".
+#[derive(Debug, Serialize)]
+pub struct CitigateSyncRequest {
+    #[serde(rename = "PaymentTypeID")]
+    pub payment_type_id: String,
+    #[serde(rename = "TransTypeID")]
+    pub trans_type_id: String,
+    #[serde(rename = "MerchantName")]
+    pub merchant_name: Secret<String>,
+    #[serde(rename = "MerchantPassword")]
+    pub merchant_password: Secret<String>,
+    #[serde(rename = "MerchantRef")]
+    pub merchant_ref: String,
+}
+
+type SyncRouterData = RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>;
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<CitigateRouterData<SyncRouterData, T>> for CitigateSyncRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(item: CitigateRouterData<SyncRouterData, T>) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let auth = CitigateAuthType::try_from(&router_data.connector_config)?;
+
+        let merchant_ref = router_data
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
+        if merchant_ref.is_empty() {
+            return Err(error_stack::report!(
+                IntegrationError::MissingRequiredField {
+                    field_name: "merchant_transaction_id",
+                    context: IntegrationErrorContext::default(),
+                }
+            ));
+        }
+
+        Ok(Self {
+            payment_type_id: PAYMENT_TYPE_ID_CARD.to_string(),
+            trans_type_id: TRANS_TYPE_ID_STATUS_CHECK.to_string(),
+            merchant_name: auth.merchant_name,
+            merchant_password: auth.merchant_password,
+            merchant_ref,
+        })
+    }
+}
+
+/// Status Check answers with the very same envelope as a purchase (minus
+/// `RedirectURL`); the newtype exists only to give the macro framework a distinct
+/// response type per flow.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct CitigateSyncResponse(pub CitigatePaymentsResponse);
+
+impl TryFrom<ResponseRouterData<CitigateSyncResponse, Self>> for SyncRouterData {
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(item: ResponseRouterData<CitigateSyncResponse, Self>) -> Result<Self, Self::Error> {
+        let response = item.response.0;
+
+        if !response.sync_is_success() {
+            return Ok(Self {
+                response: Err(response
+                    .to_error_response_with_status(item.http_code, response.sync_failure_status())),
+                resource_common_data: PaymentFlowData {
+                    status: response.sync_failure_status(),
+                    ..item.router_data.resource_common_data
+                },
+                ..item.router_data
+            });
+        }
+
+        let resource_id = match response.connector_transaction_id() {
+            Some(transaction_id) => ResponseId::ConnectorTransactionId(transaction_id),
+            None => item.router_data.request.connector_transaction_id.clone(),
+        };
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id,
+                // A sync has no browser to redirect: the redirect instruction, if
+                // any, was already handed out by Authorize.
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: response.connector_metadata(),
+                network_txn_id: None,
+                network_txn_link_id: None,
+                connector_response_reference_id: response.merchant_ref.clone(),
+                incremental_authorization_allowed: None,
+                splits: None,
+                status_code: item.http_code,
+            }),
+            resource_common_data: PaymentFlowData {
+                status: response.sync_attempt_status(),
                 ..item.router_data.resource_common_data
             },
             ..item.router_data

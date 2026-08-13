@@ -6,7 +6,9 @@
 //! (`MerchantName` / `MerchantPassword`) travel in the body too, so
 //! [`ConnectorCommon::get_auth_header`] contributes no headers.
 //!
-//! Implemented scope: Card / Authorize (Purchase), one-time, non-3DS.
+//! Implemented scope: Card / Authorize (Purchase), one-time, non-3DS and the 3DS
+//! user-redirect path, plus the Transaction Status Check (`TransTypeID = 8`) that
+//! resolves the payment once the cardholder returns from the ACS page.
 
 pub mod transformers;
 
@@ -15,8 +17,10 @@ use std::fmt::Debug;
 use common_enums::CurrencyUnit;
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
 use domain_types::{
-    connector_flow::Authorize,
-    connector_types::{PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData},
+    connector_flow::{Authorize, PSync},
+    connector_types::{
+        PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData,
+    },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -31,7 +35,10 @@ use interfaces::{
     decode::BodyDecoding,
 };
 use serde::Serialize;
-use transformers::{self as citigate, CitigatePaymentsRequest, CitigatePaymentsResponse};
+use transformers::{
+    self as citigate, CitigatePaymentsRequest, CitigatePaymentsResponse, CitigateSyncRequest,
+    CitigateSyncResponse,
+};
 
 use super::macros;
 use crate::types::ResponseRouterData;
@@ -58,6 +65,12 @@ macros::create_all_prerequisites!(
             request_body: CitigatePaymentsRequest<T>,
             response_body: CitigatePaymentsResponse,
             router_data: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: PSync,
+            request_body: CitigateSyncRequest,
+            response_body: CitigateSyncResponse,
+            router_data: RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         )
     ],
     amount_converters: [],
@@ -171,6 +184,42 @@ macros::macro_connector_implementation!(
     }
 );
 
+// PSync Flow — Transaction Status Check, PaymentTypeID = 1, TransTypeID = 8.
+// Same endpoint and same MID credentials as the Authorize that created the
+// payment; the lookup key is MerchantRef, not TransactionID.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Citigate,
+    curl_request: Json(CitigateSyncRequest),
+    curl_response: CitigateSyncResponse,
+    flow_name: PSync,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsSyncData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!(
+                "{}{}",
+                self.connector_base_url_payments(req),
+                CITIGATE_JSON_INTERFACE_PATH
+            ))
+        }
+    }
+);
+
 // ===== CONNECTOR SERVICE TRAIT IMPLEMENTATION =====
 // Aggregate trait - composes all other connector traits.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -181,6 +230,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // ===== PAYMENT FLOW TRAIT IMPLEMENTATIONS =====
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Citigate<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentSyncV2 for Citigate<T>
 {
 }
 
@@ -201,8 +255,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 // ===== SOURCE VERIFICATION IMPLEMENTATION =====
-// Citigate's only signed callbacks belong to the 3DS redirect and the opt-in
-// refund/fraud notification services, both out of scope for this integration.
+// Citigate signs the 3DS redirect callback and the opt-in refund/fraud
+// notification with SHA-1, but neither callback is consumed here: the 3DS outcome
+// is resolved by polling the Transaction Status Check (PSync) instead.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     interfaces::verification::SourceVerification for Citigate<T>
 {
@@ -222,8 +277,8 @@ macros::macro_connector_payout_implementation!(
 );
 
 // ===== FLOW STATUS IMPLEMENTATIONS =====
-// Every flow other than Authorize is stubbed: the Citigate JSON interface does
-// support capture / cancel / refund / status-check on the same endpoint, but they
+// Every flow other than Authorize and PSync is stubbed: the Citigate JSON
+// interface does support capture / cancel / refund on the same endpoint, but they
 // are out of scope for this integration.
 macros::macro_connector_flow_status_impls!(
     connector: Citigate,
@@ -241,7 +296,6 @@ macros::macro_connector_flow_status_impls!(
         CreateOrder,
         PostAuthenticate,
         PreAuthenticate,
-        PSync,
         PaymentMethodToken,
         VoidPC,
         Void,
