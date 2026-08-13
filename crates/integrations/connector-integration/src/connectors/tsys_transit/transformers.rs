@@ -2661,6 +2661,7 @@ impl TryFrom<ResponseRouterData<TsysTransitTransactionInquiryResponse, Self>>
         log_tsys_transit_response("PSync", item.http_code, response);
 
         if let Some(transaction_details) = response.transaction_details.as_ref() {
+            // Incase of failure error message is not returned in sync call
             let connector_transaction_id = transaction_details.transaction_id.clone();
             let status = AttemptStatus::from(transaction_details);
             let payments_response_data = PaymentsResponseData::TransactionResponse {
@@ -3041,7 +3042,7 @@ impl TryFrom<ResponseRouterData<TsysTransitTransactionInquiryResponse, Self>>
         {
             Some(refund_status) => {
                 let transaction_details = response.transaction_details.as_ref().unwrap();
-
+                // In rsync response error reason is not returned
                 Ok(Self {
                     resource_common_data: RefundFlowData {
                         status: refund_status,
@@ -3057,26 +3058,16 @@ impl TryFrom<ResponseRouterData<TsysTransitTransactionInquiryResponse, Self>>
                 })
             }
             None => {
-                let error_response = ErrorResponse {
+                // In case of rsync failure, returning an error response would fail the refund, hence we are constructing the old state of the refund and returning it
+                let refund_response = RefundsResponseData {
+                    connector_refund_id: router_data.request.connector_refund_id.clone(),
+                    refund_status: router_data.resource_common_data.status,
                     status_code: item.http_code,
-                    code: response
-                        .response_code
-                        .clone()
-                        .unwrap_or_else(|| common_utils::consts::NO_ERROR_CODE.to_string()),
-                    message: response
-                        .response_message
-                        .clone()
-                        .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string()),
-                    reason: response.response_message.clone(),
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                    network_decline_code: None,
-                    network_advice_code: None,
-                    network_error_message: response.response_message.clone(),
+                    acquirer_reference_number: None,
                 };
+
                 Ok(Self {
-                    resource_common_data: router_data.resource_common_data.clone(),
-                    response: Err(error_response),
+                    response: Ok(refund_response),
                     ..router_data.clone()
                 })
             }
