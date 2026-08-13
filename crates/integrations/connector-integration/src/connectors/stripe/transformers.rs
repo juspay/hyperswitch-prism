@@ -178,6 +178,18 @@ pub enum Auth3ds {
     Any,
 }
 
+impl From<common_enums::AuthenticationType> for Auth3ds {
+    fn from(auth_type: common_enums::AuthenticationType) -> Self {
+        match auth_type {
+            common_enums::AuthenticationType::ThreeDs => Self::Any,
+            common_enums::AuthenticationType::NoThreeDs => Self::Automatic,
+        }
+    }
+}
+
+/// Value Stripe expects in `card[tokenization_method]` for a decrypted Google Pay network token.
+const GOOGLE_PAY_TOKENIZATION_METHOD: &str = "android_pay";
+
 #[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum StripeCardNetwork {
@@ -716,6 +728,7 @@ pub enum StripeWallet {
     Cashapp(CashappPayment),
     RevolutPay(RevolutpayPayment),
     ApplePayPredecryptToken(Box<StripeApplePayPredecrypt>),
+    GooglePayPredecryptToken(Box<StripeGooglePayPredecrypt>),
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -730,6 +743,22 @@ pub struct StripeApplePayPredecrypt {
     cryptogram: Secret<String>,
     #[serde(rename = "card[eci]")]
     eci: Option<String>,
+    #[serde(rename = "card[tokenization_method]")]
+    tokenization_method: String,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct StripeGooglePayPredecrypt {
+    #[serde(rename = "card[number]")]
+    number: CardNumber,
+    #[serde(rename = "card[exp_year]")]
+    exp_year: Secret<String>,
+    #[serde(rename = "card[exp_month]")]
+    exp_month: Secret<String>,
+    #[serde(rename = "card[cryptogram]")]
+    cryptogram: Secret<String>,
+    #[serde(rename = "card[eci]")]
+    eci: String,
     #[serde(rename = "card[tokenization_method]")]
     tokenization_method: String,
 }
@@ -1438,7 +1467,10 @@ fn create_stripe_payment_method<
         }
         PaymentMethodData::Wallet(wallet_data) => {
             let pm_type = get_stripe_payment_method_type_from_wallet_data(wallet_data)?;
-            let wallet_specific_data = StripePaymentMethodData::try_from(wallet_data)?;
+            let wallet_specific_data = StripePaymentMethodData::try_from((
+                wallet_data,
+                payment_request_details.auth_type,
+            ))?;
             Ok((
                 wallet_specific_data,
                 pm_type,
@@ -1690,11 +1722,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> TryFrom<&WalletData>
-    for StripePaymentMethodData<T>
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<(&WalletData, common_enums::AuthenticationType)> for StripePaymentMethodData<T>
 {
     type Error = error_stack::Report<IntegrationError>;
-    fn try_from(wallet_data: &WalletData) -> Result<Self, Self::Error> {
+    fn try_from(
+        (wallet_data, auth_type): (&WalletData, common_enums::AuthenticationType),
+    ) -> Result<Self, Self::Error> {
         match wallet_data {
             WalletData::ApplePay(applepay_data) => match applepay_data
                 .payment_data
@@ -1743,7 +1777,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> TryF
                     payment_method_types: StripePaymentMethodType::RevolutPay,
                 })))
             }
-            WalletData::GooglePay(gpay_data) => Ok(Self::try_from(gpay_data)?),
+            WalletData::GooglePay(gpay_data) => Ok(Self::try_from((gpay_data, auth_type))?),
             WalletData::PaypalRedirect(_) | WalletData::MobilePayRedirect(_) => {
                 Err(IntegrationError::NotImplemented(
                     get_unimplemented_payment_method_error_message("stripe"),
@@ -1880,29 +1914,85 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    TryFrom<&GooglePayWalletData> for StripePaymentMethodData<T>
+    TryFrom<(&GooglePayWalletData, common_enums::AuthenticationType)>
+    for StripePaymentMethodData<T>
 {
     type Error = error_stack::Report<IntegrationError>;
-    fn try_from(gpay_data: &GooglePayWalletData) -> Result<Self, Self::Error> {
-        Ok(Self::Wallet(StripeWallet::GooglepayToken(GooglePayToken {
-            token: Secret::new(
-                gpay_data
-                    .tokenization_data
-                    .get_encrypted_google_pay_token()
-                    .change_context(IntegrationError::MissingRequiredField {
-                        field_name: "gpay wallet_token",
+    fn try_from(
+        (gpay_data, auth_type): (&GooglePayWalletData, common_enums::AuthenticationType),
+    ) -> Result<Self, Self::Error> {
+        match &gpay_data.tokenization_data {
+            // Hyperswitch decrypted the Google Pay token for us, so send the network token
+            // (PAN + cryptogram) to Stripe instead of the opaque wallet token. This is the only
+            // shape Stripe accepts for storing a Google Pay credential for later MITs.
+            payment_method_data::GpayTokenizationData::Decrypted(google_pay_decrypted_data) => {
+                let exp_year = google_pay_decrypted_data
+                    .get_four_digit_expiry_year()
+                    .change_context(IntegrationError::InvalidDataFormat {
+                        field_name: "google_pay_decrypted_data.card_exp_year",
                         context: Default::default(),
-                    })?
-                    .as_bytes()
-                    .parse_struct::<StripeGpayToken>("StripeGpayToken")
-                    .change_context(IntegrationError::InvalidWalletToken {
-                        wallet_name: "Google Pay".to_string(),
-                        context: Default::default(),
-                    })?
-                    .id,
-            ),
-            payment_type: StripePaymentMethodType::Card,
-        })))
+                    })?;
+
+                match (
+                    google_pay_decrypted_data.cryptogram.clone(),
+                    google_pay_decrypted_data.eci_indicator.clone(),
+                ) {
+                    (Some(cryptogram), Some(eci)) => {
+                        Ok(Self::Wallet(StripeWallet::GooglePayPredecryptToken(
+                            Box::new(StripeGooglePayPredecrypt {
+                                number: google_pay_decrypted_data
+                                    .application_primary_account_number
+                                    .clone(),
+                                exp_year,
+                                exp_month: google_pay_decrypted_data.card_exp_month.clone(),
+                                cryptogram,
+                                eci,
+                                tokenization_method: GOOGLE_PAY_TOKENIZATION_METHOD.to_string(),
+                            }),
+                        )))
+                    }
+                    // Without a cryptogram/ECI there is nothing wallet-specific left to send, so
+                    // fall back to presenting the decrypted PAN as a plain card.
+                    _ => Ok(Self::CardNetworkTransactionId(
+                        StripeCardNetworkTransactionIdData {
+                            payment_method_data_type: StripePaymentMethodType::Card,
+                            payment_method_data_card_number: google_pay_decrypted_data
+                                .application_primary_account_number
+                                .clone(),
+                            payment_method_data_card_exp_month: google_pay_decrypted_data
+                                .card_exp_month
+                                .clone(),
+                            payment_method_data_card_exp_year: exp_year,
+                            payment_method_data_card_cvc: None,
+                            payment_method_auth_type: Some(Auth3ds::from(auth_type)),
+                            payment_method_data_card_preferred_network: None,
+                            request_overcapture: None,
+                        },
+                    )),
+                }
+            }
+            payment_method_data::GpayTokenizationData::Encrypted(_) => {
+                Ok(Self::Wallet(StripeWallet::GooglepayToken(GooglePayToken {
+                    token: Secret::new(
+                        gpay_data
+                            .tokenization_data
+                            .get_encrypted_google_pay_token()
+                            .change_context(IntegrationError::MissingRequiredField {
+                                field_name: "gpay wallet_token",
+                                context: Default::default(),
+                            })?
+                            .as_bytes()
+                            .parse_struct::<StripeGpayToken>("StripeGpayToken")
+                            .change_context(IntegrationError::InvalidWalletToken {
+                                wallet_name: "Google Pay".to_string(),
+                                context: Default::default(),
+                            })?
+                            .id,
+                    ),
+                    payment_type: StripePaymentMethodType::Card,
+                })))
+            }
+        }
     }
 }
 
@@ -5124,7 +5214,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentMethodData::BankRedirect(ref bank_redirect_data) => {
                 Ok(Self::try_from(bank_redirect_data)?)
             }
-            PaymentMethodData::Wallet(ref wallet_data) => Ok(Self::try_from(wallet_data)?),
+            PaymentMethodData::Wallet(ref wallet_data) => {
+                Ok(Self::try_from((wallet_data, auth_type))?)
+            }
             PaymentMethodData::BankDebit(bank_debit_data) => {
                 let (_pm_type, bank_data) = get_bank_debit_data(bank_debit_data)?;
 
