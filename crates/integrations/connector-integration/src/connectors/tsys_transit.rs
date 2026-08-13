@@ -492,7 +492,7 @@ macros::macro_connector_implementation!(
 // TransIT refunds are sync-final on the `<ReturnResponse>` (no separate
 // refund-status-poll endpoint). However, HS still dispatches RSync to verify
 // terminal status, so we reuse the PSync request/response shape
-// (`<TransactionInquiry>`) and map the response to `RefundStatus` instead of
+// (`<SearchTransaction>`) and map the response to `RefundStatus` instead of
 // `AttemptStatus`.
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
