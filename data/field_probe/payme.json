@@ -677,7 +677,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"buyer_name\":\"John Doe\",\"buyer_email\":\"test@example.com\",\"payme_sale_id\":\"connector_order_id\",\"credit_card_number\":\"{{$card_number}}\",\"credit_card_exp\":\"{{$card_exp_month}}{{$card_exp_year}}\",\"credit_card_cvv\":\"{{$card_cvc}}\",\"language\":\"en\"}"
+          "body": "{\"buyer_name\":\"John Doe\",\"buyer_email\":\"test@example.com\",\"payme_sale_id\":\"connector_order_id\",\"credit_card_number\":\"{{$card_number}}\",\"credit_card_exp\":\"0330\",\"credit_card_cvv\":\"{{$card_cvc}}\",\"language\":\"en\"}"
         }
       }
     },

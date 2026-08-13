@@ -178,6 +178,7 @@ macro_rules! res_transformer {
                     error_code: ctx.error_code().to_string(),
                     http_status_code: None,
                     error_info: None,
+                ..Default::default()
                 })
             })?;
 
@@ -194,6 +195,7 @@ macro_rules! res_transformer {
                         error_code: ctx.error_code().to_string(),
                         http_status_code: None,
                         error_info: None,
+                    ..Default::default()
                     })
                 })?;
 
@@ -206,6 +208,7 @@ macro_rules! res_transformer {
                         error_code: ctx.error_code().to_string(),
                         http_status_code: None,
                         error_info: None,
+                    ..Default::default()
                     })
                 })?;
 
@@ -381,6 +384,7 @@ macro_rules! payout_res_transformer {
                     error_code: ctx.error_code().to_string(),
                     http_status_code: None,
                     error_info: None,
+                ..Default::default()
                 })
             })?;
 
@@ -397,6 +401,7 @@ macro_rules! payout_res_transformer {
                         error_code: ctx.error_code().to_string(),
                         http_status_code: None,
                         error_info: None,
+                    ..Default::default()
                     })
                 })?;
 
@@ -409,6 +414,7 @@ macro_rules! payout_res_transformer {
                         error_code: ctx.error_code().to_string(),
                         http_status_code: None,
                         error_info: None,
+                    ..Default::default()
                     })
                 })?;
 
@@ -586,6 +592,7 @@ macro_rules! surcharge_res_transformer {
                     error_code: ctx.error_code().to_string(),
                     http_status_code: None,
                     error_info: None,
+                ..Default::default()
                 })
             })?;
 
@@ -602,6 +609,7 @@ macro_rules! surcharge_res_transformer {
                         error_code: ctx.error_code().to_string(),
                         http_status_code: None,
                         error_info: None,
+                    ..Default::default()
                     })
                 })?;
 
@@ -614,6 +622,7 @@ macro_rules! surcharge_res_transformer {
                         error_code: ctx.error_code().to_string(),
                         http_status_code: None,
                         error_info: None,
+                    ..Default::default()
                     })
                 })?;
 
@@ -769,6 +778,7 @@ macro_rules! frm_res_transformer {
                     error_code: ctx.error_code().to_string(),
                     http_status_code: None,
                     error_info: None,
+                ..Default::default()
                 })
             })?;
 
@@ -785,6 +795,7 @@ macro_rules! frm_res_transformer {
                         error_code: ctx.error_code().to_string(),
                         http_status_code: None,
                         error_info: None,
+                    ..Default::default()
                     })
                 })?;
 
@@ -797,6 +808,7 @@ macro_rules! frm_res_transformer {
                         error_code: ctx.error_code().to_string(),
                         http_status_code: None,
                         error_info: None,
+                    ..Default::default()
                     })
                 })?;
 

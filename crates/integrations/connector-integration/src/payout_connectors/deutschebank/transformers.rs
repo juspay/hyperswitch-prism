@@ -13,7 +13,7 @@ use domain_types::{
             PayoutGetResponse, PayoutTransferRequest, PayoutTransferResponse,
         },
     },
-    router_data::ConnectorSpecificConfig,
+    router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     utils,
 };
@@ -119,6 +119,17 @@ pub enum DeutschebankVopMatchStatus {
     Nmtc,
 }
 
+impl DeutschebankVopMatchStatus {
+    pub fn code(self) -> &'static str {
+        match self {
+            Self::Mtch => "MTCH",
+            Self::Cmtc => "CMTC",
+            Self::Noap => "NOAP",
+            Self::Nmtc => "NMTC",
+        }
+    }
+}
+
 impl From<DeutschebankVopMatchStatus> for PayoutStatus {
     fn from(value: DeutschebankVopMatchStatus) -> Self {
         match value {
@@ -160,16 +171,20 @@ pub struct DeutschebankVopDebtor {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DeutschebankVopResponse {
-    // DB's VoP response fields.
+    // DB's VoP response fields. `payeeNameMatch` does not follow from the field
+    // name, so it keeps an explicit rename.
     #[serde(rename = "payeeNameMatch")]
     pub match_status: Option<DeutschebankVopMatchStatus>,
-    #[serde(
-        rename = "additionalInfo",
-        default,
-        skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub additional_info: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub matched_name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub noap_description: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub is_noap_retryable: Option<bool>,
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
@@ -245,37 +260,62 @@ pub fn derive_message_id(merchant_id: &str, reference: &str) -> String {
     .to_string()
 }
 
+/// Builds the eligibility outcome for a VoP response.
+///
+/// A conclusive refusal (`NMTC` / `NOAP`) is reported as an `ErrorResponse`.
+/// `MTCH` / `CMTC` are successes.
 pub fn build_eligibility_response(
-    vop_body: DeutschebankVopResponse,
+    vop_body: &DeutschebankVopResponse,
+    match_status: DeutschebankVopMatchStatus,
     vop_id: String,
     http_code: u16,
-) -> Result<PayoutEligibilityResponse, error_stack::Report<ConnectorError>> {
-    let match_status =
-        vop_body
-            .match_status
-            .ok_or_else(|| ConnectorError::ResponseDeserializationFailed {
-                context: domain_types::errors::ResponseTransformationErrorContext {
-                    http_status_code: Some(http_code),
-                    additional_context: Some(
-                        "Deutsche Bank VoP response missing `payeeNameMatch`".to_string(),
-                    ),
-                },
-            })?;
-    let payout_status = PayoutStatus::from(match_status);
-    let is_eligible = matches!(
-        match_status,
-        DeutschebankVopMatchStatus::Mtch | DeutschebankVopMatchStatus::Cmtc
-    );
+) -> Result<PayoutEligibilityResponse, ErrorResponse> {
+    match match_status {
+        // A match or a close match permits the payout.
+        DeutschebankVopMatchStatus::Mtch | DeutschebankVopMatchStatus::Cmtc => {
+            let mut connector_metadata = serde_json::Map::new();
+            connector_metadata.insert(
+                "vop_status".to_string(),
+                serde_json::Value::String(match_status.code().to_string()),
+            );
+            if let Some(info) = vop_body.additional_info.clone() {
+                connector_metadata.insert(
+                    "additional_info".to_string(),
+                    serde_json::Value::String(info),
+                );
+            }
 
-    let connector_payout_id = is_eligible.then_some(vop_id);
-
-    Ok(PayoutEligibilityResponse {
-        merchant_payout_id: None,
-        payout_status,
-        connector_payout_id,
-        payout_eligible: Some(is_eligible),
-        status_code: http_code,
-    })
+            Ok(PayoutEligibilityResponse {
+                merchant_payout_id: None,
+                payout_status: PayoutStatus::from(match_status),
+                connector_payout_id: None,
+                payout_eligible: Some(true),
+                status_code: http_code,
+                connector_metadata: Some(Secret::new(serde_json::Value::Object(
+                    connector_metadata,
+                ))),
+                connector_eligibility_reference_id: Some(vop_id),
+            })
+        }
+        DeutschebankVopMatchStatus::Noap | DeutschebankVopMatchStatus::Nmtc => Err(ErrorResponse {
+            code: match_status.code().to_string(),
+            message: vop_body
+                .additional_info
+                .clone()
+                .unwrap_or_else(|| match_status.code().to_string()),
+            reason: vop_body.additional_info.clone(),
+            status_code: http_code,
+            attempt_status: None,
+            connector_transaction_id: Some(vop_id),
+            network_decline_code: None,
+            network_advice_code: None,
+            network_error_message: None,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
+        }),
+    }
 }
 
 impl TryFrom<ResponseRouterData<DeutschebankVopResponse, Self>>
@@ -301,9 +341,24 @@ impl TryFrom<ResponseRouterData<DeutschebankVopResponse, Self>>
                 .resource_common_data
                 .connector_request_reference_id,
         );
-        let response = build_eligibility_response(item.response, vop_id, item.http_code)?;
+        let match_status = item.response.match_status.ok_or_else(|| {
+            ConnectorError::ResponseDeserializationFailed {
+                context: domain_types::errors::ResponseTransformationErrorContext {
+                    http_status_code: Some(item.http_code),
+                    additional_context: Some(
+                        "Deutsche Bank VoP response missing `payeeNameMatch`".to_string(),
+                    ),
+                },
+            }
+        })?;
+
         Ok(Self {
-            response: Ok(response),
+            response: build_eligibility_response(
+                &item.response,
+                match_status,
+                vop_id,
+                item.http_code,
+            ),
             ..item.router_data
         })
     }

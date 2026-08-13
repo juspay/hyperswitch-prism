@@ -80,6 +80,7 @@ mod tests {
                     raw_connector_response: None,
                     vault_headers: None,
                     raw_connector_request: None,
+                    typed_connector_request: None,
                     minor_amount_capturable: None,
                     amount: None,
                     connector_response: None,
@@ -89,6 +90,7 @@ mod tests {
                     sender_payment_instrument_id: None,
                     connector_returned_payment_method_details: None,
                     settlement_status: None,
+                    typed_connector_response: None,
 },
                 connector_config: ConnectorSpecificConfig::Adyen {
                     api_key: Secret::new(api_key),
@@ -289,6 +291,7 @@ mod tests {
                     raw_connector_response: None,
                     vault_headers: None,
                     raw_connector_request: None,
+                    typed_connector_request: None,
                     minor_amount_capturable: None,
                     amount: None,
                     connector_response: None,
@@ -298,6 +301,7 @@ mod tests {
                     sender_payment_instrument_id: None,
                     connector_returned_payment_method_details: None,
                     settlement_status: None,
+                    typed_connector_response: None,
 },
                 connector_config: ConnectorSpecificConfig::Adyen {
                     api_key: Secret::new(api_key),
