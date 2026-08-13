@@ -490,8 +490,26 @@
     },
     "capture": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: capture flow for ilixium"
+        "status": "supported",
+        "proto_request": {
+          "merchant_capture_id": "probe_capture_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount_to_capture": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://prprocessing.ilixium.com/platform/ili/direct/capture",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-merchant-digest": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA=="
+          },
+          "body": "{\"version\":2,\"transaction\":{\"merchantRef\":\"probe_capture_001\",\"amount\":\"1000\",\"currency\":\"USD\"},\"merchant\":{\"merchantId\":\"probe_key\",\"accountId\":\"probe_key\"}}"
+        }
       }
     },
     "create_client_authentication_token": {
@@ -561,8 +579,26 @@
     },
     "get": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: payment_sync flow for ilixium"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://prprocessing.ilixium.com/platform/ili/history/operations",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-merchant-digest": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA=="
+          },
+          "body": "{\"periodStartDate\":\"2020-01-01T00:00:00+00:00\",\"periodEndDate\":\"2020-01-01T00:00:00+00:00\",\"merchant\":{\"merchantId\":\"probe_key\",\"accountId\":\"probe_key\"},\"reportFormat\":\"JSON\"}"
+        }
       }
     },
     "handle_event": {
@@ -667,14 +703,35 @@
     },
     "refund": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: refund flow for ilixium"
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "payment_amount": 1000,
+          "refund_amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "reason": "customer_request",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://prprocessing.ilixium.com/platform/ili/direct/refund",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-merchant-digest": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA=="
+          },
+          "body": "{\"version\":2,\"transaction\":{\"merchantRef\":\"connector_order_id\",\"amount\":\"1000\",\"currency\":\"USD\"},\"merchant\":{\"merchantId\":\"probe_key\",\"accountId\":\"probe_key\"}}"
+        }
       }
     },
     "refund_get": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: refund_sync flow for ilixium"
+        "status": "error",
+        "error": "Stuck on field: connector_order_id. RefundFlowData::connector_request_reference_id is derived from merchant_refund_id, so it identifies the refund rather than the payment, and connector_transaction_id holds Ilixium's gatewayRef — Missing required field: connector_order_id. RefundFlowData::connector_request_reference_id is derived from merchant_refund_id, so it identifies the refund rather than the payment, and connector_transaction_id holds Ilixium's gatewayRef (a dashed UUID) which is not a merchantRef and cannot be converted into one. Rather than send a reference that matches no transaction — response code 104, 'No Matching Transaction', or a history filter that selects nothing — the request is refused here."
       }
     },
     "reverse": {
@@ -714,8 +771,26 @@
     },
     "void": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: void flow for ilixium"
+        "status": "supported",
+        "proto_request": {
+          "merchant_void_id": "probe_void_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://prprocessing.ilixium.com/platform/ili/direct/reversal",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-merchant-digest": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA=="
+          },
+          "body": "{\"version\":2,\"transaction\":{\"merchantRef\":\"probe_void_001\",\"amount\":\"1000\",\"currency\":\"USD\"},\"merchant\":{\"merchantId\":\"probe_key\",\"accountId\":\"probe_key\"}}"
+        }
       }
     }
   }

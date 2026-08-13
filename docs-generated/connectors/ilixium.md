@@ -131,14 +131,50 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/ilixium/ilixium.py#L90) · [JavaScript](../../examples/ilixium/ilixium.js) · [Kotlin](../../examples/ilixium/ilixium.kt#L77) · [Rust](../../examples/ilixium/ilixium.rs#L117)
+**Examples:** [Python](../../examples/ilixium/ilixium.py#L133) · [JavaScript](../../examples/ilixium/ilixium.js) · [Kotlin](../../examples/ilixium/ilixium.kt#L124) · [Rust](../../examples/ilixium/ilixium.rs#L168)
+
+### Card Payment (Authorize + Capture)
+
+Two-step card payment. First authorize, then capture. Use when you need to verify funds before finalizing.
+
+**Response status handling:**
+
+| Status | Recommended action |
+|--------|-------------------|
+| `AUTHORIZED` | Funds reserved — proceed to Capture to settle |
+| `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
+| `FAILED` | Payment declined — surface error to customer, do not retry without new details |
+
+**Examples:** [Python](../../examples/ilixium/ilixium.py#L152) · [JavaScript](../../examples/ilixium/ilixium.js) · [Kotlin](../../examples/ilixium/ilixium.kt#L140) · [Rust](../../examples/ilixium/ilixium.rs#L184)
+
+### Refund
+
+Return funds to the customer for a completed payment.
+
+**Examples:** [Python](../../examples/ilixium/ilixium.py#L177) · [JavaScript](../../examples/ilixium/ilixium.js) · [Kotlin](../../examples/ilixium/ilixium.kt#L162) · [Rust](../../examples/ilixium/ilixium.rs#L207)
+
+### Void Payment
+
+Cancel an authorized but not-yet-captured payment.
+
+**Examples:** [Python](../../examples/ilixium/ilixium.py#L202) · [JavaScript](../../examples/ilixium/ilixium.js) · [Kotlin](../../examples/ilixium/ilixium.kt#L184) · [Rust](../../examples/ilixium/ilixium.rs#L230)
+
+### Get Payment Status
+
+Retrieve current payment status from the connector.
+
+**Examples:** [Python](../../examples/ilixium/ilixium.py#L224) · [JavaScript](../../examples/ilixium/ilixium.js) · [Kotlin](../../examples/ilixium/ilixium.kt#L203) · [Rust](../../examples/ilixium/ilixium.rs#L249)
 
 ## API Reference
 
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
+| [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
+| [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
 | [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
+| [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
+| [PaymentService.Void](#paymentservicevoid) | Payments | `PaymentServiceVoidRequest` |
 
 ### Payments
 
@@ -272,7 +308,29 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/ilixium/ilixium.py) · [TypeScript](../../examples/ilixium/ilixium.ts#L112) · [Kotlin](../../examples/ilixium/ilixium.kt#L92) · [Rust](../../examples/ilixium/ilixium.rs)
+**Examples:** [Python](../../examples/ilixium/ilixium.py) · [TypeScript](../../examples/ilixium/ilixium.ts#L255) · [Kotlin](../../examples/ilixium/ilixium.kt#L221) · [Rust](../../examples/ilixium/ilixium.rs)
+
+#### PaymentService.Capture
+
+Finalize an authorized payment by transferring funds. Captures the authorized amount to complete the transaction and move funds to your merchant account.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceCaptureRequest` |
+| **Response** | `PaymentServiceCaptureResponse` |
+
+**Examples:** [Python](../../examples/ilixium/ilixium.py) · [TypeScript](../../examples/ilixium/ilixium.ts#L264) · [Kotlin](../../examples/ilixium/ilixium.kt#L233) · [Rust](../../examples/ilixium/ilixium.rs)
+
+#### PaymentService.Get
+
+Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceGetRequest` |
+| **Response** | `PaymentServiceGetResponse` |
+
+**Examples:** [Python](../../examples/ilixium/ilixium.py) · [TypeScript](../../examples/ilixium/ilixium.ts#L273) · [Kotlin](../../examples/ilixium/ilixium.kt#L243) · [Rust](../../examples/ilixium/ilixium.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -283,4 +341,26 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/ilixium/ilixium.py) · [TypeScript](../../examples/ilixium/ilixium.ts#L121) · [Kotlin](../../examples/ilixium/ilixium.kt#L104) · [Rust](../../examples/ilixium/ilixium.rs)
+**Examples:** [Python](../../examples/ilixium/ilixium.py) · [TypeScript](../../examples/ilixium/ilixium.ts#L282) · [Kotlin](../../examples/ilixium/ilixium.kt#L251) · [Rust](../../examples/ilixium/ilixium.rs)
+
+#### PaymentService.Refund
+
+Process a partial or full refund for a captured payment. Returns funds to the customer when goods are returned or services are cancelled.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceRefundRequest` |
+| **Response** | `RefundResponse` |
+
+**Examples:** [Python](../../examples/ilixium/ilixium.py) · [TypeScript](../../examples/ilixium/ilixium.ts#L291) · [Kotlin](../../examples/ilixium/ilixium.kt#L286) · [Rust](../../examples/ilixium/ilixium.rs)
+
+#### PaymentService.Void
+
+Cancel an authorized payment that has not been captured. Releases held funds back to the customer's payment method when a transaction cannot be completed.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceVoidRequest` |
+| **Response** | `PaymentServiceVoidResponse` |
+
+**Examples:** [Python](../../examples/ilixium/ilixium.py) · [TypeScript](../../examples/ilixium/ilixium.ts) · [Kotlin](../../examples/ilixium/ilixium.kt#L296) · [Rust](../../examples/ilixium/ilixium.rs)

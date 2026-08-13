@@ -393,9 +393,9 @@ examples_python: none
 ## Ilixium
 connector_id: ilixium
 doc: docs/connectors/ilixium.md
-scenarios: checkout_autocapture
+scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, proxy_authorize
+flows: authorize, capture, get, proxy_authorize, refund, void
 examples_python: examples/ilixium/ilixium.py
 
 ## Imerchantsolutions
