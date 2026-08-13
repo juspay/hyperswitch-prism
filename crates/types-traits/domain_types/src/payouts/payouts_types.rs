@@ -121,6 +121,7 @@ pub struct PayoutTransferRequest {
     pub address: Option<PayoutAddress>,
     pub source_bank_data: Option<Bank>,
     pub customer: Option<PayoutCustomer>,
+    pub connector_eligibility_reference_id: Option<String>,
 }
 
 impl PayoutTransferRequest {
@@ -417,4 +418,6 @@ pub struct PayoutEligibilityResponse {
     pub connector_payout_id: Option<String>,
     pub payout_eligible: Option<bool>,
     pub status_code: u16,
+    pub connector_metadata: Option<common_utils::pii::SecretSerdeValue>,
+    pub connector_eligibility_reference_id: Option<String>,
 }

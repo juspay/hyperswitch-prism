@@ -104,6 +104,9 @@ message PaymentMethod {
     // --- DIRECT WALLETS --- (server-to-server; wallet id rides on the payment_method itself)
     QwikcilverDirectWallet qwikcilver_wallet_direct = 185; // Qwikcilver / Pine Labs stored-value wallet
 
+    // --- GRABPAY WALLET ---
+    GrabpayRedirectWallet grabpay_redirect = 187;          // GrabPay one-time-charge redirect wallet
+
     // --- DEPRECATED REDIRECT WALLETS ---
     RevolutPayWallet revolut_pay = 181;                   // Revolut Pay
     MBWay mb_way = 182;                                   // MB WAY
@@ -219,6 +222,8 @@ message PaymentMethod {
     NetbankingPayment netbanking = 158;                          // Netbanking - Indian online banking (bank redirect)
   }
 }
+
+message GrabpayRedirectWallet {}
 
 // ============================================================================
 // PAYMENT METHOD CATEGORIES

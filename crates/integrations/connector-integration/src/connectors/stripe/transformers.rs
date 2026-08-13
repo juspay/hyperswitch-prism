@@ -979,6 +979,7 @@ impl TryFrom<common_enums::PaymentMethodType> for StripePaymentMethodType {
             | common_enums::PaymentMethodType::Paysera
             | common_enums::PaymentMethodType::Tamara
             | common_enums::PaymentMethodType::Netbanking
+            | common_enums::PaymentMethodType::Grabpay
             | common_enums::PaymentMethodType::Paymaya
             | common_enums::PaymentMethodType::QwikcilverWallet => {
                 Err(IntegrationError::NotImplemented(
@@ -1265,6 +1266,7 @@ fn get_stripe_payment_method_type_from_wallet_data(
         | WalletData::ApplePayRedirect(_)
         | WalletData::ApplePayThirdPartySdk(_)
         | WalletData::DanaRedirect {}
+        | WalletData::GrabpayRedirect {}
         | WalletData::GooglePayRedirect(_)
         | WalletData::GooglePayThirdPartySdk(_)
         | WalletData::MbWayRedirect(_)
@@ -1759,6 +1761,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> TryF
             | WalletData::ApplePayRedirect(_)
             | WalletData::ApplePayThirdPartySdk(_)
             | WalletData::DanaRedirect {}
+            | WalletData::GrabpayRedirect {}
             | WalletData::GooglePayRedirect(_)
             | WalletData::GooglePayThirdPartySdk(_)
             | WalletData::MbWayRedirect(_)
@@ -5351,35 +5354,31 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize + Ser
                 }
             });
 
-        // If the Split Payment Request in MIT mismatches with the metadata from CIT, throw an error
+        // If the Split Payment Request in MIT mismatches with the metadata from CIT, throw an error.
+        // `application_fees` is intentionally NOT compared: it can legitimately vary per
+        // transaction (Stripe allows the platform to set a different application fee on each
+        // charge), while charge_type / transfer_account_id / on_behalf_of must remain consistent
+        // with the ones used at mandate creation.
         if from_metadata.is_some() && item.request.split_payments.is_some() {
             let mut mit_charge_type = None;
-            let mut mit_application_fees = None;
             let mut mit_transfer_account_id = None;
             let mut mit_on_behalf_of = None;
             if let Some(SplitPaymentsDetails::StripeSplitPayment(stripe_split_payment)) =
                 item.request.split_payments.as_ref()
             {
                 mit_charge_type = Some(stripe_split_payment.charge_type.clone());
-                mit_application_fees = stripe_split_payment.application_fees;
                 mit_transfer_account_id = Some(stripe_split_payment.transfer_account_id.clone());
                 mit_on_behalf_of = stripe_split_payment.on_behalf_of.clone();
             }
 
             if mit_charge_type != from_metadata.as_ref().and_then(|m| m.charge_type.clone())
-                || mit_application_fees != from_metadata.as_ref().and_then(|m| m.application_fees)
                 || mit_transfer_account_id
                     != from_metadata
                         .as_ref()
                         .and_then(|m| m.transfer_account_id.clone().map(|s| s.expose()))
                 || mit_on_behalf_of != from_metadata.as_ref().and_then(|m| m.on_behalf_of.clone())
             {
-                let mismatched_fields = [
-                    "transfer_account_id",
-                    "application_fees",
-                    "charge_type",
-                    "on_behalf_of",
-                ];
+                let mismatched_fields = ["transfer_account_id", "charge_type", "on_behalf_of"];
 
                 let field_str = mismatched_fields.join(", ");
                 Err(IntegrationError::MandatePaymentDataMismatch {
