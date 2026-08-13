@@ -298,7 +298,8 @@ impl<T: PaymentMethodDataTypes>
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NoInstrumentAfterRedirect => {
                 return Err(IntegrationError::NotSupported {
                     message: "Selected payment method".to_string(),
                     connector: "bambora",

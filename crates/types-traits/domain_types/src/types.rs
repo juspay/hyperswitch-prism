@@ -4487,6 +4487,28 @@ impl<
             )?),
         };
 
+        // The redirect-return leg of an authorization carries no instrument, so there is no
+        // payment method type to derive from it. Every other authorization still requires one.
+        let payment_method_type = match value.payment_method.clone() {
+            Some(payment_method) => <Option<PaymentMethodType>>::foreign_try_from(payment_method)?,
+            None if matches!(
+                payment_method_data,
+                PaymentMethodData::NoInstrumentAfterRedirect
+            ) =>
+            {
+                None
+            }
+            None => {
+                return Err(report!(IntegrationError::InvalidDataFormat {
+                    field_name: "unknown",
+                    context: IntegrationErrorContext {
+                        additional_context: Some("Payment method data is required".to_string()),
+                        ..Default::default()
+                    },
+                }));
+            }
+        };
+
         Ok(Self {
             authentication_data,
             capture_method: Some(CaptureMethod::foreign_try_from(value.capture_method)?),
@@ -4501,17 +4523,7 @@ impl<
                 .cloned()
                 .map(BrowserInformation::foreign_try_from)
                 .transpose()?,
-            payment_method_type: <Option<PaymentMethodType>>::foreign_try_from(
-                value.payment_method.clone().ok_or_else(|| {
-                    IntegrationError::InvalidDataFormat {
-                        field_name: "unknown",
-                        context: IntegrationErrorContext {
-                            additional_context: Some("Payment method data is required".to_string()),
-                            ..Default::default()
-                        },
-                    }
-                })?,
-            )?,
+            payment_method_type,
             minor_amount: common_utils::types::MinorUnit::new(amount.minor_amount),
             email,
             customer_document_details,
@@ -13188,6 +13200,9 @@ pub enum PaymentMethodDataType {
     QwikcilverWalletDirect,
     Skrill,
     CardWithNoCvc,
+    /// Companion of [`PaymentMethodData::NoInstrumentAfterRedirect`]: the redirect-return leg
+    /// carries no instrument, so it matches no mandate-capable payment method data type.
+    NoInstrumentAfterRedirect,
 }
 
 impl ForeignTryFrom<String> for Secret<time::Date> {

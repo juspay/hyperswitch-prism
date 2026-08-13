@@ -574,7 +574,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | PaymentMethodData::NetworkToken(_)
                 | PaymentMethodData::CardWithNoCvc(_)
                 | PaymentMethodData::MobilePayment(_)
-                | PaymentMethodData::OpenBanking(_)) => {
+                | PaymentMethodData::OpenBanking(_)
+                | PaymentMethodData::NoInstrumentAfterRedirect) => {
                     return Err(IntegrationError::NotImplemented(
                         format!("Payment Method {pm:?} not supported for Razorpay"),
                         Default::default(),

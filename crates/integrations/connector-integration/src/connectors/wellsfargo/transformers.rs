@@ -621,11 +621,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithNoCvc(_)
-            | PaymentMethodData::MobilePayment(_) => Err(IntegrationError::NotSupported {
-                message: "Payment method".to_string(),
-                connector: "Wellsfargo",
-                context: Default::default(),
-            })?,
+            | PaymentMethodData::MobilePayment(_)
+            | PaymentMethodData::NoInstrumentAfterRedirect => {
+                Err(IntegrationError::NotSupported {
+                    message: "Payment method".to_string(),
+                    connector: "Wellsfargo",
+                    context: Default::default(),
+                })?
+            }
         };
 
         // Get amount and currency - amount is in minor units (cents)

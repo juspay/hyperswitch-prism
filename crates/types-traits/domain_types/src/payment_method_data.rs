@@ -383,6 +383,17 @@ pub enum PaymentMethodData<T: PaymentMethodDataTypes> {
     OpenBanking(OpenBankingData),
     NetworkToken(NetworkTokenData),
     MobilePayment(MobilePaymentData),
+    /// No raw payment instrument accompanies this request.
+    ///
+    /// Emitted only for the second leg of a redirect-based authorization (e.g. the 3DS
+    /// return leg): the customer has come back from the ACS/hosted page and the caller no
+    /// longer holds the card or wallet details, so the connector must finalise the payment
+    /// from the redirect payload plus its own transaction reference instead.
+    ///
+    /// A connector that cannot finalise without an instrument should reject this variant
+    /// (the usual `_ => NotImplemented` arm already does), never treat it as a fallback for
+    /// an ordinary authorization.
+    NoInstrumentAfterRedirect,
 }
 
 impl<T: PaymentMethodDataTypes> PaymentMethodData<T> {
