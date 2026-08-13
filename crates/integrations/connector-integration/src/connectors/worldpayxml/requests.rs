@@ -1,7 +1,7 @@
 use common_utils::StringMinorUnit;
 use error_stack::ResultExt;
 use hyperswitch_masking::Secret;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use super::super::macros::GetSoapXml;
 use domain_types::errors::IntegrationError;
@@ -79,6 +79,48 @@ pub struct WorldpayxmlPaymentDetails {
     pub action: WorldpayxmlAction,
     #[serde(rename = "$value")]
     pub payment_method: WorldpayxmlPaymentMethod,
+    #[serde(rename = "storedCredentials", skip_serializing_if = "Option::is_none")]
+    pub stored_credentials: Option<WorldpayxmlStoredCredentials>,
+}
+
+/// Tells Worldpay that this authorisation is part of a stored-credential agreement, so the scheme
+/// records it as such and later merchant-initiated transactions are accepted against it.
+#[derive(Debug, Serialize)]
+pub struct WorldpayxmlStoredCredentials {
+    #[serde(rename = "@usage")]
+    pub usage: WorldpayxmlUsageType,
+    #[serde(
+        rename = "@customerInitiatedReason",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub customer_initiated_reason: Option<WorldpayxmlMandateType>,
+    #[serde(
+        rename = "@merchantInitiatedReason",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub merchant_initiated_reason: Option<WorldpayxmlMandateType>,
+    #[serde(
+        rename = "schemeTransactionIdentifier",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub scheme_transaction_identifier: Option<Secret<String>>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum WorldpayxmlUsageType {
+    /// The customer-initiated transaction that establishes the agreement.
+    First,
+    /// A subsequent transaction against an already-established agreement.
+    Used,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum WorldpayxmlMandateType {
+    Recurring,
+    Unscheduled,
+    Instalment,
 }
 
 #[derive(Debug, Serialize)]
@@ -90,6 +132,60 @@ pub enum WorldpayxmlPaymentMethod {
     Visa(WorldpayxmlCard),
     #[serde(rename = "ECMC-SSL")]
     Ecmc(WorldpayxmlCard),
+    #[serde(rename = "PAYWITHGOOGLE-SSL")]
+    PayWithGoogle(WorldpayxmlGooglePayData),
+    #[serde(rename = "APPLEPAY-SSL")]
+    ApplePay(WorldpayxmlApplePayData),
+    /// Carries a wallet token that Hyperswitch has already decrypted into a network token.
+    #[serde(rename = "EMVCO_TOKEN-SSL")]
+    EmvcoToken(WorldpayxmlEmvcoTokenData),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayxmlGooglePayData {
+    pub protocol_version: Secret<String>,
+    pub signature: Secret<String>,
+    pub signed_message: Secret<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayxmlApplePayData {
+    pub header: WorldpayxmlApplePayHeader,
+    pub signature: Secret<String>,
+    pub version: Secret<String>,
+    pub data: Secret<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayxmlApplePayHeader {
+    pub ephemeral_public_key: Secret<String>,
+    pub public_key_hash: Secret<String>,
+    pub transaction_id: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum WorldpayxmlEmvcoTokenType {
+    Applepay,
+    Googlepay,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayxmlEmvcoTokenData {
+    #[serde(rename = "@type")]
+    pub token_type: WorldpayxmlEmvcoTokenType,
+    pub token_number: cards::CardNumber,
+    pub expiry_date: WorldpayxmlExpiryDate,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_holder_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cryptogram: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub eci_indicator: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -99,7 +195,9 @@ pub struct WorldpayxmlCard {
     pub expiry_date: WorldpayxmlExpiryDate,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub card_holder_name: Option<Secret<String>>,
-    pub cvc: Secret<String>,
+    /// Absent when the PAN came from a decrypted wallet token, which carries no CVC.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cvc: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -491,4 +589,80 @@ pub struct WorldpayxmlVoidPCOrderModification {
 #[derive(Debug, Serialize)]
 pub struct WorldpayxmlCancelOrRefund {
     // Empty struct - generates <cancelOrRefund/> element
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::*;
+
+    fn expiry_date() -> WorldpayxmlExpiryDate {
+        WorldpayxmlExpiryDate {
+            date: WorldpayxmlDate {
+                month: Secret::new("03".to_string()),
+                year: Secret::new("2030".to_string()),
+            },
+        }
+    }
+
+    /// `payment_method` is serialized as `$value` while `storedCredentials` is a sibling element,
+    /// so guard that quick-xml emits both, in the order Worldpay's DTD requires.
+    #[test]
+    fn payment_details_serializes_decrypted_wallet_with_stored_credentials() {
+        let payment_details = WorldpayxmlPaymentDetails {
+            action: WorldpayxmlAction::Sale,
+            payment_method: WorldpayxmlPaymentMethod::EmvcoToken(WorldpayxmlEmvcoTokenData {
+                token_type: WorldpayxmlEmvcoTokenType::Applepay,
+                token_number: "4111111111111111".to_string().parse().unwrap(),
+                expiry_date: expiry_date(),
+                card_holder_name: None,
+                cryptogram: Some(Secret::new("AAAAA".to_string())),
+                eci_indicator: Some("05".to_string()),
+            }),
+            stored_credentials: Some(WorldpayxmlStoredCredentials {
+                usage: WorldpayxmlUsageType::First,
+                customer_initiated_reason: Some(WorldpayxmlMandateType::Recurring),
+                merchant_initiated_reason: None,
+                scheme_transaction_identifier: None,
+            }),
+        };
+
+        let xml = quick_xml::se::to_string_with_root("paymentDetails", &payment_details).unwrap();
+
+        assert_eq!(
+            xml,
+            "<paymentDetails action=\"SALE\">\
+               <EMVCO_TOKEN-SSL type=\"APPLEPAY\">\
+                 <tokenNumber>4111111111111111</tokenNumber>\
+                 <expiryDate><date month=\"03\" year=\"2030\"/></expiryDate>\
+                 <cryptogram>AAAAA</cryptogram>\
+                 <eciIndicator>05</eciIndicator>\
+               </EMVCO_TOKEN-SSL>\
+               <storedCredentials usage=\"FIRST\" customerInitiatedReason=\"RECURRING\"/>\
+             </paymentDetails>"
+                .replace("  ", "")
+                .replace('\n', "")
+        );
+    }
+
+    /// A one-off card payment must serialize exactly as before this wallet work landed.
+    #[test]
+    fn payment_details_omits_stored_credentials_for_one_off_card() {
+        let payment_details = WorldpayxmlPaymentDetails {
+            action: WorldpayxmlAction::Authorise,
+            payment_method: WorldpayxmlPaymentMethod::Card(WorldpayxmlCard {
+                card_number: Secret::new("4111111111111111".to_string()),
+                expiry_date: expiry_date(),
+                card_holder_name: Some(Secret::new("Jane Doe".to_string())),
+                cvc: Some(Secret::new("123".to_string())),
+            }),
+            stored_credentials: None,
+        };
+
+        let xml = quick_xml::se::to_string_with_root("paymentDetails", &payment_details).unwrap();
+
+        assert!(!xml.contains("storedCredentials"), "unexpected: {xml}");
+        assert!(xml.contains("<CARD-SSL>"), "unexpected: {xml}");
+        assert!(xml.contains("<cvc>123</cvc>"), "unexpected: {xml}");
+    }
 }

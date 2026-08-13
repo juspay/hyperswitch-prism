@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 
+use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD_ENGINE, Engine};
 use common_enums::{AttemptStatus, CaptureMethod, RefundStatus};
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void, VoidPC},
@@ -8,12 +9,14 @@ use domain_types::{
         PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
         RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
-    payment_method_data::{Card, PaymentMethodData, PaymentMethodDataTypes},
+    payment_method_data::{
+        Card, GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes, WalletData,
+    },
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
 };
 use error_stack::{Report, ResultExt};
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::Serialize;
 
 use super::{
@@ -90,7 +93,7 @@ where
                     },
                 },
                 card_holder_name,
-                cvc: card.card_cvc.clone(),
+                cvc: Some(card.card_cvc.clone()),
             };
 
             match card.card_network.as_ref() {
@@ -112,6 +115,147 @@ where
             context: Default::default(),
         }
         .into()),
+    }
+}
+
+/// Builds the Worldpay payment method element for an Apple Pay or Google Pay wallet.
+///
+/// When Hyperswitch has decrypted the wallet token we send the network token over `EMVCO_TOKEN-SSL`
+/// (PAN + cryptogram), which is the only shape Worldpay will register against a stored-credential
+/// agreement. An still-encrypted token is passed through on the wallet-specific element instead.
+fn get_worldpayxml_wallet_payment_method(
+    wallet_data: &WalletData,
+    card_holder_name: Option<Secret<String>>,
+) -> Result<requests::WorldpayxmlPaymentMethod, Report<IntegrationError>> {
+    match wallet_data {
+        WalletData::ApplePay(apple_pay_data) => {
+            match apple_pay_data
+                .payment_data
+                .get_decrypted_apple_pay_payment_data_optional()
+            {
+                Some(decrypt_data) => Ok(requests::WorldpayxmlPaymentMethod::EmvcoToken(
+                    requests::WorldpayxmlEmvcoTokenData {
+                        token_type: requests::WorldpayxmlEmvcoTokenType::Applepay,
+                        token_number: decrypt_data.application_primary_account_number.clone(),
+                        expiry_date: requests::WorldpayxmlExpiryDate {
+                            date: requests::WorldpayxmlDate {
+                                month: decrypt_data.get_expiry_month(),
+                                year: decrypt_data.get_four_digit_expiry_year(),
+                            },
+                        },
+                        card_holder_name,
+                        cryptogram: Some(
+                            decrypt_data.payment_data.online_payment_cryptogram.clone(),
+                        ),
+                        eci_indicator: decrypt_data.payment_data.eci_indicator.clone(),
+                    },
+                )),
+                None => {
+                    let encrypted_data = apple_pay_data
+                        .payment_data
+                        .get_encrypted_apple_pay_payment_data_mandatory()
+                        .change_context(IntegrationError::MissingRequiredField {
+                            field_name: "apple_pay_encrypted_data",
+                            context: Default::default(),
+                        })?;
+
+                    let decoded_data = BASE64_STANDARD_ENGINE
+                        .decode(encrypted_data)
+                        .change_context(IntegrationError::InvalidDataFormat {
+                            field_name: "apple_pay_encrypted_data",
+                            context: Default::default(),
+                        })?;
+
+                    let apple_pay_token: requests::WorldpayxmlApplePayData =
+                        serde_json::from_slice(&decoded_data).change_context(
+                            IntegrationError::InvalidDataFormat {
+                                field_name: "apple_pay_token_json",
+                                context: Default::default(),
+                            },
+                        )?;
+
+                    Ok(requests::WorldpayxmlPaymentMethod::ApplePay(
+                        apple_pay_token,
+                    ))
+                }
+            }
+        }
+        WalletData::GooglePay(google_pay_data) => match &google_pay_data.tokenization_data {
+            GpayTokenizationData::Decrypted(decrypt_data) => {
+                let expiry_date = requests::WorldpayxmlExpiryDate {
+                    date: requests::WorldpayxmlDate {
+                        month: decrypt_data.card_exp_month.clone(),
+                        year: decrypt_data.get_four_digit_expiry_year().change_context(
+                            IntegrationError::MissingRequiredField {
+                                field_name: "google_pay_decrypted_data.card_exp_year",
+                                context: Default::default(),
+                            },
+                        )?,
+                    },
+                };
+
+                match &decrypt_data.cryptogram {
+                    Some(cryptogram) => Ok(requests::WorldpayxmlPaymentMethod::EmvcoToken(
+                        requests::WorldpayxmlEmvcoTokenData {
+                            token_type: requests::WorldpayxmlEmvcoTokenType::Googlepay,
+                            token_number: decrypt_data.application_primary_account_number.clone(),
+                            expiry_date,
+                            card_holder_name,
+                            cryptogram: Some(cryptogram.clone()),
+                            eci_indicator: decrypt_data.eci_indicator.clone(),
+                        },
+                    )),
+                    // Without a cryptogram there is nothing token-specific left to send, so the
+                    // decrypted PAN goes over as a plain card.
+                    None => Ok(requests::WorldpayxmlPaymentMethod::Card(
+                        requests::WorldpayxmlCard {
+                            card_number: Secret::new(
+                                decrypt_data
+                                    .application_primary_account_number
+                                    .peek()
+                                    .to_string(),
+                            ),
+                            expiry_date,
+                            card_holder_name,
+                            cvc: None,
+                        },
+                    )),
+                }
+            }
+            GpayTokenizationData::Encrypted(encrypted_token) => {
+                let parsed_token: requests::WorldpayxmlGooglePayData = serde_json::from_str(
+                    &encrypted_token.token,
+                )
+                .change_context(IntegrationError::InvalidDataFormat {
+                    field_name: "google_pay_token_json",
+                    context: Default::default(),
+                })?;
+
+                Ok(requests::WorldpayxmlPaymentMethod::PayWithGoogle(
+                    parsed_token,
+                ))
+            }
+        },
+        _ => Err(IntegrationError::NotSupported {
+            message: "Selected wallet".to_string(),
+            connector: "worldpayxml",
+            context: Default::default(),
+        }
+        .into()),
+    }
+}
+
+fn get_worldpayxml_mandate_type(
+    mit_category: Option<common_enums::MitCategory>,
+) -> requests::WorldpayxmlMandateType {
+    match mit_category {
+        Some(common_enums::MitCategory::Installment) => {
+            requests::WorldpayxmlMandateType::Instalment
+        }
+        Some(common_enums::MitCategory::Recurring) => requests::WorldpayxmlMandateType::Recurring,
+        Some(common_enums::MitCategory::Unscheduled)
+        | Some(common_enums::MitCategory::Resubmission)
+        | None => requests::WorldpayxmlMandateType::Unscheduled,
     }
 }
 
@@ -187,6 +331,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 card,
                 billing_address.as_ref(),
             )?,
+            PaymentMethodData::Wallet(wallet_data) => {
+                let card_holder_name = crate::utils::build_card_holder_name(
+                    &None,
+                    billing_address
+                        .as_ref()
+                        .and_then(|b| b.address.first_name.clone()),
+                    billing_address
+                        .as_ref()
+                        .and_then(|b| b.address.last_name.clone()),
+                )
+                .map(crate::utils::normalize_cardholder_name);
+
+                get_worldpayxml_wallet_payment_method(wallet_data, card_holder_name)?
+            }
             _ => {
                 return Err(IntegrationError::NotSupported {
                     message: "Selected payment method".to_string(),
@@ -196,6 +354,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .into())
             }
         };
+
+        // A customer-initiated mandate setup must be flagged to Worldpay as the first transaction
+        // of a stored-credential agreement, otherwise later merchant-initiated payments against it
+        // are declined by the scheme.
+        let stored_credentials = router_data
+            .request
+            .is_customer_initiated_mandate_payment()
+            .then(|| requests::WorldpayxmlStoredCredentials {
+                usage: requests::WorldpayxmlUsageType::First,
+                customer_initiated_reason: Some(get_worldpayxml_mandate_type(
+                    router_data.request.mit_category.clone(),
+                )),
+                merchant_initiated_reason: None,
+                scheme_transaction_identifier: None,
+            });
 
         // Convert amount using the connector's amount converter
         let converted_amount = super::WorldpayxmlAmountConvertor::convert(
@@ -240,6 +413,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             WorldpayxmlAction::Sale
                         },
                         payment_method,
+                        stored_credentials,
                     },
                     shopper: requests::WorldpayxmlShopper {
                         shopper_email_address: router_data.request.email.clone(),
