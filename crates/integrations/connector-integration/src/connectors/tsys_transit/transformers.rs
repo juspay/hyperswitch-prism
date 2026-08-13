@@ -954,16 +954,10 @@ pub struct TsysTransitTransactionInquiryResponse {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct TsysTransitTransactionDetails {
-    #[serde(rename = "transactionID", default)]
-    pub transaction_id: String,
-    /// Free-text description of the queried transaction, e.g. "Credit Card
-    /// Sale Approved" / "Credit Card Auth Approved" / "Credit Card Void
-    /// Approved". TSYS does not expose the operation (sale/auth/void) as a
-    /// separate enum, so it must be sniffed out of this string.
-    #[serde(rename = "transactionType", default)]
+    pub transaction_i_d: String,
     pub transaction_type: String,
-    #[serde(rename = "transactionStatus", default)]
     pub transaction_status: Option<TsysTransitTransactionStatus>,
 }
 
@@ -2662,7 +2656,7 @@ impl TryFrom<ResponseRouterData<TsysTransitTransactionInquiryResponse, Self>>
 
         if let Some(transaction_details) = response.transaction_details.as_ref() {
             // Incase of failure error message is not returned in sync call
-            let connector_transaction_id = transaction_details.transaction_id.clone();
+            let connector_transaction_id = transaction_details.transaction_i_d.clone();
             let status = AttemptStatus::from(transaction_details);
             let payments_response_data = PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(connector_transaction_id.clone()),
@@ -3049,7 +3043,7 @@ impl TryFrom<ResponseRouterData<TsysTransitTransactionInquiryResponse, Self>>
                         ..router_data.resource_common_data.clone()
                     },
                     response: Ok(RefundsResponseData {
-                        connector_refund_id: transaction_details.transaction_id.clone(),
+                        connector_refund_id: transaction_details.transaction_i_d.clone(),
                         refund_status,
                         status_code: item.http_code,
                         acquirer_reference_number: None,
@@ -3062,13 +3056,13 @@ impl TryFrom<ResponseRouterData<TsysTransitTransactionInquiryResponse, Self>>
                 let refund_status = RefundStatus::Unknown;
                 let refund_response = RefundsResponseData {
                     connector_refund_id: router_data.request.connector_refund_id.clone(),
-                    refund_status:  refund_status.clone(),
+                    refund_status: refund_status.clone(),
                     status_code: item.http_code,
                     acquirer_reference_number: None,
                 };
 
                 Ok(Self {
-                     resource_common_data: RefundFlowData {
+                    resource_common_data: RefundFlowData {
                         status: refund_status,
                         ..router_data.resource_common_data.clone()
                     },
