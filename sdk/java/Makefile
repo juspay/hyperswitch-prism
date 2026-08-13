@@ -194,6 +194,9 @@ test-grpc-no-server: generate-all install
 	@cp -f $(GRPC_FFI_LIBRARY) $(SDK_ROOT)/smoke-test/src/main/resources/native/
 	@if [ -f $(REPO_ROOT)/creds.json ]; then \
 		cp $(REPO_ROOT)/creds.json $(SDK_ROOT)/smoke-test/; \
+	elif [ -f $(REPO_ROOT)/creds_dummy.json ]; then \
+		echo "  Note: creds.json not found, using creds_dummy.json placeholder credentials"; \
+		cp $(REPO_ROOT)/creds_dummy.json $(SDK_ROOT)/smoke-test/creds.json; \
 	fi
 	@cd $(SDK_ROOT)/smoke-test && $(SDK_ROOT)/gradlew runGrpc --args="--connectors $(CONNECTORS)" 2>&1
 

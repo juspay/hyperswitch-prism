@@ -86,7 +86,13 @@ test-grpc-no-server:
 		cd $(REPO_ROOT) && cargo build -p grpc-server -p hyperswitch-grpc-ffi -p ffi -p hyperswitch-smoke-test -p uniffi-bindgen \
 			--profile $(GRPC_PROFILE) --target $(PLATFORM); \
 	fi
-	@cd $(REPO_ROOT) && $(GRPC_SMOKE_TEST_BIN) --connectors $(GRPC_CONNECTOR)
+	@if [ -f $(REPO_ROOT)/creds.json ]; then \
+		cd $(REPO_ROOT) && $(GRPC_SMOKE_TEST_BIN) --connectors $(GRPC_CONNECTOR); \
+	else \
+		echo "  Note: creds.json not found, using creds_dummy.json placeholder credentials"; \
+		cd $(REPO_ROOT) && $(GRPC_SMOKE_TEST_BIN) --connectors $(GRPC_CONNECTOR) \
+			--creds-file $(REPO_ROOT)/creds_dummy.json; \
+	fi
 
 # test-grpc
 # Builds the grpc-server binary, starts it as a background process, runs
