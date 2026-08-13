@@ -16,8 +16,8 @@ const _defaultConfig: types.IConnectorConfig = {
     connectorConfig: {
         calida: {
             apiKey: { value: 'YOUR_API_KEY' },
-            baseUrl: 'YOUR_BASE_URL',
             shopName: { value: 'YOUR_SHOP_NAME' },
+            baseUrl: 'YOUR_BASE_URL',
         }
     },
 };
