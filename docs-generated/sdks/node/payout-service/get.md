@@ -33,6 +33,7 @@ Use this operation to poll for the status of a payout or to verify details befor
 | `merchantPayoutId` | string | No | Your internal identifier for the payout. |
 | `connectorPayoutId` | string | No | The unique payout ID assigned by the connector. |
 | `accessToken` | SecretString | No | Access token for the connector, if required. |
+| `sourceBankData` | SourceBankData | No | Source (debtor) bank data. Some connectors (e.g. Deutsche Bank) require the debtor account details to perform a status enquiry. |
 
 ## Response Fields
 

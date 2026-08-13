@@ -44,6 +44,8 @@ Use this operation when you do not have the recipient's payout method details up
 | `webhookUrl` | string | No | URL where payout status updates should be sent. |
 | `browserInfo` | BrowserInformation | No | Information about the user's browser. |
 | `accessToken` | SecretString | No | Access token for the connector, if required. |
+| `description` | string | No | Description of the payout. |
+| `sourceBankData` | SourceBankData | No | Details of the bank account from which the payout is funded. |
 
 ## Response Fields
 

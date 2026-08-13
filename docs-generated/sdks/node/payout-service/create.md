@@ -46,6 +46,7 @@ This operation is the first step in the payout lifecycle. Use this when you have
 | `browserInfo` | BrowserInformation | No | Information about the user's browser, used for fraud prevention. |
 | `accessToken` | SecretString | No | Access token for the connector, if required. |
 | `sourceBankData` | SourceBankData | No | Details of the bank account from which the payout is funded. |
+| `description` | string | No | Description of the payout. |
 
 ## Response Fields
 
