@@ -427,6 +427,7 @@ pub struct Connectors {
     pub givepayments: ConnectorParams,
     pub grabpay: ConnectorParams,
     pub tesouro: ConnectorParams,
+    pub boost: ConnectorParams,
     pub santander: ConnectorParams,
 }
 
@@ -782,6 +783,9 @@ impl Connectors {
             ConnectorEnum::Givepayments => {
                 patched.givepayments.apply(params_patch);
             }
+            ConnectorEnum::Boost => {
+                patched.boost.apply(params_patch);
+            }
             _ => {
                 // Connector not supported for URL patching - return error
                 return Err(IntegrationError::InvalidDataFormat {
@@ -789,7 +793,7 @@ impl Connectors {
                     context: IntegrationErrorContext {
                         additional_context: Some(format!(
                             "Connector '{}' is not supported for dynamic URL patching from superposition. \
-                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, multisafepay, nexixpay, payload, payme, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat, givepayments",
+                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, multisafepay, nexixpay, payload, payme, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat, givepayments, boost",
                             connector
                         )),
                         ..Default::default()
@@ -2690,16 +2694,150 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::Atome => Ok(PaymentMethodType::Atome),
             grpc_api_types::payments::PaymentMethodType::Affirm => Ok(PaymentMethodType::Affirm),
             grpc_api_types::payments::PaymentMethodType::Ach => Ok(PaymentMethodType::Ach),
-            _ => Err(IntegrationError::InvalidDataFormat {
-                field_name: "payment_method_type",
-                context: IntegrationErrorContext {
-                    additional_context: Some(
-                        "This payment method type is not yet supported".to_string(),
-                    ),
-                    ..Default::default()
-                },
+            grpc_api_types::payments::PaymentMethodType::OnlineBankingFpx => {
+                Ok(PaymentMethodType::OnlineBankingFpx)
             }
-            .into()),
+            grpc_api_types::payments::PaymentMethodType::AfterpayClearpay => {
+                Ok(PaymentMethodType::AfterpayClearpay)
+            }
+            grpc_api_types::payments::PaymentMethodType::Alfamart => {
+                Ok(PaymentMethodType::Alfamart)
+            }
+            grpc_api_types::payments::PaymentMethodType::Alma => Ok(PaymentMethodType::Alma),
+            grpc_api_types::payments::PaymentMethodType::Bacs => Ok(PaymentMethodType::Bacs),
+            grpc_api_types::payments::PaymentMethodType::BancontactCard => {
+                Ok(PaymentMethodType::BancontactCard)
+            }
+            grpc_api_types::payments::PaymentMethodType::Becs => Ok(PaymentMethodType::Becs),
+            grpc_api_types::payments::PaymentMethodType::Benefit => Ok(PaymentMethodType::Benefit),
+            grpc_api_types::payments::PaymentMethodType::Bizum => Ok(PaymentMethodType::Bizum),
+            grpc_api_types::payments::PaymentMethodType::Boleto => Ok(PaymentMethodType::Boleto),
+            grpc_api_types::payments::PaymentMethodType::BcaBankTransfer => {
+                Ok(PaymentMethodType::BcaBankTransfer)
+            }
+            grpc_api_types::payments::PaymentMethodType::BniVa => Ok(PaymentMethodType::BniVa),
+            grpc_api_types::payments::PaymentMethodType::BriVa => Ok(PaymentMethodType::BriVa),
+            grpc_api_types::payments::PaymentMethodType::CardRedirect => {
+                Ok(PaymentMethodType::CardRedirect)
+            }
+            grpc_api_types::payments::PaymentMethodType::CimbVa => Ok(PaymentMethodType::CimbVa),
+            grpc_api_types::payments::PaymentMethodType::CryptoCurrency => {
+                Ok(PaymentMethodType::CryptoCurrency)
+            }
+            grpc_api_types::payments::PaymentMethodType::Dana => Ok(PaymentMethodType::Dana),
+            grpc_api_types::payments::PaymentMethodType::DanamonVa => {
+                Ok(PaymentMethodType::DanamonVa)
+            }
+            grpc_api_types::payments::PaymentMethodType::Efecty => Ok(PaymentMethodType::Efecty),
+            grpc_api_types::payments::PaymentMethodType::Eft => Ok(PaymentMethodType::Eft),
+            grpc_api_types::payments::PaymentMethodType::Eps => Ok(PaymentMethodType::Eps),
+            grpc_api_types::payments::PaymentMethodType::Fps => Ok(PaymentMethodType::Fps),
+            grpc_api_types::payments::PaymentMethodType::Giropay => Ok(PaymentMethodType::Giropay),
+            grpc_api_types::payments::PaymentMethodType::Givex => Ok(PaymentMethodType::Givex),
+            grpc_api_types::payments::PaymentMethodType::GoPay => Ok(PaymentMethodType::GoPay),
+            grpc_api_types::payments::PaymentMethodType::Indomaret => {
+                Ok(PaymentMethodType::Indomaret)
+            }
+            grpc_api_types::payments::PaymentMethodType::KakaoPay => {
+                Ok(PaymentMethodType::KakaoPay)
+            }
+            grpc_api_types::payments::PaymentMethodType::LocalBankRedirect => {
+                Ok(PaymentMethodType::LocalBankRedirect)
+            }
+            grpc_api_types::payments::PaymentMethodType::MandiriVa => {
+                Ok(PaymentMethodType::MandiriVa)
+            }
+            grpc_api_types::payments::PaymentMethodType::Knet => Ok(PaymentMethodType::Knet),
+            grpc_api_types::payments::PaymentMethodType::MobilePay => {
+                Ok(PaymentMethodType::MobilePay)
+            }
+            grpc_api_types::payments::PaymentMethodType::Momo => Ok(PaymentMethodType::Momo),
+            grpc_api_types::payments::PaymentMethodType::MomoAtm => Ok(PaymentMethodType::MomoAtm),
+            grpc_api_types::payments::PaymentMethodType::Multibanco => {
+                Ok(PaymentMethodType::Multibanco)
+            }
+            grpc_api_types::payments::PaymentMethodType::OnlineBankingThailand => {
+                Ok(PaymentMethodType::OnlineBankingThailand)
+            }
+            grpc_api_types::payments::PaymentMethodType::OnlineBankingCzechRepublic => {
+                Ok(PaymentMethodType::OnlineBankingCzechRepublic)
+            }
+            grpc_api_types::payments::PaymentMethodType::OnlineBankingFinland => {
+                Ok(PaymentMethodType::OnlineBankingFinland)
+            }
+            grpc_api_types::payments::PaymentMethodType::OnlineBankingPoland => {
+                Ok(PaymentMethodType::OnlineBankingPoland)
+            }
+            grpc_api_types::payments::PaymentMethodType::OnlineBankingSlovakia => {
+                Ok(PaymentMethodType::OnlineBankingSlovakia)
+            }
+            grpc_api_types::payments::PaymentMethodType::Oxxo => Ok(PaymentMethodType::Oxxo),
+            grpc_api_types::payments::PaymentMethodType::PagoEfectivo => {
+                Ok(PaymentMethodType::PagoEfectivo)
+            }
+            grpc_api_types::payments::PaymentMethodType::PermataBankTransfer => {
+                Ok(PaymentMethodType::PermataBankTransfer)
+            }
+            grpc_api_types::payments::PaymentMethodType::OpenBankingUk => {
+                Ok(PaymentMethodType::OpenBankingUk)
+            }
+            grpc_api_types::payments::PaymentMethodType::PayBright => {
+                Ok(PaymentMethodType::PayBright)
+            }
+            grpc_api_types::payments::PaymentMethodType::Pix => Ok(PaymentMethodType::Pix),
+            grpc_api_types::payments::PaymentMethodType::PaySafeCard => {
+                Ok(PaymentMethodType::PaySafeCard)
+            }
+            grpc_api_types::payments::PaymentMethodType::Przelewy24 => {
+                Ok(PaymentMethodType::Przelewy24)
+            }
+            grpc_api_types::payments::PaymentMethodType::PromptPay => {
+                Ok(PaymentMethodType::PromptPay)
+            }
+            grpc_api_types::payments::PaymentMethodType::Pse => Ok(PaymentMethodType::Pse),
+            grpc_api_types::payments::PaymentMethodType::RedCompra => {
+                Ok(PaymentMethodType::RedCompra)
+            }
+            grpc_api_types::payments::PaymentMethodType::RedPagos => {
+                Ok(PaymentMethodType::RedPagos)
+            }
+            grpc_api_types::payments::PaymentMethodType::SamsungPay => {
+                Ok(PaymentMethodType::SamsungPay)
+            }
+            grpc_api_types::payments::PaymentMethodType::Sepa => Ok(PaymentMethodType::Sepa),
+            grpc_api_types::payments::PaymentMethodType::Sofort => Ok(PaymentMethodType::Sofort),
+            grpc_api_types::payments::PaymentMethodType::Swish => Ok(PaymentMethodType::Swish),
+            grpc_api_types::payments::PaymentMethodType::TouchNGo => {
+                Ok(PaymentMethodType::TouchNGo)
+            }
+            grpc_api_types::payments::PaymentMethodType::Twint => Ok(PaymentMethodType::Twint),
+            grpc_api_types::payments::PaymentMethodType::Vipps => Ok(PaymentMethodType::Vipps),
+            grpc_api_types::payments::PaymentMethodType::VietQr => Ok(PaymentMethodType::VietQr),
+            grpc_api_types::payments::PaymentMethodType::Venmo => Ok(PaymentMethodType::Venmo),
+            grpc_api_types::payments::PaymentMethodType::Walley => Ok(PaymentMethodType::Walley),
+            grpc_api_types::payments::PaymentMethodType::SevenEleven => {
+                Ok(PaymentMethodType::SevenEleven)
+            }
+            grpc_api_types::payments::PaymentMethodType::Lawson => Ok(PaymentMethodType::Lawson),
+            grpc_api_types::payments::PaymentMethodType::MiniStop => {
+                Ok(PaymentMethodType::MiniStop)
+            }
+            grpc_api_types::payments::PaymentMethodType::FamilyMart => {
+                Ok(PaymentMethodType::FamilyMart)
+            }
+            grpc_api_types::payments::PaymentMethodType::Seicomart => {
+                Ok(PaymentMethodType::Seicomart)
+            }
+            grpc_api_types::payments::PaymentMethodType::PayEasy => Ok(PaymentMethodType::PayEasy),
+            grpc_api_types::payments::PaymentMethodType::LocalBankTransfer => {
+                Ok(PaymentMethodType::LocalBankTransfer)
+            }
+            grpc_api_types::payments::PaymentMethodType::OpenBankingPis => {
+                Ok(PaymentMethodType::OpenBankingPIS)
+            }
+            grpc_api_types::payments::PaymentMethodType::DirectCarrierBilling => {
+                Ok(PaymentMethodType::DirectCarrierBilling)
+            }
         }
     }
 }

@@ -42,9 +42,8 @@ message FrmServicePreRiskCheckRequest {
   // Order details
   repeated OrderDetailsWithAmount order_details = 6;
 
-  // Deprecated: a single address cannot represent independent billing and
-  // shipping addresses. Use `payment_address` instead.
-  optional Address address = 7 [deprecated = true];
+  // Billing / shipping address information
+  optional PaymentAddress address = 7;
 
   // Additional metadata for the connector
   optional SecretString metadata = 8;
@@ -65,9 +64,6 @@ message FrmServicePreRiskCheckRequest {
 
   // Merchant details (id + MCC) for risk scoring.
   optional MerchantDetails merchant_details = 13;
-
-  // Billing / shipping address information. Supersedes the deprecated `address`.
-  optional PaymentAddress payment_address = 14;
 }
 
 // Response for FrmService.PreRiskCheck
@@ -139,7 +135,7 @@ message FrmServicePostRiskCheckRequest {
   optional ConnectorState state = 12;
 
   // Billing / shipping address information
-  optional PaymentAddress payment_address = 13;
+  optional PaymentAddress address = 13;
 }
 
 // Response for FrmService.PostRiskCheck

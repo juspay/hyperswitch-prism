@@ -965,6 +965,11 @@ pub enum ConnectorSpecificConfig {
         api_secret: Secret<String>,
         base_url: Option<String>,
     },
+    Boost {
+        client_id: Secret<String>,
+        merchant_secret: Secret<String>,
+        base_url: Option<String>,
+    },
 }
 
 impl ConnectorSpecificConfig {
@@ -1315,6 +1320,7 @@ impl ConnectorSpecificConfig {
                 key1,
                 api_secret
             },
+            Boost { api_key },
             Imerchantsolutions { api_key },
             Interpayments { api_key },
             TwocTwopPaco {
@@ -1788,6 +1794,7 @@ impl ConnectorSpecificConfig {
                     key1,
                     api_secret
                 },
+                Boost { api_key },
                 Imerchantsolutions { api_key },
                 Interpayments { api_key },
                 TwocTwopPaco {
@@ -2408,6 +2415,11 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 key1: tesouro.key1.ok_or_else(err)?,
                 api_secret: tesouro.api_secret.ok_or_else(err)?,
                 base_url: tesouro.base_url,
+            }),
+            AuthType::Boost(boost) => Ok(Self::Boost {
+                client_id: boost.client_id.ok_or_else(err)?,
+                merchant_secret: boost.merchant_secret.ok_or_else(err)?,
+                base_url: boost.base_url,
             }),
             AuthType::Imerchantsolutions(imerchantsolutions) => Ok(Self::Imerchantsolutions {
                 api_key: imerchantsolutions.api_key.ok_or_else(err)?,
@@ -3604,6 +3616,14 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         api_key: api_key.clone(),
                         key1: key1.clone(),
                         api_secret: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Boost => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Boost {
+                        client_id: api_key.clone(),
+                        merchant_secret: key1.clone(),
                         base_url: None,
                     }),
                     _ => Err(err().into()),

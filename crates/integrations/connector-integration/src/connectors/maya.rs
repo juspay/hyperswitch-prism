@@ -278,6 +278,26 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(EventType::from(body.status))
     }
 
+    fn get_webhook_event_reference(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<errors::WebhookError>> {
+        let body: MayaWebhookBody = request
+            .body
+            .parse_struct("MayaWebhookBody")
+            .change_context(errors::WebhookError::WebhookResourceObjectNotFound)?;
+
+        Ok(Some(WebhookResourceReference::Payment(
+            PaymentWebhookReference {
+                // Maya's payment `id` is the connector transaction id.
+                connector_transaction_id: Some(body.id),
+                // `requestReferenceNumber` is the merchant-assigned reference we
+                // sent when creating the payment, echoed back by Maya.
+                merchant_transaction_id: body.request_reference_number,
+            },
+        )))
+    }
+
     fn process_payment_webhook(
         &self,
         request: RequestDetails,
