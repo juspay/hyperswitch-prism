@@ -900,6 +900,7 @@ enum Connector {
   MAYA = 134;
   GRABPAY = 135;
   BOOST = 136;
+  ILIXIUM = 137;
 }
 
 // Payment method types
@@ -5650,6 +5651,16 @@ message BoostConfig {
   optional string base_url = 50;
 }
 
+message IlixiumConfig {
+  // Digest Calculation Password (never transmitted; input to X-MERCHANT-DIGEST)
+  SecretString api_key = 1;
+  // MerchantId - sent in the request body as merchant.merchantId
+  SecretString key1 = 2;
+  // AccountId - sent in the request body as merchant.accountId
+  SecretString api_secret = 3;
+  optional string base_url = 50;
+}
+
 // ConnectorSpecificConfig message with oneof containing all connector
 // configurations. Comment above each field (e.g. "// PAYPAL = 62") is the
 // Connector enum value from this file;
@@ -5966,6 +5977,8 @@ message ConnectorSpecificConfig {
     GrabpayConfig grabpay = 144;
     // BOOST = 136
     BoostConfig boost = 145;
+    // ILIXIUM = 137
+    IlixiumConfig ilixium = 146;
   }
 }
 

@@ -302,3 +302,6 @@ pub use self::tesouro::Tesouro;
 
 pub mod boost;
 pub use self::boost::Boost;
+
+pub mod ilixium;
+pub use self::ilixium::Ilixium;

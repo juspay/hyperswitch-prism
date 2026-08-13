@@ -966,6 +966,16 @@ pub enum ConnectorSpecificConfig {
         merchant_secret: Secret<String>,
         base_url: Option<String>,
     },
+    /// Ilixium Direct API.
+    /// `api_key`    = Digest Calculation Password (input to X-MERCHANT-DIGEST, never sent)
+    /// `key1`       = MerchantId (request body `merchant.merchantId`)
+    /// `api_secret` = AccountId  (request body `merchant.accountId`)
+    Ilixium {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        api_secret: Secret<String>,
+        base_url: Option<String>,
+    },
 }
 
 impl ConnectorSpecificConfig {
@@ -1313,6 +1323,11 @@ impl ConnectorSpecificConfig {
                 api_secret
             },
             Boost { api_key },
+            Ilixium {
+                api_key,
+                key1,
+                api_secret
+            },
             Imerchantsolutions { api_key },
             Interpayments { api_key },
             TwocTwopPaco {
@@ -1783,6 +1798,11 @@ impl ConnectorSpecificConfig {
                     api_secret
                 },
                 Boost { api_key },
+                Ilixium {
+                    api_key,
+                    key1,
+                    api_secret
+                },
                 Imerchantsolutions { api_key },
                 Interpayments { api_key },
                 TwocTwopPaco {
@@ -2404,6 +2424,12 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 client_id: boost.client_id.ok_or_else(err)?,
                 merchant_secret: boost.merchant_secret.ok_or_else(err)?,
                 base_url: boost.base_url,
+            }),
+            AuthType::Ilixium(ilixium) => Ok(Self::Ilixium {
+                api_key: ilixium.api_key.ok_or_else(err)?,
+                key1: ilixium.key1.ok_or_else(err)?,
+                api_secret: ilixium.api_secret.ok_or_else(err)?,
+                base_url: ilixium.base_url,
             }),
             AuthType::Imerchantsolutions(imerchantsolutions) => Ok(Self::Imerchantsolutions {
                 api_key: imerchantsolutions.api_key.ok_or_else(err)?,
@@ -3598,6 +3624,19 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         key1,
                         api_secret,
                     } => Ok(Self::Tesouro {
+                        api_key: api_key.clone(),
+                        key1: key1.clone(),
+                        api_secret: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Ilixium => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Ilixium {
                         api_key: api_key.clone(),
                         key1: key1.clone(),
                         api_secret: api_secret.clone(),
