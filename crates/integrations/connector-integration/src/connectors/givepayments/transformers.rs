@@ -447,7 +447,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::PaymentMethodToken(_)
-            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NoInstrumentAfterRedirect => {
                 Err(errors::IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Givepayments"),
                     errors::IntegrationErrorContext {
