@@ -1809,7 +1809,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     match (&card_info.card_exp_month, &card_info.card_exp_year) {
                         (Some(month), Some(year)) => Some(FiservcommercehubTokenCardInfo {
                             expiration_month: month.clone(),
-                            expiration_year: year.clone(),
+                            expiration_year: utils::expand_expiry_year_to_four_digits(year),
                         }),
                         _ => None,
                     }

@@ -295,14 +295,14 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePreRiskCheckRequest> for PreR
             })?;
 
         let address = value
-            .payment_address
+            .address
             .map(PaymentAddress::foreign_try_from)
             .transpose()
             .change_context(IntegrationError::InvalidDataFormat {
-                field_name: "payment_address",
+                field_name: "address",
                 context: crate::errors::IntegrationErrorContext {
                     additional_context: Some(
-                        "Failed to parse payment_address in pre-risk check".to_owned(),
+                        "Failed to parse address in pre-risk check".to_owned(),
                     ),
                     ..Default::default()
                 },
@@ -439,14 +439,14 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePostRiskCheckRequest> for Pos
             })?;
 
         let address = value
-            .payment_address
+            .address
             .map(PaymentAddress::foreign_try_from)
             .transpose()
             .change_context(IntegrationError::InvalidDataFormat {
-                field_name: "payment_address",
+                field_name: "address",
                 context: crate::errors::IntegrationErrorContext {
                     additional_context: Some(
-                        "Failed to parse payment_address in post-risk check".to_owned(),
+                        "Failed to parse address in post-risk check".to_owned(),
                     ),
                     ..Default::default()
                 },

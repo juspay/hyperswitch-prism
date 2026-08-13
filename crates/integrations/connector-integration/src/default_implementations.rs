@@ -290,6 +290,7 @@ default_impl_verify_webhook_source_v2!(
         Affirm,
         Grabpay,
         Tesouro,
+        Boost,
     ],
 );
 // PayPal has its own implementation in paypal.rs
@@ -366,6 +367,7 @@ macro_rules! default_impl_recharge_v2 {
 }
 
 default_impl_recharge_v2!(
+    Boost,
     Tesouro,
     AbsaSanlam,
     Aci,
@@ -590,6 +592,7 @@ macro_rules! default_impl_get_payment_method_v2 {
 
 // Same connector universe as default_impl_recharge_v2! above.
 default_impl_create_payment_method_v2!(
+    Boost,
     Tesouro,
     AbsaSanlam,
     Aci,
@@ -692,6 +695,7 @@ default_impl_create_payment_method_v2!(
 );
 
 default_impl_get_payment_method_v2!(
+    Boost,
     Tesouro,
     AbsaSanlam,
     Aci,
@@ -795,6 +799,7 @@ default_impl_get_payment_method_v2!(
 
 default_impl_payment_method_eligibility_v2!(
     not_supported: [
+        Boost,
         Tesouro,
         Adyen,
         Authorizedotnet,
@@ -959,6 +964,7 @@ macro_rules! default_impl_refresh_payment_method_v2 {
 }
 
 default_impl_refresh_payment_method_v2!(
+    Boost,
     AbsaSanlam,
     Aci,
     Adyen,
