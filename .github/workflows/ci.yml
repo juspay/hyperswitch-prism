@@ -700,10 +700,17 @@ jobs:
           else
             # The secret does not resolve for pull requests from forks. The smoke test
             # harnesses require the file to exist, so seed it from the placeholder
-            # credentials committed at the repository root. Scenarios that need real
-            # credentials are reported as skipped rather than failing the run.
-            cp creds_dummy.json creds.json
-            echo "No CONNECTOR_SPECIFIC_AUTH secret found, using creds_dummy.json placeholder credentials"
+            # credentials committed at the repository root.
+            #
+            # The tokens are rewritten to "placeholder" because every harness detects
+            # unusable credentials with the same rule: an exact match against
+            # {"", "placeholder", "test", "dummy", "sk_test_placeholder"} or a value
+            # containing "placeholder" (is_placeholder in test_smoke.py and main.rs,
+            # isPlaceholder in SmokeTest.kt). "<REPLACE_WITH_YOUR_VALUE>" matches
+            # neither, so the harnesses would treat it as a real key and report the
+            # connector's rejection as a failure. Rewriting makes them skip instead.
+            sed -E 's/<?REPLACE_WITH_[A-Z_]+>?/placeholder/g' creds_dummy.json > creds.json
+            echo "No CONNECTOR_SPECIFIC_AUTH secret found, using placeholder credentials from creds_dummy.json"
           fi
 
       - name: Run SDK gRPC Tests
