@@ -9,7 +9,7 @@ mod tests {
         use std::{borrow::Cow, marker::PhantomData};
 
         use common_utils::{
-            pii::{self, Email},
+            pii::Email,
             request::RequestContent,
             types::MinorUnit,
         };
@@ -75,9 +75,7 @@ mod tests {
                         None,
                     ),
                     auth_type: common_enums::AuthenticationType::NoThreeDs,
-                    connector_feature_data: Some(pii::SecretSerdeValue::new(
-                        serde_json::json!({ "shop_name": "test_shop" }),
-                    )),
+                    connector_feature_data: None,
                     amount_captured: None,
                     minor_amount_captured: None,
                     minor_amount_authorized: None,
@@ -114,7 +112,7 @@ mod tests {
                 connector_config: ConnectorSpecificConfig::Calida {
                     api_key: Secret::new(api_key),
                     base_url: None,
-                    shop_name: None,
+                    shop_name: Some(Secret::new("test_shop".to_string())),
                 },
                 request: PaymentsAuthorizeData {
                     customer_document_details: None,
