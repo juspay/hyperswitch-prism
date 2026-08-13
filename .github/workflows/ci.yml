@@ -698,7 +698,12 @@ jobs:
             echo "${CONNECTOR_SPECIFIC_AUTH}" > creds.json
             echo "Connector credentials created"
           else
-            echo "No CONNECTOR_SPECIFIC_AUTH secret found, running in dry-run mode"
+            # The secret does not resolve for pull requests from forks. The smoke test
+            # harnesses require the file to exist, so seed it from the placeholder
+            # credentials committed at the repository root. Scenarios that need real
+            # credentials are reported as skipped rather than failing the run.
+            cp creds_dummy.json creds.json
+            echo "No CONNECTOR_SPECIFIC_AUTH secret found, using creds_dummy.json placeholder credentials"
           fi
 
       - name: Run SDK gRPC Tests

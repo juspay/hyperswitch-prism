@@ -36,16 +36,11 @@ WEBHOOK_SMOKE_TEST_BIN := $(REPO_ROOT)/target/$(PLATFORM)/$(PROFILE)/smoke-test-
 # In CI (GITHUB_ACTIONS set), use cached binaries if available. Locally, always use cargo run.
 test-package: build-ffi-lib ## Build FFI → Run Rust smoke test (+ webhook smoke)
 	@echo "Running Rust smoke test..."
-	@CREDS=$(REPO_ROOT)/creds.json; \
-	if [ ! -f "$$CREDS" ]; then \
-		echo "  Note: creds.json not found, using creds_dummy.json placeholder credentials"; \
-		CREDS=$(REPO_ROOT)/creds_dummy.json; \
-	fi; \
-	if [ -n "$(GITHUB_ACTIONS)" ] && [ -f "$(SMOKE_TEST_BIN)" ]; then \
+	@if [ -n "$(GITHUB_ACTIONS)" ] && [ -f "$(SMOKE_TEST_BIN)" ]; then \
 		echo "Using cached smoke test binary (CI mode)..."; \
-		cd $(REPO_ROOT) && HARNESS_DIR=$(SDK_ROOT)/../../examples CONNECTORS=$(CONNECTORS) $(SMOKE_TEST_BIN) --creds-file "$$CREDS" --connectors $(CONNECTORS) 2>&1; \
+		cd $(REPO_ROOT) && HARNESS_DIR=$(SDK_ROOT)/../../examples CONNECTORS=$(CONNECTORS) $(SMOKE_TEST_BIN) --connectors $(CONNECTORS) 2>&1; \
 	else \
-		cd $(REPO_ROOT) && HARNESS_DIR=$(SDK_ROOT)/../../examples CONNECTORS=$(CONNECTORS) cargo run --profile $(PROFILE) --target $(PLATFORM) -p hyperswitch-smoke-test -- --creds-file "$$CREDS" --connectors $(CONNECTORS) 2>&1; \
+		cd $(REPO_ROOT) && HARNESS_DIR=$(SDK_ROOT)/../../examples CONNECTORS=$(CONNECTORS) cargo run --profile $(PROFILE) --target $(PLATFORM) -p hyperswitch-smoke-test -- --connectors $(CONNECTORS) 2>&1; \
 	fi
 	@echo "Running webhook smoke test..."
 	@if [ -n "$(GITHUB_ACTIONS)" ] && [ -f "$(WEBHOOK_SMOKE_TEST_BIN)" ]; then \
@@ -91,13 +86,7 @@ test-grpc-no-server:
 		cd $(REPO_ROOT) && cargo build -p grpc-server -p hyperswitch-grpc-ffi -p ffi -p hyperswitch-smoke-test -p uniffi-bindgen \
 			--profile $(GRPC_PROFILE) --target $(PLATFORM); \
 	fi
-	@if [ -f $(REPO_ROOT)/creds.json ]; then \
-		cd $(REPO_ROOT) && $(GRPC_SMOKE_TEST_BIN) --connectors $(GRPC_CONNECTOR); \
-	else \
-		echo "  Note: creds.json not found, using creds_dummy.json placeholder credentials"; \
-		cd $(REPO_ROOT) && $(GRPC_SMOKE_TEST_BIN) --connectors $(GRPC_CONNECTOR) \
-			--creds-file $(REPO_ROOT)/creds_dummy.json; \
-	fi
+	@cd $(REPO_ROOT) && $(GRPC_SMOKE_TEST_BIN) --connectors $(GRPC_CONNECTOR)
 
 # test-grpc
 # Builds the grpc-server binary, starts it as a background process, runs
