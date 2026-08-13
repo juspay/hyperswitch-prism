@@ -3,11 +3,14 @@ use std::fmt::Debug;
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD_ENGINE, Engine};
 use common_enums::{AttemptStatus, CaptureMethod, RefundStatus};
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void, VoidPC},
+    connector_flow::{
+        Authorize, Capture, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void, VoidPC,
+    },
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
-        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
+        MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
     payment_method_data::{
         Card, GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes, WalletData,
@@ -249,6 +252,74 @@ fn get_worldpayxml_wallet_payment_method(
     }
 }
 
+/// Worldpay scopes the tokens it issues to a single shopper, which is the scope Hyperswitch
+/// stores as the connector mandate id.
+const TOKEN_SCOPE_SHOPPER: &str = "shopper";
+
+/// Number of decimal places Worldpay expects for the order currency.
+fn get_worldpayxml_exponent(currency: common_enums::Currency) -> String {
+    if currency.is_three_decimal_currency() {
+        "3".to_string()
+    } else if currency.is_zero_decimal_currency() {
+        "0".to_string()
+    } else {
+        "2".to_string()
+    }
+}
+
+/// Builds the `<billingAddress>` element from the flow's billing address, when one was supplied.
+fn get_worldpayxml_billing_address(
+    resource_common_data: &PaymentFlowData,
+) -> Option<requests::WorldpayxmlBillingAddress> {
+    resource_common_data
+        .address
+        .get_payment_billing()
+        .and_then(|billing| {
+            let telephone_number = billing.phone.as_ref().and_then(|phone| {
+                phone
+                    .get_number_with_country_code()
+                    .or_else(|_| phone.get_number())
+                    .ok()
+            });
+            billing
+                .address
+                .as_ref()
+                .map(|addr| requests::WorldpayxmlBillingAddress {
+                    address: requests::WorldpayxmlAddress {
+                        first_name: addr.first_name.clone(),
+                        last_name: addr.last_name.clone(),
+                        address1: addr.line1.clone(),
+                        address2: addr.line2.clone(),
+                        address3: addr.line3.clone(),
+                        postal_code: addr.zip.clone(),
+                        city: addr.city.clone().map(|c| c.expose()),
+                        state: addr.state.clone(),
+                        country_code: addr.country,
+                        telephone_number,
+                    },
+                })
+        })
+}
+
+/// Resolves the `authenticatedShopperID` Worldpay ties shopper-scoped tokens to.
+///
+/// Requests that create or spend such a token cannot work without it, so those callers pass
+/// `is_required` and get a missing-field error rather than a connector-side rejection.
+fn get_worldpayxml_authenticated_shopper_id(
+    resource_common_data: &PaymentFlowData,
+    is_required: bool,
+) -> Result<Option<Secret<String>>, Report<IntegrationError>> {
+    match resource_common_data.connector_customer.clone() {
+        Some(connector_customer) => Ok(Some(Secret::new(connector_customer))),
+        None if is_required => Err(IntegrationError::MissingRequiredField {
+            field_name: "connector_customer_id",
+            context: Default::default(),
+        }
+        .into()),
+        None => Ok(None),
+    }
+}
+
 fn get_worldpayxml_mandate_type(
     mit_category: Option<common_enums::MitCategory>,
 ) -> requests::WorldpayxmlMandateType {
@@ -298,35 +369,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             || router_data.request.capture_method == Some(CaptureMethod::ManualMultiple);
 
         // Extract billing address first (needed for payment method)
-        let billing_address = router_data
-            .resource_common_data
-            .address
-            .get_payment_billing()
-            .and_then(|billing| {
-                let telephone_number = billing.phone.as_ref().and_then(|phone| {
-                    phone
-                        .get_number_with_country_code()
-                        .or_else(|_| phone.get_number())
-                        .ok()
-                });
-                billing
-                    .address
-                    .as_ref()
-                    .map(|addr| requests::WorldpayxmlBillingAddress {
-                        address: requests::WorldpayxmlAddress {
-                            first_name: addr.first_name.clone(),
-                            last_name: addr.last_name.clone(),
-                            address1: addr.line1.clone(),
-                            address2: addr.line2.clone(),
-                            address3: addr.line3.clone(),
-                            postal_code: addr.zip.clone(),
-                            city: addr.city.clone().map(|c| c.expose()),
-                            state: addr.state.clone(),
-                            country_code: addr.country,
-                            telephone_number,
-                        },
-                    })
-            });
+        let billing_address = get_worldpayxml_billing_address(&router_data.resource_common_data);
 
         // Get payment method
         let payment_method = match &router_data.request.payment_method_data {
@@ -354,13 +397,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             }
         };
 
+        let is_cit_mandate_payment = router_data.request.is_customer_initiated_mandate_payment();
+
         // A customer-initiated mandate setup must be flagged to Worldpay as the first transaction
         // of a stored-credential agreement, otherwise later merchant-initiated payments against it
         // are declined by the scheme.
-        let stored_credentials = router_data
-            .request
-            .is_customer_initiated_mandate_payment()
-            .then(|| requests::WorldpayxmlStoredCredentials {
+        let stored_credentials =
+            is_cit_mandate_payment.then(|| requests::WorldpayxmlStoredCredentials {
                 usage: requests::WorldpayxmlUsageType::First,
                 customer_initiated_reason: Some(get_worldpayxml_mandate_type(
                     router_data.request.mit_category.clone(),
@@ -368,6 +411,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 merchant_initiated_reason: None,
                 scheme_transaction_identifier: None,
             });
+
+        // Ask Worldpay to issue a payment token on the customer-initiated transaction; without it
+        // there is nothing for a later merchant-initiated payment to be charged against.
+        let create_token = is_cit_mandate_payment.then(|| requests::WorldpayxmlCreateToken {
+            token_scope: TOKEN_SCOPE_SHOPPER.to_string(),
+            token_event_reference: router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+        });
+
+        let authenticated_shopper_id = get_worldpayxml_authenticated_shopper_id(
+            &router_data.resource_common_data,
+            is_cit_mandate_payment,
+        )?;
 
         // Convert amount using the connector's amount converter
         let converted_amount = super::WorldpayxmlAmountConvertor::convert(
@@ -397,25 +455,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     amount: requests::WorldpayxmlAmount {
                         value: converted_amount,
                         currency_code: router_data.request.currency,
-                        exponent: if router_data.request.currency.is_three_decimal_currency() {
-                            "3".to_string()
-                        } else if router_data.request.currency.is_zero_decimal_currency() {
-                            "0".to_string()
-                        } else {
-                            "2".to_string()
-                        },
+                        exponent: get_worldpayxml_exponent(router_data.request.currency),
                     },
                     payment_details: requests::WorldpayxmlPaymentDetails {
-                        action: if is_manual_capture {
+                        action: Some(if is_manual_capture {
                             WorldpayxmlAction::Authorise
                         } else {
                             WorldpayxmlAction::Sale
-                        },
+                        }),
                         payment_method,
                         stored_credentials,
                     },
                     shopper: requests::WorldpayxmlShopper {
                         shopper_email_address: router_data.request.email.clone(),
+                        authenticated_shopper_id,
                         browser: router_data
                             .request
                             .browser_info
@@ -434,6 +487,282 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             }),
                     },
                     billing_address,
+                    create_token,
+                },
+            },
+        })
+    }
+}
+
+// SetupMandate flow transformers
+//
+// A mandate setup is submitted as an ordinary order that additionally asks Worldpay to create a
+// payment token, and flags the transaction to the scheme as the first of a stored-credential
+// agreement. The order amount is whatever the caller asked for, which is normally zero.
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        WorldpayxmlRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for requests::WorldpayxmlSetupMandateRequest
+{
+    type Error = Report<IntegrationError>;
+
+    fn try_from(
+        item: WorldpayxmlRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let auth = WorldpayxmlAuthType::try_from(&router_data.connector_config)?;
+
+        let is_manual_capture = matches!(
+            router_data.request.capture_method,
+            Some(CaptureMethod::Manual) | Some(CaptureMethod::ManualMultiple)
+        );
+
+        let billing_address = get_worldpayxml_billing_address(&router_data.resource_common_data);
+
+        let payment_method = match &router_data.request.payment_method_data {
+            PaymentMethodData::Card(card) => get_worldpayxml_payment_method(
+                &router_data.request.payment_method_data,
+                card,
+                billing_address.as_ref(),
+            )?,
+            PaymentMethodData::Wallet(wallet_data) => {
+                let customer_name = router_data
+                    .request
+                    .customer_name
+                    .clone()
+                    .map(|name| crate::utils::normalize_cardholder_name(Secret::new(name)));
+
+                get_worldpayxml_wallet_payment_method(wallet_data, customer_name)?
+            }
+            _ => {
+                return Err(IntegrationError::NotSupported {
+                    message: "Selected payment method".to_string(),
+                    connector: "worldpayxml",
+                    context: Default::default(),
+                }
+                .into())
+            }
+        };
+
+        let authenticated_shopper_id =
+            get_worldpayxml_authenticated_shopper_id(&router_data.resource_common_data, true)?;
+
+        let converted_amount = super::WorldpayxmlAmountConvertor::convert(
+            router_data
+                .request
+                .minor_amount
+                .unwrap_or_else(common_utils::types::MinorUnit::zero),
+            router_data.request.currency,
+        )?;
+
+        Ok(Self {
+            version: API_VERSION.to_string(),
+            merchant_code: auth.merchant_code,
+            submit: requests::WorldpayxmlSubmit {
+                order: requests::WorldpayxmlOrder {
+                    order_code: router_data
+                        .resource_common_data
+                        .connector_request_reference_id
+                        .clone(),
+                    capture_delay: if is_manual_capture {
+                        "OFF".to_string()
+                    } else {
+                        "0".to_string()
+                    },
+                    description: router_data
+                        .resource_common_data
+                        .description
+                        .clone()
+                        .unwrap_or_else(|| DEFAULT_PAYMENT_DESCRIPTION.to_string()),
+                    amount: requests::WorldpayxmlAmount {
+                        value: converted_amount,
+                        currency_code: router_data.request.currency,
+                        exponent: get_worldpayxml_exponent(router_data.request.currency),
+                    },
+                    payment_details: requests::WorldpayxmlPaymentDetails {
+                        action: Some(if is_manual_capture {
+                            WorldpayxmlAction::Authorise
+                        } else {
+                            WorldpayxmlAction::Sale
+                        }),
+                        payment_method,
+                        stored_credentials: Some(requests::WorldpayxmlStoredCredentials {
+                            usage: requests::WorldpayxmlUsageType::First,
+                            customer_initiated_reason: Some(get_worldpayxml_mandate_type(
+                                router_data.request.mit_category.clone(),
+                            )),
+                            merchant_initiated_reason: None,
+                            scheme_transaction_identifier: None,
+                        }),
+                    },
+                    shopper: requests::WorldpayxmlShopper {
+                        shopper_email_address: router_data.request.email.clone(),
+                        authenticated_shopper_id,
+                        browser: router_data.request.browser_info.as_ref().map(
+                            |browser_info| requests::WorldpayxmlBrowser {
+                                accept_header: browser_info.accept_header.clone(),
+                                user_agent_header: browser_info.user_agent.clone(),
+                                http_accept_language: browser_info.accept_language.clone(),
+                                time_zone: browser_info.time_zone,
+                                browser_language: browser_info.language.clone(),
+                                browser_java_enabled: browser_info.java_enabled,
+                                browser_java_script_enabled: browser_info.java_script_enabled,
+                                browser_colour_depth: browser_info.color_depth.map(u32::from),
+                                browser_screen_height: browser_info.screen_height,
+                                browser_screen_width: browser_info.screen_width,
+                            },
+                        ),
+                    },
+                    billing_address,
+                    create_token: Some(requests::WorldpayxmlCreateToken {
+                        token_scope: TOKEN_SCOPE_SHOPPER.to_string(),
+                        token_event_reference: router_data
+                            .resource_common_data
+                            .connector_request_reference_id
+                            .clone(),
+                    }),
+                },
+            },
+        })
+    }
+}
+
+// RepeatPayment flow transformers
+//
+// A merchant-initiated payment replays the stored-credential agreement: the Worldpay token
+// issued on the customer-initiated transaction is submitted over `TOKEN-SSL`, and the scheme
+// transaction identifier from that original transaction chains the two together. No `action`
+// is sent — Worldpay derives it from the order's capture delay, matching hyperswitch.
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        WorldpayxmlRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for requests::WorldpayxmlRepeatPaymentRequest
+{
+    type Error = Report<IntegrationError>;
+
+    fn try_from(
+        item: WorldpayxmlRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let auth = WorldpayxmlAuthType::try_from(&router_data.connector_config)?;
+
+        let connector_mandate = match &router_data.request.mandate_reference {
+            MandateReferenceId::ConnectorMandateId(connector_mandate) => connector_mandate,
+            MandateReferenceId::NetworkMandateId(_)
+            | MandateReferenceId::NetworkTokenWithNTI(_) => {
+                return Err(IntegrationError::NotSupported {
+                    message: "Merchant initiated payment without a connector mandate id"
+                        .to_string(),
+                    connector: "worldpayxml",
+                    context: Default::default(),
+                }
+                .into())
+            }
+        };
+
+        let payment_token_id = connector_mandate.get_connector_mandate_id().ok_or(
+            IntegrationError::MissingRequiredField {
+                field_name: "connector_mandate_id",
+                context: Default::default(),
+            },
+        )?;
+
+        let is_manual_capture = !router_data.request.is_auto_capture();
+
+        let authenticated_shopper_id =
+            get_worldpayxml_authenticated_shopper_id(&router_data.resource_common_data, true)?;
+
+        let converted_amount = super::WorldpayxmlAmountConvertor::convert(
+            router_data.request.minor_amount,
+            router_data.request.currency,
+        )?;
+
+        Ok(Self {
+            version: API_VERSION.to_string(),
+            merchant_code: auth.merchant_code,
+            submit: requests::WorldpayxmlSubmit {
+                order: requests::WorldpayxmlOrder {
+                    order_code: router_data
+                        .resource_common_data
+                        .connector_request_reference_id
+                        .clone(),
+                    capture_delay: if is_manual_capture {
+                        "OFF".to_string()
+                    } else {
+                        "0".to_string()
+                    },
+                    description: router_data
+                        .resource_common_data
+                        .description
+                        .clone()
+                        .unwrap_or_else(|| DEFAULT_PAYMENT_DESCRIPTION.to_string()),
+                    amount: requests::WorldpayxmlAmount {
+                        value: converted_amount,
+                        currency_code: router_data.request.currency,
+                        exponent: get_worldpayxml_exponent(router_data.request.currency),
+                    },
+                    payment_details: requests::WorldpayxmlPaymentDetails {
+                        action: None,
+                        payment_method: requests::WorldpayxmlPaymentMethod::TokenSsl(
+                            requests::WorldpayxmlTokenData {
+                                token_scope: Secret::new(TOKEN_SCOPE_SHOPPER.to_string()),
+                                payment_token_id: Secret::new(payment_token_id),
+                            },
+                        ),
+                        stored_credentials: Some(requests::WorldpayxmlStoredCredentials {
+                            usage: requests::WorldpayxmlUsageType::Used,
+                            customer_initiated_reason: None,
+                            merchant_initiated_reason: Some(get_worldpayxml_mandate_type(
+                                router_data.request.mit_category.clone(),
+                            )),
+                            // Only sent when the customer-initiated transaction reported one;
+                            // Worldpay accepts the merchant-initiated payment without it.
+                            scheme_transaction_identifier: connector_mandate
+                                .get_connector_mandate_request_reference_id()
+                                .map(Secret::new),
+                        }),
+                    },
+                    shopper: requests::WorldpayxmlShopper {
+                        shopper_email_address: router_data.request.email.clone(),
+                        authenticated_shopper_id,
+                        browser: None,
+                    },
+                    billing_address: get_worldpayxml_billing_address(
+                        &router_data.resource_common_data,
+                    ),
+                    create_token: None,
                 },
             },
         })
@@ -485,13 +814,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         amount: requests::WorldpayxmlAmount {
                             value: converted_amount,
                             currency_code: router_data.request.currency,
-                            exponent: if router_data.request.currency.is_three_decimal_currency() {
-                                "3".to_string()
-                            } else if router_data.request.currency.is_zero_decimal_currency() {
-                                "0".to_string()
-                            } else {
-                                "2".to_string()
-                            },
+                            exponent: get_worldpayxml_exponent(router_data.request.currency),
                         },
                     },
                 },
@@ -575,13 +898,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         amount: requests::WorldpayxmlAmount {
                             value: converted_amount,
                             currency_code: router_data.request.currency,
-                            exponent: if router_data.request.currency.is_three_decimal_currency() {
-                                "3".to_string()
-                            } else if router_data.request.currency.is_zero_decimal_currency() {
-                                "0".to_string()
-                            } else {
-                                "2".to_string()
-                            },
+                            exponent: get_worldpayxml_exponent(router_data.request.currency),
                         },
                     },
                 },
@@ -701,6 +1018,48 @@ fn map_worldpayxml_authorize_status(
     }
 }
 
+/// Maps `lastEvent` for a mandate setup, where an authorisation already completes the flow —
+/// there is no capture to wait for on a (usually zero-amount) verification order.
+fn map_worldpayxml_setup_mandate_status(last_event: &WorldpayxmlLastEvent) -> AttemptStatus {
+    match last_event {
+        WorldpayxmlLastEvent::Authorised
+        | WorldpayxmlLastEvent::Captured
+        | WorldpayxmlLastEvent::SettledByMerchant => AttemptStatus::Charged,
+        WorldpayxmlLastEvent::Cancelled => AttemptStatus::Voided,
+        WorldpayxmlLastEvent::Refused
+        | WorldpayxmlLastEvent::SentForRefund
+        | WorldpayxmlLastEvent::Refunded
+        | WorldpayxmlLastEvent::RefundFailed
+        | WorldpayxmlLastEvent::Expired
+        | WorldpayxmlLastEvent::Error
+        | WorldpayxmlLastEvent::PushRequested
+        | WorldpayxmlLastEvent::PushPending
+        | WorldpayxmlLastEvent::PushApproved
+        | WorldpayxmlLastEvent::PushRefused => AttemptStatus::Failure,
+    }
+}
+
+/// Builds the mandate reference Hyperswitch stores for later merchant-initiated payments.
+///
+/// The Worldpay payment token is what the merchant-initiated payment is charged against, and the
+/// scheme transaction identifier chains it back to the customer-initiated transaction.
+fn get_worldpayxml_mandate_reference(
+    order_status: &responses::WorldpayxmlOrderStatus,
+    payment: &responses::WorldpayxmlPayment,
+) -> Option<Box<MandateReference>> {
+    order_status.token.as_ref().map(|token| {
+        Box::new(MandateReference {
+            connector_mandate_id: Some(token.token_details.payment_token_id.peek().to_string()),
+            payment_method_id: None,
+            mandate_metadata: None,
+            connector_mandate_request_reference_id: payment
+                .scheme_response
+                .as_ref()
+                .map(|scheme_response| scheme_response.transaction_identifier.clone()),
+        })
+    })
+}
+
 // Helper function to map lastEvent to RefundStatus
 fn map_worldpayxml_refund_status(last_event: &WorldpayxmlLastEvent) -> RefundStatus {
     match last_event {
@@ -809,7 +1168,223 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(order_status.order_code.clone()),
             redirection_data: None,
-            mandate_reference: None,
+            mandate_reference: get_worldpayxml_mandate_reference(order_status, payment),
+            connector_metadata: None,
+            network_txn_id: payment
+                .authorisation_id
+                .as_ref()
+                .map(|auth_id| auth_id.id.clone()),
+            network_txn_link_id: None,
+            connector_response_reference_id: Some(order_status.order_code.clone()),
+            incremental_authorization_allowed: None,
+            status_code: item.http_code,
+            splits: None,
+        };
+
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status,
+                ..router_data.resource_common_data.clone()
+            },
+            response: Ok(payments_response_data),
+            ..router_data.clone()
+        })
+    }
+}
+
+// Response transformers - SetupMandate
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<responses::WorldpayxmlSetupMandateResponse, Self>>
+    for RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>
+{
+    type Error = Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<responses::WorldpayxmlSetupMandateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = &item.response;
+        let router_data = &item.router_data;
+
+        if let Some(error) = &response.reply.error {
+            return Ok(Self {
+                resource_common_data: PaymentFlowData {
+                    status: AttemptStatus::Failure,
+                    ..router_data.resource_common_data.clone()
+                },
+                response: Err(ErrorResponse {
+                    code: error.code.clone(),
+                    message: error.message.clone(),
+                    reason: Some(error.message.clone()),
+                    status_code: item.http_code,
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
+                    connector_transaction_id: None,
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                }),
+                ..router_data.clone()
+            });
+        }
+
+        let order_status = response.reply.order_status.as_ref().ok_or(
+            crate::utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
+        )?;
+
+        if let Some(error) = &order_status.error {
+            return Ok(Self {
+                resource_common_data: PaymentFlowData {
+                    status: AttemptStatus::Failure,
+                    ..router_data.resource_common_data.clone()
+                },
+                response: Err(ErrorResponse {
+                    code: error.code.clone(),
+                    message: error.message.clone(),
+                    reason: Some(error.message.clone()),
+                    status_code: item.http_code,
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
+                    connector_transaction_id: Some(order_status.order_code.clone()),
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                }),
+                ..router_data.clone()
+            });
+        }
+
+        let payment = order_status.payment.as_ref().ok_or(
+            crate::utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
+        )?;
+
+        let status = map_worldpayxml_setup_mandate_status(&payment.last_event);
+
+        if status == AttemptStatus::Failure {
+            let return_code = payment.iso8583_return_code.as_ref();
+            return Ok(Self {
+                resource_common_data: PaymentFlowData {
+                    status,
+                    ..router_data.resource_common_data.clone()
+                },
+                response: Err(ErrorResponse {
+                    code: return_code.map_or_else(
+                        || common_utils::consts::NO_ERROR_CODE.to_string(),
+                        |code| code.code.clone(),
+                    ),
+                    message: return_code.map_or_else(
+                        || common_utils::consts::NO_ERROR_MESSAGE.to_string(),
+                        |code| code.description.clone(),
+                    ),
+                    reason: return_code.map(|code| code.description.clone()),
+                    status_code: item.http_code,
+                    attempt_status: Some(FlowStatus::Payment(status)),
+                    connector_transaction_id: Some(order_status.order_code.clone()),
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                }),
+                ..router_data.clone()
+            });
+        }
+
+        let payments_response_data = PaymentsResponseData::TransactionResponse {
+            resource_id: ResponseId::ConnectorTransactionId(order_status.order_code.clone()),
+            redirection_data: None,
+            mandate_reference: get_worldpayxml_mandate_reference(order_status, payment),
+            connector_metadata: None,
+            network_txn_id: payment
+                .authorisation_id
+                .as_ref()
+                .map(|auth_id| auth_id.id.clone()),
+            network_txn_link_id: None,
+            connector_response_reference_id: Some(order_status.order_code.clone()),
+            incremental_authorization_allowed: None,
+            status_code: item.http_code,
+            splits: None,
+        };
+
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status,
+                ..router_data.resource_common_data.clone()
+            },
+            response: Ok(payments_response_data),
+            ..router_data.clone()
+        })
+    }
+}
+
+// Response transformers - RepeatPayment
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<responses::WorldpayxmlRepeatPaymentResponse, Self>>
+    for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
+{
+    type Error = Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<responses::WorldpayxmlRepeatPaymentResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = &item.response;
+        let router_data = &item.router_data;
+
+        if let Some(error) = &response.reply.error {
+            return Ok(Self {
+                resource_common_data: PaymentFlowData {
+                    status: AttemptStatus::Failure,
+                    ..router_data.resource_common_data.clone()
+                },
+                response: Err(ErrorResponse {
+                    code: error.code.clone(),
+                    message: error.message.clone(),
+                    reason: Some(error.message.clone()),
+                    status_code: item.http_code,
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
+                    connector_transaction_id: None,
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                }),
+                ..router_data.clone()
+            });
+        }
+
+        let order_status = response.reply.order_status.as_ref().ok_or(
+            crate::utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
+        )?;
+
+        if let Some(error) = &order_status.error {
+            return Ok(Self {
+                resource_common_data: PaymentFlowData {
+                    status: AttemptStatus::Failure,
+                    ..router_data.resource_common_data.clone()
+                },
+                response: Err(ErrorResponse {
+                    code: error.code.clone(),
+                    message: error.message.clone(),
+                    reason: Some(error.message.clone()),
+                    status_code: item.http_code,
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
+                    connector_transaction_id: Some(order_status.order_code.clone()),
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                }),
+                ..router_data.clone()
+            });
+        }
+
+        let payment = order_status.payment.as_ref().ok_or(
+            crate::utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
+        )?;
+
+        let status = map_worldpayxml_authorize_status(
+            &payment.last_event,
+            router_data.request.is_auto_capture(),
+            Some(&router_data.resource_common_data.status),
+        );
+
+        let payments_response_data = PaymentsResponseData::TransactionResponse {
+            resource_id: ResponseId::ConnectorTransactionId(order_status.order_code.clone()),
+            redirection_data: None,
+            mandate_reference: get_worldpayxml_mandate_reference(order_status, payment),
             connector_metadata: None,
             network_txn_id: payment
                 .authorisation_id
