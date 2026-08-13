@@ -592,9 +592,16 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         match item.response {
             NetceteraAuthenticateResponse::Success(response) => {
+                // Mirrors hyperswitch's own Netcetera connector (see PR #13403): checking only
+                // `acs_challenge_mandated == Y` misses the case where the ACS returns
+                // `trans_status: ChallengeRequired` (or the decoupled variant) without
+                // explicitly mandating it — that payment would incorrectly be treated as
+                // frictionless here, diverging from the direct-connector path for the same
+                // response.
                 let is_challenge = matches!(
-                    response.acs_challenge_mandated,
-                    Some(ACSChallengeMandatedIndicator::Y)
+                    response.trans_status,
+                    common_enums::TransactionStatus::ChallengeRequired
+                        | common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication
                 );
 
                 // Challenge flow -> redirection (ACS) form. Frictionless flow ->
@@ -605,6 +612,10 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 // and unlike `DeutschebankThreeDSChallengeFlow` it is representable in the
                 // gRPC `RedirectForm` proto (the Deutschebank variant is rejected by the
                 // authenticate response builder with "Invalid response type received").
+                // `RedirectForm` carries only what a browser literally submits (`endpoint` +
+                // `creq`) — acs_reference_number/acs_trans_id/acs_signed_content have no such
+                // role and go exclusively through `connector_feature_data` below, not
+                // duplicated into `form_fields` too.
                 let redirection_data = if is_challenge {
                     match (
                         response.authentication_response.acs_url.clone(),
@@ -617,25 +628,6 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                 "threeDSServerTransID".to_string(),
                                 response.three_ds_server_trans_id.clone(),
                             );
-                            if let Some(acs_reference_number) = response
-                                .authentication_response
-                                .acs_reference_number
-                                .clone()
-                            {
-                                form_fields
-                                    .insert("acsReferenceNumber".to_string(), acs_reference_number);
-                            }
-                            if let Some(acs_trans_id) =
-                                response.authentication_response.acs_trans_id.clone()
-                            {
-                                form_fields.insert("acsTransID".to_string(), acs_trans_id);
-                            }
-                            if let Some(acs_signed_content) =
-                                response.authentication_response.acs_signed_content.clone()
-                            {
-                                form_fields
-                                    .insert("acsSignedContent".to_string(), acs_signed_content);
-                            }
                             Some(Box::new(RedirectForm::Form {
                                 endpoint: acs_url.to_string(),
                                 method: common_utils::Method::Post,
@@ -692,13 +684,11 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     response: Ok(PaymentsResponseData::AuthenticateResponse {
                         resource_id: None,
                         redirection_data,
-                        // Surface authentication data for the frictionless case;
-                        // for a challenge it is updated later via the RReq webhook.
-                        authentication_data: if is_challenge {
-                            None
-                        } else {
-                            Some(authentication_data)
-                        },
+                        // Mirrors hyperswitch's own Netcetera connector: `trans_status` (and the
+                        // rest of `authentication_data`) is always carried on the ARes, challenge
+                        // or frictionless alike — cavv/eci are simply absent until a challenge
+                        // resolves via the RReq webhook, same as the direct integration.
+                        authentication_data: Some(authentication_data),
                         connector_feature_data,
                         connector_response_reference_id: Some(response.three_ds_server_trans_id),
                         status_code: item.http_code,

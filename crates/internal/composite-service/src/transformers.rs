@@ -1331,6 +1331,7 @@ impl
             payment_status: item.payment_status,
             connector_transaction_id: item.connector_transaction_id.clone(),
             payment_connector: item.payment_connector,
+            address: item.address.clone(),
             state: Some(ConnectorState {
                 access_token,
                 connector_customer_id,

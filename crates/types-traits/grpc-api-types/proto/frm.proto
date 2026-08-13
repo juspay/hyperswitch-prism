@@ -42,8 +42,8 @@ message FrmServicePreRiskCheckRequest {
   // Order details
   repeated OrderDetailsWithAmount order_details = 6;
 
-  // Address information
-  optional Address address = 7;
+  // Billing / shipping address information
+  optional PaymentAddress address = 7;
 
   // Additional metadata for the connector
   optional SecretString metadata = 8;
@@ -59,7 +59,7 @@ message FrmServicePreRiskCheckRequest {
 
   // Recurring / mandate details for subscription risk scoring. Reuses the shared
   // MandateAmountData (from payment.proto): `amount` is the per-period billing
-  // amount, `frequency` the billing period. 
+  // amount, `frequency` the billing period.
   optional MandateAmountData mandate_details = 12;
 
   // Merchant details (id + MCC) for risk scoring.
@@ -133,6 +133,9 @@ message FrmServicePostRiskCheckRequest {
 
   // State Information
   optional ConnectorState state = 12;
+
+  // Billing / shipping address information
+  optional PaymentAddress address = 13;
 }
 
 // Response for FrmService.PostRiskCheck

@@ -898,6 +898,8 @@ enum Connector {
   TESOURO = 132;
   SANTANDER = 133;
   MAYA = 134;
+  GRABPAY = 135;
+  BOOST = 136;
 }
 
 // Payment method types
@@ -1018,6 +1020,7 @@ enum PaymentMethodType {
   QWIKCILVER_WALLET = 113;
   SKRILL = 114;
   PAYMAYA = 115;
+  GRAB_PAY = 116;
 }
 
 // Product type enumeration
@@ -1113,6 +1116,8 @@ message OrderDetailsWithAmount {
   optional double discount_percentage = 21;
   // Discount type applied to this item
   optional string discount_type = 22;
+  // The URL of the product
+  optional string product_link = 23;
 }
 
 // Access token details
@@ -1607,6 +1612,10 @@ message RedirectForm {
     // Generic hosted-iframe redirection: load `endpoint` in an iframe and
     // attach the connector-built `events` postMessage listener.
     HostedIframeData hosted_iframe = 7;
+
+    // A standalone script snippet (e.g. a device-data-collection script), when
+    // the connector returns script content instead of a full HTML document.
+    ScriptData script = 8;
   }
 }
 
@@ -1626,6 +1635,12 @@ message FormData {
 message HtmlData {
   // The HTML content as a string.
   string html_data = 1;
+}
+
+// Represents a standalone script snippet for redirection
+message ScriptData {
+  // The script content as a string (e.g. a `<script>` tag).
+  string script_data = 1;
 }
 
 // Represents URI data for direct redirection
@@ -1835,6 +1850,9 @@ message FrmNotificationContent {
 
   // Merchant details for risk scoring.
   optional MerchantDetails merchant_details = 8;
+
+  // Connector-specific feature data (e.g. AVS/CVV verification results) for the notify call.
+  optional SecretString connector_feature_data = 9;
 }
 
 // FRM payment success details
@@ -4131,6 +4149,9 @@ message PaymentServiceVerifyRedirectResponseRequest {
 
   // Security
   optional RedirectResponseSecrets redirect_response_secrets = 3;
+
+  // Connector-owned metadata from the original redirect flow.
+  optional SecretString connector_feature_data = 4;
 }
 
 // Response message for VerifyRedirectResponse
@@ -4153,6 +4174,9 @@ message PaymentServiceVerifyRedirectResponseResponse {
 
   // Raw Response
   optional SecretString raw_connector_response = 7;
+
+  // Connector-specific metadata produced while parsing the redirect response.
+  optional SecretString connector_feature_data = 8;
 }
 
 // ============================================================================
@@ -5559,10 +5583,25 @@ message GlomopayConfig {
   optional string base_url = 50;
 }
 
+message GrabpayConfig {
+  SecretString partner_id = 1;
+  SecretString partner_secret = 2;
+  SecretString client_id = 3;
+  SecretString client_secret = 4;
+  SecretString merchant_id = 5;
+  optional string base_url = 50;
+}
+
 message TesouroConfig {
   SecretString api_key = 1;
   SecretString key1 = 2;
   SecretString api_secret = 3;
+  optional string base_url = 50;
+}
+
+message BoostConfig {
+  SecretString client_id = 1;
+  SecretString merchant_secret = 2;
   optional string base_url = 50;
 }
 
@@ -5872,12 +5911,16 @@ message ConnectorSpecificConfig {
     TesouroConfig tesouro = 139;
     // DEUTSCHEBANK = 140
     DeutschebankConfig deutschebank = 140;
-    // PLAID = 141
+    // PLAID = 87
     PlaidConfig plaid = 141;
-    // SANTANDER = 142
+    // SANTANDER = 133
     SantanderConfig santander = 142;
-    // MAYA = 143
+    // MAYA = 134
     MayaConfig maya = 143;
+    // GRABPAY = 135
+    GrabpayConfig grabpay = 144;
+    // BOOST = 136
+    BoostConfig boost = 145;
   }
 }
 
