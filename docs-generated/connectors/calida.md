@@ -26,6 +26,7 @@ config = sdk_config_pb2.ConnectorConfig(
         calida=payment_pb2.CalidaConfig(
             api_key=payment_methods_pb2.SecretString(value="YOUR_API_KEY"),
             base_url="YOUR_BASE_URL",
+            shop_name=payment_methods_pb2.SecretString(value="YOUR_SHOP_NAME"),
         ),
     ),
 )
@@ -50,6 +51,7 @@ const config = ConnectorConfig.create({
         calida: {
             apiKey: { value: 'YOUR_API_KEY' },
             baseUrl: 'YOUR_BASE_URL',
+            shopName: { value: 'YOUR_SHOP_NAME' },
         }
     },
 });
@@ -70,6 +72,7 @@ val config = ConnectorConfig.newBuilder()
             .setCalida(CalidaConfig.newBuilder()
                 .setApiKey(SecretString.newBuilder().setValue("YOUR_API_KEY").build())
                 .setBaseUrl("YOUR_BASE_URL")
+                .setShopName(SecretString.newBuilder().setValue("YOUR_SHOP_NAME").build())
                 .build())
             .build()
     )
@@ -92,6 +95,7 @@ let config = ConnectorConfig {
             config: Some(connector_specific_config::Config::Calida(CalidaConfig {
                 api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())),  // Authentication credential
                 base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                shop_name: Some(hyperswitch_masking::Secret::new("YOUR_SHOP_NAME".to_string())),  // Authentication credential
                 ..Default::default()
             })),
         }),
@@ -126,4 +130,4 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/calida/calida.py) · [TypeScript](../../examples/calida/calida.ts#L64) · [Kotlin](../../examples/calida/calida.kt#L51) · [Rust](../../examples/calida/calida.rs)
+**Examples:** [Python](../../examples/calida/calida.py) · [TypeScript](../../examples/calida/calida.ts#L65) · [Kotlin](../../examples/calida/calida.kt#L52) · [Rust](../../examples/calida/calida.rs)
