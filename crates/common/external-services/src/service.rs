@@ -387,6 +387,8 @@ where
                             .set_connector_response_headers(body.headers.clone());
                     }
 
+                    // typed_connector_response is now set inside handle_response_v2
+                    // (serialized once and used for both event logging and typed response)
                     let handle_response_result = connector.handle_response_v2(
                         &updated_router_data,
                         event.as_deref_mut(),
@@ -448,7 +450,7 @@ where
                             .set_connector_response_headers(body.headers.clone());
                     }
 
-                    let error_response = match body.status_code {
+                    let mut error_response = match body.status_code {
                         500..=511 => connector.get_5xx_error_response(
                             body.clone(),
                             event.as_deref_mut(),
@@ -460,6 +462,17 @@ where
                             &updated_router_data.connector_config,
                         )?,
                     };
+                    if error_response.typed_connector_response.is_none() {
+                        if let Some(params) = event_params {
+                            tracing::warn!(
+                                connector = %params.connector_name,
+                                flow = %params.flow_name,
+                                status_code = body.status_code,
+                                "typed_connector_response is missing on error path — connector's build_error_response did not produce a typed error value"
+                            );
+                        }
+                    }
+
                     if let Some(evt) = event {
                         evt.set_error_response(&error_response);
                     }
@@ -488,8 +501,19 @@ where
                             &flow_status_label(flow_status),
                         );
                     }
+                    {
+                        error_response.raw_connector_response = updated_router_data
+                            .resource_common_data
+                            .get_raw_connector_response();
+                        error_response.raw_connector_request = updated_router_data
+                            .resource_common_data
+                            .get_raw_connector_request();
+                        error_response.typed_connector_request = updated_router_data
+                            .resource_common_data
+                            .get_typed_connector_request();
+                    }
                     Err(error_stack::report!(
-                        ConnectorError::ConnectorErrorResponse(error_response)
+                        ConnectorError::ConnectorErrorResponse(Box::new(error_response))
                     ))?
                 }
             };
@@ -646,6 +670,25 @@ where
                         .set_raw_connector_request(Some(
                             extract_raw_connector_request(request).into(),
                         ));
+                    if request.typed_connector_request_value.is_none()
+                        && request.body.as_ref().is_some_and(|b| {
+                            !matches!(b, RequestContent::FormData(_) | RequestContent::RawBytes(_))
+                        })
+                    {
+                        tracing::warn!(
+                            connector = %event_params.connector_name,
+                            flow = %event_params.flow_name,
+                            "typed_connector_request is missing — connector's build_request_v2 did not produce a typed request value"
+                        );
+                    }
+                    updated_router_data
+                        .resource_common_data
+                        .set_typed_connector_request(
+                            request
+                                .typed_connector_request_value
+                                .as_ref()
+                                .and_then(|v| serde_json::to_string(v).ok()),
+                        );
                     updated_router_data
                 }
                 _ => updated_router_data,
@@ -752,7 +795,10 @@ where
                         maskable_headers_to_json(&masked_headers),
                     )]);
 
-                    let masked_request = mask_connector_request(&request.body);
+                    let masked_request = request
+                        .typed_connector_request_value
+                        .clone()
+                        .unwrap_or_else(|| mask_connector_request(&request.body));
                     tracing::info!(request=?masked_request, "request of connector");
                     record_json_fields_on_span(vec![("request.body", masked_request.clone())]);
 
@@ -1066,6 +1112,21 @@ where
 
     let result_with_integrity_check = match result {
         Ok(data) => {
+            if data
+                .resource_common_data
+                .get_typed_connector_response()
+                .is_none()
+                && data
+                    .resource_common_data
+                    .get_raw_connector_response()
+                    .is_some()
+            {
+                tracing::warn!(
+                    connector = %event_params.connector_name,
+                    flow = %event_params.flow_name,
+                    "typed_connector_response is missing on success path — connector's handle_response_v2 did not produce a typed response value"
+                );
+            }
             data.request
                 .check_integrity(&data.request.clone(), None)
                 .map_err(|err| {
@@ -1099,15 +1160,14 @@ where
 #[cfg(feature = "injector-client")]
 fn mask_connector_request(request_content: &Option<RequestContent>) -> serde_json::Value {
     match request_content {
-        Some(request) => match request {
-            RequestContent::Json(i)
-            | RequestContent::FormUrlEncoded(i)
-            | RequestContent::Xml(i) => (**i)
-                .masked_serialize()
-                .unwrap_or(json!({ "error": "failed to mask serialize connector request"})),
-            RequestContent::FormData(_) => json!({"request_type": "FORM_DATA"}),
-            RequestContent::RawBytes(_) => json!({"request_type": "RAW_BYTES"}),
-        },
+        Some(request) => request
+            .masked_serialize_inner()
+            .map(|(v, _)| v)
+            .unwrap_or_else(|| match request {
+                RequestContent::FormData(_) => json!({"request_type": "FORM_DATA"}),
+                RequestContent::RawBytes(_) => json!({"request_type": "RAW_BYTES"}),
+                _ => serde_json::Value::Null,
+            }),
         None => serde_json::Value::Null,
     }
 }

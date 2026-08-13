@@ -76,6 +76,7 @@ macro_rules! impl_flow_handlers {
                     error_code: e.error_code,
                     http_status_code: None,
                     error_info: None,
+                ..Default::default()
                 })?;
                 let connector = request
                     .extracted_metadata
@@ -86,6 +87,7 @@ macro_rules! impl_flow_handlers {
                         error_code: "INVALID_CONNECTOR_TYPE".to_string(),
                         http_status_code: None,
                         error_info: None,
+                    ..Default::default()
                     })?;
                 $res_svc::<DefaultPCIHolder>(
                     request.payload,
@@ -99,6 +101,7 @@ macro_rules! impl_flow_handlers {
                             error_code: "MISSING_CONNECTOR_CONFIG".to_string(),
                             http_status_code: None,
                             error_info: None,
+                        ..Default::default()
                         })?,
                     &request.masked_metadata.unwrap_or_default(),
                     response,
@@ -151,6 +154,7 @@ macro_rules! impl_flow_handlers {
                     error_code: e.error_code,
                     http_status_code: None,
                     error_info: None,
+                ..Default::default()
                 })?;
                 let connector = request
                     .extracted_metadata
@@ -161,6 +165,7 @@ macro_rules! impl_flow_handlers {
                         error_code: "INVALID_CONNECTOR_TYPE".to_string(),
                         http_status_code: None,
                         error_info: None,
+                    ..Default::default()
                     })?;
                 $res_svc(
                     request.payload,
@@ -174,6 +179,7 @@ macro_rules! impl_flow_handlers {
                             error_code: "MISSING_CONNECTOR_CONFIG".to_string(),
                             http_status_code: None,
                             error_info: None,
+                        ..Default::default()
                         })?,
                     &request.masked_metadata.unwrap_or_default(),
                     response,
@@ -226,6 +232,7 @@ macro_rules! impl_flow_handlers {
                     error_code: e.error_code,
                     http_status_code: None,
                     error_info: None,
+                ..Default::default()
                 })?;
                 let connector = request
                     .extracted_metadata
@@ -236,6 +243,7 @@ macro_rules! impl_flow_handlers {
                         error_code: "INVALID_CONNECTOR_TYPE".to_string(),
                         http_status_code: None,
                         error_info: None,
+                    ..Default::default()
                     })?;
                 $res_svc(
                     request.payload,
@@ -249,6 +257,7 @@ macro_rules! impl_flow_handlers {
                             error_code: "MISSING_CONNECTOR_CONFIG".to_string(),
                             http_status_code: None,
                             error_info: None,
+                        ..Default::default()
                         })?,
                     &request.masked_metadata.unwrap_or_default(),
                     response,
@@ -301,6 +310,7 @@ macro_rules! impl_flow_handlers {
                     error_code: e.error_code,
                     http_status_code: None,
                     error_info: None,
+                ..Default::default()
                 })?;
                 let connector = request
                     .extracted_metadata
@@ -311,6 +321,7 @@ macro_rules! impl_flow_handlers {
                         error_code: "INVALID_CONNECTOR_TYPE_FOR_PAYOUT".to_string(),
                         http_status_code: None,
                         error_info: None,
+                    ..Default::default()
                     })?;
                 $res_svc(
                     request.payload,
@@ -324,6 +335,7 @@ macro_rules! impl_flow_handlers {
                             error_code: "MISSING_CONNECTOR_CONFIG".to_string(),
                             http_status_code: None,
                             error_info: None,
+                        ..Default::default()
                         })?,
                     &request.masked_metadata.unwrap_or_default(),
                     response,

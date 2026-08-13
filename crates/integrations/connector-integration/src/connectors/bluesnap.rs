@@ -35,7 +35,7 @@ use transformers::{
 };
 
 use super::macros;
-use crate::{types::ResponseRouterData, with_error_response_body};
+use crate::{finalize_connector_response, types::ResponseRouterData, with_error_response_body};
 use domain_types::errors::ConnectorError;
 use domain_types::errors::{IntegrationError, WebhookError};
 
@@ -639,7 +639,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ClientAuthenticationTokenRequestData,
             PaymentsResponseData,
         >,
-        _event_builder: Option<&mut events::Event>,
+        event_builder: Option<&mut events::Event>,
         res: Response,
     ) -> CustomResult<
         RouterDataV2<
@@ -686,28 +686,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             pf_token: Some(hyperswitch_masking::Secret::new(pf_token.to_string())),
         };
 
-        let response_router_data = ResponseRouterData {
-            response,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        };
-
-        RouterDataV2::<
-            ClientAuthenticationToken,
-            MerchantAuthenticationFlowData,
-            ClientAuthenticationTokenRequestData,
-            PaymentsResponseData,
-        >::try_from(response_router_data)
-        .change_context(ConnectorError::ResponseHandlingFailed {
-            context: domain_types::errors::ResponseTransformationErrorContext {
-                http_status_code: Some(res.status_code),
-                additional_context: Some(
-                    "Failed to convert Bluesnap ClientAuthenticationToken response \
-                     into RouterDataV2."
-                        .to_owned(),
-                ),
-            },
-        })
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -809,6 +788,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             )?;
 
         with_error_response_body!(event_builder, response);
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
 
         Ok(ErrorResponse {
             status_code: res.status_code,
@@ -820,6 +801,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     }
 }
