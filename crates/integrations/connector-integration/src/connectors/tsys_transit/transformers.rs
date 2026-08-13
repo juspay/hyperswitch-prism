@@ -3059,14 +3059,19 @@ impl TryFrom<ResponseRouterData<TsysTransitTransactionInquiryResponse, Self>>
             }
             None => {
                 // In case of rsync failure, returning an error response would fail the refund, hence we are constructing the old state of the refund and returning it
+                let refund_status = RefundStatus::Unknown;
                 let refund_response = RefundsResponseData {
                     connector_refund_id: router_data.request.connector_refund_id.clone(),
-                    refund_status: router_data.resource_common_data.status,
+                    refund_status:  refund_status.clone(),
                     status_code: item.http_code,
                     acquirer_reference_number: None,
                 };
 
                 Ok(Self {
+                     resource_common_data: RefundFlowData {
+                        status: refund_status,
+                        ..router_data.resource_common_data.clone()
+                    },
                     response: Ok(refund_response),
                     ..router_data.clone()
                 })
