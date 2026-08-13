@@ -71,6 +71,10 @@ default = []
 kafka = ["tracing-kafka"]
 otel = ["dep:opentelemetry", "dep:opentelemetry-otlp", "dep:opentelemetry_sdk"]
 log-transformations = ["common_utils/log-transformations"]
+# Déjà record/replay. At this layer the feature is dependency-free: it only gates the
+# typed `[deja]` config surface (plain serde types). Boundary instrumentation and the
+# `deja` crate dependency are wired in later crates/PRs.
+deja = []
 
 [lints]
 workspace = true

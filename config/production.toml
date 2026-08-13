@@ -193,3 +193,16 @@ connectors_with_webhook_source_verification_call = "paypal, truelayer"
 enabled = false
 
 [connector_response_masking.connector_keys]
+# --- Déjà record/replay ---------------------------------------------------------
+# Only has any effect when built with the `deja` feature; ignored otherwise.
+# mode: "disabled" (default). Replay is rejected at boot in production.
+[deja]
+mode = "disabled"
+
+[deja.recording.kafka]
+topic = "ucs-deja-recording-events"
+brokers = []          # empty => inherit the [events] brokers at boot
+
+[deja.sampler]
+record_key = "deja_record"
+fail_closed = true
