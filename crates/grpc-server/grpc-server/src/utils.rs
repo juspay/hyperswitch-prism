@@ -342,8 +342,11 @@ pub fn log_after_initialization<T>(
 
     match &result {
         Ok(response) => {
-            // Success HTTP status; euler's `res_code` is present on every line.
-            current_span.record("status_code", 200_i64);
+            // Additive numeric euler `res_code` (success). `status_code` is left untouched
+            // (main parity) so existing consumers of the gRPC-code field don't break.
+            log_utils::Storage::with_current_span_mut(|storage| {
+                storage.record_value("res_code", Value::from(200_i64));
+            });
 
             let res_ref = response.get_ref();
 
@@ -379,10 +382,14 @@ pub fn log_after_initialization<T>(
         }
         Err(status) => {
             current_span.record("error_message", status.message());
-            // Connector-aware HTTP status (e.g. 422) — matches the HTTP response the caller
-            // receives, not the coarse gRPC code.
+            // Backward-compatible: keep main's gRPC code-name string on `status_code`.
+            current_span.record("status_code", status.code().to_string());
+            // Additive numeric euler `res_code`: connector-aware HTTP status (e.g. 422) —
+            // matches the HTTP response the caller receives, not the coarse gRPC code.
             let http_status = crate::http::error::http_status_for_status(status).as_u16();
-            current_span.record("status_code", i64::from(http_status));
+            log_utils::Storage::with_current_span_mut(|storage| {
+                storage.record_value("res_code", Value::from(i64::from(http_status)));
+            });
         }
     }
     // Apply unified log fields (transformations + static values) before emitting the golden log line
