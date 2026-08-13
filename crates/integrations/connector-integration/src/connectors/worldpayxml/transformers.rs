@@ -120,12 +120,16 @@ where
 
 /// Builds the Worldpay payment method element for an Apple Pay or Google Pay wallet.
 ///
-/// When Hyperswitch has decrypted the wallet token we send the network token over `EMVCO_TOKEN-SSL`
+/// Wallet data that arrives already decrypted goes over `EMVCO_TOKEN-SSL` as a network token
 /// (PAN + cryptogram), which is the only shape Worldpay will register against a stored-credential
-/// agreement. An still-encrypted token is passed through on the wallet-specific element instead.
+/// agreement. Data that arrives still encrypted — the connector decryption flow, where Worldpay
+/// decrypts at its end — is forwarded on the wallet-specific element instead.
+///
+/// `customer_name` is only carried on the Google Pay elements; Apple Pay's decrypted token has no
+/// cardholder name associated with it, matching how hyperswitch builds these requests.
 fn get_worldpayxml_wallet_payment_method(
     wallet_data: &WalletData,
-    card_holder_name: Option<Secret<String>>,
+    customer_name: Option<Secret<String>>,
 ) -> Result<requests::WorldpayxmlPaymentMethod, Report<IntegrationError>> {
     match wallet_data {
         WalletData::ApplePay(apple_pay_data) => {
@@ -143,7 +147,7 @@ fn get_worldpayxml_wallet_payment_method(
                                 year: decrypt_data.get_four_digit_expiry_year(),
                             },
                         },
-                        card_holder_name,
+                        card_holder_name: None,
                         cryptogram: Some(
                             decrypt_data.payment_data.online_payment_cryptogram.clone(),
                         ),
@@ -200,7 +204,7 @@ fn get_worldpayxml_wallet_payment_method(
                             token_type: requests::WorldpayxmlEmvcoTokenType::Googlepay,
                             token_number: decrypt_data.application_primary_account_number.clone(),
                             expiry_date,
-                            card_holder_name,
+                            card_holder_name: customer_name.clone(),
                             cryptogram: Some(cryptogram.clone()),
                             eci_indicator: decrypt_data.eci_indicator.clone(),
                         },
@@ -216,7 +220,7 @@ fn get_worldpayxml_wallet_payment_method(
                                     .to_string(),
                             ),
                             expiry_date,
-                            card_holder_name,
+                            card_holder_name: customer_name.clone(),
                             cvc: None,
                         },
                     )),
@@ -332,18 +336,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 billing_address.as_ref(),
             )?,
             PaymentMethodData::Wallet(wallet_data) => {
-                let card_holder_name = crate::utils::build_card_holder_name(
-                    &None,
-                    billing_address
-                        .as_ref()
-                        .and_then(|b| b.address.first_name.clone()),
-                    billing_address
-                        .as_ref()
-                        .and_then(|b| b.address.last_name.clone()),
-                )
-                .map(crate::utils::normalize_cardholder_name);
+                let customer_name = router_data
+                    .request
+                    .customer_name
+                    .clone()
+                    .map(|name| crate::utils::normalize_cardholder_name(Secret::new(name)));
 
-                get_worldpayxml_wallet_payment_method(wallet_data, card_holder_name)?
+                get_worldpayxml_wallet_payment_method(wallet_data, customer_name)?
             }
             _ => {
                 return Err(IntegrationError::NotSupported {
