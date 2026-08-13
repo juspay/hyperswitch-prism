@@ -3038,10 +3038,17 @@ impl TryFrom<ResponseRouterData<TsysTransitTransactionInquiryResponse, Self>>
             .and_then(get_refund_status)
         {
             Some(refund_status) => {
-                let transaction_details = response.transaction_details.as_ref().ok_or(ConnectorError::ResponseHandlingFailed { context: ResponseTransformationErrorContext {
-                        http_status_code: Some(item.http_code),
-                        additional_context: Some("tsysTransit: RSync response missing transactionDetails".to_string()),
-                } })?;
+                let transaction_details = response.transaction_details.as_ref().ok_or(
+                    ConnectorError::ResponseHandlingFailed {
+                        context: ResponseTransformationErrorContext {
+                            http_status_code: Some(item.http_code),
+                            additional_context: Some(
+                                "tsysTransit: RSync response missing transactionDetails"
+                                    .to_string(),
+                            ),
+                        },
+                    },
+                )?;
                 // In rsync response error reason is not returned
                 Ok(Self {
                     resource_common_data: RefundFlowData {
