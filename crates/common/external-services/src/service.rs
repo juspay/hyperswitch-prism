@@ -419,27 +419,21 @@ where
                         body.clone(),
                     );
 
-                    // Log response body and headers using properly masked data from connector
-                    if let Some(evt) = event.as_deref_mut() {
-                        let mut json_fields: Vec<(&'static str, serde_json::Value)> = Vec::new();
+                    let mut json_fields: Vec<(&'static str, serde_json::Value)> = Vec::new();
 
+                    // Log response body using properly masked data from connector
+                    if let Some(evt) = event.as_deref_mut() {
                         if let Some(response_data) = &evt.response_data {
                             json_fields.push(("response.body", response_data.inner().clone()));
                         }
-
-                        // Log response headers from event (already masked)
-                        if let Ok(headers_json) = serde_json::to_value(&evt.headers) {
-                            json_fields.push(("response.headers", headers_json));
-                        }
-
-                        if !json_fields.is_empty() {
-                            record_json_fields_on_span(json_fields);
-                        }
                     }
-                    tracing::Span::current().record(
-                        "response.headers",
-                        tracing::field::debug(&masked_response_headers),
-                    );
+
+                    // Log masked response headers
+                    json_fields.push(("response.headers", maskable_headers_to_json(&masked_response_headers)));
+
+                    if !json_fields.is_empty() {
+                        record_json_fields_on_span(json_fields);
+                    }
 
                     handle_response_result?
                 }
