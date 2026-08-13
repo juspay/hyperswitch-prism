@@ -19,6 +19,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.08.13.1
+
+### Features
+
+- **connector:** [BOOST] add Boost Connect (BCPG) connector ([#2085](https://github.com/juspay/connector-service/pull/2085)) ([`24700fc`](https://github.com/juspay/connector-service/commit/24700fc069dd9054c524998fa9e2102e7f6937ab))
+
+### Bug Fixes
+
+- **connector:** Add missing payment method type mapping and Stripe MIT parity fix ([#2096](https://github.com/juspay/connector-service/pull/2096)) ([`a90d84f`](https://github.com/juspay/connector-service/commit/a90d84f450fb604a09fbfb94520c338c13e5eb46))
+- **grabpay,maya:** Added superposition urls ([#2118](https://github.com/juspay/connector-service/pull/2118)) ([`9063e31`](https://github.com/juspay/connector-service/commit/9063e31d8d5e254ded498133d53981b86ae6bc66))
+
+**Full Changelog:** [`2026.08.13.0...2026.08.13.1`](https://github.com/juspay/connector-service/compare/2026.08.13.0...2026.08.13.1)
+
+- - -
+
 ## 2026.08.13.0
 
 ### Features
