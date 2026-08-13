@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.08.13.0
+
+### Features
+
+- **webhook:** Make x-auth header optional in incoming webhook flow ([#2098](https://github.com/juspay/connector-service/pull/2098)) ([`d5c7541`](https://github.com/juspay/connector-service/commit/d5c754160c8fd58ff176e258150d085fe4bcde3b))
+
+**Full Changelog:** [`2026.08.12.1...2026.08.13.0`](https://github.com/juspay/connector-service/compare/2026.08.12.1...2026.08.13.0)
+
+- - -
+
 ## 2026.08.12.1
 
 ### Features
