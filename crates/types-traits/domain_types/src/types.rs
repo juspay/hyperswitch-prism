@@ -15389,7 +15389,7 @@ pub fn generate_payment_sdk_session_token_response(
                         let apple_pay_response = grpc_api_types::payments::ApplepayClientAuthenticationResponse {
                             session_response: apple_pay_token.session_response.map(grpc_api_types::payments::ApplePaySessionResponse::foreign_try_from).transpose()?,
                             payment_request_data: apple_pay_token.payment_request_data.map(grpc_api_types::payments::ApplePayPaymentRequest::foreign_try_from).transpose()?,
-                            connector: apple_pay_token.connector,
+                            connector: grpc_api_types::payments::Connector::foreign_try_from(apple_pay_token.connector)?.into(),
                             delayed_session_token: apple_pay_token.delayed_session_token,
                             sdk_next_action: grpc_api_types::payments::SdkNextAction::from(apple_pay_token.sdk_next_action.next_action).into(),
                             connector_reference_id: apple_pay_token.connector_reference_id,
@@ -15587,6 +15587,27 @@ impl From<GpayBillingAddressFormat> for grpc_api_types::payments::GpayBillingAdd
     }
 }
 
+impl ForeignTryFrom<ConnectorEnum> for grpc_api_types::payments::Connector {
+    type Error = ConnectorError;
+
+    fn foreign_try_from(
+        connector: ConnectorEnum,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        // `ConnectorEnum` spells its variants in snake_case and the proto spells the same
+        // names in SCREAMING_SNAKE_CASE, which is what `from_str_name` matches on.
+        let grpc_connector = Self::from_str_name(&connector.to_string().to_ascii_uppercase())
+            .ok_or_else(|| ConnectorError::UnexpectedResponseError {
+                context: ResponseTransformationErrorContext {
+                    http_status_code: None,
+                    additional_context: Some(format!(
+                        "Connector {connector} has no matching variant in the proto Connector enum"
+                    )),
+                },
+            })?;
+        Ok(grpc_connector)
+    }
+}
+
 impl ForeignTryFrom<ApplePaySessionResponse> for grpc_api_types::payments::ApplePaySessionResponse {
     type Error = ConnectorError;
 
@@ -15714,7 +15735,10 @@ impl ForeignTryFrom<ClientAuthenticationTokenData>
                             .payment_request_data
                             .map(grpc_api_types::payments::ApplePayPaymentRequest::foreign_try_from)
                             .transpose()?,
-                        connector: apple_pay_token.connector,
+                        connector: grpc_api_types::payments::Connector::foreign_try_from(
+                            apple_pay_token.connector,
+                        )?
+                        .into(),
                         delayed_session_token: apple_pay_token.delayed_session_token,
                         sdk_next_action: grpc_api_types::payments::SdkNextAction::from(
                             apple_pay_token.sdk_next_action.next_action,
@@ -18498,6 +18522,35 @@ impl From<connector_types::WebhookResourceReference> for grpc_api_types::payment
                     merchant_payout_id,
                 })),
             },
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `ApplepayClientAuthenticationResponse.connector` is a proto `Connector` rather than a
+    /// free-form string, so the two connectors that build an Apple Pay session token have to
+    /// land on the right proto variant. The mapping goes through the SCREAMING_SNAKE_CASE
+    /// name, which is easy to break by renaming either side.
+    #[test]
+    fn apple_pay_session_connectors_map_to_their_proto_variants() {
+        for (connector, expected) in [
+            (
+                ConnectorEnum::Braintree,
+                grpc_api_types::payments::Connector::Braintree,
+            ),
+            (
+                ConnectorEnum::Trustpay,
+                grpc_api_types::payments::Connector::Trustpay,
+            ),
+        ] {
+            assert_eq!(
+                grpc_api_types::payments::Connector::foreign_try_from(connector).ok(),
+                Some(expected),
+                "{connector} does not map onto its proto Connector variant"
+            );
         }
     }
 }

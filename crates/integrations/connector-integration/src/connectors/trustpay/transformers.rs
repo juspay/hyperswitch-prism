@@ -19,7 +19,7 @@ use domain_types::{
     },
     connector_types::{
         AmountInfo, ApplePayPaymentRequest, ApplePaySessionResponse,
-        ApplepayClientAuthenticationResponse, ClientAuthenticationTokenData,
+        ApplepayClientAuthenticationResponse, ClientAuthenticationTokenData, ConnectorEnum,
         GooglePaySessionResponse, GpayAllowedPaymentMethods, GpayClientAuthenticationResponse,
         GpayMerchantInfo, GpayShippingAddressParameters, MandateReference, MandateReferenceId,
         NextActionCall, PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData,
@@ -2485,7 +2485,7 @@ pub(crate) fn get_apple_pay_session(
                 required_shipping_contact_fields: None,
                 recurring_payment_request: None,
             }),
-            connector: "trustpay".to_string(),
+            connector: ConnectorEnum::Trustpay,
             delayed_session_token: true,
             sdk_next_action: {
                 SdkNextAction {

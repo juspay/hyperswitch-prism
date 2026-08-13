@@ -15,7 +15,7 @@ use domain_types::{
     connector_types::{
         self, AmountInfo, ApplePayPaymentRequest, ApplePaySessionResponse,
         ApplepayClientAuthenticationResponse, ClientAuthenticationTokenData,
-        ClientAuthenticationTokenRequestData, GooglePaySessionResponse,
+        ClientAuthenticationTokenRequestData, ConnectorEnum, GooglePaySessionResponse,
         GpayAllowedMethodsParameters, GpayAllowedPaymentMethods, GpayClientAuthenticationResponse,
         GpayMerchantInfo, GpayShippingAddressParameters, GpayTokenParameters,
         GpayTokenizationSpecification, GpayTransactionInfo, MandateReference, NextActionCall,
@@ -2111,7 +2111,7 @@ impl<F> TryFrom<ResponseRouterData<BraintreeSessionResponse, Self>>
                                     required_shipping_contact_fields: None,
                                     recurring_payment_request: None,
                                 }),
-                                connector: BRAINTREE_CONNECTOR_NAME.to_string(),
+                                connector: ConnectorEnum::Braintree,
                                 delayed_session_token: false,
                                 sdk_next_action: SdkNextAction {
                                     next_action: NextActionCall::Confirm,
