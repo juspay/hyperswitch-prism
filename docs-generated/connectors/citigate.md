@@ -127,13 +127,20 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/citigate/citigate.py#L97) · [JavaScript](../../examples/citigate/citigate.js) · [Kotlin](../../examples/citigate/citigate.kt#L80) · [Rust](../../examples/citigate/citigate.rs#L124)
+**Examples:** [Python](../../examples/citigate/citigate.py#L107) · [JavaScript](../../examples/citigate/citigate.js) · [Kotlin](../../examples/citigate/citigate.kt#L91) · [Rust](../../examples/citigate/citigate.rs#L136)
+
+### Get Payment Status
+
+Retrieve current payment status from the connector.
+
+**Examples:** [Python](../../examples/citigate/citigate.py#L126) · [JavaScript](../../examples/citigate/citigate.js) · [Kotlin](../../examples/citigate/citigate.kt#L107) · [Rust](../../examples/citigate/citigate.rs#L152)
 
 ## API Reference
 
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
+| [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
 | [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
 
 ### Payments
@@ -268,7 +275,18 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/citigate/citigate.py) · [TypeScript](../../examples/citigate/citigate.ts#L119) · [Kotlin](../../examples/citigate/citigate.kt#L95) · [Rust](../../examples/citigate/citigate.rs)
+**Examples:** [Python](../../examples/citigate/citigate.py) · [TypeScript](../../examples/citigate/citigate.ts#L152) · [Kotlin](../../examples/citigate/citigate.kt#L125) · [Rust](../../examples/citigate/citigate.rs)
+
+#### PaymentService.Get
+
+Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceGetRequest` |
+| **Response** | `PaymentServiceGetResponse` |
+
+**Examples:** [Python](../../examples/citigate/citigate.py) · [TypeScript](../../examples/citigate/citigate.ts#L161) · [Kotlin](../../examples/citigate/citigate.kt#L137) · [Rust](../../examples/citigate/citigate.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -279,4 +297,4 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/citigate/citigate.py) · [TypeScript](../../examples/citigate/citigate.ts#L128) · [Kotlin](../../examples/citigate/citigate.kt#L107) · [Rust](../../examples/citigate/citigate.rs)
+**Examples:** [Python](../../examples/citigate/citigate.py) · [TypeScript](../../examples/citigate/citigate.ts#L170) · [Kotlin](../../examples/citigate/citigate.kt#L145) · [Rust](../../examples/citigate/citigate.rs)

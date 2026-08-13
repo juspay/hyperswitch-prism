@@ -138,7 +138,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"PaymentTypeID\":\"1\",\"TransTypeID\":\"0\",\"MerchantName\":\"probe_key\",\"MerchantPassword\":\"probe_key\",\"MerchantRef\":\"probe_txn_001\",\"Currency\":\"USD\",\"Amount\":\"1000\",\"Brand\":\"VISA\",\"CardholderName\":\"John Doe\",\"CardNo\":\"4111111111111111\",\"ExpiryYear\":\"2030\",\"ExpiryMonth\":\"03\",\"CVV\":\"737\",\"Firstname\":\"John\",\"Surname\":\"Doe\",\"StreetLine1\":\"123 Main St\",\"City\":\"Seattle\",\"PostalCode\":\"98101\",\"Country\":\"US\",\"Email\":\"test@example.com\",\"UserIP\":\"1.2.3.4\"}"
+          "body": "{\"PaymentTypeID\":\"1\",\"TransTypeID\":\"0\",\"MerchantName\":\"probe_key\",\"MerchantPassword\":\"probe_key\",\"MerchantRef\":\"probe_txn_001\",\"Currency\":\"USD\",\"Amount\":\"1000\",\"Brand\":\"VISA\",\"CardholderName\":\"John Doe\",\"CardNo\":\"4111111111111111\",\"ExpiryYear\":\"2030\",\"ExpiryMonth\":\"03\",\"CVV\":\"737\",\"Firstname\":\"John\",\"Surname\":\"Doe\",\"StreetLine1\":\"123 Main St\",\"City\":\"Seattle\",\"PostalCode\":\"98101\",\"Country\":\"US\",\"Email\":\"test@example.com\",\"UserIP\":\"1.2.3.4\",\"SuccessURL\":\"https://example.com/return\",\"FailURL\":\"https://example.com/return\"}"
         }
       },
       "CashappQr": {
@@ -563,8 +563,24 @@
     },
     "get": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: payment_sync flow for citigate"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://gw-test.cgate.tech/orion/interface/json.ashx",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"PaymentTypeID\":\"1\",\"TransTypeID\":\"8\",\"MerchantName\":\"probe_key\",\"MerchantPassword\":\"probe_key\",\"MerchantRef\":\"probe_merchant_txn_001\"}"
+        }
       }
     },
     "handle_event": {
@@ -642,7 +658,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"PaymentTypeID\":\"1\",\"TransTypeID\":\"0\",\"MerchantName\":\"probe_key\",\"MerchantPassword\":\"probe_key\",\"MerchantRef\":\"probe_proxy_txn_001\",\"Currency\":\"USD\",\"Amount\":\"1000\",\"Brand\":\"VISA\",\"CardholderName\":\"John Doe\",\"CardNo\":\"{{$card_number}}\",\"ExpiryYear\":\"2030\",\"ExpiryMonth\":\"03\",\"CVV\":\"{{$card_cvc}}\",\"Firstname\":\"John\",\"Surname\":\"Doe\",\"StreetLine1\":\"123 Main St\",\"City\":\"Seattle\",\"PostalCode\":\"98101\",\"Country\":\"US\",\"Email\":\"test@example.com\",\"UserIP\":\"1.2.3.4\"}"
+          "body": "{\"PaymentTypeID\":\"1\",\"TransTypeID\":\"0\",\"MerchantName\":\"probe_key\",\"MerchantPassword\":\"probe_key\",\"MerchantRef\":\"probe_proxy_txn_001\",\"Currency\":\"USD\",\"Amount\":\"1000\",\"Brand\":\"VISA\",\"CardholderName\":\"John Doe\",\"CardNo\":\"{{$card_number}}\",\"ExpiryYear\":\"2030\",\"ExpiryMonth\":\"03\",\"CVV\":\"{{$card_cvc}}\",\"Firstname\":\"John\",\"Surname\":\"Doe\",\"StreetLine1\":\"123 Main St\",\"City\":\"Seattle\",\"PostalCode\":\"98101\",\"Country\":\"US\",\"Email\":\"test@example.com\",\"UserIP\":\"1.2.3.4\",\"SuccessURL\":\"https://example.com/return\",\"FailURL\":\"https://example.com/return\"}"
         }
       }
     },

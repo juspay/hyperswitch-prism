@@ -193,9 +193,9 @@ examples_python: examples/checkout/checkout.py
 ## Citigate
 connector_id: citigate
 doc: docs/connectors/citigate.md
-scenarios: checkout_autocapture
+scenarios: checkout_autocapture, get_payment
 payment_methods: Card
-flows: authorize, proxy_authorize
+flows: authorize, get, proxy_authorize
 examples_python: examples/citigate/citigate.py
 
 ## CryptoPay
