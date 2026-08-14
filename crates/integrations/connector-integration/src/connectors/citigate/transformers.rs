@@ -51,6 +51,12 @@ const TRANS_TYPE_ID_STATUS_CHECK: &str = "8";
 const RESPONSE_CODE_APPROVED: &str = "0";
 /// `ResponseCode` returned when the cardholder failed 3D authentication at the ACS.
 const RESPONSE_CODE_3D_AUTH_FAILURE: &str = "103";
+/// `ResponseCode` returned when the cardholder abandoned the transaction.
+const RESPONSE_CODE_USER_ABORTED: &str = "106";
+/// `ResponseCode` returned when the cardholder never reached the redirect target.
+const RESPONSE_CODE_NO_USER_REDIRECT: &str = "700";
+/// `ResponseCode` returned when the cardholder never came back from the redirect.
+const RESPONSE_CODE_NO_USER_RETURN: &str = "800";
 /// `ResponseCode` returned when a cardholder redirect (3DS) is required.
 const RESPONSE_CODE_REDIRECT_REQUIRED: &str = "600";
 /// Undocumented `ResponseCode` observed on Status Check responses; discriminated on
@@ -226,6 +232,13 @@ pub struct CitigatePaymentsRequest<T: PaymentMethodDataTypes> {
     pub email: Email,
     #[serde(rename = "Telephone", skip_serializing_if = "Option::is_none")]
     pub telephone: Option<Secret<String>>,
+    /// `R` — and "Mandatory for Country = "US"" per the field table. Always `None`:
+    /// UCS carries no billing/customer date of birth on the card Authorize path
+    /// (`date_of_birth` exists only on `MifinityData` and the airline passenger
+    /// model), so there is nothing to source it from. Declared rather than omitted
+    /// so the gap is visible here instead of silently missing from the wire format.
+    #[serde(rename = "DateOfBirth", skip_serializing_if = "Option::is_none")]
+    pub date_of_birth: Option<Secret<String>>,
     #[serde(rename = "UserIP")]
     pub user_ip: Secret<String>,
     /// `Y**` — mandatory on 3D-Secure-enabled MIDs, ignored elsewhere. Citigate
@@ -297,6 +310,26 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // gateway reject the transaction with ResponseCode 535.
         let user_ip = router_data.request.get_ip_address()?;
 
+        // The field table qualifies three fields with "Mandatory for Country = "US""
+        // on top of their `Y`/`R` flag, so the country has to be resolved before the
+        // request is assembled. Outside the US the documented flags stand on their
+        // own: `StateProvince` and `Telephone` stay optional, because most countries
+        // have no state and the gateway does not ask for one.
+        let country = common.get_billing_country()?;
+        let is_us_billing = country == common_enums::CountryAlpha2::US;
+
+        let state_province = if is_us_billing {
+            Some(common.get_billing_state()?)
+        } else {
+            common.get_optional_billing_state()
+        };
+
+        let telephone = if is_us_billing {
+            Some(common.get_billing_phone_number()?)
+        } else {
+            common.get_optional_billing_phone_number()
+        };
+
         // 3DS is an attribute of the MID, not of the transaction: there is no
         // `3ds`/`no_3ds` request flag anywhere in the interface, and the gateway may
         // ask for a redirect "irrespective of MID type". The three `Y**` URLs are
@@ -351,10 +384,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             street_line2: common.get_optional_billing_line2(),
             city: common.get_billing_city()?,
             postal_code: common.get_billing_zip()?,
-            state_province: common.get_optional_billing_state(),
-            country: common.get_billing_country()?,
+            state_province,
+            country,
             email,
-            telephone: common.get_optional_billing_phone_number(),
+            telephone,
+            // No domain source on the card path — see the field's doc comment.
+            date_of_birth: None,
             user_ip: Secret::new(user_ip.peek().to_string()),
             success_url: return_url.clone(),
             fail_url: return_url,
@@ -515,11 +550,17 @@ impl CitigatePaymentsResponse {
     /// Status attached to a failed Authorize response.
     fn failure_status(&self) -> AttemptStatus {
         match self.response_code() {
-            // Cardholder failed / abandoned authentication at the ACS, or the
-            // gateway asked for a redirect without telling us where to.
-            RESPONSE_CODE_3D_AUTH_FAILURE | RESPONSE_CODE_REDIRECT_REQUIRED => {
-                AttemptStatus::AuthenticationFailed
-            }
+            // Cardholder failed / abandoned authentication at the ACS, never made it
+            // to the ACS (`700`) or never came back from it (`800`), or the gateway
+            // asked for a redirect without telling us where to. Every one of these
+            // fails at the authentication stage, before the bank was ever asked to
+            // authorize, so none of them should be reported as an authorization
+            // failure.
+            RESPONSE_CODE_3D_AUTH_FAILURE
+            | RESPONSE_CODE_USER_ABORTED
+            | RESPONSE_CODE_NO_USER_REDIRECT
+            | RESPONSE_CODE_NO_USER_RETURN
+            | RESPONSE_CODE_REDIRECT_REQUIRED => AttemptStatus::AuthenticationFailed,
             _ => AttemptStatus::AuthorizationFailed,
         }
     }
@@ -578,7 +619,10 @@ impl CitigatePaymentsResponse {
     /// `MerchantName` + `MerchantPassword` + `MerchantRef` triple matched nothing.
     fn sync_failure_status(&self) -> AttemptStatus {
         match self.response_code() {
-            RESPONSE_CODE_3D_AUTH_FAILURE => AttemptStatus::AuthenticationFailed,
+            RESPONSE_CODE_3D_AUTH_FAILURE
+            | RESPONSE_CODE_USER_ABORTED
+            | RESPONSE_CODE_NO_USER_REDIRECT
+            | RESPONSE_CODE_NO_USER_RETURN => AttemptStatus::AuthenticationFailed,
             _ => AttemptStatus::Failure,
         }
     }
