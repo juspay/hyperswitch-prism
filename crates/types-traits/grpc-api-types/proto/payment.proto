@@ -4836,9 +4836,9 @@ message BamboraapacConfig {
 }
 
 message CalidaConfig {
-SecretString api_key = 1;
-optional SecretString shop_name = 2;
-optional string base_url = 50;
+  SecretString api_key = 1;
+  optional SecretString shop_name = 2;
+  optional string base_url = 50;
 }
 
 message CeleroConfig {

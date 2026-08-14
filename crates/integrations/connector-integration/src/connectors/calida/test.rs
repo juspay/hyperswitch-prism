@@ -15,6 +15,7 @@ mod tests {
             connector_types::{
                 ConnectorEnum, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData,
             },
+            errors::IntegrationError,
             payment_method_data::{DefaultPCIHolder, PaymentMethodData, WalletData},
             router_data::{ConnectorSpecificConfig, ErrorResponse},
             router_data_v2::RouterDataV2,
@@ -551,7 +552,14 @@ mod tests {
             > = connector_data.connector.get_connector_integration_v2();
 
             let result = connector_integration.build_request_v2(&req);
-            assert!(result.is_err(), "Expected error for missing fields");
+            let error = result.expect_err("Expected error for missing fields");
+            assert!(
+                matches!(
+                    error.current_context(),
+                    IntegrationError::MissingRequiredField { field_name: "shop_name", .. }
+                ),
+                "Expected MissingRequiredField for shop_name, got: {error:?}"
+            );
         }
     }
 }

@@ -21,7 +21,7 @@ fn build_client() -> ConnectorClient {
                 api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())), // Authentication credential
                 shop_name: Some(hyperswitch_masking::Secret::new(
                     "YOUR_SHOP_NAME".to_string(),
-                )), // Authentication credential
+                )), // Merchant metadata: shop name
                 base_url: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
                 ..Default::default()
             })),
