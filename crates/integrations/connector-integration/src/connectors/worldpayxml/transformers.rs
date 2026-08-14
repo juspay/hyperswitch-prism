@@ -1323,10 +1323,44 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             });
         }
 
+        // The whole point of a mandate setup is the payment token, and Worldpay can authorise
+        // the order without issuing one (tokenisation not enabled on the merchant profile, or a
+        // token event conflict). Reporting success with no mandate reference would store a
+        // "successful" mandate that every later merchant-initiated payment fails against, so a
+        // token-less success must fail loudly here instead.
+        let mandate_reference = get_worldpayxml_mandate_reference(order_status, payment);
+        if mandate_reference.is_none() {
+            return Ok(Self {
+                resource_common_data: PaymentFlowData {
+                    status: AttemptStatus::Failure,
+                    ..router_data.resource_common_data.clone()
+                },
+                response: Err(ErrorResponse {
+                    code: common_utils::consts::NO_ERROR_CODE.to_string(),
+                    message: "Worldpay authorised the order but did not issue a payment token, \
+                              so the mandate cannot be charged later. Confirm tokenisation is \
+                              enabled on the merchant profile."
+                        .to_string(),
+                    reason: Some("no paymentTokenID in the setup mandate response".to_string()),
+                    status_code: item.http_code,
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
+                    connector_transaction_id: Some(order_status.order_code.clone()),
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
+                }),
+                ..router_data.clone()
+            });
+        }
+
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(order_status.order_code.clone()),
             redirection_data: None,
-            mandate_reference: get_worldpayxml_mandate_reference(order_status, payment),
+            mandate_reference,
             connector_metadata: None,
             network_txn_id: payment
                 .authorisation_id
@@ -1426,6 +1460,41 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             router_data.request.is_auto_capture(),
             Some(&router_data.resource_common_data.status),
         );
+
+        // A refused merchant-initiated payment is the case that most needs its decline detail
+        // (retry and dunning logic key off it), so surface the ISO 8583 return code the same
+        // way the SetupMandate transformer does instead of a bare Failure status.
+        if status == AttemptStatus::Failure {
+            let return_code = payment.iso8583_return_code.as_ref();
+            return Ok(Self {
+                resource_common_data: PaymentFlowData {
+                    status,
+                    ..router_data.resource_common_data.clone()
+                },
+                response: Err(ErrorResponse {
+                    code: return_code.map_or_else(
+                        || common_utils::consts::NO_ERROR_CODE.to_string(),
+                        |code| code.code.clone(),
+                    ),
+                    message: return_code.map_or_else(
+                        || common_utils::consts::NO_ERROR_MESSAGE.to_string(),
+                        |code| code.description.clone(),
+                    ),
+                    reason: return_code.map(|code| code.description.clone()),
+                    status_code: item.http_code,
+                    attempt_status: Some(FlowStatus::Payment(status)),
+                    connector_transaction_id: Some(order_status.order_code.clone()),
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
+                }),
+                ..router_data.clone()
+            });
+        }
 
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(order_status.order_code.clone()),
