@@ -35,7 +35,7 @@ use transformers::{
 };
 
 use super::macros;
-use crate::{types::ResponseRouterData, with_error_response_body};
+use crate::{finalize_connector_response, types::ResponseRouterData, with_error_response_body};
 use domain_types::errors::{ConnectorError, IntegrationError};
 
 pub(crate) mod headers {
@@ -316,6 +316,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         with_error_response_body!(event_builder, error_response);
 
+        let typed =
+            macros::serialize_typed_connector_payload(&error_response, "typed_connector_response");
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: error_response.code,
@@ -326,6 +328,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     }
 }
@@ -640,19 +646,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 "hipay",
             ))?;
 
-        if let Some(event) = event_builder {
-            event.set_connector_response(&response);
-        }
-
-        RouterDataV2::try_from(ResponseRouterData {
-            response,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        })
-        .change_context(crate::utils::response_handling_fail_for_connector(
-            res.status_code,
-            "hipay",
-        ))
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(

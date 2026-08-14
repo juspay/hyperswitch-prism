@@ -88,6 +88,7 @@ macro_rules! default_impl_verify_webhook_source_v2_single {
             ) -> CustomResult<Option<Request>, IntegrationError> {
                 Ok(None)
             }
+
         }
     };
 }
@@ -135,6 +136,7 @@ macro_rules! default_impl_payment_method_eligibility_v2_single {
                 )
                 .into())
             }
+
         }
     };
 }
@@ -352,6 +354,7 @@ macro_rules! default_impl_recharge_v2_single {
             ) -> CustomResult<Option<Request>, IntegrationError> {
                 Ok(None)
             }
+
         }
     };
 }
@@ -519,6 +522,7 @@ macro_rules! default_impl_create_payment_method_v2_single {
             ) -> CustomResult<Option<Request>, IntegrationError> {
                 Ok(None)
             }
+
         }
     };
 }
@@ -574,6 +578,7 @@ macro_rules! default_impl_get_payment_method_v2_single {
             ) -> CustomResult<Option<Request>, IntegrationError> {
                 Ok(None)
             }
+
         }
     };
 }
@@ -946,6 +951,7 @@ macro_rules! default_impl_refresh_payment_method_v2_single {
             ) -> CustomResult<Option<Request>, IntegrationError> {
                 Ok(None)
             }
+
         }
     };
 }
