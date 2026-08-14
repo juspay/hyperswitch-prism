@@ -66,8 +66,8 @@
         "error": "This feature is not implemented: Selected payment method through checkout"
       },
       "ApplePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "status": "not_supported",
+        "error": "Apple Pay payload that is still encrypted is not supported by checkout"
       },
       "ApplePayDecrypted": {
         "status": "supported",
@@ -276,8 +276,8 @@
         "error": "This feature is not implemented: Selected payment method through checkout"
       },
       "GooglePay": {
-        "status": "error",
-        "error": "Stuck on field: google_pay_decrypted_data — Missing required field: google_pay_decrypted_data"
+        "status": "not_supported",
+        "error": "Google Pay payload that is still encrypted is not supported by checkout"
       },
       "GooglePayDecrypted": {
         "status": "supported",
@@ -956,20 +956,83 @@
     },
     "token_authorize": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_tokenized_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "connector_token": "pm_1AbcXyzStripeTestToken",
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.sandbox.checkout.com/payments",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_secret",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"source\":{\"type\":\"token\",\"token\":\"pm_1AbcXyzStripeTestToken\",\"billing_address\":{}},\"amount\":1000,\"currency\":\"USD\",\"processing_channel_id\":\"probe_id\",\"3ds\":{\"enabled\":false,\"force_3ds\":false,\"eci\":null,\"cryptogram\":null,\"xid\":null,\"version\":null,\"challenge_indicator\":\"no_preference\"},\"success_url\":\"https://example.com/return?status=success\",\"failure_url\":\"https://example.com/return?status=failure\",\"capture\":true,\"reference\":\"probe_tokenized_txn_001\",\"payment_type\":\"Regular\",\"merchant_initiated\":false}"
+        }
       }
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through checkout"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_tokenized_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "connector_token": "pm_1AbcXyzStripeTestToken",
+          "address": {
+            "billing_address": {}
+          },
+          "customer_acceptance": {
+            "acceptance_type": "ONLINE",
+            "accepted_at": 0,
+            "online_mandate_details": {
+              "ip_address": "127.0.0.1",
+              "user_agent": "Mozilla/5.0"
+            }
+          },
+          "setup_mandate_details": {
+            "mandate_type": {
+              "multi_use": {
+                "amount": 0,
+                "currency": "USD",
+                "amount_money": {
+                  "minor_amount": 0,
+                  "currency": "USD"
+                }
+              }
+            }
+          },
+          "setup_future_usage": "OFF_SESSION"
+        },
+        "sample": {
+          "url": "https://api.sandbox.checkout.com/payments",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_secret",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"source\":{\"type\":\"token\",\"token\":\"pm_1AbcXyzStripeTestToken\",\"billing_address\":{}},\"amount\":0,\"currency\":\"USD\",\"processing_channel_id\":\"probe_id\",\"3ds\":{\"enabled\":false,\"force_3ds\":false,\"eci\":null,\"cryptogram\":null,\"xid\":null,\"version\":null,\"challenge_indicator\":\"no_preference\"},\"success_url\":null,\"failure_url\":null,\"capture\":true,\"reference\":\"probe_tokenized_mandate_001\",\"payment_type\":\"Unscheduled\",\"merchant_initiated\":false,\"store_for_future_use\":true}"
+        }
       }
     },
     "tokenize": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method_token flow for checkout"
+        "error": "This feature is not implemented: Selected payment method through checkout"
       }
     },
     "verify_redirect": {
