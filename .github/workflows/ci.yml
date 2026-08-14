@@ -716,22 +716,26 @@ jobs:
           fi
 
       # A brand-new connector (its connector_specs/<name>/ directory did not
-      # exist at this PR's base commit) gets exactly one live-sandbox proof
-      # requirement, on its own PR, regardless of whether it ever joins
+      # exist at this PR's base commit) gets a live-sandbox proof requirement
+      # on its own PR, regardless of whether it ever joins
       # certified_connectors.json. This is separate from cert-gate above:
       # it fires only for connectors newly added in *this* PR, not on every
       # core/proto change, and it does not depend on the reviewed manifest.
       #
       # The connector author declares readiness themselves, in their own
-      # specs.json (self_certify block: suite, scenario, skip_dependencies,
-      # has_live_creds), since only they know whether sandbox creds have
-      # been provisioned for this connector yet. has_live_creds: false is
-      # not silently accepted as a pass — it prints a visible, named,
-      # un-hideable warning so "merged without live proof" stays trackable
-      # rather than disappearing, and blocks the connector from being added
-      # to certified_connectors.json later without ever having been proven
-      # to work. has_live_creds: true actually runs the call and must PASS.
-      - name: Self-certify newly added connectors
+      # specs.json (verified_scenarios: an array, since a connector can — and
+      # for real coverage should — have multiple proven scenarios: different
+      # payment methods, capture modes, flows, not just one Authorize call).
+      # Each entry needs { suite, scenario, skip_dependencies, has_live_creds,
+      # no_creds_reason }. has_live_creds: false is not a silent or unexplained
+      # pass — no_creds_reason is mandatory in that case, visible directly in
+      # the PR diff (not just a CI log line), so "merged without live proof,
+      # and why" stays in the file a reviewer is already looking at. This
+      # array is expected to grow across later PRs as new payment methods/
+      # flows are added to the connector — it's a running record, not a
+      # one-time gate. has_live_creds: true actually runs the call and must
+      # PASS.
+      - name: Verify newly added connectors' declared scenarios
         if: ${{ env.RUN_TESTS == 'true' && needs.changes.outputs.new-connectors != '' }}
         shell: bash
         run: |
@@ -745,48 +749,57 @@ jobs:
               continue
             fi
 
-            self_certify=$(jq -c '.self_certify // empty' "$specs_path")
-            if [[ -z "$self_certify" ]]; then
-              echo "::error::New connector '$name' has no \"self_certify\" block in $specs_path — every new connector must declare { suite, scenario, has_live_creds } so its own PR proves (or explicitly defers) a real sandbox call. See stripe's certified_connectors.json entry for the suite/scenario shape."
+            entry_count=$(jq '.verified_scenarios // [] | length' "$specs_path")
+            if [[ "$entry_count" -eq 0 ]]; then
+              echo "::error::New connector '$name' has no \"verified_scenarios\" array in $specs_path — every new connector must declare at least one entry { suite, scenario, has_live_creds, no_creds_reason (if has_live_creds is false) } so its own PR proves (or explicitly and visibly defers) a real sandbox call. See stripe's certified_connectors.json entry for the suite/scenario shape."
               failures=$((failures + 1))
               continue
             fi
 
-            has_live_creds=$(jq -r '.has_live_creds // false' <<< "$self_certify")
-            suite=$(jq -r '.suite // empty' <<< "$self_certify")
-            scenario=$(jq -r '.scenario // empty' <<< "$self_certify")
-            skip_deps=$(jq -r '.skip_dependencies // false' <<< "$self_certify")
+            for i in $(seq 0 $((entry_count - 1))); do
+              entry=$(jq -c ".verified_scenarios[$i]" "$specs_path")
+              has_live_creds=$(jq -r '.has_live_creds // false' <<< "$entry")
+              suite=$(jq -r '.suite // empty' <<< "$entry")
+              scenario=$(jq -r '.scenario // empty' <<< "$entry")
+              skip_deps=$(jq -r '.skip_dependencies // false' <<< "$entry")
+              no_creds_reason=$(jq -r '.no_creds_reason // empty' <<< "$entry")
 
-            if [[ "$has_live_creds" != "true" ]]; then
-              echo "::warning::New connector '$name' declares has_live_creds: false — merging WITHOUT live sandbox proof. This is tracked, not blocked: sandbox credentials must be provisioned and this connector re-certified before it can be added to certified_connectors.json."
-              continue
-            fi
+              if [[ -z "$suite" || -z "$scenario" ]]; then
+                echo "::error::New connector '$name' verified_scenarios[$i] is missing suite/scenario in $specs_path"
+                failures=$((failures + 1))
+                continue
+              fi
 
-            if [[ -z "$suite" || -z "$scenario" ]]; then
-              echo "::error::New connector '$name' declares has_live_creds: true but self_certify.suite/scenario is missing in $specs_path"
-              failures=$((failures + 1))
-              continue
-            fi
+              if [[ "$has_live_creds" != "true" ]]; then
+                if [[ -z "$no_creds_reason" ]]; then
+                  echo "::error::New connector '$name' verified_scenarios[$i] ($suite / $scenario) has has_live_creds: false but no no_creds_reason — a bare false with no explanation is not accepted, say why (e.g. \"sandbox access requested, pending <team/ticket>\")."
+                  failures=$((failures + 1))
+                  continue
+                fi
+                echo "::warning::New connector '$name' verified_scenarios[$i] ($suite / $scenario) declares has_live_creds: false — merging WITHOUT live sandbox proof. Reason: $no_creds_reason. Tracked in $specs_path, not silently accepted: this connector cannot be added to certified_connectors.json until re-verified with real creds."
+                continue
+              fi
 
-            if ! jq -e --arg c "$name" 'has($c)' "${CONNECTOR_AUTH_FILE_PATH}" > /dev/null; then
-              echo "::error::New connector '$name' declares has_live_creds: true but has no entry in the CI credentials file — fix the declaration or add the creds"
-              failures=$((failures + 1))
-              continue
-            fi
+              if ! jq -e --arg c "$name" 'has($c)' "${CONNECTOR_AUTH_FILE_PATH}" > /dev/null; then
+                echo "::error::New connector '$name' verified_scenarios[$i] declares has_live_creds: true but has no entry in the CI credentials file — fix the declaration or add the creds"
+                failures=$((failures + 1))
+                continue
+              fi
 
-            echo "::group::Self-certifying $name ($suite / $scenario)"
-            args=(--skip-setup --connector "$name" --suite "$suite" --scenario "$scenario" --interface grpc --report)
-            [[ "$skip_deps" == "true" ]] && args+=(--skip-dependencies)
+              echo "::group::Verifying $name ($suite / $scenario)"
+              args=(--skip-setup --connector "$name" --suite "$suite" --scenario "$scenario" --interface grpc --report)
+              [[ "$skip_deps" == "true" ]] && args+=(--skip-dependencies)
 
-            if ! ./scripts/run-tests "${args[@]}"; then
-              echo "::error::Self-certification failed for new connector $name ($suite / $scenario)"
-              failures=$((failures + 1))
-            fi
-            echo "::endgroup::"
+              if ! ./scripts/run-tests "${args[@]}"; then
+                echo "::error::Verification failed for new connector $name ($suite / $scenario)"
+                failures=$((failures + 1))
+              fi
+              echo "::endgroup::"
+            done
           done
 
           if [[ "$failures" -gt 0 ]]; then
-            echo "::error::$failures new connector(s) failed self-certification"
+            echo "::error::$failures new connector scenario(s) failed verification"
             exit 1
           fi
 
