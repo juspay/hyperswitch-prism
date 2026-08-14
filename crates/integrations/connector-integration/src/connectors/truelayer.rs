@@ -41,7 +41,7 @@ use transformers::{
 };
 
 use super::macros;
-use crate::{types::ResponseRouterData, with_error_response_body};
+use crate::{finalize_connector_response, types::ResponseRouterData, with_error_response_body};
 
 // Trait for types that can provide access tokens
 pub trait AccessTokenProvider {
@@ -250,7 +250,7 @@ macros::create_all_prerequisites!(
             let idempotency_key = uuid::Uuid::new_v4().to_string();
             let truelayer_req = self
                 .get_request_body(req)?
-                .map(|req| req.get_inner_value().expose().clone());
+                .map(|req| req.content.get_inner_value().expose().clone());
             let http_method = self.get_http_method();
 
             let mut headers = BTreeMap::new();
@@ -337,6 +337,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         with_error_response_body!(event_builder, response);
 
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.title.clone(),
@@ -351,6 +353,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     }
 }
@@ -447,6 +453,7 @@ macros::macro_connector_implementation!(
 
             with_error_response_body!(event_builder, response);
 
+            let typed = macros::serialize_typed_connector_payload(&response, "typed_connector_response");
             Ok(ErrorResponse {
                 status_code: res.status_code,
                 code: response.error,
@@ -456,7 +463,11 @@ macros::macro_connector_implementation!(
                 connector_transaction_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
-                network_error_message: None
+                network_error_message: None,
+                typed_connector_response: typed,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
 })
         }
     }
@@ -724,19 +735,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     res.status_code,
                 "truelayer: response body did not match the expected format; confirm API version and connector documentation."),
             )?;
-        if let Some(event) = event_builder {
-            event.set_connector_response(&response)
-        }
-
-        RouterDataV2::try_from(ResponseRouterData {
-            response,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        })
-        .change_context(crate::utils::response_handling_fail_for_connector(
-            res.status_code,
-            "truelayer",
-        ))
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(

@@ -464,6 +464,10 @@ impl Revolv3SaleResponse {
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             let mandate_reference = self.payment_method_id.as_ref().map(|connector_mandate_id| {
@@ -550,6 +554,10 @@ impl Revolv3AuthorizeResponse {
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
             }),
         }
@@ -675,6 +683,10 @@ impl TryFrom<ResponseRouterData<Revolv3PaymentSyncResponse, Self>>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             let mandate_reference = item.response.payment_method.and_then(|payment_method| {
@@ -820,6 +832,10 @@ impl TryFrom<ResponseRouterData<Revolv3RefundResponse, Self>>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             Ok(RefundsResponseData {
@@ -877,6 +893,10 @@ impl TryFrom<ResponseRouterData<Revolv3RefundSyncResponse, Self>>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             Ok(RefundsResponseData {

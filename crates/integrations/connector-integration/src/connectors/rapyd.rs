@@ -167,6 +167,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         match response {
             Ok(response_data) => {
                 with_error_response_body!(event_builder, response_data);
+                let typed = macros::serialize_typed_connector_payload(
+                    &response_data,
+                    "typed_connector_response",
+                );
                 Ok(ErrorResponse {
                     status_code: res.status_code,
                     code: response_data.status.error_code,
@@ -177,6 +181,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 })
             }
             Err(error_msg) => {
@@ -359,7 +367,7 @@ macros::macro_connector_implementation!(
                 .unwrap_or(&url);
             // Get the exact request body that will be sent
             let body = self.get_request_body(req)?
-                .map(|content| content.get_inner_value().expose())
+                .map(|content| content.content.get_inner_value().expose())
                 .unwrap_or_default();
             self.build_headers(req, "post", url_path, &body)
         }
@@ -425,7 +433,7 @@ macros::macro_connector_implementation!(
             let url_path = url.strip_prefix(self.connector_base_url_payments(req))
                 .unwrap_or(&url);
             let body = self.get_request_body(req)?
-                .map(|content| content.get_inner_value().expose())
+                .map(|content| content.content.get_inner_value().expose())
                 .unwrap_or_default();
             self.build_headers(req, "post", url_path, &body)
         }
@@ -491,7 +499,7 @@ macros::macro_connector_implementation!(
             let url_path = url.strip_prefix(self.connector_base_url_refunds(req))
                 .unwrap_or(&url);
             let body = self.get_request_body(req)?
-                .map(|content| content.get_inner_value().expose())
+                .map(|content| content.content.get_inner_value().expose())
                 .unwrap_or_default();
             self.build_headers(req, "post", url_path, &body)
         }
@@ -556,7 +564,7 @@ macros::macro_connector_implementation!(
             let url_path = url.strip_prefix(self.connector_base_url_payments(req))
                 .unwrap_or(&url);
             let body = self.get_request_body(req)?
-                .map(|content| content.get_inner_value().expose())
+                .map(|content| content.content.get_inner_value().expose())
                 .unwrap_or_default();
             self.build_headers(req, "post", url_path, &body)
         }
@@ -616,6 +624,7 @@ macros::macro_connector_implementation!(
                         ..Default::default()
                     },
                 })?
+                .content
                 .get_inner_value()
                 .expose();
             self.build_headers(req, "post", url_path, &body)
@@ -681,6 +690,7 @@ macros::macro_connector_implementation!(
                         ..Default::default()
                     },
                 })?
+                .content
                 .get_inner_value()
                 .expose();
             self.build_headers(req, "post", url_path, &body)
@@ -715,7 +725,7 @@ macros::macro_connector_implementation!(
             let url_path = url.strip_prefix(self.connector_base_url_merchant_auth(req))
                 .unwrap_or(&url);
             let body = self.get_request_body(req)?
-                .map(|content| content.get_inner_value().expose())
+                .map(|content| content.content.get_inner_value().expose())
                 .unwrap_or_default();
             self.build_headers(req, "post", url_path, &body)
         }
