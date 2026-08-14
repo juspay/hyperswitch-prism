@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.08.14.1
+
+### Bug Fixes
+
+- **connector:** Read calida shop name from connector specific config ([#2106](https://github.com/juspay/connector-service/pull/2106)) ([`3419721`](https://github.com/juspay/connector-service/commit/34197214d6fa578b7dfc92afadde202867eac5fc))
+
+**Full Changelog:** [`2026.08.14.0...2026.08.14.1`](https://github.com/juspay/connector-service/compare/2026.08.14.0...2026.08.14.1)
+
+- - -
+
 ## 2026.08.14.0
 
 ### Features
