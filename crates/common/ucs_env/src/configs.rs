@@ -589,10 +589,14 @@ mod connector_response_masking_validation {
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../config");
         for file in ["development.toml", "sandbox.toml", "production.toml"] {
             let path = root.join(file);
+            // The file name is folded into the error rather than passed to `panic!`, which the
+            // workspace lints deny.
             let raw = std::fs::read_to_string(&path)
-                .unwrap_or_else(|err| panic!("{} must be readable: {err}", path.display()));
-            let parsed: OnlyMasking =
-                toml::from_str(&raw).unwrap_or_else(|err| panic!("{file} must parse: {err}"));
+                .map_err(|err| format!("{file}: {err}"))
+                .expect("shipped config must be readable");
+            let parsed: OnlyMasking = toml::from_str(&raw)
+                .map_err(|err| format!("{file}: {err}"))
+                .expect("shipped config must parse");
 
             assert!(
                 parsed
