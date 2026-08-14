@@ -107,7 +107,8 @@ jobs:
               - 'scripts/**'
             stripe:
               - 'crates/integrations/connector-integration/src/connectors/stripe.rs'
-              - 'crates/integrations/connector-integration/src/connectors/stripe/transformers.rs'
+              - 'crates/integrations/connector-integration/src/connectors/stripe/**'
+              - 'crates/internal/integration-tests/src/connector_specs/stripe/**'
             any-rs:
               - '**/*.rs'
             ci:
@@ -127,18 +128,30 @@ jobs:
 
       - name: Check whether changed connectors are certified
         id: certified-connectors
-        if: steps.connector-names.outputs.list != ''
         shell: bash
         run: |
           touched="false"
+
+          # A certified connector's own files changed.
           IFS=',' read -ra CONNECTORS <<< "${{ steps.connector-names.outputs.list }}"
           for c in "${CONNECTORS[@]}"; do
+            [[ -z "$c" ]] && continue
             if jq -e --arg c "$c" '.connectors[] | select(.name == $c)' \
               .github/test/certified_connectors.json > /dev/null; then
               touched="true"
               break
             fi
           done
+
+          # The manifest itself changed (e.g. adding a new certified
+          # connector) — must also trigger a run, or a newly-manifested
+          # connector's first certification silently waits for some
+          # unrelated future PR to touch its own files.
+          if git diff --name-only "${{ github.event.pull_request.base.sha || github.event.before }}" HEAD \
+              -- .github/test/certified_connectors.json | grep -q .; then
+            touched="true"
+          fi
+
           echo "touched=$touched" >> $GITHUB_OUTPUT
           echo "Certified connector touched: $touched"
 
@@ -603,28 +616,32 @@ jobs:
           fi
 
       # Certification runs a real gRPC call against each certified connector's
-      # live sandbox to catch shared/core/proto regressions that a compile-only
-      # check can't see. Scope:
-      #   - core/proto/CI/shared-harness changes -> whole certified manifest
-      #     (a break here can affect any connector, certified or not)
-      #   - connector-only PR touching a certified connector's files -> whole
-      #     manifest too (cheap; avoids tracking per-connector step identity)
-      #   - connector-only PR NOT touching a certified connector -> skipped
+      # live sandbox. Scoped ONLY to the certified connectors' own files
+      # (certified-connectors-touched) — deliberately NOT triggered by
+      # core/proto/CI changes generally.
+      #
+      # Why not core/proto: a full-fleet, all-connector, real-sandbox regression
+      # run already exists (Jenkins "Generate Test Report" job in
+      # hyperswitch-infra, connector-service-report-pipeline branch,
+      # .jenkins/connector-service/generate-test-report.Jenkinsfile) and covers
+      # the "did this core/proto change break some connector" question at the
+      # pre-tag/nightly level, where it belongs — that's where deployment gets
+      # blocked, not individual PRs. Firing this per-PR gate on every core/proto
+      # change would tax every unrelated PR (e.g. a Citigate PR touching
+      # router_data.rs for its own field) with a real Stripe API call it has
+      # nothing to do with — the exact blast-radius problem this scoping avoids.
       - name: Determine whether connector certification should run
         if: ${{ env.RUN_TESTS == 'true' }}
         id: cert-gate
         shell: bash
         run: |
-          CORE_CHANGED="${{ needs.changes.outputs.rust-core }}"
-          PROTO_CHANGED="${{ needs.changes.outputs.proto }}"
-          CI_CHANGED="${{ needs.changes.outputs.ci }}"
           CERTIFIED_TOUCHED="${{ needs.changes.outputs.certified-connectors-touched }}"
 
-          if [[ "${CORE_CHANGED}" == "true" || "${PROTO_CHANGED}" == "true" || "${CI_CHANGED}" == "true" || "${CERTIFIED_TOUCHED}" == "true" ]]; then
+          if [[ "${CERTIFIED_TOUCHED}" == "true" ]]; then
             echo "run=true" >> $GITHUB_OUTPUT
           else
             echo "run=false" >> $GITHUB_OUTPUT
-            echo "Skipping certification — no core/proto/CI/certified-connector changes detected"
+            echo "Skipping certification — no certified connector's own files changed"
           fi
 
       - name: Install grpcurl for test_ucs certification
