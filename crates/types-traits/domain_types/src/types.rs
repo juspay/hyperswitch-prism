@@ -1346,6 +1346,67 @@ impl ForeignFrom<payment_method_data::UpiSource> for grpc_api_types::payments::U
     }
 }
 
+impl ForeignTryFrom<PaymentMethodData<DefaultPCIHolder>>
+    for grpc_api_types::payments::PaymentMethod
+{
+    type Error = ConnectorError;
+
+    fn foreign_try_from(
+        payment_method_data: PaymentMethodData<DefaultPCIHolder>,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        use grpc_api_types::payments::payment_method::PaymentMethod as ProtoPaymentMethod;
+
+        let payment_method = match payment_method_data {
+            PaymentMethodData::BankRedirect(payment_method_data::BankRedirectData::OpenBanking {
+                account_number,
+                sort_code,
+                iban,
+                account_holder_name,
+                additional_details,
+            }) => {
+                let additional_details = additional_details
+                    .map(|details| {
+                        serde_json::to_string(details.peek()).map(Secret::new).change_context(
+                            ConnectorError::ResponseHandlingFailed {
+                                context: ResponseTransformationErrorContext {
+                                    additional_context: Some(
+                                        "Failed to serialize connector-returned Open Banking additional payment details"
+                                            .to_owned(),
+                                    ),
+                                    ..Default::default()
+                                },
+                            },
+                        )
+                    })
+                    .transpose()?;
+
+                ProtoPaymentMethod::OpenBanking(grpc_api_types::payments::OpenBanking {
+                    iban,
+                    account_number,
+                    sort_code,
+                    account_holder_name,
+                    additional_details,
+                })
+            }
+            _ => {
+                return Err(report!(ConnectorError::UnexpectedResponseError {
+                    context: ResponseTransformationErrorContext {
+                        additional_context: Some(
+                            "connector_returned_payment_method_details cannot be represented as proto PaymentMethod yet"
+                                .to_owned(),
+                        ),
+                        ..Default::default()
+                    },
+                }))
+            }
+        };
+
+        Ok(Self {
+            payment_method: Some(payment_method),
+        })
+    }
+}
+
 impl ForeignFrom<RawConnectorStatus> for grpc_api_types::payments::RawConnectorStatus {
     fn foreign_from(value: RawConnectorStatus) -> Self {
         Self {
@@ -1899,9 +1960,27 @@ impl<
                             .and_then(|c| CountryAlpha2::from_str(&c).ok()),
                     },
                 )),
-                grpc_api_types::payments::payment_method::PaymentMethod::OpenBanking(_) => {
+                grpc_api_types::payments::payment_method::PaymentMethod::OpenBanking(open_banking) => {
                     Ok(PaymentMethodData::BankRedirect(
-                        payment_method_data::BankRedirectData::OpenBanking {},
+                        payment_method_data::BankRedirectData::OpenBanking {
+                            account_number: open_banking.account_number,
+                            sort_code: open_banking.sort_code,
+                            iban: open_banking.iban,
+                            account_holder_name: open_banking.account_holder_name,
+                            additional_details: open_banking
+                                .additional_details
+                                .and_then(|details| {
+                                    serde_json::from_str(details.peek())
+                                        .map(Secret::new)
+                                        .map_err(|error| {
+                                            tracing::warn!(
+                                                ?error,
+                                                "Failed to parse Open Banking additional_details; continuing without it"
+                                            );
+                                        })
+                                        .ok()
+                                }),
+                        },
                     ))
                 }
                 grpc_api_types::payments::payment_method::PaymentMethod::LocalBankRedirect(_) => {
@@ -5385,6 +5464,7 @@ impl ForeignTryFrom<(PaymentServiceAuthorizeRequest, Connectors, &MaskedMetadata
             minor_amount_authorized: None,
             merchant_request_id: value.merchant_request_id.clone(),
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
             settlement_status: None,
         })
     }
@@ -5488,6 +5568,7 @@ impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for Pay
             merchant_request_id: value.merchant_request_id.clone(),
             l2_l3_data: l2_l3_data.map(Box::new),
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
             settlement_status: None,
         })
     }
@@ -5582,6 +5663,7 @@ impl ForeignTryFrom<(SetupRecurringRequest, Connectors, &MaskedMetadata)> for Pa
             minor_amount_authorized: None,
             merchant_request_id: None,
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
             l2_l3_data: l2_l3_data.map(Box::new),
             settlement_status: None,
         })
@@ -5703,6 +5785,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: l2_l3_data.map(Box::new),
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
             settlement_status: None,
         })
     }
@@ -5800,6 +5883,7 @@ impl
             merchant_request_id: value.merchant_request_id.clone(),
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
             settlement_status: None,
         })
     }
@@ -5878,6 +5962,7 @@ impl ForeignTryFrom<(PaymentServiceVoidRequest, Connectors, &MaskedMetadata)> fo
             merchant_request_id: value.merchant_request_id.clone(),
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
             settlement_status: None,
         })
     }
@@ -5967,6 +6052,7 @@ impl
             minor_amount_authorized: None,
             merchant_request_id: None,
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
             settlement_status: None,
         })
     }
@@ -8275,6 +8361,22 @@ pub fn generate_payment_sync_response(
                     connector_feature_data: convert_connector_metadata_to_secret_string(
                         connector_metadata,
                     ),
+                    connector_returned_payment_method_details: router_data_v2
+                        .resource_common_data
+                        .connector_returned_payment_method_details
+                        .clone()
+                        .and_then(|payment_method_data| {
+                            grpc_api_types::payments::PaymentMethod::foreign_try_from(
+                                payment_method_data,
+                            )
+                            .map_err(|error| {
+                                tracing::warn!(
+                                    ?error,
+                                    "Failed to convert connector_returned_payment_method_details; omitting it"
+                                );
+                            })
+                            .ok()
+                        }),
                 })
             }
             PaymentsResponseData::MultipleCaptureResponse {
@@ -8386,6 +8488,7 @@ pub fn generate_payment_sync_response(
                         |status| grpc_api_types::payments::SettlementStatus::from(status) as i32,
                     ),
                     connector_feature_data: None,
+                    connector_returned_payment_method_details: None,
                 })
             }
             _ => Err(report!(ConnectorError::UnexpectedResponseError {
@@ -8478,6 +8581,7 @@ pub fn generate_payment_sync_response(
                 splits: None,
                 settlement_status: None,
                 connector_feature_data: None,
+                connector_returned_payment_method_details: None,
             })
         }
     }
@@ -9450,6 +9554,7 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
             splits: None,
             settlement_status: None,
             connector_feature_data: None,
+            connector_returned_payment_method_details: None,
         })
     }
 }
@@ -9877,6 +9982,7 @@ impl
             merchant_request_id: value.merchant_request_id.clone(),
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
             settlement_status: None,
         })
     }
@@ -9992,6 +10098,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
             settlement_status: None,
         })
     }
@@ -11073,6 +11180,7 @@ impl
             merchant_request_id: value.merchant_request_id.clone(),
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
             settlement_status: None,
         })
     }
@@ -11557,6 +11665,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: l2_l3_data.map(Box::new),
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
             settlement_status: None,
         })
     }
@@ -11658,6 +11767,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
             settlement_status: None,
         })
     }
@@ -12919,6 +13029,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
             settlement_status: None,
         })
     }
@@ -13695,6 +13806,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
             settlement_status: None,
         })
     }
@@ -13876,6 +13988,7 @@ impl
             merchant_request_id: value.merchant_request_id,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
             settlement_status: None,
         })
     }
@@ -13991,6 +14104,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
             settlement_status: None,
         })
     }
@@ -14102,6 +14216,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
             settlement_status: None,
         })
     }
@@ -14400,6 +14515,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
             settlement_status: None,
         })
     }
@@ -14491,6 +14607,7 @@ impl
             l2_l3_data: None,
             sender_payment_instrument_id: None,
             settlement_status: None,
+            connector_returned_payment_method_details: None,
         })
     }
 }
@@ -16501,6 +16618,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
             settlement_status: None,
         })
     }
@@ -16614,6 +16732,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
             settlement_status: None,
         })
     }
@@ -16719,6 +16838,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
             settlement_status: None,
         })
     }
@@ -16802,6 +16922,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
             settlement_status: None,
         })
     }
