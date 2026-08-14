@@ -132,36 +132,41 @@ where
             );
 
             // 3. Open the record-only event (explicit correlation id — no ambient dependency).
-            let finalizer = should_record.then(|| {
-                let hook = super::hook().expect("active");
-                let decoded = super::descriptors::decode_unary_request(&rpc, &request_bytes);
-                let args = super::grpc_incoming_args(
-                    &rpc,
-                    authority.as_deref(),
-                    &headers,
-                    &request_bytes,
-                    decoded,
-                );
-                let builder = deja::EventBuilder::start_with_correlation_id(
-                    hook.as_ref(),
-                    "grpc_incoming",
-                    "GrpcServer",
-                    "call",
-                    caller,
-                    Some(request_id.clone()),
-                    args,
-                )
-                .with_semantics(deja::BoundarySemantics {
-                    replay_strategy: deja::ReplayStrategy::Substitute,
-                    kind: Some("grpc_incoming".to_owned()),
-                    declaration: Some(
-                        deja::BoundaryDeclaration::default()
-                            .operation(deja::OperationKind::ExternalCall),
-                    ),
-                });
-                let hook_dyn: Arc<dyn deja::DejaHook> = hook.clone();
-                deja::LazyEventFinalizer::new(builder, hook_dyn, serde_json::json!({}), false)
-            });
+            //    `should_record` is only true in record mode, where a hook is installed;
+            //    if there is somehow no hook we simply record nothing (never panic).
+            let finalizer = if should_record {
+                super::hook().map(|hook| {
+                    let decoded = super::descriptors::decode_unary_request(&rpc, &request_bytes);
+                    let args = super::grpc_incoming_args(
+                        &rpc,
+                        authority.as_deref(),
+                        &headers,
+                        &request_bytes,
+                        decoded,
+                    );
+                    let builder = deja::EventBuilder::start_with_correlation_id(
+                        hook.as_ref(),
+                        "grpc_incoming",
+                        "GrpcServer",
+                        "call",
+                        caller,
+                        Some(request_id.clone()),
+                        args,
+                    )
+                    .with_semantics(deja::BoundarySemantics {
+                        replay_strategy: deja::ReplayStrategy::Substitute,
+                        kind: Some("grpc_incoming".to_owned()),
+                        declaration: Some(
+                            deja::BoundaryDeclaration::default()
+                                .operation(deja::OperationKind::ExternalCall),
+                        ),
+                    });
+                    let hook_dyn: Arc<dyn deja::DejaHook> = hook.clone();
+                    deja::LazyEventFinalizer::new(builder, hook_dyn, serde_json::json!({}), false)
+                })
+            } else {
+                None
+            };
 
             // 4. Run the handler inside the ingress span (stamps ambient correlation for any
             //    boundary the handler fires). The handler ALWAYS runs.

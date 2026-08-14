@@ -6,6 +6,7 @@
 //!
 //! The purity test runs only in the default (feature-off) build. A feature-on
 //! companion asserts the same surface actually parses when the feature is enabled.
+#![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 
 fn dev_config_toml() -> String {
     let path = ucs_env::configs::workspace_path()
