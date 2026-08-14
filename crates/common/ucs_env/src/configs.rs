@@ -52,7 +52,7 @@ pub struct Config {
     #[serde(default)]
     pub runtime_metadata: RuntimeMetadata,
     /// Superposition configuration for connector URL resolution
-    /// This is loaded at startup from config/superposition.toml
+    /// This is loaded at startup and watches config/superposition.toml for changes.
     #[serde(skip)]
     #[patch(ignore)]
     pub superposition_config: Option<Arc<SuperpositionConfig>>,

@@ -150,6 +150,7 @@ impl DisputeService for Disputes {
                         &connector_config,
                         environment.as_deref(),
                     )
+                    .await
                     .to_grpc_error()?;
 
                     let dispute_flow_data =
@@ -391,6 +392,7 @@ impl DisputeService for Disputes {
                         &connector_config,
                         environment.as_deref(),
                     )
+                    .await
                     .to_grpc_error()?;
 
                     let dispute_flow_data =
