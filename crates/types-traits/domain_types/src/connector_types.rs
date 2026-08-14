@@ -598,6 +598,10 @@ pub trait RawConnectorRequestResponse {
     fn get_raw_connector_response(&self) -> Option<Secret<String>>;
     fn set_raw_connector_request(&mut self, request: Option<Secret<String>>);
     fn get_raw_connector_request(&self) -> Option<Secret<String>>;
+    fn set_typed_connector_response(&mut self, response: Option<String>);
+    fn get_typed_connector_response(&self) -> Option<String>;
+    fn set_typed_connector_request(&mut self, request: Option<String>);
+    fn get_typed_connector_request(&self) -> Option<String>;
 }
 
 pub trait ConnectorResponseHeaders {
@@ -798,7 +802,9 @@ pub struct PaymentFlowData {
     pub external_latency: Option<u128>,
     pub connectors: Connectors,
     pub raw_connector_response: Option<Secret<String>>,
+    pub typed_connector_response: Option<String>,
     pub raw_connector_request: Option<Secret<String>>,
+    pub typed_connector_request: Option<String>,
     pub vault_headers: Option<HashMap<String, Secret<String>>>,
     /// This field is used to store various data regarding the response from connector
     pub connector_response: Option<ConnectorResponseData>,
@@ -1494,6 +1500,22 @@ impl RawConnectorRequestResponse for PaymentFlowData {
 
     fn set_raw_connector_request(&mut self, request: Option<Secret<String>>) {
         self.raw_connector_request = request;
+    }
+
+    fn set_typed_connector_response(&mut self, response: Option<String>) {
+        self.typed_connector_response = response;
+    }
+
+    fn get_typed_connector_response(&self) -> Option<String> {
+        self.typed_connector_response.clone()
+    }
+
+    fn set_typed_connector_request(&mut self, request: Option<String>) {
+        self.typed_connector_request = request;
+    }
+
+    fn get_typed_connector_request(&self) -> Option<String> {
+        self.typed_connector_request.clone()
     }
 }
 
@@ -2684,8 +2706,10 @@ pub struct RefundFlowData {
     pub connectors: Connectors,
     pub connector_request_reference_id: String,
     pub raw_connector_response: Option<Secret<String>>,
+    pub typed_connector_response: Option<String>,
     pub connector_response_headers: Option<http::HeaderMap>,
     pub raw_connector_request: Option<Secret<String>>,
+    pub typed_connector_request: Option<String>,
     pub access_token: Option<ServerAuthenticationTokenResponseData>,
     pub connector_feature_data: Option<SecretSerdeValue>,
     pub test_mode: Option<bool>,
@@ -2713,6 +2737,22 @@ impl RawConnectorRequestResponse for RefundFlowData {
 
     fn set_raw_connector_request(&mut self, request: Option<Secret<String>>) {
         self.raw_connector_request = request;
+    }
+
+    fn set_typed_connector_response(&mut self, response: Option<String>) {
+        self.typed_connector_response = response;
+    }
+
+    fn get_typed_connector_response(&self) -> Option<String> {
+        self.typed_connector_response.clone()
+    }
+
+    fn set_typed_connector_request(&mut self, request: Option<String>) {
+        self.typed_connector_request = request;
+    }
+
+    fn get_typed_connector_request(&self) -> Option<String> {
+        self.typed_connector_request.clone()
     }
 }
 
@@ -3725,7 +3765,9 @@ pub struct DisputeFlowData {
     pub defense_reason_code: Option<String>,
     pub connector_request_reference_id: String,
     pub raw_connector_response: Option<Secret<String>>,
+    pub typed_connector_response: Option<String>,
     pub raw_connector_request: Option<Secret<String>>,
+    pub typed_connector_request: Option<String>,
     pub connector_response_headers: Option<http::HeaderMap>,
 }
 
@@ -3745,6 +3787,22 @@ impl RawConnectorRequestResponse for DisputeFlowData {
     fn get_raw_connector_request(&self) -> Option<Secret<String>> {
         self.raw_connector_request.clone()
     }
+
+    fn set_typed_connector_response(&mut self, response: Option<String>) {
+        self.typed_connector_response = response;
+    }
+
+    fn get_typed_connector_response(&self) -> Option<String> {
+        self.typed_connector_response.clone()
+    }
+
+    fn set_typed_connector_request(&mut self, request: Option<String>) {
+        self.typed_connector_request = request;
+    }
+
+    fn get_typed_connector_request(&self) -> Option<String> {
+        self.typed_connector_request.clone()
+    }
 }
 
 impl ConnectorResponseHeaders for DisputeFlowData {
@@ -3762,7 +3820,9 @@ pub struct VerifyWebhookSourceFlowData {
     pub connectors: Connectors,
     pub connector_request_reference_id: String,
     pub raw_connector_response: Option<Secret<String>>,
+    pub typed_connector_response: Option<String>,
     pub raw_connector_request: Option<Secret<String>>,
+    pub typed_connector_request: Option<String>,
     pub connector_response_headers: Option<http::HeaderMap>,
 }
 
@@ -3782,6 +3842,22 @@ impl RawConnectorRequestResponse for VerifyWebhookSourceFlowData {
     fn set_raw_connector_request(&mut self, request: Option<Secret<String>>) {
         self.raw_connector_request = request;
     }
+
+    fn set_typed_connector_response(&mut self, response: Option<String>) {
+        self.typed_connector_response = response;
+    }
+
+    fn get_typed_connector_response(&self) -> Option<String> {
+        self.typed_connector_response.clone()
+    }
+
+    fn set_typed_connector_request(&mut self, request: Option<String>) {
+        self.typed_connector_request = request;
+    }
+
+    fn get_typed_connector_request(&self) -> Option<String> {
+        self.typed_connector_request.clone()
+    }
 }
 
 impl ConnectorResponseHeaders for VerifyWebhookSourceFlowData {
@@ -3800,7 +3876,9 @@ pub struct RefreshPaymentMethodFlowData {
     pub connector_request_reference_id: String,
     /// Provider's encrypted form only — never decrypted payment method data.
     pub raw_connector_response: Option<Secret<String>>,
+    pub typed_connector_response: Option<String>,
     pub raw_connector_request: Option<Secret<String>>,
+    pub typed_connector_request: Option<String>,
     pub connector_response_headers: Option<http::HeaderMap>,
 }
 
@@ -3819,6 +3897,22 @@ impl RawConnectorRequestResponse for RefreshPaymentMethodFlowData {
 
     fn set_raw_connector_request(&mut self, request: Option<Secret<String>>) {
         self.raw_connector_request = request;
+    }
+
+    fn set_typed_connector_response(&mut self, response: Option<String>) {
+        self.typed_connector_response = response;
+    }
+
+    fn get_typed_connector_response(&self) -> Option<String> {
+        self.typed_connector_response.clone()
+    }
+
+    fn set_typed_connector_request(&mut self, request: Option<String>) {
+        self.typed_connector_request = request;
+    }
+
+    fn get_typed_connector_request(&self) -> Option<String> {
+        self.typed_connector_request.clone()
     }
 }
 

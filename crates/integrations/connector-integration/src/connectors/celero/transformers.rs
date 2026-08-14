@@ -424,6 +424,10 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<CeleroPaymentsRespons
                                     network_decline_code: None,
                                     network_advice_code: None,
                                     network_error_message: None,
+                                    typed_connector_response: None,
+                                    raw_connector_response: None,
+                                    raw_connector_request: None,
+                                    typed_connector_request: None,
                                 }),
                                 resource_common_data: PaymentFlowData {
                                     status: AttemptStatus::Failure,
@@ -470,6 +474,10 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<CeleroPaymentsRespons
                             network_decline_code: None,
                             network_advice_code: None,
                             network_error_message: None,
+                            typed_connector_response: None,
+                            raw_connector_response: None,
+                            raw_connector_request: None,
+                            typed_connector_request: None,
                         }),
                         resource_common_data: PaymentFlowData {
                             status: AttemptStatus::Failure,
@@ -501,6 +509,10 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<CeleroPaymentsRespons
                         network_decline_code: None,
                         network_advice_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     }),
                     resource_common_data: PaymentFlowData {
                         status: AttemptStatus::Failure,
@@ -611,6 +623,10 @@ impl TryFrom<ResponseRouterData<CeleroSyncResponse, Self>>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..router_data.clone()
             });
@@ -802,6 +818,10 @@ impl TryFrom<ResponseRouterData<CeleroCaptureResponse, Self>>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..router_data.clone()
             });
@@ -921,6 +941,10 @@ impl TryFrom<ResponseRouterData<CeleroRefundResponse, Self>>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..router_data.clone()
             });
@@ -1018,6 +1042,10 @@ impl TryFrom<ResponseRouterData<CeleroRefundSyncResponse, Self>>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..router_data.clone()
             }),
@@ -1107,6 +1135,10 @@ impl TryFrom<ResponseRouterData<CeleroVoidResponse, Self>>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..router_data.clone()
             });
