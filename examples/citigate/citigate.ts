@@ -46,9 +46,12 @@ function _buildAuthorizeRequest(captureMethod: types.CaptureMethod): types.IPaym
                 "lastName": {"value": "Doe"},
                 "line1": {"value": "123 Main St"},  // Address Details.
                 "city": {"value": "Seattle"},
+                "state": {"value": "WA"},
                 "zipCode": {"value": "98101"},
                 "countryAlpha2Code": CountryAlpha2.US,
-                "email": {"value": "test@example.com"}  // Contact Information.
+                "email": {"value": "test@example.com"},  // Contact Information.
+                "phoneNumber": {"value": "4155552671"},
+                "phoneCountryCode": "+1"
             }
         },
         "authType": AuthenticationType.NO_THREE_DS,  // Authentication Details.
@@ -102,9 +105,12 @@ function _buildProxyAuthorizeRequest(): types.IPaymentServiceProxyAuthorizeReque
                 "lastName": {"value": "Doe"},
                 "line1": {"value": "123 Main St"},  // Address Details.
                 "city": {"value": "Seattle"},
+                "state": {"value": "WA"},
                 "zipCode": {"value": "98101"},
                 "countryAlpha2Code": CountryAlpha2.US,
-                "email": {"value": "test@example.com"}  // Contact Information.
+                "email": {"value": "test@example.com"},  // Contact Information.
+                "phoneNumber": {"value": "4155552671"},
+                "phoneCountryCode": "+1"
             }
         },
         "captureMethod": CaptureMethod.AUTOMATIC,

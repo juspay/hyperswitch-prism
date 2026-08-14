@@ -63,9 +63,12 @@ private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAutho
                 lastNameBuilder.value = "Doe"
                 line1Builder.value = "123 Main St"  // Address Details.
                 cityBuilder.value = "Seattle"
+                stateBuilder.value = "WA"
                 zipCodeBuilder.value = "98101"
                 countryAlpha2Code = CountryAlpha2.US
                 emailBuilder.value = "test@example.com"  // Contact Information.
+                phoneNumberBuilder.value = "4155552671"
+                phoneCountryCode = "+1"
             }
         }
         authType = AuthenticationType.NO_THREE_DS  // Authentication Details.
@@ -269,9 +272,12 @@ fun proxyAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
                 lastNameBuilder.value = "Doe"
                 line1Builder.value = "123 Main St"  // Address Details.
                 cityBuilder.value = "Seattle"
+                stateBuilder.value = "WA"
                 zipCodeBuilder.value = "98101"
                 countryAlpha2Code = CountryAlpha2.US
                 emailBuilder.value = "test@example.com"  // Contact Information.
+                phoneNumberBuilder.value = "4155552671"
+                phoneCountryCode = "+1"
             }
         }
         captureMethod = CaptureMethod.AUTOMATIC

@@ -120,9 +120,12 @@
               "last_name": "Doe",
               "line1": "123 Main St",
               "city": "Seattle",
+              "state": "WA",
               "zip_code": "98101",
               "country_alpha2_code": "US",
-              "email": "test@example.com"
+              "email": "test@example.com",
+              "phone_number": "4155552671",
+              "phone_country_code": "+1"
             }
           },
           "auth_type": "NO_THREE_DS",
@@ -138,7 +141,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"PaymentTypeID\":\"1\",\"TransTypeID\":\"0\",\"MerchantName\":\"probe_key\",\"MerchantPassword\":\"probe_key\",\"MerchantRef\":\"probe_txn_001\",\"Currency\":\"USD\",\"Amount\":\"1000\",\"Brand\":\"VISA\",\"CardholderName\":\"John Doe\",\"CardNo\":\"4111111111111111\",\"ExpiryYear\":\"2030\",\"ExpiryMonth\":\"03\",\"CVV\":\"737\",\"Firstname\":\"John\",\"Surname\":\"Doe\",\"StreetLine1\":\"123 Main St\",\"City\":\"Seattle\",\"PostalCode\":\"98101\",\"Country\":\"US\",\"Email\":\"test@example.com\",\"UserIP\":\"1.2.3.4\",\"SuccessURL\":\"https://example.com/return\",\"FailURL\":\"https://example.com/return\"}"
+          "body": "{\"PaymentTypeID\":\"1\",\"TransTypeID\":\"0\",\"MerchantName\":\"probe_key\",\"MerchantPassword\":\"probe_key\",\"MerchantRef\":\"probe_txn_001\",\"Currency\":\"USD\",\"Amount\":\"1000\",\"Brand\":\"VISA\",\"CardholderName\":\"John Doe\",\"CardNo\":\"4111111111111111\",\"ExpiryYear\":\"2030\",\"ExpiryMonth\":\"03\",\"CVV\":\"737\",\"Firstname\":\"John\",\"Surname\":\"Doe\",\"StreetLine1\":\"123 Main St\",\"City\":\"Seattle\",\"PostalCode\":\"98101\",\"StateProvince\":\"WA\",\"Country\":\"US\",\"Email\":\"test@example.com\",\"Telephone\":\"+14155552671\",\"UserIP\":\"1.2.3.4\",\"SuccessURL\":\"https://example.com/return\",\"FailURL\":\"https://example.com/return\"}"
         }
       },
       "CashappQr": {
@@ -655,9 +658,12 @@
               "last_name": "Doe",
               "line1": "123 Main St",
               "city": "Seattle",
+              "state": "WA",
               "zip_code": "98101",
               "country_alpha2_code": "US",
-              "email": "test@example.com"
+              "email": "test@example.com",
+              "phone_number": "4155552671",
+              "phone_country_code": "+1"
             }
           },
           "capture_method": "AUTOMATIC",
@@ -674,7 +680,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"PaymentTypeID\":\"1\",\"TransTypeID\":\"0\",\"MerchantName\":\"probe_key\",\"MerchantPassword\":\"probe_key\",\"MerchantRef\":\"probe_proxy_txn_001\",\"Currency\":\"USD\",\"Amount\":\"1000\",\"Brand\":\"VISA\",\"CardholderName\":\"John Doe\",\"CardNo\":\"{{$card_number}}\",\"ExpiryYear\":\"2030\",\"ExpiryMonth\":\"03\",\"CVV\":\"{{$card_cvc}}\",\"Firstname\":\"John\",\"Surname\":\"Doe\",\"StreetLine1\":\"123 Main St\",\"City\":\"Seattle\",\"PostalCode\":\"98101\",\"Country\":\"US\",\"Email\":\"test@example.com\",\"UserIP\":\"1.2.3.4\",\"SuccessURL\":\"https://example.com/return\",\"FailURL\":\"https://example.com/return\"}"
+          "body": "{\"PaymentTypeID\":\"1\",\"TransTypeID\":\"0\",\"MerchantName\":\"probe_key\",\"MerchantPassword\":\"probe_key\",\"MerchantRef\":\"probe_proxy_txn_001\",\"Currency\":\"USD\",\"Amount\":\"1000\",\"Brand\":\"VISA\",\"CardholderName\":\"John Doe\",\"CardNo\":\"{{$card_number}}\",\"ExpiryYear\":\"2030\",\"ExpiryMonth\":\"03\",\"CVV\":\"{{$card_cvc}}\",\"Firstname\":\"John\",\"Surname\":\"Doe\",\"StreetLine1\":\"123 Main St\",\"City\":\"Seattle\",\"PostalCode\":\"98101\",\"StateProvince\":\"WA\",\"Country\":\"US\",\"Email\":\"test@example.com\",\"Telephone\":\"+14155552671\",\"UserIP\":\"1.2.3.4\",\"SuccessURL\":\"https://example.com/return\",\"FailURL\":\"https://example.com/return\"}"
         }
       }
     },

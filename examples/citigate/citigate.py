@@ -50,9 +50,12 @@ def _build_authorize_request(capture_method: str):
                 last_name=payment_methods_pb2.SecretString(value="Doe"),
                 line1=payment_methods_pb2.SecretString(value="123 Main St"),  # Address Details.
                 city=payment_methods_pb2.SecretString(value="Seattle"),
+                state=payment_methods_pb2.SecretString(value="WA"),
                 zip_code=payment_methods_pb2.SecretString(value="98101"),
                 country_alpha2_code=payment_methods_pb2.CountryAlpha2.Value("US"),
                 email=payment_methods_pb2.SecretString(value="test@example.com"),  # Contact Information.
+                phone_number=payment_methods_pb2.SecretString(value="4155552671"),
+                phone_country_code="+1",
             ),
         ),
         auth_type=payment_pb2.AuthenticationType.Value("NO_THREE_DS"),  # Authentication Details.
@@ -103,9 +106,12 @@ def _build_proxy_authorize_request():
                 last_name=payment_methods_pb2.SecretString(value="Doe"),
                 line1=payment_methods_pb2.SecretString(value="123 Main St"),  # Address Details.
                 city=payment_methods_pb2.SecretString(value="Seattle"),
+                state=payment_methods_pb2.SecretString(value="WA"),
                 zip_code=payment_methods_pb2.SecretString(value="98101"),
                 country_alpha2_code=payment_methods_pb2.CountryAlpha2.Value("US"),
                 email=payment_methods_pb2.SecretString(value="test@example.com"),  # Contact Information.
+                phone_number=payment_methods_pb2.SecretString(value="4155552671"),
+                phone_country_code="+1",
             ),
         ),
         capture_method=payment_pb2.CaptureMethod.Value("AUTOMATIC"),
