@@ -392,8 +392,8 @@ pub enum ConnectorError {
     /// The `ErrorResponse` is fully parsed by the connector's own `get_error_response_v2` /
     /// `get_5xx_error_response` / `build_error_response` implementation.
     /// `error_response.status_code` carries the actual HTTP status (4xx or 5xx).
-    #[error("Connector returned an error response with status {}", _0.status_code)]
-    ConnectorErrorResponse(ErrorResponse),
+    #[error("Connector returned an error response with status {}", .0.status_code)]
+    ConnectorErrorResponse(Box<ErrorResponse>),
 }
 
 /// Returns documentation URL for error codes.
@@ -546,7 +546,7 @@ impl ErrorSwitch<grpc_api_types::payments::ConnectorError> for ConnectorError {
         match self {
             Self::ConnectorErrorResponse(error_response) => {
                 // Build structured ErrorInfo from available error data
-                let error_info = ForeignFrom::foreign_from(error_response);
+                let error_info = ForeignFrom::foreign_from(error_response.as_ref());
 
                 // Structured error data is fully captured in `error_info`.
                 // Use the connector's top-level message directly as error_message.
@@ -555,6 +555,10 @@ impl ErrorSwitch<grpc_api_types::payments::ConnectorError> for ConnectorError {
                     error_code: self.error_code().to_string(),
                     http_status_code: Some(error_response.status_code as u32),
                     error_info,
+                    raw_connector_response: error_response.raw_connector_response.clone(),
+                    raw_connector_request: error_response.raw_connector_request.clone(),
+                    typed_connector_response: error_response.typed_connector_response.clone(),
+                    typed_connector_request: error_response.typed_connector_request.clone(),
                 }
             }
             _ => {
@@ -569,6 +573,10 @@ impl ErrorSwitch<grpc_api_types::payments::ConnectorError> for ConnectorError {
                     error_code: self.error_code().to_string(),
                     http_status_code: context.http_status_code.map(|code| code as u32),
                     error_info: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_response: None,
+                    typed_connector_request: None,
                 }
             }
         }
@@ -1486,6 +1494,10 @@ impl From<ApiErrorResponse> for crate::router_data::ErrorResponse {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         }
     }
 }

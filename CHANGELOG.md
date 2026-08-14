@@ -19,6 +19,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.08.14.1
+
+### Bug Fixes
+
+- **connector:** Read calida shop name from connector specific config ([#2106](https://github.com/juspay/connector-service/pull/2106)) ([`3419721`](https://github.com/juspay/connector-service/commit/34197214d6fa578b7dfc92afadde202867eac5fc))
+
+**Full Changelog:** [`2026.08.14.0...2026.08.14.1`](https://github.com/juspay/connector-service/compare/2026.08.14.0...2026.08.14.1)
+
+- - -
+
+## 2026.08.14.0
+
+### Features
+
+- **observability:** Add typed connector request/response fields ([#2036](https://github.com/juspay/connector-service/pull/2036)) ([`f60796f`](https://github.com/juspay/connector-service/commit/f60796f614500d4047b9e1f2adf3dbd1a92bf428))
+
+### Bug Fixes
+
+- **connectors:** [tsys_transit] add support for psync and rsync ([#2100](https://github.com/juspay/connector-service/pull/2100)) ([`22ef532`](https://github.com/juspay/connector-service/commit/22ef5324ac33f2315034317f41a2977d97a9c72d))
+
+**Full Changelog:** [`2026.08.13.1...2026.08.14.0`](https://github.com/juspay/connector-service/compare/2026.08.13.1...2026.08.14.0)
+
+- - -
+
+## 2026.08.13.1
+
+### Features
+
+- **connector:** [BOOST] add Boost Connect (BCPG) connector ([#2085](https://github.com/juspay/connector-service/pull/2085)) ([`24700fc`](https://github.com/juspay/connector-service/commit/24700fc069dd9054c524998fa9e2102e7f6937ab))
+
+### Bug Fixes
+
+- **connector:** Add missing payment method type mapping and Stripe MIT parity fix ([#2096](https://github.com/juspay/connector-service/pull/2096)) ([`a90d84f`](https://github.com/juspay/connector-service/commit/a90d84f450fb604a09fbfb94520c338c13e5eb46))
+- **grabpay,maya:** Added superposition urls ([#2118](https://github.com/juspay/connector-service/pull/2118)) ([`9063e31`](https://github.com/juspay/connector-service/commit/9063e31d8d5e254ded498133d53981b86ae6bc66))
+
+**Full Changelog:** [`2026.08.13.0...2026.08.13.1`](https://github.com/juspay/connector-service/compare/2026.08.13.0...2026.08.13.1)
+
+- - -
+
 ## 2026.08.13.0
 
 ### Features

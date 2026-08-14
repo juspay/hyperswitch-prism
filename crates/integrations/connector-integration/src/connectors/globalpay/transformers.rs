@@ -723,6 +723,10 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<GlobalpayPaymentsResp
                     .payment_method
                     .as_ref()
                     .and_then(|pm| pm.message.clone()),
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             }),
             _ => Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
@@ -803,6 +807,10 @@ impl TryFrom<ResponseRouterData<GlobalpayPaymentsResponse, Self>>
                     .payment_method
                     .as_ref()
                     .and_then(|pm| pm.message.clone()),
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             }),
             _ => Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
@@ -883,6 +891,10 @@ impl TryFrom<ResponseRouterData<GlobalpayPaymentsResponse, Self>>
                     .payment_method
                     .as_ref()
                     .and_then(|pm| pm.message.clone()),
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             }),
             _ => Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
@@ -1598,6 +1610,10 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<GlobalpayRepeatPaymen
                     .payment_method
                     .as_ref()
                     .and_then(|pm| pm.message.clone()),
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             }),
             _ => Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
