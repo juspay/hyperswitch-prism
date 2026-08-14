@@ -621,6 +621,34 @@ message CompositePaymentMethodRechargeResponse {
   optional PaymentMethodServiceRechargeResponse recharge_response = 2; // Recharge operation result
 }
 
+// Request message for composite payment method eligibility flow.
+message CompositePaymentMethodEligibilityRequest {
+  Money amount = 1; // Order amount and currency
+  optional Customer customer = 2; // Customer details (phone, email, name, etc.)
+  optional PaymentAddress address = 3; // Billing and shipping address
+  repeated OrderDetailsWithAmount order_details = 4; // Order line items
+  optional CountryAlpha2 country = 5; // Market/country the eligibility check is for
+  optional PaymentMethodType payment_method_type = 6; // The specific payment method eligibility is being checked for
+  optional string description = 7; // Description for connector-rendered eligibility messaging
+  optional SecretString connector_feature_data = 8; // Connector-specific feature data for the transaction
+  optional bool test_mode = 9; // Sandbox/test mode flag
+  optional string connector_payment_method_id = 10; // Connector-issued payment method ID (e.g. wallet number) being checked, when known
+
+  // State Information (for access token)
+  optional ConnectorState state = 11;
+
+  // Access Token Request fields
+  optional SecretString metadata = 12;
+  optional string merchant_access_token_id = 13;
+  optional string merchant_request_id = 14; // Per-request idempotency / correlation token forwarded to the bootstrap call
+}
+
+// Response message for composite payment method eligibility flow.
+message CompositePaymentMethodEligibilityResponse {
+  optional MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse access_token_response = 1;
+  optional PaymentMethodServiceEligibilityResponse eligibility_response = 2;
+}
+
 // Request message for composite verify redirect response flow.
 message CompositeVerifyRedirectResponseRequest {
   // Identification
