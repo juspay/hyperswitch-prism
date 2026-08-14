@@ -965,9 +965,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::Passthrough>
         })?;
         Ok(payouts::payout_method_data::Passthrough {
             psp_token: ::hyperswitch_masking::Secret::new(pt.psp_token),
-            psp_customer_id: pt
-                .psp_customer_id
-                .map(|id| ::hyperswitch_masking::Secret::new(id.peek().to_string())),
+            psp_customer_id: pt.psp_customer_id,
             token_type,
         })
     }
