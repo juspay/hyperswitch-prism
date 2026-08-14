@@ -185,7 +185,7 @@ macros::create_all_prerequisites!(
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let mut header = vec![(
                 headers::CONTENT_TYPE.to_string(),
-                "application/json".to_string().into(),
+                self.common_get_content_type().to_string().into(),
             )];
             let mut auth_header = self.get_auth_header(&req.connector_config)?;
             header.append(&mut auth_header);
@@ -208,7 +208,7 @@ macros::create_all_prerequisites!(
             Ok(vec![
                 (
                     headers::CONTENT_TYPE.to_string(),
-                    "application/json".to_string().into(),
+                    self.common_get_content_type().to_string().into(),
                 ),
                 (
                     headers::AUTHORIZATION.to_string(),
@@ -255,7 +255,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         )?;
         // `api_secret` holds the **secret** key (`sk_...`) — used by every endpoint except
         // `POST /tokens`, which takes the public key from `api_key`. See the note on
-        // [`transformers::CheckoutAuthType`]; the naming is inherited from hyperswitch.
+        // [`transformers::CheckoutAuthType`]; the naming is inherited, not descriptive.
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
             format!("Bearer {}", auth.api_secret.peek()).into_masked(),
