@@ -256,38 +256,25 @@ pub enum CheckoutPaymentType {
     Recurring,
 }
 
+/// Checkout credentials.
+///
+/// NOTE — the two key fields are the opposite way round from what the names suggest, and this
+/// is deliberate. Checkout issues two keys per account and UCS follows hyperswitch's mapping:
+///
+/// * `api_key`    = the **public** key (`pk_...`). Used *only* by `POST /tokens`, the wallet
+///   tokenization exchange. That endpoint rejects the secret key with `403`.
+/// * `api_secret` = the **secret** key (`sk_...`). Used by every other endpoint (`/payments`,
+///   captures, voids, refunds, syncs). `/payments` rejects the public key with `401`.
+///
+/// Do not "fix" this by swapping them or by introducing a separate public-key field: the
+/// asymmetry is Checkout's, the field names are hyperswitch's, and the two are matched here on
+/// purpose so a merchant's existing Checkout credentials work unchanged.
 pub struct CheckoutAuthType {
+    /// Public key (`pk_...`) — see the note on [`CheckoutAuthType`]. Tokenization only.
     pub api_key: Secret<String>,
     pub processing_channel_id: Secret<String>,
+    /// Secret key (`sk_...`) — see the note on [`CheckoutAuthType`]. Everything except tokenization.
     pub api_secret: Secret<String>,
-    /// Account public key (`pk_...`). Only `POST /tokens` accepts it — see
-    /// [`CheckoutAuthType::get_public_key`].
-    pub public_key: Option<Secret<String>>,
-}
-
-impl CheckoutAuthType {
-    /// Returns the public key required by Checkout's `POST /tokens` endpoint.
-    ///
-    /// Checkout authenticates the tokenization endpoint with the account's *public* key
-    /// (`pk_...`); the secret key used everywhere else is rejected with `403`. The key is
-    /// optional on the connector config because only merchants tokenizing encrypted wallets
-    /// through UCS need it, so a missing key has to surface as an actionable error here.
-    pub fn get_public_key(&self) -> Result<&Secret<String>, error_stack::Report<IntegrationError>> {
-        self.public_key.as_ref().ok_or_else(|| {
-            error_stack::report!(IntegrationError::MissingRequiredField {
-                field_name: "connector_config.checkout.public_key",
-                context: IntegrationErrorContext {
-                    suggested_action: Some(
-                        "Set `public_key` (the `pk_...` key from the Checkout dashboard) on the \
-                         Checkout connector config; POST /tokens rejects the secret key"
-                            .to_owned(),
-                    ),
-                    doc_url: Some(CHECKOUT_TOKENS_DOC_URL.to_owned()),
-                    additional_context: None,
-                },
-            })
-        })
-    }
 }
 
 #[derive(Debug, Serialize)]
@@ -428,7 +415,6 @@ impl TryFrom<&ConnectorSpecificConfig> for CheckoutAuthType {
             api_key,
             api_secret,
             processing_channel_id,
-            public_key,
             ..
         } = auth_type
         {
@@ -436,7 +422,6 @@ impl TryFrom<&ConnectorSpecificConfig> for CheckoutAuthType {
                 api_key: api_key.to_owned(),
                 api_secret: api_secret.to_owned(),
                 processing_channel_id: processing_channel_id.to_owned(),
-                public_key: public_key.to_owned(),
             })
         } else {
             Err(IntegrationError::FailedToObtainAuthType {

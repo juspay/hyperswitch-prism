@@ -443,8 +443,6 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             api_key: k(),
             api_secret: s(),
             processing_channel_id: id(),
-            // Checkout's POST /tokens is authenticated with the public key, not the secret key
-            public_key: Some(Secret::new("probe_public_key".to_string())),
             base_url: None,
         },
         ConnectorEnum::Cybersource => ConnectorSpecificConfig::Cybersource {

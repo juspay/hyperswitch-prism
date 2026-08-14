@@ -595,11 +595,6 @@ pub enum ConnectorSpecificConfig {
         api_key: Secret<String>,
         api_secret: Secret<String>,
         processing_channel_id: Secret<String>,
-        /// Account public key (`pk_...`). Only Checkout's `POST /tokens` wallet
-        /// tokenization endpoint accepts it; every other endpoint is authenticated
-        /// with `api_secret` (`sk_...`). Optional so merchants that never tokenize
-        /// encrypted wallets through UCS keep working without it.
-        public_key: Option<Secret<String>>,
         base_url: Option<String>,
     },
     Cybersource {
@@ -1099,8 +1094,7 @@ impl ConnectorSpecificConfig {
             Checkout {
                 api_key,
                 api_secret,
-                processing_channel_id,
-                public_key
+                processing_channel_id
             },
             Cybersource {
                 api_key,
@@ -1568,8 +1562,7 @@ impl ConnectorSpecificConfig {
                 Checkout {
                     api_key,
                     api_secret,
-                    processing_channel_id,
-                    public_key
+                    processing_channel_id
                 },
                 Cybersource {
                     api_key,
@@ -1917,7 +1910,6 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 api_key: checkout.api_key.ok_or_else(err)?,
                 api_secret: checkout.api_secret.ok_or_else(err)?,
                 processing_channel_id: checkout.processing_channel_id.ok_or_else(err)?,
-                public_key: checkout.public_key,
                 base_url: checkout.base_url,
             }),
             AuthType::Cryptopay(cryptopay) => Ok(Self::Cryptopay {
@@ -3024,9 +3016,6 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         api_key: api_key.clone(),
                         api_secret: api_secret.clone(),
                         processing_channel_id: key1.clone(),
-                        // The legacy SignatureKey triple has no slot for the public key;
-                        // callers that need wallet tokenization must use x-connector-config.
-                        public_key: None,
                         base_url: None,
                     }),
                     _ => Err(err().into()),

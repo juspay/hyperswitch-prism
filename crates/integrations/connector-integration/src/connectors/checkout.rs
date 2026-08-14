@@ -194,10 +194,12 @@ macros::create_all_prerequisites!(
 
         /// Headers for Checkout's `POST /tokens`.
         ///
-        /// Unlike every other Checkout endpoint, tokenization is authenticated with the
-        /// account's *public* key (`pk_...`): a `Bearer sk_...` is rejected with 403 and an
-        /// `api_key`-style header with 401. This is why the flow cannot reuse
-        /// [`Self::build_headers`].
+        /// Tokenization is the one Checkout endpoint that is authenticated with the account's
+        /// **public** key, which — counter-intuitively — lives in `api_key`, while the secret
+        /// key every other endpoint uses lives in `api_secret`. See the note on
+        /// [`transformers::CheckoutAuthType`]. Verified against the sandbox: `Bearer sk_...`
+        /// on `/tokens` returns 403, and `Bearer pk_...` on `/payments` returns 401. This is
+        /// why the flow cannot reuse [`Self::build_headers`].
         pub fn build_tokenization_headers<F, FCD, Req, Res>(
             &self,
             req: &RouterDataV2<F, FCD, Req, Res>,
@@ -210,7 +212,7 @@ macros::create_all_prerequisites!(
                 ),
                 (
                     headers::AUTHORIZATION.to_string(),
-                    format!("Bearer {}", auth.get_public_key()?.peek()).into_masked(),
+                    format!("Bearer {}", auth.api_key.peek()).into_masked(),
                 ),
             ])
         }
@@ -251,6 +253,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                 context: Default::default(),
             },
         )?;
+        // `api_secret` holds the **secret** key (`sk_...`) — used by every endpoint except
+        // `POST /tokens`, which takes the public key from `api_key`. See the note on
+        // [`transformers::CheckoutAuthType`]; the naming is inherited from hyperswitch.
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
             format!("Bearer {}", auth.api_secret.peek()).into_masked(),
