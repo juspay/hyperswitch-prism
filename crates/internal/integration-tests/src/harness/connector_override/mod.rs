@@ -206,25 +206,25 @@ fn apply_webhook_payload_overrides(
 
         if header_is_empty_or_absent {
             if let Some(ref secret) = webhook_secret {
-                // Decode the body back from base64 to compute signature over raw bytes.
-                if let Some(body_b64) = grpc_req
-                    .pointer("/request_details/body")
-                    .and_then(Value::as_str)
-                {
-                    if let Ok(body_bytes) = STANDARD.decode(body_b64) {
-                        if let Ok(sig) = crate::webhook_signatures::generate_signature(
+                let computed_sig = signature_payload_bytes(connector, grpc_req).and_then(
+                    |payload_bytes| {
+                        let ctx = signature_context(connector, grpc_req);
+                        crate::webhook_signatures::generate_signature(
                             connector,
-                            &body_bytes,
+                            &payload_bytes,
                             secret,
-                            None,
-                        ) {
-                            if let Some(headers) = grpc_req
-                                .pointer_mut("/request_details/headers")
-                                .and_then(Value::as_object_mut)
-                            {
-                                headers.insert(header_name.to_string(), Value::String(sig));
-                            }
-                        }
+                            &ctx,
+                        )
+                        .ok()
+                    },
+                );
+
+                if let Some(sig) = computed_sig {
+                    if let Some(headers) = grpc_req
+                        .pointer_mut("/request_details/headers")
+                        .and_then(Value::as_object_mut)
+                    {
+                        headers.insert(header_name.to_string(), Value::String(sig));
                     }
                 }
             }
@@ -242,6 +242,49 @@ fn apply_webhook_payload_overrides(
     }
 
     Ok(())
+}
+
+/// The exact bytes a connector's own webhook verification code hashes to
+/// produce its signature. For most connectors this is simply the decoded
+/// outer request body. A connector whose signature covers something other
+/// than the outer body (e.g. phonepe hashes the *inner* base64 `response`
+/// field it wraps its payload in, not the outer `{"response": "..."}` JSON)
+/// gets its own arm here — this is the one place that kind of per-connector
+/// request-shape knowledge belongs, so `apply_webhook_payload_overrides`
+/// itself never branches on connector name.
+fn signature_payload_bytes(connector: &str, grpc_req: &Value) -> Option<Vec<u8>> {
+    let outer_body_bytes = || {
+        grpc_req
+            .pointer("/request_details/body")
+            .and_then(Value::as_str)
+            .and_then(|body_b64| STANDARD.decode(body_b64).ok())
+    };
+
+    match connector {
+        "phonepe" => {
+            let outer_bytes = outer_body_bytes()?;
+            let outer_json: Value = serde_json::from_slice(&outer_bytes).ok()?;
+            let inner_b64 = outer_json.get("response").and_then(Value::as_str)?;
+            Some(inner_b64.as_bytes().to_vec())
+        }
+        _ => outer_body_bytes(),
+    }
+}
+
+/// Extra, connector-specific signature inputs beyond payload/secret — see
+/// crate::webhook_signatures::SignatureContext. A connector needing a new
+/// kind of context gets a new arm here, not a branch in the caller.
+fn signature_context<'a>(
+    connector: &str,
+    grpc_req: &'a Value,
+) -> crate::webhook_signatures::SignatureContext<'a> {
+    match connector {
+        "phonepe" => crate::webhook_signatures::SignatureContext {
+            api_path: grpc_req.pointer("/request_details/uri").and_then(Value::as_str),
+            ..Default::default()
+        },
+        _ => crate::webhook_signatures::SignatureContext::default(),
+    }
 }
 
 /// If `request_details.body` is a JSON object (the readable form from
