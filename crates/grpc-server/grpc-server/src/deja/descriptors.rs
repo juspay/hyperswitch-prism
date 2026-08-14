@@ -69,6 +69,7 @@ pub fn decode_unary_request(rpc: &str, request_body: &[u8]) -> Option<serde_json
 }
 
 #[cfg(test)]
+#[allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 mod tests {
     use super::*;
 

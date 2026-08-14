@@ -76,6 +76,7 @@ pub fn grpc_incoming_args(
 }
 
 #[cfg(test)]
+#[allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 mod tests {
     #[test]
     fn inert_without_a_hook() {
