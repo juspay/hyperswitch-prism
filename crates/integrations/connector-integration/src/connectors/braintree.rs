@@ -228,6 +228,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         payment_method: PaymentMethod,
         _payment_method_type: Option<PaymentMethodType>,
+        _is_wallet_pre_decrypted: bool,
     ) -> bool {
         matches!(payment_method, PaymentMethod::Card)
     }

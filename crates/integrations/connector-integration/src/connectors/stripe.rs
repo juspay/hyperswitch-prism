@@ -276,16 +276,26 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn should_create_connector_customer(&self) -> bool {
         true
     }
+    /// Wallets are charged through a `tok_…` minted on `/v1/tokens`, with one exception:
+    /// an *encrypted* Google Pay payload is Google's own token and Stripe takes it inline on
+    /// `/v1/payment_intents` as `payment_method_data[card][token]`, so it must not detour
+    /// through Tokenize. A *decrypted* Google Pay payload is a PAN + cryptogram + ECI block,
+    /// which only `/v1/tokens` accepts, so it does need Tokenize.
+    ///
+    /// This mirrors hyperswitch's Stripe entry in `connector_request_reference_id_config`:
+    /// `payment_method = "wallet"` with `payment_method_type = { list = "google_pay", type =
+    /// "disable_only" }` plus `google_pay_pre_decrypt_flow = "connector_tokenization"`.
     fn should_do_payment_method_token(
         &self,
         payment_method: common_enums::PaymentMethod,
         payment_method_type: Option<common_enums::PaymentMethodType>,
+        is_wallet_pre_decrypted: bool,
     ) -> bool {
         matches!(payment_method, common_enums::PaymentMethod::Wallet)
-            && !matches!(
+            && (!matches!(
                 payment_method_type,
                 Some(common_enums::PaymentMethodType::GooglePay)
-            )
+            ) || is_wallet_pre_decrypted)
     }
 }
 

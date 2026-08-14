@@ -20,6 +20,37 @@ use crate::utils::{
     connector_from_composite_authorize_metadata, connector_variant_from_composite_metadata,
 };
 
+/// Reports whether a wallet payload carries the *decrypted* credential (PAN + cryptogram + ECI)
+/// instead of the wallet provider's own encrypted token.
+///
+/// `common_enums::PaymentMethod` / `PaymentMethodType` collapse both shapes onto the same
+/// `Wallet` + `GooglePay` pair, but connectors can need opposite routing for them — see
+/// [`interfaces::connector_types::ValidationTrait::should_do_payment_method_token`]. Anything
+/// that is not a pre-decrypted Apple Pay / Google Pay payload reports `false`.
+fn is_wallet_payload_pre_decrypted(
+    payment_method: Option<&grpc_api_types::payments::PaymentMethod>,
+) -> bool {
+    use grpc_api_types::payments::{apple_wallet, google_wallet, payment_method::PaymentMethod};
+
+    match payment_method.and_then(|pm| pm.payment_method.as_ref()) {
+        Some(PaymentMethod::GooglePaySdk(google_wallet)) => matches!(
+            google_wallet
+                .tokenization_data
+                .as_ref()
+                .and_then(|data| data.tokenization_data.as_ref()),
+            Some(google_wallet::tokenization_data::TokenizationData::DecryptedData(_))
+        ),
+        Some(PaymentMethod::ApplePaySdk(apple_wallet)) => matches!(
+            apple_wallet
+                .payment_data
+                .as_ref()
+                .and_then(|data| data.payment_data.as_ref()),
+            Some(apple_wallet::payment_data::PaymentData::DecryptedData(_))
+        ),
+        _ => false,
+    }
+}
+
 /// Implementation of CompositeAccessTokenRequest for payment method requests.
 /// These requests don't have a specific payment_method field since payment-method-management
 /// flows aren't gated on a specific payment method.
@@ -200,16 +231,26 @@ where
                     payload.payment_method_type(),
                 )
                 .ok();
+                let is_wallet_pre_decrypted =
+                    is_wallet_payload_pre_decrypted(payload.payment_method.as_ref());
                 match connector {
                     ConnectorVariant::Payment(c) => ConnectorData::<
                         domain_types::payment_method_data::DefaultPCIHolder,
                     >::get_connector_by_name(c)
                     .connector
-                    .should_do_payment_method_token(payment_method, payment_method_type),
+                    .should_do_payment_method_token(
+                        payment_method,
+                        payment_method_type,
+                        is_wallet_pre_decrypted,
+                    ),
                     ConnectorVariant::Authenticator(c) => {
                         AuthenticatorConnectorData::get_connector_by_name(c)
                             .connector
-                            .should_do_payment_method_token(payment_method, payment_method_type)
+                            .should_do_payment_method_token(
+                                payment_method,
+                                payment_method_type,
+                                is_wallet_pre_decrypted,
+                            )
                     }
                     _ => false,
                 }
