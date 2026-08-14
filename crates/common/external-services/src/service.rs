@@ -347,8 +347,6 @@ fn flow_status_label(flow_status: &domain_types::router_data::FlowStatus) -> Str
     }
 }
 
-/// Handles the connector response, processing both successful and error responses
-#[allow(clippy::too_many_arguments)]
 /// Build the masked view of a connector response and record it on the outgoing Golden Log Line,
 /// alongside `response.body` and `response.headers`.
 ///
@@ -383,6 +381,8 @@ fn record_masked_connector_response(body: &Response, params: &EventProcessingPar
     record_json_fields_on_span(vec![("response.masked_body", masked)]);
 }
 
+/// Handles the connector response, processing both successful and error responses
+#[allow(clippy::too_many_arguments)]
 pub fn handle_connector_response<F, ResourceCommonData, Req, Resp>(
     response: CustomResult<Result<Response, Response>, ConnectorError>,
     mut updated_router_data: RouterDataV2<F, ResourceCommonData, Req, Resp>,
