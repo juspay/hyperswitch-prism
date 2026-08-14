@@ -315,10 +315,17 @@ impl Service {
         );
         let config_override_layer = RequestExtensionsLayer::new(base_config.clone());
 
-        Server::builder()
+        let server_builder = Server::builder()
             .layer(logging_layer)
             .layer(request_id_layer)
-            .layer(propagate_request_id_layer)
+            .layer(propagate_request_id_layer);
+        // gRPC ingress record/replay boundary. Spliced inside SetRequestId (the request
+        // always carries x-request-id) and outside config-override (a rejected request
+        // still yields one event). Inert until a boot hook is installed; feature-off this
+        // binding disappears entirely and the layer chain is unchanged.
+        #[cfg(feature = "deja")]
+        let server_builder = server_builder.layer(crate::deja::layer::DejaIngressLayer::new(None));
+        server_builder
             .layer(config_override_layer)
             .layer(metrics_layer)
             .add_service(reflection_service)
