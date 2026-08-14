@@ -246,7 +246,7 @@ macros::create_all_prerequisites!(
                 ),
                 (
                     moneris::auth_headers::API_VERSION.to_string(),
-                    "2024-09-17".to_string().into(),
+                    "2026-08-14".to_string().into(),
                 ),
                 (
                     moneris::auth_headers::X_MERCHANT_ID.to_string(),
