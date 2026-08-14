@@ -243,7 +243,7 @@
       },
       "ApplePayDecrypted": {
         "status": "not_supported",
-        "error": "Charging a decrypted wallet credential directly — mint a token with PaymentMethodService/Tokenize and pass it back on Authorize as payment_method.token is not supported by stripe"
+        "error": "Charging a decrypted wallet credential directly on /v1/payment_intents — its card[cryptogram] / card[eci] block is only accepted by /v1/tokens. Mint a token with PaymentMethodService/Tokenize and pass it back as payment_method.token is not supported by stripe"
       },
       "ApplePayThirdPartySdk": {
         "status": "not_implemented",
@@ -673,7 +673,7 @@
       },
       "GooglePayDecrypted": {
         "status": "not_supported",
-        "error": "Charging a decrypted wallet credential directly — mint a token with PaymentMethodService/Tokenize and pass it back on Authorize as payment_method.token is not supported by stripe"
+        "error": "Charging a decrypted wallet credential directly on /v1/payment_intents — its card[cryptogram] / card[eci] block is only accepted by /v1/tokens. Mint a token with PaymentMethodService/Tokenize and pass it back as payment_method.token is not supported by stripe"
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
