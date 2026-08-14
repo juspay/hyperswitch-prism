@@ -382,10 +382,7 @@ pub fn log_after_initialization<T>(
             // Additive numeric `res_code`: connector-aware HTTP status (e.g. 422) — matches the
             // HTTP response the caller receives, not the coarse gRPC code.
             let http_status = crate::http::error::http_status_for_status(status).as_u16();
-            record_json_fields_on_span(vec![(
-                "res_code",
-                Value::from(i64::from(http_status)),
-            )]);
+            record_json_fields_on_span(vec![("res_code", Value::from(i64::from(http_status)))]);
         }
     }
     // Apply unified log fields (transformations + static values) before emitting the golden log line
