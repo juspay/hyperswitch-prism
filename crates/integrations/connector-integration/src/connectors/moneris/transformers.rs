@@ -31,6 +31,7 @@ const CLIENT_CREDENTIALS: &str = "client_credentials";
 pub mod auth_headers {
     pub const X_MERCHANT_ID: &str = "X-Merchant-Id";
     pub const API_VERSION: &str = "Api-Version";
+    pub const API_VERSION_VALUE: &str = "2026-08-14";
 }
 
 pub struct MonerisAuthType {
@@ -268,7 +269,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         },
                     })?
                 };
-                let idempotency_key = uuid::Uuid::new_v4().to_string();
+                let idempotency_key = format!(
+                    "auth_{}",
+                    item.router_data
+                        .resource_common_data
+                        .connector_request_reference_id
+                );
                 let amount = Amount {
                     currency: item.router_data.request.currency,
                     amount: item.router_data.request.amount,
@@ -364,6 +370,64 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
+pub struct MonerisAuthorizeResponse {
+    payment_status: MonerisPaymentStatus,
+    payment_id: String,
+    payment_method: MonerisPaymentMethodData,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<MonerisAuthorizeResponse, Self>>
+    for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
+{
+    type Error = Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<MonerisAuthorizeResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let mandate_reference = if item
+            .router_data
+            .request
+            .is_customer_initiated_mandate_payment()
+        {
+            Some(Box::new(MandateReference {
+                connector_mandate_id: Some(
+                    item.response
+                        .payment_method
+                        .payment_method_id
+                        .peek()
+                        .to_string(),
+                ),
+                payment_method_id: None,
+                mandate_metadata: None,
+                connector_mandate_request_reference_id: None,
+            }))
+        } else {
+            None
+        };
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status: common_enums::AttemptStatus::from(item.response.payment_status),
+                ..item.router_data.resource_common_data
+            },
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(item.response.payment_id.clone()),
+                redirection_data: None,
+                mandate_reference,
+                connector_metadata: None,
+                network_txn_id: None,
+                network_txn_link_id: None,
+                connector_response_reference_id: Some(item.response.payment_id),
+                incremental_authorization_allowed: None,
+                splits: None,
+                status_code: item.http_code,
+            }),
+            ..item.router_data
+        })
+    }
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct MonerisPaymentsResponse {
     payment_status: MonerisPaymentStatus,
     payment_id: String,
@@ -415,18 +479,7 @@ impl<F, T> TryFrom<ResponseRouterData<MonerisPaymentsResponse, Self>>
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.payment_id.clone()),
                 redirection_data: None,
-                mandate_reference: Some(Box::new(MandateReference {
-                    connector_mandate_id: Some(
-                        item.response
-                            .payment_method
-                            .payment_method_id
-                            .peek()
-                            .to_string(),
-                    ),
-                    payment_method_id: None,
-                    mandate_metadata: None,
-                    connector_mandate_request_reference_id: None,
-                })),
+                mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
                 network_txn_link_id: None,
@@ -478,7 +531,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::MandatePayment => {
-                let idempotency_key = uuid::Uuid::new_v4().to_string();
+                let idempotency_key = format!(
+                    "repeat_{}",
+                    item.router_data
+                        .resource_common_data
+                        .connector_request_reference_id
+                );
                 let amount = Amount {
                     currency: item.router_data.request.currency,
                     amount: item.router_data.request.minor_amount,
@@ -568,7 +626,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             currency: item.router_data.request.currency,
             amount: item.router_data.request.minor_amount_to_capture,
         };
-        let idempotency_key = uuid::Uuid::new_v4().to_string();
+        let idempotency_key = format!(
+            "capture_{}",
+            item.router_data
+                .resource_common_data
+                .connector_request_reference_id
+        );
         Ok(Self {
             amount,
             idempotency_key,
@@ -598,7 +661,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let idempotency_key = uuid::Uuid::new_v4().to_string();
+        let idempotency_key = format!(
+            "void_{}",
+            item.router_data
+                .resource_common_data
+                .connector_request_reference_id
+        );
         let reason = item.router_data.request.cancellation_reason.clone();
         Ok(Self {
             idempotency_key,
@@ -635,7 +703,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             currency: item.router_data.request.currency,
             amount: item.router_data.request.minor_refund_amount,
         };
-        let idempotency_key = uuid::Uuid::new_v4().to_string();
+        let idempotency_key = format!(
+            "refund_{}",
+            item.router_data
+                .resource_common_data
+                .connector_request_reference_id
+        );
         let reason = item.router_data.request.reason.clone();
         let payment_id = item.router_data.request.connector_transaction_id.clone();
         Ok(Self {

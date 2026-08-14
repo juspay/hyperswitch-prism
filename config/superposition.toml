@@ -85,7 +85,7 @@ api_tags_tags_psync = { value = "", schema = { type = "string" } }
 environment = { position = 1, schema = { type = "string", enum = ["sandbox", "development", "production"] } }
 
 # Connector dimension - determines which payment processor URLs to use
-connector = { position = 2, schema = { type = "string", enum = ["glomopay", "stripe", "adyen", "paypal", "razorpay", "checkout", "braintree", "worldpay", "cybersource", "payme", "bluesnap", "fiserv", "trustpay", "volt", "hipay", "xendit", "phonepe", "cashfree", "payu", "paytm", "dlocal", "rapyd", "aci", "nuvei", "forte", "authorizedotnet", "elavon", "bamboraapac", "billwerk", "paysafe", "worldpayvantiv", "worldpayxml", "tsys", "tsys_transit", "bankofamerica", "powertranz", "revolut", "airwallex", "bambora", "shift4", "multisafepay", "iatapay", "jpmorgan", "nmi", "nexixpay", "authipay", "stax", "trustpayments", "fiservemea", "datatrans", "silverflow", "celero", "globalpay", "razorpayv2", "fiuu", "payload", "cashtocode", "novalnet", "nexinets", "noon", "mifinity", "calida", "cryptopay", "helcim", "placetopay", "barclaycard", "gigadat", "loonio", "mollie", "absa_sanlam", "truelayer", "trustly", "twoc_twop_paco", "zift", "revolv3", "fiservcommercehub", "finix", "wellsfargo", "imerchantsolutions", "qwikcilver", "flywire", "boost", "plaid", "grabpay", "maya"] } }
+connector = { position = 2, schema = { type = "string", enum = ["glomopay", "stripe", "adyen", "paypal", "razorpay", "checkout", "braintree", "worldpay", "cybersource", "payme", "bluesnap", "fiserv", "trustpay", "volt", "hipay", "xendit", "phonepe", "cashfree", "payu", "paytm", "dlocal", "rapyd", "aci", "nuvei", "forte", "authorizedotnet", "elavon", "bamboraapac", "billwerk", "paysafe", "worldpayvantiv", "worldpayxml", "tsys", "tsys_transit", "bankofamerica", "powertranz", "revolut", "airwallex", "bambora", "shift4", "multisafepay", "iatapay", "jpmorgan", "nmi", "nexixpay", "authipay", "stax", "trustpayments", "fiservemea", "datatrans", "silverflow", "celero", "globalpay", "razorpayv2", "fiuu", "payload", "cashtocode", "novalnet", "nexinets", "noon", "mifinity", "calida", "cryptopay", "helcim", "placetopay", "barclaycard", "gigadat", "loonio", "mollie", "moneris", "absa_sanlam", "truelayer", "trustly", "twoc_twop_paco", "zift", "revolv3", "fiservcommercehub", "finix", "wellsfargo", "imerchantsolutions", "qwikcilver", "flywire", "boost", "plaid", "grabpay", "maya"] } }
 
 # ============================================================================
 # Development Environment Overrides
@@ -939,3 +939,13 @@ connector_base_url = "https://partner-api.grab.com/grabpay/partner/v2"
 [[overrides]]
 _context_ = { connector = "maya", environment = "production" }
 connector_base_url = "https://pg.maya.ph"
+
+# Moneris
+[[overrides]]
+_context_ = { connector = "moneris" }
+connector_base_url = "https://api.sb.moneris.io"
+
+# Moneris Production
+[[overrides]]
+_context_ = { connector = "moneris", environment = "production" }
+connector_base_url = "https://api.moneris.io"

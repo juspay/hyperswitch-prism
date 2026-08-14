@@ -5967,7 +5967,7 @@ message ConnectorSpecificConfig {
     GrabpayConfig grabpay = 144;
     // BOOST = 136
     BoostConfig boost = 145;
-    // MONERIS = 137
+    // MONERIS = 48
     MonerisConfig moneris = 146;
   }
 }

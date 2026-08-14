@@ -30,8 +30,8 @@ use interfaces::{
 };
 use serde::Serialize;
 use transformers::{
-    self as moneris, MonerisAuthRequest, MonerisAuthResponse, MonerisCancelRequest,
-    MonerisPaymentsCaptureRequest, MonerisPaymentsRequest, MonerisPaymentsResponse,
+    self as moneris, MonerisAuthRequest, MonerisAuthResponse, MonerisAuthorizeResponse,
+    MonerisCancelRequest, MonerisPaymentsCaptureRequest, MonerisPaymentsRequest,
     MonerisPaymentsResponse as MonerisRepeatPaymentResponse,
     MonerisPaymentsResponse as MonerisPaymentSyncResponse,
     MonerisPaymentsResponse as MonerisPaymentsCaptureResponse,
@@ -127,17 +127,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         connectors.moneris.base_url.as_ref()
     }
 
-    fn get_auth_header(
-        &self,
-        auth_type: &ConnectorSpecificConfig,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-        let auth = moneris::MonerisAuthType::try_from(auth_type)?;
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            auth.client_id.expose().into_masked(),
-        )])
-    }
-
     fn build_error_response(
         &self,
         res: Response,
@@ -157,7 +146,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         let reason = match &response.errors {
             Some(error_list) => error_list
                 .iter()
-                .map(|error| error.parameter_name.clone())
+                .map(|error| format!("{}: {}", error.parameter_name, error.reason_code))
                 .collect::<Vec<String>>()
                 .join(" & "),
             None => response.title.clone(),
@@ -194,7 +183,7 @@ macros::create_all_prerequisites!(
         (
             flow: Authorize,
             request_body: MonerisPaymentsRequest<T>,
-            response_body: MonerisPaymentsResponse,
+            response_body: MonerisAuthorizeResponse,
             router_data: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ),
         (
@@ -249,7 +238,9 @@ macros::create_all_prerequisites!(
                 ),
                 (
                     moneris::auth_headers::API_VERSION.to_string(),
-                    "2026-08-14".to_string().into(),
+                    moneris::auth_headers::API_VERSION_VALUE
+                        .to_string()
+                        .into(),
                 ),
                 (
                     moneris::auth_headers::X_MERCHANT_ID.to_string(),
@@ -351,7 +342,7 @@ macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Moneris,
     curl_request: Json(MonerisPaymentsRequest<T>),
-    curl_response: MonerisPaymentsResponse,
+    curl_response: MonerisAuthorizeResponse,
     flow_name: Authorize,
     resource_common_data: PaymentFlowData,
     flow_request: PaymentsAuthorizeData<T>,
@@ -422,12 +413,12 @@ macros::macro_connector_implementation!(
                         suggested_action: Some(
                             "Ensure the OAuth access token is obtained via the \
                              ServerAuthenticationToken flow and stored on the payment \
-                             resource_common_data before triggering Authorize."
+                             resource_common_data before triggering repeat_payment."
                                 .to_string(),
                         ),
                         doc_url: None,
                         additional_context: Some(
-                            "Moneris Authorize requires an OAuth access token on \
+                            "Moneris repeat_payment requires an OAuth access token on \
                              `resource_common_data.access_token`, but it was None."
                                 .to_string(),
                         ),
@@ -558,7 +549,7 @@ macros::macro_connector_implementation!(
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Moneris,
-    curl_request: Json(MonerisVoidRequest),
+    curl_request: Json(MonerisCancelRequest),
     curl_response: MonerisPaymentVoidResponse,
     flow_name: Void,
     resource_common_data: PaymentFlowData,
@@ -580,12 +571,12 @@ macros::macro_connector_implementation!(
                         suggested_action: Some(
                             "Ensure the OAuth access token is obtained via the \
                              ServerAuthenticationToken flow and stored on the payment \
-                             resource_common_data before triggering capture."
+                             resource_common_data before triggering void."
                                 .to_string(),
                         ),
                         doc_url: None,
                         additional_context: Some(
-                            "Moneris capture requires an OAuth access token on \
+                            "Moneris void requires an OAuth access token on \
                              `resource_common_data.access_token`, but it was None."
                                 .to_string(),
                         ),
