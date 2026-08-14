@@ -3324,12 +3324,16 @@ dependencies = [
  "config_patch_derive",
  "connector-integration",
  "connector_request_kafka",
+ "deja",
+ "deja-core",
  "domain_types",
  "error-stack 0.4.1",
  "external-services",
  "gethostname 0.5.0",
  "grpc-api-types",
  "http 1.4.0",
+ "http-body 1.0.1",
+ "http-body-util",
  "hyper 1.8.1",
  "hyper-util",
  "hyperswitch_masking",
@@ -3340,6 +3344,7 @@ dependencies = [
  "once_cell",
  "prometheus",
  "prost 0.14.3",
+ "prost-reflect",
  "prost-types",
  "rand 0.8.5",
  "reqwest 0.11.27",
@@ -5202,6 +5207,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ordered-float"
+version = "2.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "68f19d67e5a2795c94e73e0bb1cc1a7edeb2e28efd39e2e1c9b7a40c1108b11c"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
 name = "ordered-multimap"
 version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5780,6 +5794,19 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.117",
+]
+
+[[package]]
+name = "prost-reflect"
+version = "0.16.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "01b80ea363c31af2de2b92e3c07ed1156628f7838c4afb4df75ee78a37fedbd1"
+dependencies = [
+ "base64 0.22.1",
+ "prost 0.14.3",
+ "prost-types",
+ "serde",
+ "serde-value",
 ]
 
 [[package]]
@@ -6822,6 +6849,16 @@ checksum = "9a8e94ea7f378bd32cbbd37198a4a91436180c5bb472411e48b5ec2e2124ae9e"
 dependencies = [
  "serde_core",
  "serde_derive",
+]
+
+[[package]]
+name = "serde-value"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f3a1a3341211875ef120e117ea7fd5228530ae7e7036a779fdc9117be6b3282c"
+dependencies = [
+ "ordered-float",
+ "serde",
 ]
 
 [[package]]
