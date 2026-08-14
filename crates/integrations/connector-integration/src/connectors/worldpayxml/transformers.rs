@@ -445,7 +445,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     capture_delay: if is_manual_capture {
                         "OFF".to_string()
                     } else {
-                        "0".to_string().to_string()
+                        "0".to_string()
                     },
                     description: router_data
                         .resource_common_data
