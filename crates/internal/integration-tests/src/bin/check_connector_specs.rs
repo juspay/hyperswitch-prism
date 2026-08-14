@@ -440,6 +440,58 @@ fn main() {
     }
 
     // -----------------------------------------------------------------------
+    // Phase 2b: webhook coverage
+    // -----------------------------------------------------------------------
+    // Deterministic, no heuristics: a connector's own specs.json is the
+    // authoritative declaration of what it supports. If supported_suites
+    // includes "EventService/HandleEvent" — the same suite name used
+    // everywhere else in this file, not an inferred signal — the connector
+    // is claiming real webhook support, so it must have a
+    // connector_specs/<name>/webhook_payload.json fixture. A connector that
+    // doesn't declare EventService/HandleEvent has no requirement here.
+    println!();
+    println!("{}", "=".repeat(80));
+    println!("PHASE 2B — WEBHOOK COVERAGE CHECK");
+    println!("{}", "=".repeat(80));
+    println!();
+
+    const WEBHOOK_SUITE: &str = "EventService/HandleEvent";
+    let mut webhook_errors: Vec<String> = Vec::new();
+
+    for connector in &connectors {
+        let specs_path = specs_root.join(connector).join("specs.json");
+        let Ok(content) = fs::read_to_string(&specs_path) else {
+            continue;
+        };
+        let Ok(specs) = serde_json::from_str::<ConnectorSpecs>(&content) else {
+            continue;
+        };
+        if !specs
+            .supported_suites
+            .iter()
+            .any(|s| s == WEBHOOK_SUITE)
+        {
+            continue;
+        }
+
+        let webhook_payload_path = specs_root.join(connector).join("webhook_payload.json");
+        if webhook_payload_path.exists() {
+            println!("[OK]   {connector}  (declares {WEBHOOK_SUITE}, has webhook_payload.json)");
+        } else {
+            println!(
+                "[FAIL] {connector}  (declares {WEBHOOK_SUITE} in specs.json but has no \
+                 webhook_payload.json)"
+            );
+            webhook_errors.push(connector.clone());
+        }
+    }
+
+    if webhook_errors.is_empty() {
+        println!();
+        println!("All connectors declaring webhook support have a webhook_payload.json.");
+    }
+
+    // -----------------------------------------------------------------------
     // Phase 3: testable suite report (suite list derived from scenario_api.rs)
     // -----------------------------------------------------------------------
     println!();
@@ -568,6 +620,14 @@ fn main() {
     }
 
     println!();
+    println!("--- Phase 2b: Webhook coverage ---");
+    println!("Missing webhook_payload.json: {}", webhook_errors.len());
+    if !webhook_errors.is_empty() {
+        println!();
+        println!("Connectors missing webhook_payload.json: {}", webhook_errors.join(", "));
+    }
+
+    println!();
     println!("--- Phase 3: Testable suites ---");
     println!(
         "Testable:                 {testable_count} / {}",
@@ -616,7 +676,26 @@ fn main() {
         println!();
     }
 
-    if !phase1_ok || has_phase2_errors || has_unverifiable {
+    let has_webhook_errors = !webhook_errors.is_empty();
+
+    if has_webhook_errors {
+        println!();
+        println!("{}", "=".repeat(80));
+        println!("ERRORS — connectors declaring webhook support without webhook_payload.json");
+        println!("{}", "=".repeat(80));
+        for connector in &webhook_errors {
+            println!(
+                "  {connector:<30}  declares {WEBHOOK_SUITE} but has no webhook_payload.json"
+            );
+        }
+        println!(
+            "  Fix: add crates/internal/integration-tests/src/connector_specs/<name>/webhook_payload.json, \
+             or remove {WEBHOOK_SUITE} from supported_suites if webhook handling isn't actually implemented."
+        );
+        println!();
+    }
+
+    if !phase1_ok || has_phase2_errors || has_unverifiable || has_webhook_errors {
         let mut reasons = Vec::new();
         if !phase1_ok {
             reasons.push(format!(
@@ -635,6 +714,12 @@ fn main() {
             reasons.push(format!(
                 "{} connector(s) have no verifiable flow declaration",
                 unverifiable.len()
+            ));
+        }
+        if has_webhook_errors {
+            reasons.push(format!(
+                "{} connector(s) declare webhook support without webhook_payload.json",
+                webhook_errors.len()
             ));
         }
         eprintln!("ERROR: {}", reasons.join("; "));
