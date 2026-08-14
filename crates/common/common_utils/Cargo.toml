@@ -46,6 +46,7 @@ regex = "1.11.1"
 semver = { version = "1.0.26", features = ["serde"] }
 openssl = { version = "0.10", features = ["vendored"] }
 josekit = "0.8.7"
+deja = { git = "https://github.com/juspay/deja", rev = "2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3", optional = true, default-features = false }
 
 # Optional features
 [features]
@@ -55,6 +56,10 @@ kafka = ["dep:rdkafka", "dep:tracing-kafka"]
 async_ext = ["dep:async-trait", "dep:futures"]
 superposition = ["dep:superposition_core", "dep:superposition_types"]
 log-transformations = ["logging"]
+# Déjà record/replay: instruments the shared time/id/crypto entropy seams. `time/serde`
+# is required only here so the seamed `now()` (returning `PrimitiveDateTime`) can be
+# captured; feature-off, `time` keeps its original feature set and code is byte-identical.
+deja = ["dep:deja", "time/serde"]
 
 [dependencies.async-trait]
 version = "0.1.74"
