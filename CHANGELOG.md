@@ -19,6 +19,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.08.14.0
+
+### Features
+
+- **observability:** Add typed connector request/response fields ([#2036](https://github.com/juspay/connector-service/pull/2036)) ([`f60796f`](https://github.com/juspay/connector-service/commit/f60796f614500d4047b9e1f2adf3dbd1a92bf428))
+
+### Bug Fixes
+
+- **connectors:** [tsys_transit] add support for psync and rsync ([#2100](https://github.com/juspay/connector-service/pull/2100)) ([`22ef532`](https://github.com/juspay/connector-service/commit/22ef5324ac33f2315034317f41a2977d97a9c72d))
+
+**Full Changelog:** [`2026.08.13.1...2026.08.14.0`](https://github.com/juspay/connector-service/compare/2026.08.13.1...2026.08.14.0)
+
+- - -
+
 ## 2026.08.13.1
 
 ### Features
