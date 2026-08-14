@@ -1125,13 +1125,15 @@ fn get_worldpayxml_mandate_reference(
 }
 
 // Helper function to map lastEvent to RefundStatus
-fn map_worldpayxml_refund_status(last_event: &WorldpayxmlLastEvent) -> RefundStatus {
-    match last_event {
-        WorldpayxmlLastEvent::Refunded => RefundStatus::Success,
-        WorldpayxmlLastEvent::SentForRefund => RefundStatus::Pending,
-        WorldpayxmlLastEvent::RefundFailed => RefundStatus::Failure,
-        WorldpayxmlLastEvent::Captured => RefundStatus::Pending,
-        _ => RefundStatus::Pending, // Default to pending for unknown statuses
+impl From<&WorldpayxmlLastEvent> for RefundStatus {
+    fn from(last_event: &WorldpayxmlLastEvent) -> Self {
+        match last_event {
+            WorldpayxmlLastEvent::Refunded => Self::Success,
+            WorldpayxmlLastEvent::SentForRefund => Self::Pending,
+            WorldpayxmlLastEvent::RefundFailed => Self::Failure,
+            WorldpayxmlLastEvent::Captured => Self::Pending,
+            _ => Self::Pending, // Default to pending for unknown statuses
+        }
     }
 }
 
@@ -2033,7 +2035,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlRsyncResponse, Self>>
                 )?;
 
                 // Map status from lastEvent using refund status mapping
-                let refund_status = map_worldpayxml_refund_status(&payment.last_event);
+                let refund_status = RefundStatus::from(&payment.last_event);
 
                 // Check if refund failed and extract error details from ISO8583ReturnCode
                 if refund_status == RefundStatus::Failure {
@@ -2093,7 +2095,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlRsyncResponse, Self>>
                 let last_event = parse_last_event(last_event_str, item.http_code)?;
 
                 // Map status from lastEvent using refund status mapping
-                let refund_status = map_worldpayxml_refund_status(&last_event);
+                let refund_status = RefundStatus::from(&last_event);
 
                 // Build success response
                 let refunds_response_data = RefundsResponseData {
