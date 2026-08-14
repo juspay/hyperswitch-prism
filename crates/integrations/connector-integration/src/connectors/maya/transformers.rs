@@ -1,4 +1,7 @@
-use common_utils::{types::FloatMajorUnit, Method};
+use common_utils::{
+    types::{AmountConvertor, FloatMajorUnit, StringMajorUnit, StringMajorUnitForConnector},
+    Method,
+};
 use domain_types::{
     connector_flow::{Authorize, PSync, RSync, Refund, Void},
     connector_types::{
@@ -10,6 +13,7 @@ use domain_types::{
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, WalletData},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
+    router_request_types::{PaymentSynIntegrityObject, RefundIntegrityObject},
     router_response_types::RedirectForm,
 };
 use error_stack::ResultExt;
@@ -251,6 +255,27 @@ pub struct MayaWebhookBody {
     pub can_void: Option<bool>,
     #[serde(default)]
     pub can_refund: Option<bool>,
+    /// Whether Maya has captured funds for this payment. Present on the
+    /// payment-inquiry response but not on every webhook event, so optional.
+    #[serde(default)]
+    pub can_capture: Option<bool>,
+    /// Whether the payment has been paid. Returned by the payment-inquiry
+    /// endpoint; absent on some webhook events, so optional.
+    #[serde(default)]
+    pub is_paid: Option<bool>,
+    /// Processed amount returned by Maya. The API reference documents this as a
+    /// JSON number, but Maya's live payment response actually serializes it as a
+    /// decimal string (e.g. `"100"`), so it is modeled as `StringMajorUnit` and
+    /// fed through the money framework into the PSync integrity check.
+    #[serde(default)]
+    pub amount: Option<StringMajorUnit>,
+    /// ISO 4217 currency echoed by Maya on the payment object.
+    #[serde(default)]
+    pub currency: Option<common_enums::Currency>,
+    #[serde(default)]
+    pub created_at: Option<String>,
+    #[serde(default)]
+    pub updated_at: Option<String>,
     #[serde(default)]
     pub metadata: Option<serde_json::Value>,
 }
@@ -534,6 +559,33 @@ impl TryFrom<ResponseRouterData<MayaWebhookBody, Self>>
 
         let payment = item.response;
 
+        // Maya returns the processed amount/currency on the payment object. Run them
+        // through the money framework and hand them to the PSync integrity check,
+        // but only when both are present (Maya omits them for e.g. expired payments).
+        let integrity_object = match (payment.amount.clone(), payment.currency) {
+            (Some(amount), Some(currency)) => {
+                let amount = StringMajorUnitForConnector
+                    .convert_back(amount, currency)
+                    .change_context(crate::utils::response_handling_fail_for_connector(
+                        item.http_code,
+                        "maya",
+                    ))?;
+                Some(PaymentSynIntegrityObject { amount, currency })
+            }
+            _ => None,
+        };
+
+        // Operational fields Maya returns that have no typed slot on the payments
+        // response are surfaced verbatim through `connector_metadata`.
+        let connector_metadata = serde_json::json!({
+            "isPaid": payment.is_paid,
+            "canVoid": payment.can_void,
+            "canRefund": payment.can_refund,
+            "canCapture": payment.can_capture,
+            "createdAt": payment.created_at.clone(),
+            "updatedAt": payment.updated_at.clone(),
+        });
+
         let settlement_status = maya_settlement_status(payment.can_void, payment.can_refund);
 
         let status = common_enums::AttemptStatus::from(payment.status.clone());
@@ -559,7 +611,7 @@ impl TryFrom<ResponseRouterData<MayaWebhookBody, Self>>
                 resource_id,
                 redirection_data: None,
                 mandate_reference: None,
-                connector_metadata: None,
+                connector_metadata: Some(connector_metadata),
                 network_txn_id: None,
                 connector_response_reference_id: Some(connector_response_reference_id),
                 incremental_authorization_allowed: None,
@@ -567,6 +619,10 @@ impl TryFrom<ResponseRouterData<MayaWebhookBody, Self>>
                 splits: None,
                 status_code: item.http_code,
             }),
+            request: PaymentsSyncData {
+                integrity_object,
+                ..item.router_data.request
+            },
             resource_common_data: PaymentFlowData {
                 status,
                 settlement_status,
@@ -658,6 +714,14 @@ pub struct MayaRefundResponse {
     pub status: MayaRefundStatus,
     #[serde(default)]
     pub reason: Option<String>,
+    /// Refunded amount echoed by Maya. Unlike the payment object's numeric
+    /// `amount`, Maya's refund response serializes it as a JSON string, so it is
+    /// modeled as `StringMajorUnit` and fed through the money framework.
+    #[serde(default)]
+    pub amount: Option<StringMajorUnit>,
+    /// ISO 4217 currency echoed by Maya on the refund response.
+    #[serde(default)]
+    pub currency: Option<common_enums::Currency>,
     #[serde(default)]
     pub request_reference_number: Option<String>,
     #[serde(default)]
@@ -734,6 +798,24 @@ impl TryFrom<ResponseRouterData<MayaRefundResponse, Self>>
             reason: None,
         };
 
+        // Feed Maya's echoed refund amount/currency through the money framework into
+        // the refund integrity check, but only when Maya returns both.
+        let integrity_object = match (item.response.amount.clone(), item.response.currency) {
+            (Some(amount), Some(currency)) => {
+                let refund_amount = StringMajorUnitForConnector
+                    .convert_back(amount, currency)
+                    .change_context(crate::utils::response_handling_fail_for_connector(
+                        item.http_code,
+                        "maya",
+                    ))?;
+                Some(RefundIntegrityObject {
+                    refund_amount,
+                    currency,
+                })
+            }
+            _ => None,
+        };
+
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.id,
@@ -741,6 +823,10 @@ impl TryFrom<ResponseRouterData<MayaRefundResponse, Self>>
                 status_code: item.http_code,
                 acquirer_reference_number: None,
             }),
+            request: RefundsData {
+                integrity_object,
+                ..item.router_data.request
+            },
             resource_common_data: RefundFlowData {
                 raw_connector_status: Some(raw_connector_status),
                 ..item.router_data.resource_common_data
