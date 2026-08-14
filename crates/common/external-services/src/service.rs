@@ -11,8 +11,6 @@ use common_utils::{
     request::TransportType,
 };
 use common_utils::{
-    // `CompiledLogFields` is used by the ungated `EventProcessingParams` struct, so it must be
-    // imported unconditionally (the ffi build compiles this crate without `injector-client`).
     events::{record_json_fields_on_span, CompiledLogFields},
     ext_traits::AsyncExt,
     lineage,
@@ -580,6 +578,8 @@ pub struct EventProcessingParams<'a> {
         response.error_message = Empty,
         response.status_code = Empty,
         message_ = "Golden Log Line (outgoing)",
+        // `latency` is the pre-existing human-readable string; `latency_ms` is the same
+        // duration as a plain number of milliseconds, for numeric downstream consumers.
         latency = Empty,
         latency_ms = Empty,
     )
@@ -1090,8 +1090,8 @@ where
 
     let elapsed = start.elapsed().as_millis();
     tracing::Span::current().record("latency", elapsed);
-    // Additive numeric latency (euler `latency` is a number). `latency` (string) left as-is.
-    tracing::Span::current().record("latency_ms", u64::try_from(elapsed).unwrap_or(u64::MAX));
+    // Additive numeric latency alongside the existing string `latency`.
+    tracing::Span::current().record("latency_ms", u64::try_from(elapsed).unwrap_or_default());
     // Apply outgoing log fields (transformations + static values) before emitting the golden log line
     #[cfg(feature = "log-transformations")]
     if event_params.log_fields_enabled {

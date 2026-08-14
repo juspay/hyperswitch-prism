@@ -16,63 +16,6 @@ brokers = ["localhost:9092"]
 topic = "connector-service-logs"
 buffer_limit = 100000
 
-# Euler golden-line field mapping (feature `log-transformations`), unified per-direction map.
-# { source = "span_field" } reads a span field; { value = "literal" } injects a constant.
-# Dotted target keys build the nested `api_details` object (renamed to euler `message` downstream).
-# Patchable per-request via `x-config-override` (merge semantics).
-[log.fields]
-# Runtime toggle (main made log-field application opt-in; default false).
-enabled = true
-
-[log.fields.incoming]
-"x-request-id" = { source = "request_id" }
-"udf_order_id" = { source = "merchant_order_id" }
-"udf_customer_id" = { source = "customer_id" }
-"udf_txn_uuid" = { source = "merchant_transaction_id" }
-"entity" = { source = "flow" }
-"resp_code" = { source = "res_code" }
-"category" = { value = "INCOMING_API" }
-"schema_version" = { value = "V2" }
-"tag" = { value = "euler_logs" }
-# euler sends the tenant NAME as x-tenant-id (span `tenant_id`); relabel it to `tenant_name`.
-# euler overrides the real `tenant_id` (uuid) per-request via x-config-override.
-"tenant_name" = { source = "tenant_id" }
-# euler emits `latency` at the top level (in addition to the nested one); mirror it here.
-"latency" = { source = "latency_ms" }
-"api_details.url" = { source = "uri" }
-"api_details.method" = { source = "action" }
-"api_details.res_code" = { source = "res_code" }
-"api_details.req_body" = { source = "request_body" }
-"api_details.res_body" = { source = "response_body" }
-"api_details.error" = { source = "error_message" }
-"api_details.latency" = { source = "latency_ms" }
-"api_details.api_tag" = { source = "flow" }
-# req_type is a fixed per-direction constant (UCS is always called internally by euler).
-"api_details.req_type" = { value = "INTERNAL" }
-
-[log.fields.outgoing]
-"x-request-id" = { source = "request_id" }
-"entity" = { source = "flow" }
-"resp_code" = { source = "response.status_code" }
-"category" = { value = "OUTGOING_API" }
-"schema_version" = { value = "V2" }
-"tag" = { value = "euler_logs" }
-"tenant_name" = { source = "tenant_id" }
-# Outgoing keeps its existing string `latency` span field untouched (additive);
-# the numeric value is exposed only via api_details.latency + the extra `latency_ms` field.
-"api_details.url" = { source = "request.url" }
-"api_details.method" = { source = "request.method" }
-"api_details.req_headers" = { source = "request.headers" }
-"api_details.req_body" = { source = "request.body" }
-"api_details.res_body" = { source = "response.body" }
-"api_details.res_headers" = { source = "response.headers" }
-"api_details.res_code" = { source = "response.status_code" }
-"api_details.error" = { source = "response.error_message" }
-"api_details.latency" = { source = "latency_ms" }
-"api_details.api_tag" = { source = "flow" }
-# req_type is a fixed per-direction constant (UCS→connector is always external).
-"api_details.req_type" = { value = "EXTERNAL" }
-
 [server]
 host = "0.0.0.0"
 port = 8000

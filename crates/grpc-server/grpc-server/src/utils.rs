@@ -41,8 +41,8 @@ pub fn record_fields_from_header<B: hyper::body::Body>(request: &Request<B>) -> 
         "request",
         uri = %url_path,
         version = ?request.version(),
-        // euler's `action` = the real HTTP verb (GET/POST/…); euler maps it to the `_method`
-        // column. gRPC-over-HTTP2 is always POST, the HTTP gateway carries the true verb.
+        // `action` = the real HTTP verb (GET/POST/…). gRPC-over-HTTP2 is always POST;
+        // the HTTP gateway carries the true verb.
         action = %request.method(),
         tenant_id = tracing::field::Empty,
         request_id = tracing::field::Empty,
@@ -297,10 +297,9 @@ where
     current_span.record("tenant_id", tenant_id);
     current_span.record("request_id", request_id);
 
-    // Euler secondary-key id sources (udf_order_id / udf_customer_id / udf_txn_uuid).
-    // Recorded as flat span fields via the storage API because the log transform sources by flat
-    // key (it cannot reach into `request_body`) and this avoids declaring the fields on every
-    // handler's `#[instrument]`. (`category` is set per-direction via static values.)
+    // Standard request identifiers (order id / customer id / transaction id) surfaced as flat
+    // span fields so the log-field mapping can source them by flat key (it cannot reach into
+    // `request_body`), without declaring them on every handler's `#[instrument]`.
     if let Some(ids) = masked_body.as_ref().map(|body| {
         [
             (
@@ -319,13 +318,11 @@ where
             ),
         ]
     }) {
-        log_utils::Storage::with_current_span_mut(|storage| {
-            for (key, value) in ids {
-                if let Some(value) = value {
-                    storage.record_value(key, Value::String(value.to_owned()));
-                }
-            }
-        });
+        record_json_fields_on_span(
+            ids.into_iter()
+                .filter_map(|(key, value)| value.map(|value| (key, Value::from(value))))
+                .collect(),
+        );
     }
     tracing::info!("Golden Log Line (incoming - request)");
     Ok(())
@@ -342,11 +339,9 @@ pub fn log_after_initialization<T>(
 
     match &result {
         Ok(response) => {
-            // Additive numeric euler `res_code` (success). `status_code` is left untouched
-            // (main parity) so existing consumers of the gRPC-code field don't break.
-            log_utils::Storage::with_current_span_mut(|storage| {
-                storage.record_value("res_code", Value::from(200_i64));
-            });
+            // Additive numeric `res_code` (success). `status_code` is left untouched so
+            // existing consumers of the gRPC-code field don't break.
+            record_json_fields_on_span(vec![("res_code", Value::from(200_i64))]);
 
             let res_ref = response.get_ref();
 
@@ -384,12 +379,13 @@ pub fn log_after_initialization<T>(
             current_span.record("error_message", status.message());
             // Backward-compatible: keep main's gRPC code-name string on `status_code`.
             current_span.record("status_code", status.code().to_string());
-            // Additive numeric euler `res_code`: connector-aware HTTP status (e.g. 422) —
-            // matches the HTTP response the caller receives, not the coarse gRPC code.
+            // Additive numeric `res_code`: connector-aware HTTP status (e.g. 422) — matches the
+            // HTTP response the caller receives, not the coarse gRPC code.
             let http_status = crate::http::error::http_status_for_status(status).as_u16();
-            log_utils::Storage::with_current_span_mut(|storage| {
-                storage.record_value("res_code", Value::from(i64::from(http_status)));
-            });
+            record_json_fields_on_span(vec![(
+                "res_code",
+                Value::from(i64::from(http_status)),
+            )]);
         }
     }
     // Apply unified log fields (transformations + static values) before emitting the golden log line
@@ -405,15 +401,13 @@ pub fn log_after_initialization<T>(
     tracing::info!("Golden Log Line (incoming - response)");
 }
 
-/// Record the additive numeric `latency_ms` on the current span (euler `latency` is a number).
-/// Shared by the streaming and non-streaming logging wrappers to avoid drift.
+/// Record the additive numeric `latency_ms` on the current span. Shared by the streaming and
+/// non-streaming logging wrappers to avoid drift.
 fn record_latency_ms(duration: u128) {
-    log_utils::Storage::with_current_span_mut(|storage| {
-        storage.record_value(
-            "latency_ms",
-            Value::from(u64::try_from(duration).unwrap_or(u64::MAX)),
-        );
-    });
+    record_json_fields_on_span(vec![(
+        "latency_ms",
+        Value::from(u64::try_from(duration).unwrap_or_default()),
+    )]);
 }
 
 /// Generic gRPC logging wrapper that accepts a custom parser function.
@@ -458,7 +452,7 @@ where
 
         let duration = start_time.elapsed().as_millis();
         current_span.record("response_time", duration);
-        // Additive numeric latency (euler `latency` is a number). `response_time` is left as-is.
+        // Additive numeric latency alongside the existing `response_time`.
         record_latency_ms(duration);
         result
     }
@@ -528,7 +522,7 @@ where
 
         let duration = start_time.elapsed().as_millis();
         current_span.record("response_time", duration);
-        // Additive numeric latency (euler `latency` is a number). `response_time` is left as-is.
+        // Additive numeric latency alongside the existing `response_time`.
         record_latency_ms(duration);
         result
     }
