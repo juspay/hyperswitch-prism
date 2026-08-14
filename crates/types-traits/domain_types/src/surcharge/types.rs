@@ -40,6 +40,8 @@ impl
             connectors,
             raw_connector_response: None,
             raw_connector_request: None,
+            typed_connector_request: None,
+            typed_connector_response: None,
             connector_response_headers: None,
         })
     }
@@ -211,6 +213,8 @@ impl
             connectors,
             raw_connector_response: None,
             raw_connector_request: None,
+            typed_connector_request: None,
+            typed_connector_response: None,
             connector_response_headers: None,
         })
     }

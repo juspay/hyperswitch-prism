@@ -134,6 +134,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 })
             }
             Err(_) => {
@@ -153,6 +157,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 })
             }
         }
@@ -220,7 +228,7 @@ macros::create_all_prerequisites!(
                 Method::Get => String::default(),
                 Method::Post | Method::Put | Method::Delete | Method::Patch => self
                     .get_request_body(req)?
-                    .map(|content| content.get_inner_value().peek().to_owned())
+                    .map(|content| content.content.get_inner_value().peek().to_owned())
                     .unwrap_or_default(),
             };
             let path = (self.get_url(req)?).replace(self.connector_base_url_payments(req), "");
@@ -275,7 +283,7 @@ macros::create_all_prerequisites!(
                 Method::Get => String::default(),
                 Method::Post | Method::Put | Method::Delete | Method::Patch => self
                     .get_request_body(req)?
-                    .map(|content| content.get_inner_value().peek().to_owned())
+                    .map(|content| content.content.get_inner_value().peek().to_owned())
                     .unwrap_or_default(),
             };
             let path = (self.get_url(req)?).replace(self.connector_base_url_refunds(req), "");
