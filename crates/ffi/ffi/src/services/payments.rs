@@ -1023,6 +1023,7 @@ pub fn verify_redirect_response_transformer(
             error_code: "MISSING_REQUIRED_FIELD".to_string(),
             http_status_code: None,
             error_info: None,
+            ..Default::default()
         })
     })?;
 
@@ -1032,6 +1033,7 @@ pub fn verify_redirect_response_transformer(
             error_code: "CONVERSION_FAILED".to_string(),
             http_status_code: None,
             error_info: None,
+            ..Default::default()
         })
     })?;
 
@@ -1045,6 +1047,7 @@ pub fn verify_redirect_response_transformer(
                         error_code: "CONVERSION_FAILED".to_string(),
                         http_status_code: None,
                         error_info: None,
+                        ..Default::default()
                     })
                 })
         })
@@ -1082,6 +1085,7 @@ pub fn verify_redirect_response_transformer(
                 error_code: "PROCESS_REDIRECT_ERROR".to_string(),
                 http_status_code: None,
                 error_info: None,
+                ..Default::default()
             })
         })?;
 
@@ -1095,6 +1099,7 @@ pub fn verify_redirect_response_transformer(
             error_code: "CONVERSION_FAILED".to_string(),
             http_status_code: None,
             error_info: None,
+            ..Default::default()
         })
     })
 }

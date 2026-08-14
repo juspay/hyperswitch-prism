@@ -98,6 +98,7 @@ macros::create_all_prerequisites!(
                     event.set_connector_response(&session_error_response);
                 }
 
+                let typed = macros::serialize_typed_connector_payload(&session_error_response, "typed_connector_response");
                 return Ok(ErrorResponse {
                     code: session_error_response.body.result_info.result_code,
                     message: session_error_response.body.result_info.result_msg,
@@ -107,8 +108,12 @@ macros::create_all_prerequisites!(
                     connector_transaction_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
-                    network_error_message: None
-});
+                    network_error_message: None,
+                    typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
+                });
             }
 
             // Try to parse as callback error response format
@@ -120,6 +125,7 @@ macros::create_all_prerequisites!(
                     event.set_connector_response(&callback_response);
                 }
 
+                let typed = macros::serialize_typed_connector_payload(&callback_response, "typed_connector_response");
                 return Ok(ErrorResponse {
                     code: callback_response
                         .body
@@ -137,8 +143,12 @@ macros::create_all_prerequisites!(
                     connector_transaction_id: callback_response.body.txn_info.order_id,
                     network_decline_code: None,
                     network_advice_code: None,
-                    network_error_message: None
-});
+                    network_error_message: None,
+                    typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
+                });
             }
 
             // Try to parse as original JSON error response format
@@ -150,6 +160,7 @@ macros::create_all_prerequisites!(
                     event.set_connector_response(&response);
                 }
 
+                let typed = macros::serialize_typed_connector_payload(&response, "typed_connector_response");
                 return Ok(ErrorResponse {
                     code: response.error_code.unwrap_or_default(),
                     message: response.error_message.unwrap_or_default(),
@@ -159,8 +170,12 @@ macros::create_all_prerequisites!(
                     connector_transaction_id: response.transaction_id,
                     network_decline_code: None,
                     network_advice_code: None,
-                    network_error_message: None
-});
+                    network_error_message: None,
+                    typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
+                });
             }
 
             // Final fallback for non-JSON responses (HTML errors, etc.)
@@ -186,8 +201,12 @@ macros::create_all_prerequisites!(
                 connector_transaction_id: None,
                 network_decline_code: None,
                 network_advice_code: None,
-                network_error_message: None
-})
+                network_error_message: None,
+                typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
+            })
         }
     }
 );

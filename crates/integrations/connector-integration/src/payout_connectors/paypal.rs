@@ -41,6 +41,7 @@ use interfaces::{
     },
 };
 
+use crate::finalize_connector_response;
 use crate::types::ResponseRouterData;
 use transformers as paypal;
 
@@ -179,6 +180,10 @@ impl ConnectorCommon for PaypalPayouts {
                 .join("; ")
         });
 
+        let typed = crate::connectors::macros::serialize_typed_connector_payload(
+            &response,
+            "typed_connector_response",
+        );
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response
@@ -192,6 +197,10 @@ impl ConnectorCommon for PaypalPayouts {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     }
 }
@@ -289,11 +298,16 @@ impl
             PayoutTransferRequest,
             PayoutTransferResponse,
         >,
-    ) -> CustomResult<Option<common_utils::request::RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let connector_req = paypal::PaypalFulfillRequest::try_from(req)?;
-        Ok(Some(common_utils::request::RequestContent::Json(Box::new(
-            connector_req,
-        ))))
+        let typed = events::MaskedSerdeValue::from_masked_optional(
+            &connector_req,
+            "typed_connector_request",
+        );
+        Ok(Some(common_utils::request::ConnectorRequestData::new(
+            common_utils::request::RequestContent::Json(Box::new(connector_req)),
+            typed,
+        )))
     }
 
     fn handle_response_v2(
@@ -323,22 +337,7 @@ impl
                 },
             })?;
 
-        event_builder.map(|i| i.set_connector_response(&response));
-
-        RouterDataV2::try_from(ResponseRouterData {
-            response,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        })
-        .change_context(ConnectorError::ResponseDeserializationFailed {
-            context: ResponseTransformationErrorContext {
-                http_status_code: Some(res.status_code),
-                additional_context: Some(
-                    "PayPal Fulfill (PayoutTransfer) - failed to map response to RouterData"
-                        .to_string(),
-                ),
-            },
-        })
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -440,21 +439,7 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
                 },
             })?;
 
-        event_builder.map(|i| i.set_connector_response(&response));
-
-        RouterDataV2::try_from(ResponseRouterData {
-            response,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        })
-        .change_context(ConnectorError::ResponseDeserializationFailed {
-            context: ResponseTransformationErrorContext {
-                http_status_code: Some(res.status_code),
-                additional_context: Some(
-                    "PayPal Get (PayoutGet) - failed to map response to RouterData".to_string(),
-                ),
-            },
-        })
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(

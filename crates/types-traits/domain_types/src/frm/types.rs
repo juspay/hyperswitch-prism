@@ -21,7 +21,7 @@ use common_utils::{
     types::{MinorUnit, Money},
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::ExposeInterface;
+use hyperswitch_masking::{ExposeInterface, Secret};
 
 // ── MerchantDetails conversion ────────────────────────────────────────────────
 
@@ -92,6 +92,8 @@ impl
             access_token,
             raw_connector_response: None,
             raw_connector_request: None,
+            typed_connector_request: None,
+            typed_connector_response: None,
             connector_response_headers: None,
         })
     }
@@ -128,6 +130,8 @@ impl
             access_token,
             raw_connector_response: None,
             raw_connector_request: None,
+            typed_connector_request: None,
+            typed_connector_response: None,
             connector_response_headers: None,
         })
     }
@@ -164,6 +168,8 @@ impl
             access_token,
             raw_connector_response: None,
             raw_connector_request: None,
+            typed_connector_request: None,
+            typed_connector_response: None,
             connector_response_headers: None,
         })
     }
@@ -868,9 +874,17 @@ pub fn generate_pre_risk_check_response(
     let raw_connector_response = router_data_v2
         .resource_common_data
         .get_raw_connector_response();
+    let typed_connector_response = router_data_v2
+        .resource_common_data
+        .get_typed_connector_response()
+        .map(Secret::new);
     let raw_connector_request = router_data_v2
         .resource_common_data
         .get_raw_connector_request();
+    let typed_connector_request = router_data_v2
+        .resource_common_data
+        .get_typed_connector_request()
+        .map(Secret::new);
     let response_headers = router_data_v2
         .resource_common_data
         .get_connector_response_headers_as_map();
@@ -895,7 +909,9 @@ pub fn generate_pre_risk_check_response(
                 status_code: status_code.into(),
                 error: None,
                 raw_connector_request,
+                typed_connector_request,
                 raw_connector_response,
+                typed_connector_response,
                 response_headers,
             }
         }
@@ -917,7 +933,9 @@ pub fn generate_pre_risk_check_response(
                 issuer_details: None,
             }),
             raw_connector_request,
+            typed_connector_request,
             raw_connector_response,
+            typed_connector_response,
             response_headers,
         },
     };
@@ -938,9 +956,17 @@ pub fn generate_post_risk_check_response(
     let raw_connector_response = router_data_v2
         .resource_common_data
         .get_raw_connector_response();
+    let typed_connector_response = router_data_v2
+        .resource_common_data
+        .get_typed_connector_response()
+        .map(Secret::new);
     let raw_connector_request = router_data_v2
         .resource_common_data
         .get_raw_connector_request();
+    let typed_connector_request = router_data_v2
+        .resource_common_data
+        .get_typed_connector_request()
+        .map(Secret::new);
     let response_headers = router_data_v2
         .resource_common_data
         .get_connector_response_headers_as_map();
@@ -965,7 +991,9 @@ pub fn generate_post_risk_check_response(
                 status_code: status_code.into(),
                 error: None,
                 raw_connector_request,
+                typed_connector_request,
                 raw_connector_response,
+                typed_connector_response,
                 response_headers,
             }
         }
@@ -987,7 +1015,9 @@ pub fn generate_post_risk_check_response(
                 issuer_details: None,
             }),
             raw_connector_request,
+            typed_connector_request,
             raw_connector_response,
+            typed_connector_response,
             response_headers,
         },
     };

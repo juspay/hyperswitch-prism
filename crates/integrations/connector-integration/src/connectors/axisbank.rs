@@ -394,11 +394,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .response
             .parse_struct::<axisbank::AxisbankErrorResponse>("Axisbank ErrorResponse")
         {
-            axisbank::build_error_response(
+            let typed =
+                macros::serialize_typed_connector_payload(&error, "typed_connector_response");
+            let mut resp = axisbank::build_error_response(
                 res.status_code,
                 &error.response_code,
                 &error.response_message,
-            )
+            );
+            resp.typed_connector_response = typed;
+            resp
         } else {
             let raw_response = String::from_utf8_lossy(&res.response);
             axisbank::build_error_response(res.status_code, "UNKNOWN", &raw_response)
