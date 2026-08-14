@@ -1345,44 +1345,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             });
         }
 
-        // The whole point of a mandate setup is the payment token, and Worldpay can authorise
-        // the order without issuing one (tokenisation not enabled on the merchant profile, or a
-        // token event conflict). Reporting success with no mandate reference would store a
-        // "successful" mandate that every later merchant-initiated payment fails against, so a
-        // token-less success must fail loudly here instead.
-        let mandate_reference = get_worldpayxml_mandate_reference(order_status, payment);
-        if mandate_reference.is_none() {
-            return Ok(Self {
-                resource_common_data: PaymentFlowData {
-                    status: AttemptStatus::Failure,
-                    ..router_data.resource_common_data.clone()
-                },
-                response: Err(ErrorResponse {
-                    code: common_utils::consts::NO_ERROR_CODE.to_string(),
-                    message: "Worldpay authorised the order but did not issue a payment token, \
-                              so the mandate cannot be charged later. Confirm tokenisation is \
-                              enabled on the merchant profile."
-                        .to_string(),
-                    reason: Some("no paymentTokenID in the setup mandate response".to_string()),
-                    status_code: item.http_code,
-                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
-                    connector_transaction_id: Some(order_status.order_code.clone()),
-                    network_decline_code: None,
-                    network_advice_code: None,
-                    network_error_message: None,
-                    typed_connector_response: None,
-                    raw_connector_response: None,
-                    raw_connector_request: None,
-                    typed_connector_request: None,
-                }),
-                ..router_data.clone()
-            });
-        }
-
+        // A token-less AUTHORISED reply (tokenisation not enabled on the merchant profile, or a
+        // token event conflict) still maps to success with an absent mandate reference. Failing
+        // it here was considered and reverted: the reference connector implementation is lenient,
+        // and behavioural parity with it takes precedence.
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(order_status.order_code.clone()),
             redirection_data: None,
-            mandate_reference,
+            mandate_reference: get_worldpayxml_mandate_reference(order_status, payment),
             connector_metadata: None,
             network_txn_id: payment
                 .authorisation_id
