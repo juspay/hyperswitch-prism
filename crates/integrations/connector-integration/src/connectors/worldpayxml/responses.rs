@@ -1,5 +1,6 @@
+use common_utils::StringMinorUnit;
 use hyperswitch_masking::Secret;
-use serde::{Deserialize, Serialize};
+use serde::{de, Deserialize, Deserializer, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename = "paymentService")]
@@ -80,36 +81,50 @@ pub struct WorldpayxmlPayment {
     pub scheme_response: Option<WorldpayxmlSchemeResponse>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+/// `lastEvent`/`PaymentStatus` values Worldpay reports for an order.
+///
+/// Worldpay keeps adding journey events, so any value that is not modelled here deserializes to
+/// [`WorldpayxmlLastEvent::Unknown`] instead of failing the whole response.
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum WorldpayxmlLastEvent {
     Authorised,
     Refused,
     Cancelled,
     Captured,
+    Settled,
+    SentForAuthorisation,
     SentForRefund,
+    SentForFastRefund,
     Refunded,
+    RefundRequested,
     RefundFailed,
+    RefundedByMerchant,
     Expired,
     Error,
+    QueryRequired,
+    CancelReceived,
+    RefundReceived,
     PushRequested,
     PushPending,
     PushApproved,
     PushRefused,
     SettledByMerchant,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WorldpayxmlResultCode {
     #[serde(rename = "@description")]
-    pub description: String,
+    pub description: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WorldpayxmlBalance {
     #[serde(rename = "@accountType")]
-    pub account_type: String,
-    pub amount: WorldpayxmlAmountResponse,
+    pub account_type: Option<String>,
+    pub amount: Option<WorldpayxmlAmountResponse>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -121,7 +136,7 @@ pub struct WorldpayxmlSchemeResponse {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorldpayxmlPaymentMethodDetail {
-    pub card: WorldpayxmlCardResponse,
+    pub card: Option<WorldpayxmlCardResponse>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -130,7 +145,7 @@ pub struct WorldpayxmlCardResponse {
     #[serde(rename = "@number")]
     pub number: Option<String>,
     #[serde(rename = "@type")]
-    pub card_type: String,
+    pub card_type: Option<String>,
     pub expiry_date: Option<WorldpayxmlExpiryDate>,
 }
 
@@ -162,7 +177,7 @@ pub struct WorldpayxmlAmountResponse {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WorldpayxmlAuthorisationId {
     #[serde(rename = "@id")]
-    pub id: String,
+    pub id: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -310,20 +325,102 @@ pub struct WorldpayxmlCancelOrRefundReceived {
     pub order_code: String,
 }
 
-// PSync response can be either XML (PaymentService) or JSON (Webhook format)
-#[derive(Clone, Debug, Deserialize, Serialize)]
+/// Carrier for a PSync/RSync body, which is normally the XML `<paymentService>` order-inquiry
+/// envelope but can also be the form/JSON order-notification body.
+///
+/// It deliberately does **not** derive `Deserialize` as an `untagged` enum. `untagged` forces
+/// serde's `deserialize_any`, and the buffered value it produces loses XML sequence and text
+/// semantics — `balance` buffers as a map instead of a sequence and `<lastEvent>X</lastEvent>`
+/// buffers as `{"$text": "X"}`, which a unit-variant enum cannot be built from. The `Payment`
+/// variant therefore never matched, and the all-optional webhook variant silently absorbed every
+/// payload. Instead the concrete `<paymentService>` type is tried first and the success is wrapped
+/// manually, falling back to the notification body — mirroring hyperswitch's handling.
+#[derive(Clone, Debug, Serialize)]
 #[serde(untagged)]
 pub enum WorldpayxmlTransactionResponse {
     Payment(Box<WorldpayxmlAuthorizeResponse>),
     Webhook(WorldpayxmlWebhookResponse),
 }
 
+/// Concrete (never `deserialize_any`) shape covering both bodies a sync call can return, so the
+/// right [`WorldpayxmlTransactionResponse`] variant can be picked without buffering the payload.
+#[derive(Debug, Deserialize)]
+#[serde(rename = "paymentService")]
+struct WorldpayxmlSyncResponseBody {
+    // `<paymentService>` order-inquiry reply.
+    #[serde(rename = "@version")]
+    version: Option<String>,
+    #[serde(rename = "@merchantCode")]
+    merchant_code: Option<String>,
+    reply: Option<WorldpayxmlReply>,
+    // Order-notification body.
+    #[serde(rename = "PaymentAmount")]
+    payment_amount: Option<StringMinorUnit>,
+    #[serde(rename = "PaymentId")]
+    payment_id: Option<String>,
+    #[serde(rename = "OrderCode")]
+    order_code: Option<String>,
+    #[serde(rename = "PaymentStatus")]
+    payment_status: Option<WorldpayxmlLastEvent>,
+    #[serde(rename = "ReturnCode")]
+    return_code: Option<String>,
+    #[serde(rename = "ReturnMessage")]
+    return_message: Option<String>,
+}
+
+impl<'de> Deserialize<'de> for WorldpayxmlTransactionResponse {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let body = WorldpayxmlSyncResponseBody::deserialize(deserializer)?;
+
+        // Try the concrete `<paymentService>` envelope first, exactly as the payment flows do.
+        if let Some(reply) = body.reply {
+            return Ok(Self::Payment(Box::new(WorldpayxmlAuthorizeResponse {
+                version: body.version.unwrap_or_default(),
+                merchant_code: body.merchant_code.unwrap_or_default(),
+                reply,
+            })));
+        }
+
+        // Otherwise fall back to the order-notification body.
+        match (body.order_code, body.payment_status) {
+            (Some(order_code), Some(payment_status)) => {
+                Ok(Self::Webhook(WorldpayxmlWebhookResponse {
+                    payment_amount: body.payment_amount,
+                    payment_id: body.payment_id,
+                    order_code,
+                    payment_status,
+                    return_code: body.return_code,
+                    return_message: body.return_message,
+                }))
+            }
+            _ => Err(de::Error::custom(
+                "worldpayxml: sync response body carried neither a paymentService reply nor an order notification",
+            )),
+        }
+    }
+}
+
+/// Order-notification body Worldpay can deliver for an order.
+///
+/// `order_code` and `payment_status` are mandatory: making them optional is what let this shape
+/// match every payload and mask genuine parse failures.
 #[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct WorldpayxmlWebhookResponse {
-    pub order_code: Option<String>,
-    pub last_event: Option<String>,
-    pub payment_status: Option<String>,
+    #[serde(rename = "PaymentAmount")]
+    pub payment_amount: Option<StringMinorUnit>,
+    #[serde(rename = "PaymentId")]
+    pub payment_id: Option<String>,
+    #[serde(rename = "OrderCode")]
+    pub order_code: String,
+    #[serde(rename = "PaymentStatus")]
+    pub payment_status: WorldpayxmlLastEvent,
+    #[serde(rename = "ReturnCode")]
+    pub return_code: Option<String>,
+    #[serde(rename = "ReturnMessage")]
+    pub return_message: Option<String>,
 }
 
 // Type alias for RSync - reuses PSync response structure

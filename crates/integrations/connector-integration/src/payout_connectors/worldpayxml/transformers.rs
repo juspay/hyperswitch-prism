@@ -56,20 +56,34 @@ fn map_worldpayxml_payout_status(
     match last_event {
         WorldpayxmlLastEvent::Authorised
         | WorldpayxmlLastEvent::Captured
+        | WorldpayxmlLastEvent::Settled
         | WorldpayxmlLastEvent::PushApproved
         | WorldpayxmlLastEvent::SettledByMerchant => common_enums::PayoutStatus::Success,
-        WorldpayxmlLastEvent::PushRequested | WorldpayxmlLastEvent::PushPending => {
-            common_enums::PayoutStatus::Pending
-        }
+        WorldpayxmlLastEvent::PushRequested
+        | WorldpayxmlLastEvent::PushPending
+        | WorldpayxmlLastEvent::SentForAuthorisation
+        | WorldpayxmlLastEvent::QueryRequired
+        | WorldpayxmlLastEvent::CancelReceived
+        | WorldpayxmlLastEvent::RefundReceived
+        | WorldpayxmlLastEvent::RefundRequested => common_enums::PayoutStatus::Pending,
         WorldpayxmlLastEvent::Cancelled => common_enums::PayoutStatus::Cancelled,
-        WorldpayxmlLastEvent::SentForRefund | WorldpayxmlLastEvent::Refunded => {
-            common_enums::PayoutStatus::Reversed
-        }
+        WorldpayxmlLastEvent::SentForRefund
+        | WorldpayxmlLastEvent::SentForFastRefund
+        | WorldpayxmlLastEvent::Refunded
+        | WorldpayxmlLastEvent::RefundedByMerchant => common_enums::PayoutStatus::Reversed,
         WorldpayxmlLastEvent::Refused
         | WorldpayxmlLastEvent::RefundFailed
         | WorldpayxmlLastEvent::PushRefused
         | WorldpayxmlLastEvent::Expired
         | WorldpayxmlLastEvent::Error => common_enums::PayoutStatus::Failure,
+        // An unrecognised event says nothing about the payout, so stay non-terminal instead of
+        // guessing at success or failure.
+        WorldpayxmlLastEvent::Unknown => {
+            tracing::warn!(
+                "worldpayxml: unknown lastEvent received for payout; reporting status as pending"
+            );
+            common_enums::PayoutStatus::Pending
+        }
     }
 }
 
