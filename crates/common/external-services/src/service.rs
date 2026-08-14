@@ -411,7 +411,7 @@ where
                         ));
                         json_fields.push(("response.headers", masked_response_headers));
                     }
-                    
+
                     if !json_fields.is_empty() {
                         record_json_fields_on_span(json_fields);
                     }
