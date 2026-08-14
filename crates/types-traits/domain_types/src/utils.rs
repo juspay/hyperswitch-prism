@@ -108,6 +108,11 @@ pub fn handle_json_response_deserialization_failure(
     }
 }
 
+#[cfg_attr(feature = "deja", track_caller)]
+#[cfg_attr(
+    feature = "deja",
+    deja::id(component = "domain_types", operation = "generate_random_bytes", codec = SerdeCodec,)
+)]
 pub fn generate_random_bytes(length: usize) -> Vec<u8> {
     // returns random bytes of length n
     let mut rng = rand::thread_rng();

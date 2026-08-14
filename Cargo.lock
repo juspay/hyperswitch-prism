@@ -1628,6 +1628,63 @@ dependencies = [
 ]
 
 [[package]]
+name = "deja"
+version = "0.1.0"
+source = "git+https://github.com/juspay/deja?rev=2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3#2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3"
+dependencies = [
+ "deja-context",
+ "deja-core",
+ "deja-derive",
+ "deja-runtime",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "deja-context"
+version = "0.1.0"
+source = "git+https://github.com/juspay/deja?rev=2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3#2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3"
+dependencies = [
+ "pin-project-lite",
+]
+
+[[package]]
+name = "deja-core"
+version = "0.1.0"
+source = "git+https://github.com/juspay/deja?rev=2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3#2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "deja-derive"
+version = "0.1.0"
+source = "git+https://github.com/juspay/deja?rev=2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3#2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
+]
+
+[[package]]
+name = "deja-runtime"
+version = "0.1.0"
+source = "git+https://github.com/juspay/deja?rev=2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3#2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3"
+dependencies = [
+ "async-trait",
+ "deja-context",
+ "deja-core",
+ "deja-derive",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "der"
 version = "0.7.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1794,6 +1851,7 @@ dependencies = [
  "bytes",
  "config_patch_derive",
  "cpf_cnpj",
+ "deja",
  "error-stack 0.4.1",
  "grpc-api-types",
  "http 0.2.12",
@@ -8247,6 +8305,7 @@ dependencies = [
  "bytes",
  "chrono",
  "config_patch_derive",
+ "deja",
  "error-stack 0.4.1",
  "futures",
  "hex",
