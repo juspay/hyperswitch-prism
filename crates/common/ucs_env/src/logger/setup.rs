@@ -83,6 +83,15 @@ pub fn setup(
         subscriber_layers.push(console_layer);
     }
 
+    // Déjà correlation layer: mirrors the per-request span's `request_id` field into the
+    // deja context so boundaries fired in spawned tasks inherit the correlation. Installed
+    // only when the process records or replays (a boot-time peek — never per-request), so
+    // there is zero overhead in normal operation.
+    #[cfg(feature = "deja")]
+    if deja::process_runtime_mode().consumes_args() {
+        subscriber_layers.push(deja::DejaCorrelationLayer::new().boxed());
+    }
+
     #[allow(unused_mut)]
     let mut kafka_logging_enabled = false;
     // Add Kafka layer if configured

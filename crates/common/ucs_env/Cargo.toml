@@ -56,6 +56,7 @@ build_info = { git = "https://github.com/juspay/framework-libs-rs", rev = "24356
     "cargo-workspace",
     "framework-libs-members-env",
 ] }
+deja = { git = "https://github.com/juspay/deja", rev = "2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3", optional = true, default-features = false }
 
 [build-dependencies]
 build_info = { git = "https://github.com/juspay/framework-libs-rs", rev = "243562041252fe5897ce888d20b715ffdc3767ce", package = "build_info", features = [
@@ -68,10 +69,9 @@ build_info = { git = "https://github.com/juspay/framework-libs-rs", rev = "24356
 default = []
 kafka = ["tracing-kafka"]
 otel = ["dep:opentelemetry", "dep:opentelemetry-otlp", "dep:opentelemetry_sdk"]
-# Déjà record/replay. At this layer the feature is dependency-free: it only gates the
-# typed `[deja]` config surface (plain serde types). Boundary instrumentation and the
-# `deja` crate dependency are wired in later crates/PRs.
-deja = []
+# Déjà record/replay. Gates the typed `[deja]` config surface (plain serde types, no deja
+# symbols) and the correlation tracing layer installed in `logger::setup`.
+deja = ["dep:deja"]
 
 [lints]
 workspace = true
