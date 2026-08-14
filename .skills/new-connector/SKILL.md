@@ -59,10 +59,11 @@ These rules apply to ALL subagents. Include them in every subagent prompt.
 - Check `references/utility-functions.md` before implementing custom helpers
 - No `unwrap()`, no fields hardcoded to `None`, no unnecessary `.clone()`
 - Auth data accessed via `req.connector_config` (NOT `connector_auth_type`)
-- ALWAYS register connector base URLs in `config/superposition.toml` (dimension enum + sandbox &
-  production `connector_base_url` overrides) AND add the connector to `Connectors::apply` in
-  `crates/types-traits/domain_types/src/types.rs` for dynamic URL patching. The scaffold script
-  does NOT do this — it is a mandatory manual step.
+- Connector base URLs MUST be registered in `config/superposition.toml` (dimension enum + sandbox &
+  production `connector_base_url` overrides) AND the connector wired into
+  `Connectors::patch_connector_urls` in `crates/types-traits/domain_types/src/types.rs` for dynamic
+  URL patching. The scaffold script (`add_connector.sh`) now does this automatically — verify it
+  landed, and pass `--production-url` when the live URL differs from the sandbox base URL.
 
 ---
 
@@ -108,18 +109,19 @@ Do NOT attempt to infer API details from any other source. A tech spec is mandat
 
 > **Subagent prompt:** `references/subagent-prompts.md` → Subagent 2
 
-**Inputs:** connector_name, base_url, auth_method, amount_type (from Step 1)
+**Inputs:** connector_name, base_url, production_base_url (optional), auth_method, amount_type (from Step 1)
 
 **What it does:**
 - Runs `scripts/add_connector.sh {connector_name} {base_url} --force -y`
+  (add `--production-url {production_base_url}` when the live URL differs from the sandbox base URL)
 - Verifies `cargo build --package connector-integration` passes
 - Checks UCS conventions (RouterDataV2, generic struct, domain_types imports)
 - Sets up `create_amount_converter_wrapper!` macro
 - Implements `ConnectorCommon` trait (id, content_type, base_url, auth_header, error_response)
 - Adds required trait markers (ConnectorServiceTrait, SourceVerification, BodyDecoding)
-- Registers connector base URLs in `config/superposition.toml` (dimension enum + sandbox/production
-  overrides) and adds the URL-patching match arm in `types.rs` `Connectors::apply` (scaffold script
-  does NOT do this)
+- The scaffold script auto-registers the connector's base URLs in `config/superposition.toml`
+  (dimension enum + sandbox/production overrides) and adds the URL-patching arm in `types.rs`
+  `Connectors::patch_connector_urls` — the subagent verifies both landed
 
 **Outputs:** scaffold created, superposition URLs registered + URL patching wired, build passing, files list
 
