@@ -339,8 +339,8 @@ fn main() {
 
     for connector in &connectors {
         let src_path = connectors_src.join(format!("{connector}.rs"));
-        let is_legacy_exception = LEGACY_CONNECTORS_WITHOUT_PREREQUISITES_MACRO
-            .contains(&connector.as_str());
+        let is_legacy_exception =
+            LEGACY_CONNECTORS_WITHOUT_PREREQUISITES_MACRO.contains(&connector.as_str());
 
         let src = match fs::read_to_string(&src_path) {
             Ok(s) => s,
@@ -466,11 +466,7 @@ fn main() {
         let Ok(specs) = serde_json::from_str::<ConnectorSpecs>(&content) else {
             continue;
         };
-        if !specs
-            .supported_suites
-            .iter()
-            .any(|s| s == WEBHOOK_SUITE)
-        {
+        if !specs.supported_suites.iter().any(|s| s == WEBHOOK_SUITE) {
             continue;
         }
 
@@ -612,7 +608,10 @@ fn main() {
 
     if !legacy_unverified.is_empty() {
         println!();
-        println!("Legacy exception connectors: {}", legacy_unverified.join(", "));
+        println!(
+            "Legacy exception connectors: {}",
+            legacy_unverified.join(", ")
+        );
     }
     if !unverifiable.is_empty() {
         println!();
@@ -624,7 +623,10 @@ fn main() {
     println!("Missing webhook_payload.json: {}", webhook_errors.len());
     if !webhook_errors.is_empty() {
         println!();
-        println!("Connectors missing webhook_payload.json: {}", webhook_errors.join(", "));
+        println!(
+            "Connectors missing webhook_payload.json: {}",
+            webhook_errors.join(", ")
+        );
     }
 
     println!();
@@ -684,9 +686,7 @@ fn main() {
         println!("ERRORS — connectors declaring webhook support without webhook_payload.json");
         println!("{}", "=".repeat(80));
         for connector in &webhook_errors {
-            println!(
-                "  {connector:<30}  declares {WEBHOOK_SUITE} but has no webhook_payload.json"
-            );
+            println!("  {connector:<30}  declares {WEBHOOK_SUITE} but has no webhook_payload.json");
         }
         println!(
             "  Fix: add crates/internal/integration-tests/src/connector_specs/<name>/webhook_payload.json, \

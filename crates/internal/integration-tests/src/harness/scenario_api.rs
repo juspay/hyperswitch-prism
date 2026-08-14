@@ -3495,10 +3495,9 @@ pub fn run_scenario_test_with_options(
         // send an incomplete request for that connector.
         let (effective_grpc_req, _effective_assertions) =
             load_effective_scenario_for_connector(suite, scenario, connector)?;
-        if let Some(unmet) = first_context_map_target_missing_from_scenario(
-            &target_suite_spec,
-            &effective_grpc_req,
-        ) {
+        if let Some(unmet) =
+            first_context_map_target_missing_from_scenario(&target_suite_spec, &effective_grpc_req)
+        {
             return Err(ScenarioError::DependenciesRequired {
                 suite: suite.to_string(),
                 scenario: scenario.to_string(),
@@ -6152,7 +6151,9 @@ grpc-status: 0
 
     #[test]
     fn stripe_authorize_credit_card_scenario_is_safe_to_skip_dependencies() {
-        use super::{first_context_map_target_missing_from_scenario, load_effective_scenario_for_connector};
+        use super::{
+            first_context_map_target_missing_from_scenario, load_effective_scenario_for_connector,
+        };
 
         let suite_spec = load_suite_spec("PaymentService/Authorize")
             .expect("PaymentService/Authorize suite spec should load");
@@ -6161,13 +6162,12 @@ grpc-status: 0
         // uses: base scenario.json merged with connector_specs/stripe/override.json. Checking
         // the raw base scenario here would pass even if a connector's own override
         // introduced a gap the base scenario didn't have.
-        let (effective_grpc_req, _assertions) =
-            load_effective_scenario_for_connector(
-                "PaymentService/Authorize",
-                "no3ds_auto_capture_credit_card",
-                "stripe",
-            )
-            .expect("stripe's effective no3ds_auto_capture_credit_card request should load");
+        let (effective_grpc_req, _assertions) = load_effective_scenario_for_connector(
+            "PaymentService/Authorize",
+            "no3ds_auto_capture_credit_card",
+            "stripe",
+        )
+        .expect("stripe's effective no3ds_auto_capture_credit_card request should load");
 
         // This is the certified CI scenario running with --skip-dependencies;
         // it must keep providing every value the suite's dependencies would

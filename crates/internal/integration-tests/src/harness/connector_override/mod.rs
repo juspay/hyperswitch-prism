@@ -206,8 +206,8 @@ fn apply_webhook_payload_overrides(
 
         if header_is_empty_or_absent {
             if let Some(ref secret) = webhook_secret {
-                let computed_sig = signature_payload_bytes(connector, grpc_req).and_then(
-                    |payload_bytes| {
+                let computed_sig =
+                    signature_payload_bytes(connector, grpc_req).and_then(|payload_bytes| {
                         let ctx = signature_context(connector, grpc_req);
                         crate::webhook_signatures::generate_signature(
                             connector,
@@ -216,8 +216,7 @@ fn apply_webhook_payload_overrides(
                             &ctx,
                         )
                         .ok()
-                    },
-                );
+                    });
 
                 if let Some(sig) = computed_sig {
                     if let Some(headers) = grpc_req
@@ -280,7 +279,9 @@ fn signature_context<'a>(
 ) -> crate::webhook_signatures::SignatureContext<'a> {
     match connector {
         "phonepe" => crate::webhook_signatures::SignatureContext {
-            api_path: grpc_req.pointer("/request_details/uri").and_then(Value::as_str),
+            api_path: grpc_req
+                .pointer("/request_details/uri")
+                .and_then(Value::as_str),
             ..Default::default()
         },
         _ => crate::webhook_signatures::SignatureContext::default(),
