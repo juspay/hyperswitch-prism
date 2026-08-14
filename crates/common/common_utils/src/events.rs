@@ -1,8 +1,8 @@
 #[cfg(feature = "log-transformations")]
 use std::borrow::Cow;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
-use hyperswitch_masking::ErasedMaskSerialize;
+use hyperswitch_masking::{ErasedMaskSerialize, Maskable, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::errors::EventPublisherError;
@@ -19,6 +19,7 @@ use crate::{
     lineage,
     types::TimeRange,
 };
+use reqwest::header::HeaderMap;
 
 /// Wrapper type that enforces masked serialization for Serde values
 #[derive(Debug, Clone, Serialize)]
@@ -675,20 +676,61 @@ pub fn apply_log_fields(compiled: &CompiledLogFields) {
 /// Convert a set of headers with `Maskable` values into a `serde_json::Value` object.
 /// Normal values are preserved as-is; masked values use the standard masking format
 /// from `Maskable`'s `Debug` implementation.
-pub fn maskable_headers_to_json<'a>(
-    headers: impl IntoIterator<Item = &'a (String, hyperswitch_masking::Maskable<String>)>,
+pub trait MaskableHeadersToJson {
+    fn maskable_headers_to_json(&self, unmasked_keys: Option<&[&str]>) -> serde_json::Value;
+}
+
+fn maskable_header_values_to_json<'a>(
+    headers: impl Iterator<Item = &'a (String, Maskable<String>)>,
 ) -> serde_json::Value {
     headers
-        .into_iter()
-        .map(|(k, v)| {
-            let val = match v {
-                hyperswitch_masking::Maskable::Normal(s) => s.clone(),
-                hyperswitch_masking::Maskable::Masked(secret) => format!("{secret:?}"),
+        .map(|(key, value)| {
+            let value = match value {
+                Maskable::Normal(value) => value.clone(),
+                Maskable::Masked(secret) => format!("{secret:?}"),
             };
-            (k.clone(), serde_json::Value::String(val))
+            (key.clone(), serde_json::Value::String(value))
         })
         .collect::<serde_json::Map<String, serde_json::Value>>()
         .into()
+}
+
+impl MaskableHeadersToJson for Vec<(String, Maskable<String>)> {
+    fn maskable_headers_to_json(&self, _unmasked_keys: Option<&[&str]>) -> serde_json::Value {
+        maskable_header_values_to_json(self.iter())
+    }
+}
+
+impl MaskableHeadersToJson for HashSet<(String, Maskable<String>)> {
+    fn maskable_headers_to_json(&self, _unmasked_keys: Option<&[&str]>) -> serde_json::Value {
+        maskable_header_values_to_json(self.iter())
+    }
+}
+
+impl MaskableHeadersToJson for HeaderMap {
+    fn maskable_headers_to_json(&self, unmasked_keys: Option<&[&str]>) -> serde_json::Value {
+        self.iter()
+            .map(|(key, value)| {
+                let value = match value.to_str() {
+                    Ok(value)
+                        if unmasked_keys.is_some_and(|keys| {
+                            keys.iter()
+                                .any(|unmasked_key| key.as_str().eq_ignore_ascii_case(unmasked_key))
+                        }) =>
+                    {
+                        value.to_string()
+                    }
+                    Ok(value) => format!("{:?}", Secret::<String>::new(value.to_string())),
+                    Err(_) => format!(
+                        "{:?}",
+                        Secret::<String>::new("<non-UTF-8 header value>".to_string())
+                    ),
+                };
+                (key.to_string(), serde_json::Value::String(value))
+            })
+            .collect::<serde_json::Map<String, serde_json::Value>>()
+            .into()
+    }
 }
 
 /// Record one or more key-value pairs as structured JSON directly into the
@@ -1091,5 +1133,48 @@ mod runtime_metadata_tests {
         };
         let value = serde_json::to_value(sample_event(rm)).expect("event serializes");
         assert_eq!(value.get("version").and_then(|v| v.as_str()), Some("v"));
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::expect_used)]
+mod maskable_headers_to_json_tests {
+    use reqwest::header::{HeaderMap, HeaderValue};
+
+    use super::MaskableHeadersToJson;
+
+    #[test]
+    fn only_connector_allowlisted_headers_are_unmasked() {
+        let mut headers = HeaderMap::new();
+        headers.insert("x-request-id", HeaderValue::from_static("req_123"));
+        headers.insert("authorization", HeaderValue::from_static("secret"));
+
+        let headers_json = headers.maskable_headers_to_json(Some(&["X-Request-Id"]));
+
+        assert_eq!(headers_json["x-request-id"], "req_123");
+        assert_ne!(headers_json["authorization"], "secret");
+    }
+
+    #[test]
+    fn non_utf8_headers_remain_masked_even_when_allowlisted() {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "x-request-id",
+            HeaderValue::from_bytes(&[0xff]).expect("valid opaque header value"),
+        );
+
+        let headers_json = headers.maskable_headers_to_json(Some(&["x-request-id"]));
+
+        assert_ne!(headers_json["x-request-id"], "<non-UTF-8 header value>");
+    }
+
+    #[test]
+    fn no_allowlist_masks_every_header() {
+        let mut headers = HeaderMap::new();
+        headers.insert("x-request-id", HeaderValue::from_static("req_123"));
+
+        let headers_json = headers.maskable_headers_to_json(None);
+
+        assert_ne!(headers_json["x-request-id"], "req_123");
     }
 }
