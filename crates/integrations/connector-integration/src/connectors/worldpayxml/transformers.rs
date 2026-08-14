@@ -614,8 +614,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     shopper: requests::WorldpayxmlShopper {
                         shopper_email_address: router_data.request.email.clone(),
                         authenticated_shopper_id,
-                        browser: router_data.request.browser_info.as_ref().map(
-                            |browser_info| requests::WorldpayxmlBrowser {
+                        browser: router_data
+                            .request
+                            .browser_info
+                            .as_ref()
+                            .map(|browser_info| requests::WorldpayxmlBrowser {
                                 accept_header: browser_info.accept_header.clone(),
                                 user_agent_header: browser_info.user_agent.clone(),
                                 http_accept_language: browser_info.accept_language.clone(),
@@ -626,8 +629,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                 browser_colour_depth: browser_info.color_depth.map(u32::from),
                                 browser_screen_height: browser_info.screen_height,
                                 browser_screen_width: browser_info.screen_width,
-                            },
-                        ),
+                            }),
                     },
                     billing_address,
                     create_token: Some(requests::WorldpayxmlCreateToken {
@@ -1203,7 +1205,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // Response transformers - SetupMandate
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<ResponseRouterData<responses::WorldpayxmlSetupMandateResponse, Self>>
-    for RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>
+    for RouterDataV2<
+        SetupMandate,
+        PaymentFlowData,
+        SetupMandateRequestData<T>,
+        PaymentsResponseData,
+    >
 {
     type Error = Report<ConnectorError>;
 
@@ -1229,6 +1236,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..router_data.clone()
             });
@@ -1254,6 +1265,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..router_data.clone()
             });
@@ -1288,6 +1303,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..router_data.clone()
             });
@@ -1349,6 +1368,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..router_data.clone()
             });
@@ -1374,6 +1397,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..router_data.clone()
             });
