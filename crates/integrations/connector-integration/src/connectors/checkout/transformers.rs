@@ -83,7 +83,8 @@ pub struct WalletSource {
 /// Constants for ACH payment type
 const ACH_PAYMENT_TYPE: &str = "ach";
 const ACH_COUNTRY_US: &str = "US";
-/// Source `type` Checkout expects for a wallet token Hyperswitch has decrypted into a network token.
+/// Source `type` Checkout expects for a wallet token that arrives already decrypted into a
+/// network token.
 const NETWORK_TOKEN_TYPE: &str = "network_token";
 /// Documentation for the connector-decryption path, surfaced on the errors that ask for a token.
 const CHECKOUT_TOKENS_DOC_URL: &str =
@@ -259,7 +260,7 @@ pub enum CheckoutPaymentType {
 /// Checkout credentials.
 ///
 /// NOTE — the two key fields are the opposite way round from what the names suggest, and this
-/// is deliberate. Checkout issues two keys per account and UCS follows hyperswitch's mapping:
+/// is deliberate. Checkout issues two keys per account, mapped onto the auth fields as:
 ///
 /// * `api_key`    = the **public** key (`pk_...`). Used *only* by `POST /tokens`, the wallet
 ///   tokenization exchange. That endpoint rejects the secret key with `403`.
@@ -267,7 +268,7 @@ pub enum CheckoutPaymentType {
 ///   captures, voids, refunds, syncs). `/payments` rejects the public key with `401`.
 ///
 /// Do not "fix" this by swapping them or by introducing a separate public-key field: the
-/// asymmetry is Checkout's, the field names are hyperswitch's, and the two are matched here on
+/// asymmetry is Checkout's, the field names are the connector auth type's, and the two are matched here on
 /// purpose so a merchant's existing Checkout credentials work unchanged.
 pub struct CheckoutAuthType {
     /// Public key (`pk_...`) — see the note on [`CheckoutAuthType`]. Tokenization only.
@@ -489,7 +490,7 @@ fn encrypted_wallet_needs_token(wallet_name: &str) -> error_stack::Report<Integr
 ///
 /// This is the tail of the connector-decryption path: the wallet payload was handed to Checkout's
 /// `POST /tokens` endpoint, Checkout decrypted it and returned a single-use token, and the payment
-/// itself just references that token. Mirrors hyperswitch's `PaymentMethodToken::Token` ->
+/// itself just references that token, i.e. `PaymentMethodToken::Token` ->
 /// `PaymentSource::Wallets { source_type: Token }` mapping.
 fn build_wallet_token_source<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
@@ -504,7 +505,7 @@ fn build_wallet_token_source<
     })
 }
 
-/// Builds the Checkout payment source for a wallet whose token Hyperswitch has already decrypted.
+/// Builds the Checkout payment source for a wallet whose token has already been decrypted.
 ///
 /// Checkout accepts a decrypted wallet in the network-token shape (PAN + cryptogram). A wallet that
 /// is still encrypted has to go through Checkout's `POST /tokens` exchange first — see
@@ -1529,7 +1530,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 });
                 Ok((payment_source, None, Some(false), payment_type, Some(true)))
             }
-            // Apple Pay / Google Pay tokens that Hyperswitch decrypted can seed a mandate the same
+            // Apple Pay / Google Pay tokens that arrive decrypted can seed a mandate the same
             // way a raw card can, so a zero-amount setup must accept them too.
             PaymentMethodData::Wallet(wallet_data) => {
                 let payment_source =
