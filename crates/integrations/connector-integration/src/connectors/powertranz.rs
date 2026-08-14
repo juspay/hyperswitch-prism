@@ -287,23 +287,35 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             .parse_struct::<PowertranzPaymentsResponse>("PowertranzPaymentsResponse")
         {
             with_response_body!(event_builder, payment_response);
-            powertranz::build_powertranz_error_response(
+            let typed = macros::serialize_typed_connector_payload(
+                &payment_response,
+                "typed_connector_response",
+            );
+            let mut resp = powertranz::build_powertranz_error_response(
                 &payment_response.errors,
                 &payment_response.iso_response_code,
                 &payment_response.response_message,
                 res.status_code,
-            )
+            );
+            resp.typed_connector_response = typed;
+            resp
         } else if let Ok(refund_response) = res
             .response
             .parse_struct::<PowertranzRefundResponse>("PowertranzRefundResponse")
         {
             with_response_body!(event_builder, refund_response);
-            powertranz::build_powertranz_error_response(
+            let typed = macros::serialize_typed_connector_payload(
+                &refund_response,
+                "typed_connector_response",
+            );
+            let mut resp = powertranz::build_powertranz_error_response(
                 &refund_response.errors,
                 &refund_response.iso_response_code,
                 &refund_response.response_message,
                 res.status_code,
-            )
+            );
+            resp.typed_connector_response = typed;
+            resp
         } else {
             // Fallback to basic error response
             let response: powertranz::PowertranzErrorResponse = if res.response.is_empty() {
@@ -320,6 +332,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
             with_response_body!(event_builder, response);
 
+            let typed =
+                macros::serialize_typed_connector_payload(&response, "typed_connector_response");
             let first_error = response.errors.first();
             ErrorResponse {
                 status_code: res.status_code,
@@ -335,6 +349,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: typed,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             }
         };
 

@@ -608,6 +608,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                 "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
             )?;
 
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         match response {
             responses::WorldpayxmlErrorResponse::Standard(error_response) => {
                 with_error_response_body!(event_builder, error_response);
@@ -626,6 +628,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 })
             }
         }
