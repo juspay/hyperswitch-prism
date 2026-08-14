@@ -1586,6 +1586,10 @@ pub struct PaymentMethodEligibilityData {
     pub amount: common_utils::types::Money,
     /// Customer details (phone, email, name, etc.) for eligibility check.
     pub customer: Option<CustomerInfo>,
+    /// Connector-issued payment method ID (e.g. wallet number) being checked,
+    /// when known. Mirrors `GetPaymentMethodData`'s identifier so connectors
+    /// can reuse the same lookup as `GetPaymentMethod`.
+    pub connector_payment_method_id: Option<String>,
     /// Market/country the eligibility check is for. BNPL eligibility is
     /// country-gated, so connectors operating per-market rely on this.
     /// (Billing/shipping address and order line items are carried on the
@@ -1607,6 +1611,10 @@ pub struct PaymentMethodEligibilityData {
 #[derive(Debug, Clone)]
 pub struct PaymentMethodEligibilityResponse {
     pub eligibility: common_enums::EligibilityStatus,
+    /// Payment method details resolved as part of the eligibility check (e.g.
+    /// wallet/gift-card balance and items), when the connector call that
+    /// determines eligibility also returns them.
+    pub payment_method_details: Option<payment_method_data::PaymentMethodDetails>,
     pub status_code: u32,
 }
 

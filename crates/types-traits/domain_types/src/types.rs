@@ -6418,6 +6418,9 @@ pub fn generate_payment_method_eligibility_response(
             .into(),
             status_code: response.status_code,
             error_info: None,
+            payment_method_details: response
+                .payment_method_details
+                .map(grpc_api_types::payments::PaymentMethodDetails::foreign_from),
             raw_connector_request,
             typed_connector_request,
             raw_connector_response,
@@ -6441,6 +6444,7 @@ pub fn generate_payment_method_eligibility_response(
                 }),
                 issuer_details: None,
             }),
+            payment_method_details: None,
             raw_connector_request,
             typed_connector_request,
             raw_connector_response,
@@ -9504,6 +9508,7 @@ impl ForeignTryFrom<PaymentMethodServiceEligibilityRequest> for PaymentMethodEli
         Ok(Self {
             amount,
             customer,
+            connector_payment_method_id: value.connector_payment_method_id,
             country_code: country,
             payment_method_type,
             description: value.description,
