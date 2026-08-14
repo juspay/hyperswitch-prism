@@ -30,8 +30,18 @@ use super::{
 use crate::types::ResponseRouterData;
 use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
+use domain_types::errors::IntegrationErrorContext;
 
 const API_VERSION: &str = "1.4";
+
+/// Worldpay scopes the tokens it issues to a single shopper, which is the scope stored as the
+/// connector mandate id.
+const TOKEN_SCOPE_SHOPPER: &str = "shopper";
+
+/// `captureDelay` value that leaves the order uncaptured, for manual capture.
+const CAPTURE_DELAY_MANUAL: &str = "OFF";
+/// `captureDelay` value that captures the order immediately, for automatic capture.
+const CAPTURE_DELAY_AUTOMATIC: &str = "0";
 
 #[derive(Debug, Clone)]
 pub struct WorldpayxmlAuthType {
@@ -252,10 +262,6 @@ fn get_worldpayxml_wallet_payment_method(
     }
 }
 
-/// Worldpay scopes the tokens it issues to a single shopper, which is the scope Hyperswitch
-/// stores as the connector mandate id.
-const TOKEN_SCOPE_SHOPPER: &str = "shopper";
-
 /// Number of decimal places Worldpay expects for the order currency.
 fn get_worldpayxml_exponent(currency: common_enums::Currency) -> String {
     if currency.is_three_decimal_currency() {
@@ -320,17 +326,15 @@ fn get_worldpayxml_authenticated_shopper_id(
     }
 }
 
-fn get_worldpayxml_mandate_type(
-    mit_category: Option<common_enums::MitCategory>,
-) -> requests::WorldpayxmlMandateType {
-    match mit_category {
-        Some(common_enums::MitCategory::Installment) => {
-            requests::WorldpayxmlMandateType::Instalment
+impl From<Option<common_enums::MitCategory>> for requests::WorldpayxmlMandateType {
+    fn from(mit_category: Option<common_enums::MitCategory>) -> Self {
+        match mit_category {
+            Some(common_enums::MitCategory::Installment) => Self::Instalment,
+            Some(common_enums::MitCategory::Recurring) => Self::Recurring,
+            Some(common_enums::MitCategory::Unscheduled)
+            | Some(common_enums::MitCategory::Resubmission)
+            | None => Self::Unscheduled,
         }
-        Some(common_enums::MitCategory::Recurring) => requests::WorldpayxmlMandateType::Recurring,
-        Some(common_enums::MitCategory::Unscheduled)
-        | Some(common_enums::MitCategory::Resubmission)
-        | None => requests::WorldpayxmlMandateType::Unscheduled,
     }
 }
 
@@ -405,7 +409,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let stored_credentials =
             is_cit_mandate_payment.then(|| requests::WorldpayxmlStoredCredentials {
                 usage: requests::WorldpayxmlUsageType::First,
-                customer_initiated_reason: Some(get_worldpayxml_mandate_type(
+                customer_initiated_reason: Some(requests::WorldpayxmlMandateType::from(
                     router_data.request.mit_category.clone(),
                 )),
                 merchant_initiated_reason: None,
@@ -443,9 +447,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         .connector_request_reference_id
                         .clone(),
                     capture_delay: if is_manual_capture {
-                        "OFF".to_string()
+                        CAPTURE_DELAY_MANUAL.to_string()
                     } else {
-                        "0".to_string()
+                        CAPTURE_DELAY_AUTOMATIC.to_string()
                     },
                     description: router_data
                         .resource_common_data
@@ -581,9 +585,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         .connector_request_reference_id
                         .clone(),
                     capture_delay: if is_manual_capture {
-                        "OFF".to_string()
+                        CAPTURE_DELAY_MANUAL.to_string()
                     } else {
-                        "0".to_string()
+                        CAPTURE_DELAY_AUTOMATIC.to_string()
                     },
                     description: router_data
                         .resource_common_data
@@ -604,9 +608,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         payment_method,
                         stored_credentials: Some(requests::WorldpayxmlStoredCredentials {
                             usage: requests::WorldpayxmlUsageType::First,
-                            customer_initiated_reason: Some(get_worldpayxml_mandate_type(
-                                router_data.request.mit_category.clone(),
-                            )),
+                            customer_initiated_reason: Some(
+                                requests::WorldpayxmlMandateType::from(
+                                    router_data.request.mit_category.clone(),
+                                ),
+                            ),
                             merchant_initiated_reason: None,
                             scheme_transaction_identifier: None,
                         }),
@@ -688,7 +694,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     message: "Merchant initiated payment without a connector mandate id"
                         .to_string(),
                     connector: "worldpayxml",
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Worldpay charges a merchant-initiated payment against the payment \
+                             token it issued on the customer-initiated transaction, submitted \
+                             over TOKEN-SSL. A network transaction id or network token alone \
+                             cannot identify the stored credential."
+                                .to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Set up the mandate against this connector first so a connector \
+                             mandate id is stored, then charge against that."
+                                .to_string(),
+                        ),
+                        doc_url: None,
+                    },
                 }
                 .into())
             }
@@ -697,7 +717,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let payment_token_id = connector_mandate.get_connector_mandate_id().ok_or(
             IntegrationError::MissingRequiredField {
                 field_name: "connector_mandate_id",
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "The stored mandate carries no Worldpay paymentTokenID, so there is \
+                         nothing to submit over TOKEN-SSL for this merchant-initiated payment."
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Re-run the mandate setup so Worldpay issues a payment token.".to_string(),
+                    ),
+                    doc_url: None,
+                },
             },
         )?;
 
@@ -721,9 +751,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         .connector_request_reference_id
                         .clone(),
                     capture_delay: if is_manual_capture {
-                        "OFF".to_string()
+                        CAPTURE_DELAY_MANUAL.to_string()
                     } else {
-                        "0".to_string()
+                        CAPTURE_DELAY_AUTOMATIC.to_string()
                     },
                     description: router_data
                         .resource_common_data
@@ -746,9 +776,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         stored_credentials: Some(requests::WorldpayxmlStoredCredentials {
                             usage: requests::WorldpayxmlUsageType::Used,
                             customer_initiated_reason: None,
-                            merchant_initiated_reason: Some(get_worldpayxml_mandate_type(
-                                router_data.request.mit_category.clone(),
-                            )),
+                            merchant_initiated_reason: Some(
+                                requests::WorldpayxmlMandateType::from(
+                                    router_data.request.mit_category.clone(),
+                                ),
+                            ),
                             // Only sent when the customer-initiated transaction reported one;
                             // Worldpay accepts the merchant-initiated payment without it.
                             scheme_transaction_identifier: connector_mandate
@@ -1022,22 +1054,24 @@ fn map_worldpayxml_authorize_status(
 
 /// Maps `lastEvent` for a mandate setup, where an authorisation already completes the flow —
 /// there is no capture to wait for on a (usually zero-amount) verification order.
-fn map_worldpayxml_setup_mandate_status(last_event: &WorldpayxmlLastEvent) -> AttemptStatus {
-    match last_event {
-        WorldpayxmlLastEvent::Authorised
-        | WorldpayxmlLastEvent::Captured
-        | WorldpayxmlLastEvent::SettledByMerchant => AttemptStatus::Charged,
-        WorldpayxmlLastEvent::Cancelled => AttemptStatus::Voided,
-        WorldpayxmlLastEvent::Refused
-        | WorldpayxmlLastEvent::SentForRefund
-        | WorldpayxmlLastEvent::Refunded
-        | WorldpayxmlLastEvent::RefundFailed
-        | WorldpayxmlLastEvent::Expired
-        | WorldpayxmlLastEvent::Error
-        | WorldpayxmlLastEvent::PushRequested
-        | WorldpayxmlLastEvent::PushPending
-        | WorldpayxmlLastEvent::PushApproved
-        | WorldpayxmlLastEvent::PushRefused => AttemptStatus::Failure,
+impl From<&WorldpayxmlLastEvent> for AttemptStatus {
+    fn from(last_event: &WorldpayxmlLastEvent) -> Self {
+        match last_event {
+            WorldpayxmlLastEvent::Authorised
+            | WorldpayxmlLastEvent::Captured
+            | WorldpayxmlLastEvent::SettledByMerchant => Self::Charged,
+            WorldpayxmlLastEvent::Cancelled => Self::Voided,
+            WorldpayxmlLastEvent::Refused
+            | WorldpayxmlLastEvent::SentForRefund
+            | WorldpayxmlLastEvent::Refunded
+            | WorldpayxmlLastEvent::RefundFailed
+            | WorldpayxmlLastEvent::Expired
+            | WorldpayxmlLastEvent::Error
+            | WorldpayxmlLastEvent::PushRequested
+            | WorldpayxmlLastEvent::PushPending
+            | WorldpayxmlLastEvent::PushApproved
+            | WorldpayxmlLastEvent::PushRefused => Self::Failure,
+        }
     }
 }
 
@@ -1289,7 +1323,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             crate::utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
         )?;
 
-        let status = map_worldpayxml_setup_mandate_status(&payment.last_event);
+        let status = AttemptStatus::from(&payment.last_event);
 
         if status == AttemptStatus::Failure {
             let return_code = payment.iso8583_return_code.as_ref();
