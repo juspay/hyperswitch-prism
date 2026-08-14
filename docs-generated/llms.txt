@@ -465,10 +465,10 @@ examples_python: examples/mollie/mollie.py
 ## Moneris
 connector_id: moneris
 doc: docs/connectors/moneris.md
-scenarios: none
-payment_methods: none
-flows: create_server_authentication_token
-examples_python: none
+scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
+payment_methods: Card
+flows: authorize, capture, create_server_authentication_token, get, proxy_authorize, refund, refund_get, void
+examples_python: examples/moneris/moneris.py
 
 ## Multisafepay
 connector_id: multisafepay

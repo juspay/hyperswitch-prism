@@ -97,8 +97,48 @@
         "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: BankTransfer(BriVaBankTransfer)."
       },
       "Card": {
-        "status": "error",
-        "error": "Failed to obtain authentication type. Moneris Authorize requires an OAuth access token on `resource_common_data.access_token`, but it was None."
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.sb.moneris.io/payments",
+          "method": "Post",
+          "headers": {
+            "api-version": "2026-08-14",
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-merchant-id": "probe_merchant"
+          },
+          "body": "{\"idempotencyKey\":\"00000000-0000-0000-0000-000000000000\",\"amount\":{\"currency\":\"USD\",\"amount\":1000},\"paymentMethod\":{\"paymentMethodSource\":\"CARD\",\"card\":{\"cardNumber\":\"4111111111111111\",\"expiryMonth\":3,\"expiryYear\":2030,\"cardSecurityCode\":\"737\"},\"storePaymentMethod\":\"DO_NOT_STORE\"},\"automaticCapture\":true}"
+        }
       },
       "CashappQr": {
         "status": "not_implemented",
@@ -451,8 +491,34 @@
     },
     "capture": {
       "default": {
-        "status": "error",
-        "error": "Failed to obtain authentication type. Moneris capture requires an OAuth access token on `resource_common_data.access_token`, but it was None."
+        "status": "supported",
+        "proto_request": {
+          "merchant_capture_id": "probe_capture_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount_to_capture": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.sb.moneris.io/payments/probe_connector_txn_001/complete",
+          "method": "Post",
+          "headers": {
+            "api-version": "2026-08-14",
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-merchant-id": "probe_merchant"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"amount\":1000},\"idempotencyKey\":\"00000000-0000-0000-0000-000000000000\"}"
+        }
       }
     },
     "create_client_authentication_token": {
@@ -531,8 +597,34 @@
     },
     "get": {
       "default": {
-        "status": "error",
-        "error": "Failed to obtain authentication type. Moneris PSync requires an OAuth access token on `resource_common_data.access_token`, but it was None."
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.sb.moneris.io/payments/probe_connector_txn_001",
+          "method": "Get",
+          "headers": {
+            "api-version": "2026-08-14",
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-merchant-id": "probe_merchant"
+          },
+          "body": null
+        }
       }
     },
     "handle_event": {
@@ -570,8 +662,47 @@
     },
     "proxy_authorize": {
       "default": {
-        "status": "error",
-        "error": "Failed to obtain authentication type. Moneris Authorize requires an OAuth access token on `resource_common_data.access_token`, but it was None."
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_proxy_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.sb.moneris.io/payments",
+          "method": "Post",
+          "headers": {
+            "api-version": "2026-08-14",
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-merchant-id": "probe_merchant"
+          },
+          "body": "{\"idempotencyKey\":\"00000000-0000-0000-0000-000000000000\",\"amount\":{\"currency\":\"USD\",\"amount\":1000},\"paymentMethod\":{\"paymentMethodSource\":\"CARD\",\"card\":{\"cardNumber\":\"{{$card_number}}\",\"expiryMonth\":3,\"expiryYear\":2030,\"cardSecurityCode\":\"{{$card_cvc}}\"},\"storePaymentMethod\":\"DO_NOT_STORE\"},\"automaticCapture\":true}"
+        }
       }
     },
     "proxy_setup_recurring": {
@@ -599,14 +730,65 @@
     },
     "refund": {
       "default": {
-        "status": "error",
-        "error": "Failed to obtain authentication type. Moneris refund requires an OAuth access token on `resource_common_data.access_token`, but it was None."
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "payment_amount": 1000,
+          "refund_amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "reason": "customer_request",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.sb.moneris.io/refunds",
+          "method": "Post",
+          "headers": {
+            "api-version": "2026-08-14",
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-merchant-id": "probe_merchant"
+          },
+          "body": "{\"refundAmount\":{\"currency\":\"USD\",\"amount\":1000},\"idempotencyKey\":\"00000000-0000-0000-0000-000000000000\",\"reason\":\"customer_request\",\"paymentId\":\"probe_connector_txn_001\"}"
+        }
       }
     },
     "refund_get": {
       "default": {
-        "status": "error",
-        "error": "Failed to obtain authentication type. Moneris rsync requires an OAuth access token on `resource_common_data.access_token`, but it was None."
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "refund_id": "probe_refund_id_001",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.sb.moneris.io/refunds/probe_refund_id_001",
+          "method": "Get",
+          "headers": {
+            "api-version": "2026-08-14",
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-merchant-id": "probe_merchant"
+          },
+          "body": null
+        }
       }
     },
     "reverse": {
@@ -646,8 +828,30 @@
     },
     "void": {
       "default": {
-        "status": "error",
-        "error": "Failed to obtain authentication type. Moneris capture requires an OAuth access token on `resource_common_data.access_token`, but it was None."
+        "status": "supported",
+        "proto_request": {
+          "merchant_void_id": "probe_void_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.sb.moneris.io/payments/probe_connector_txn_001/cancel",
+          "method": "Post",
+          "headers": {
+            "api-version": "2026-08-14",
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-merchant-id": "probe_merchant"
+          },
+          "body": "{\"idempotencyKey\":\"00000000-0000-0000-0000-000000000000\",\"reason\":null}"
+        }
       }
     }
   }
