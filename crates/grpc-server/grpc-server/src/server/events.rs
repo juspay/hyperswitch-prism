@@ -986,6 +986,8 @@ async fn verify_webhook_source_external(
         connector_request_reference_id: format!("webhook_verify_{}", metadata_payload.request_id),
         raw_connector_response: None,
         raw_connector_request: None,
+        typed_connector_request: None,
+        typed_connector_response: None,
         connector_response_headers: None,
     };
 

@@ -313,6 +313,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         with_error_response_body!(event_builder, response);
 
         let (code, message) = (response.code(), response.message());
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         Ok(ErrorResponse {
             status_code: res.status_code,
             code,
@@ -323,6 +325,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     }
 }
@@ -455,6 +461,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
         ConnectorError,
     > {
+        use domain_types::connector_types::RawConnectorRequestResponse;
+
         // sessionID = hash(merchant_transaction_id), matching the Evaluate Order
         // deviceSessionId (which hashes the same merchant transaction id). Falls
         // back to the connector request reference when it is absent.
@@ -501,6 +509,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ),
             status_code: 200,
         });
+        router_data
+            .resource_common_data
+            .set_typed_connector_response(None);
         Ok(router_data)
     }
 }

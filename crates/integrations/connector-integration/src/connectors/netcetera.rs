@@ -247,6 +247,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         {
             Ok(error_response) => {
                 with_error_response_body!(event_builder, error_response);
+                let typed = macros::serialize_typed_connector_payload(
+                    &error_response,
+                    "typed_connector_response",
+                );
                 Ok(ErrorResponse {
                     status_code: res.status_code,
                     code: error_response
@@ -264,6 +268,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 })
             }
             Err(_) => crate::utils::handle_json_response_deserialization_failure(res, "netcetera"),
