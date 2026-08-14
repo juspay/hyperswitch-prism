@@ -31,6 +31,7 @@ use crate::types::ResponseRouterData;
 use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
 use domain_types::errors::IntegrationErrorContext;
+use domain_types::payment_address::AddressDetails;
 
 const API_VERSION: &str = "1.4";
 
@@ -273,6 +274,25 @@ fn get_worldpayxml_exponent(currency: common_enums::Currency) -> String {
     }
 }
 
+/// The telephone number is carried on the billing contact rather than the address itself, so it is
+/// resolved by the caller and passed alongside.
+impl From<(&AddressDetails, Option<Secret<String>>)> for requests::WorldpayxmlAddress {
+    fn from((addr, telephone_number): (&AddressDetails, Option<Secret<String>>)) -> Self {
+        Self {
+            first_name: addr.first_name.clone(),
+            last_name: addr.last_name.clone(),
+            address1: addr.line1.clone(),
+            address2: addr.line2.clone(),
+            address3: addr.line3.clone(),
+            postal_code: addr.zip.clone(),
+            city: addr.city.clone().map(|c| c.expose()),
+            state: addr.state.clone(),
+            country_code: addr.country,
+            telephone_number,
+        }
+    }
+}
+
 /// Builds the `<billingAddress>` element from the flow's billing address, when one was supplied.
 fn get_worldpayxml_billing_address(
     resource_common_data: &PaymentFlowData,
@@ -291,18 +311,7 @@ fn get_worldpayxml_billing_address(
                 .address
                 .as_ref()
                 .map(|addr| requests::WorldpayxmlBillingAddress {
-                    address: requests::WorldpayxmlAddress {
-                        first_name: addr.first_name.clone(),
-                        last_name: addr.last_name.clone(),
-                        address1: addr.line1.clone(),
-                        address2: addr.line2.clone(),
-                        address3: addr.line3.clone(),
-                        postal_code: addr.zip.clone(),
-                        city: addr.city.clone().map(|c| c.expose()),
-                        state: addr.state.clone(),
-                        country_code: addr.country,
-                        telephone_number,
-                    },
+                    address: (addr, telephone_number).into(),
                 })
         })
 }
@@ -1079,12 +1088,19 @@ impl From<&WorldpayxmlLastEvent> for AttemptStatus {
 ///
 /// The Worldpay payment token is what the merchant-initiated payment is charged against, and the
 /// scheme transaction identifier chains it back to the customer-initiated transaction.
-fn get_worldpayxml_mandate_reference(
-    order_status: &responses::WorldpayxmlOrderStatus,
-    payment: &responses::WorldpayxmlPayment,
-) -> Option<Box<MandateReference>> {
-    order_status.token.as_ref().map(|token| {
-        Box::new(MandateReference {
+/// The two response elements a mandate reference is built from.
+///
+/// A bare local type rather than a tuple: the orphan rule only accepts a local type as the
+/// conversion's parameter when it is not wrapped in a foreign type constructor, and a tuple is
+/// foreign.
+pub struct WorldpayxmlMandateSource<'a> {
+    pub token: &'a responses::WorldpayxmlToken,
+    pub payment: &'a responses::WorldpayxmlPayment,
+}
+
+impl From<WorldpayxmlMandateSource<'_>> for MandateReference {
+    fn from(WorldpayxmlMandateSource { token, payment }: WorldpayxmlMandateSource<'_>) -> Self {
+        Self {
             connector_mandate_id: Some(token.token_details.payment_token_id.peek().to_string()),
             payment_method_id: None,
             mandate_metadata: None,
@@ -1092,7 +1108,19 @@ fn get_worldpayxml_mandate_reference(
                 .scheme_response
                 .as_ref()
                 .map(|scheme_response| scheme_response.transaction_identifier.clone()),
-        })
+        }
+    }
+}
+
+fn get_worldpayxml_mandate_reference(
+    order_status: &responses::WorldpayxmlOrderStatus,
+    payment: &responses::WorldpayxmlPayment,
+) -> Option<Box<MandateReference>> {
+    order_status.token.as_ref().map(|token| {
+        Box::new(MandateReference::from(WorldpayxmlMandateSource {
+            token,
+            payment,
+        }))
     })
 }
 
