@@ -445,7 +445,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     capture_delay: if is_manual_capture {
                         "OFF".to_string()
                     } else {
-                        "0".to_string().to_string()
+                        "0".to_string()
                     },
                     description: router_data
                         .resource_common_data
@@ -1078,7 +1078,18 @@ fn parse_last_event(
     event_str: &str,
     http_code: u16,
 ) -> Result<WorldpayxmlLastEvent, Report<ConnectorError>> {
-    serde_json::from_str(&format!("\"{}\"", event_str)).map_err(|_| {
+    // The event string comes off the wire, so it must be escaped rather than interpolated —
+    // a bare `"` or `\` in it would otherwise produce malformed JSON and drop the event.
+    let quoted = serde_json::to_string(event_str).map_err(|_| {
+        Report::new(
+            ConnectorError::response_deserialization_failed_with_context(
+                http_code,
+                Some("invalid last_event".to_string()),
+            ),
+        )
+    })?;
+
+    serde_json::from_str(&quoted).map_err(|_| {
         Report::new(
             ConnectorError::response_deserialization_failed_with_context(
                 http_code,
