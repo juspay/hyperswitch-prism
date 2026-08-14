@@ -1092,10 +1092,10 @@ impl ForeignTryFrom<grpc_api_types::payments::Tokenization> for common_enums::To
     }
 }
 
-/// Normalizes an empty `connector_customer_id` to `None`. Some connectors
-/// (e.g. Stripe) reject an explicit empty-string `customer` parameter rather
-/// than treating it as absent, so an unset placeholder must not reach the
-/// connector as `Some("")`.
+/// Normalizes an empty `connector_customer_id` to `None`. Proven necessary
+/// for Authorize against a real Stripe sandbox call; reused at other call
+/// sites by analogy, unverified there — see PR discussion before extending
+/// to new fields.
 fn non_empty_connector_customer_id(connector_customer_id: Option<String>) -> Option<String> {
     connector_customer_id.filter(|id| !id.is_empty())
 }

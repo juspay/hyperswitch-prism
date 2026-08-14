@@ -3487,16 +3487,17 @@ pub fn run_scenario_test_with_options(
     let mut failed = 0usize;
 
     if options.skip_dependencies {
-        let scenario_def =
-            scenarios
-                .get(scenario)
-                .ok_or_else(|| ScenarioError::ScenarioNotFound {
-                    suite: suite.to_string(),
-                    scenario: scenario.to_string(),
-                })?;
+        // Must check the connector's *effective* request (base scenario merged
+        // with connector_specs/<connector>/override.json), not the raw base
+        // scenario.json. A connector's override can populate a context_map
+        // target the base scenario leaves empty (or vice versa), so checking
+        // the unmerged base request can green-light a skip that would actually
+        // send an incomplete request for that connector.
+        let (effective_grpc_req, _effective_assertions) =
+            load_effective_scenario_for_connector(suite, scenario, connector)?;
         if let Some(unmet) = first_context_map_target_missing_from_scenario(
             &target_suite_spec,
-            &scenario_def.grpc_req,
+            &effective_grpc_req,
         ) {
             return Err(ScenarioError::DependenciesRequired {
                 suite: suite.to_string(),
@@ -6151,22 +6152,72 @@ grpc-status: 0
 
     #[test]
     fn stripe_authorize_credit_card_scenario_is_safe_to_skip_dependencies() {
-        use super::first_context_map_target_missing_from_scenario;
+        use super::{first_context_map_target_missing_from_scenario, load_effective_scenario_for_connector};
 
         let suite_spec = load_suite_spec("PaymentService/Authorize")
             .expect("PaymentService/Authorize suite spec should load");
-        let scenarios = load_suite_scenarios("PaymentService/Authorize")
-            .expect("PaymentService/Authorize scenarios should load");
-        let scenario = &scenarios["no3ds_auto_capture_credit_card"];
+
+        // Checked through the same connector-effective path run_scenario_test_with_options
+        // uses: base scenario.json merged with connector_specs/stripe/override.json. Checking
+        // the raw base scenario here would pass even if a connector's own override
+        // introduced a gap the base scenario didn't have.
+        let (effective_grpc_req, _assertions) =
+            load_effective_scenario_for_connector(
+                "PaymentService/Authorize",
+                "no3ds_auto_capture_credit_card",
+                "stripe",
+            )
+            .expect("stripe's effective no3ds_auto_capture_credit_card request should load");
 
         // This is the certified CI scenario running with --skip-dependencies;
         // it must keep providing every value the suite's dependencies would
         // otherwise inject, or CI's own check (not just this test) will start
         // failing the certification job.
         assert_eq!(
-            first_context_map_target_missing_from_scenario(&suite_spec, &scenario.grpc_req),
+            first_context_map_target_missing_from_scenario(&suite_spec, &effective_grpc_req),
             None,
             "certified Stripe scenario no longer supplies its own value for a dependency-mapped field"
+        );
+    }
+
+    #[test]
+    fn skip_dependencies_check_uses_connector_override_not_bare_base_scenario() {
+        use super::load_effective_scenario_for_connector;
+        use crate::harness::scenario_loader::load_scenario;
+
+        // Regression test for the bug where the skip-dependency safety check read the
+        // raw base scenario.json instead of the connector-merged request, so a
+        // connector's own override.json content was never actually consulted.
+        //
+        // adyen's connector_specs/adyen/override.json patches
+        // payment_method.card.card_number.value for no3ds_auto_capture_credit_card to
+        // an adyen-specific test card, distinct from the generic base scenario's card
+        // number. If the safety check (and any other consumer) reads the base scenario
+        // directly instead of going through load_effective_scenario_for_connector, this
+        // adyen-specific value would never be observed.
+        let base_scenario =
+            load_scenario("PaymentService/Authorize", "no3ds_auto_capture_credit_card")
+                .expect("base no3ds_auto_capture_credit_card scenario should load");
+        let (effective_req, _assertions) = load_effective_scenario_for_connector(
+            "PaymentService/Authorize",
+            "no3ds_auto_capture_credit_card",
+            "adyen",
+        )
+        .expect("adyen's effective no3ds_auto_capture_credit_card request should load");
+
+        let base_card_number =
+            base_scenario.grpc_req["payment_method"]["card"]["card_number"]["value"].clone();
+        let effective_card_number =
+            effective_req["payment_method"]["card"]["card_number"]["value"].clone();
+
+        assert_ne!(
+            base_card_number, effective_card_number,
+            "adyen's override.json should override the base scenario's generic test card number"
+        );
+        assert_eq!(
+            effective_card_number,
+            json!("5101180000000007"),
+            "effective request should carry adyen's own test card number from override.json"
         );
     }
 

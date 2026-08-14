@@ -7,10 +7,17 @@
 //! Exits non-zero if the two sets diverge.
 //!
 //! **Phase 2 — flow → suite coverage**
-//! For every connector that has a `create_all_prerequisites!` macro, verifies
-//! that every flow listed there appears in that connector's
+//! For every connector, verifies that every flow declared in its
+//! `create_all_prerequisites!` macro appears in that connector's
 //! `connector_specs/<name>/specs.json` `supported_suites` list.
-//! Exits non-zero if any suite is missing — there is no escape hatch.
+//! Exits non-zero if any suite is missing, or if a connector has no
+//! `create_all_prerequisites!` macro at all — flow coverage cannot be
+//! verified without it, so a missing macro is a failure, not a silent skip.
+//! The only exemptions are the connectors named in
+//! `LEGACY_CONNECTORS_WITHOUT_PREREQUISITES_MACRO`, a small, explicit,
+//! reviewed list of pre-existing connectors that predate this requirement.
+//! Do not add new entries to that list — `create_all_prerequisites!` is
+//! required for every connector added going forward.
 //! When a connector does not yet support a flow's suite, do not add it to
 //! the flow-to-suite mapping in `flow_to_suites` (map it to `None` instead).
 //!
@@ -307,23 +314,53 @@ fn main() {
     let mut errors: BTreeMap<String, Vec<(String, String)>> = BTreeMap::new();
     // connector_name → list of (flow, suite) pairs that are covered
     let mut covered_summary: BTreeMap<String, Vec<(String, String)>> = BTreeMap::new();
-    // connectors where no create_all_prerequisites! macro was found
-    let mut no_macro: Vec<String> = Vec::new();
+
+    // Connectors that predate the create_all_prerequisites! requirement and
+    // wire up flows by hand (bare `impl Trait for X {}` blocks) instead of a
+    // single structured flow list. Their real flow coverage cannot be
+    // mechanically verified by this checker. This is a reviewed, named
+    // exception list, not a silent skip — every entry here is a known,
+    // tracked gap, not a free pass. Do not add to this list for new
+    // connectors; create_all_prerequisites! is required going forward
+    // precisely because it's the only pattern this checker (and the
+    // certification tooling built on top of it) can actually verify.
+    const LEGACY_CONNECTORS_WITHOUT_PREREQUISITES_MACRO: &[&str] = &["razorpay", "razorpayv2"];
+
+    // connectors with no verifiable flow declaration at all — no
+    // create_all_prerequisites! macro found, and not on the legacy exception
+    // list above. This is a hard failure below, not a silent [SKIP]: a
+    // connector must not be able to dodge Phase 2's specs.json coverage
+    // check simply by not using the one macro this checker knows how to
+    // parse for flow names.
+    let mut unverifiable: Vec<String> = Vec::new();
+    // legacy connectors on the exception list above — reported, but not a
+    // failure.
+    let mut legacy_unverified: Vec<String> = Vec::new();
 
     for connector in &connectors {
         let src_path = connectors_src.join(format!("{connector}.rs"));
+        let is_legacy_exception = LEGACY_CONNECTORS_WITHOUT_PREREQUISITES_MACRO
+            .contains(&connector.as_str());
 
         let src = match fs::read_to_string(&src_path) {
             Ok(s) => s,
             Err(_) => {
-                no_macro.push(connector.clone());
+                if is_legacy_exception {
+                    legacy_unverified.push(connector.clone());
+                } else {
+                    unverifiable.push(connector.clone());
+                }
                 continue;
             }
         };
 
         let flows = extract_flows_from_source(&src);
         if flows.is_empty() {
-            no_macro.push(connector.clone());
+            if is_legacy_exception {
+                legacy_unverified.push(connector.clone());
+            } else {
+                unverifiable.push(connector.clone());
+            }
             continue;
         }
 
@@ -367,8 +404,21 @@ fn main() {
         let covered = covered_summary.get(connector.as_str());
         let missing = errors.get(connector.as_str());
 
-        if no_macro.contains(connector) {
-            println!("[SKIP] {connector}  (no create_all_prerequisites! macro)");
+        if legacy_unverified.contains(connector) {
+            println!(
+                "[SKIP] {connector}  (on the legacy exception list — no create_all_prerequisites! \
+                 macro, specs.json coverage not verified; see LEGACY_CONNECTORS_WITHOUT_PREREQUISITES_MACRO)"
+            );
+            continue;
+        }
+
+        if unverifiable.contains(connector) {
+            println!(
+                "[FAIL] {connector}  (no create_all_prerequisites! macro found and not on the \
+                 legacy exception list; specs.json coverage cannot be checked. Add the macro, \
+                 or if this is a genuine legacy case, add the connector to \
+                 LEGACY_CONNECTORS_WITHOUT_PREREQUISITES_MACRO with a reason.)"
+            );
             continue;
         }
 
@@ -499,17 +549,22 @@ fn main() {
 
     println!();
     println!("--- Phase 2: Flow coverage ---");
-    let total = connectors.len() - no_macro.len();
+    let total = connectors.len() - legacy_unverified.len() - unverifiable.len();
     let fail_count = errors.len();
     let ok_count = total - fail_count;
     println!("Connectors checked:       {total}");
     println!("All flows accounted:      {ok_count}");
     println!("With missing suites:      {fail_count}");
-    println!("Skipped (no macro):       {}", no_macro.len());
+    println!("Legacy exceptions (SKIP): {}", legacy_unverified.len());
+    println!("Unverifiable (FAIL):      {}", unverifiable.len());
 
-    if !no_macro.is_empty() {
+    if !legacy_unverified.is_empty() {
         println!();
-        println!("Skipped connectors: {}", no_macro.join(", "));
+        println!("Legacy exception connectors: {}", legacy_unverified.join(", "));
+    }
+    if !unverifiable.is_empty() {
+        println!();
+        println!("Unverifiable connectors: {}", unverifiable.join(", "));
     }
 
     println!();
@@ -529,6 +584,7 @@ fn main() {
     // Final verdict
     // -----------------------------------------------------------------------
     let has_phase2_errors = !errors.is_empty();
+    let has_unverifiable = !unverifiable.is_empty();
 
     if has_phase2_errors {
         println!();
@@ -543,7 +599,24 @@ fn main() {
         println!();
     }
 
-    if !phase1_ok || has_phase2_errors {
+    if has_unverifiable {
+        println!();
+        println!("{}", "=".repeat(80));
+        println!("ERRORS — connectors with no verifiable flow declaration");
+        println!("{}", "=".repeat(80));
+        for connector in &unverifiable {
+            println!("  {connector:<30}  no create_all_prerequisites! macro found");
+        }
+        println!(
+            "  Fix: add create_all_prerequisites! to this connector. If this is a genuine \
+             pre-existing legacy case (not a new connector), add it to \
+             LEGACY_CONNECTORS_WITHOUT_PREREQUISITES_MACRO with a reason — do not add new \
+             connectors to that list."
+        );
+        println!();
+    }
+
+    if !phase1_ok || has_phase2_errors || has_unverifiable {
         let mut reasons = Vec::new();
         if !phase1_ok {
             reasons.push(format!(
@@ -556,6 +629,12 @@ fn main() {
             reasons.push(format!(
                 "{} connector(s) have flows not in specs.json",
                 errors.len()
+            ));
+        }
+        if has_unverifiable {
+            reasons.push(format!(
+                "{} connector(s) have no verifiable flow declaration",
+                unverifiable.len()
             ));
         }
         eprintln!("ERROR: {}", reasons.join("; "));
