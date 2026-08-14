@@ -282,7 +282,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     /// through Tokenize. A *decrypted* Google Pay payload is a PAN + cryptogram + ECI block,
     /// which only `/v1/tokens` accepts, so it does need Tokenize.
     ///
-    /// This mirrors hyperswitch's Stripe entry in `connector_request_reference_id_config`:
+    /// This follows Stripe's entry in `connector_request_reference_id_config`:
     /// `payment_method = "wallet"` with `payment_method_type = { list = "google_pay", type =
     /// "disable_only" }` plus `google_pay_pre_decrypt_flow = "connector_tokenization"`.
     fn should_do_payment_method_token(
@@ -710,7 +710,7 @@ macros::macro_connector_implementation!(
             //   `parameter_unknown` by `/v1/payment_methods` and `/v1/payment_intents` alike.
             //   Authorize replays it as `payment_method_data[card][token]=tok_…`.
             //
-            // Hyperswitch OSS splits the same way (see `stripe.rs` tokenization `get_url`), so
+            // The upstream integration splits the same way, so
             // cards keep the `pm_` contract UCS already ships and wallets get the one endpoint
             // that can actually take them.
             let endpoint = match req.request.payment_method_data {

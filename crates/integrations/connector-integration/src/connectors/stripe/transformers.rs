@@ -1964,7 +1964,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         (gpay_data, auth_type): (&GooglePayWalletData, common_enums::AuthenticationType),
     ) -> Result<Self, Self::Error> {
         match &gpay_data.tokenization_data {
-            // Hyperswitch decrypted the Google Pay token for us, so send the network token
+            // The Google Pay token arrives already decrypted, so send the network token
             // (PAN + cryptogram) to Stripe instead of the opaque wallet token. This is the only
             // shape Stripe accepts for storing a Google Pay credential for later MITs.
             payment_method_data::GpayTokenizationData::Decrypted(google_pay_decrypted_data) => {
