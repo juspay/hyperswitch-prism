@@ -276,11 +276,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn should_create_connector_customer(&self) -> bool {
         true
     }
-    /// Wallets are charged through a `tok_…` minted on `/v1/tokens`, with one exception:
-    /// an *encrypted* Google Pay payload is Google's own token and Stripe takes it inline on
-    /// `/v1/payment_intents` as `payment_method_data[card][token]`, so it must not detour
-    /// through Tokenize. A *decrypted* Google Pay payload is a PAN + cryptogram + ECI block,
-    /// which only `/v1/tokens` accepts, so it does need Tokenize.
+    /// Wallets are charged through a `tok_…` minted on `/v1/tokens`, with two exceptions, both
+    /// Google Pay:
+    ///
+    /// * An *encrypted* Google Pay payload is Google's own token and Stripe takes it inline on
+    ///   `/v1/payment_intents` as `payment_method_data[card][token]`, so it must not detour
+    ///   through Tokenize.
+    /// * A *decrypted* `PAN_ONLY` Google Pay payload is a bare PAN — no cryptogram, no ECI, so
+    ///   nothing wallet-specific survives decryption. It is charged inline as an ordinary card
+    ///   on `/v1/payment_intents`. Sending it to `/v1/tokens` would be actively wrong: the only
+    ///   shape the Tokenize builder can produce for it is the PaymentIntent card block
+    ///   (`payment_method_data[card][…]`), and `/v1/tokens` rejects those parameters outright —
+    ///   it accepts only `card[number]` / `card[exp_month]` / `card[exp_year]` / `card[cvc]`.
+    ///
+    /// A decrypted Google Pay payload that *does* carry a cryptogram is a network token, which
+    /// only `/v1/tokens` accepts, so it does need Tokenize —
+    /// `is_wallet_decrypted_network_token` is exactly that "cryptogram is present" signal, not a
+    /// plain "was decrypted" signal.
     ///
     /// This follows Stripe's entry in `connector_request_reference_id_config`:
     /// `payment_method = "wallet"` with `payment_method_type = { list = "google_pay", type =
@@ -289,13 +301,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         payment_method: common_enums::PaymentMethod,
         payment_method_type: Option<common_enums::PaymentMethodType>,
-        is_wallet_pre_decrypted: bool,
+        is_wallet_decrypted_network_token: bool,
     ) -> bool {
         matches!(payment_method, common_enums::PaymentMethod::Wallet)
             && (!matches!(
                 payment_method_type,
                 Some(common_enums::PaymentMethodType::GooglePay)
-            ) || is_wallet_pre_decrypted)
+            ) || is_wallet_decrypted_network_token)
     }
 }
 

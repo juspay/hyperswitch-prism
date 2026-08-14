@@ -689,6 +689,32 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             )
         )
     }
+
+    /// Refuses, before any HTTP is emitted, to post a `/v1/tokens`-only shape to `endpoint`.
+    ///
+    /// Every flow that flattens a `StripePaymentMethodData` into a request body other than the
+    /// `/v1/tokens` one has to call this. Without it the request goes out and Stripe answers
+    /// `parameter_unknown` on `card`, which tells the caller nothing about what to do instead;
+    /// the error raised here names the tokenize step that fixes it.
+    fn reject_if_tokens_endpoint_only(
+        &self,
+        endpoint: &'static str,
+    ) -> Result<(), error_stack::Report<IntegrationError>> {
+        if self.is_tokens_endpoint_only() {
+            return Err(IntegrationError::NotSupported {
+                message: format!(
+                    "Charging a decrypted wallet credential directly on {endpoint} — its \
+                     card[cryptogram] / card[eci] block is only accepted by /v1/tokens. Mint a \
+                     token with PaymentMethodService/Tokenize and pass it back as \
+                     payment_method.token"
+                ),
+                connector: "stripe",
+                context: Default::default(),
+            }
+            .into());
+        }
+        Ok(())
+    }
 }
 
 /// Spends a `tok_…` (the object `/v1/tokens` mints) on a PaymentIntent.
@@ -799,8 +825,13 @@ pub struct StripeGooglePayPredecrypt {
     exp_month: Secret<String>,
     #[serde(rename = "card[cryptogram]")]
     cryptogram: Secret<String>,
+    /// Optional, exactly as on [`StripeApplePayPredecrypt`]. The cryptogram is what makes the
+    /// credential a network token; the ECI only reports the authentication outcome that came
+    /// with it and some Google Pay tokens omit it. Requiring it here would force a
+    /// cryptogram-bearing token without an ECI down the plain-card path, throwing away both the
+    /// cryptogram and the liability shift it carries.
     #[serde(rename = "card[eci]")]
-    eci: String,
+    eci: Option<String>,
     #[serde(rename = "card[tokenization_method]")]
     tokenization_method: String,
 }
@@ -1975,24 +2006,25 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         context: Default::default(),
                     })?;
 
-                match (
-                    google_pay_decrypted_data.cryptogram.clone(),
-                    google_pay_decrypted_data.eci_indicator.clone(),
-                ) {
-                    (Some(cryptogram), Some(eci)) => {
-                        Ok(Self::Wallet(StripeWallet::GooglePayPredecryptToken(
-                            Box::new(StripeGooglePayPredecrypt {
-                                number: google_pay_decrypted_data
-                                    .application_primary_account_number
-                                    .clone(),
-                                exp_year,
-                                exp_month: google_pay_decrypted_data.card_exp_month.clone(),
-                                cryptogram,
-                                eci,
-                                tokenization_method: GOOGLE_PAY_TOKENIZATION_METHOD.to_string(),
-                            }),
-                        )))
-                    }
+                // The cryptogram alone decides the shape. The ECI is carried along when present
+                // but never gates the decision: it only reports the authentication outcome, so a
+                // token that has a cryptogram and no ECI is still a network token. Gating on both
+                // (which OSS does — it matches `(Some(cryptogram), Some(eci))` and falls through
+                // to a plain card otherwise) silently drops the cryptogram and with it the
+                // liability shift, charging a network token as an unauthenticated card.
+                match google_pay_decrypted_data.cryptogram.clone() {
+                    Some(cryptogram) => Ok(Self::Wallet(StripeWallet::GooglePayPredecryptToken(
+                        Box::new(StripeGooglePayPredecrypt {
+                            number: google_pay_decrypted_data
+                                .application_primary_account_number
+                                .clone(),
+                            exp_year,
+                            exp_month: google_pay_decrypted_data.card_exp_month.clone(),
+                            cryptogram,
+                            eci: google_pay_decrypted_data.eci_indicator.clone(),
+                            tokenization_method: GOOGLE_PAY_TOKENIZATION_METHOD.to_string(),
+                        }),
+                    ))),
                     // A PAN_ONLY Google Pay token carries no cryptogram/ECI, so there is nothing
                     // wallet-specific left to send and the decrypted PAN goes over as a plain card.
                     //
@@ -2002,7 +2034,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     // two serialize identically: the only fields `StripeCardData` adds are
                     // `request_{incremental,extended}_authorization`, both `None` here and both
                     // skipped on serialization.
-                    _ => Ok(Self::CardNetworkTransactionId(
+                    None => Ok(Self::CardNetworkTransactionId(
                         StripeCardNetworkTransactionIdData {
                             payment_method_data_type: StripePaymentMethodType::Card,
                             payment_method_data_card_number: google_pay_decrypted_data
@@ -2216,21 +2248,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     },
                 )?;
 
-            // A decrypted wallet credential serializes to the `card[cryptogram]` / `card[eci]` /
-            // `card[tokenization_method]` block, and `/v1/payment_intents` answers that with
-            // `parameter_unknown` on `card`. Only `/v1/tokens` takes it. Refuse here with an
-            // actionable message instead of shipping a request Stripe is guaranteed to reject.
-            if payment_method_data.is_tokens_endpoint_only() {
-                return Err(IntegrationError::NotSupported {
-                    message: "Charging a decrypted wallet credential directly — mint a token \
-                              with PaymentMethodService/Tokenize and pass it back on Authorize \
-                              as payment_method.token"
-                        .to_string(),
-                    connector: "stripe",
-                    context: Default::default(),
-                }
-                .into());
-            }
+            payment_method_data.reject_if_tokens_endpoint_only("/v1/payment_intents")?;
 
             validate_shipping_address_against_payment_method(
                 &shipping_address,
@@ -5216,6 +5234,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             pm_type,
         ))?;
 
+        // `payment_data` is flattened straight into the `/v1/setup_intents` body, which rejects
+        // the `/v1/tokens`-only wallet block exactly as `/v1/payment_intents` does.
+        payment_data.reject_if_tokens_endpoint_only("/v1/setup_intents")?;
+
         let meta_data = Some(get_transaction_metadata(
             item.router_data.request.metadata.clone(),
             item.router_data
@@ -5847,6 +5869,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                 request_overcapture: None,
                             },
                         )?;
+
+                    // Same flatten, same rejection: this one lands in the `/v1/payment_intents`
+                    // body, so a decrypted wallet credential has to be tokenized first here too.
+                    payment_method_data.reject_if_tokens_endpoint_only("/v1/payment_intents")?;
 
                     validate_shipping_address_against_payment_method(
                         &shipping_address,

@@ -20,14 +20,23 @@ use crate::utils::{
     connector_from_composite_authorize_metadata, connector_variant_from_composite_metadata,
 };
 
-/// Reports whether a wallet payload carries the *decrypted* credential (PAN + cryptogram + ECI)
-/// instead of the wallet provider's own encrypted token.
+/// Reports whether a wallet payload carries a decrypted *network token* — a PAN accompanied by
+/// a network cryptogram — instead of the wallet provider's own encrypted token.
 ///
-/// `common_enums::PaymentMethod` / `PaymentMethodType` collapse both shapes onto the same
+/// The rule is deliberately narrower than "the payload is decrypted": **the cryptogram has to be
+/// there**. A Google Pay `PAN_ONLY` credential decrypts to a bare PAN with no cryptogram and no
+/// ECI; once decrypted there is nothing wallet-specific left about it, so connectors charge it as
+/// an ordinary card on their ordinary payment endpoint and it must not be reported here. Only the
+/// cryptogram-bearing shape needs the separate handling this flag exists to trigger. Apple Pay's
+/// decrypted payload always carries a cryptogram (`ApplePayCryptogramData.online_payment_cryptogram`
+/// is a required field, and the domain conversion rejects the payload without it), so a decrypted
+/// Apple Pay payload always reports `true`.
+///
+/// `common_enums::PaymentMethod` / `PaymentMethodType` collapse every wallet shape onto the same
 /// `Wallet` + `GooglePay` pair, but connectors can need opposite routing for them — see
-/// [`interfaces::connector_types::ValidationTrait::should_do_payment_method_token`]. Anything
-/// that is not a pre-decrypted Apple Pay / Google Pay payload reports `false`.
-fn is_wallet_payload_pre_decrypted(
+/// [`interfaces::connector_types::ValidationTrait::should_do_payment_method_token`]. Anything that
+/// is not a cryptogram-bearing decrypted Apple Pay / Google Pay payload reports `false`.
+fn is_wallet_payload_decrypted_network_token(
     payment_method: Option<&grpc_api_types::payments::PaymentMethod>,
 ) -> bool {
     use grpc_api_types::payments::{apple_wallet, google_wallet, payment_method::PaymentMethod};
@@ -38,7 +47,8 @@ fn is_wallet_payload_pre_decrypted(
                 .tokenization_data
                 .as_ref()
                 .and_then(|data| data.tokenization_data.as_ref()),
-            Some(google_wallet::tokenization_data::TokenizationData::DecryptedData(_))
+            Some(google_wallet::tokenization_data::TokenizationData::DecryptedData(decrypted))
+                if decrypted.cryptogram.is_some()
         ),
         Some(PaymentMethod::ApplePaySdk(apple_wallet)) => matches!(
             apple_wallet
@@ -231,8 +241,8 @@ where
                     payload.payment_method_type(),
                 )
                 .ok();
-                let is_wallet_pre_decrypted =
-                    is_wallet_payload_pre_decrypted(payload.payment_method.as_ref());
+                let is_wallet_decrypted_network_token =
+                    is_wallet_payload_decrypted_network_token(payload.payment_method.as_ref());
                 match connector {
                     ConnectorVariant::Payment(c) => ConnectorData::<
                         domain_types::payment_method_data::DefaultPCIHolder,
@@ -241,7 +251,7 @@ where
                     .should_do_payment_method_token(
                         payment_method,
                         payment_method_type,
-                        is_wallet_pre_decrypted,
+                        is_wallet_decrypted_network_token,
                     ),
                     ConnectorVariant::Authenticator(c) => {
                         AuthenticatorConnectorData::get_connector_by_name(c)
@@ -249,7 +259,7 @@ where
                             .should_do_payment_method_token(
                                 payment_method,
                                 payment_method_type,
-                                is_wallet_pre_decrypted,
+                                is_wallet_decrypted_network_token,
                             )
                     }
                     _ => false,

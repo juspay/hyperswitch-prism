@@ -247,18 +247,22 @@ pub trait ValidationTrait: ConnectorCommon {
 
     /// Whether the composite flow must mint a connector token (Tokenize) before Authorize.
     ///
-    /// `is_wallet_pre_decrypted` reports that the wallet payload on the request carries the
-    /// *decrypted* credential (PAN + cryptogram + ECI) rather than the wallet provider's own
-    /// encrypted token. `payment_method` / `payment_method_type` cannot express that
-    /// distinction on their own, yet it flips the answer for some connectors: Stripe accepts an
-    /// encrypted Google Pay token inline on `/v1/payment_intents` but only accepts the
-    /// decrypted credential on `/v1/tokens`, so the same `Wallet` + `GooglePay` pair needs two
-    /// different answers. Connectors that do not care may ignore it.
+    /// `is_wallet_decrypted_network_token` reports that the wallet payload on the request carries
+    /// a decrypted *network token* — a PAN plus a network cryptogram (ECI optional) — rather than
+    /// the wallet provider's own encrypted token. It is deliberately narrower than "the payload is
+    /// decrypted": a Google Pay `PAN_ONLY` credential decrypts to a bare PAN with no cryptogram,
+    /// which is just a card, so it reports `false` and stays on the ordinary inline path.
+    ///
+    /// `payment_method` / `payment_method_type` cannot express that distinction on their own, yet
+    /// it flips the answer for some connectors: Stripe accepts an encrypted Google Pay token
+    /// inline on `/v1/payment_intents` but only accepts a decrypted network token on `/v1/tokens`,
+    /// so the same `Wallet` + `GooglePay` pair needs different answers. Connectors that do not care
+    /// may ignore it.
     fn should_do_payment_method_token(
         &self,
         _payment_method: PaymentMethod,
         _payment_method_type: Option<PaymentMethodType>,
-        _is_wallet_pre_decrypted: bool,
+        _is_wallet_decrypted_network_token: bool,
     ) -> bool {
         false
     }
