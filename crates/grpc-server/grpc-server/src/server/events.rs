@@ -504,8 +504,7 @@ impl EventServiceImpl {
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
-            #[cfg(feature = "connector-response-masking")]
-            connector_response_masking: &config.connector_response_masking,
+            masking_keys: &config.masking_keys,
             connector_latency: metadata_payload.connector_latency.clone(),
             log_fields_enabled: config.log_fields.enabled,
             log_fields: &config.log_fields.outgoing,
@@ -617,8 +616,7 @@ impl EventServiceImpl {
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
-            #[cfg(feature = "connector-response-masking")]
-            connector_response_masking: &config.connector_response_masking,
+            masking_keys: &config.masking_keys,
             connector_latency: metadata_payload.connector_latency.clone(),
             log_fields_enabled: config.log_fields.enabled,
             log_fields: &config.log_fields.outgoing,
@@ -730,8 +728,7 @@ impl EventServiceImpl {
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
-            #[cfg(feature = "connector-response-masking")]
-            connector_response_masking: &config.connector_response_masking,
+            masking_keys: &config.masking_keys,
             connector_latency: metadata_payload.connector_latency.clone(),
             log_fields_enabled: config.log_fields.enabled,
             log_fields: &config.log_fields.outgoing,
@@ -840,8 +837,7 @@ impl EventServiceImpl {
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
-            #[cfg(feature = "connector-response-masking")]
-            connector_response_masking: &config.connector_response_masking,
+            masking_keys: &config.masking_keys,
             connector_latency: metadata_payload.connector_latency.clone(),
             log_fields_enabled: config.log_fields.enabled,
             log_fields: &config.log_fields.outgoing,
@@ -950,8 +946,7 @@ impl EventServiceImpl {
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
-            #[cfg(feature = "connector-response-masking")]
-            connector_response_masking: &config.connector_response_masking,
+            masking_keys: &config.masking_keys,
             connector_latency: metadata_payload.connector_latency.clone(),
             log_fields_enabled: config.log_fields.enabled,
             log_fields: &config.log_fields.outgoing,
@@ -995,7 +990,6 @@ async fn verify_webhook_source_external(
         connectors: config.connectors.clone(),
         connector_request_reference_id: format!("webhook_verify_{}", metadata_payload.request_id),
         raw_connector_response: None,
-        masked_connector_response: None,
         raw_connector_request: None,
         connector_response_headers: None,
     };
@@ -1050,8 +1044,7 @@ async fn verify_webhook_source_external(
         tenant_id: &metadata_payload.tenant_id,
         merchant_id: metadata_payload.merchant_id.as_str(),
         return_raw_connector_data: config.common.return_raw_connector_data,
-        #[cfg(feature = "connector-response-masking")]
-        connector_response_masking: &config.connector_response_masking,
+        masking_keys: &config.masking_keys,
         connector_latency: metadata_payload.connector_latency.clone(),
         log_fields_enabled: config.log_fields.enabled,
         log_fields: &config.log_fields.outgoing,

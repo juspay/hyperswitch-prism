@@ -295,86 +295,8 @@ where
     Ok(())
 }
 
-#[cfg(feature = "connector-response-masking")]
-const MASKED_CONNECTOR_RESPONSE_KEY: &str = "masked_connector_response";
-
-#[cfg(feature = "connector-response-masking")]
-fn record_response_body<T>(response: &T, log_masked: bool)
-where
-    T: serde::Serialize + std::fmt::Debug,
-{
-    record_json_fields_on_span(vec![(
-        "response_body",
-        response_for_logging(response, log_masked),
-    )]);
-}
-
-#[cfg(not(feature = "connector-response-masking"))]
-fn record_response_body<T>(response: &T, _log_masked: bool)
-where
-    T: serde::Serialize + std::fmt::Debug,
-{
-    match hyperswitch_masking::masked_serialize(response) {
-        Ok(masked_value) => {
-            record_json_fields_on_span(vec![("response_body", masked_value)]);
-        }
-        Err(_) => {
-            tracing::Span::current().record("response_body", tracing::field::debug(response));
-        }
-    }
-}
-
-#[cfg(feature = "connector-response-masking")]
-fn set_event_response<T>(event: &mut Event, response: &T, log_masked: bool)
-where
-    T: serde::Serialize,
-{
-    event.set_grpc_success_response(&response_for_logging(response, log_masked));
-}
-
-#[cfg(not(feature = "connector-response-masking"))]
-fn set_event_response<T>(event: &mut Event, response: &T, _log_masked: bool)
-where
-    T: serde::Serialize,
-{
-    event.set_grpc_success_response(response);
-}
-
-#[cfg(feature = "connector-response-masking")]
-fn should_log_masked(config: &configs::Config) -> bool {
-    config.connector_response_masking.log_to_span
-}
-
-#[cfg(not(feature = "connector-response-masking"))]
-fn should_log_masked(_config: &configs::Config) -> bool {
-    true
-}
-
-#[cfg(feature = "connector-response-masking")]
-fn response_for_logging<R>(response: &R, log_masked: bool) -> Value
-where
-    R: serde::Serialize,
-{
-    let mut value = match hyperswitch_masking::masked_serialize(response) {
-        Ok(value) => value,
-        Err(e) => {
-            tracing::error!("Masked serialization error: {:?}", e);
-            return Value::String("<masked serialization error>".to_string());
-        }
-    };
-
-    if !log_masked {
-        if let Value::Object(map) = &mut value {
-            map.remove(MASKED_CONNECTOR_RESPONSE_KEY);
-        }
-    }
-
-    value
-}
-
 pub fn log_after_initialization<T>(
     result: &Result<tonic::Response<T>, tonic::Status>,
-    log_masked: bool,
     log_fields_enabled: bool,
     log_fields: &CompiledLogFields,
 ) where
@@ -387,7 +309,14 @@ pub fn log_after_initialization<T>(
             let res_ref = response.get_ref();
 
             // Record response_body as structured JSON with masking
-            record_response_body(res_ref, log_masked);
+            match hyperswitch_masking::masked_serialize(res_ref) {
+                Ok(masked_value) => {
+                    record_json_fields_on_span(vec![("response_body", masked_value.clone())]);
+                }
+                Err(_) => {
+                    current_span.record("response_body", tracing::field::debug(res_ref));
+                }
+            }
 
             // Try converting to JSON Value
             if let Ok(Value::Object(map)) = serde_json::to_value(res_ref) {
@@ -476,7 +405,6 @@ where
     let grpc_response = handler_result.into_grpc_status();
     log_after_initialization(
         &grpc_response,
-        should_log_masked(&config),
         config.log_fields.enabled,
         &config.log_fields.incoming,
     );
@@ -545,7 +473,6 @@ where
     let grpc_response = handler_result.into_grpc_status();
     log_after_initialization(
         &grpc_response,
-        should_log_masked(&config),
         config.log_fields.enabled,
         &config.log_fields.incoming,
     );
@@ -649,11 +576,7 @@ fn create_and_emit_grpc_event<R>(
     );
 
     match grpc_response {
-        Ok(response) => set_event_response(
-            &mut grpc_event,
-            response.get_ref(),
-            should_log_masked(config),
-        ),
+        Ok(response) => grpc_event.set_grpc_success_response(response.get_ref()),
         Err(error) => {
             grpc_event.set_grpc_error_response(error);
             grpc_event.set_error_response(&build_error_detail(error));
@@ -821,8 +744,7 @@ macro_rules! implement_connector_operation {
                 tenant_id: &metadata_payload.tenant_id,
                 merchant_id: metadata_payload.merchant_id.as_str(),
                 return_raw_connector_data: config.common.return_raw_connector_data,
-                #[cfg(feature = "connector-response-masking")]
-                connector_response_masking: &config.connector_response_masking,
+                masking_keys: &config.masking_keys,
                 connector_latency: metadata_payload.connector_latency.clone(),
                 log_fields_enabled: config.log_fields.enabled,
                 log_fields: &config.log_fields.outgoing,
@@ -1186,8 +1108,7 @@ macro_rules! implement_connector_operation {
                 tenant_id: &metadata_payload.tenant_id,
                 merchant_id: metadata_payload.merchant_id.as_str(),
                 return_raw_connector_data: config.common.return_raw_connector_data,
-                #[cfg(feature = "connector-response-masking")]
-                connector_response_masking: &config.connector_response_masking,
+                masking_keys: &config.masking_keys,
                 connector_latency: metadata_payload.connector_latency.clone(),
                 log_fields_enabled: config.log_fields.enabled,
                 log_fields: &config.log_fields.outgoing,

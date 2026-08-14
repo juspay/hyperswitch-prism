@@ -349,6 +349,40 @@ fn flow_status_label(flow_status: &domain_types::router_data::FlowStatus) -> Str
 
 /// Handles the connector response, processing both successful and error responses
 #[allow(clippy::too_many_arguments)]
+/// Build the masked view of a connector response and record it on the outgoing Golden Log Line,
+/// alongside `response.body` and `response.headers`.
+///
+/// This value goes to our own logs and nowhere else — it is deliberately not returned to the
+/// caller, so a careless allowlist entry cannot put connector response content on the wire.
+#[cfg(feature = "log-transformations")]
+fn record_masked_connector_response(body: &Response, params: &EventProcessingParams<'_>) {
+    let content_type = body
+        .headers
+        .as_ref()
+        .and_then(|headers| headers.get("content-type"))
+        .and_then(|value| value.to_str().ok());
+
+    let Some(masked) = common_utils::connector_response_masking::mask_connector_response(
+        &body.response,
+        content_type,
+        params.connector_name,
+        params.masking_keys,
+    ) else {
+        return;
+    };
+
+    // Metadata only, and cheap: content type and size are what explain an unexpected
+    // `_format: unparsable` stub in the field below.
+    tracing::debug!(
+        connector = params.connector_name,
+        content_type = content_type.unwrap_or("<none>"),
+        response_bytes = body.response.len(),
+        "built masked connector response"
+    );
+
+    record_json_fields_on_span(vec![("response.masked_body", masked)]);
+}
+
 pub fn handle_connector_response<F, ResourceCommonData, Req, Resp>(
     response: CustomResult<Result<Response, Response>, ConnectorError>,
     mut updated_router_data: RouterDataV2<F, ResourceCommonData, Req, Resp>,
@@ -387,16 +421,9 @@ where
                             .set_connector_response_headers(body.headers.clone());
                     }
 
-                    #[cfg(feature = "connector-response-masking")]
-                    if let Some(params) =
-                        event_params.filter(|p| p.connector_response_masking.enabled)
-                    {
-                        domain_types::connector_response_masking::record_masked_connector_response(
-                            &mut updated_router_data.resource_common_data,
-                            &body,
-                            params.connector_name,
-                            params.connector_response_masking,
-                        );
+                    #[cfg(feature = "log-transformations")]
+                    if let Some(params) = event_params.filter(|p| p.masking_keys.enabled) {
+                        record_masked_connector_response(&body, params);
                     }
 
                     let handle_response_result = connector.handle_response_v2(
@@ -460,16 +487,9 @@ where
                             .set_connector_response_headers(body.headers.clone());
                     }
 
-                    #[cfg(feature = "connector-response-masking")]
-                    if let Some(params) =
-                        event_params.filter(|p| p.connector_response_masking.enabled)
-                    {
-                        domain_types::connector_response_masking::record_masked_connector_response(
-                            &mut updated_router_data.resource_common_data,
-                            &body,
-                            params.connector_name,
-                            params.connector_response_masking,
-                        );
+                    #[cfg(feature = "log-transformations")]
+                    if let Some(params) = event_params.filter(|p| p.masking_keys.enabled) {
+                        record_masked_connector_response(&body, params);
                     }
 
                     let error_response = match body.status_code {
@@ -581,9 +601,10 @@ pub struct EventProcessingParams<'a> {
     pub tenant_id: &'a str,
     pub merchant_id: &'a str,
     pub return_raw_connector_data: bool,
-    #[cfg(feature = "connector-response-masking")]
-    pub connector_response_masking:
-        &'a domain_types::connector_response_masking::ConnectorResponseMaskingConfig,
+    /// Pre-parsed per-connector unmask lists for `response.masked_body`. Ungated, like
+    /// `log_fields` below, so the ~16 construction sites stay free of `#[cfg]`; only the code that
+    /// consumes it is gated.
+    pub masking_keys: &'a common_utils::connector_response_masking::CompiledMaskingKeys,
     pub connector_latency: ConnectorLatencyTracker,
     /// Runtime kill-switch for log field application.
     pub log_fields_enabled: bool,

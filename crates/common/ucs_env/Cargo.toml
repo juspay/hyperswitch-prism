@@ -63,14 +63,13 @@ build_info = { git = "https://github.com/juspay/framework-libs-rs", rev = "76613
     "framework-libs-members-env",
 ] }
 
+[dev-dependencies]
+toml = "0.8"
+
 [features]
 default = []
 kafka = ["tracing-kafka"]
 otel = ["dep:opentelemetry", "dep:opentelemetry-otlp", "dep:opentelemetry_sdk"]
-connector-response-masking = [
-    "domain_types/connector-response-masking",
-    "external-services/connector-response-masking",
-]
 log-transformations = ["common_utils/log-transformations"]
 
 [lints]

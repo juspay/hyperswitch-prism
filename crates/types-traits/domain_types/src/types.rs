@@ -5225,7 +5225,6 @@ impl
             .transpose()?;
 
         Ok(Self {
-            masked_connector_response: None,
             merchant_id: merchant_id_from_header,
             // Prefer caller's per-request `merchant_request_id`; fall back to the historical `merchant_access_token_id`.
             connector_request_reference_id: extract_connector_request_reference_id(
@@ -5314,7 +5313,6 @@ impl ForeignTryFrom<(PaymentServiceAuthorizeRequest, Connectors, &MaskedMetadata
             .transpose()?;
 
         Ok(Self {
-            masked_connector_response: None,
             raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
@@ -5430,7 +5428,6 @@ impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for Pay
             .transpose()?;
 
         Ok(Self {
-            masked_connector_response: None,
             raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
@@ -5524,7 +5521,6 @@ impl ForeignTryFrom<(SetupRecurringRequest, Connectors, &MaskedMetadata)> for Pa
             .transpose()?;
 
         Ok(Self {
-            masked_connector_response: None,
             raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
@@ -5644,7 +5640,6 @@ impl
             })?;
 
         Ok(Self {
-            masked_connector_response: None,
             raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
@@ -5731,7 +5726,6 @@ impl
             .transpose()?;
 
         Ok(Self {
-            masked_connector_response: None,
             raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
@@ -5822,7 +5816,6 @@ impl ForeignTryFrom<(PaymentServiceVoidRequest, Connectors, &MaskedMetadata)> fo
             .transpose()?;
 
         Ok(Self {
-            masked_connector_response: None,
             raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
@@ -5907,7 +5900,6 @@ impl
         let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
 
         Ok(Self {
-            masked_connector_response: None,
             raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
@@ -6282,9 +6274,6 @@ pub fn generate_create_order_response(
     let raw_connector_response = router_data_v2
         .resource_common_data
         .get_raw_connector_response();
-    let masked_connector_response = router_data_v2
-        .resource_common_data
-        .get_masked_connector_response();
     let raw_connector_request = router_data_v2
         .resource_common_data
         .get_raw_connector_request();
@@ -6315,7 +6304,6 @@ pub fn generate_create_order_response(
                 merchant_order_id: None,
                 raw_connector_request,
                 raw_connector_response,
-                masked_connector_response,
                 raw_connector_status,
                 session_data: grpc_session_data,
             }
@@ -6344,7 +6332,6 @@ pub fn generate_create_order_response(
             merchant_order_id: None,
             raw_connector_request,
             raw_connector_response,
-            masked_connector_response,
             raw_connector_status,
             session_data: None,
         },
@@ -6378,9 +6365,6 @@ pub fn generate_payment_method_eligibility_response(
     let raw_connector_response = router_data_v2
         .resource_common_data
         .get_raw_connector_response();
-    let masked_connector_response = router_data_v2
-        .resource_common_data
-        .get_masked_connector_response();
     let raw_connector_request = router_data_v2
         .resource_common_data
         .get_raw_connector_request();
@@ -6394,7 +6378,6 @@ pub fn generate_payment_method_eligibility_response(
             error_info: None,
             raw_connector_request,
             raw_connector_response,
-            masked_connector_response,
             response_headers,
         }),
         Err(err) => Ok(PaymentMethodServiceEligibilityResponse {
@@ -6416,7 +6399,6 @@ pub fn generate_payment_method_eligibility_response(
             }),
             raw_connector_request,
             raw_connector_response,
-            masked_connector_response,
             response_headers,
         }),
     }
@@ -6591,9 +6573,6 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
     let raw_connector_response = router_data_v2
         .resource_common_data
         .get_raw_connector_response();
-    let masked_connector_response = router_data_v2
-        .resource_common_data
-        .get_masked_connector_response();
     let raw_connector_request = router_data_v2
         .resource_common_data
         .get_raw_connector_request();
@@ -6691,7 +6670,6 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                     status: grpc_status as i32,
                     error: None,
                     raw_connector_response,
-                    masked_connector_response,
                     raw_connector_request,
                     status_code: status_code as u32,
                     response_headers,
@@ -6764,7 +6742,6 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                 status_code: err.status_code as u32,
                 response_headers,
                 raw_connector_response,
-                masked_connector_response,
                 raw_connector_request,
                 connector_feature_data: None,
                 state,
@@ -7712,9 +7689,6 @@ pub fn generate_payment_void_response(
                     raw_connector_response: router_data_v2
                         .resource_common_data
                         .get_raw_connector_response(),
-                    masked_connector_response: router_data_v2
-                        .resource_common_data
-                        .get_masked_connector_response(),
                     state,
                     mandate_reference: mandate_reference_grpc,
                     mandate_reference_details,
@@ -7763,9 +7737,6 @@ pub fn generate_payment_void_response(
                 raw_connector_response: router_data_v2
                     .resource_common_data
                     .get_raw_connector_response(),
-                masked_connector_response: router_data_v2
-                    .resource_common_data
-                    .get_masked_connector_response(),
                 error: Some(grpc_api_types::payments::ErrorInfo {
                     unified_details: None,
                     connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
@@ -7827,9 +7798,6 @@ pub fn generate_payment_void_post_capture_response(
     let raw_connector_response = router_data_v2
         .resource_common_data
         .get_raw_connector_response();
-    let masked_connector_response = router_data_v2
-        .resource_common_data
-        .get_masked_connector_response();
 
     let raw_connector_status = router_data_v2
         .resource_common_data
@@ -7871,7 +7839,6 @@ pub fn generate_payment_void_post_capture_response(
                         .get_connector_response_headers_as_map(),
                     raw_connector_request,
                     raw_connector_response,
-                    masked_connector_response,
                     raw_connector_status,
                 })
             }
@@ -7905,7 +7872,6 @@ pub fn generate_payment_void_post_capture_response(
                         .get_connector_response_headers_as_map(),
                     raw_connector_request,
                     raw_connector_response,
-                    masked_connector_response,
                     raw_connector_status,
                 })
             }
@@ -7952,7 +7918,6 @@ pub fn generate_payment_void_post_capture_response(
                     .get_connector_response_headers_as_map(),
                 raw_connector_request,
                 raw_connector_response,
-                masked_connector_response,
                 raw_connector_status,
             })
         }
@@ -8064,9 +8029,6 @@ pub fn generate_payment_sync_response(
     let raw_connector_response = router_data_v2
         .resource_common_data
         .get_raw_connector_response();
-    let masked_connector_response = router_data_v2
-        .resource_common_data
-        .get_masked_connector_response();
 
     // Create state if either access token or connector customer is available
     let state = if router_data_v2.resource_common_data.access_token.is_some()
@@ -8194,7 +8156,6 @@ pub fn generate_payment_sync_response(
                     metadata: None,
                     status_code: status_code as u32,
                     raw_connector_response,
-                    masked_connector_response,
                     response_headers: router_data_v2
                         .resource_common_data
                         .get_connector_response_headers_as_map(),
@@ -8310,7 +8271,6 @@ pub fn generate_payment_sync_response(
                     metadata: None,
                     status_code: status_code as u32,
                     raw_connector_response,
-                    masked_connector_response,
                     response_headers: router_data_v2
                         .resource_common_data
                         .get_connector_response_headers_as_map(),
@@ -8404,7 +8364,6 @@ pub fn generate_payment_sync_response(
                 merchant_order_id: None,
                 metadata: None,
                 raw_connector_response,
-                masked_connector_response,
                 status_code: e.status_code as u32,
                 response_headers: router_data_v2
                     .resource_common_data
@@ -8512,7 +8471,6 @@ impl
         let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
 
         Ok(Self {
-            masked_connector_response: None,
             raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             connector_request_reference_id: extract_connector_request_reference_id(
@@ -8564,7 +8522,6 @@ impl
 
         let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
         Ok(Self {
-            masked_connector_response: None,
             raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             status: common_enums::RefundStatus::Success,
@@ -8629,7 +8586,6 @@ impl
         let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
         let refund_id = value.merchant_refund_id.clone();
         Ok(Self {
-            masked_connector_response: None,
             raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             connector_request_reference_id: extract_connector_request_reference_id(&refund_id),
@@ -8956,7 +8912,6 @@ impl
         ),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         Ok(Self {
-            masked_connector_response: None,
             dispute_id: None,
             connectors,
             connector_dispute_id: value.dispute_id,
@@ -8988,7 +8943,6 @@ impl
         ),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         Ok(Self {
-            masked_connector_response: None,
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_dispute_id.clone(),
             ),
@@ -9083,7 +9037,6 @@ impl
         ),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         Ok(Self {
-            masked_connector_response: None,
             dispute_id: None,
             connectors,
             connector_dispute_id: value.dispute_id,
@@ -9113,7 +9066,6 @@ impl
         ),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         Ok(Self {
-            masked_connector_response: None,
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_dispute_id,
             ),
@@ -9136,9 +9088,6 @@ pub fn generate_refund_sync_response(
     let raw_connector_response = router_data_v2
         .resource_common_data
         .get_raw_connector_response();
-    let masked_connector_response = router_data_v2
-        .resource_common_data
-        .get_masked_connector_response();
 
     let raw_connector_request = router_data_v2
         .resource_common_data
@@ -9186,7 +9135,6 @@ pub fn generate_refund_sync_response(
                 metadata: None,
                 refund_metadata: None,
                 raw_connector_response,
-                masked_connector_response,
                 status_code: response.status_code as u32,
                 response_headers,
                 state: None,
@@ -9240,7 +9188,6 @@ pub fn generate_refund_sync_response(
                 customer_name: None,
                 email: None,
                 raw_connector_response,
-                masked_connector_response,
                 merchant_order_id: None,
                 metadata: None,
                 refund_metadata: None,
@@ -9352,7 +9299,6 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
             metadata: None,
             status_code: value.status_code as u32,
             raw_connector_response: value.raw_connector_response.map(Secret::new),
-            masked_connector_response: None,
             response_headers,
             state: None,
             raw_connector_request: None,
@@ -9546,9 +9492,6 @@ pub fn generate_void_post_refund_response(
     let raw_connector_response = router_data_v2
         .resource_common_data
         .get_raw_connector_response();
-    let masked_connector_response = router_data_v2
-        .resource_common_data
-        .get_masked_connector_response();
     let raw_connector_request = router_data_v2
         .resource_common_data
         .get_raw_connector_request();
@@ -9602,7 +9545,6 @@ pub fn generate_void_post_refund_response(
                 metadata: None,
                 refund_metadata: None,
                 raw_connector_response,
-                masked_connector_response,
                 status_code: response.status_code as u32,
                 response_headers,
                 state: Some(ConnectorState {
@@ -9654,7 +9596,6 @@ pub fn generate_void_post_refund_response(
             customer_name: None,
             email: None,
             raw_connector_response,
-            masked_connector_response,
             merchant_order_id: None,
             metadata: None,
             refund_metadata: None,
@@ -9740,7 +9681,6 @@ impl
                 });
 
         Ok(Self {
-            masked_connector_response: None,
             raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
@@ -9854,7 +9794,6 @@ impl
         let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
 
         Ok(Self {
-            masked_connector_response: None,
             raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
@@ -9945,7 +9884,6 @@ impl ForeignTryFrom<RefundWebhookDetailsResponse> for RefundResponse {
                 issuer_details: None,
             }),
             raw_connector_response: value.raw_connector_response.map(Secret::new),
-            masked_connector_response: None,
             refund_amount: None,
             payment_amount: None,
             refund_reason: None,
@@ -10604,9 +10542,6 @@ pub fn generate_refund_response(
     let raw_connector_response = router_data_v2
         .resource_common_data
         .get_raw_connector_response();
-    let masked_connector_response = router_data_v2
-        .resource_common_data
-        .get_masked_connector_response();
 
     // RefundFlowData doesn't have access_token field, so no state to return
     let state = None;
@@ -10653,7 +10588,6 @@ pub fn generate_refund_response(
                 email: None,
                 merchant_order_id: None,
                 raw_connector_response,
-                masked_connector_response,
                 metadata: None,
                 refund_metadata: None,
                 status_code: response.status_code as u32,
@@ -10705,7 +10639,6 @@ pub fn generate_refund_response(
                 customer_name: None,
                 email: None,
                 raw_connector_response,
-                masked_connector_response,
                 merchant_order_id: None,
                 metadata: None,
                 refund_metadata: None,
@@ -10927,7 +10860,6 @@ impl
             .map(|m| ForeignTryFrom::foreign_try_from((m, "feature data")))
             .transpose()?;
         Ok(Self {
-            masked_connector_response: None,
             raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "PAYMENT_ID".to_string(),
@@ -10998,7 +10930,6 @@ impl
         };
 
         Ok(Self {
-            masked_connector_response: None,
             merchant_id: merchant_id_from_header,
             connector_request_reference_id: value.merchant_client_session_id,
             connector_feature_data: value
@@ -11067,9 +10998,6 @@ pub fn generate_payment_incremental_authorization_response(
     let raw_connector_response = router_data_v2
         .resource_common_data
         .get_raw_connector_response();
-    let masked_connector_response = router_data_v2
-        .resource_common_data
-        .get_masked_connector_response();
 
     match router_data_v2.response {
         Ok(response) => match response {
@@ -11092,7 +11020,6 @@ pub fn generate_payment_incremental_authorization_response(
                     state,
                     raw_connector_request,
                     raw_connector_response,
-                    masked_connector_response,
                 })
             }
             _ => Err(report!(ConnectorError::UnexpectedResponseError {
@@ -11125,7 +11052,6 @@ pub fn generate_payment_incremental_authorization_response(
             state,
             raw_connector_request,
             raw_connector_response,
-            masked_connector_response,
         }),
     }
 }
@@ -11174,9 +11100,6 @@ pub fn generate_payment_capture_response(
     let raw_connector_response = router_data_v2
         .resource_common_data
         .get_raw_connector_response();
-    let masked_connector_response = router_data_v2
-        .resource_common_data
-        .get_masked_connector_response();
 
     let connector_response = router_data_v2
         .resource_common_data
@@ -11246,7 +11169,6 @@ pub fn generate_payment_capture_response(
                     state,
                     raw_connector_request,
                     raw_connector_response,
-                    masked_connector_response,
                     incremental_authorization_allowed,
                     mandate_reference: mandate_reference_grpc,
                     mandate_reference_details,
@@ -11311,7 +11233,6 @@ pub fn generate_payment_capture_response(
                 state,
                 raw_connector_request,
                 raw_connector_response,
-                masked_connector_response,
                 incremental_authorization_allowed: None,
                 mandate_reference: None,
                 mandate_reference_details: None,
@@ -11390,7 +11311,6 @@ impl
             .transpose()?;
 
         Ok(Self {
-            masked_connector_response: None,
             raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
@@ -11493,7 +11413,6 @@ impl
             .transpose()?;
 
         Ok(Self {
-            masked_connector_response: None,
             raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
@@ -12263,9 +12182,6 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
     let raw_connector_response = router_data_v2
         .resource_common_data
         .get_raw_connector_response();
-    let masked_connector_response = router_data_v2
-        .resource_common_data
-        .get_masked_connector_response();
 
     let connector_response = router_data_v2
         .resource_common_data
@@ -12406,7 +12322,6 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                     state,
                     raw_connector_request,
                     raw_connector_response,
-                    masked_connector_response,
                     connector_response,
                     connector_feature_data: convert_connector_metadata_to_secret_string(
                         connector_metadata,
@@ -12474,7 +12389,6 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                 state,
                 raw_connector_request,
                 raw_connector_response,
-                masked_connector_response,
                 connector_response,
                 connector_feature_data: None,
                 captured_amount: None,
@@ -12492,7 +12406,6 @@ impl ForeignTryFrom<(DisputeServiceDefendRequest, Connectors)> for DisputeFlowDa
         (value, connectors): (DisputeServiceDefendRequest, Connectors),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         Ok(Self {
-            masked_connector_response: None,
             dispute_id: Some(value.dispute_id.clone()),
             connectors,
             connector_dispute_id: value.dispute_id,
@@ -12516,7 +12429,6 @@ impl ForeignTryFrom<(DisputeServiceDefendRequest, Connectors, &MaskedMetadata)>
         (value, connectors, _metadata): (DisputeServiceDefendRequest, Connectors, &MaskedMetadata),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         Ok(Self {
-            masked_connector_response: None,
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_dispute_id,
             ),
@@ -12738,7 +12650,6 @@ impl
             .and_then(|state| state.connector_customer_id.clone());
 
         Ok(Self {
-            masked_connector_response: None,
             raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
@@ -13348,7 +13259,6 @@ impl
             .transpose()?;
 
         Ok(Self {
-            masked_connector_response: None,
             merchant_id: merchant_id_from_header,
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_server_session_id.clone(),
@@ -13495,7 +13405,6 @@ impl
             .transpose()?;
 
         Ok(Self {
-            masked_connector_response: None,
             raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
@@ -13684,7 +13593,6 @@ impl
             .transpose()?;
 
         Ok(Self {
-            masked_connector_response: None,
             raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
@@ -13803,7 +13711,6 @@ impl
             .map(ServerAuthenticationTokenResponseData::foreign_try_from)
             .transpose()?;
         Ok(Self {
-            masked_connector_response: None,
             raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
@@ -13913,7 +13820,6 @@ impl
             .map(ServerAuthenticationTokenResponseData::foreign_try_from)
             .transpose()?;
         Ok(Self {
-            masked_connector_response: None,
             raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
@@ -14017,7 +13923,6 @@ impl
         ),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         Ok(Self {
-            masked_connector_response: None,
             connectors,
             connector_request_reference_id: String::new(),
             raw_connector_response: None,
@@ -14041,7 +13946,6 @@ impl ForeignTryFrom<connector_types::RefreshPaymentMethodResponseData>
             error: None,
             response_headers: std::collections::HashMap::new(),
             raw_connector_response: None,
-            masked_connector_response: None,
             raw_connector_request: None,
         })
     }
@@ -14126,7 +14030,6 @@ impl
             }),
             response_headers: std::collections::HashMap::new(),
             raw_connector_response: None,
-            masked_connector_response: None,
             raw_connector_request: None,
         }
     }
@@ -14212,7 +14115,6 @@ impl
             .transpose()?;
 
         Ok(Self {
-            masked_connector_response: None,
             raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
@@ -14301,7 +14203,6 @@ impl
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
         Ok(Self {
-            masked_connector_response: None,
             raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
@@ -14667,9 +14568,6 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
     let raw_connector_response = router_data_v2
         .resource_common_data
         .get_raw_connector_response();
-    let masked_connector_response = router_data_v2
-        .resource_common_data
-        .get_masked_connector_response();
 
     let raw_connector_request = router_data_v2
         .resource_common_data
@@ -14745,7 +14643,6 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                         mandate_reference_details,
                         status_code: status_code as u32,
                         raw_connector_response,
-                        masked_connector_response,
                         response_headers: router_data_v2
                             .resource_common_data
                             .get_connector_response_headers_as_map(),
@@ -14808,7 +14705,6 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                     connector_feature_data: None,
                     mandate_reference_details: None,
                     raw_connector_response,
-                    masked_connector_response,
                     status_code: err.status_code as u32,
                     response_headers: router_data_v2
                         .resource_common_data
@@ -15184,9 +15080,6 @@ pub fn generate_payment_sdk_session_token_response(
     let raw_connector_response = router_data_v2
         .resource_common_data
         .get_raw_connector_response();
-    let masked_connector_response = router_data_v2
-        .resource_common_data
-        .get_masked_connector_response();
 
     match transaction_response {
         Ok(response) => match response {
@@ -15271,7 +15164,6 @@ pub fn generate_payment_sdk_session_token_response(
                         session_data: grpc_session_data,
                         error: None,
                         raw_connector_response,
-                        masked_connector_response,
                         status_code: status_code as u32,
                         raw_connector_request,
                     },
@@ -15301,7 +15193,6 @@ pub fn generate_payment_sdk_session_token_response(
                     issuer_details: Some(grpc_payment_types::IssuerErrorDetails::from(&e)),
                 }),
                 raw_connector_response,
-                masked_connector_response,
                 status_code: e.status_code as u32,
                 raw_connector_request,
             },
@@ -16290,7 +16181,6 @@ impl
             .transpose()?;
 
         Ok(Self {
-            masked_connector_response: None,
             raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
@@ -16394,7 +16284,6 @@ impl
             .transpose()?;
 
         Ok(Self {
-            masked_connector_response: None,
             raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
@@ -16506,7 +16395,6 @@ impl
             .map(|s| s.to_string());
 
         Ok(Self {
-            masked_connector_response: None,
             raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
@@ -16593,7 +16481,6 @@ impl
         let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
 
         Ok(Self {
-            masked_connector_response: None,
             raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "MANDATE_REVOKE_ID".to_string(),
@@ -16690,7 +16577,6 @@ impl ForeignTryFrom<(bool, RedirectDetailsResponse)>
             connector_feature_data: redirect_details_response
                 .connector_feature_data
                 .map(|feature_data| feature_data.into()),
-            masked_connector_response: None,
         })
     }
 }
@@ -16712,9 +16598,6 @@ pub fn generate_payment_pre_authenticate_response<T: PaymentMethodDataTypes>(
     let raw_connector_response = router_data_v2
         .resource_common_data
         .get_raw_connector_response();
-    let masked_connector_response = router_data_v2
-        .resource_common_data
-        .get_masked_connector_response();
     let response_headers = router_data_v2
         .resource_common_data
         .get_connector_response_headers_as_map();
@@ -16876,7 +16759,6 @@ pub fn generate_payment_pre_authenticate_response<T: PaymentMethodDataTypes>(
                 status: grpc_status.into(),
                 error: None,
                 raw_connector_response,
-                masked_connector_response,
                 status_code: status_code.into(),
                 response_headers,
                 network_transaction_id: None,
@@ -16925,7 +16807,6 @@ pub fn generate_payment_pre_authenticate_response<T: PaymentMethodDataTypes>(
                 status_code: err.status_code.into(),
                 response_headers,
                 raw_connector_response,
-                masked_connector_response,
                 connector_feature_data: None,
                 state: None,
                 authentication_data: None,
@@ -16952,9 +16833,6 @@ pub fn generate_payment_authenticate_response<T: PaymentMethodDataTypes>(
     let raw_connector_response = router_data_v2
         .resource_common_data
         .get_raw_connector_response();
-    let masked_connector_response = router_data_v2
-        .resource_common_data
-        .get_masked_connector_response();
     let response_headers = router_data_v2
         .resource_common_data
         .get_connector_response_headers_as_map();
@@ -17095,7 +16973,6 @@ pub fn generate_payment_authenticate_response<T: PaymentMethodDataTypes>(
                 status: grpc_status.into(),
                 error: None,
                 raw_connector_response,
-                masked_connector_response,
                 raw_connector_status,
                 status_code: status_code.into(),
                 response_headers,
@@ -17144,7 +17021,6 @@ pub fn generate_payment_authenticate_response<T: PaymentMethodDataTypes>(
                 }),
                 status_code: err.status_code.into(),
                 raw_connector_response,
-                masked_connector_response,
                 raw_connector_status,
                 response_headers,
                 connector_feature_data: None,
@@ -17172,9 +17048,6 @@ pub fn generate_payment_post_authenticate_response<T: PaymentMethodDataTypes>(
     let raw_connector_response = router_data_v2
         .resource_common_data
         .get_raw_connector_response();
-    let masked_connector_response = router_data_v2
-        .resource_common_data
-        .get_masked_connector_response();
     let response_headers = router_data_v2
         .resource_common_data
         .get_connector_response_headers_as_map();
@@ -17207,7 +17080,6 @@ pub fn generate_payment_post_authenticate_response<T: PaymentMethodDataTypes>(
                 status: grpc_status.into(),
                 error: None,
                 raw_connector_response,
-                masked_connector_response,
                 raw_connector_status,
                 status_code: status_code.into(),
                 response_headers,
@@ -17257,7 +17129,6 @@ pub fn generate_payment_post_authenticate_response<T: PaymentMethodDataTypes>(
                 status_code: err.status_code.into(),
                 response_headers,
                 raw_connector_response,
-                masked_connector_response,
                 raw_connector_status,
                 connector_feature_data: None,
                 state: None,
@@ -17706,9 +17577,6 @@ pub fn generate_mandate_revoke_response(
     let raw_connector_response = router_data_v2
         .resource_common_data
         .get_raw_connector_response();
-    let masked_connector_response = router_data_v2
-        .resource_common_data
-        .get_masked_connector_response();
     let raw_connector_request = router_data_v2
         .resource_common_data
         .get_raw_connector_request();
@@ -17738,7 +17606,6 @@ pub fn generate_mandate_revoke_response(
             network_transaction_id: None,
             merchant_revoke_id: None,
             raw_connector_response,
-            masked_connector_response,
             raw_connector_request,
         }),
         Err(e) => Ok(RecurringPaymentServiceRevokeResponse {
@@ -17759,7 +17626,6 @@ pub fn generate_mandate_revoke_response(
             network_transaction_id: None,
             merchant_revoke_id: e.connector_transaction_id,
             raw_connector_response,
-            masked_connector_response,
             raw_connector_request,
         }),
     }
@@ -17951,9 +17817,6 @@ pub fn generate_recharge_response(
     let raw_connector_response = router_data_v2
         .resource_common_data
         .get_raw_connector_response();
-    let masked_connector_response = router_data_v2
-        .resource_common_data
-        .get_masked_connector_response();
     let raw_connector_request = router_data_v2
         .resource_common_data
         .get_raw_connector_request();
@@ -17978,7 +17841,6 @@ pub fn generate_recharge_response(
                     .resource_common_data
                     .get_connector_response_headers_as_map(),
                 raw_connector_response,
-                masked_connector_response,
                 raw_connector_request,
             })
         }
@@ -18008,7 +17870,6 @@ pub fn generate_recharge_response(
                     .resource_common_data
                     .get_connector_response_headers_as_map(),
                 raw_connector_response,
-                masked_connector_response,
                 raw_connector_request,
             })
         }
@@ -18027,9 +17888,6 @@ pub fn generate_create_payment_method_response(
     let raw_connector_response = router_data_v2
         .resource_common_data
         .get_raw_connector_response();
-    let masked_connector_response = router_data_v2
-        .resource_common_data
-        .get_masked_connector_response();
     let raw_connector_request = router_data_v2
         .resource_common_data
         .get_raw_connector_request();
@@ -18051,7 +17909,6 @@ pub fn generate_create_payment_method_response(
                 .resource_common_data
                 .get_connector_response_headers_as_map(),
             raw_connector_response,
-            masked_connector_response,
             raw_connector_request,
         }),
         Err(error) => Ok(PaymentMethodServiceCreateResponse {
@@ -18076,7 +17933,6 @@ pub fn generate_create_payment_method_response(
                 .resource_common_data
                 .get_connector_response_headers_as_map(),
             raw_connector_response,
-            masked_connector_response,
             raw_connector_request,
         }),
     }
@@ -18100,9 +17956,6 @@ pub fn generate_refresh_payment_method_response<T: PaymentMethodDataTypes>(
     let raw_connector_response = router_data_v2
         .resource_common_data
         .get_raw_connector_response();
-    let masked_connector_response = router_data_v2
-        .resource_common_data
-        .get_masked_connector_response();
     let raw_connector_request = router_data_v2
         .resource_common_data
         .get_raw_connector_request();
@@ -18128,7 +17981,6 @@ pub fn generate_refresh_payment_method_response<T: PaymentMethodDataTypes>(
                 })?;
             proto.response_headers = response_headers;
             proto.raw_connector_response = raw_connector_response;
-            proto.masked_connector_response = masked_connector_response;
             proto.raw_connector_request = raw_connector_request;
             Ok(proto)
         }
@@ -18141,7 +17993,6 @@ pub fn generate_refresh_payment_method_response<T: PaymentMethodDataTypes>(
                 ));
             proto.response_headers = response_headers;
             proto.raw_connector_response = raw_connector_response;
-            proto.masked_connector_response = masked_connector_response;
             proto.raw_connector_request = raw_connector_request;
             Ok(proto)
         }
@@ -18160,9 +18011,6 @@ pub fn generate_get_payment_method_response(
     let raw_connector_response = router_data_v2
         .resource_common_data
         .get_raw_connector_response();
-    let masked_connector_response = router_data_v2
-        .resource_common_data
-        .get_masked_connector_response();
     let raw_connector_request = router_data_v2
         .resource_common_data
         .get_raw_connector_request();
@@ -18184,7 +18032,6 @@ pub fn generate_get_payment_method_response(
                 .resource_common_data
                 .get_connector_response_headers_as_map(),
             raw_connector_response,
-            masked_connector_response,
             raw_connector_request,
         }),
         Err(error) => Ok(PaymentMethodServiceGetResponse {
@@ -18209,7 +18056,6 @@ pub fn generate_get_payment_method_response(
                 .resource_common_data
                 .get_connector_response_headers_as_map(),
             raw_connector_response,
-            masked_connector_response,
             raw_connector_request,
         }),
     }

@@ -578,8 +578,7 @@ impl Payments {
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
-            #[cfg(feature = "connector-response-masking")]
-            connector_response_masking: &config.connector_response_masking,
+            masking_keys: &config.masking_keys,
             connector_latency: metadata_payload.connector_latency.clone(),
             log_fields_enabled: config.log_fields.enabled,
             log_fields: &config.log_fields.outgoing,
@@ -720,8 +719,7 @@ impl Payments {
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
-            #[cfg(feature = "connector-response-masking")]
-            connector_response_masking: &config.connector_response_masking,
+            masking_keys: &config.masking_keys,
             connector_latency: metadata_payload.connector_latency.clone(),
             log_fields_enabled: config.log_fields.enabled,
             log_fields: &config.log_fields.outgoing,
@@ -1139,8 +1137,7 @@ impl PaymentService for Payments {
                         tenant_id: &metadata_payload.tenant_id,
                         merchant_id: metadata_payload.merchant_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
-                        #[cfg(feature = "connector-response-masking")]
-                        connector_response_masking: &config.connector_response_masking,
+                        masking_keys: &config.masking_keys,
                 connector_latency: metadata_payload.connector_latency.clone(),
                         log_fields_enabled: config.log_fields.enabled,
             log_fields: &config.log_fields.outgoing,
@@ -2624,8 +2621,7 @@ impl PaymentMethod {
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
-            #[cfg(feature = "connector-response-masking")]
-            connector_response_masking: &config.connector_response_masking,
+            masking_keys: &config.masking_keys,
             connector_latency: metadata_payload.connector_latency.clone(),
             log_fields_enabled: config.log_fields.enabled,
             log_fields: &config.log_fields.outgoing,
@@ -2764,8 +2760,7 @@ impl PaymentMethod {
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
-            #[cfg(feature = "connector-response-masking")]
-            connector_response_masking: &config.connector_response_masking,
+            masking_keys: &config.masking_keys,
             connector_latency: metadata_payload.connector_latency.clone(),
             runtime_metadata: &config.runtime_metadata,
             log_fields_enabled: config.log_fields.enabled,
@@ -2886,8 +2881,7 @@ impl MerchantAuthentication {
             tenant_id: event_params.tenant_id,
             merchant_id: event_params.merchant_id,
             return_raw_connector_data: config.common.return_raw_connector_data,
-            #[cfg(feature = "connector-response-masking")]
-            connector_response_masking: &config.connector_response_masking,
+            masking_keys: &config.masking_keys,
             connector_latency: event_params.connector_latency.clone(),
             log_fields_enabled: config.log_fields.enabled,
             log_fields: &config.log_fields.outgoing,
@@ -3032,8 +3026,7 @@ impl MerchantAuthentication {
             tenant_id: event_params.tenant_id,
             merchant_id: event_params.merchant_id,
             return_raw_connector_data: config.common.return_raw_connector_data,
-            #[cfg(feature = "connector-response-masking")]
-            connector_response_masking: &config.connector_response_masking,
+            masking_keys: &config.masking_keys,
             connector_latency: event_params.connector_latency.clone(),
             log_fields_enabled: config.log_fields.enabled,
             log_fields: &config.log_fields.outgoing,
@@ -3616,8 +3609,7 @@ impl RecurringPaymentService for RecurringPayments {
                         tenant_id: &metadata_payload.tenant_id,
                         merchant_id: metadata_payload.merchant_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
-                        #[cfg(feature = "connector-response-masking")]
-                        connector_response_masking: &config.connector_response_masking,
+                        masking_keys: &config.masking_keys,
                 connector_latency: metadata_payload.connector_latency.clone(),
                         log_fields_enabled: config.log_fields.enabled,
             log_fields: &config.log_fields.outgoing,
@@ -3892,9 +3884,6 @@ pub fn generate_mandate_revoke_response(
     let raw_connector_response = router_data_v2
         .resource_common_data
         .get_raw_connector_response();
-    let masked_connector_response = router_data_v2
-        .resource_common_data
-        .get_masked_connector_response();
     let raw_connector_request = router_data_v2
         .resource_common_data
         .get_raw_connector_request();
@@ -3924,7 +3913,6 @@ pub fn generate_mandate_revoke_response(
             network_transaction_id: None,
             merchant_revoke_id: None,
             raw_connector_response,
-            masked_connector_response,
             raw_connector_request,
         }),
         Err(e) => Ok(RecurringPaymentServiceRevokeResponse {
@@ -3945,7 +3933,6 @@ pub fn generate_mandate_revoke_response(
             network_transaction_id: None,
             merchant_revoke_id: e.connector_transaction_id,
             raw_connector_response,
-            masked_connector_response,
             raw_connector_request,
         }),
     }

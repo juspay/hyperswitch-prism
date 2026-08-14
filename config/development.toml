@@ -242,9 +242,19 @@ enqueue_timeout_ms = 5000
 [unmasked_headers]
 keys = ["x-request-id","x-merchant-id","x-lineage-ids","x-reference-id","x-connector","x-tenant-id","x-shadow-mode","x-proxy-name"]
 
+# Records the connector's reply as `response.masked_body` on the outgoing golden log line, with
+# every key preserved and every value replaced by `***` unless the list below names it. The masked
+# body goes to our logs only — it is never returned in the gRPC response.
+#
+# Requires the `log-transformations` build feature; this flag is the runtime kill switch.
 [connector_response_masking]
 enabled = false
 
-log_to_span = false
-
+# Per-connector unmask lists, comma-separated and case-insensitive.
+# A connector with no entry gets every value masked (keys still visible).
+# Naming a key reveals only that key's own value: an object below it is re-decided key by key, and
+# an array below it stays masked, since its elements have no key to name.
+# Card/CVV/token-like key names stay masked regardless.
+# A body that is not JSON, XML or form-encoded is replaced by a size-only stub.
+# An unknown connector name here aborts startup rather than being ignored.
 [connector_response_masking.connector_keys]

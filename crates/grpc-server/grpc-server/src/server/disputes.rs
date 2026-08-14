@@ -184,8 +184,7 @@ impl DisputeService for Disputes {
                         tenant_id: &tenant_id,
                         merchant_id: merchant_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
-                        #[cfg(feature = "connector-response-masking")]
-                        connector_response_masking: &config.connector_response_masking,
+                        masking_keys: &config.masking_keys,
                         connector_latency,
                         log_fields_enabled: config.log_fields.enabled,
                         log_fields: &config.log_fields.outgoing,
@@ -428,8 +427,7 @@ impl DisputeService for Disputes {
                         tenant_id: &tenant_id,
                         merchant_id: merchant_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
-                        #[cfg(feature = "connector-response-masking")]
-                        connector_response_masking: &config.connector_response_masking,
+                        masking_keys: &config.masking_keys,
                         connector_latency,
                         log_fields_enabled: config.log_fields.enabled,
                         log_fields: &config.log_fields.outgoing,

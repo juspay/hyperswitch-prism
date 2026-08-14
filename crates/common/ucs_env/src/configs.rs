@@ -5,6 +5,9 @@ use std::sync::Arc;
 
 use common_utils::{
     connector_request_kafka::{ConnectorRequestKafkaConfig, ConnectorRequestKafkaConfigPatch},
+    connector_response_masking::{
+        CompiledMaskingKeys, ConnectorResponseMaskingConfig, ConnectorResponseMaskingConfigPatch,
+    },
     consts,
     events::{
         CompiledLogFieldsConfig, EventConfig, EventConfigPatch, RuntimeMetadata,
@@ -13,11 +16,11 @@ use common_utils::{
     metadata::{HeaderMaskingConfig, HeaderMaskingConfigPatch},
     SuperpositionConfig,
 };
-use domain_types::connector_response_masking::{
-    ConnectorResponseMaskingConfig, ConnectorResponseMaskingConfigPatch,
-};
 use domain_types::{
-    connector_types::ConnectorEnum,
+    connector_types::{
+        AuthenticatorConnectorEnum, ConnectorEnum, FrmConnectorEnum, PayoutConnectorEnum,
+        SurchargeConnectorEnum,
+    },
     types::{Connectors, ConnectorsPatch, ProxyConfig, ProxyConfigPatch},
 };
 
@@ -67,6 +70,13 @@ pub struct Config {
     #[serde(skip)]
     #[patch(ignore)]
     pub log_fields: Arc<CompiledLogFieldsConfig>,
+    /// Pre-parsed per-connector unmask lists for `response.masked_body`.
+    /// Compiled at startup from `[connector_response_masking.connector_keys]`, so the split /
+    /// trim / lowercase work happens once instead of on every connector response.
+    /// Recompiled per-request when `x-config-override` patches `connector_response_masking`.
+    #[serde(skip)]
+    #[patch(ignore)]
+    pub masking_keys: Arc<CompiledMaskingKeys>,
 }
 
 #[derive(Clone, Deserialize, Debug, Default, Serialize, PartialEq, config_patch_derive::Patch)]
@@ -341,6 +351,24 @@ impl WebhookSourceVerificationCall {
     }
 }
 
+/// Whether `name` is a connector this build can actually route to.
+///
+/// This is the **only** place the connector enums are consulted on behalf of
+/// `connector_response_masking`. The masking code itself lives in `common_utils`, which sits below
+/// `domain_types` and cannot see them; `ucs_env` sits above both, so the check happens here, once,
+/// at startup.
+///
+/// All five enums are checked because the lookup key at runtime comes from
+/// `ConnectorVariant::get_connector_name()`, which stringifies all five — a name matching only,
+/// say, `PayoutConnectorEnum` is still reachable and must not be rejected.
+fn is_known_connector(name: &str) -> bool {
+    ConnectorEnum::from_str(name).is_ok()
+        || SurchargeConnectorEnum::from_str(name).is_ok()
+        || PayoutConnectorEnum::from_str(name).is_ok()
+        || FrmConnectorEnum::from_str(name).is_ok()
+        || AuthenticatorConnectorEnum::from_str(name).is_ok()
+}
+
 impl Config {
     /// Recompute derived / cached fields from the raw config values.
     ///
@@ -354,6 +382,9 @@ impl Config {
                 self.log.fields.enabled,
                 &self.log.fields.incoming,
                 &self.log.fields.outgoing,
+            ));
+            self.masking_keys = Arc::new(CompiledMaskingKeys::compile(
+                &self.connector_response_masking,
             ));
         }
     }
@@ -416,6 +447,21 @@ impl Config {
                     ))
                 })?;
             }
+        }
+
+        // Fail fast on a connector name we cannot route to, naming every bad key at once. A typo
+        // here would otherwise be silent: the entry simply never matches, and the operator sees a
+        // fully-masked body with no indication why. Only config *files* abort — an unresolvable
+        // name arriving on an `x-config-override` header is left to mask everything instead, so a
+        // typo in a diagnostic setting can never cost a payment.
+        let unknown = config
+            .connector_response_masking
+            .unknown_connectors(is_known_connector);
+        if !unknown.is_empty() {
+            return Err(config::ConfigError::Message(format!(
+                "connector_response_masking.connector_keys: unknown connector(s) `{}`",
+                unknown.join("`, `")
+            )));
         }
 
         Ok(config)
@@ -492,5 +538,181 @@ pub fn workspace_path() -> PathBuf {
         PathBuf::from(manifest_dir)
     } else {
         PathBuf::from(".")
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
+mod connector_response_masking_validation {
+    use super::*;
+
+    /// The runtime lookup key is `ConnectorVariant::get_connector_name()`, which stringifies all
+    /// five connector enums. Every family must therefore be accepted at startup — three of these
+    /// names have no `ConnectorEnum` counterpart and a payment-only check would reject them.
+    #[test]
+    fn a_name_from_any_of_the_five_connector_enums_is_known() {
+        for name in [
+            "adyen",         // ConnectorEnum
+            "interpayments", // SurchargeConnectorEnum
+            "deutschebank",  // PayoutConnectorEnum
+            "kount",         // FrmConnectorEnum
+            "plaid",         // AuthenticatorConnectorEnum
+        ] {
+            assert!(is_known_connector(name), "`{name}` should be known");
+        }
+    }
+
+    #[test]
+    fn validation_names_every_bad_key_at_once() {
+        let cfg: ConnectorResponseMaskingConfig = serde_json::from_str(
+            r#"{"connector_keys":{"adyen":"resultCode","stripee":"id","paysafee":"id"}}"#,
+        )
+        .expect("an unknown name must never fail deserialization");
+
+        // Sorted and complete, so one startup failure reports every typo.
+        assert_eq!(
+            cfg.unknown_connectors(is_known_connector),
+            ["paysafee", "stripee"]
+        );
+    }
+
+    /// Guards the files we actually ship: a bad entry here would abort startup in every
+    /// environment, and the section is easy to edit without running the server.
+    #[test]
+    fn the_shipped_config_files_name_only_known_connectors() {
+        #[derive(serde::Deserialize)]
+        struct OnlyMasking {
+            #[serde(default)]
+            connector_response_masking: ConnectorResponseMaskingConfig,
+        }
+
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../config");
+        for file in ["development.toml", "sandbox.toml", "production.toml"] {
+            let path = root.join(file);
+            let raw = std::fs::read_to_string(&path)
+                .unwrap_or_else(|err| panic!("{} must be readable: {err}", path.display()));
+            let parsed: OnlyMasking =
+                toml::from_str(&raw).unwrap_or_else(|err| panic!("{file} must parse: {err}"));
+
+            assert!(
+                parsed
+                    .connector_response_masking
+                    .unknown_connectors(is_known_connector)
+                    .is_empty(),
+                "{file} names a connector this build cannot route to: {:?}",
+                parsed
+                    .connector_response_masking
+                    .unknown_connectors(is_known_connector)
+            );
+        }
+    }
+}
+
+/// End-to-end config loading: proves the startup check actually fires, and that
+/// `post_patch_processing` wires the parsed allowlist onto `Config::masking_keys`.
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
+mod connector_response_masking_config_load {
+    use super::*;
+    use common_utils::config_patch::Patch;
+
+    /// Writes `development.toml` with its masking section replaced, so the fixture stays in step
+    /// with the real file's required fields instead of duplicating them.
+    fn config_file_with_masking(test_name: &str, section: &str) -> PathBuf {
+        let base =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../config/development.toml");
+        let raw = std::fs::read_to_string(&base).expect("development.toml must be readable");
+        let (head, _) = raw
+            .split_once("[connector_response_masking]")
+            .expect("development.toml must carry the masking section");
+
+        let path = std::env::temp_dir().join(format!("ucs_masking_{test_name}.toml"));
+        std::fs::write(&path, format!("{head}{section}")).expect("fixture must be writable");
+        path
+    }
+
+    #[test]
+    fn a_typo_in_the_config_file_aborts_startup_and_names_every_bad_key() {
+        let path = config_file_with_masking(
+            "typo",
+            "[connector_response_masking]\nenabled = true\n\n[connector_response_masking.connector_keys]\npaysafee = \"id\"\nstripee = \"id\"\n",
+        );
+
+        let err = Config::new_with_config_path(Some(path.clone()))
+            .expect_err("an unknown connector name must abort startup");
+        let message = err.to_string();
+
+        assert!(
+            message.contains("paysafee"),
+            "should name the bad key: {message}"
+        );
+        assert!(
+            message.contains("stripee"),
+            "should name every bad key: {message}"
+        );
+        let _ = std::fs::remove_file(path);
+    }
+
+    /// The three names below resolve through `SurchargeConnectorEnum`, `PayoutConnectorEnum` and
+    /// `AuthenticatorConnectorEnum` — a payment-only check would abort startup on a valid config.
+    #[test]
+    fn names_from_every_connector_family_load_successfully() {
+        let path = config_file_with_masking(
+            "families",
+            "[connector_response_masking]\nenabled = true\n\n[connector_response_masking.connector_keys]\nadyen = \"resultCode\"\ninterpayments = \"id\"\ndeutschebank = \"id\"\nkount = \"id\"\nplaid = \"id\"\n",
+        );
+
+        let config = Config::new_with_config_path(Some(path.clone()))
+            .expect("every connector family must be accepted");
+        assert_eq!(config.connector_response_masking.connector_keys.len(), 5);
+        let _ = std::fs::remove_file(path);
+    }
+
+    /// `post_patch_processing` is what keeps the cached allowlist honest; without it every
+    /// `x-config-override` would silently keep using the startup keys.
+    #[cfg(feature = "log-transformations")]
+    #[test]
+    fn post_patch_processing_recompiles_the_cached_allowlist() {
+        let path = config_file_with_masking(
+            "patch",
+            "[connector_response_masking]\nenabled = true\n\n[connector_response_masking.connector_keys]\nadyen = \"resultCode\"\n",
+        );
+        let mut config =
+            Config::new_with_config_path(Some(path.clone())).expect("fixture must load");
+
+        // Compiled at startup, so it is live before any patch.
+        assert!(config.masking_keys.enabled);
+        assert!(config.masking_keys.keys.contains_key("adyen"));
+
+        config
+            .connector_response_masking
+            .apply(serde_json::from_str(r#"{"connector_keys":{"paysafe":"id"}}"#).unwrap());
+        config.post_patch_processing();
+
+        assert!(config.masking_keys.keys.contains_key("paysafe"));
+        assert!(
+            !config.masking_keys.keys.contains_key("adyen"),
+            "an override replaces rather than merges, and the cache must follow"
+        );
+        let _ = std::fs::remove_file(path);
+    }
+
+    /// With the feature compiled out nothing is ever built, whatever the config says.
+    #[cfg(not(feature = "log-transformations"))]
+    #[test]
+    fn the_cache_stays_empty_when_the_feature_is_off() {
+        let path = config_file_with_masking(
+            "featureoff",
+            "[connector_response_masking]\nenabled = true\n\n[connector_response_masking.connector_keys]\nadyen = \"resultCode\"\n",
+        );
+        let config = Config::new_with_config_path(Some(path.clone())).expect("fixture must load");
+
+        assert!(
+            config.connector_response_masking.enabled,
+            "config still parses"
+        );
+        assert!(!config.masking_keys.enabled, "but nothing is compiled");
+        assert!(config.masking_keys.keys.is_empty());
+        let _ = std::fs::remove_file(path);
     }
 }
