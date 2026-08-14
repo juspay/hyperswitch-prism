@@ -87,6 +87,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Moneris<T>
 {
+    fn should_do_access_token(&self, _payment_method: Option<common_enums::PaymentMethod>) -> bool {
+        true
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for Moneris<T>
