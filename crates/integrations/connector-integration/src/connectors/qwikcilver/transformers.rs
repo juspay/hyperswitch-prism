@@ -1237,30 +1237,29 @@ impl TryFrom<ResponseRouterData<QwikcilverEligibilityResponse, Self>>
         data.response = match body.response_code {
             QWIKCILVER_SUCCESS_CODE => {
                 let currency = data.request.amount.currency;
-                let (eligibility, payment_method_details) = if let Some(wallet) =
-                    body.wallet.as_ref()
-                {
-                    let eligibility = match map_wallet_status(wallet.status.as_ref()) {
-                        Some(common_enums::WalletStatus::Active) => {
-                            common_enums::EligibilityStatus::Eligible
-                        }
-                        Some(common_enums::WalletStatus::Inactive) => {
-                            common_enums::EligibilityStatus::Ineligible
-                        }
-                        Some(common_enums::WalletStatus::Unspecified) | None => {
-                            common_enums::EligibilityStatus::Unknown
-                        }
+                let (eligibility, payment_method_details) =
+                    if let Some(wallet) = body.wallet.as_ref() {
+                        let eligibility = match map_wallet_status(wallet.status.as_ref()) {
+                            Some(common_enums::WalletStatus::Active) => {
+                                common_enums::EligibilityStatus::Eligible
+                            }
+                            Some(common_enums::WalletStatus::Inactive) => {
+                                common_enums::EligibilityStatus::Ineligible
+                            }
+                            Some(common_enums::WalletStatus::Unspecified) | None => {
+                                common_enums::EligibilityStatus::Unknown
+                            }
+                        };
+                        (
+                            eligibility,
+                            Some(wallet_details_to_payment_method_details(
+                                wallet,
+                                Some(currency),
+                            )),
+                        )
+                    } else {
+                        (common_enums::EligibilityStatus::Unknown, None)
                     };
-                    (
-                        eligibility,
-                        Some(wallet_details_to_payment_method_details(
-                            wallet,
-                            Some(currency),
-                        )),
-                    )
-                } else {
-                    (common_enums::EligibilityStatus::Unknown, None)
-                };
                 Ok(PaymentMethodEligibilityResponse {
                     eligibility,
                     payment_method_details,
