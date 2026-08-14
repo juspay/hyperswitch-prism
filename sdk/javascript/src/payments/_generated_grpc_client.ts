@@ -213,7 +213,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   AciConfig: ["apiKey", "entityId"],
   BamboraConfig: ["merchantId", "apiKey"],
   BamboraapacConfig: ["username", "password", "accountNumber"],
-  CalidaConfig: ["apiKey"],
+  CalidaConfig: ["apiKey", "shopName"],
   CeleroConfig: ["apiKey"],
   NexinetsConfig: ["merchantId", "apiKey"],
   NexixpayConfig: ["apiKey"],

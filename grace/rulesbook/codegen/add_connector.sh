@@ -46,6 +46,7 @@ readonly ROUTER_DATA_FILE="$CRATES_TRAITS/domain_types/src/router_data.rs"
 readonly CONFIG_FILE="$CONFIG_DIR/development.toml"
 readonly SANDBOX_CONFIG_FILE="$CONFIG_DIR/sandbox.toml"
 readonly PRODUCTION_CONFIG_FILE="$CONFIG_DIR/production.toml"
+readonly SUPERPOSITION_CONFIG_FILE="$CONFIG_DIR/superposition.toml"
 readonly FIELD_PROBE_FILE="$CRATES_INTERNAL/field-probe/src/auth.rs"
 
 # Template files
@@ -184,6 +185,7 @@ readonly COLOR_RESET='\033[0m'
 # User inputs
 CONNECTOR_NAME=""
 BASE_URL=""
+PRODUCTION_URL=""   # Optional; defaults to BASE_URL. Used for the superposition production override.
 FORCE_MODE=false
 YES_MODE=false
 
@@ -287,9 +289,11 @@ USAGE:
 
 ARGUMENTS:
     connector_name    Name of the connector (snake_case, e.g., 'my_connector')
-    base_url         Base URL for the connector API
+    base_url         Base URL for the connector API (sandbox / default)
 
 OPTIONS:
+    --production-url URL  Production base URL for the superposition production override
+                          (defaults to base_url when omitted)
     --list-flows     Show auto-detected flows from codebase
     --force          Ignore git status and force creation
     -y, --yes        Skip confirmation prompts
@@ -303,6 +307,9 @@ EXAMPLES:
 
     # Force creation with auto-confirmation
     $0 example https://api.example.com --force -y
+
+    # Provide a distinct production URL for the superposition override
+    $0 example https://sandbox.example.com --production-url https://api.example.com
 
     # List auto-detected flows
     $0 --list-flows
@@ -393,6 +400,13 @@ parse_arguments() {
     # Parse optional arguments
     while [[ $# -gt 0 ]]; do
         case "$1" in
+            --production-url)
+                if [[ $# -lt 2 ]]; then
+                    fatal_error "--production-url requires a URL argument"
+                fi
+                PRODUCTION_URL="$2"
+                shift 2
+                ;;
             --force)
                 FORCE_MODE=true
                 shift
@@ -422,6 +436,12 @@ parse_arguments() {
                 ;;
         esac
     done
+
+    # Default the production URL to the sandbox base URL when not explicitly provided
+    # (mirrors the existing behaviour of writing BASE_URL into production.toml).
+    if [[ -z "$PRODUCTION_URL" ]]; then
+        PRODUCTION_URL="$BASE_URL"
+    fi
 
     log_debug "Arguments parsed successfully"
 }
@@ -569,6 +589,7 @@ create_backup() {
         "$CONFIG_FILE"
         "$SANDBOX_CONFIG_FILE"
         "$PRODUCTION_CONFIG_FILE"
+        "$SUPERPOSITION_CONFIG_FILE"
     )
 
     local file
@@ -861,6 +882,49 @@ open(path, "w").write(content)
 PYEOF
 
     log_success "Added $NAME_SNAKE to Connectors struct in types.rs"
+}
+
+update_domain_types_apply() {
+    log_step "Updating patch_connector_urls match arm in types.rs (dynamic URL patching)"
+
+    if grep -q "ConnectorEnum::$NAME_PASCAL =>" "$DOMAIN_TYPES_TYPES_FILE" 2>/dev/null; then
+        log_warning "Skipping patch_connector_urls update - $NAME_PASCAL already exists"
+        return 0
+    fi
+
+    python3 - "$NAME_PASCAL" "$NAME_SNAKE" "$DOMAIN_TYPES_TYPES_FILE" <<'PYEOF'
+import sys
+
+pascal = sys.argv[1]
+snake = sys.argv[2]
+path = sys.argv[3]
+content = open(path).read()
+
+# Anchor on the unique fallback error inside patch_connector_urls().
+marker = "is not supported for dynamic URL patching from superposition"
+mi = content.index(marker)
+
+# Insert the new match arm just before the `_ => {` fallback of that match.
+fb = content.rindex("_ => {", 0, mi)
+line_start = content.rindex("\n", 0, fb) + 1
+indent = content[line_start:fb]  # leading whitespace of the `_ => {` line
+arm = (
+    f"{indent}ConnectorEnum::{pascal} => {{\n"
+    f"{indent}    patched.{snake}.apply(params_patch);\n"
+    f"{indent}}}\n"
+)
+content = content[:line_start] + arm + content[line_start:]
+
+# Keep the human-readable "Supported connectors:" hint in sync.
+key = "Supported connectors: "
+ki = content.index(key)
+end = content.index('"', ki)  # closing quote of the string literal
+content = content[:end] + f", {snake}" + content[end:]
+
+open(path, "w").write(content)
+PYEOF
+
+    log_success "Added ConnectorEnum::$NAME_PASCAL arm to patch_connector_urls in types.rs"
 }
 
 update_router_data() {
@@ -1200,6 +1264,57 @@ update_config() {
     log_success "All configuration files updated"
 }
 
+update_superposition_config() {
+    log_step "Updating superposition.toml (connector dimension + base-URL overrides)"
+
+    if [[ ! -f "$SUPERPOSITION_CONFIG_FILE" ]]; then
+        log_warning "superposition.toml not found, skipping superposition update"
+        return 0
+    fi
+
+    python3 - "$NAME_SNAKE" "$NAME_PASCAL" "$BASE_URL" "$PRODUCTION_URL" "$SUPERPOSITION_CONFIG_FILE" <<'PYEOF'
+import sys
+
+snake = sys.argv[1]
+pascal = sys.argv[2]
+sandbox_url = sys.argv[3]
+prod_url = sys.argv[4]
+path = sys.argv[5]
+content = open(path).read()
+
+# 1) Add the connector to the `connector` dimension enum (idempotent).
+lines = content.splitlines(keepends=True)
+for i, line in enumerate(lines):
+    if line.lstrip().startswith("connector = {") and "enum = [" in line:
+        if f'"{snake}"' not in line:
+            idx = line.rindex("]")  # closing bracket of the enum array
+            lines[i] = line[:idx].rstrip() + f', "{snake}"' + line[idx:]
+        break
+content = "".join(lines)
+
+# 2) Append sandbox (default) + production overrides at EOF (idempotent).
+ctx = f'_context_ = {{ connector = "{snake}" }}'
+if ctx not in content:
+    prefix = "" if content.endswith("\n") else "\n"
+    content += (
+        f"{prefix}\n"
+        f"# {pascal}\n"
+        f"[[overrides]]\n"
+        f'_context_ = {{ connector = "{snake}" }}\n'
+        f'connector_base_url = "{sandbox_url}"\n'
+        f"\n"
+        f"# {pascal} Production\n"
+        f"[[overrides]]\n"
+        f'_context_ = {{ connector = "{snake}", environment = "production" }}\n'
+        f'connector_base_url = "{prod_url}"\n'
+    )
+
+open(path, "w").write(content)
+PYEOF
+
+    log_success "Registered $NAME_SNAKE in superposition.toml (enum + sandbox/production overrides)"
+}
+
 update_field_probe() {
     log_step "Updating field-probe auth.rs (ConnectorEnum match arm)"
 
@@ -1325,6 +1440,9 @@ emergency_rollback() {
                     "production.toml")
                         cp "$backup_file" "$PRODUCTION_CONFIG_FILE"
                         ;;
+                    "superposition.toml")
+                        cp "$backup_file" "$SUPERPOSITION_CONFIG_FILE"
+                        ;;
                 esac
             fi
         done
@@ -1435,12 +1553,14 @@ main() {
     update_protobuf_auth
     update_domain_types
     update_domain_types_file
+    update_domain_types_apply
     update_router_data
     update_router_data_grpc_auth
     update_connectors_module
     update_integration_types
     update_default_implementations
     update_config
+    update_superposition_config
     update_field_probe
 
     # Validate and finalize
