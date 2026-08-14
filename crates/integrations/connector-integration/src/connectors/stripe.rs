@@ -29,7 +29,7 @@ use domain_types::{
     },
     errors::{ConnectorError, IntegrationError, WebhookError},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
-    payment_method_data::PaymentMethodDataTypes,
+    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
@@ -682,10 +682,29 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
         ) -> CustomResult<String, IntegrationError> {
+            // Stripe exposes two tokenization endpoints and they are NOT interchangeable —
+            // they mint different object families that Authorize consumes through different
+            // request parameters:
+            //
+            // * `/v1/payment_methods` mints `pm_…` from raw card details. Authorize replays it
+            //   as `payment_method=pm_…`.
+            // * `/v1/tokens` mints `tok_…`. It is the only endpoint that accepts a wallet
+            //   credential: the `card[cryptogram]` / `card[eci]` / `card[tokenization_method]`
+            //   trio a decrypted Apple Pay or Google Pay token carries is rejected as
+            //   `parameter_unknown` by `/v1/payment_methods` and `/v1/payment_intents` alike.
+            //   Authorize replays it as `payment_method_data[card][token]=tok_…`.
+            //
+            // Hyperswitch OSS splits the same way (see `stripe.rs` tokenization `get_url`), so
+            // cards keep the `pm_` contract UCS already ships and wallets get the one endpoint
+            // that can actually take them.
+            let endpoint = match req.request.payment_method_data {
+                PaymentMethodData::Wallet(_) => "v1/tokens",
+                _ => "v1/payment_methods",
+            };
             Ok(format!(
                 "{}{}",
                 self.connector_base_url_payments(req),
-                "v1/payment_methods"
+                endpoint
             ))
         }
     }

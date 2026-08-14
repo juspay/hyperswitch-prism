@@ -190,6 +190,11 @@ impl From<common_enums::AuthenticationType> for Auth3ds {
 /// Value Stripe expects in `card[tokenization_method]` for a decrypted Google Pay network token.
 const GOOGLE_PAY_TOKENIZATION_METHOD: &str = "android_pay";
 
+/// Prefix Stripe puts on every Token object id (the objects `/v1/tokens` mints). PaymentMethod
+/// ids from `/v1/payment_methods` use `pm_` instead, and the two are spent on different
+/// PaymentIntent parameters — see the split in the Authorize request builder.
+const STRIPE_CARD_TOKEN_PREFIX: &str = "tok_";
+
 #[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum StripeCardNetwork {
@@ -617,6 +622,8 @@ pub enum StripePaymentMethodData<
     T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
 > {
     CardToken(StripeCardToken<T>),
+    /// A `tok_…` minted on `/v1/tokens`, replayed on `/v1/payment_intents`.
+    CardTokenPayment(StripeCardTokenPayment),
     Card(StripeCardData<T>),
     CardNetworkTransactionId(StripeCardNetworkTransactionIdData),
     PayLater(StripePayLaterData),
@@ -661,6 +668,41 @@ pub struct StripeCardToken<T: PaymentMethodDataTypes + Debug + Sync + Send + 'st
     pub token_card_cvc: Secret<String>,
     #[serde(flatten)]
     pub billing: StripeBillingAddressCardToken,
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    StripePaymentMethodData<T>
+{
+    /// `true` when this shape is only legal on `/v1/tokens`.
+    ///
+    /// A decrypted Apple Pay / Google Pay credential serializes to a top-level
+    /// `card[number]` + `card[cryptogram]` + `card[eci]` + `card[tokenization_method]` block.
+    /// `/v1/tokens` accepts it and hands back a `tok_…`; `/v1/payment_intents` and
+    /// `/v1/payment_methods` both reject it outright. Payment flows use this to bail out
+    /// early rather than post a request the API is guaranteed to refuse.
+    fn is_tokens_endpoint_only(&self) -> bool {
+        matches!(
+            self,
+            Self::Wallet(
+                StripeWallet::ApplePayPredecryptToken(_)
+                    | StripeWallet::GooglePayPredecryptToken(_)
+            )
+        )
+    }
+}
+
+/// Spends a `tok_…` (the object `/v1/tokens` mints) on a PaymentIntent.
+///
+/// A Token is not a PaymentMethod: `payment_method=tok_…` is rejected, the id has to ride on
+/// `payment_method_data[card][token]` instead. This is the same shape `GooglePayToken` and
+/// `ApplepayPayment` already use — one neutral type because Stripe consumes card, Apple Pay
+/// and Google Pay tokens through exactly the same two parameters.
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct StripeCardTokenPayment {
+    #[serde(rename = "payment_method_data[type]")]
+    pub payment_method_data_type: StripePaymentMethodType,
+    #[serde(rename = "payment_method_data[card][token]")]
+    pub token: Secret<String>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -2047,6 +2089,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             _ => None,
         };
 
+        // Stripe hands out two unrelated id families and each rides on its own parameter:
+        // a PaymentMethod (`pm_…`, minted by `/v1/payment_methods`) goes in `payment_method`,
+        // a Token (`tok_…`, minted by `/v1/tokens`) goes in `payment_method_data[card][token]`.
+        // Putting either on the other's parameter is a hard 400, so the id prefix — which is
+        // what actually determines the object type — decides. Wallet credentials can only be
+        // tokenized on `/v1/tokens`, so every Apple Pay / Google Pay token lands here.
+        let (card_token, payment_method_id) = match payment_method_token.clone() {
+            Some(token) if token.peek().starts_with(STRIPE_CARD_TOKEN_PREFIX) => {
+                (Some(token), None)
+            }
+            other => (None, other),
+        };
+
         let amount =
             StripeAmountConvertor::convert(item.request.minor_amount, item.request.currency)?;
         let order_id = item
@@ -2097,7 +2152,27 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             billing_address,
             payment_method_types,
             setup_future_usage,
-        ) = if payment_method_token.is_some() {
+        ) = if let Some(card_token) = card_token {
+            let setup_future_usage =
+                if is_setup_future_usage_supported(item.request.payment_method_type) {
+                    item.request.setup_future_usage
+                } else {
+                    None
+                };
+
+            (
+                Some(StripePaymentMethodData::CardTokenPayment(
+                    StripeCardTokenPayment {
+                        payment_method_data_type: StripePaymentMethodType::Card,
+                        token: card_token,
+                    },
+                )),
+                None,
+                StripeBillingAddress::default(),
+                Some(StripePaymentMethodType::Card),
+                setup_future_usage,
+            )
+        } else if payment_method_token.is_some() {
             let setup_future_usage =
                 if is_setup_future_usage_supported(item.request.payment_method_type) {
                     item.request.setup_future_usage
@@ -2140,6 +2215,22 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             .and_then(get_stripe_overcapture_request),
                     },
                 )?;
+
+            // A decrypted wallet credential serializes to the `card[cryptogram]` / `card[eci]` /
+            // `card[tokenization_method]` block, and `/v1/payment_intents` answers that with
+            // `parameter_unknown` on `card`. Only `/v1/tokens` takes it. Refuse here with an
+            // actionable message instead of shipping a request Stripe is guaranteed to reject.
+            if payment_method_data.is_tokens_endpoint_only() {
+                return Err(IntegrationError::NotSupported {
+                    message: "Charging a decrypted wallet credential directly — mint a token \
+                              with PaymentMethodService/Tokenize and pass it back on Authorize \
+                              as payment_method.token"
+                        .to_string(),
+                    connector: "stripe",
+                    context: Default::default(),
+                }
+                .into());
+            }
 
             validate_shipping_address_against_payment_method(
                 &shipping_address,
@@ -2279,7 +2370,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             charges
         };
 
-        let pm = match (payment_method, payment_method_token.clone()) {
+        // A `tok_…` already rides on `payment_data` as `payment_method_data[card][token]`, so
+        // only a `pm_…` may be echoed on the `payment_method` parameter.
+        let pm = match (payment_method, payment_method_id) {
             (Some(method), _) => Some(Secret::new(method)),
             (None, Some(token)) => Some(token),
             (None, None) => None,
@@ -5975,8 +6068,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .get_optional_billing_state(),
         };
 
-        // Card flow for tokenization is handled separately because of API contact difference.
-        // This path uses /v1/payment_methods, which requires `type` and accepts `billing_details[*]`.
+        // Card flow for tokenization is handled separately because of API contract difference.
+        // A raw card goes to /v1/payment_methods, which requires `type` and accepts
+        // `billing_details[*]`, and yields a `pm_…`.
+        //
+        // Everything else — in practice a decrypted Apple Pay / Google Pay credential — goes to
+        // /v1/tokens and yields a `tok_…`. `create_stripe_payment_method` already emits the
+        // `card[number]` / `card[cryptogram]` / `card[eci]` / `card[tokenization_method]` block
+        // for those, and that block is only legal on /v1/tokens. See the endpoint split in
+        // `stripe.rs`'s `PaymentMethodToken` `get_url`.
         let request_payment_data = match &item.router_data.request.payment_method_data {
             PaymentMethodData::Card(card_details) => {
                 StripePaymentMethodData::CardToken(StripeCardToken {
