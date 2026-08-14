@@ -261,6 +261,10 @@ mod tests {
             error_code: error_code.to_string(),
             http_status_code,
             error_info: None,
+            raw_connector_request: None,
+            raw_connector_response: None,
+            typed_connector_request: None,
+            typed_connector_response: None,
         };
         let encoded = connector_error.encode_to_vec();
 
