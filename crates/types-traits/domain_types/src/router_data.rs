@@ -311,6 +311,7 @@ pub enum ConnectorSpecificConfig {
     Calida {
         api_key: Secret<String>,
         base_url: Option<String>,
+        shop_name: Option<Secret<String>>,
     },
     Celero {
         api_key: Secret<String>,
@@ -2165,6 +2166,7 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             AuthType::Calida(calida) => Ok(Self::Calida {
                 api_key: calida.api_key.ok_or_else(err)?,
                 base_url: calida.base_url,
+                shop_name: calida.shop_name,
             }),
             AuthType::Payload(payload) => Ok(Self::Payload {
                 auth_key_map: serde_json::to_value(payload.auth_key_map)
@@ -2539,6 +2541,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Calida {
                         api_key: api_key.clone(),
                         base_url: None,
+                        shop_name: None,
                     }),
                     _ => Err(err().into()),
                 },
@@ -3878,6 +3881,10 @@ pub struct ErrorResponse {
     pub network_decline_code: Option<String>,
     pub network_advice_code: Option<String>,
     pub network_error_message: Option<String>,
+    pub typed_connector_response: Option<String>,
+    pub raw_connector_response: Option<Secret<String>>,
+    pub raw_connector_request: Option<Secret<String>>,
+    pub typed_connector_request: Option<String>,
 }
 
 impl Default for ErrorResponse {
@@ -3892,6 +3899,10 @@ impl Default for ErrorResponse {
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         }
     }
 }
@@ -3929,6 +3940,10 @@ impl ErrorResponse {
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         }
     }
 }

@@ -989,13 +989,13 @@
     "proxy_setup_recurring": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: connector_order_id — Missing required field: connector_order_id"
+        "error": "Stuck on field: connector_customer — Missing required field: connector_customer"
       }
     },
     "recurring_charge": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: connector_order_id — Missing required field: connector_order_id"
+        "error": "Stuck on field: payment_method_id — Missing required field: payment_method_id"
       }
     },
     "recurring_revoke": {
@@ -1077,7 +1077,7 @@
     "setup_recurring": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: connector_order_id — Missing required field: connector_order_id"
+        "error": "Stuck on field: connector_customer — Missing required field: connector_customer"
       }
     },
     "token_authorize": {
@@ -1088,8 +1088,8 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: connector_order_id — Missing required field: connector_order_id"
+        "status": "not_supported",
+        "error": "SetupMandate Payment Method (only Card supported) is not supported by Airwallex"
       }
     },
     "tokenize": {
