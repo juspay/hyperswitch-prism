@@ -17,7 +17,7 @@ use domain_types::{
     router_response_types::RedirectForm,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{PeekInterface, Secret};
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -90,8 +90,6 @@ pub struct MayaPaymentsRequest {
     pub total_amount: MayaTotalAmount,
     pub redirect_url: MayaRedirectUrl,
     pub request_reference_number: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub user_id: Option<String>,
 }
 
 /// `totalAmount` object carried by most Maya request bodies (`value` + `currency`,
@@ -471,12 +469,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             },
         )?;
 
-        let user_id = router_data
-            .request
-            .email
-            .clone()
-            .map(|email| email.peek().to_string());
-
         Ok(Self {
             total_amount: MayaTotalAmount {
                 value,
@@ -491,7 +483,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .resource_common_data
                 .connector_request_reference_id
                 .clone(),
-            user_id,
         })
     }
 }
