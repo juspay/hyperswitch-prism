@@ -502,6 +502,8 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<MayaPaymentsResponse,
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<MayaPaymentsResponse, Self>) -> Result<Self, Self::Error> {
+        let raw_connector_response = serde_json::to_string(&item.response).ok().map(Secret::new);
+
         let redirect_url = Url::parse(&item.response.redirect_url).change_context(
             ConnectorError::response_deserialization_failed_with_context(
                 item.http_code,
@@ -538,6 +540,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<MayaPaymentsResponse,
             resource_common_data: PaymentFlowData {
                 status,
                 raw_connector_status: None,
+                raw_connector_response,
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
@@ -551,6 +554,8 @@ impl TryFrom<ResponseRouterData<MayaWebhookBody, Self>>
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<MayaWebhookBody, Self>) -> Result<Self, Self::Error> {
+        let raw_connector_response = serde_json::to_string(&item.response).ok().map(Secret::new);
+
         let connector_request_reference_id = item
             .router_data
             .resource_common_data
@@ -627,6 +632,7 @@ impl TryFrom<ResponseRouterData<MayaWebhookBody, Self>>
                 status,
                 settlement_status,
                 raw_connector_status: Some(raw_connector_status),
+                raw_connector_response,
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
@@ -640,6 +646,8 @@ impl TryFrom<ResponseRouterData<MayaVoidResponse, Self>>
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<MayaVoidResponse, Self>) -> Result<Self, Self::Error> {
+        let raw_connector_response = serde_json::to_string(&item.response).ok().map(Secret::new);
+
         let status = common_enums::AttemptStatus::from(item.response.status.clone());
         let void_id = item.response.id;
         let payment_id = item.response.payment;
@@ -664,6 +672,7 @@ impl TryFrom<ResponseRouterData<MayaVoidResponse, Self>>
                     message: None,
                     reason: None,
                 }),
+                raw_connector_response,
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
@@ -790,6 +799,8 @@ impl TryFrom<ResponseRouterData<MayaRefundResponse, Self>>
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<MayaRefundResponse, Self>) -> Result<Self, Self::Error> {
+        let raw_connector_response = serde_json::to_string(&item.response).ok().map(Secret::new);
+
         let refund_status = common_enums::RefundStatus::from(item.response.status.clone());
 
         let raw_connector_status = RawConnectorStatus {
@@ -829,6 +840,7 @@ impl TryFrom<ResponseRouterData<MayaRefundResponse, Self>>
             },
             resource_common_data: RefundFlowData {
                 raw_connector_status: Some(raw_connector_status),
+                raw_connector_response,
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
@@ -844,6 +856,8 @@ impl TryFrom<ResponseRouterData<MayaRefundSyncResponse, Self>>
     fn try_from(
         item: ResponseRouterData<MayaRefundSyncResponse, Self>,
     ) -> Result<Self, Self::Error> {
+        let raw_connector_response = serde_json::to_string(&item.response).ok().map(Secret::new);
+
         let refund_status = common_enums::RefundStatus::from(item.response.status.clone());
 
         let raw_connector_status = RawConnectorStatus {
@@ -861,6 +875,7 @@ impl TryFrom<ResponseRouterData<MayaRefundSyncResponse, Self>>
             }),
             resource_common_data: RefundFlowData {
                 raw_connector_status: Some(raw_connector_status),
+                raw_connector_response,
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
