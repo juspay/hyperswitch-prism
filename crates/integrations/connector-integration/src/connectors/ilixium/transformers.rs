@@ -1460,7 +1460,12 @@ pub enum IlixiumOperationType {
     Reversal,
     Refund,
     Credit,
-    ThreedSecureComplete,
+    /// The wire value is pinned explicitly rather than derived from the identifier: the
+    /// enum's `rename_all = "SCREAMING_SNAKE_CASE"` would turn any respelling of "Threed"
+    /// into a *different* string (`THREE_D_SECURE_COMPLETE`), which Ilixium never sends, and
+    /// the variant would silently fall through to `Unknown` instead of failing loudly.
+    #[serde(rename = "THREED_SECURE_COMPLETE")]
+    ThreeDsSecureComplete,
     Payment,
     #[serde(other)]
     Unknown,
@@ -1519,7 +1524,7 @@ impl std::fmt::Display for IlixiumReasonCode {
 /// examples wrap the codes in an object (`{"reason": ["VA22"]}`), while `/docs/response-codes/`
 /// shows a bare array and the legacy 3DS page shows a scalar. The schema is authoritative, but
 /// all three shapes are accepted here so a stale wire format can never turn a decline into an
-/// unparseable response.
+/// unparsable response.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum IlixiumReasons {
@@ -2066,6 +2071,10 @@ fn build_refund_error_response(
         network_decline_code: None,
         network_advice_code: None,
         network_error_message: None,
+        typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
     }
 }
 
@@ -2245,6 +2254,10 @@ fn build_error_response(
         network_decline_code: None,
         network_advice_code: None,
         network_error_message: None,
+        typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
     }
 }
 
@@ -2519,7 +2532,7 @@ fn format_history_period(
 ///
 /// Accepted as an RFC 3339 instant (`2025-12-09T11:56:11Z`, or with an offset / fractional
 /// seconds — this is *input* to the connector, not the wire format, so it is parsed leniently and
-/// re-rendered by [`format_history_period`]). A value that is present but unparseable is a hard
+/// re-rendered by [`format_history_period`]). A value that is present but unparsable is a hard
 /// error: silently falling back to "now" would answer a question the caller did not ask.
 fn extract_history_period_start(
     feature_data: Option<&common_utils::pii::SecretSerdeValue>,
@@ -2871,7 +2884,7 @@ fn is_payment_lifecycle_operation(operation_type: IlixiumOperationType) -> bool 
             | IlixiumOperationType::AuthCap
             | IlixiumOperationType::Capture
             | IlixiumOperationType::Reversal
-            | IlixiumOperationType::ThreedSecureComplete
+            | IlixiumOperationType::ThreeDsSecureComplete
     )
 }
 
@@ -2897,7 +2910,7 @@ impl IlixiumHistoryResponse {
     /// **Latest, never first.** `/docs/direct/history` is explicit that a late outcome is
     /// appended as a *new* entry and that "historical information is never modified", so the most
     /// recent `entryDate` is the current truth. Entries whose `entryDate` is missing or
-    /// unparseable sort below every dated entry (`None < Some` for `Option<OffsetDateTime>`), and
+    /// unparsable sort below every dated entry (`None < Some` for `Option<OffsetDateTime>`), and
     /// ties are broken by document order so that a later duplicate still wins.
     pub fn latest_payment_operation(&self, merchant_ref: &str) -> Option<&IlixiumHistoryOperation> {
         self.operation
@@ -3040,6 +3053,10 @@ fn build_history_query_error(
         network_decline_code: None,
         network_advice_code: None,
         network_error_message: None,
+        typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
     }
 }
 
@@ -3081,6 +3098,10 @@ fn build_history_not_found_error(
         network_decline_code: None,
         network_advice_code: None,
         network_error_message: None,
+        typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
     }
 }
 
@@ -3118,6 +3139,10 @@ fn build_history_operation_error(
         network_decline_code: None,
         network_advice_code: None,
         network_error_message: None,
+        typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
     }
 }
 
@@ -3451,7 +3476,7 @@ impl IlixiumHistoryResponse {
 
             // The platform is populating `operationRef`, and none of this payment's refunds is the
             // one being synced. Falling through to the heuristic here would hand back a *different*
-            // refund's outcome under this refund's id, which is exactly the silent mis-attribution
+            // refund's outcome under this refund's id, which is exactly the silent misattribution
             // this flow has to avoid.
             if candidates
                 .iter()
@@ -3577,6 +3602,10 @@ fn build_refund_history_query_error(
         network_decline_code: None,
         network_advice_code: None,
         network_error_message: None,
+        typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
     }
 }
 
@@ -3618,6 +3647,10 @@ fn build_refund_not_found_error(
         network_decline_code: None,
         network_advice_code: None,
         network_error_message: None,
+        typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
     }
 }
 
@@ -3663,6 +3696,10 @@ fn build_refund_history_operation_error(
         network_decline_code: None,
         network_advice_code: None,
         network_error_message: None,
+        typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
     }
 }
 

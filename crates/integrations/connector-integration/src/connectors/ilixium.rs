@@ -195,6 +195,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 })
             }
             Err(_) => {
@@ -216,6 +220,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 })
             }
         }
@@ -295,8 +303,13 @@ macros::create_all_prerequisites!(
         /// transmitted, so the body is taken from `get_request_body` and digested verbatim.
         /// That is the same value the framework puts on the wire: `RequestContent::
         /// get_body_bytes` serialises through `get_inner_value`, which is what
-        /// `content.get_inner_value()` returns here, so the digest can never drift from the
-        /// payload.
+        /// `content.content.get_inner_value()` returns here, so the digest can never drift
+        /// from the payload.
+        ///
+        /// Note the `.content` hop: `ConnectorRequestData` carries both the wire body
+        /// (`content`) and a *masked* typed copy kept for observability (`typed_request`).
+        /// The digest must be taken over the former — digesting the masked copy would sign
+        /// redacted JSON and every request would be rejected by the gateway.
         ///
         /// Generic over the flow-common-data type (`FCD`) rather than pinned to
         /// `PaymentFlowData`: the digest is computed from the serialised body alone, so the
@@ -317,7 +330,7 @@ macros::create_all_prerequisites!(
                 Method::Get => String::default(),
                 Method::Post | Method::Put | Method::Delete | Method::Patch => self
                     .get_request_body(req)?
-                    .map(|content| content.get_inner_value().peek().to_owned())
+                    .map(|content| content.content.get_inner_value().peek().to_owned())
                     .unwrap_or_default(),
             };
 
