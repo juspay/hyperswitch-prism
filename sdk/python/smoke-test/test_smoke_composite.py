@@ -64,6 +64,16 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+PLACEHOLDER_TOKENS = {"", "placeholder", "test", "dummy", "sk_test_placeholder"}
+
+
+def is_placeholder(val: Optional[str]) -> bool:
+    if not val:
+        return True
+    v = val.strip().lower()
+    return v in PLACEHOLDER_TOKENS or "placeholder" in v or v.startswith("replace_with_")
+
+
 def load_credentials(creds_file: str) -> Dict[str, Any]:
     """Load connector credentials from JSON file."""
     if not os.path.exists(creds_file):
