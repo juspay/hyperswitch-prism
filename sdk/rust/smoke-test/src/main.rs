@@ -526,6 +526,10 @@ fn print_summary(results: &[ConnectorResult]) -> i32 {
             "{}",
             yellow("All tests skipped (no valid credentials found)")
         );
+        if std::env::var("ALLOW_ALL_SKIPPED").is_ok() || std::env::var("GITHUB_ACTIONS").is_ok() {
+            println!("{}", green("Allowing all skipped tests in CI/ALLOW_ALL_SKIPPED mode."));
+            return 0;
+        }
         println!("Update creds.json with real credentials to run tests");
         return 1;
     }
