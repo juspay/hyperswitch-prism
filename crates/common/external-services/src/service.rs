@@ -659,7 +659,7 @@ where
         }
         (common_enums::CallConnectorAction::Trigger, TransportType::Http) => {
             let mut connector_request = connector
-                .build_request_v2(&router_data.clone())
+                .build_request_v2(&router_data)
                 .map_err(report_connector_request_to_flow)?;
 
             let mut updated_router_data = router_data.clone();
@@ -991,7 +991,7 @@ where
         }
         (common_enums::CallConnectorAction::Trigger, TransportType::Kafka) => {
             let kafka_record = connector
-                .build_kafka_record(&router_data.clone())
+                .build_kafka_record(&router_data)
                 .map_err(report_connector_request_to_flow)?;
 
             match kafka_record {
