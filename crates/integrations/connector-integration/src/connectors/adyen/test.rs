@@ -17,7 +17,7 @@ mod tests {
             payment_method_data::{DefaultPCIHolder, PaymentMethodData, RawCardNumber},
             router_data::{ConnectorSpecificConfig, ErrorResponse},
             router_data_v2::RouterDataV2,
-            types::{ConnectorParams, Connectors},
+            types::{ConnectorParams, ConnectorsInner},
         };
         use hyperswitch_masking::Secret;
         use interfaces::{
@@ -67,14 +67,14 @@ mod tests {
                     connector_request_reference_id: "conn_ref_123456789".to_string(),
                     test_mode: None,
                     connector_http_status_code: None,
-                    connectors: Connectors {
+                    connectors: ConnectorsInner {
                         adyen: ConnectorParams {
                             base_url: "https://checkout-test.adyen.com/".to_string(),
                             dispute_base_url: Some("https://ca-test.adyen.com/ca/services/DisputeService/v30/defendDispute".to_string()),
                             ..Default::default()
                         },
                         ..Default::default()
-                    },
+                    }.into(),
                     external_latency: None,
                     connector_response_headers: None,
                     raw_connector_response: None,
@@ -278,14 +278,14 @@ mod tests {
                     connector_request_reference_id: "".to_string(),
                     test_mode: None,
                     connector_http_status_code: None,
-                    connectors: Connectors {
+                    connectors: ConnectorsInner {
                         adyen: ConnectorParams {
                             base_url: "https://checkout-test.adyen.com/".to_string(),
                             dispute_base_url: Some("https://ca-test.adyen.com/ca/services/DisputeService/v30/defendDispute".to_string()),
                             ..Default::default()
                         },
                         ..Default::default()
-                    },
+                    }.into(),
                     external_latency: None,
                     connector_response_headers: None,
                     raw_connector_response: None,
@@ -427,14 +427,14 @@ mod tests {
         //             connector_request_reference_id: "invalid_ref".to_string(),
         //             test_mode: None,
         //             connector_http_status_code: None,
-        //             connectors: Connectors {
+        //             connectors: ConnectorsInner {
         //                 adyen: ConnectorParams {
         //                     base_url: "https://checkout-test.adyen.com/".to_string(),
         //                 },
         //                 razorpay: ConnectorParams {
         //                     base_url: "https://sandbox.juspay.in/".to_string(),
         //                 },
-        //             },
+        //             }.into(),
         //             external_latency: None,
         //         },
         //         connector_config: ConnectorSpecificConfig::BodyKey {
