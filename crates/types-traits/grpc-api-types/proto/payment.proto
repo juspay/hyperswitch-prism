@@ -2822,6 +2822,7 @@ message PaymentServiceGetResponse {
   optional ConnectorSplitResponseData splits = 32;
 
   optional SecretString connector_feature_data = 33;
+
   // Settlement phase reported by the connector. See SettlementStatus for the
   // per-value semantics. Absent when the connector doesn't distinguish phases.
   optional SettlementStatus settlement_status = 34;
@@ -2835,6 +2836,10 @@ message PaymentServiceGetResponse {
   // Another reference for the connector's transaction, returned in the connector's response.
   // Distinct from connector_transaction_id — e.g. Stripe charge ID (ch_xxx), order codes, invoice numbers.
   optional string connector_reference_id = 37;
+
+  // Payment method details received from the connector mid-payment, intended for
+  // saving for the returning-customer flow.
+  optional PaymentMethod connector_returned_payment_method_details = 40;
 }
 
 // Request message for voiding a payment
@@ -4837,8 +4842,9 @@ message BamboraapacConfig {
 }
 
 message CalidaConfig {
-  SecretString api_key = 1;
-  optional string base_url = 50;
+SecretString api_key = 1;
+optional SecretString shop_name = 2;
+optional string base_url = 50;
 }
 
 message CeleroConfig {

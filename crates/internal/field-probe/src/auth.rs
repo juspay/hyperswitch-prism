@@ -40,6 +40,7 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
         ConnectorEnum::Calida => ConnectorSpecificConfig::Calida {
             api_key: k(),
             base_url: None,
+            shop_name: None,
         },
         ConnectorEnum::Celero => ConnectorSpecificConfig::Celero {
             api_key: k(),
