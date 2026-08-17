@@ -271,7 +271,7 @@ macros::create_all_prerequisites!(
             // Get the request body for digest calculation
             let request_body = self.get_request_body(req)?;
             let sha256 = if let Some(body) = request_body {
-                let body_string = body.get_inner_value();
+                let body_string = body.content.get_inner_value();
                 self.generate_digest(body_string.expose().as_bytes())
             } else {
                 String::new()
@@ -416,6 +416,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     }
                 };
 
+                let typed = macros::serialize_typed_connector_payload(
+                    &response,
+                    "typed_connector_response",
+                );
                 Ok(ErrorResponse {
                     status_code: res.status_code,
                     code: code.unwrap_or_else(|| NO_ERROR_CODE.to_string()),
@@ -426,6 +430,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 })
             }
             Ok(transformers::WellsfargoErrorResponse::AuthenticationError(response)) => {
@@ -441,6 +449,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 })
             }
             Ok(transformers::WellsfargoErrorResponse::NotAvailableError(response)) => {
@@ -462,6 +474,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 })
             }
             Err(error_msg) => {

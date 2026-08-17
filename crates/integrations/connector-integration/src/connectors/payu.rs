@@ -316,6 +316,7 @@ macros::macro_connector_implementation!(
                 .parse_struct("PayU Sync ErrorResponse")
                 .change_context(crate::utils::response_handling_fail_for_connector(res.status_code, "payu"))?;
 
+            let typed = macros::serialize_typed_connector_payload(&response, "typed_connector_response");
             // Check if PayU returned error status (0 = error)
             if response.status == Some(0) {
                 Ok(ErrorResponse {
@@ -327,8 +328,12 @@ macros::macro_connector_implementation!(
                     connector_transaction_id: None,
                     network_error_message: None,
                     network_advice_code: None,
-                    network_decline_code: None
-})
+                    network_decline_code: None,
+                    typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
+                })
             } else {
                 // Generic error response
                 Ok(ErrorResponse {
@@ -340,8 +345,12 @@ macros::macro_connector_implementation!(
                     connector_transaction_id: None,
                     network_error_message: None,
                     network_advice_code: None,
-                    network_decline_code: None
-})
+                    network_decline_code: None,
+                    typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
+                })
             }
         }
     }
@@ -395,6 +404,7 @@ macros::macro_connector_implementation!(
                 .parse_struct("PayU Capture ErrorResponse")
                 .change_context(crate::utils::response_handling_fail_for_connector(res.status_code, "payu"))?;
 
+            let typed = macros::serialize_typed_connector_payload(&response, "typed_connector_response");
             Ok(ErrorResponse {
                 status_code: res.status_code,
                 code: response.error_code.unwrap_or_else(|| "CAPTURE_ERROR".to_string()),
@@ -408,6 +418,10 @@ macros::macro_connector_implementation!(
                 network_error_message: None,
                 network_advice_code: None,
                 network_decline_code: None,
+                typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
             })
         }
     }
@@ -461,6 +475,7 @@ macros::macro_connector_implementation!(
                 .parse_struct("PayU Void ErrorResponse")
                 .change_context(crate::utils::response_handling_fail_for_connector(res.status_code, "payu"))?;
 
+            let typed = macros::serialize_typed_connector_payload(&response, "typed_connector_response");
             Ok(ErrorResponse {
                 status_code: res.status_code,
                 code: response.error_code.unwrap_or_else(|| "VOID_ERROR".to_string()),
@@ -474,6 +489,10 @@ macros::macro_connector_implementation!(
                 network_error_message: None,
                 network_advice_code: None,
                 network_decline_code: None,
+                typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
             })
         }
     }
@@ -526,6 +545,7 @@ macros::macro_connector_implementation!(
                 .parse_struct("PayU Refund ErrorResponse")
                 .change_context(crate::utils::response_handling_fail_for_connector(res.status_code, "payu"))?;
 
+            let typed = macros::serialize_typed_connector_payload(&response, "typed_connector_response");
             Ok(ErrorResponse {
                 status_code: res.status_code,
                 code: response.error_code.unwrap_or_else(|| "REFUND_ERROR".to_string()),
@@ -539,6 +559,10 @@ macros::macro_connector_implementation!(
                 network_error_message: None,
                 network_advice_code: None,
                 network_decline_code: None,
+                typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
             })
         }
     }
@@ -591,6 +615,7 @@ macros::macro_connector_implementation!(
                 .parse_struct("PayU RSync ErrorResponse")
                 .change_context(crate::utils::response_handling_fail_for_connector(res.status_code, "payu"))?;
 
+            let typed = macros::serialize_typed_connector_payload(&response, "typed_connector_response");
             Ok(ErrorResponse {
                 status_code: res.status_code,
                 code: response.error_code.unwrap_or_else(|| "RSYNC_ERROR".to_string()),
@@ -604,6 +629,10 @@ macros::macro_connector_implementation!(
                 network_error_message: None,
                 network_advice_code: None,
                 network_decline_code: None,
+                typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
             })
         }
     }
@@ -658,6 +687,7 @@ macros::macro_connector_implementation!(
                 .parse_struct("PayU SessionToken ErrorResponse")
                 .change_context(crate::utils::response_handling_fail_for_connector(res.status_code, "payu"))?;
 
+            let typed = macros::serialize_typed_connector_payload(&response, "typed_connector_response");
             Ok(ErrorResponse {
                 status_code: res.status_code,
                 code: response.error.unwrap_or_else(|| "SESSION_TOKEN_ERROR".to_string()),
@@ -670,6 +700,10 @@ macros::macro_connector_implementation!(
                 network_error_message: None,
                 network_advice_code: None,
                 network_decline_code: None,
+                typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
             })
         }
     }
@@ -723,6 +757,7 @@ macros::macro_connector_implementation!(
                 .parse_struct("PayU ErrorResponse")
                         .change_context(crate::utils::response_handling_fail_for_connector(res.status_code, "payu"))?;
 
+            let typed = macros::serialize_typed_connector_payload(&response, "typed_connector_response");
             // Check if this is an error response
             if response.error.is_some() {
                 Ok(ErrorResponse {
@@ -734,8 +769,12 @@ macros::macro_connector_implementation!(
                     connector_transaction_id: response.reference_id,
                     network_error_message: None,
                     network_advice_code: None,
-                    network_decline_code: None
-})
+                    network_decline_code: None,
+                    typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
+                })
             } else {
                 // This shouldn't happen as successful responses go through normal flow
                 // But fallback to generic error
@@ -748,8 +787,12 @@ macros::macro_connector_implementation!(
                     connector_transaction_id: None,
                     network_error_message: None,
                     network_advice_code: None,
-                    network_decline_code: None
-})
+                    network_decline_code: None,
+                    typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
+                })
             }
         }
     }

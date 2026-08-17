@@ -4,7 +4,7 @@
     "authenticate": {
       "default": {
         "status": "error",
-        "error": "Failed to obtain authentication type"
+        "error": "Stuck on field: request.authentication_data — Missing required field: request.authentication_data"
       }
     },
     "authorize": {
@@ -610,13 +610,13 @@
     "post_authenticate": {
       "default": {
         "status": "error",
-        "error": "Failed to obtain authentication type"
+        "error": "Stuck on field: request.redirect_response.payload — Missing required field: request.redirect_response.payload"
       }
     },
     "pre_authenticate": {
       "default": {
         "status": "error",
-        "error": "Failed to obtain authentication type"
+        "error": "Stuck on field: payment_method_data.billing.address.line2 — Missing required field: payment_method_data.billing.address.line2"
       }
     },
     "proxy_authorize": {

@@ -40,6 +40,7 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
         ConnectorEnum::Calida => ConnectorSpecificConfig::Calida {
             api_key: k(),
             base_url: None,
+            shop_name: None,
         },
         ConnectorEnum::Celero => ConnectorSpecificConfig::Celero {
             api_key: k(),
@@ -784,6 +785,11 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             api_key: k(),
             key1: k(),
             api_secret: k(),
+            base_url: None,
+        },
+        ConnectorEnum::Boost => ConnectorSpecificConfig::Boost {
+            client_id: k(),
+            merchant_secret: k(),
             base_url: None,
         },
         ConnectorEnum::Worldpayraft => ConnectorSpecificConfig::Worldpayraft {

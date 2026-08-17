@@ -672,6 +672,62 @@ pub fn apply_log_fields(compiled: &CompiledLogFields) {
     });
 }
 
+/// Convert a set of headers with `Maskable` values into a `serde_json::Value` object.
+/// Normal values are preserved as-is; masked values use the standard masking format
+/// from `Maskable`'s `Debug` implementation.
+pub fn maskable_headers_to_json<'a>(
+    headers: impl IntoIterator<Item = &'a (String, hyperswitch_masking::Maskable<String>)>,
+) -> serde_json::Value {
+    headers
+        .into_iter()
+        .map(|(k, v)| {
+            let val = match v {
+                hyperswitch_masking::Maskable::Normal(s) => s.clone(),
+                hyperswitch_masking::Maskable::Masked(secret) => format!("{secret:?}"),
+            };
+            (k.clone(), serde_json::Value::String(val))
+        })
+        .collect::<serde_json::Map<String, serde_json::Value>>()
+        .into()
+}
+
+/// Record one or more key-value pairs as structured JSON directly into the
+/// current tracing span's storage.  Values written this way are emitted as
+/// proper nested JSON by the log formatter — no escaping.
+///
+/// All reserved-key filtering happens **outside** the span lock to avoid
+/// deadlocks (the storage layer logs a warning for reserved keys, which would
+/// re-enter the subscriber).
+#[cfg(feature = "logging")]
+pub fn record_json_fields_on_span(fields: Vec<(&'static str, serde_json::Value)>) {
+    // Filter reserved keys and log fields outside the span lock to avoid deadlocks
+    // (tracing::info!/warn! re-enters the subscriber).
+    let fields: Vec<_> = fields
+        .into_iter()
+        .filter(|(key, value)| {
+            if log_utils::Storage::is_reserved(key) {
+                tracing::warn!(
+                    "Span field `{key}` is reserved by the logging infrastructure, skipping"
+                );
+                false
+            } else {
+                tracing::info!(%value, "{key}");
+                true
+            }
+        })
+        .collect();
+
+    if fields.is_empty() {
+        return;
+    }
+
+    log_utils::Storage::with_current_span_mut(|storage| {
+        for (key, value) in fields {
+            storage.record_value(key, value);
+        }
+    });
+}
+
 /// Recursively merge `source` JSON object into `target`.
 /// Keys in `source` overwrite matching keys in `target`.
 /// Nested objects are merged recursively.

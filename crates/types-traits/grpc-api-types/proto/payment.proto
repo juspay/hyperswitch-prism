@@ -899,7 +899,8 @@ enum Connector {
   SANTANDER = 133;
   MAYA = 134;
   GRABPAY = 135;
-  WORLDPAYRAFT = 136;
+  BOOST = 136;
+  WORLDPAYRAFT = 137;
 }
 
 // Payment method types
@@ -2663,7 +2664,9 @@ message PaymentServiceAuthorizeResponse {
 
   // Raw Response/Request for debugging
   optional SecretString raw_connector_response = 11;
+  optional SecretString typed_connector_response = 25;
   optional SecretString raw_connector_request = 12;
+  optional SecretString typed_connector_request = 26;
 
   // Payment Details
   optional int64 captured_amount = 13;
@@ -2801,7 +2804,9 @@ message PaymentServiceGetResponse {
 
   // Raw Response/Request for debugging
   optional SecretString raw_connector_response = 24;
+  optional SecretString typed_connector_response = 38;
   optional SecretString raw_connector_request = 25;
+  optional SecretString typed_connector_request = 39;
 
   // Redirection and Transaction Details
   optional RedirectForm redirection_data = 26;
@@ -2817,6 +2822,7 @@ message PaymentServiceGetResponse {
   optional ConnectorSplitResponseData splits = 32;
 
   optional SecretString connector_feature_data = 33;
+
   // Settlement phase reported by the connector. See SettlementStatus for the
   // per-value semantics. Absent when the connector doesn't distinguish phases.
   optional SettlementStatus settlement_status = 34;
@@ -2830,6 +2836,10 @@ message PaymentServiceGetResponse {
   // Another reference for the connector's transaction, returned in the connector's response.
   // Distinct from connector_transaction_id — e.g. Stripe charge ID (ch_xxx), order codes, invoice numbers.
   optional string connector_reference_id = 37;
+
+  // Payment method details received from the connector mid-payment, intended for
+  // saving for the returning-customer flow.
+  optional PaymentMethod connector_returned_payment_method_details = 40;
 }
 
 // Request message for voiding a payment
@@ -2885,6 +2895,7 @@ message PaymentServiceVoidResponse {
 
   // Raw Request for debugging
   optional SecretString raw_connector_request = 8;
+  optional SecretString typed_connector_request = 17;
 
   // Mandate Details
   optional MandateReference mandate_reference = 9 [deprecated = true]; // use mandate_reference_details instead (will be removed in a future release)
@@ -2900,6 +2911,7 @@ message PaymentServiceVoidResponse {
 
   // Raw Response/Request for debugging
   optional SecretString raw_connector_response = 13;
+  optional SecretString typed_connector_response = 18;
 
   // Mandate reference details returned by the connector for future recurring payments.
   optional MandateReferenceDetails mandate_reference_details = 14;
@@ -2951,7 +2963,9 @@ message PaymentServiceReverseResponse {
 
   // Raw Request and Response for debugging
   optional SecretString raw_connector_request = 7;
+  optional SecretString typed_connector_request = 11;
   optional SecretString raw_connector_response = 8;
+  optional SecretString typed_connector_response = 12;
 
   // The connector's reported status for this response.
   optional RawConnectorStatus raw_connector_status = 9;
@@ -3073,7 +3087,9 @@ message MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse {
   optional ErrorInfo error = 2;
   uint32 status_code = 3;
   optional SecretString raw_connector_response = 4;
+  optional SecretString typed_connector_response = 6;
   optional SecretString raw_connector_request = 5;
+  optional SecretString typed_connector_request = 7;
 }
 
 // Request message for capturing a payment
@@ -3137,6 +3153,7 @@ message PaymentServiceCaptureResponse {
 
   // Raw Request for debugging
   optional SecretString raw_connector_request = 8;
+  optional SecretString typed_connector_request = 19;
 
   // Payment Details
   optional int64 captured_amount = 9; // Captured amount in minor currency units
@@ -3163,6 +3180,7 @@ message PaymentServiceCaptureResponse {
 
   // Raw Response for debugging
   optional SecretString raw_connector_response = 16;
+  optional SecretString typed_connector_response = 20;
 
   // Another reference for the connector's transaction, returned in the connector's response.
   // Distinct from connector_transaction_id — e.g. Stripe charge ID (ch_xxx), order codes, invoice numbers.
@@ -3216,7 +3234,9 @@ message PaymentServiceCreateOrderResponse {
 
   // Raw Request/Response for debugging
   optional SecretString raw_connector_request = 7;
+  optional SecretString typed_connector_request = 11;
   optional SecretString raw_connector_response = 8;
+  optional SecretString typed_connector_response = 12;
 
   // SDK Session Data
   optional ClientAuthenticationTokenData session_data =
@@ -3321,7 +3341,9 @@ message RefundResponse {
 
   // Raw Response/Request for debugging
   optional SecretString raw_connector_response = 21;
+  optional SecretString typed_connector_response = 27;
   optional SecretString raw_connector_request = 22;
+  optional SecretString typed_connector_request = 28;
 
   // Connector/domain state metadata to persist across calls.
   // For refund-reverse, carries the underlying TSYS void status while the
@@ -3419,6 +3441,7 @@ message DisputeResponse {
 
   // Raw Request for debugging
   optional SecretString raw_connector_request = 18;
+  optional SecretString typed_connector_request = 20;
 
   // Another reference for the connector's transaction, returned in the connector's response.
   optional string connector_reference_id = 19;
@@ -3560,6 +3583,7 @@ message PaymentServiceSetupRecurringResponse {
   // Raw Request for debugging
   optional SecretString raw_connector_request =
       14; // Raw request to the connector for debugging
+  optional SecretString typed_connector_request = 20;
   optional SecretString connector_feature_data =
       15; // Connector-specific metadata for the transaction
 
@@ -3573,6 +3597,7 @@ message PaymentServiceSetupRecurringResponse {
 
   // Raw Response for debugging
   optional SecretString raw_connector_response = 18;
+  optional SecretString typed_connector_response = 21;
 }
 
 // Request message for repeat payment (MIT - Merchant Initiated Transaction)
@@ -3695,7 +3720,9 @@ message RecurringPaymentServiceChargeResponse {
 
   // Raw Response/Request for debugging
   optional SecretString raw_connector_response = 11;
+  optional SecretString typed_connector_response = 21;
   optional SecretString raw_connector_request = 12;
+  optional SecretString typed_connector_request = 22;
 
   // Payment Details
   optional int64 captured_amount =
@@ -3749,7 +3776,9 @@ message RecurringPaymentServiceRevokeResponse {
 
   // Raw Response/Request for debugging
   optional SecretString raw_connector_response = 7;
+  optional SecretString typed_connector_response = 9;
   optional SecretString raw_connector_request = 8;
+  optional SecretString typed_connector_request = 10;
 }
 
 // ============================================================================
@@ -3821,6 +3850,7 @@ message PaymentMethodAuthenticationServicePreAuthenticateResponse {
 
   // Raw Response for debugging
   optional SecretString raw_connector_response = 11;
+  optional SecretString typed_connector_response = 13;
   // Authentication Results
   optional AuthenticationData authentication_data = 12;
 }
@@ -3898,6 +3928,7 @@ message PaymentMethodAuthenticationServiceAuthenticateResponse {
 
   // Raw Response for debugging
   optional SecretString raw_connector_response = 12;
+  optional SecretString typed_connector_response = 14;
 
   // The connector's reported status (code/message/reason).
   optional RawConnectorStatus raw_connector_status = 13;
@@ -3971,6 +4002,7 @@ message PaymentMethodAuthenticationServicePostAuthenticateResponse {
 
   // Raw Response for debugging
   optional SecretString raw_connector_response = 13;
+  optional SecretString typed_connector_response = 15;
 
   // The connector's reported status for this response.
   optional RawConnectorStatus raw_connector_status = 14;
@@ -4010,7 +4042,9 @@ message PaymentServiceIncrementalAuthorizationResponse {
 
   // Raw Request and Response for debugging
   optional SecretString raw_connector_request = 7;
+  optional SecretString typed_connector_request = 9;
   optional SecretString raw_connector_response = 8;
+  optional SecretString typed_connector_response = 10;
 }
 
 // IDs extracted from a payment webhook.
@@ -4174,6 +4208,7 @@ message PaymentServiceVerifyRedirectResponseResponse {
 
   // Raw Response
   optional SecretString raw_connector_response = 7;
+  optional SecretString typed_connector_response = 9;
 
   // Connector-specific metadata produced while parsing the redirect response.
   optional SecretString connector_feature_data = 8;
@@ -4262,6 +4297,7 @@ message DisputeServiceSubmitEvidenceResponse {
 
   // Raw Request for debugging
   optional SecretString raw_connector_request = 9;
+  optional SecretString typed_connector_request = 10;
 }
 
 // Request message for retrieving dispute information
@@ -4300,6 +4336,7 @@ message DisputeServiceDefendResponse {
 
   // Raw Request for debugging
   optional SecretString raw_connector_request = 8;
+  optional SecretString typed_connector_request = 9;
 }
 
 // Request message for accepting a dispute
@@ -4327,6 +4364,7 @@ message DisputeServiceAcceptResponse {
 
   // Raw Request for debugging
   optional SecretString raw_connector_request = 8;
+  optional SecretString typed_connector_request = 9;
 }
 
 // ============================================================================
@@ -4418,7 +4456,9 @@ message PaymentMethodServiceCreateResponse {
 
   // Raw Response/Request for debugging
   optional SecretString raw_connector_response = 9;
+  optional SecretString typed_connector_response = 11;
   optional SecretString raw_connector_request = 10;
+  optional SecretString typed_connector_request = 12;
 }
 
 message PaymentMethodServiceGetRequest {
@@ -4452,7 +4492,9 @@ message PaymentMethodServiceGetResponse {
 
   // Raw Response/Request for debugging
   optional SecretString raw_connector_response = 9;
+  optional SecretString typed_connector_response = 11;
   optional SecretString raw_connector_request = 10;
+  optional SecretString typed_connector_request = 12;
 }
 
 // Refresh a stored card against the network updater.
@@ -4468,7 +4510,9 @@ message PaymentMethodServiceRefreshResponse {
 
   // Raw Response/Request for debugging
   optional SecretString raw_connector_response = 5;
+  optional SecretString typed_connector_response = 7;
   optional SecretString raw_connector_request = 6;
+  optional SecretString typed_connector_request = 8;
 }
 
 // One arm per instrument; each carries its own outcome type.
@@ -4622,7 +4666,9 @@ message PaymentMethodServiceRechargeResponse {
   uint32 status_code = 8;                          // HTTP status code from the connector
   map<string, string> response_headers = 9;        // Response headers from the connector
   optional SecretString raw_connector_response = 10; // Raw response from the connector for debugging
+  optional SecretString typed_connector_response = 12;
   optional SecretString raw_connector_request = 11;  // Raw request sent to the connector for debugging
+  optional SecretString typed_connector_request = 13;
 }
 
 // ============================================================================
@@ -4796,8 +4842,9 @@ message BamboraapacConfig {
 }
 
 message CalidaConfig {
-  SecretString api_key = 1;
-  optional string base_url = 50;
+SecretString api_key = 1;
+optional SecretString shop_name = 2;
+optional string base_url = 50;
 }
 
 message CeleroConfig {
@@ -5598,6 +5645,12 @@ message TesouroConfig {
   optional string base_url = 50;
 }
 
+message BoostConfig {
+  SecretString client_id = 1;
+  SecretString merchant_secret = 2;
+  optional string base_url = 50;
+}
+
 message WorldpayraftConfig {
   SecretString license = 1;
   SecretString merchant_id = 2;
@@ -5910,16 +5963,18 @@ message ConnectorSpecificConfig {
     TesouroConfig tesouro = 139;
     // DEUTSCHEBANK = 140
     DeutschebankConfig deutschebank = 140;
-    // PLAID = 141
+    // PLAID = 87
     PlaidConfig plaid = 141;
-    // SANTANDER = 142
+    // SANTANDER = 133
     SantanderConfig santander = 142;
-    // MAYA = 143
+    // MAYA = 134
     MayaConfig maya = 143;
-    // GRABPAY = 144
+    // GRABPAY = 135
     GrabpayConfig grabpay = 144;
-    // WORLDPAYRAFT = 136
-    WorldpayraftConfig worldpayraft = 145;
+    // BOOST = 136
+    BoostConfig boost = 145;
+    // WORLDPAYRAFT = 137
+    WorldpayraftConfig worldpayraft = 146;
   }
 }
 
@@ -6204,9 +6259,11 @@ message PaymentMethodServiceEligibilityResponse {
 
   // Raw request sent to the connector (for debugging).
   optional SecretString raw_connector_request = 4;
+  optional SecretString typed_connector_request = 7;
 
   // Raw response received from the connector (for debugging).
   optional SecretString raw_connector_response = 5;
+  optional SecretString typed_connector_response = 8;
 
   // Response headers from the connector.
   map<string, string> response_headers = 6;

@@ -19,6 +19,86 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.08.17.0
+
+### Features
+
+- **connector:** [Truelayer] Add support for Returning Customer Flow ([#1458](https://github.com/juspay/connector-service/pull/1458)) ([`7bbd9e2`](https://github.com/juspay/connector-service/commit/7bbd9e26c2f2e05bb48d16ae37914777326bb580))
+
+### Documentation
+
+- **grace:** Require superposition URL registration + URL patching for new connectors ([#2123](https://github.com/juspay/connector-service/pull/2123)) ([`00ff139`](https://github.com/juspay/connector-service/commit/00ff139ab81b7eaff6d26129db9da240bf5ff658))
+
+**Full Changelog:** [`2026.08.14.1...2026.08.17.0`](https://github.com/juspay/connector-service/compare/2026.08.14.1...2026.08.17.0)
+
+- - -
+
+## 2026.08.14.1
+
+### Bug Fixes
+
+- **connector:** Read calida shop name from connector specific config ([#2106](https://github.com/juspay/connector-service/pull/2106)) ([`3419721`](https://github.com/juspay/connector-service/commit/34197214d6fa578b7dfc92afadde202867eac5fc))
+
+**Full Changelog:** [`2026.08.14.0...2026.08.14.1`](https://github.com/juspay/connector-service/compare/2026.08.14.0...2026.08.14.1)
+
+- - -
+
+## 2026.08.14.0
+
+### Features
+
+- **observability:** Add typed connector request/response fields ([#2036](https://github.com/juspay/connector-service/pull/2036)) ([`f60796f`](https://github.com/juspay/connector-service/commit/f60796f614500d4047b9e1f2adf3dbd1a92bf428))
+
+### Bug Fixes
+
+- **connectors:** [tsys_transit] add support for psync and rsync ([#2100](https://github.com/juspay/connector-service/pull/2100)) ([`22ef532`](https://github.com/juspay/connector-service/commit/22ef5324ac33f2315034317f41a2977d97a9c72d))
+
+**Full Changelog:** [`2026.08.13.1...2026.08.14.0`](https://github.com/juspay/connector-service/compare/2026.08.13.1...2026.08.14.0)
+
+- - -
+
+## 2026.08.13.1
+
+### Features
+
+- **connector:** [BOOST] add Boost Connect (BCPG) connector ([#2085](https://github.com/juspay/connector-service/pull/2085)) ([`24700fc`](https://github.com/juspay/connector-service/commit/24700fc069dd9054c524998fa9e2102e7f6937ab))
+
+### Bug Fixes
+
+- **connector:** Add missing payment method type mapping and Stripe MIT parity fix ([#2096](https://github.com/juspay/connector-service/pull/2096)) ([`a90d84f`](https://github.com/juspay/connector-service/commit/a90d84f450fb604a09fbfb94520c338c13e5eb46))
+- **grabpay,maya:** Added superposition urls ([#2118](https://github.com/juspay/connector-service/pull/2118)) ([`9063e31`](https://github.com/juspay/connector-service/commit/9063e31d8d5e254ded498133d53981b86ae6bc66))
+
+**Full Changelog:** [`2026.08.13.0...2026.08.13.1`](https://github.com/juspay/connector-service/compare/2026.08.13.0...2026.08.13.1)
+
+- - -
+
+## 2026.08.13.0
+
+### Features
+
+- **webhook:** Make x-auth header optional in incoming webhook flow ([#2098](https://github.com/juspay/connector-service/pull/2098)) ([`d5c7541`](https://github.com/juspay/connector-service/commit/d5c754160c8fd58ff176e258150d085fe4bcde3b))
+
+**Full Changelog:** [`2026.08.12.1...2026.08.13.0`](https://github.com/juspay/connector-service/compare/2026.08.12.1...2026.08.13.0)
+
+- - -
+
+## 2026.08.12.1
+
+### Features
+
+- **logs:** Euler-compatible log structure with structured JSON fields ([#2094](https://github.com/juspay/connector-service/pull/2094)) ([`194eb39`](https://github.com/juspay/connector-service/commit/194eb394b072ed1a5f74ee6b7e5c93d843d272e7))
+
+### Bug Fixes
+
+- **fiservcommercehub:** Send normalized expiry year during MIT ([#2084](https://github.com/juspay/connector-service/pull/2084)) ([`cda6f23`](https://github.com/juspay/connector-service/commit/cda6f23ad673ceb0f57414384a27518aa2caac1f))
+- **frm:** Drop payment_address field, promote address to PaymentAddress ([#2095](https://github.com/juspay/connector-service/pull/2095)) ([`5069a94`](https://github.com/juspay/connector-service/commit/5069a947be73cdfe87d97ce44958250b20da5755))
+- **maya:** Return merchant transaction id in webhook event reference ([#2099](https://github.com/juspay/connector-service/pull/2099)) ([`1e83374`](https://github.com/juspay/connector-service/commit/1e8337459306b8dfaa020cca62dc1d8c27f69fd3))
+- **superposition:** Temporarily remove kount from superposition config ([#2101](https://github.com/juspay/connector-service/pull/2101)) ([`3e7f35b`](https://github.com/juspay/connector-service/commit/3e7f35bc9a3d4ae73c3799834bffab6839ed962a))
+
+**Full Changelog:** [`2026.08.12.0...2026.08.12.1`](https://github.com/juspay/connector-service/compare/2026.08.12.0...2026.08.12.1)
+
+- - -
+
 ## 2026.08.12.0
 
 ### Features
