@@ -1822,6 +1822,7 @@ pub enum KafkaClientError {
 }
 
 #[derive(Debug, thiserror::Error, PartialEq, Clone)]
+#[cfg_attr(feature = "deja", derive(serde::Serialize, serde::Deserialize))]
 pub enum ApiClientError {
     #[error("Header map construction failed")]
     HeaderMapConstructionFailed,

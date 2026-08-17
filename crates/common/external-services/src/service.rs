@@ -1149,6 +1149,17 @@ pub type CustomResult<T, E> = error_stack::Result<T, E>;
 pub type RouterResult<T> = CustomResult<T, ApiErrorResponse>;
 pub type RouterResponse<T> = CustomResult<ApplicationResponse<T>, ApiErrorResponse>;
 
+#[cfg_attr(
+    feature = "deja",
+    deja::http(
+        outgoing,
+        component = "external_services::service",
+        operation = "call_connector_api",
+        correlation = Option::<String>::None,
+        args = crate::deja_codec::http_args(&request),
+        codec = crate::deja_codec::HttpOutcomeCodec,
+    )
+)]
 pub async fn call_connector_api(
     proxy: &ProxyConfig,
     request: Request,

@@ -122,6 +122,7 @@ deja = [
     "common_utils/deja",
     "domain_types/deja",
     "ucs_env/deja",
+    "external-services/deja",
 ]
 
 [lints]
