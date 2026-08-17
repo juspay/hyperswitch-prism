@@ -70,13 +70,51 @@ build_binaries() {
   return "${PIPESTATUS[0]}"
 }
 
+# Sorts a failure into one of two classes. `availability` means the connector
+# was not reachable or not answering properly, which says nothing about our
+# code; `contract` means we got far enough to disagree about the content.
+# Anything unrecognised is treated as `contract`, so an unknown failure is
+# investigated rather than waved through.
+classify_failure() {
+  local rc="$1" text="$2"
+  if [[ "${rc}" -eq 124 || "${rc}" -eq 137 ]]; then
+    printf 'availability'
+    return
+  fi
+  local lowered
+  lowered="$(tr '[:upper:]' '[:lower:]' <<< "${text}")"
+  if grep -qE 'connection (refused|reset)|timed out|timeout|deadline exceeded|temporarily unavailable|service unavailable|too many requests|rate limit|bad gateway|gateway timeout|no route to host|name resolution|dns|tls|handshake|http (429|502|503|504)|status: (unavailable|deadlineexceeded)' <<< "${lowered}"; then
+    printf 'availability'
+  else
+    printf 'contract'
+  fi
+}
+
 # Runs one scenario against whatever is currently checked out and built.
+# Sets LAST_RC, LAST_ERROR and LAST_CLASS for the caller.
 run_scenario() {
   local name="$1" suite="$2" scenario="$3" skip_deps="$4"
+  local report="${RUNNER_TEMP:-/tmp}/certify-report.json"
+  rm -f "${report}"
+
   local args=(--skip-setup --no-build --connector "${name}" --suite "${suite}"
               --scenario "${scenario}" --interface grpc --report)
   [[ "${skip_deps}" == "true" ]] && args+=(--skip-dependencies)
-  timeout --kill-after=30s "${ATTEMPT_TIMEOUT}" ./scripts/run-tests "${args[@]}"
+
+  UCS_RUN_TEST_REPORT_PATH="${report}" \
+    timeout --kill-after=30s "${ATTEMPT_TIMEOUT}" ./scripts/run-tests "${args[@]}"
+  LAST_RC=$?
+
+  LAST_ERROR=""
+  if [[ "${LAST_RC}" -ne 0 && -s "${report}" ]]; then
+    LAST_ERROR=$(jq -r --arg s "${scenario}" '
+      [ .[]? | select(.scenario == $s and .assertion_result == "FAIL") | .error // "" ]
+      | first // ""' "${report}" 2>/dev/null || true)
+  fi
+  LAST_CLASS=""
+  [[ "${LAST_RC}" -ne 0 ]] && LAST_CLASS="$(classify_failure "${LAST_RC}" "${LAST_ERROR}")"
+
+  return "${LAST_RC}"
 }
 
 # Swaps the sources to the merge base and rebuilds, reusing the same working
@@ -166,6 +204,7 @@ done
 # could be read as a regression when the merge base happens to pass.
 declare -a CONFIRMED=()
 declare -a FLAKY=()
+declare -a UNREACHABLE=()
 
 for target in ${FAILED[@]+"${FAILED[@]}"}; do
   name=$(jq -r '.name' <<< "${target}")
@@ -177,8 +216,13 @@ for target in ${FAILED[@]+"${FAILED[@]}"}; do
   if run_scenario "${name}" "${suite}" "${scenario}" "${skip_deps}"; then
     echo "Passed on re-check — treating the first failure as a flake."
     FLAKY+=("${name} (${suite} / ${scenario})")
+  elif [[ "${LAST_CLASS}" == "availability" ]]; then
+    # The connector is not answering. No build of ours changes that, so skip
+    # the arbitration rebuild entirely.
+    echo "Connector unreachable — not attributable to this PR, skipping arbitration."
+    UNREACHABLE+=("${name} (${suite} / ${scenario}): ${LAST_ERROR:-connector unreachable}")
   else
-    CONFIRMED+=("${target}")
+    CONFIRMED+=("$(jq -c --arg e "${LAST_ERROR}" '. + {head_error: $e}' <<< "${target}")")
   fi
   echo "::endgroup::"
 done
@@ -187,6 +231,9 @@ done
 declare -a REGRESSIONS=()
 declare -a PRE_EXISTING=()
 declare -a INCONCLUSIVE=()
+# HEAD failed on content while the merge base was unreachable. Distinct from
+# INCONCLUSIVE, which covers infrastructure gaps that carry no such signal.
+declare -a NO_BASELINE=()
 
 if [[ ${#CONFIRMED[@]} -gt 0 ]]; then
   if [[ -z "${BASE_SHA}" ]]; then
@@ -208,6 +255,11 @@ if [[ ${#CONFIRMED[@]} -gt 0 ]]; then
       echo "::group::Arbitrate ${label} at merge base"
       if run_scenario "${name}" "${suite}" "${scenario}" "${skip_deps}"; then
         REGRESSIONS+=("${label}")
+      elif [[ "${LAST_CLASS}" == "availability" ]]; then
+        # The merge base failed for a reason unrelated to code, so it proves
+        # nothing about HEAD's content failure. Absolving here is exactly how a
+        # real regression would slip through during a sandbox outage.
+        NO_BASELINE+=("${label}")
       else
         PRE_EXISTING+=("${label}")
       fi
@@ -223,6 +275,8 @@ fi
   for x in ${PRE_EXISTING[@]+"${PRE_EXISTING[@]}"}; do echo "- ⚠️ **already failing before this PR** — ${x}"; done
   for x in ${NO_CREDS[@]+"${NO_CREDS[@]}"};   do echo "- ⚠️ **not certified** — ${x}: no credentials in CI"; done
   for x in ${INCONCLUSIVE[@]+"${INCONCLUSIVE[@]}"}; do echo "- ⚠️ **inconclusive** — ${x}"; done
+  for x in ${UNREACHABLE[@]+"${UNREACHABLE[@]}"};   do echo "- ⚠️ **connector unreachable** — ${x}"; done
+  for x in ${NO_BASELINE[@]+"${NO_BASELINE[@]}"};   do echo "- ❌ **no baseline** — ${x}"; done
   for x in ${REGRESSIONS[@]+"${REGRESSIONS[@]}"};   do echo "- ❌ **regressed in this PR** — ${x}"; done
 } >> "${SUMMARY}"
 
@@ -233,10 +287,24 @@ for x in ${INCONCLUSIVE[@]+"${INCONCLUSIVE[@]}"}; do
   echo "::warning::Could not determine whether this PR caused the failure: ${x}"
 done
 
-if [[ ${#REGRESSIONS[@]} -gt 0 ]]; then
-  for x in "${REGRESSIONS[@]}"; do
-    echo "::error::${x} passes at the merge base and fails here — this PR breaks it."
-  done
+for x in ${UNREACHABLE[@]+"${UNREACHABLE[@]}"}; do
+  echo "::warning::${x} — the connector could not be reached at HEAD, so this is not attributable to any code change."
+done
+
+blocking=0
+for x in ${REGRESSIONS[@]+"${REGRESSIONS[@]}"}; do
+  echo "::error::${x} passes at the merge base and fails here — this PR breaks it."
+  blocking=1
+done
+# Not absolved: HEAD failed on content, and the merge base was unreachable, so
+# there is no evidence either way. Treating that as "pre-existing" is how a real
+# regression would merge during a sandbox outage. Re-run once the sandbox is back.
+for x in ${NO_BASELINE[@]+"${NO_BASELINE[@]}"}; do
+  echo "::error::${x} fails here on content, and the merge base could not be reached to compare. No baseline, so this is not being written off — re-run once the connector sandbox is reachable."
+  blocking=1
+done
+
+if [[ "${blocking}" -eq 1 ]]; then
   exit 1
 fi
 
