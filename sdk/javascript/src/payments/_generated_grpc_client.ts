@@ -16,7 +16,7 @@ const _dirname = __dirname;
  * Connection configuration for the gRPC client.
  * Field names must be snake_case — they are serialised to JSON and sent to the
  * Rust FFI layer which deserialises them into GrpcConfigInput.
- *
+ * 
  * The connector_config field should contain the connector-specific authentication
  * and configuration in the format expected by the server:
  * {"config": {"ConnectorName": {"api_key": "...", ...}}}
