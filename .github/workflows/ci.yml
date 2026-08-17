@@ -701,6 +701,18 @@ jobs:
           IFS=',' read -ra NEW_CONNECTORS <<< "${{ needs.changes.outputs.new-connectors }}"
 
           for name in "${NEW_CONNECTORS[@]}"; do
+            # Style requirement, applied only to connectors that did not exist at
+            # the base commit. Flow coverage itself is enforced separately and
+            # reads hand-written impls too, so this is about keeping new code on
+            # one pattern — not about correctness. Scoping it to new connectors
+            # is what makes it enforceable with no exception list to add
+            # yourself to.
+            src_path="crates/integrations/connector-integration/src/connectors/${name}.rs"
+            if [[ -f "$src_path" ]] && ! grep -q 'macros::create_all_prerequisites!(' "$src_path"; then
+              echo "::error::New connector '$name' does not use create_all_prerequisites! in $src_path. New connectors must declare their flows through the macro; hand-written ConnectorIntegrationV2 impls are read by the coverage check but are not accepted as the primary flow declaration for new code."
+              failures=$((failures + 1))
+            fi
+
             specs_path="crates/internal/integration-tests/src/connector_specs/${name}/specs.json"
             if [[ ! -f "$specs_path" ]]; then
               echo "::error::New connector '$name' has no specs.json at $specs_path"
