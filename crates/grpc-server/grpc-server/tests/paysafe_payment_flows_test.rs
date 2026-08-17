@@ -68,11 +68,12 @@ use grpc_api_types::{
         RefundStatus,
     },
 };
-use hyperswitch_masking::{Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use tonic::{transport::Channel, Request};
 
 // Constants for Paysafe connector
 const CONNECTOR_NAME: &str = "paysafe";
+const AUTH_TYPE: &str = "body-key";
 const MERCHANT_ID: &str = "merchant_paysafe_test";
 
 // Test card data - Paysafe test cards
@@ -100,36 +101,51 @@ fn get_timestamp() -> u64 {
         .as_secs()
 }
 
-// Helper function to load the Paysafe connector config from environment or file
+// Helper function to load Paysafe credentials from environment or file
 // Returns None if credentials are not available (for skipping tests)
-fn load_paysafe_config() -> Option<String> {
-    // Environment override for quick local testing: the full x-connector-config
-    // JSON, e.g. {"config":{"Paysafe":{"username":"...","password":"..."}}}
-    if let Ok(config) = std::env::var("TEST_PAYSAFE_CONFIG") {
-        return Some(config);
+fn load_paysafe_credentials() -> Option<(String, String)> {
+    // Try environment variables first (for quick testing)
+    if let (Ok(api_key), Ok(key1)) = (
+        std::env::var("TEST_PAYSAFE_API_KEY"),
+        std::env::var("TEST_PAYSAFE_KEY1"),
+    ) {
+        return Some((api_key, key1));
     }
 
-    utils::credential_utils::connector_config_header(CONNECTOR_NAME).ok()
+    // Fallback to credentials file
+    match utils::credential_utils::load_connector_auth(CONNECTOR_NAME) {
+        Ok(auth) => match auth {
+            domain_types::router_data::ConnectorAuthType::BodyKey { api_key, key1 } => {
+                Some((api_key.expose(), key1.expose()))
+            }
+            _ => panic!("Expected BodyKey auth type for paysafe"),
+        },
+        Err(_) => None, // Credentials not found - tests will be skipped
+    }
 }
 
 // Helper function to add Paysafe metadata headers to a request
 // Returns false if credentials are not available
 fn add_paysafe_metadata<T>(request: &mut Request<T>) -> bool {
-    let Some(connector_config) = load_paysafe_config() else {
+    let Some((api_key, key1)) = load_paysafe_credentials() else {
         return false;
     };
-
-    request.metadata_mut().append(
-        "x-connector-config",
-        connector_config
-            .parse()
-            .expect("Failed to parse x-connector-config"),
-    );
 
     request.metadata_mut().append(
         "x-connector",
         CONNECTOR_NAME.parse().expect("Failed to parse x-connector"),
     );
+    request
+        .metadata_mut()
+        .append("x-auth", AUTH_TYPE.parse().expect("Failed to parse x-auth"));
+
+    request.metadata_mut().append(
+        "x-api-key",
+        api_key.parse().expect("Failed to parse x-api-key"),
+    );
+    request
+        .metadata_mut()
+        .append("x-key1", key1.parse().expect("Failed to parse x-key1"));
 
     request.metadata_mut().append(
         "x-merchant-id",
@@ -372,7 +388,7 @@ async fn test_health() {
 #[tokio::test]
 async fn test_payment_authorization_auto_capture() {
     // Skip test if credentials are not available
-    if load_paysafe_config().is_none() {
+    if load_paysafe_credentials().is_none() {
         return;
     }
 
@@ -405,7 +421,7 @@ async fn test_payment_authorization_auto_capture() {
 #[tokio::test]
 async fn test_payment_authorization_manual_capture() {
     // Skip test if credentials are not available
-    if load_paysafe_config().is_none() {
+    if load_paysafe_credentials().is_none() {
         return;
     }
 
@@ -470,7 +486,7 @@ async fn test_payment_authorization_manual_capture() {
 #[tokio::test]
 async fn test_payment_sync() {
     // Skip test if credentials are not available
-    if load_paysafe_config().is_none() {
+    if load_paysafe_credentials().is_none() {
         return;
     }
 
@@ -617,7 +633,7 @@ async fn test_refund_sync() {
 #[tokio::test]
 async fn test_payment_void() {
     // Skip test if credentials are not available
-    if load_paysafe_config().is_none() {
+    if load_paysafe_credentials().is_none() {
         return;
     }
 

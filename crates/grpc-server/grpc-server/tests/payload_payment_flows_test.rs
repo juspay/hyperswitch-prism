@@ -35,6 +35,7 @@ use tonic::{transport::Channel, Request};
 use uuid::Uuid;
 
 const CONNECTOR_NAME: &str = "payload";
+const AUTH_TYPE: &str = "currency-auth-key";
 const MERCHANT_ID: &str = "merchant_payload_test";
 
 // Test card data
@@ -58,19 +59,29 @@ fn generate_unique_id(prefix: &str) -> String {
 
 fn add_payload_metadata<T>(request: &mut Request<T>) {
     // Get API credentials using the common credential loading utility
-    let connector_config = utils::credential_utils::connector_config_header(CONNECTOR_NAME)
-        .expect("Failed to load connector config");
+    let auth = utils::credential_utils::load_connector_auth(CONNECTOR_NAME)
+        .expect("Failed to load Payload credentials");
 
-    request.metadata_mut().append(
-        "x-connector-config",
-        connector_config
-            .parse()
-            .expect("Failed to parse x-connector-config"),
-    );
+    let auth_key_map_json = match auth {
+        domain_types::router_data::ConnectorAuthType::CurrencyAuthKey { auth_key_map } => {
+            // Convert the auth_key_map to JSON string format expected by the metadata
+            serde_json::to_string(&auth_key_map).expect("Failed to serialize auth_key_map")
+        }
+        _ => panic!("Expected CurrencyAuthKey auth type for Payload"),
+    };
 
     request.metadata_mut().append(
         "x-connector",
         CONNECTOR_NAME.parse().expect("Failed to parse x-connector"),
+    );
+    request
+        .metadata_mut()
+        .append("x-auth", AUTH_TYPE.parse().expect("Failed to parse x-auth"));
+    request.metadata_mut().append(
+        "x-auth-key-map",
+        auth_key_map_json
+            .parse()
+            .expect("Failed to parse x-auth-key-map"),
     );
     request.metadata_mut().append(
         "x-merchant-id",

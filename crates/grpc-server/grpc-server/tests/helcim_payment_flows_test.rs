@@ -29,6 +29,7 @@ use tonic::{transport::Channel, Request};
 
 // Constants for Helcim connector
 const CONNECTOR_NAME: &str = "helcim";
+const AUTH_TYPE: &str = "header-key";
 
 // Test card data
 const TEST_CARD_NUMBER: &str = "5413330089099130"; // Valid test card for Helcim
@@ -57,19 +58,24 @@ fn get_timestamp() -> u64 {
 
 // Helper function to add Helcim metadata headers to a request
 fn add_helcim_metadata<T>(request: &mut Request<T>) {
-    let connector_config = utils::credential_utils::connector_config_header(CONNECTOR_NAME)
-        .expect("Failed to load connector config");
+    let auth = utils::credential_utils::load_connector_auth(CONNECTOR_NAME)
+        .expect("Failed to load helcim credentials");
 
-    request.metadata_mut().append(
-        "x-connector-config",
-        connector_config
-            .parse()
-            .expect("Failed to parse x-connector-config"),
-    );
+    let api_key = match auth {
+        domain_types::router_data::ConnectorAuthType::HeaderKey { api_key } => api_key.expose(),
+        _ => panic!("Expected HeaderKey auth type for helcim"),
+    };
 
     request.metadata_mut().append(
         "x-connector",
         CONNECTOR_NAME.parse().expect("Failed to parse x-connector"),
+    );
+    request
+        .metadata_mut()
+        .append("x-auth", AUTH_TYPE.parse().expect("Failed to parse x-auth"));
+    request.metadata_mut().append(
+        "x-api-key",
+        api_key.parse().expect("Failed to parse x-api-key"),
     );
     // Add merchant ID which is required by the server
     request.metadata_mut().append(
