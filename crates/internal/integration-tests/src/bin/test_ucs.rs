@@ -999,9 +999,16 @@ mod tests {
     #[test]
     fn a_named_scenario_that_never_ran_is_not_a_pass() {
         // passed=0, failed=0 is what a skip looks like from the outside.
-        let err = run_outcome(&ScenarioSelection::Specific("no3ds".to_string()), 0, 0)
-            .expect_err("a skipped named scenario must not report success");
-        assert!(err.contains("no3ds"), "error should name the scenario: {err}");
+        let outcome = run_outcome(&ScenarioSelection::Specific("no3ds".to_string()), 0, 0);
+        assert!(
+            outcome.is_err(),
+            "a skipped named scenario must not report success"
+        );
+        let message = outcome.err().unwrap_or_default();
+        assert!(
+            message.contains("no3ds"),
+            "error should name the scenario: {message}"
+        );
     }
 
     #[test]
