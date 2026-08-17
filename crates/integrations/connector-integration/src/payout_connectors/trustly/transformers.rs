@@ -812,6 +812,10 @@ fn build_error_from_response(
     error_response: &TrustlyErrorResponse,
     status_code: u16,
 ) -> domain_types::router_data::ErrorResponse {
+    let typed = crate::connectors::macros::serialize_typed_connector_payload(
+        error_response,
+        "typed_connector_response",
+    );
     domain_types::router_data::ErrorResponse {
         code: error_response.error.code.to_string(),
         message: error_response.error.message.clone(),
@@ -822,5 +826,9 @@ fn build_error_from_response(
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
+        typed_connector_response: typed,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
     }
 }
