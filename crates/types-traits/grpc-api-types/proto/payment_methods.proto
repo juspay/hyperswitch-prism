@@ -99,9 +99,13 @@ message PaymentMethod {
     VenmoRedirectWallet venmo_redirect = 173;            // Venmo
     SkrillRedirectWallet skrill_redirect = 174;          // Skrill
     PayseraRedirectWallet paysera_redirect = 175;        // Paysera
+    PaymayaRedirectWallet paymaya_redirect = 186;      // Paymaya Redirect
 
     // --- DIRECT WALLETS --- (server-to-server; wallet id rides on the payment_method itself)
     QwikcilverDirectWallet qwikcilver_wallet_direct = 185; // Qwikcilver / Pine Labs stored-value wallet
+
+    // --- GRABPAY WALLET ---
+    GrabpayRedirectWallet grabpay_redirect = 187;          // GrabPay one-time-charge redirect wallet
 
     // --- DEPRECATED REDIRECT WALLETS ---
     RevolutPayWallet revolut_pay = 181;                   // Revolut Pay
@@ -218,6 +222,8 @@ message PaymentMethod {
     NetbankingPayment netbanking = 158;                          // Netbanking - Indian online banking (bank redirect)
   }
 }
+
+message GrabpayRedirectWallet {}
 
 // ============================================================================
 // PAYMENT METHOD CATEGORIES
@@ -721,6 +727,11 @@ message PayseraRedirectWallet {
   // Fields will be added as needed for Paysera Redirect integration
 }
 
+// Paymaya Redirect - Philippine digital wallet Paymaya redirect
+message PaymayaRedirectWallet {
+  // Fields will be added as needed for Paymaya redirect integration
+}
+
 // Apple Pay Third Party SDK - Apple Pay with token from third-party SDK
 message ApplePayThirdPartySdkWallet {
   // Payment token from third-party SDK
@@ -974,7 +985,16 @@ message OpenBankingUK {
 
 // Open Banking - Open Banking implementation
 message OpenBanking {
-  // Fields will be added as needed for Open Banking integration
+  // International Bank Account Number
+  optional SecretString iban = 1;
+  // Bank account number
+  optional SecretString account_number = 2;
+  // Sort code for the bank account
+  optional SecretString sort_code = 3;
+  // Name of the account holder
+  optional SecretString account_holder_name = 4;
+  // Additional payment details as a JSON string
+  optional SecretString additional_details = 5;
 }
 
 // Open Banking Payment Initiation Service

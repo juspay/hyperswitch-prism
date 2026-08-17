@@ -106,8 +106,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> connector_types::AuthenticationStep {
         use connector_types::{AuthenticationStep, RedirectState};
 
+        // Wallets take this path too: a Google Pay token with no cryptogram is non-SCA on its
+        // own, and Paysafe's guidance is to authenticate it with a 3DS challenge rather than
+        // skip 3DS. The wallet payload rides the same PreAuthenticate -> Authenticate ->
+        // Authorize chain as a card, since only that leg surfaces the ACS redirect.
         if auth_type == common_enums::AuthenticationType::ThreeDs
-            && payment_method == PaymentMethod::Card
+            && matches!(payment_method, PaymentMethod::Card | PaymentMethod::Wallet)
         {
             match (redirect_state, completed_step) {
                 (RedirectState::InitialRequest, _) => AuthenticationStep::PreAuthenticate,
@@ -350,6 +354,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             (None, None) => Some(response.error.message.clone()),
         };
 
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.error.code,
@@ -360,6 +366,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     }
 }

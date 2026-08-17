@@ -2,7 +2,10 @@ pub mod transformers;
 
 use common_enums::CurrencyUnit;
 use common_utils::{
-    errors::CustomResult, events, ext_traits::ByteSliceExt, request::RequestContent,
+    errors::CustomResult,
+    events,
+    ext_traits::ByteSliceExt,
+    request::{ConnectorRequestData, RequestContent},
 };
 use domain_types::{
     connector_flow::{
@@ -11,7 +14,8 @@ use domain_types::{
         ServerAuthenticationToken,
     },
     connector_types::{
-        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+        RawConnectorRequestResponse, ServerAuthenticationTokenRequestData,
+        ServerAuthenticationTokenResponseData,
     },
     errors::{
         ConnectorError, IntegrationError, IntegrationErrorContext,
@@ -43,6 +47,7 @@ use interfaces::{
     },
 };
 
+use crate::finalize_connector_response;
 use crate::types::ResponseRouterData;
 use transformers::{
     SantanderAccessTokenRequest, SantanderAccessTokenResponse, SantanderAuthType,
@@ -103,6 +108,10 @@ impl ConnectorCommon for SantanderPayouts {
         match response {
             Ok(error_res) => {
                 event_builder.map(|i| i.set_connector_response(&error_res));
+                let typed = crate::connectors::macros::serialize_typed_connector_payload(
+                    &error_res,
+                    "typed_connector_response",
+                );
                 Ok(ErrorResponse {
                     status_code: res.status_code,
                     code: error_res.code,
@@ -113,6 +122,10 @@ impl ConnectorCommon for SantanderPayouts {
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 })
             }
             Err(error) => {
@@ -132,6 +145,10 @@ impl ConnectorCommon for SantanderPayouts {
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 })
             }
         }
@@ -247,11 +264,16 @@ impl
             ServerAuthenticationTokenRequestData,
             ServerAuthenticationTokenResponseData,
         >,
-    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<ConnectorRequestData>, IntegrationError> {
         let connector_req = SantanderAccessTokenRequest::try_from(req)?;
-        Ok(Some(RequestContent::FormUrlEncoded(Box::new(
-            connector_req,
-        ))))
+        let typed = events::MaskedSerdeValue::from_masked_optional(
+            &connector_req,
+            "typed_connector_request",
+        );
+        Ok(Some(ConnectorRequestData::new(
+            RequestContent::FormUrlEncoded(Box::new(connector_req)),
+            typed,
+        )))
     }
 
     fn handle_response_v2(
@@ -279,14 +301,22 @@ impl
         match response {
             Ok(token_res) => {
                 event_builder.map(|i| i.set_connector_response(&token_res));
-                Ok(RouterDataV2 {
+                let typed = events::MaskedSerdeValue::from_masked_optional(
+                    &token_res,
+                    "connector_response",
+                );
+                let mut result = RouterDataV2 {
                     response: Ok(ServerAuthenticationTokenResponseData {
                         access_token: token_res.access_token.into(),
                         token_type: token_res.token_type,
                         expires_in: token_res.expires_in,
                     }),
                     ..data.clone()
-                })
+                };
+                result
+                    .resource_common_data
+                    .set_typed_connector_response(typed.map(|v| v.inner().to_string()));
+                Ok(result)
             }
             Err(error) => {
                 tracing::warn!(
@@ -412,9 +442,16 @@ impl ConnectorIntegrationV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, P
     fn get_request_body(
         &self,
         req: &RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>,
-    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<ConnectorRequestData>, IntegrationError> {
         let connector_req = SantanderCreateRequest::try_from(req)?;
-        Ok(Some(RequestContent::Json(Box::new(connector_req))))
+        let typed = events::MaskedSerdeValue::from_masked_optional(
+            &connector_req,
+            "typed_connector_request",
+        );
+        Ok(Some(ConnectorRequestData::new(
+            RequestContent::Json(Box::new(connector_req)),
+            typed,
+        )))
     }
 
     fn handle_response_v2(
@@ -443,13 +480,7 @@ impl ConnectorIntegrationV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, P
                 },
             })?;
 
-        event_builder.map(|i| i.set_connector_response(&response));
-
-        RouterDataV2::try_from(ResponseRouterData {
-            response,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        })
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -563,9 +594,16 @@ impl
             PayoutTransferRequest,
             PayoutTransferResponse,
         >,
-    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<ConnectorRequestData>, IntegrationError> {
         let connector_req = SantanderTransferRequest::try_from(req)?;
-        Ok(Some(RequestContent::Json(Box::new(connector_req))))
+        let typed = events::MaskedSerdeValue::from_masked_optional(
+            &connector_req,
+            "typed_connector_request",
+        );
+        Ok(Some(ConnectorRequestData::new(
+            RequestContent::Json(Box::new(connector_req)),
+            typed,
+        )))
     }
 
     fn handle_response_v2(
@@ -594,13 +632,7 @@ impl
                 },
             })?;
 
-        event_builder.map(|i| i.set_connector_response(&response));
-
-        RouterDataV2::try_from(ResponseRouterData {
-            response,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        })
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -731,13 +763,7 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
                 },
             })?;
 
-        event_builder.map(|i| i.set_connector_response(&response));
-
-        RouterDataV2::try_from(ResponseRouterData {
-            response,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        })
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(

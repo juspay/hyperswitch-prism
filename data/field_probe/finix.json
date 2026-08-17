@@ -648,8 +648,45 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "error",
-        "error": "Invalid data format: payment_method_data.card.card_exp_month. Expected format: MM"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_proxy_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "customer": {
+            "connector_customer_id": "probe_customer_001"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
+          "auth_type": "NO_THREE_DS",
+          "setup_future_usage": "OFF_SESSION"
+        },
+        "sample": {
+          "url": "https://finix.sandbox-payments-api.com/payment_instruments",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-finix-referrer-source": "PLUGIN_HYPERSWITCH"
+          },
+          "body": "{\"type\":\"PAYMENT_CARD\",\"name\":\"John Doe\",\"number\":\"{{$card_number}}\",\"security_code\":\"{{$card_cvc}}\",\"expiration_month\":3,\"expiration_year\":2030,\"identity\":\"probe_customer_001\",\"tags\":{\"merchant_reference\":\"probe_proxy_mandate_001\"},\"address\":{\"line1\":null,\"line2\":null,\"city\":null,\"region\":null,\"postal_code\":null,\"country\":null},\"card_brand\":null,\"card_type\":null,\"additional_data\":null,\"merchant_identity\":null,\"third_party_token\":null}"
+        }
       }
     },
     "recurring_charge": {

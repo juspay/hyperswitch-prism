@@ -505,6 +505,8 @@ impl EventServiceImpl {
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
             connector_latency: metadata_payload.connector_latency.clone(),
+            log_fields_enabled: config.log_fields.enabled,
+            log_fields: &config.log_fields.outgoing,
         };
 
         let response_result = Box::pin(
@@ -614,6 +616,8 @@ impl EventServiceImpl {
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
             connector_latency: metadata_payload.connector_latency.clone(),
+            log_fields_enabled: config.log_fields.enabled,
+            log_fields: &config.log_fields.outgoing,
         };
 
         let response_result = Box::pin(
@@ -723,6 +727,8 @@ impl EventServiceImpl {
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
             connector_latency: metadata_payload.connector_latency.clone(),
+            log_fields_enabled: config.log_fields.enabled,
+            log_fields: &config.log_fields.outgoing,
         };
 
         let response_result = Box::pin(
@@ -829,6 +835,8 @@ impl EventServiceImpl {
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
             connector_latency: metadata_payload.connector_latency.clone(),
+            log_fields_enabled: config.log_fields.enabled,
+            log_fields: &config.log_fields.outgoing,
         };
 
         let response_result = Box::pin(
@@ -935,6 +943,8 @@ impl EventServiceImpl {
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
             connector_latency: metadata_payload.connector_latency.clone(),
+            log_fields_enabled: config.log_fields.enabled,
+            log_fields: &config.log_fields.outgoing,
         };
 
         let response_result = Box::pin(
@@ -976,6 +986,8 @@ async fn verify_webhook_source_external(
         connector_request_reference_id: format!("webhook_verify_{}", metadata_payload.request_id),
         raw_connector_response: None,
         raw_connector_request: None,
+        typed_connector_request: None,
+        typed_connector_response: None,
         connector_response_headers: None,
     };
 
@@ -1030,6 +1042,8 @@ async fn verify_webhook_source_external(
         merchant_id: metadata_payload.merchant_id.as_str(),
         return_raw_connector_data: config.common.return_raw_connector_data,
         connector_latency: metadata_payload.connector_latency.clone(),
+        log_fields_enabled: config.log_fields.enabled,
+        log_fields: &config.log_fields.outgoing,
     };
 
     match Box::pin(

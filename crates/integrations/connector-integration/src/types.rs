@@ -126,6 +126,7 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
             ConnectorEnum::Easebuzz => Box::new(connectors::Easebuzz::new()),
             ConnectorEnum::Imerchantsolutions => Box::new(connectors::Imerchantsolutions::new()),
             ConnectorEnum::Axisbank => Box::new(connectors::Axisbank::new()),
+            ConnectorEnum::Maya => Box::new(connectors::Maya::new()),
             ConnectorEnum::TsysTransit => Box::new(connectors::TsysTransit::new()),
             ConnectorEnum::TwocTwopPaco => Box::new(connectors::TwocTwopPaco::new()),
             ConnectorEnum::Juspay => Box::new(connectors::Juspay::<T>::new()),
@@ -138,7 +139,9 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
             ConnectorEnum::Affirm => Box::new(connectors::Affirm::<T>::new()),
             ConnectorEnum::Kount => Box::new(connectors::Kount::<T>::new()),
             ConnectorEnum::Givepayments => Box::new(connectors::Givepayments::<T>::new()),
+            ConnectorEnum::Grabpay => Box::new(connectors::Grabpay::<T>::new()),
             ConnectorEnum::Tesouro => Box::new(connectors::Tesouro::<T>::new()),
+            ConnectorEnum::Boost => Box::new(connectors::Boost::<T>::new()),
         }
     }
 }

@@ -982,20 +982,20 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"request_id\":\"confirm_probe_proxy_txn_001\",\"payment_method\":{\"card\":{\"number\":\"{{$card_number}}\",\"expiry_month\":\"{{$card_exp_month}}\",\"expiry_year\":\"{{$card_exp_year}}\",\"cvc\":\"{{$card_cvc}}\",\"name\":\"John Doe\"},\"type\":\"card\"},\"payment_method_options\":{\"card\":{\"auto_capture\":true}},\"return_url\":\"https://example.com/return\"}"
+          "body": "{\"request_id\":\"confirm_probe_proxy_txn_001\",\"payment_method\":{\"card\":{\"number\":\"{{$card_number}}\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvc\":\"{{$card_cvc}}\",\"name\":\"John Doe\"},\"type\":\"card\"},\"payment_method_options\":{\"card\":{\"auto_capture\":true}},\"return_url\":\"https://example.com/return\"}"
         }
       }
     },
     "proxy_setup_recurring": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: connector_order_id — Missing required field: connector_order_id"
+        "error": "Stuck on field: connector_customer — Missing required field: connector_customer"
       }
     },
     "recurring_charge": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: connector_order_id — Missing required field: connector_order_id"
+        "error": "Stuck on field: payment_method_id — Missing required field: payment_method_id"
       }
     },
     "recurring_revoke": {
@@ -1077,7 +1077,7 @@
     "setup_recurring": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: connector_order_id — Missing required field: connector_order_id"
+        "error": "Stuck on field: connector_customer — Missing required field: connector_customer"
       }
     },
     "token_authorize": {
@@ -1088,8 +1088,8 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: connector_order_id — Missing required field: connector_order_id"
+        "status": "not_supported",
+        "error": "SetupMandate Payment Method (only Card supported) is not supported by Airwallex"
       }
     },
     "tokenize": {

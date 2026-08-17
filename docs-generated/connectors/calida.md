@@ -25,6 +25,7 @@ config = sdk_config_pb2.ConnectorConfig(
     connector_config=payment_pb2.ConnectorSpecificConfig(
         calida=payment_pb2.CalidaConfig(
             api_key=payment_methods_pb2.SecretString(value="YOUR_API_KEY"),
+            shop_name=payment_methods_pb2.SecretString(value="YOUR_SHOP_NAME"),
             base_url="YOUR_BASE_URL",
         ),
     ),
@@ -49,6 +50,7 @@ const config = ConnectorConfig.create({
     auth: {
         calida: {
             apiKey: { value: 'YOUR_API_KEY' },
+            shopName: { value: 'YOUR_SHOP_NAME' },
             baseUrl: 'YOUR_BASE_URL',
         }
     },
@@ -69,6 +71,7 @@ val config = ConnectorConfig.newBuilder()
         ConnectorSpecificConfig.newBuilder()
             .setCalida(CalidaConfig.newBuilder()
                 .setApiKey(SecretString.newBuilder().setValue("YOUR_API_KEY").build())
+                .setShopName(SecretString.newBuilder().setValue("YOUR_SHOP_NAME").build())
                 .setBaseUrl("YOUR_BASE_URL")
                 .build())
             .build()
@@ -91,6 +94,7 @@ let config = ConnectorConfig {
     connector_config: Some(ConnectorSpecificConfig {
             config: Some(connector_specific_config::Config::Calida(CalidaConfig {
                 api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())),  // Authentication credential
+                shop_name: Some(hyperswitch_masking::Secret::new("YOUR_SHOP_NAME".to_string())),  // Authentication credential
                 base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
                 ..Default::default()
             })),
@@ -126,4 +130,4 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/calida/calida.py) · [TypeScript](../../examples/calida/calida.ts#L64) · [Kotlin](../../examples/calida/calida.kt#L51) · [Rust](../../examples/calida/calida.rs)
+**Examples:** [Python](../../examples/calida/calida.py) · [TypeScript](../../examples/calida/calida.ts#L65) · [Kotlin](../../examples/calida/calida.kt#L52) · [Rust](../../examples/calida/calida.rs)

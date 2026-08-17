@@ -377,7 +377,7 @@
       },
       "OpenBanking": {
         "status": "not_supported",
-        "error": "BankRedirect type OpenBanking is not supported by Shift4 is not supported by Shift4"
+        "error": "BankRedirect type OpenBanking { account_number: None, sort_code: None, iban: None, account_holder_name: None, additional_details: None } is not supported by Shift4 is not supported by Shift4"
       },
       "OpenBankingPis": {
         "status": "not_supported",
@@ -761,7 +761,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"captured\":true,\"card\":{\"number\":\"{{$card_number}}\",\"expMonth\":\"{{$card_exp_month}}\",\"expYear\":\"{{$card_exp_year}}\",\"cardholderName\":\"John\"}}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"captured\":true,\"card\":{\"number\":\"{{$card_number}}\",\"expMonth\":\"03\",\"expYear\":\"2030\",\"cardholderName\":\"John\"}}"
         }
       }
     },
@@ -802,7 +802,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":0,\"currency\":\"USD\",\"captured\":false,\"card\":{\"number\":\"{{$card_number}}\",\"expMonth\":\"{{$card_exp_month}}\",\"expYear\":\"{{$card_exp_year}}\",\"cardholderName\":\"John\"}}"
+          "body": "{\"amount\":0,\"currency\":\"USD\",\"captured\":false,\"card\":{\"number\":\"{{$card_number}}\",\"expMonth\":\"03\",\"expYear\":\"2030\",\"cardholderName\":\"John\"}}"
         }
       }
     },

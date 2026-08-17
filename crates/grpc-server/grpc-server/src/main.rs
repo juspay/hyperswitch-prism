@@ -18,6 +18,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // build, not a config/env value. `application_name`/`deployment_id`/`pod_name` come from config.
     config.runtime_metadata.version = ucs_env::git_describe!().to_string();
 
+    let _guard = logger::setup(
+        &config.log,
+        ucs_env::service_name!(),
+        [ucs_env::service_name!(), "grpc_server", "tower_http"],
+    );
+
     // Load superposition.toml for connector URL resolution
     let superposition_config_path = format!(
         "{}/config/superposition.toml",
@@ -39,12 +45,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             );
         }
     }
-
-    let _guard = logger::setup(
-        &config.log,
-        ucs_env::service_name!(),
-        [ucs_env::service_name!(), "grpc_server", "tower_http"],
-    );
 
     // Optionally push metrics over OTLP to an OpenTelemetry Collector (mirrors the
     // hyperswitch app). Additive to the Prometheus /metrics scrape endpoint.

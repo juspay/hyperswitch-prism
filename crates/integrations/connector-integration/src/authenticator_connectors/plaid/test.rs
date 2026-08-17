@@ -51,6 +51,8 @@ mod tests {
                     merchant_request_id: None,
                     raw_connector_response: None,
                     raw_connector_request: None,
+                    typed_connector_request: None,
+                    typed_connector_response: None,
                     connector_response_headers: None,
                 },
                 connector_config: ConnectorSpecificConfig::Plaid {
@@ -235,6 +237,7 @@ mod tests {
                     raw_connector_response: None,
                     vault_headers: None,
                     raw_connector_request: None,
+                    typed_connector_request: None,
                     minor_amount_capturable: None,
                     amount: None,
                     connector_response: None,
@@ -244,6 +247,8 @@ mod tests {
                     sender_payment_instrument_id: None,
                     settlement_status: None,
                     raw_connector_status: None,
+                    connector_returned_payment_method_details: None,
+                    typed_connector_response: None,
                 },
                 connector_config: ConnectorSpecificConfig::Plaid {
                     client_id: Secret::new("test_client_id".to_owned()),
@@ -394,6 +399,7 @@ mod tests {
                     raw_connector_response: None,
                     vault_headers: None,
                     raw_connector_request: None,
+                    typed_connector_request: None,
                     minor_amount_capturable: None,
                     amount: None,
                     connector_response: None,
@@ -403,6 +409,8 @@ mod tests {
                     sender_payment_instrument_id: None,
                     settlement_status: None,
                     raw_connector_status: None,
+                    connector_returned_payment_method_details: None,
+                    typed_connector_response: None,
                 },
                 connector_config: ConnectorSpecificConfig::Plaid {
                     client_id: Secret::new("test_client_id".to_owned()),
