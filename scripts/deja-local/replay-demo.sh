@@ -123,34 +123,56 @@ print(last)")}"
 [[ -n "$CORR" ]] || { echo "no recorded correlations on the topic — run record-demo.sh first"; exit 1; }
 echo "    correlation: $CORR"
 
-echo "==> [3/7] stage events (D3 shim: grpc_incoming -> http_incoming) + render lookup table"
+echo "==> [3/7] stage events (D3 shim: grpc_incoming -> http_incoming) + extract re-drive spec"
 rm -rf "$STATE"
 python3 -c "
-import json
+import json, sys
 out = open('/tmp/ucs-rec.jsonl', 'w')
-kept = 0
+kept, redrive = 0, None
 for line in open('/tmp/full_tape.jsonl'):
     env = json.loads(line)
     if env.get('artifact_type') != 'deja_artifact_record': continue
     if env.get('correlation_id') != '$CORR': continue
     e = dict(env['event'])
     if e.get('boundary') == 'grpc_incoming':
+        # Extract the recorded request so the re-drive sends EXACTLY what was recorded
+        # (any rpc, any payload — hyperswitch-driven correlations included).
+        args = e.get('args') or e.get('request') or {}
+        if isinstance(args, str): args = json.loads(args)
+        decoded = ((args.get('request') or {}).get('decoded'))
+        if decoded is None:
+            print('    ERROR: recorded ingress is undecoded; cannot re-drive', file=sys.stderr)
+            sys.exit(1)
+        headers = [(n, v) for n, v in (args.get('metadata') or []) if n.startswith('x-')]
+        redrive = {'rpc': (args.get('rpc') or '').lstrip('/'), 'headers': headers, 'body': decoded}
         e['boundary'] = 'http_incoming'
     out.write(json.dumps({'record_kind': 'boundary_event', **e}) + '\n'); kept += 1
-out.close(); print(f'    staged {kept} events')"
+out.close()
+if redrive is None:
+    print('    ERROR: no grpc_incoming event for this correlation', file=sys.stderr); sys.exit(1)
+json.dump(redrive['body'], open('/tmp/ucs-redrive-body.json', 'w'))
+open('/tmp/ucs-redrive-rpc.txt', 'w').write(redrive['rpc'])
+open('/tmp/ucs-redrive-headers.txt', 'w').write('\n'.join(f'{n}: {v}' for n, v in redrive['headers']))
+print(f'    staged {kept} events; re-drive = {redrive[\"rpc\"]} with {len(redrive[\"headers\"])} recorded headers')"
 TABLE=$("$BRIDGE" prepare /tmp/ucs-rec.jsonl "$REC_ID" "$STATE" "$RUN_ID")
 
 echo "==> [4/7] boot UCS in replay mode (LookupTableHook) — connector NOT started"
 pkill -9 -f "target/debug/grpc-server" 2>/dev/null || true
 pkill -f deja-local/mock_connector.py 2>/dev/null || true
 sleep 1
+# Config parity with the RECORDING is load-bearing (the same-effective-config invariant):
+# TestConfig rewrites the connector URL BEFORE the boundary, so replaying a tape recorded
+# without test mode under test mode (or vice versa) diverges the egress args and
+# fail-stops. Default matches record-demo.sh; for tapes recorded against real connectors
+# (e.g. hyperswitch-driven sessions) run with DEJA_TEST_MODE=false.
+DEJA_TEST_MODE="${DEJA_TEST_MODE:-true}"
 (
   cd "$ROOT"
   CS__COMMON__ENVIRONMENT=development \
   CS__DEJA__MODE=replay \
   CS__DEJA__REPLAY__SOURCE="$TABLE" \
   CS__DEJA__REPLAY__OBSERVED_SINK="$STATE/observed/$RUN_ID.jsonl" \
-  CS__TEST__ENABLED=true \
+  CS__TEST__ENABLED="$DEJA_TEST_MODE" \
   CS__TEST__MOCK_SERVER_URL=http://localhost:3000/mock \
   nohup "$BIN" > /tmp/deja-replay-server.log 2>&1 < /dev/null &
   disown
@@ -160,12 +182,12 @@ grep -q "deja runtime hook installed" /tmp/deja-replay-server.log \
   || { echo "    BOOT FAILED — see /tmp/deja-replay-server.log"; exit 1; }
 echo "    replay hook installed from rendered table"
 
-echo "==> [5/7] re-drive the recorded request (egress must come from tape)"
-grpcurl -max-time 20 -plaintext \
-  -H 'x-connector: stripe' -H 'x-auth: header-key' -H 'x-api-key: sk_test_dummy_demo' \
-  -H 'x-merchant-id: merchant_demo' -H 'x-tenant-id: default' \
-  -H "x-request-id: $CORR" -H 'x-connector-request-reference-id: deja_demo_ref' \
-  -d @ localhost:8000 types.PaymentService/Authorize < "$HERE/authorize.json" \
+echo "==> [5/7] re-drive the RECORDED request (rpc/metadata/payload from the tape)"
+REDRIVE_RPC=$(cat /tmp/ucs-redrive-rpc.txt)
+REDRIVE_HDRS=()
+while IFS= read -r line; do [ -n "$line" ] && REDRIVE_HDRS+=(-H "$line"); done < /tmp/ucs-redrive-headers.txt
+grpcurl -max-time 20 -plaintext "${REDRIVE_HDRS[@]}" \
+  -d @ localhost:8000 "$REDRIVE_RPC" < /tmp/ucs-redrive-body.json \
   >/dev/null 2>&1 || true
 pkill -f "target/debug/grpc-server"; sleep 2
 
