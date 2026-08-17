@@ -230,6 +230,7 @@ impl PayoutConnectorData {
                 Box::new(payout_connectors::CybersourcePayouts::new())
             }
             PayoutConnectorEnum::Santander => Box::new(payout_connectors::SantanderPayouts::new()),
+            PayoutConnectorEnum::Truelayer => Box::new(payout_connectors::TruelayerPayouts::new()),
         }
     }
 }

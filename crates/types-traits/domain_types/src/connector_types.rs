@@ -245,6 +245,7 @@ pub enum PayoutConnectorEnum {
     Worldpayxml,
     Cybersource,
     Santander,
+    Truelayer,
 }
 
 impl TryFrom<ConnectorEnum> for PayoutConnectorEnum {
@@ -257,6 +258,7 @@ impl TryFrom<ConnectorEnum> for PayoutConnectorEnum {
             ConnectorEnum::Itaubank => Ok(Self::Itaubank),
             ConnectorEnum::Worldpayxml => Ok(Self::Worldpayxml),
             ConnectorEnum::Cybersource => Ok(Self::Cybersource),
+            ConnectorEnum::Truelayer => Ok(Self::Truelayer),
             _ => Err(IntegrationError::InvalidDataFormat {
                 field_name: "connector",
                 context: IntegrationErrorContext::default(),
@@ -298,6 +300,7 @@ impl ForeignTryFrom<AuthType> for PayoutConnectorEnum {
             AuthType::Worldpayxml(_) => Ok(Self::Worldpayxml),
             AuthType::Cybersource(_) => Ok(Self::Cybersource),
             AuthType::Santander(_) => Ok(Self::Santander),
+            AuthType::Truelayer(_) => Ok(Self::Truelayer),
             _ => Err(error_stack::Report::new(
                 IntegrationError::InvalidDataFormat {
                     field_name: "connector",
