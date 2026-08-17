@@ -1,12 +1,15 @@
 //! Superposition configuration wrapper for connector-service
 //!
-//! This module provides a thin wrapper around `superposition_core::Config`
+//! This module provides a thin wrapper around Superposition's local provider
 //! for loading and resolving configuration based on dimensions (connector, environment).
 
+use std::{fmt, path::PathBuf};
+
 use serde_json::{Map, Value};
-use std::collections::HashMap;
-use superposition_core::{eval_config, ConfigFormat, MergeStrategy, TomlFormat};
-use superposition_types::DetailedConfig;
+use superposition_provider::{
+    data_source::file::FileDataSource, traits::AllFeatureProvider, EvaluationContext,
+    LocalResolutionProvider, RefreshStrategy, WatchStrategy,
+};
 
 use crate::consts::{
     CONFIG_KEY_CONNECTOR_BASE_URL, CONFIG_KEY_CONNECTOR_BASE_URL_BANK_REDIRECTS,
@@ -17,28 +20,26 @@ use crate::consts::{
 /// Error type for superposition configuration operations
 #[derive(Debug, thiserror::Error)]
 pub enum SuperpositionConfigError {
-    /// Failed to read the configuration file
-    #[error("Failed to read superposition config file '{path}': {source}")]
-    FileReadError {
-        path: String,
-        source: std::io::Error,
-    },
-    /// Failed to parse the TOML configuration
-    #[error("Failed to parse superposition.toml: {0}")]
-    ParseError(String),
-    /// Failed to resolve configuration for given context
-    #[error("Failed to resolve configuration: {0}")]
+    #[error("Failed to initialize superposition local provider: {0}")]
+    InitializationError(String),
+    #[error("Failed to resolve superposition configuration: {0}")]
     ResolutionError(String),
 }
 
-/// Parsed and cached representation of superposition.toml
-#[derive(Debug, Clone)]
+/// Local provider backed by superposition.toml.
+#[derive(Clone)]
 pub struct SuperpositionConfig {
-    config: DetailedConfig,
+    provider: LocalResolutionProvider,
+}
+
+impl fmt::Debug for SuperpositionConfig {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("SuperpositionConfig")
+    }
 }
 
 impl SuperpositionConfig {
-    /// Load and parse superposition.toml from the given path.
+    /// Load superposition.toml and watch it for changes.
     ///
     /// # Arguments
     /// * `path` - Path to the superposition.toml file
@@ -48,19 +49,22 @@ impl SuperpositionConfig {
     ///
     /// # Example
     /// ```ignore
-    /// let config = SuperpositionConfig::from_file("config/superposition.toml")?;
+    /// let config = SuperpositionConfig::from_file("config/superposition.toml").await?;
     /// ```
-    pub fn from_file(path: &str) -> Result<Self, SuperpositionConfigError> {
-        let contents =
-            std::fs::read_to_string(path).map_err(|e| SuperpositionConfigError::FileReadError {
-                path: path.to_string(),
-                source: e,
-            })?;
+    pub async fn from_file(path: &str) -> Result<Self, SuperpositionConfigError> {
+        let source = FileDataSource::new(PathBuf::from(path))
+            .map_err(SuperpositionConfigError::InitializationError)?;
+        let provider = LocalResolutionProvider::new(
+            Box::new(source),
+            None,
+            RefreshStrategy::Watch(WatchStrategy::default()),
+        );
+        provider
+            .init(EvaluationContext::default())
+            .await
+            .map_err(|error| SuperpositionConfigError::InitializationError(error.to_string()))?;
 
-        let config = TomlFormat::parse_into_detailed(&contents)
-            .map_err(|e| SuperpositionConfigError::ParseError(e.to_string()))?;
-
-        Ok(Self { config })
+        Ok(Self { provider })
     }
 
     /// Resolve the flat key-value map for given dimensions.
@@ -70,56 +74,33 @@ impl SuperpositionConfig {
     /// * `environment` - The environment name (e.g., "production", "sandbox", "development")
     ///
     /// # Returns
-    /// A HashMap of configuration keys to their resolved values.
+    /// A map of configuration keys to their resolved values.
     ///
     /// # Example
     /// ```ignore
-    /// let resolved = config.resolve("stripe", "production")?;
+    /// let resolved = config.resolve("stripe", "production").await?;
     /// let base_url = resolved.get("connector_base_url").and_then(|v| v.as_str());
     /// ```
-    pub fn resolve(
+    pub async fn resolve(
         &self,
         connector: &str,
         environment: &str,
-    ) -> Result<HashMap<String, Value>, SuperpositionConfigError> {
-        let mut dims: Map<String, Value> = Map::new();
-        dims.insert(
-            DIMENSION_CONNECTOR.to_string(),
-            Value::String(connector.to_string()),
-        );
-        dims.insert(
-            DIMENSION_ENVIRONMENT.to_string(),
-            Value::String(environment.to_string()),
-        );
+    ) -> Result<Map<String, Value>, SuperpositionConfigError> {
+        let context = EvaluationContext::default()
+            .with_custom_field(DIMENSION_CONNECTOR, connector)
+            .with_custom_field(DIMENSION_ENVIRONMENT, environment);
 
-        // Convert DefaultConfigsWithSchema to Map<String, Value> by extracting the value field
-        let default_configs: Map<String, Value> = self
-            .config
-            .default_configs
-            .clone()
-            .into_inner()
-            .into_iter()
-            .map(|(k, v)| (k, v.value))
-            .collect();
-
-        eval_config(
-            default_configs,
-            &self.config.contexts,
-            &self.config.overrides,
-            &self.config.dimensions,
-            &dims,
-            MergeStrategy::MERGE,
-            None,
-        )
-        .map(|m| m.into_iter().collect())
-        .map_err(SuperpositionConfigError::ResolutionError)
+        self.provider
+            .resolve_all_features(context)
+            .await
+            .map_err(|error| SuperpositionConfigError::ResolutionError(error.to_string()))
     }
 }
 
 /// Helper function to extract a string value from the resolved configuration.
 ///
 /// Returns `Some(String)` if the key exists and the value is a string, `None` otherwise.
-pub fn get_string(resolved: &HashMap<String, Value>, key: &str) -> Option<String> {
+pub fn get_string(resolved: &Map<String, Value>, key: &str) -> Option<String> {
     resolved
         .get(key)
         .and_then(|v| v.as_str())
@@ -129,10 +110,7 @@ pub fn get_string(resolved: &HashMap<String, Value>, key: &str) -> Option<String
 /// Helper function to extract an optional non-empty string from the resolved configuration.
 ///
 /// Returns `Some(String)` if the key exists, is a string, and is non-empty; `None` otherwise.
-pub fn get_optional_nonempty_string(
-    resolved: &HashMap<String, Value>,
-    key: &str,
-) -> Option<String> {
+pub fn get_optional_nonempty_string(resolved: &Map<String, Value>, key: &str) -> Option<String> {
     get_string(resolved, key).filter(|s| !s.is_empty())
 }
 
@@ -161,10 +139,10 @@ pub struct ConnectorUrls {
 ///
 /// # Example
 /// ```ignore
-/// let resolved = config.resolve("stripe", Some("production"))?;
+/// let resolved = config.resolve("stripe", "production").await?;
 /// let urls = get_connector_urls(&resolved);
 /// ```
-pub fn get_connector_urls(resolved: &HashMap<String, Value>) -> ConnectorUrls {
+pub fn get_connector_urls(resolved: &Map<String, Value>) -> ConnectorUrls {
     ConnectorUrls {
         base_url: get_optional_nonempty_string(resolved, CONFIG_KEY_CONNECTOR_BASE_URL),
         dispute_base_url: get_optional_nonempty_string(
@@ -189,13 +167,13 @@ mod tests {
 
     #[test]
     fn test_get_string_returns_none_for_missing_key() {
-        let resolved = HashMap::new();
+        let resolved = Map::new();
         assert_eq!(get_string(&resolved, "missing_key"), None);
     }
 
     #[test]
     fn test_get_string_returns_some_for_value() {
-        let mut resolved = HashMap::new();
+        let mut resolved = Map::new();
         resolved.insert(
             "connector_base_url".to_string(),
             Value::String("https://api.example.com/".to_string()),
@@ -208,14 +186,14 @@ mod tests {
 
     #[test]
     fn test_get_optional_nonempty_string_returns_none_for_empty() {
-        let mut resolved = HashMap::new();
+        let mut resolved = Map::new();
         resolved.insert("key".to_string(), Value::String("".to_string()));
         assert_eq!(get_optional_nonempty_string(&resolved, "key"), None);
     }
 
     #[test]
     fn test_get_optional_nonempty_string_returns_some_for_value() {
-        let mut resolved = HashMap::new();
+        let mut resolved = Map::new();
         resolved.insert("key".to_string(), Value::String("value".to_string()));
         assert_eq!(
             get_optional_nonempty_string(&resolved, "key"),

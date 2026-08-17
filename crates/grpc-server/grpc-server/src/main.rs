@@ -24,15 +24,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         [ucs_env::service_name!(), "grpc_server", "tower_http"],
     );
 
-    // Load superposition.toml for connector URL resolution
+    // Load and watch superposition.toml for connector URL resolution.
     let superposition_config_path = format!(
         "{}/config/superposition.toml",
         configs::workspace_path().display()
     );
-    match SuperpositionConfig::from_file(&superposition_config_path) {
+    match SuperpositionConfig::from_file(&superposition_config_path).await {
         Ok(sp_config) => {
             tracing::info!(
-                "Successfully loaded superposition.toml from {}",
+                "Successfully loaded and watching superposition.toml from {}",
                 superposition_config_path
             );
             config.superposition_config = Some(Arc::new(sp_config));

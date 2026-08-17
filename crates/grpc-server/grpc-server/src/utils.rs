@@ -96,7 +96,7 @@ pub fn validate_environment(environment: &str) -> Result<Env, String> {
 /// This is the **single entry point** for connector URL resolution. All flows must call this
 /// instead of `connectors_with_connector_config_overrides` directly so that both override
 /// sources are always applied consistently.
-pub fn apply_url_overrides(
+pub async fn apply_url_overrides(
     config: &configs::Config,
     connector: &connector_types::ConnectorVariant,
     connector_config: &ConnectorSpecificConfig,
@@ -122,7 +122,9 @@ pub fn apply_url_overrides(
                 config.superposition_config.as_ref().map(|arc| arc.as_ref()),
                 &connector_name,
                 env,
-            ) {
+            )
+            .await
+            {
                 Some(urls) => {
                     tracing::info!("resolved URLs from superposition for environment: {}", env);
                     let patch_result = match connector {
@@ -186,8 +188,8 @@ pub fn apply_url_overrides(
 /// # Static vs Dynamic Config
 /// - **Static config**: Connector URLs defined in TOML files (development.toml, sandbox.toml, production.toml)
 ///   that are loaded at application startup and remain constant for the deployment environment.
-/// - **Dynamic config**: URLs resolved at runtime from the Superposition service, which can vary per-request
-///   based on the `x-environment` header, allowing different URLs for the same connector across requests.
+/// - **Dynamic config**: URLs resolved at runtime by Superposition's local provider, which watches
+///   `superposition.toml` and varies values per request based on the `x-environment` header.
 ///
 /// # Note
 /// This function does NOT validate the environment. Call `validate_environment()` first if you need
@@ -204,7 +206,7 @@ pub fn apply_url_overrides(
 ///     environment,
 /// );
 /// ```
-pub fn resolve_connector_urls(
+pub async fn resolve_connector_urls(
     superposition_config: Option<&SuperpositionConfig>,
     connector_name: &str,
     environment: &str,
@@ -214,7 +216,7 @@ pub fn resolve_connector_urls(
     let environment_lower = environment.to_lowercase();
     let connector_str = connector_name.to_lowercase();
 
-    match config.resolve(&connector_str, &environment_lower) {
+    match config.resolve(&connector_str, &environment_lower).await {
         Ok(resolved) => {
             let urls = get_connector_urls(&resolved);
             if urls.base_url.is_none() {
@@ -703,6 +705,7 @@ macro_rules! implement_connector_operation {
                     &connector_config,
                     metadata_payload.environment.as_deref(),
                 )
+                .await
                 .to_grpc_error()?;
 
             // Create common request data (shared by both the direct and proxy paths;
@@ -1054,6 +1057,7 @@ macro_rules! implement_connector_operation {
                     &connector_config,
                     metadata_payload.environment.as_deref(),
                 )
+                .await
                 .to_grpc_error()?;
 
             // Create common request data
