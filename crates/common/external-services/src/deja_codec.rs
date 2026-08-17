@@ -151,6 +151,174 @@ pub fn http_args(request: &Request) -> serde_json::Value {
     })
 }
 
+/// Codec for the Kafka-transport egress (`publish_connector_record`): identical outcome
+/// shape to HTTP, with `KafkaClientError` on the outer arm. Always-substitute — a replayed
+/// run never publishes to a real broker.
+pub struct KafkaOutcomeCodec;
+
+/// Tape envelope for the Kafka-transport outcomes.
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+enum KafkaTapeOutcome {
+    Ok(TapeResponse),
+    HttpErr(TapeResponse),
+    ClientErr(common_enums::KafkaClientError),
+}
+
+impl deja::codec::ReplayCodec for KafkaOutcomeCodec {
+    type Value = CustomResult<Result<Response, Response>, common_enums::KafkaClientError>;
+
+    fn capture(value: &Self::Value) -> (serde_json::Value, bool) {
+        let (outcome, is_error) = match value {
+            Ok(Ok(response)) => (KafkaTapeOutcome::Ok(TapeResponse::from_response(response)), false),
+            Ok(Err(response)) => (
+                KafkaTapeOutcome::HttpErr(TapeResponse::from_response(response)),
+                false,
+            ),
+            Err(report) => (
+                KafkaTapeOutcome::ClientErr(report.current_context().clone()),
+                true,
+            ),
+        };
+        (
+            serde_json::to_value(&outcome).unwrap_or(serde_json::Value::Null),
+            is_error,
+        )
+    }
+
+    fn reconstruct(recorded: serde_json::Value) -> Option<Self::Value> {
+        match serde_json::from_value::<KafkaTapeOutcome>(recorded).ok()? {
+            KafkaTapeOutcome::Ok(tape) => Some(Ok(Ok(tape.into_response()))),
+            KafkaTapeOutcome::HttpErr(tape) => Some(Ok(Err(tape.into_response()))),
+            KafkaTapeOutcome::ClientErr(error) => Some(Err(report!(error))),
+        }
+    }
+}
+
+/// Boundary args for a Kafka-transport connector record: topic, key, sorted headers,
+/// and the payload (already `Serialize`).
+pub fn kafka_args(record: &common_utils::request::KafkaRecord) -> serde_json::Value {
+    use hyperswitch_masking::PeekInterface as _;
+
+    let mut headers: Vec<(String, String)> = record
+        .headers
+        .iter()
+        .map(|(name, value)| {
+            let value = match value {
+                hyperswitch_masking::Maskable::Masked(secret) => secret.peek().clone(),
+                hyperswitch_masking::Maskable::Normal(value) => value.clone(),
+            };
+            (name.clone(), value)
+        })
+        .collect();
+    headers.sort();
+
+    let payload = record
+        .payload
+        .as_ref()
+        .map(|payload| serde_json::to_value(payload).unwrap_or(serde_json::Value::Null));
+
+    serde_json::json!({
+        "topic": record.topic,
+        "key": record.key,
+        "headers": headers,
+        "payload": payload,
+    })
+}
+
+/// Codec for the injector egress (`call_injector_core`). `InjectorResponse` is serde;
+/// the error round-trips as (variant, message) — faithful for all four variants, and the
+/// sole call site collapses every error via `change_context` anyway.
+#[cfg(feature = "injector-client")]
+pub struct InjectorOutcomeCodec;
+
+#[cfg(feature = "injector-client")]
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+enum InjectorTapeOutcome {
+    Ok(injector::InjectorResponse),
+    Err { variant: String, message: String },
+}
+
+#[cfg(feature = "injector-client")]
+impl deja::codec::ReplayCodec for InjectorOutcomeCodec {
+    type Value = error_stack::Result<injector::InjectorResponse, injector::InjectorError>;
+
+    fn capture(value: &Self::Value) -> (serde_json::Value, bool) {
+        let (outcome, is_error) = match value {
+            Ok(response) => (InjectorTapeOutcome::Ok(response.clone()), false),
+            Err(report) => {
+                let context = report.current_context();
+                let variant = match context {
+                    injector::InjectorError::TokenReplacementFailed(_) => "token_replacement_failed",
+                    injector::InjectorError::HttpRequestFailed => "http_request_failed",
+                    injector::InjectorError::SerializationError(_) => "serialization_error",
+                    injector::InjectorError::InvalidTemplate(_) => "invalid_template",
+                };
+                (
+                    InjectorTapeOutcome::Err {
+                        variant: variant.to_owned(),
+                        message: context.to_string(),
+                    },
+                    true,
+                )
+            }
+        };
+        (
+            serde_json::to_value(&outcome).unwrap_or(serde_json::Value::Null),
+            is_error,
+        )
+    }
+
+    fn reconstruct(recorded: serde_json::Value) -> Option<Self::Value> {
+        match serde_json::from_value::<InjectorTapeOutcome>(recorded).ok()? {
+            InjectorTapeOutcome::Ok(response) => Some(Ok(response)),
+            InjectorTapeOutcome::Err { variant, message } => {
+                let error = match variant.as_str() {
+                    "http_request_failed" => injector::InjectorError::HttpRequestFailed,
+                    "serialization_error" => injector::InjectorError::SerializationError(message),
+                    "invalid_template" => injector::InjectorError::InvalidTemplate(message),
+                    _ => injector::InjectorError::TokenReplacementFailed(message),
+                };
+                Some(Err(report!(error)))
+            }
+        }
+    }
+}
+
+/// Boundary args for the injector egress. Maximum tape sensitivity (the request carries
+/// vault token data and the template the vault expands into card data), so only the
+/// endpoint/method plus **digests** of the sensitive parts are captured — enough for
+/// stable identity, no plaintext.
+#[cfg(feature = "injector-client")]
+pub fn injector_args(request: &injector::InjectorRequest) -> serde_json::Value {
+    use common_utils::crypto::GenerateDigest as _;
+
+    fn digest(value: &serde_json::Value) -> String {
+        let bytes = serde_json::to_vec(value).unwrap_or_default();
+        common_utils::crypto::Sha256
+            .generate_digest(&bytes)
+            .map(|digest| {
+                digest
+                    .iter()
+                    .fold(String::with_capacity(64), |mut hex, byte| {
+                        use std::fmt::Write as _;
+                        let _ = write!(hex, "{byte:02x}");
+                        hex
+                    })
+            })
+            .unwrap_or_default()
+    }
+
+    let request_json = serde_json::to_value(request).unwrap_or(serde_json::Value::Null);
+    serde_json::json!({
+        "sensitivity": "vault",
+        "endpoint": request_json.get("connector_payload").and_then(|payload| payload.get("endpoint")).cloned(),
+        "http_method": request_json.get("connector_payload").and_then(|payload| payload.get("http_method")).cloned(),
+        "request_digest": digest(&request_json),
+    })
+}
+
 #[cfg(test)]
 #[allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 mod tests {
