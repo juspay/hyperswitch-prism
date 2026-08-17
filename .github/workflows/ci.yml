@@ -129,8 +129,14 @@ jobs:
 
       # Selects which certified scenarios the test job should run.
       #
+      # The manifest names which connectors block the merge; the scenarios
+      # themselves come from each connector's specs.json. Keeping the detail
+      # with the connector means adding a flow or payment method never edits a
+      # shared file, so parallel connector work cannot contend over it, and
+      # verified_scenarios stays the single description of what was proven.
+      #
       # Shared code (core, proto, harness) is the change with the widest blast
-      # radius, so it selects the whole certified set rather than skipping
+      # radius, so it selects every blocking connector rather than skipping
       # certification. That is affordable because the run itself is seconds per
       # scenario against an already-built binary, and it is safe for unrelated
       # PRs because certify-connectors.sh only fails the build for a scenario it
@@ -140,6 +146,7 @@ jobs:
         shell: bash
         run: |
           manifest=".github/test/certified_connectors.json"
+          specs_root="crates/internal/integration-tests/src/connector_specs"
           base_ref="${{ github.event.pull_request.base.sha || github.event.before }}"
 
           shared_changed="false"
@@ -148,22 +155,41 @@ jobs:
             shared_changed="true"
           fi
 
-          # Editing the manifest must run it, or a newly added entry waits for
-          # some unrelated future PR to touch that connector's files.
+          # Promoting a connector must run it, or a newly blocking connector
+          # waits for some unrelated future PR to touch its files.
           if git diff --name-only "$base_ref" HEAD -- "$manifest" | grep -q .; then
             shared_changed="true"
           fi
 
           if [[ "$shared_changed" == "true" ]]; then
-            targets=$(jq -c '.connectors' "$manifest")
-            echo "Shared code changed — selecting the full certified set"
+            selected=$(jq -r '.blocking[]' "$manifest")
+            echo "Shared code changed — selecting every blocking connector"
           else
-            names_json=$(jq -Rc 'split(",") | map(select(length > 0))' \
-              <<< "${{ steps.connector-names.outputs.list }}")
-            targets=$(jq -c --argjson n "$names_json" \
-              '[.connectors[] | select(.name as $x | $n | index($x))]' "$manifest")
-            echo "Selecting certified connectors touched by this PR"
+            changed="${{ steps.connector-names.outputs.list }}"
+            selected=$(jq -r --arg c "$changed" \
+              '($c | split(",")) as $n | .blocking[] | select(. as $x | $n | index($x))' \
+              "$manifest")
+            echo "Selecting blocking connectors touched by this PR"
           fi
+
+          targets="[]"
+          for name in $selected; do
+            specs="${specs_root}/${name}/specs.json"
+            if [[ ! -f "$specs" ]]; then
+              echo "::error::'${name}' is listed as blocking but has no ${specs}"
+              exit 1
+            fi
+            entries=$(jq -c --arg n "$name" '
+              [ (.verified_scenarios // [])[]
+                | select(.has_live_creds == true)
+                | { name: $n, suite, scenario,
+                    skip_dependencies: (.skip_dependencies // false) } ]' "$specs")
+            if [[ "$(jq 'length' <<< "$entries")" -eq 0 ]]; then
+              echo "::error::'${name}' is listed as blocking but declares no verified_scenarios with has_live_creds: true in ${specs}"
+              exit 1
+            fi
+            targets=$(jq -c -s 'add' <<< "${targets}"$'\n'"${entries}")
+          done
 
           echo "targets=$targets" >> $GITHUB_OUTPUT
           echo "Certification targets: $targets"

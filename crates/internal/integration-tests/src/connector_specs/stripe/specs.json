@@ -19,5 +19,13 @@
     "PaymentService/TokenSetupRecurring",
     "PaymentMethodService/Tokenize",
     "PaymentService/Void"
+  ],
+  "verified_scenarios": [
+    {
+      "suite": "PaymentService/Authorize",
+      "scenario": "no3ds_auto_capture_credit_card",
+      "skip_dependencies": true,
+      "has_live_creds": true
+    }
   ]
 }
