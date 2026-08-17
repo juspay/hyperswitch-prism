@@ -157,7 +157,6 @@ fn payment_method_data_label<T: PaymentMethodDataTypes>(
         PaymentMethodData::NetworkToken(_) => "network_token",
         PaymentMethodData::CardWithNoCvc(_) => "card_with_no_cvc",
         PaymentMethodData::MobilePayment(_) => "mobile_payment",
-        PaymentMethodData::NoInstrumentAfterRedirect => "no_instrument_after_redirect",
     }
 }
 

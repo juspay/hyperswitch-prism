@@ -632,8 +632,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::PaymentMethodToken(_)
-            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::NoInstrumentAfterRedirect => {
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Imerchantsolutions"),
                     errors::IntegrationErrorContext {

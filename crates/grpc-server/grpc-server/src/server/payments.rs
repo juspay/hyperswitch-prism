@@ -889,25 +889,14 @@ impl PaymentService for Payments {
                 // Convert proto request to intermediate type
                 let payload: AuthorizationRequest = proto_payload.clone().into();
 
-                // `payment_method` is required for an ordinary authorization, but not for the
-                // second leg of a redirect-based one: connectors that finalise 3DS through
-                // Authorize are re-invoked after the ACS posts back to `TermUrl`, and the
-                // caller no longer holds the raw instrument at that point. That leg is
-                // identified by `redirection_response`, exactly as the connectors themselves
-                // identify it (`request.redirect_response.is_some()`), and it is the only case
-                // in which an absent `payment_method` is accepted.
-                let payment_method_data_action = match proto_payload.payment_method.clone() {
-                    Some(payment_method) => Some(PaymentMethodDataAction::get_payment_method_data_action(payment_method)
-                        .map_err(|err| {
-                            tracing::error!("PAYMENT_AUTHORIZE_FLOW: failed to get payment method data action - error: {:?}", err);
-                            ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() })
-                        })?),
-                    None if proto_payload.redirection_response.is_some() => None,
-                    None => Err(ucs_env::error::GrpcError::from(IntegrationError::MissingRequiredField { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() }))?,
-                };
+                let payment_method_data_action = PaymentMethodDataAction::get_payment_method_data_action(proto_payload.payment_method.clone().ok_or(ucs_env::error::GrpcError::from(IntegrationError::MissingRequiredField { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() }))?)
+                    .map_err(|err| {
+                        tracing::error!("PAYMENT_AUTHORIZE_FLOW: failed to get payment method data action - error: {:?}", err);
+                        ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() })
+                    })?;
 
                 let authorize_response = match payment_method_data_action {
-                    Some(PaymentMethodDataAction::CardProxy(proxy_card_details)) => {
+                    PaymentMethodDataAction::CardProxy(proxy_card_details) => {
                         let token_data = proxy_card_details.to_token_data();
                         let payment_method_data = payment_method_data::PaymentMethodData::Card(payment_method_data::Card::<VaultTokenHolder>::foreign_try_from(proxy_card_details).map_err(|err| {
                             tracing::error!("PAYMENT_AUTHORIZE_FLOW: failed to get payment method data action - error: {:?}", err);
@@ -928,7 +917,7 @@ impl PaymentService for Payments {
                         ))
                         .await?
                     }
-                    Some(PaymentMethodDataAction::Card(card_details)) => {
+                    PaymentMethodDataAction::Card(card_details) => {
                         tracing::info!("REGULAR: Processing regular payment authorization (no injector)");
                         let payment_method_data = payment_method_data::PaymentMethodData::Card(payment_method_data::Card::<DefaultPCIHolder>::foreign_try_from(card_details).map_err(|err| {
                             tracing::error!("PAYMENT_AUTHORIZE_FLOW: failed to get payment method data action - error: {:?}", err);
@@ -949,7 +938,7 @@ impl PaymentService for Payments {
                         ))
                         .await?
                     }
-                    Some(PaymentMethodDataAction::Default) => {
+                    PaymentMethodDataAction::Default => {
                         let payment_method_data = payment_method_data::PaymentMethodData::convert_to_domain_model_for_non_card_payment_methods(proto_payload.payment_method.clone().ok_or(ucs_env::error::GrpcError::from(IntegrationError::MissingRequiredField { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() }))?)
                             .map_err(|err| {
                                 tracing::error!("Failed to convert payment method data: {:?}", err);
@@ -970,7 +959,7 @@ impl PaymentService for Payments {
                         ))
                         .await?
                     }
-                    Some(PaymentMethodDataAction::CardWithNoCvc(card_details)) => {
+                    PaymentMethodDataAction::CardWithNoCvc(card_details) => {
                         tracing::info!("REGULAR: Processing payment authorization with CardWithNoCvc");
                         let payment_method_data = payment_method_data::PaymentMethodData::CardWithNoCvc(
                             payment_method_data::CardWithNoCvc::foreign_try_from(card_details).map_err(|err| {
@@ -989,27 +978,6 @@ impl PaymentService for Payments {
                             &metadata_payload.request_id,
                             None,
                             payment_method_data,
-                        ))
-                        .await?
-                    }
-                    // Redirect-return leg: no instrument was sent (guarded above by
-                    // `redirection_response` being present). The connector finalises from the
-                    // redirect payload and its own transaction reference; connectors that
-                    // cannot do so reject `NoInstrumentAfterRedirect` rather than mistaking it
-                    // for a payable instrument.
-                    None => {
-                        tracing::info!("REDIRECT_COMPLETION: authorization re-entered after redirect without payment method data");
-                        Box::pin(self.process_authorization_internal::<DefaultPCIHolder>(
-                            &config,
-                            payload,
-                            metadata_payload.connector.clone(),
-                            metadata_payload.connector_config.clone(),
-                            metadata,
-                            &metadata_payload,
-                            &service_name,
-                            &metadata_payload.request_id,
-                            None,
-                            payment_method_data::PaymentMethodData::NoInstrumentAfterRedirect,
                         ))
                         .await?
                     }

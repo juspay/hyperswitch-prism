@@ -260,8 +260,7 @@ fn fetch_payment_instrument<
         | PaymentMethodData::OpenBanking(_)
         | PaymentMethodData::PaymentMethodToken(_)
         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-        | PaymentMethodData::NetworkToken(_)
-        | PaymentMethodData::NoInstrumentAfterRedirect => Err(IntegrationError::NotImplemented(utils::get_unimplemented_payment_method_error_message("worldpay") , Default::default())
+        | PaymentMethodData::NetworkToken(_) => Err(IntegrationError::NotImplemented(utils::get_unimplemented_payment_method_error_message("worldpay") , Default::default())
         .into())
 }
 }

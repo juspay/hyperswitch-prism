@@ -1606,12 +1606,13 @@ fn create_stripe_payment_method<
         | PaymentMethodData::PaymentMethodToken(_)
         | PaymentMethodData::NetworkToken(_)
         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-        | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
-        | PaymentMethodData::NoInstrumentAfterRedirect => Err(IntegrationError::NotImplemented(
-            get_unimplemented_payment_method_error_message("stripe"),
-            Default::default(),
-        )
-        .into()),
+        | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            Err(IntegrationError::NotImplemented(
+                get_unimplemented_payment_method_error_message("stripe"),
+                Default::default(),
+            )
+            .into())
+        }
     }
 }
 
@@ -5223,8 +5224,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::NoInstrumentAfterRedirect => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Err(IntegrationError::NotImplemented(
                     get_unimplemented_payment_method_error_message("stripe"),
                     Default::default(),
@@ -5623,7 +5623,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(
                             _,
                         )
-                        | PaymentMethodData::NoInstrumentAfterRedirect
                         | PaymentMethodData::Card(_) => Err(IntegrationError::NotImplemented(
                             "Network tokenization for payment method".to_string(),
                             Default::default(),

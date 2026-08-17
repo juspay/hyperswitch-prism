@@ -3905,11 +3905,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
                 | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                 | PaymentMethodData::CardWithNoCvc(_)
-                | PaymentMethodData::MobilePayment(_)
-                | PaymentMethodData::NoInstrumentAfterRedirect => Err(
-                    IntegrationError::NotImplemented(("payment method").into(), Default::default())
-                        .into(),
-                ),
+                | PaymentMethodData::MobilePayment(_) => Err(IntegrationError::NotImplemented(
+                    ("payment method").into(),
+                    Default::default(),
+                )
+                .into()),
             },
         }
     }
@@ -6525,8 +6525,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | PaymentMethodData::NetworkToken(_)
                 | PaymentMethodData::CardWithNoCvc(_)
                 | PaymentMethodData::MobilePayment(_)
-                | PaymentMethodData::PaymentMethodToken(_)
-                | PaymentMethodData::NoInstrumentAfterRedirect => Err(
+                | PaymentMethodData::PaymentMethodToken(_) => Err(
                     IntegrationError::NotImplemented(("payment method").into(), Default::default())
                         .into(),
                 ),

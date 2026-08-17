@@ -789,8 +789,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::NoInstrumentAfterRedirect => {
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_) => {
                 Err(IntegrationError::NotImplemented(
                     UNSUPPORTED_PAYMENT_METHOD_ERROR.to_string(),
                     datatrans_context(
