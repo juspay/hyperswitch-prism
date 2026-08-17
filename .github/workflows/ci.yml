@@ -537,11 +537,11 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
           DESTINATION_FILE_NAME: "creds.json.gpg"
-          # Same creds file the Jenkins connector-service report job uses. It is in the
-          # proto-native flat shape the loader requires; the previous file was in
-          # HyperSwitch's connector_account_details shape, which nothing here read
-          # until certification started consuming it.
-          S3_SOURCE_FILE_NAME: "725e990a-9aa6-46eb-baca-a6ec8d2269b8.json.gpg"
+          # This file is in HyperSwitch's connector_account_details shape. The
+          # grpc-server integration tests load it through their own
+          # credential_utils and require that shape, so it cannot be swapped for
+          # the proto-native file without breaking them.
+          S3_SOURCE_FILE_NAME: "b59e91fc-9054-4412-a746-664fdc185345.json.gpg"
         shell: bash
         run: |
           mkdir -p ".github/secrets" ".github/test"
