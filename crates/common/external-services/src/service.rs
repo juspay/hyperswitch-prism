@@ -280,6 +280,9 @@ pub async fn publish_to_kafka(
 /// flow through this wrapper, so the déjà boundary composes with `connector-request-kafka`
 /// on or off (tapes are portable across the two). Replay substitutes the recorded delivery
 /// outcome and never publishes to a real broker.
+// Gated like its sole caller (`execute_connector_processing_step`); without it the
+// private wrapper is dead code in `injector-client`-less builds.
+#[cfg(feature = "injector-client")]
 #[inline]
 #[cfg_attr(
     feature = "deja",
