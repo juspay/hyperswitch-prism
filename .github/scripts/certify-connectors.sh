@@ -204,7 +204,6 @@ done
 # could be read as a regression when the merge base happens to pass.
 declare -a CONFIRMED=()
 declare -a FLAKY=()
-declare -a UNREACHABLE=()
 
 for target in ${FAILED[@]+"${FAILED[@]}"}; do
   name=$(jq -r '.name' <<< "${target}")
@@ -216,13 +215,13 @@ for target in ${FAILED[@]+"${FAILED[@]}"}; do
   if run_scenario "${name}" "${suite}" "${scenario}" "${skip_deps}"; then
     echo "Passed on re-check — treating the first failure as a flake."
     FLAKY+=("${name} (${suite} / ${scenario})")
-  elif [[ "${LAST_CLASS}" == "availability" ]]; then
-    # The connector is not answering. No build of ours changes that, so skip
-    # the arbitration rebuild entirely.
-    echo "Connector unreachable — not attributable to this PR, skipping arbitration."
-    UNREACHABLE+=("${name} (${suite} / ${scenario}): ${LAST_ERROR:-connector unreachable}")
   else
-    CONFIRMED+=("$(jq -c --arg e "${LAST_ERROR}" '. + {head_error: $e}' <<< "${target}")")
+    # Every confirmed failure is arbitrated, including an unreachable connector.
+    # Skipping arbitration here would absolve a PR that made the connector
+    # unreachable itself — a broken base_url reads as "availability" too, and
+    # the merge base is the only thing that tells the two apart.
+    CONFIRMED+=("$(jq -c --arg e "${LAST_ERROR}" --arg c "${LAST_CLASS}" \
+                     '. + {head_error: $e, head_class: $c}' <<< "${target}")")
   fi
   echo "::endgroup::"
 done
@@ -252,16 +251,20 @@ if [[ ${#CONFIRMED[@]} -gt 0 ]]; then
       skip_deps=$(jq -r '.skip_dependencies // false' <<< "${target}")
       label="${name} (${suite} / ${scenario})"
 
+      head_class=$(jq -r '.head_class // ""' <<< "${target}")
+
       echo "::group::Arbitrate ${label} at merge base"
       if run_scenario "${name}" "${suite}" "${scenario}" "${skip_deps}"; then
+        # Works without this PR, fails with it — whatever the failure looked
+        # like. This is what catches a PR that broke connectivity itself.
         REGRESSIONS+=("${label}")
-      elif [[ "${LAST_CLASS}" == "availability" ]]; then
-        # The merge base failed for a reason unrelated to code, so it proves
-        # nothing about HEAD's content failure. Absolving here is exactly how a
-        # real regression would slip through during a sandbox outage.
-        NO_BASELINE+=("${label}")
-      else
+      elif [[ "${LAST_CLASS}" == "${head_class}" ]]; then
         PRE_EXISTING+=("${label}")
+      else
+        # Both sides fail but for different reasons, so the merge base is not a
+        # baseline for what HEAD is doing. Calling that "pre-existing" is how a
+        # real regression merges during a sandbox outage.
+        NO_BASELINE+=("${label} (fails as ${head_class} here, ${LAST_CLASS} at the merge base)")
       fi
       echo "::endgroup::"
     done
@@ -275,7 +278,6 @@ fi
   for x in ${PRE_EXISTING[@]+"${PRE_EXISTING[@]}"}; do echo "- ⚠️ **already failing before this PR** — ${x}"; done
   for x in ${NO_CREDS[@]+"${NO_CREDS[@]}"};   do echo "- ⚠️ **not certified** — ${x}: no credentials in CI"; done
   for x in ${INCONCLUSIVE[@]+"${INCONCLUSIVE[@]}"}; do echo "- ⚠️ **inconclusive** — ${x}"; done
-  for x in ${UNREACHABLE[@]+"${UNREACHABLE[@]}"};   do echo "- ⚠️ **connector unreachable** — ${x}"; done
   for x in ${NO_BASELINE[@]+"${NO_BASELINE[@]}"};   do echo "- ❌ **no baseline** — ${x}"; done
   for x in ${REGRESSIONS[@]+"${REGRESSIONS[@]}"};   do echo "- ❌ **regressed in this PR** — ${x}"; done
 } >> "${SUMMARY}"
@@ -285,10 +287,6 @@ for x in ${PRE_EXISTING[@]+"${PRE_EXISTING[@]}"}; do
 done
 for x in ${INCONCLUSIVE[@]+"${INCONCLUSIVE[@]}"}; do
   echo "::warning::Could not determine whether this PR caused the failure: ${x}"
-done
-
-for x in ${UNREACHABLE[@]+"${UNREACHABLE[@]}"}; do
-  echo "::warning::${x} — the connector could not be reached at HEAD, so this is not attributable to any code change."
 done
 
 blocking=0
