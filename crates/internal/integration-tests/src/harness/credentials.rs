@@ -341,6 +341,9 @@ mod tests {
             }
         });
         let block = extract_connector_block(&root, "stripe").expect("block should load");
-        assert_eq!(block.get("api_key"), Some(&serde_json::json!("from_default")));
+        assert_eq!(
+            block.get("api_key"),
+            Some(&serde_json::json!("from_default"))
+        );
     }
 }
