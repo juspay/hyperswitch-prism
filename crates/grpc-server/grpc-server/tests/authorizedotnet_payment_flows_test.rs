@@ -5,7 +5,7 @@
 #![allow(dead_code)]
 
 use grpc_server::app;
-use hyperswitch_masking::{Secret};
+use hyperswitch_masking::Secret;
 use ucs_env::configs;
 mod common;
 mod utils;
