@@ -8534,7 +8534,12 @@ pub fn generate_payment_sync_response(
                     &e.connector_transaction_id,
                 ),
                 connector_reference_id: None,
-                merchant_transaction_id: None,
+                merchant_transaction_id: Some(
+                    router_data_v2
+                        .resource_common_data
+                        .connector_request_reference_id
+                        .clone(),
+                ),
                 mandate_reference: None,
                 mandate_reference_details: None,
                 status: status as i32,
