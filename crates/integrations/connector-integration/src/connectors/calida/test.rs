@@ -18,7 +18,7 @@ mod tests {
             payment_method_data::{DefaultPCIHolder, PaymentMethodData, WalletData},
             router_data::{ConnectorSpecificConfig, ErrorResponse},
             router_data_v2::RouterDataV2,
-            types::{ConnectorParams, ConnectorsInner},
+            types::{ConnectorParams, Connectors},
         };
         use hyperswitch_masking::Secret;
         use interfaces::{
@@ -84,15 +84,14 @@ mod tests {
                     connector_request_reference_id: "conn_ref_123456789".to_string(),
                     test_mode: None,
                     connector_http_status_code: None,
-                    connectors: ConnectorsInner {
+                    connectors: Connectors {
                         calida: ConnectorParams {
                             base_url: "https://api.calida.com/".to_string(),
                             dispute_base_url: None,
                             ..Default::default()
                         },
                         ..Default::default()
-                    }
-                    .into(),
+                    },
                     external_latency: None,
                     connector_response_headers: None,
                     raw_connector_response: None,
@@ -275,15 +274,14 @@ mod tests {
                     connector_request_reference_id: "conn_ref_123456789".to_string(),
                     test_mode: None,
                     connector_http_status_code: None,
-                    connectors: ConnectorsInner {
+                    connectors: Connectors {
                         calida: ConnectorParams {
                             base_url: "https://api.calida.com/".to_string(),
                             dispute_base_url: None,
                             ..Default::default()
                         },
                         ..Default::default()
-                    }
-                    .into(),
+                    },
                     external_latency: None,
                     connector_response_headers: None,
                     raw_connector_response: None,
@@ -452,15 +450,14 @@ mod tests {
                     connector_request_reference_id: "".to_string(),
                     test_mode: None,
                     connector_http_status_code: None,
-                    connectors: ConnectorsInner {
+                    connectors: Connectors {
                         calida: ConnectorParams {
                             base_url: "https://api.calida.com/".to_string(),
                             dispute_base_url: None,
                             ..Default::default()
                         },
                         ..Default::default()
-                    }
-                    .into(),
+                    },
                     external_latency: None,
                     connector_response_headers: None,
                     raw_connector_response: None,

@@ -42,7 +42,7 @@ mod tests {
             router_data_v2::RouterDataV2,
             router_request_types::BrowserInformation,
             router_response_types::Response,
-            types::{ConnectorParams, ConnectorsInner},
+            types::{ConnectorParams, Connectors},
         };
         use interfaces::{
             connector_integration_v2::ConnectorIntegrationV2,
@@ -102,15 +102,14 @@ mod tests {
                     connector_http_status_code: None,
                     external_latency: None,
                     raw_connector_response: None,
-                    connectors: ConnectorsInner {
+                    connectors: Connectors {
                         razorpay: ConnectorParams {
                             base_url: "https://api.razorpay.com/".to_string(),
                             dispute_base_url: None,
                             ..Default::default()
                         },
                         ..Default::default()
-                    }
-                    .into(),
+                    },
                     vault_headers: None,
                     connector_response_headers: None,
                     raw_connector_request: None,
@@ -311,15 +310,14 @@ mod tests {
                     connector_http_status_code: None,
                     external_latency: None,
                     raw_connector_response: None,
-                    connectors: ConnectorsInner {
+                    connectors: Connectors {
                         razorpay: ConnectorParams {
                             base_url: "https://api.razorpay.com/".to_string(),
                             dispute_base_url: None,
                             ..Default::default()
                         },
                         ..Default::default()
-                    }
-                    .into(),
+                    },
                     vault_headers: None,
                     connector_response_headers: None,
                     raw_connector_request: None,
@@ -473,15 +471,14 @@ mod tests {
                     connector_http_status_code: None,
                     external_latency: None,
                     raw_connector_response: None,
-                    connectors: ConnectorsInner {
+                    connectors: Connectors {
                         razorpay: ConnectorParams {
                             base_url: "https://api.razorpay.com/".to_string(),
                             dispute_base_url: None,
                             ..Default::default()
                         },
                         ..Default::default()
-                    }
-                    .into(),
+                    },
                     vault_headers: None,
                     connector_response_headers: None,
                     raw_connector_request: None,
@@ -609,7 +606,7 @@ mod tests {
                 payment_address::PaymentAddress,
                 router_data::{ConnectorSpecificConfig, ErrorResponse},
                 router_data_v2::RouterDataV2,
-                types::{ConnectorParams, ConnectorsInner},
+                types::{ConnectorParams, Connectors},
             };
             let connector: BoxedConnector<DefaultPCIHolder> = Box::new(Razorpay::new());
             let email = Email::try_from("testuser@gmail.com".to_string()).unwrap();
@@ -657,15 +654,14 @@ mod tests {
                     connector_http_status_code: None,
                     external_latency: None,
                     raw_connector_response: None,
-                    connectors: ConnectorsInner {
+                    connectors: Connectors {
                         razorpay: ConnectorParams {
                             base_url: "https://api.razorpay.com/".to_string(),
                             dispute_base_url: None,
                             ..Default::default()
                         },
                         ..Default::default()
-                    }
-                    .into(),
+                    },
                     vault_headers: None,
                     connector_response_headers: None,
                     raw_connector_request: None,
@@ -994,7 +990,7 @@ mod tests {
             payment_address::PaymentAddress,
             router_data::{ConnectorSpecificConfig, ErrorResponse},
             router_data_v2::RouterDataV2,
-            types::{ConnectorParams, ConnectorsInner},
+            types::{ConnectorParams, Connectors},
         };
 
         let connector: BoxedConnector<DefaultPCIHolder> = Box::new(Razorpay::new());
@@ -1044,15 +1040,14 @@ mod tests {
                 connector_http_status_code: None,
                 external_latency: None,
                 raw_connector_response: None,
-                connectors: ConnectorsInner {
+                connectors: Connectors {
                     razorpay: ConnectorParams {
                         base_url: "https://api.razorpay.com/".to_string(),
                         dispute_base_url: None,
                         ..Default::default()
                     },
                     ..Default::default()
-                }
-                .into(),
+                },
                 vault_headers: None,
                 connector_response_headers: None,
                 raw_connector_request: None,
@@ -1212,7 +1207,7 @@ mod tests {
             payment_address::PaymentAddress,
             router_data::{ConnectorSpecificConfig, ErrorResponse},
             router_data_v2::RouterDataV2,
-            types::{ConnectorParams, ConnectorsInner},
+            types::{ConnectorParams, Connectors},
         };
 
         let connector: BoxedConnector<DefaultPCIHolder> = Box::new(Razorpay::new());
@@ -1262,15 +1257,14 @@ mod tests {
                 connector_http_status_code: None,
                 external_latency: None,
                 raw_connector_response: None,
-                connectors: ConnectorsInner {
+                connectors: Connectors {
                     razorpay: ConnectorParams {
                         base_url: "https://api.razorpay.com/".to_string(),
                         dispute_base_url: None,
                         ..Default::default()
                     },
                     ..Default::default()
-                }
-                .into(),
+                },
                 vault_headers: None,
                 connector_response_headers: None,
                 raw_connector_request: None,
@@ -1417,7 +1411,7 @@ mod tests {
             payment_address::{Address, PhoneDetails},
             payment_method_data::DefaultPCIHolder,
             router_data::ConnectorSpecificConfig,
-            types::{ConnectorParams, ConnectorsInner},
+            types::{ConnectorParams, Connectors},
         };
         use interfaces::connector_types::BoxedConnector;
         use serde_json::{to_value, Value};
@@ -1483,15 +1477,14 @@ mod tests {
                     connector_http_status_code: None,
                     external_latency: None,
                     raw_connector_response: None,
-                    connectors: ConnectorsInner {
+                    connectors: Connectors {
                         razorpay: ConnectorParams {
                             base_url: "https://api.razorpay.com/".to_string(),
                             dispute_base_url: None,
                             ..Default::default()
                         },
                         ..Default::default()
-                    }
-                    .into(),
+                    },
                     vault_headers: None,
                     connector_response_headers: None,
                     raw_connector_request: None,
@@ -1616,15 +1609,14 @@ mod tests {
                     connector_http_status_code: None,
                     external_latency: None,
                     raw_connector_response: None,
-                    connectors: ConnectorsInner {
+                    connectors: Connectors {
                         razorpay: ConnectorParams {
                             base_url: "https://api.razorpay.com/".to_string(),
                             dispute_base_url: None,
                             ..Default::default()
                         },
                         ..Default::default()
-                    }
-                    .into(),
+                    },
                     vault_headers: None,
                     connector_response_headers: None,
                     raw_connector_request: None,
@@ -1714,7 +1706,7 @@ mod tests {
                 payment_method_data::{Card, PaymentMethodData},
                 router_data::ErrorResponse,
                 router_data_v2::RouterDataV2,
-                types::{ConnectorParams, ConnectorsInner},
+                types::{ConnectorParams, Connectors},
             };
 
             use crate::connectors::Razorpay;
@@ -1752,15 +1744,14 @@ mod tests {
                     connector_http_status_code: None,
                     external_latency: None,
                     raw_connector_response: None,
-                    connectors: ConnectorsInner {
+                    connectors: Connectors {
                         razorpay: ConnectorParams {
                             base_url: "https://api.razorpay.com/".to_string(),
                             dispute_base_url: None,
                             ..Default::default()
                         },
                         ..Default::default()
-                    }
-                    .into(),
+                    },
                     vault_headers: None,
                     connector_response_headers: None,
                     raw_connector_request: None,
@@ -1885,7 +1876,7 @@ mod tests {
             payment_address::PaymentAddress,
             router_data::{ConnectorSpecificConfig, ErrorResponse},
             router_data_v2::RouterDataV2,
-            types::{ConnectorParams, ConnectorsInner},
+            types::{ConnectorParams, Connectors},
         };
         let email = Email::try_from("testuser@gmail.com".to_string()).unwrap();
         let connector: BoxedConnector<DefaultPCIHolder> = Box::new(Razorpay::new());
@@ -1934,15 +1925,14 @@ mod tests {
                 connector_http_status_code: None,
                 external_latency: None,
                 raw_connector_response: None,
-                connectors: ConnectorsInner {
+                connectors: Connectors {
                     razorpay: ConnectorParams {
                         base_url: "https://api.razorpay.com/".to_string(),
                         dispute_base_url: None,
                         ..Default::default()
                     },
                     ..Default::default()
-                }
-                .into(),
+                },
                 vault_headers: None,
                 connector_response_headers: None,
                 raw_connector_request: None,
@@ -2029,7 +2019,7 @@ mod tests {
             payment_address::PaymentAddress,
             router_data::{ConnectorSpecificConfig, ErrorResponse},
             router_data_v2::RouterDataV2,
-            types::{ConnectorParams, ConnectorsInner},
+            types::{ConnectorParams, Connectors},
         };
 
         let email = Email::try_from("testuser@gmail.com".to_string()).unwrap();
@@ -2080,15 +2070,14 @@ mod tests {
                 connector_http_status_code: None,
                 external_latency: None,
                 raw_connector_response: None,
-                connectors: ConnectorsInner {
+                connectors: Connectors {
                     razorpay: ConnectorParams {
                         base_url: "https://api.razorpay.com/".to_string(),
                         dispute_base_url: None,
                         ..Default::default()
                     },
                     ..Default::default()
-                }
-                .into(),
+                },
                 vault_headers: None,
                 connector_response_headers: None,
                 raw_connector_request: None,
@@ -2163,7 +2152,7 @@ mod tests {
             payment_address::PaymentAddress,
             router_data::{ConnectorSpecificConfig, ErrorResponse},
             router_data_v2::RouterDataV2,
-            types::{ConnectorParams, ConnectorsInner},
+            types::{ConnectorParams, Connectors},
         };
 
         let email = Email::try_from("testuser@gmail.com".to_string()).unwrap();
@@ -2214,15 +2203,14 @@ mod tests {
                 connector_http_status_code: None,
                 external_latency: None,
                 raw_connector_response: None,
-                connectors: ConnectorsInner {
+                connectors: Connectors {
                     razorpay: ConnectorParams {
                         base_url: "https://api.razorpay.com/".to_string(),
                         dispute_base_url: None,
                         ..Default::default()
                     },
                     ..Default::default()
-                }
-                .into(),
+                },
                 vault_headers: None,
                 connector_response_headers: None,
                 raw_connector_request: None,

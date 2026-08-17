@@ -1,5 +1,5 @@
 use core::result::Result;
-use std::{borrow::Cow, collections::HashMap, fmt::Debug, str::FromStr, sync::Arc};
+use std::{borrow::Cow, collections::HashMap, fmt::Debug, str::FromStr};
 
 use crate::{
     connector_flow::{
@@ -310,70 +310,6 @@ use crate::{
     utils::{extract_merchant_id_from_metadata, ForeignFrom, ForeignTryFrom},
 };
 
-/// Per-connector endpoint configuration.
-///
-/// One [`ConnectorParams`] per supported connector — 96 bytes each, over 10 KB in total, and a
-/// fixed inline footprint even when every URL is empty. It is stored by value in ten structs,
-/// nine of which are flow data (`PaymentFlowData`, `RefundFlowData`, …) embedded by value in
-/// `RouterDataV2`, which is cloned several times per request. Held inline, its size lands on the
-/// stack of every request and grows by 96 bytes with each connector added.
-///
-/// It is therefore held behind an [`Arc`]: `Connectors` is one pointer, cloning it is a refcount
-/// bump, and adding a connector no longer costs stack in every frame. [`Deref`] to
-/// [`ConnectorsInner`] keeps field access (`connectors.stripe.base_url`) working unchanged at
-/// every read site, including all `ConnectorCommon::base_url` implementations.
-///
-/// [`Deref`]: std::ops::Deref
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct Connectors(Arc<ConnectorsInner>);
-
-// Serialized as the inner struct, so the on-disk config shape is byte-for-byte unchanged.
-// Written by hand rather than with `#[serde(transparent)]` because serde only supports `Arc`
-// under its `rc` feature, which this workspace does not enable.
-impl<'de> serde::Deserialize<'de> for Connectors {
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        ConnectorsInner::deserialize(deserializer).map(Self::from)
-    }
-}
-
-impl serde::Serialize for Connectors {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        self.0.serialize(serializer)
-    }
-}
-
-impl std::ops::Deref for Connectors {
-    type Target = ConnectorsInner;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl From<ConnectorsInner> for Connectors {
-    fn from(inner: ConnectorsInner) -> Self {
-        Self(Arc::new(inner))
-    }
-}
-
-impl Connectors {
-    /// Mutable access to the inner configuration, cloning it only if this handle is shared.
-    fn make_mut(&mut self) -> &mut ConnectorsInner {
-        Arc::make_mut(&mut self.0)
-    }
-}
-
-/// `config_patch_derive::Patch` names a field's patch type `<FieldType>Patch`, so any struct
-/// holding a `Connectors` field expects `ConnectorsPatch` to exist. The derive now lives on
-/// [`ConnectorsInner`], so alias its patch type and delegate through the `Arc`.
-pub type ConnectorsPatch = ConnectorsInnerPatch;
-
-impl common_utils::config_patch::Patch<ConnectorsPatch> for Connectors {
-    fn apply(&mut self, patch: ConnectorsPatch) {
-        self.make_mut().apply(patch);
-    }
-}
-
 #[derive(
     Clone,
     serde::Deserialize,
@@ -383,7 +319,7 @@ impl common_utils::config_patch::Patch<ConnectorsPatch> for Connectors {
     PartialEq,
     config_patch_derive::Patch,
 )]
-pub struct ConnectorsInner {
+pub struct Connectors {
     // Added pub
     pub adyen: ConnectorParams,
     pub forte: ConnectorParams,
@@ -638,7 +574,6 @@ impl Connectors {
         urls: &common_utils::superposition_config::ConnectorUrls,
     ) -> Result<Self, IntegrationError> {
         let mut patched = self.clone();
-        let inner = patched.make_mut();
 
         // Create a patch for ConnectorParams with the resolved URLs
         let params_patch = ConnectorParamsPatch {
@@ -652,178 +587,178 @@ impl Connectors {
         // Using the config_patch framework, missing fields in the patch mean "no change"
         match connector {
             ConnectorEnum::Stripe => {
-                inner.stripe.apply(params_patch);
+                patched.stripe.apply(params_patch);
             }
             ConnectorEnum::Adyen => {
-                inner.adyen.apply(params_patch);
+                patched.adyen.apply(params_patch);
             }
             ConnectorEnum::Paypal => {
-                inner.paypal.apply(params_patch);
+                patched.paypal.apply(params_patch);
             }
             ConnectorEnum::Braintree => {
-                inner.braintree.apply(params_patch);
+                patched.braintree.apply(params_patch);
             }
             ConnectorEnum::Checkout => {
-                inner.checkout.apply(params_patch);
+                patched.checkout.apply(params_patch);
             }
             ConnectorEnum::Cybersource => {
-                inner.cybersource.apply(params_patch);
+                patched.cybersource.apply(params_patch);
             }
             ConnectorEnum::Revolut => {
-                inner.revolut.apply(params_patch);
+                patched.revolut.apply(params_patch);
             }
             ConnectorEnum::Aci => {
-                inner.aci.apply(params_patch);
+                patched.aci.apply(params_patch);
             }
             ConnectorEnum::Bankofamerica => {
-                inner.bankofamerica.apply(params_patch);
+                patched.bankofamerica.apply(params_patch);
             }
             ConnectorEnum::Worldpay => {
-                inner.worldpay.apply(params_patch);
+                patched.worldpay.apply(params_patch);
             }
             ConnectorEnum::Rapyd => {
-                inner.rapyd.apply(params_patch);
+                patched.rapyd.apply(params_patch);
             }
             ConnectorEnum::Fiserv => {
-                inner.fiserv.apply(params_patch);
+                patched.fiserv.apply(params_patch);
             }
             ConnectorEnum::Nexinets => {
-                inner.nexinets.apply(params_patch);
+                patched.nexinets.apply(params_patch);
             }
             ConnectorEnum::Elavon => {
-                inner.elavon.apply(params_patch);
+                patched.elavon.apply(params_patch);
             }
             ConnectorEnum::Novalnet => {
-                inner.novalnet.apply(params_patch);
+                patched.novalnet.apply(params_patch);
             }
             ConnectorEnum::Forte => {
-                inner.forte.apply(params_patch);
+                patched.forte.apply(params_patch);
             }
             ConnectorEnum::Bambora => {
-                inner.bambora.apply(params_patch);
+                patched.bambora.apply(params_patch);
             }
             ConnectorEnum::Bamboraapac => {
-                inner.bamboraapac.apply(params_patch);
+                patched.bamboraapac.apply(params_patch);
             }
             ConnectorEnum::Barclaycard => {
-                inner.barclaycard.apply(params_patch);
+                patched.barclaycard.apply(params_patch);
             }
             ConnectorEnum::Billwerk => {
-                inner.billwerk.apply(params_patch);
+                patched.billwerk.apply(params_patch);
             }
             ConnectorEnum::Bluesnap => {
-                inner.bluesnap.apply(params_patch);
+                patched.bluesnap.apply(params_patch);
             }
             ConnectorEnum::Calida => {
-                inner.calida.apply(params_patch);
+                patched.calida.apply(params_patch);
             }
             ConnectorEnum::Cashfree => {
-                inner.cashfree.apply(params_patch);
+                patched.cashfree.apply(params_patch);
             }
             ConnectorEnum::Celero => {
-                inner.celero.apply(params_patch);
+                patched.celero.apply(params_patch);
             }
             ConnectorEnum::Cryptopay => {
-                inner.cryptopay.apply(params_patch);
+                patched.cryptopay.apply(params_patch);
             }
             ConnectorEnum::Datatrans => {
-                inner.datatrans.apply(params_patch);
+                patched.datatrans.apply(params_patch);
             }
             ConnectorEnum::Finix => {
-                inner.finix.apply(params_patch);
+                patched.finix.apply(params_patch);
             }
             ConnectorEnum::Fiservcommercehub => {
-                inner.fiservcommercehub.apply(params_patch);
+                patched.fiservcommercehub.apply(params_patch);
             }
             ConnectorEnum::Fiservemea => {
-                inner.fiservemea.apply(params_patch);
+                patched.fiservemea.apply(params_patch);
             }
             ConnectorEnum::Globalpay => {
-                inner.globalpay.apply(params_patch);
+                patched.globalpay.apply(params_patch);
             }
             ConnectorEnum::Helcim => {
-                inner.helcim.apply(params_patch);
+                patched.helcim.apply(params_patch);
             }
             ConnectorEnum::Hipay => {
-                inner.hipay.apply(params_patch);
+                patched.hipay.apply(params_patch);
             }
             ConnectorEnum::Imerchantsolutions => {
-                inner.imerchantsolutions.apply(params_patch);
+                patched.imerchantsolutions.apply(params_patch);
             }
             ConnectorEnum::Jpmorgan => {
-                inner.jpmorgan.apply(params_patch);
+                patched.jpmorgan.apply(params_patch);
             }
             ConnectorEnum::Loonio => {
-                inner.loonio.apply(params_patch);
+                patched.loonio.apply(params_patch);
             }
             ConnectorEnum::Mifinity => {
-                inner.mifinity.apply(params_patch);
+                patched.mifinity.apply(params_patch);
             }
             ConnectorEnum::Mollie => {
-                inner.mollie.apply(params_patch);
+                patched.mollie.apply(params_patch);
             }
             ConnectorEnum::Multisafepay => {
-                inner.multisafepay.apply(params_patch);
+                patched.multisafepay.apply(params_patch);
             }
             ConnectorEnum::Nexixpay => {
-                inner.nexixpay.apply(params_patch);
+                patched.nexixpay.apply(params_patch);
             }
             ConnectorEnum::Payload => {
-                inner.payload.apply(params_patch);
+                patched.payload.apply(params_patch);
             }
             ConnectorEnum::Payme => {
-                inner.payme.apply(params_patch);
+                patched.payme.apply(params_patch);
             }
             ConnectorEnum::Placetopay => {
-                inner.placetopay.apply(params_patch);
+                patched.placetopay.apply(params_patch);
             }
             ConnectorEnum::Powertranz => {
-                inner.powertranz.apply(params_patch);
+                patched.powertranz.apply(params_patch);
             }
             ConnectorEnum::Qwikcilver => {
-                inner.qwikcilver.apply(params_patch);
+                patched.qwikcilver.apply(params_patch);
             }
             ConnectorEnum::Revolv3 => {
-                inner.revolv3.apply(params_patch);
+                patched.revolv3.apply(params_patch);
             }
             ConnectorEnum::AbsaSanlam => {
-                inner.absa_sanlam.apply(params_patch);
+                patched.absa_sanlam.apply(params_patch);
             }
             ConnectorEnum::Shift4 => {
-                inner.shift4.apply(params_patch);
+                patched.shift4.apply(params_patch);
             }
             ConnectorEnum::Silverflow => {
-                inner.silverflow.apply(params_patch);
+                patched.silverflow.apply(params_patch);
             }
             ConnectorEnum::Stax => {
-                inner.stax.apply(params_patch);
+                patched.stax.apply(params_patch);
             }
             ConnectorEnum::Truelayer => {
-                inner.truelayer.apply(params_patch);
+                patched.truelayer.apply(params_patch);
             }
             ConnectorEnum::Trustly => {
-                inner.trustly.apply(params_patch);
+                patched.trustly.apply(params_patch);
             }
             ConnectorEnum::Trustpayments => {
-                inner.trustpayments.apply(params_patch);
+                patched.trustpayments.apply(params_patch);
             }
             ConnectorEnum::Tsys => {
-                inner.tsys.apply(params_patch);
+                patched.tsys.apply(params_patch);
             }
             ConnectorEnum::Wellsfargo => {
-                inner.wellsfargo.apply(params_patch);
+                patched.wellsfargo.apply(params_patch);
             }
             ConnectorEnum::Worldpayvantiv => {
-                inner.worldpayvantiv.apply(params_patch);
+                patched.worldpayvantiv.apply(params_patch);
             }
             ConnectorEnum::Worldpayxml => {
-                inner.worldpayxml.apply(params_patch);
+                patched.worldpayxml.apply(params_patch);
             }
             ConnectorEnum::Zift => {
-                inner.zift.apply(params_patch);
+                patched.zift.apply(params_patch);
             }
             ConnectorEnum::Gigadat => {
-                inner.gigadat.apply(params_patch);
+                patched.gigadat.apply(params_patch);
             }
             ConnectorEnum::Trustpay => {
                 // TrustPay uses ConnectorParamsWithMoreUrls which has different fields
@@ -831,34 +766,34 @@ impl Connectors {
                     base_url: urls.base_url.clone(),
                     base_url_bank_redirects: urls.base_url_bank_redirects.clone(),
                 };
-                inner.trustpay.apply(trustpay_patch);
+                patched.trustpay.apply(trustpay_patch);
             }
             ConnectorEnum::TwocTwopPaco => {
-                inner.twoc_twop_paco.apply(params_patch);
+                patched.twoc_twop_paco.apply(params_patch);
             }
             ConnectorEnum::Flywire => {
-                inner.flywire.apply(params_patch);
+                patched.flywire.apply(params_patch);
             }
             ConnectorEnum::Affirm => {
-                inner.affirm.apply(params_patch);
+                patched.affirm.apply(params_patch);
             }
             ConnectorEnum::Glomopay => {
-                inner.glomopay.apply(params_patch);
+                patched.glomopay.apply(params_patch);
             }
             ConnectorEnum::Givepayments => {
-                inner.givepayments.apply(params_patch);
+                patched.givepayments.apply(params_patch);
             }
             ConnectorEnum::Boost => {
-                inner.boost.apply(params_patch);
+                patched.boost.apply(params_patch);
             }
             ConnectorEnum::Ilixium => {
-                inner.ilixium.apply(params_patch);
+                patched.ilixium.apply(params_patch);
             }
             ConnectorEnum::Maya => {
-                inner.maya.apply(params_patch);
+                patched.maya.apply(params_patch);
             }
             ConnectorEnum::Grabpay => {
-                inner.grabpay.apply(params_patch);
+                patched.grabpay.apply(params_patch);
             }
             _ => {
                 // Connector not supported for URL patching - return error
@@ -885,7 +820,6 @@ impl Connectors {
         urls: &common_utils::superposition_config::ConnectorUrls,
     ) -> Result<Self, IntegrationError> {
         let mut patched = self.clone();
-        let inner = patched.make_mut();
         let params_patch = ConnectorParamsPatch {
             base_url: urls.base_url.clone(),
             dispute_base_url: Some(urls.dispute_base_url.clone()),
@@ -893,22 +827,24 @@ impl Connectors {
             third_base_url: Some(urls.third_base_url.clone()),
         };
         match connector {
-            PayoutConnectorEnum::Loonio => inner.loonio.apply(params_patch),
-            PayoutConnectorEnum::Paypal => inner.paypal.apply(params_patch),
-            PayoutConnectorEnum::Itaubank => inner.itaubank.apply(params_patch),
-            PayoutConnectorEnum::Worldpayxml => inner.worldpayxml.apply(params_patch),
-            PayoutConnectorEnum::Cybersource => inner.cybersource.apply(params_patch),
-            PayoutConnectorEnum::Santander => inner.santander.apply(params_patch),
+            PayoutConnectorEnum::Loonio => patched.loonio.apply(params_patch),
+            PayoutConnectorEnum::Paypal => patched.paypal.apply(params_patch),
+            PayoutConnectorEnum::Itaubank => patched.itaubank.apply(params_patch),
+            PayoutConnectorEnum::Worldpayxml => patched.worldpayxml.apply(params_patch),
+            PayoutConnectorEnum::Cybersource => patched.cybersource.apply(params_patch),
+            PayoutConnectorEnum::Santander => patched.santander.apply(params_patch),
             // Deutschebank uses `ConnectorParamsWithCaBundle`, so patch the resolved
             // URLs while leaving its `server_ca_bundle` untouched.
             PayoutConnectorEnum::Deutschebank => {
-                inner.deutschebank.apply(ConnectorParamsWithCaBundlePatch {
-                    base_url: urls.base_url.clone(),
-                    dispute_base_url: Some(urls.dispute_base_url.clone()),
-                    secondary_base_url: Some(urls.secondary_base_url.clone()),
-                    third_base_url: Some(urls.third_base_url.clone()),
-                    server_ca_bundle: None,
-                })
+                patched
+                    .deutschebank
+                    .apply(ConnectorParamsWithCaBundlePatch {
+                        base_url: urls.base_url.clone(),
+                        dispute_base_url: Some(urls.dispute_base_url.clone()),
+                        secondary_base_url: Some(urls.secondary_base_url.clone()),
+                        third_base_url: Some(urls.third_base_url.clone()),
+                        server_ca_bundle: None,
+                    })
             }
         }
         Ok(patched)
@@ -920,7 +856,6 @@ impl Connectors {
         urls: &common_utils::superposition_config::ConnectorUrls,
     ) -> Result<Self, IntegrationError> {
         let mut patched = self.clone();
-        let inner = patched.make_mut();
         let params_patch = ConnectorParamsPatch {
             base_url: urls.base_url.clone(),
             dispute_base_url: Some(urls.dispute_base_url.clone()),
@@ -928,7 +863,7 @@ impl Connectors {
             third_base_url: Some(urls.third_base_url.clone()),
         };
         match connector {
-            FrmConnectorEnum::Kount => inner.kount.apply(params_patch),
+            FrmConnectorEnum::Kount => patched.kount.apply(params_patch),
         }
         Ok(patched)
     }
@@ -939,7 +874,6 @@ impl Connectors {
         urls: &common_utils::superposition_config::ConnectorUrls,
     ) -> Result<Self, IntegrationError> {
         let mut patched = self.clone();
-        let inner = patched.make_mut();
         let params_patch = ConnectorParamsPatch {
             base_url: urls.base_url.clone(),
             dispute_base_url: Some(urls.dispute_base_url.clone()),
@@ -947,7 +881,7 @@ impl Connectors {
             third_base_url: Some(urls.third_base_url.clone()),
         };
         match connector {
-            SurchargeConnectorEnum::Interpayments => inner.interpayments.apply(params_patch),
+            SurchargeConnectorEnum::Interpayments => patched.interpayments.apply(params_patch),
         }
         Ok(patched)
     }
@@ -958,7 +892,6 @@ impl Connectors {
         urls: &common_utils::superposition_config::ConnectorUrls,
     ) -> Result<Self, IntegrationError> {
         let mut patched = self.clone();
-        let inner = patched.make_mut();
         let params_patch = ConnectorParamsPatch {
             base_url: urls.base_url.clone(),
             dispute_base_url: Some(urls.dispute_base_url.clone()),
@@ -966,7 +899,7 @@ impl Connectors {
             third_base_url: Some(urls.third_base_url.clone()),
         };
         match connector {
-            AuthenticatorConnectorEnum::Plaid => inner.plaid.apply(params_patch),
+            AuthenticatorConnectorEnum::Plaid => patched.plaid.apply(params_patch),
         }
         Ok(patched)
     }
