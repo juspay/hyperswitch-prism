@@ -12,7 +12,7 @@
 
 use std::collections::HashMap;
 
-use common_enums::{AttemptStatus, AuthenticationType, CardNetwork, RefundStatus};
+use common_enums::{AttemptStatus, AuthenticationType, CaptureMethod, CardNetwork, RefundStatus};
 use common_utils::{pii::Email, types::StringMinorUnit, Method};
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
@@ -975,15 +975,24 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = &item.router_data;
         let request = &router_data.request;
 
-        // Fail fast rather than silently capturing an amount the caller did not ask
-        // for: the wire format simply has nowhere to put one.
+        // Citigate's capture body has no `Amount` field, so the gateway always settles the
+        // whole authorisation. Reject the partial- and multi-capture intents up front rather
+        // than sending a request whose amount the wire format cannot express.
+        //
+        // Known gap — a lone partial capture is not detectable here. The capture contract
+        // (`PaymentServiceCaptureRequest`) carries `amount_to_capture` but never the amount
+        // that was originally authorised, and `PaymentFlowData::minor_amount_authorized` is
+        // a response-reporting field: every request-path constructor sets it to `None`. So a
+        // single `Manual` capture for less than the authorisation is indistinguishable from a
+        // full one at this layer, and will settle in full. Closing that gap needs the
+        // authorised amount added to the capture contract; see the follow-up on this PR.
         if request.is_multiple_capture() {
             return Err(not_supported("Multiple partial captures".to_string()));
         }
-        if let Some(authorized) = router_data.resource_common_data.minor_amount_authorized {
-            if authorized != request.minor_amount_to_capture {
-                return Err(not_supported("Partial capture".to_string()));
-            }
+        if let Some(method @ (CaptureMethod::ManualMultiple | CaptureMethod::Scheduled)) =
+            &request.capture_method
+        {
+            return Err(not_supported(format!("{method} capture")));
         }
 
         let auth = CitigateAuthType::try_from(&router_data.connector_config)?;
@@ -1089,14 +1098,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = &item.router_data;
         let request = &router_data.request;
 
-        if let (Some(requested), Some(authorized)) = (
-            request.amount,
-            router_data.resource_common_data.minor_amount_authorized,
-        ) {
-            if requested != authorized {
-                return Err(not_supported("Partial void".to_string()));
-            }
-        }
+        // Same shape as Capture: the cancel body has no `Amount` field, so Citigate always
+        // voids the whole authorisation. `PaymentVoidData::amount` does reach us, but there
+        // is nothing to compare it against — `minor_amount_authorized` is `None` on every
+        // request path — so a partial void cannot be rejected here and will void in full.
 
         let auth = CitigateAuthType::try_from(&router_data.connector_config)?;
 
