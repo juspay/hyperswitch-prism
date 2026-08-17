@@ -571,17 +571,6 @@ impl TryFrom<ResponseRouterData<MayaWebhookBody, Self>>
             _ => None,
         };
 
-        // Operational fields Maya returns that have no typed slot on the payments
-        // response are surfaced verbatim through `connector_metadata`.
-        let connector_metadata = serde_json::json!({
-            "isPaid": payment.is_paid,
-            "canVoid": payment.can_void,
-            "canRefund": payment.can_refund,
-            "canCapture": payment.can_capture,
-            "createdAt": payment.created_at.clone(),
-            "updatedAt": payment.updated_at.clone(),
-        });
-
         let settlement_status = maya_settlement_status(payment.can_void, payment.can_refund);
 
         let status = common_enums::AttemptStatus::from(payment.status.clone());
@@ -607,7 +596,7 @@ impl TryFrom<ResponseRouterData<MayaWebhookBody, Self>>
                 resource_id,
                 redirection_data: None,
                 mandate_reference: None,
-                connector_metadata: Some(connector_metadata),
+                connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: Some(connector_response_reference_id),
                 incremental_authorization_allowed: None,
