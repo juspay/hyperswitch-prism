@@ -1284,7 +1284,7 @@ fn get_payment_source<
         | BankRedirectData::OnlineBankingFpx { .. }
         | BankRedirectData::OnlineBankingThailand { .. }
         | BankRedirectData::LocalBankRedirect {}
-        | BankRedirectData::OpenBanking {}
+        | BankRedirectData::OpenBanking { .. }
         | BankRedirectData::Netbanking { .. } => Err(IntegrationError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("Paypal"),
             Default::default(),
@@ -1573,6 +1573,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::ApplePayRedirect(_)
                 | WalletData::ApplePayThirdPartySdk(_)
                 | WalletData::DanaRedirect {}
+                | WalletData::GrabpayRedirect {}
                 | WalletData::BluecodeRedirect {}
                 | WalletData::GooglePayRedirect(_)
                 | WalletData::GooglePayThirdPartySdk(_)
@@ -2437,6 +2438,10 @@ where
                         network_decline_code: None,
                         network_advice_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     }),
                     ..item.router_data
                 })
@@ -3327,6 +3332,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 network_advice_code: None,
                                 network_decline_code: None,
                                 network_error_message: None,
+                                typed_connector_response: None,
+                                raw_connector_response: None,
+                                raw_connector_request: None,
+                                typed_connector_request: None,
                             }),
                             connector_config: item.router_data.connector_config,
                             request: item.router_data.request,

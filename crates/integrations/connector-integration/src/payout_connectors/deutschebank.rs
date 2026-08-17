@@ -179,7 +179,14 @@ macros::create_all_prerequisites!(
         where
             Self: ConnectorIntegrationV2<F, FCD, Req, Res>,
         {
-            let body = self.get_request_body(req)?;
+            let request_data = self.get_request_body(req)?;
+            let (body, typed_request_value) = match request_data {
+                Some(data) => (
+                    Some(data.content),
+                    data.typed_request.map(|msv| msv.inner().clone()),
+                ),
+                None => (None, None),
+            };
             let body_bytes = body
                 .as_ref()
                 .map(|content| content.get_inner_value().expose().into_bytes())
@@ -203,6 +210,7 @@ macros::create_all_prerequisites!(
                     .attach_default_headers()
                     .headers(headers)
                     .set_optional_body(body)
+                    .set_typed_connector_request(typed_request_value)
                     .add_certificate(self.get_certificate(req)?)
                     .add_certificate_key(self.get_certificate_key(req)?)
                     .add_ca_certificate_pem(self.get_ca_certificate(req)?)
@@ -352,6 +360,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             _ => Some(details.join(" | ")),
         };
 
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         Ok(ErrorResponse {
             status_code: res.status_code,
             code,
@@ -362,6 +372,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     }
 }
@@ -595,18 +609,18 @@ macros::macro_connector_implementation!(
                 PayoutTransferResponse,
             >,
         ) -> CustomResult<Option<Request>, IntegrationError> {
-            let vop_id = req.request.connector_payout_id.clone().ok_or_else(|| {
+            let vop_id = req.request.connector_eligibility_reference_id.clone().ok_or_else(|| {
                 IntegrationError::MissingRequiredField {
-                    field_name: "connector_payout_id",
+                    field_name: "connector_eligibility_reference_id",
                     context: IntegrationErrorContext {
                         additional_context: Some(
                             "Deutsche Bank SEPA payment requires the VoP-ID from a prior \
-                             PayoutEligibility call in `connector_payout_id`"
+                             PayoutEligibility call in `connector_eligibility_reference_id`"
                                 .to_string(),
                         ),
                         suggested_action: Some(
                             "Call PayoutService/Eligibility first and pass the returned \
-                             `connectorPayoutId` on Transfer."
+                             `connectorEligibilityReferenceId` on Transfer."
                                 .to_string(),
                         ),
                         doc_url: None,

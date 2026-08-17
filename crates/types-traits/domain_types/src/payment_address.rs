@@ -441,6 +441,8 @@ pub struct OrderDetailsWithAmount {
     pub discount_percentage: Option<f64>,
     // Discount type applied to this item
     pub discount_type: Option<String>,
+    /// The image URL of the product
+    pub product_link: Option<String>,
 }
 
 impl SerializableSecret for OrderDetailsWithAmount {}

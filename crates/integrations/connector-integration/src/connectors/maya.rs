@@ -177,6 +177,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         with_error_response_body!(event_builder, response);
 
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
+
         let mut reason_parts = Vec::new();
 
         if let Some(params) = response.parameters {
@@ -209,6 +212,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     }
 }
@@ -276,6 +283,26 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
         Ok(EventType::from(body.status))
+    }
+
+    fn get_webhook_event_reference(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<errors::WebhookError>> {
+        let body: MayaWebhookBody = request
+            .body
+            .parse_struct("MayaWebhookBody")
+            .change_context(errors::WebhookError::WebhookResourceObjectNotFound)?;
+
+        Ok(Some(WebhookResourceReference::Payment(
+            PaymentWebhookReference {
+                // Maya's payment `id` is the connector transaction id.
+                connector_transaction_id: Some(body.id),
+                // `requestReferenceNumber` is the merchant-assigned reference we
+                // sent when creating the payment, echoed back by Maya.
+                merchant_transaction_id: body.request_reference_number,
+            },
+        )))
     }
 
     fn process_payment_webhook(
@@ -607,6 +634,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn process_redirect_response(
         &self,
         _request: &RequestDetails,
+        _connector_feature_data: Option<&hyperswitch_masking::Secret<String>>,
     ) -> CustomResult<RedirectDetailsResponse, errors::IntegrationError> {
         // Maya is a redirect-only connector. The redirect body carries no
         // meaningful payment state; final status is confirmed via PSync or
@@ -621,6 +649,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             error_reason: None,
             response_amount: None,
             raw_connector_response: None,
+            connector_feature_data: None,
         })
     }
 }

@@ -333,6 +333,25 @@ pub struct PaysafeGooglePayPaymentMethodData {
 pub struct PaysafeGooglePayCardInfo {
     pub card_network: String,
     pub card_details: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub billing_address: Option<PaysafeGooglePayBillingAddress>,
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeGooglePayBillingAddress {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub address1: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub locality: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub administrative_area: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub postal_code: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub country_code: Option<common_enums::CountryAlpha2>,
 }
 
 #[derive(Debug, Serialize, Clone, PartialEq)]

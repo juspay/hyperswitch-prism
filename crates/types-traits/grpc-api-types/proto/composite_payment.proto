@@ -144,7 +144,7 @@ message CompositeAuthorizeRequest {
 enum CompositeStatus {
   COMPOSITE_STATUS_UNSPECIFIED = 0; // Default/unset value
   COMPLETED = 1;         // Flow is done; inspect authorize_response for final payment status
-  REDIRECT_REQUIRED = 2; // Caller must redirect the customer (see authorize_response.redirection_data), then call CompositeAuthorize again with redirection_response
+  REDIRECT_REQUIRED = 2; // Caller must redirect the customer (see redirection_data on authorize_response, authenticate_response, or pre_authenticate_response), then call the follow-up redirect flow (CompositeAuthorize again with redirection_response, or CompositeVerifyRedirectResponse for connectors that require a post-redirect authorize)
 }
 
 // Response message for composite authorize flow.

@@ -9,328 +9,328 @@
     },
     "authorize": {
       "Ach": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "AchBankTransfer": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "Affirm": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "Afterpay": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "Alfamart": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "AliPayRedirect": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "AmazonPayRedirect": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "ApplePay": {
         "status": "error",
-        "error": "Failed to obtain authentication type"
+        "error": "Stuck on field: decrypted apple pay data — Missing required field: decrypted apple pay data"
       },
       "ApplePayDecrypted": {
         "status": "error",
         "error": "Failed to obtain authentication type"
       },
       "ApplePayThirdPartySdk": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "Bacs": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "BacsBankTransfer": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "BancontactCard": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "BcaBankTransfer": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "Becs": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "BillDeskRedirect": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "Bizum": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "Blik": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "Bluecode": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "BniVaBankTransfer": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "Boleto": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "BriVaBankTransfer": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "Card": {
         "status": "error",
         "error": "Failed to obtain authentication type"
       },
       "CashappQr": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "CashfreeRedirect": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "CimbVaBankTransfer": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "ClassicReward": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "Crypto": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Dana": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "DanamonVaBankTransfer": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "DuitNow": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "EVoucher": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "EaseBuzzRedirect": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "Efecty": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "Eft": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "Eps": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "FamilyMart": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "GCash": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "Giropay": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "Givex": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "GoPay": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "GooglePay": {
         "status": "error",
-        "error": "Failed to obtain authentication type"
+        "error": "Stuck on field: decrypted google pay data — Missing required field: decrypted google pay data"
       },
       "GooglePayDecrypted": {
         "status": "error",
         "error": "Failed to obtain authentication type"
       },
       "GooglePayThirdPartySdk": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "Ideal": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "Indomaret": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "IndonesianBankTransfer": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "InstantBankTransfer": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "InstantBankTransferFinland": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "InstantBankTransferPoland": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "Interac": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "KakaoPay": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "Klarna": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "Lawson": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "LazyPayRedirect": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "LocalBankRedirect": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "LocalBankTransfer": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "MandiriVaBankTransfer": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "MbWay": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "Mifinity": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "MiniStop": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "MobilePayRedirect": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Momo": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "MultibancoBankTransfer": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "Netbanking": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "OnlineBankingCzechRepublic": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "OnlineBankingFinland": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "OnlineBankingFpx": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "OnlineBankingPoland": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "OnlineBankingSlovakia": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "OnlineBankingThailand": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "OpenBanking": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "OpenBankingPis": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "OpenBankingUk": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "Oxxo": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "PagoEfectivo": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "PayEasy": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "PaySafeCard": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "PayURedirect": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "PaypalRedirect": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "PaypalSdk": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "Paysera": {
         "status": "not_supported",
@@ -341,112 +341,112 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "PermataBankTransfer": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "PhonePeRedirect": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "Pix": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "Przelewy24": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "Pse": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "RedCompra": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "RedPagos": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "RevolutPay": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "SamsungPay": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "Satispay": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "Seicomart": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "Sepa": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "SepaBankTransfer": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "SepaGuaranteedDebit": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "SevenEleven": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "Skrill": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "Sofort": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "Swish": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "TouchNGo": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "Trustly": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "Twint": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "UpiCollect": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "UpiIntent": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "UpiQr": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "Vipps": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "WeChatPayQr": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
       "Wero": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       }
     },
     "capture": {
@@ -623,14 +623,14 @@
     },
     "token_authorize": {
       "default": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       }
     },
     "token_setup_recurring": {
       "default": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro SetupMandate"
       }
     },
     "tokenize": {

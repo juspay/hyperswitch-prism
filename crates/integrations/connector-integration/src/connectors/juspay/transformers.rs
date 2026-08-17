@@ -672,6 +672,7 @@ fn wallet_to_juspay(
         )),
         WalletData::BluecodeRedirect {}
         | WalletData::DanaRedirect {}
+        | WalletData::GrabpayRedirect {}
         | WalletData::MbWayRedirect(_)
         | WalletData::MobilePayRedirect(_)
         | WalletData::TwintRedirect {}
@@ -1782,6 +1783,10 @@ pub fn build_card_sync_failure(
         network_decline_code: None,
         network_advice_code: None,
         network_error_message: None,
+        typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
     }
 }
 

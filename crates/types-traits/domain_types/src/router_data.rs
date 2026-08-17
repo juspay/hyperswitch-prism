@@ -311,6 +311,7 @@ pub enum ConnectorSpecificConfig {
     Calida {
         api_key: Secret<String>,
         base_url: Option<String>,
+        shop_name: Option<Secret<String>>,
     },
     Celero {
         api_key: Secret<String>,
@@ -940,6 +941,14 @@ pub enum ConnectorSpecificConfig {
         auth_server_id: Option<String>,
         base_url: Option<String>,
     },
+    Grabpay {
+        partner_id: Secret<String>,
+        partner_secret: Secret<String>,
+        client_id: Secret<String>,
+        client_secret: Secret<String>,
+        merchant_id: Secret<String>,
+        base_url: Option<String>,
+    },
     Plaid {
         client_id: Secret<String>,
         secret: Secret<String>,
@@ -950,6 +959,11 @@ pub enum ConnectorSpecificConfig {
         api_key: Secret<String>,
         key1: Secret<String>,
         api_secret: Secret<String>,
+        base_url: Option<String>,
+    },
+    Boost {
+        client_id: Secret<String>,
+        merchant_secret: Secret<String>,
         base_url: Option<String>,
     },
 }
@@ -1286,11 +1300,19 @@ impl ConnectorSpecificConfig {
             Tamara { api_key },
             Kount { api_key },
             Hyperswitch { api_key },
+            Grabpay {
+                partner_id,
+                partner_secret,
+                client_id,
+                client_secret,
+                merchant_id
+            },
             Tesouro {
                 api_key,
                 key1,
                 api_secret
             },
+            Boost { api_key },
             Imerchantsolutions { api_key },
             Interpayments { api_key },
             TwocTwopPaco {
@@ -1748,11 +1770,19 @@ impl ConnectorSpecificConfig {
                 Tamara { api_key },
                 Kount { api_key },
                 Hyperswitch { api_key },
+                Grabpay {
+                    partner_id,
+                    partner_secret,
+                    client_id,
+                    client_secret,
+                    merchant_id
+                },
                 Tesouro {
                     api_key,
                     key1,
                     api_secret
                 },
+                Boost { api_key },
                 Imerchantsolutions { api_key },
                 Interpayments { api_key },
                 TwocTwopPaco {
@@ -2136,6 +2166,7 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             AuthType::Calida(calida) => Ok(Self::Calida {
                 api_key: calida.api_key.ok_or_else(err)?,
                 base_url: calida.base_url,
+                shop_name: calida.shop_name,
             }),
             AuthType::Payload(payload) => Ok(Self::Payload {
                 auth_key_map: serde_json::to_value(payload.auth_key_map)
@@ -2355,11 +2386,24 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 api_key: hyperswitch.api_key.ok_or_else(err)?,
                 base_url: hyperswitch.base_url,
             }),
+            AuthType::Grabpay(grabpay) => Ok(Self::Grabpay {
+                partner_id: grabpay.partner_id.ok_or_else(err)?,
+                partner_secret: grabpay.partner_secret.ok_or_else(err)?,
+                client_id: grabpay.client_id.ok_or_else(err)?,
+                client_secret: grabpay.client_secret.ok_or_else(err)?,
+                merchant_id: grabpay.merchant_id.ok_or_else(err)?,
+                base_url: grabpay.base_url,
+            }),
             AuthType::Tesouro(tesouro) => Ok(Self::Tesouro {
                 api_key: tesouro.api_key.ok_or_else(err)?,
                 key1: tesouro.key1.ok_or_else(err)?,
                 api_secret: tesouro.api_secret.ok_or_else(err)?,
                 base_url: tesouro.base_url,
+            }),
+            AuthType::Boost(boost) => Ok(Self::Boost {
+                client_id: boost.client_id.ok_or_else(err)?,
+                merchant_secret: boost.merchant_secret.ok_or_else(err)?,
+                base_url: boost.base_url,
             }),
             AuthType::Imerchantsolutions(imerchantsolutions) => Ok(Self::Imerchantsolutions {
                 api_key: imerchantsolutions.api_key.ok_or_else(err)?,
@@ -2497,6 +2541,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Calida {
                         api_key: api_key.clone(),
                         base_url: None,
+                        shop_name: None,
                     }),
                     _ => Err(err().into()),
                 },
@@ -3546,6 +3591,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
+                ConnectorEnum::Grabpay => Err(err().into()),
                 ConnectorEnum::Tesouro => match auth {
                     ConnectorAuthType::SignatureKey {
                         api_key,
@@ -3555,6 +3601,14 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         api_key: api_key.clone(),
                         key1: key1.clone(),
                         api_secret: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Boost => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Boost {
+                        client_id: api_key.clone(),
+                        merchant_secret: key1.clone(),
                         base_url: None,
                     }),
                     _ => Err(err().into()),
@@ -3827,6 +3881,10 @@ pub struct ErrorResponse {
     pub network_decline_code: Option<String>,
     pub network_advice_code: Option<String>,
     pub network_error_message: Option<String>,
+    pub typed_connector_response: Option<String>,
+    pub raw_connector_response: Option<Secret<String>>,
+    pub raw_connector_request: Option<Secret<String>>,
+    pub typed_connector_request: Option<String>,
 }
 
 impl Default for ErrorResponse {
@@ -3841,6 +3899,10 @@ impl Default for ErrorResponse {
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         }
     }
 }
@@ -3878,6 +3940,10 @@ impl ErrorResponse {
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         }
     }
 }
