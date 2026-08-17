@@ -368,6 +368,7 @@ mod tests {
                     payment_channel: None,
                     domain_data: None,
                     partner_merchant_identifier_details: None,
+                    connector_intent_metadata: None,
                 },
                 response: Err(ErrorResponse::default()),
             };
