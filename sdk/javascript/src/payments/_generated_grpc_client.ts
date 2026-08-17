@@ -177,7 +177,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   DisputeResponse: ["rawConnectorRequest", "typedConnectorRequest"],
   PaymentServiceSetupRecurringRequest: ["metadata", "connectorFeatureData", "connectorTestingData"],
   PaymentServiceSetupRecurringResponse: ["rawConnectorRequest", "typedConnectorRequest", "connectorFeatureData", "rawConnectorResponse", "typedConnectorResponse"],
-  RecurringPaymentServiceChargeRequest: ["metadata", "connectorFeatureData", "email", "merchantAccountId", "connectorTestingData","connectorIntentMetadata"],
+  RecurringPaymentServiceChargeRequest: ["metadata", "connectorFeatureData", "email", "merchantAccountId", "connectorTestingData", "connectorIntentMetadata"],
   RecurringPaymentServiceChargeResponse: ["connectorFeatureData", "rawConnectorResponse", "typedConnectorResponse", "rawConnectorRequest", "typedConnectorRequest"],
   RecurringPaymentServiceRevokeResponse: ["rawConnectorResponse", "typedConnectorResponse", "rawConnectorRequest", "typedConnectorRequest"],
   PaymentMethodAuthenticationServicePreAuthenticateRequest: ["metadata", "connectorFeatureData"],
