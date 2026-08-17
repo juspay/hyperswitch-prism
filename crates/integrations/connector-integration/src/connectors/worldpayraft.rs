@@ -7,10 +7,10 @@ use common_utils::{
     errors::CustomResult, events, ext_traits::ByteSliceExt, types::StringMajorUnit,
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, Refund, RepeatPayment, SetupMandate, Void},
+    connector_flow::{Authorize, Capture, Refund, RepeatPayment, SetupMandate},
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, RefundFlowData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
+        RefundFlowData, RefundsData, RefundsResponseData, RepeatPaymentData,
         SetupMandateRequestData,
     },
     errors,
@@ -32,8 +32,7 @@ use transformers::{
     WorldpayraftAuthorizeRequest, WorldpayraftAuthorizeResponse, WorldpayraftCaptureRequest,
     WorldpayraftCaptureResponse, WorldpayraftRefundRequest, WorldpayraftRefundResponse,
     WorldpayraftRepeatPaymentRequest, WorldpayraftRepeatPaymentResponse,
-    WorldpayraftSetupMandateRequest, WorldpayraftSetupMandateResponse, WorldpayraftVoidRequest,
-    WorldpayraftVoidResponse,
+    WorldpayraftSetupMandateRequest, WorldpayraftSetupMandateResponse,
 };
 
 use crate::{connectors::macros, types::ResponseRouterData};
@@ -61,12 +60,6 @@ macros::create_all_prerequisites!(
             request_body: WorldpayraftCaptureRequest,
             response_body: WorldpayraftCaptureResponse,
             router_data: RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-        ),
-        (
-            flow: Void,
-            request_body: WorldpayraftVoidRequest,
-            response_body: WorldpayraftVoidResponse,
-            router_data: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
         ),
         (
             flow: Refund,
@@ -188,6 +181,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_response: None,
+            typed_connector_request: None,
         })
     }
 }
@@ -267,8 +264,14 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, errors::IntegrationError> {
+            use domain_types::payment_method_data::PaymentMethodData;
             let base_url = self.connector_base_url_payments(req);
-            Ok(format!("{base_url}/credit/authorization"))
+            let is_debit = matches!(
+                &req.request.payment_method_data,
+                PaymentMethodData::Card(c) if matches!(c.card_type.as_deref(), Some("debit") | Some("Debit"))
+            );
+            let path = if is_debit { "debit/preauth" } else { "credit/authorization" };
+            Ok(format!("{base_url}/{path}"))
         }
     }
 );
@@ -306,49 +309,13 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
         ) -> CustomResult<String, errors::IntegrationError> {
             let base_url = self.connector_base_url_payments(req);
-            Ok(format!("{base_url}/credit/completion"))
-        }
-    }
-);
-
-// ===== VOID TRAIT MARKER =====
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentVoidV2 for Worldpayraft<T>
-{
-}
-
-// =============================================================================
-// VOID FLOW IMPLEMENTATION
-// =============================================================================
-// Worldpay RAFT has no standalone void endpoint. Void is implemented as a
-// reversal by posting to /credit/refund using the auth transaction's trace
-// numbers (AuthorizationNumber, RetrievalREFNumber, SystemTraceNumber) that
-// were stored in connector_transaction_id during the Authorize flow.
-macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
-    connector: Worldpayraft,
-    curl_request: Json(WorldpayraftVoidRequest),
-    curl_response: WorldpayraftVoidResponse,
-    flow_name: Void,
-    resource_common_data: PaymentFlowData,
-    flow_request: PaymentVoidData,
-    flow_response: PaymentsResponseData,
-    http_method: Post,
-    generic_type: T,
-    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
-    other_functions: {
-        fn get_headers(
-            &self,
-            req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
-            self.build_headers(req)
-        }
-        fn get_url(
-            &self,
-            req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-        ) -> CustomResult<String, errors::IntegrationError> {
-            let base_url = self.connector_base_url_payments(req);
-            Ok(format!("{base_url}/credit/refund"))
+            let connector_txn_id = req.request.get_connector_transaction_id()
+                .change_context(errors::IntegrationError::MissingRequiredField {
+                    field_name: "connector_transaction_id",
+                    context: Default::default(),
+                })?;
+            let path = if connector_txn_id.starts_with("D|") { "debit/completion" } else { "credit/completion" };
+            Ok(format!("{base_url}/{path}"))
         }
     }
 );
@@ -386,7 +353,12 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
         ) -> CustomResult<String, errors::IntegrationError> {
             let base_url = self.connector_base_url_refunds(req);
-            Ok(format!("{base_url}/credit/refund"))
+            let path = if req.request.connector_transaction_id.starts_with("D|") {
+                "debit/refund"
+            } else {
+                "credit/refund"
+            };
+            Ok(format!("{base_url}/{path}"))
         }
     }
 );
@@ -475,6 +447,7 @@ crate::connectors::macros::macro_connector_flow_status_impls!(
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     not_implemented: [
+        Void,
         CreateConnectorCustomer,
         GetConnectorCustomer,
         MandateRevoke,

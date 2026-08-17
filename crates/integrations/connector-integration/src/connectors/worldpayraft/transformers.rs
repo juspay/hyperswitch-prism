@@ -113,15 +113,16 @@ fn derive_system_trace_number(id: &str) -> String {
 ///
 /// Returns `(is_debit, authorization_number, retrieval_ref_number, system_trace_number)`.
 fn parse_connector_transaction_id(id: &str) -> (bool, &str, &str, &str) {
-    let parts: Vec<&str> = id.splitn(4, '|').collect();
-    if parts.len() == 4 {
-        let is_debit = parts[0] == "D";
-        (is_debit, parts[1], parts[2], parts[3])
-    } else if parts.len() == 3 {
-        // Legacy format without prefix — treat as credit
-        (false, parts[0], parts[1], parts[2])
-    } else {
-        (false, id, "", "")
+    let mut iter = id.splitn(4, '|');
+    match (iter.next(), iter.next(), iter.next(), iter.next()) {
+        (Some(prefix), Some(auth_num), Some(retrieval_ref), Some(sys_trace)) => {
+            (prefix == "D", auth_num, retrieval_ref, sys_trace)
+        }
+        (Some(auth_num), Some(retrieval_ref), Some(sys_trace), None) => {
+            // Legacy format without prefix — treat as credit
+            (false, auth_num, retrieval_ref, sys_trace)
+        }
+        _ => (false, id, "", ""),
     }
 }
 
@@ -249,7 +250,7 @@ pub enum WorldpayraftAuthorizeRequest<
 // AUTHORIZE RESPONSE
 // =============================================================================
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct WorldpayraftResponseTraceNumbers {
     #[serde(rename = "AuthorizationNumber")]
     pub authorization_number: Option<String>,
@@ -261,7 +262,7 @@ pub struct WorldpayraftResponseTraceNumbers {
     pub network_ref_number: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct WorldpayraftEncryptionTokenData {
     #[serde(rename = "TokenizedPAN")]
     pub tokenized_pan: Option<String>,
@@ -270,7 +271,7 @@ pub struct WorldpayraftEncryptionTokenData {
 }
 
 /// Inner fields shared by creditauthresponse and debitpreauthresponse.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct WorldpayraftCardAuthResponseInner {
     #[serde(rename = "ReturnCode")]
     pub return_code: String,
@@ -287,7 +288,7 @@ pub struct WorldpayraftCardAuthResponseInner {
 }
 
 /// Outer wrapper for authorize responses.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum WorldpayraftAuthorizeResponse {
     Credit {
@@ -431,11 +432,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
 
         if is_debit {
-            Ok(WorldpayraftAuthorizeRequest::Debit {
+            Ok(Self::Debit {
                 debitpreauth: inner,
             })
         } else {
-            Ok(WorldpayraftAuthorizeRequest::Credit { creditauth: inner })
+            Ok(Self::Credit { creditauth: inner })
         }
     }
 }
@@ -445,30 +446,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 // =============================================================================
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    TryFrom<
-        ResponseRouterData<
-            WorldpayraftAuthorizeResponse,
-            RouterDataV2<
-                Authorize,
-                PaymentFlowData,
-                PaymentsAuthorizeData<T>,
-                PaymentsResponseData,
-            >,
-        >,
-    > for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
+    TryFrom<ResponseRouterData<WorldpayraftAuthorizeResponse, Self>>
+    for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<
-            WorldpayraftAuthorizeResponse,
-            RouterDataV2<
-                Authorize,
-                PaymentFlowData,
-                PaymentsAuthorizeData<T>,
-                PaymentsResponseData,
-            >,
-        >,
+        item: ResponseRouterData<WorldpayraftAuthorizeResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let (is_debit, inner) = match &item.response {
             WorldpayraftAuthorizeResponse::Credit { creditauthresponse } => {
@@ -571,7 +555,7 @@ pub enum WorldpayraftCaptureRequest {
 // =============================================================================
 
 /// Inner fields shared by creditcompletionresponse and debitcompletionresponse.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct WorldpayraftCompletionResponseInner {
     #[serde(rename = "ReturnCode")]
     pub return_code: String,
@@ -586,7 +570,7 @@ pub struct WorldpayraftCompletionResponseInner {
 }
 
 /// Outer wrapper for capture responses.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum WorldpayraftCaptureResponse {
     Credit {
@@ -669,11 +653,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
 
         if is_debit {
-            Ok(WorldpayraftCaptureRequest::Debit {
+            Ok(Self::Debit {
                 debitcompletion: inner,
             })
         } else {
-            Ok(WorldpayraftCaptureRequest::Credit {
+            Ok(Self::Credit {
                 creditcompletion: inner,
             })
         }
@@ -684,21 +668,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 // TryFrom: WorldpayraftCaptureResponse → RouterDataV2
 // =============================================================================
 
-impl
-    TryFrom<
-        ResponseRouterData<
-            WorldpayraftCaptureResponse,
-            RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-        >,
-    > for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
+impl TryFrom<ResponseRouterData<WorldpayraftCaptureResponse, Self>>
+    for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<
-            WorldpayraftCaptureResponse,
-            RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-        >,
+        item: ResponseRouterData<WorldpayraftCaptureResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let inner = match &item.response {
             WorldpayraftCaptureResponse::Credit {
@@ -793,7 +769,7 @@ pub enum WorldpayraftRefundRequest {
 // REFUND RESPONSE
 // =============================================================================
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct WorldpayraftRefundResponseTraceNumbers {
     #[serde(rename = "AuthorizationNumber")]
     pub authorization_number: Option<String>,
@@ -802,7 +778,7 @@ pub struct WorldpayraftRefundResponseTraceNumbers {
 }
 
 /// Inner fields shared by creditrefundresponse and debitrefundresponse.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct WorldpayraftRefundResponseInner {
     #[serde(rename = "ReturnCode")]
     pub return_code: String,
@@ -817,7 +793,7 @@ pub struct WorldpayraftRefundResponseInner {
 }
 
 /// Outer wrapper for refund responses.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum WorldpayraftRefundResponse {
     Credit {
@@ -909,9 +885,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
 
         if is_debit {
-            Ok(WorldpayraftRefundRequest::Debit { debitrefund: inner })
+            Ok(Self::Debit { debitrefund: inner })
         } else {
-            Ok(WorldpayraftRefundRequest::Credit {
+            Ok(Self::Credit {
                 creditrefund: inner,
             })
         }
@@ -922,21 +898,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 // TryFrom: WorldpayraftRefundResponse → RouterDataV2
 // =============================================================================
 
-impl
-    TryFrom<
-        ResponseRouterData<
-            WorldpayraftRefundResponse,
-            RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-        >,
-    > for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
+impl TryFrom<ResponseRouterData<WorldpayraftRefundResponse, Self>>
+    for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<
-            WorldpayraftRefundResponse,
-            RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-        >,
+        item: ResponseRouterData<WorldpayraftRefundResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let inner = match &item.response {
             WorldpayraftRefundResponse::Credit {
@@ -1129,17 +1097,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 // =============================================================================
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    TryFrom<
-        ResponseRouterData<
-            WorldpayraftSetupMandateResponse,
-            RouterDataV2<
-                SetupMandate,
-                PaymentFlowData,
-                SetupMandateRequestData<T>,
-                PaymentsResponseData,
-            >,
-        >,
-    >
+    TryFrom<ResponseRouterData<WorldpayraftSetupMandateResponse, Self>>
     for RouterDataV2<
         SetupMandate,
         PaymentFlowData,
@@ -1150,15 +1108,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<
-            WorldpayraftSetupMandateResponse,
-            RouterDataV2<
-                SetupMandate,
-                PaymentFlowData,
-                SetupMandateRequestData<T>,
-                PaymentsResponseData,
-            >,
-        >,
+        item: ResponseRouterData<WorldpayraftSetupMandateResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let response = &item.response.tokenizeresponse;
 
@@ -1270,7 +1220,7 @@ pub struct WorldpayraftRepeatPaymentRequest {
 }
 
 /// RepeatPayment response — same outer shape as credit authorize.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct WorldpayraftRepeatPaymentResponseInner {
     #[serde(rename = "ReturnCode")]
     pub return_code: String,
@@ -1284,7 +1234,7 @@ pub struct WorldpayraftRepeatPaymentResponseInner {
     pub api_transaction_id: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct WorldpayraftRepeatPaymentResponse {
     pub creditauthresponse: WorldpayraftRepeatPaymentResponseInner,
 }
@@ -1399,30 +1349,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 // =============================================================================
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    TryFrom<
-        ResponseRouterData<
-            WorldpayraftRepeatPaymentResponse,
-            RouterDataV2<
-                RepeatPayment,
-                PaymentFlowData,
-                RepeatPaymentData<T>,
-                PaymentsResponseData,
-            >,
-        >,
-    > for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
+    TryFrom<ResponseRouterData<WorldpayraftRepeatPaymentResponse, Self>>
+    for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<
-            WorldpayraftRepeatPaymentResponse,
-            RouterDataV2<
-                RepeatPayment,
-                PaymentFlowData,
-                RepeatPaymentData<T>,
-                PaymentsResponseData,
-            >,
-        >,
+        item: ResponseRouterData<WorldpayraftRepeatPaymentResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let response = &item.response.creditauthresponse;
 
