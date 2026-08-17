@@ -36,10 +36,13 @@ pub enum CredentialError {
     Parse(#[from] serde_json::Error),
     #[error("Connector '{0}' not found in credentials file")]
     ConnectorNotFound(String),
+    #[error(
+        "Connector '{0}' uses legacy connector_account_details format; \
+         update to the new proto-native flat format"
+    )]
+    LegacyFormat(String),
     #[error("Connector '{0}' has an empty credentials block")]
     EmptyCredentials(String),
-    #[error("Connector '{0}' has invalid credentials shape: {1}")]
-    InvalidCredentials(String, String),
 }
 
 /// Non-auth metadata fields present in the creds file that must be stripped
@@ -99,16 +102,9 @@ fn normalize_value(value: serde_json::Value) -> serde_json::Value {
     }
 }
 
-/// Extracts the connector's auth JSON block from the creds file, handling:
+/// Extracts the connector's flat auth JSON block from the creds file, handling:
 /// - Array-valued connectors (picks first entry).
-/// - Existing CI `connector_account_details` wrappers.
-/// - Nested connector accounts, keyed by environment or account name.
-///
-/// For the nested form, `default` wins if present; otherwise the
-/// lexicographically first key does. Picking whichever key happened to come
-/// first in the file would let CI certify against a different account than the
-/// one it certified against yesterday.
-#[allow(clippy::print_stderr)]
+/// - Rejects legacy `connector_account_details` wrappers.
 fn extract_connector_block(
     root: &serde_json::Value,
     connector: &str,
@@ -129,69 +125,12 @@ fn extract_connector_block(
         .as_object()
         .ok_or_else(|| CredentialError::EmptyCredentials(connector.to_string()))?;
 
-    if let Some(details) = obj.get("connector_account_details") {
-        return legacy_connector_account_details_to_block(connector, details);
-    }
-
-    let mut nested_keys: Vec<&String> = obj
-        .iter()
-        .filter(|(_, v)| {
-            v.as_object()
-                .is_some_and(|o| o.contains_key("connector_account_details"))
-        })
-        .map(|(k, _)| k)
-        .collect();
-    nested_keys.sort();
-
-    let chosen = nested_keys
-        .iter()
-        .find(|k| k.as_str() == "default")
-        .or_else(|| nested_keys.first());
-
-    if let Some(key) = chosen {
-        if let Some(details) = obj
-            .get(key.as_str())
-            .and_then(|v| v.get("connector_account_details"))
-        {
-            if nested_keys.len() > 1 {
-                eprintln!(
-                    "[credentials] '{connector}' has {} nested accounts ({}); using '{key}'",
-                    nested_keys.len(),
-                    nested_keys
-                        .iter()
-                        .map(|k| k.as_str())
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                );
-            }
-            return legacy_connector_account_details_to_block(connector, details);
-        }
+    // Reject legacy format outright.
+    if obj.contains_key("connector_account_details") {
+        return Err(CredentialError::LegacyFormat(connector.to_string()));
     }
 
     Ok(obj.clone())
-}
-
-fn legacy_connector_account_details_to_block(
-    connector: &str,
-    details: &serde_json::Value,
-) -> Result<serde_json::Map<String, serde_json::Value>, CredentialError> {
-    let mut block = details
-        .as_object()
-        .ok_or_else(|| {
-            CredentialError::InvalidCredentials(
-                connector.to_string(),
-                "connector_account_details must be an object".to_string(),
-            )
-        })?
-        .clone();
-
-    block.remove("auth_type");
-
-    if block.is_empty() {
-        return Err(CredentialError::EmptyCredentials(connector.to_string()));
-    }
-
-    Ok(block)
 }
 
 /// Loads the connector's credentials from the configured creds file and
@@ -277,73 +216,5 @@ mod tests {
 
         assert!(cleaned.contains_key("api_key"));
         assert!(!cleaned.contains_key("metadata"));
-    }
-
-    #[test]
-    fn extracts_legacy_flat_connector_account_details() {
-        let root = serde_json::json!({
-            "stripe": {
-                "connector_account_details": {
-                    "auth_type": "HeaderKey",
-                    "api_key": "sk_test"
-                },
-                "metadata": {
-                    "webhook_secret": "whsec"
-                }
-            }
-        });
-
-        let block = extract_connector_block(&root, "stripe").expect("legacy block should load");
-
-        assert_eq!(block.get("api_key"), Some(&serde_json::json!("sk_test")));
-        assert!(!block.contains_key("auth_type"));
-        assert!(!block.contains_key("metadata"));
-    }
-
-    #[test]
-    fn extracts_legacy_nested_connector_account_details() {
-        let root = serde_json::json!({
-            "stripe": {
-                "default": {
-                    "connector_account_details": {
-                        "auth_type": "HeaderKey",
-                        "api_key": "sk_test"
-                    }
-                }
-            }
-        });
-
-        let block =
-            extract_connector_block(&root, "stripe").expect("nested legacy block should load");
-
-        assert_eq!(block.get("api_key"), Some(&serde_json::json!("sk_test")));
-        assert!(!block.contains_key("default"));
-    }
-
-    #[test]
-    fn nested_account_selection_is_deterministic() {
-        // No `default`: the lexicographically first account wins, regardless of
-        // the order the keys appear in the file.
-        let root = serde_json::json!({
-            "stripe": {
-                "zeta":  { "connector_account_details": { "api_key": "from_zeta" } },
-                "alpha": { "connector_account_details": { "api_key": "from_alpha" } }
-            }
-        });
-        let block = extract_connector_block(&root, "stripe").expect("block should load");
-        assert_eq!(block.get("api_key"), Some(&serde_json::json!("from_alpha")));
-
-        // `default` takes precedence over an earlier-sorting sibling.
-        let root = serde_json::json!({
-            "stripe": {
-                "alpha":   { "connector_account_details": { "api_key": "from_alpha" } },
-                "default": { "connector_account_details": { "api_key": "from_default" } }
-            }
-        });
-        let block = extract_connector_block(&root, "stripe").expect("block should load");
-        assert_eq!(
-            block.get("api_key"),
-            Some(&serde_json::json!("from_default"))
-        );
     }
 }
