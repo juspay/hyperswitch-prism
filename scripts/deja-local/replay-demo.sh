@@ -43,6 +43,9 @@ version = "0.1.0"
 edition = "2021"
 [dependencies]
 deja-orchestrator = { path = "$PIN_DIR/crates/deja-orchestrator" }
+grpc-api-types = { path = "$ROOT/crates/types-traits/grpc-api-types" }
+prost-reflect = { version = "0.16.5", features = ["serde"] }
+base64 = "0.21"
 serde_json = "1"
 [workspace]
 EOF
@@ -98,8 +101,41 @@ fn main() {
                 .expect("detect_and_score");
             println!("{}", serde_json::to_string_pretty(&card).expect("json"));
         }
+        // decode-response </types.Service/Method> <base64-of-grpc-frames>
+        // Decodes a recorded response (gRPC-framed protobuf) to proto3-JSON using the
+        // server's own FILE_DESCRIPTOR_SET — the descriptor-aware step the D2 driver owns.
+        Some("decode-response") => {
+            use base64::Engine as _;
+            let rpc = &args[2];
+            let bytes = base64::engine::general_purpose::STANDARD
+                .decode(&args[3])
+                .expect("base64");
+            let pool = prost_reflect::DescriptorPool::decode(grpc_api_types::FILE_DESCRIPTOR_SET)
+                .expect("descriptor pool");
+            let (svc, method_name) = rpc
+                .trim_start_matches('/')
+                .split_once('/')
+                .expect("rpc path");
+            let service = pool
+                .services()
+                .find(|s| s.full_name() == svc)
+                .expect("service");
+            let method = service
+                .methods()
+                .find(|m| m.name() == method_name)
+                .expect("method");
+            let payload: &[u8] = if bytes.len() >= 5 && bytes[0] == 0 {
+                let len = u32::from_be_bytes([bytes[1], bytes[2], bytes[3], bytes[4]]) as usize;
+                &bytes[5..5 + len]
+            } else {
+                &bytes[..]
+            };
+            let message = prost_reflect::DynamicMessage::decode(method.output(), payload)
+                .expect("decode response message");
+            println!("{}", serde_json::to_string(&message).expect("json"));
+        }
         _ => {
-            eprintln!("usage: deja-bridge prepare <rec.jsonl> <rec-id> <root> <run-id> | score <root> <run-id>");
+            eprintln!("usage: deja-bridge prepare <rec.jsonl> <rec-id> <root> <run-id> | score <root> <run-id> | decode-response <rpc> <b64>");
             std::process::exit(2);
         }
     }
@@ -145,9 +181,15 @@ for line in open('/tmp/full_tape.jsonl'):
             print('    ERROR: recorded ingress is undecoded; cannot re-drive', file=sys.stderr)
             sys.exit(1)
         headers = [(n, v) for n, v in (args.get('metadata') or []) if n.startswith('x-')]
+        # The recorded RESPONSE rides the event result as raw gRPC frame bytes; carry it
+        # (base64) so the diff step can decode it via descriptors and compare for real.
+        import base64 as b64mod
+        res = e.get('result'); res = json.loads(res) if isinstance(res, str) else (res or {})
+        raw = ((res.get('response_body') or {}).get('raw_bytes')) or []
         redrive = {'rpc': (args.get('rpc') or '').lstrip('/'), 'headers': headers, 'body': decoded,
                    'is_error': bool(e.get('is_error')),
-                   'request_sequence': int(e.get('request_sequence') or 0)}
+                   'request_sequence': int(e.get('request_sequence') or 0),
+                   'recorded_response_b64': b64mod.b64encode(bytes(raw)).decode() if raw else None}
         e['boundary'] = 'http_incoming'
     out.write(json.dumps({'record_kind': 'boundary_event', **e}) + '\n'); kept += 1
 out.close()
@@ -197,21 +239,38 @@ grpcurl -max-time 20 -plaintext "${REDRIVE_HDRS[@]}" \
 pkill -f "target/debug/grpc-server"; sleep 2
 
 # HTTP-diff row: the driver-side "was this request reproduced" record the scorer counts.
-# HONEST SCOPE: this shim compares outcome CLASS (ok vs error) for real and carries the
-# replayed response body; recorded-vs-replayed BODY diffing needs the descriptor-aware
-# gRPC driver (deja D2) and is not claimed here (body_diff stays empty).
+# The recorded response is decoded from its gRPC frames via the server's descriptors
+# (bridge decode-response) and diffed FIELD-BY-FIELD against the replayed response —
+# the same comparison the D2 driver will own, done for real here.
 python3 -c "
-import json
+import json, subprocess
 spec = json.load(open('/tmp/ucs-redrive-spec.json'))
 try: candidate_body = json.load(open('/tmp/ucs-redrive-reply.json'))
 except Exception: candidate_body = None
 try: err_text = open('/tmp/ucs-redrive-err.txt').read()
 except Exception: err_text = ''
-# Symmetric semantics on both sides: 'the rpc responded' (a recorded ingress event exists
-# iff the rpc responded; a grpcurl business error still contains 'Code:', a transport
-# failure does not).
+baseline_body = None
+if spec.get('recorded_response_b64'):
+    try:
+        out = subprocess.run(['$BRIDGE', 'decode-response', '/' + spec['rpc'],
+                              spec['recorded_response_b64']],
+                             capture_output=True, text=True, timeout=30)
+        if out.returncode == 0: baseline_body = json.loads(out.stdout)
+    except Exception: pass
+# Symmetric outcome semantics: 'the rpc responded' on both sides.
 baseline_status = 500 if spec['is_error'] else 200
 candidate_status = 200 if ($REDRIVE_RC == 0 or 'Code:' in err_text) else 500
+def walk(b, c, path, out):
+    if b == c: return
+    if isinstance(b, dict) and isinstance(c, dict):
+        for k in sorted(set(b) | set(c)): walk(b.get(k), c.get(k), f'{path}.{k}', out)
+    elif isinstance(b, list) and isinstance(c, list) and len(b) == len(c):
+        for i, (x, y) in enumerate(zip(b, c)): walk(x, y, f'{path}[{i}]', out)
+    else:
+        out.append({'json_path': path or '\$', 'baseline': b, 'candidate': c})
+body_diff = []
+if baseline_body is not None and candidate_body is not None:
+    walk(baseline_body, candidate_body, '\$', body_diff)
 row = {
     'correlation_id': '$CORR',
     'request_sequence': spec['request_sequence'],
@@ -219,11 +278,13 @@ row = {
     'status_baseline': baseline_status,
     'status_candidate': candidate_status,
     'status_match': baseline_status == candidate_status,
-    'body_diff': [],
+    'body_diff': body_diff,
+    'baseline_body': baseline_body,
     'candidate_body': candidate_body,
 }
 open('$STATE/http-diffs/$RUN_ID.jsonl', 'w').write(json.dumps(row) + '\n')
-print(f'    http-diff: recorded={baseline_status} replayed={candidate_status} match={row[\"status_match\"]}')"
+compared = 'field-by-field' if baseline_body is not None and candidate_body is not None else 'status-only (no decodable bodies)'
+print(f'    http-diff: recorded={baseline_status} replayed={candidate_status} match={row[\"status_match\"]} · body: {compared}, {len(body_diff)} field(s) differ')"
 
 echo "==> [6/7] score with deja-orchestrator's divergence scorer"
 "$BRIDGE" score "$STATE" "$RUN_ID" | python3 -c "
