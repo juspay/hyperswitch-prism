@@ -25,8 +25,9 @@ DEJA_PIN="2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3"
 PIN_DIR=/tmp/deja-pin
 BRIDGE_DIR=/tmp/deja-bridge
 STATE=/tmp/deja-ucs-state
-RUN_ID=ucs-replay-run-1
-REC_ID=ucs-rec-1
+# Unique per invocation: every replay is its own run (and dashboard row); artifacts
+# accumulate in $STATE so older runs stay browsable.
+RUN_ID="ucs-replay-$(date +%s)"
 
 [[ -x "$BIN" ]] || { echo "missing $BIN — build with: cargo build -p grpc-server --features deja"; exit 1; }
 [[ -d "$DEJA_REPO/.git" ]] || { echo "no deja checkout at $DEJA_REPO (set DEJA_REPO)"; exit 1; }
@@ -123,8 +124,8 @@ print(last)")}"
 [[ -n "$CORR" ]] || { echo "no recorded correlations on the topic — run record-demo.sh first"; exit 1; }
 echo "    correlation: $CORR"
 
+REC_ID="rec-${CORR}"
 echo "==> [3/7] stage events (D3 shim: grpc_incoming -> http_incoming) + extract re-drive spec"
-rm -rf "$STATE"
 python3 -c "
 import json, sys
 out = open('/tmp/ucs-rec.jsonl', 'w')
@@ -144,13 +145,16 @@ for line in open('/tmp/full_tape.jsonl'):
             print('    ERROR: recorded ingress is undecoded; cannot re-drive', file=sys.stderr)
             sys.exit(1)
         headers = [(n, v) for n, v in (args.get('metadata') or []) if n.startswith('x-')]
-        redrive = {'rpc': (args.get('rpc') or '').lstrip('/'), 'headers': headers, 'body': decoded}
+        redrive = {'rpc': (args.get('rpc') or '').lstrip('/'), 'headers': headers, 'body': decoded,
+                   'is_error': bool(e.get('is_error')),
+                   'request_sequence': int(e.get('request_sequence') or 0)}
         e['boundary'] = 'http_incoming'
     out.write(json.dumps({'record_kind': 'boundary_event', **e}) + '\n'); kept += 1
 out.close()
 if redrive is None:
     print('    ERROR: no grpc_incoming event for this correlation', file=sys.stderr); sys.exit(1)
 json.dump(redrive['body'], open('/tmp/ucs-redrive-body.json', 'w'))
+json.dump(redrive, open('/tmp/ucs-redrive-spec.json', 'w'))
 open('/tmp/ucs-redrive-rpc.txt', 'w').write(redrive['rpc'])
 open('/tmp/ucs-redrive-headers.txt', 'w').write('\n'.join(f'{n}: {v}' for n, v in redrive['headers']))
 print(f'    staged {kept} events; re-drive = {redrive[\"rpc\"]} with {len(redrive[\"headers\"])} recorded headers')"
@@ -186,19 +190,73 @@ echo "==> [5/7] re-drive the RECORDED request (rpc/metadata/payload from the tap
 REDRIVE_RPC=$(cat /tmp/ucs-redrive-rpc.txt)
 REDRIVE_HDRS=()
 while IFS= read -r line; do [ -n "$line" ] && REDRIVE_HDRS+=(-H "$line"); done < /tmp/ucs-redrive-headers.txt
+REDRIVE_RC=0
 grpcurl -max-time 20 -plaintext "${REDRIVE_HDRS[@]}" \
   -d @ localhost:8000 "$REDRIVE_RPC" < /tmp/ucs-redrive-body.json \
-  >/dev/null 2>&1 || true
+  > /tmp/ucs-redrive-reply.json 2>/tmp/ucs-redrive-err.txt || REDRIVE_RC=$?
 pkill -f "target/debug/grpc-server"; sleep 2
+
+# HTTP-diff row: the driver-side "was this request reproduced" record the scorer counts.
+# HONEST SCOPE: this shim compares outcome CLASS (ok vs error) for real and carries the
+# replayed response body; recorded-vs-replayed BODY diffing needs the descriptor-aware
+# gRPC driver (deja D2) and is not claimed here (body_diff stays empty).
+python3 -c "
+import json
+spec = json.load(open('/tmp/ucs-redrive-spec.json'))
+try: candidate_body = json.load(open('/tmp/ucs-redrive-reply.json'))
+except Exception: candidate_body = None
+try: err_text = open('/tmp/ucs-redrive-err.txt').read()
+except Exception: err_text = ''
+# Symmetric semantics on both sides: 'the rpc responded' (a recorded ingress event exists
+# iff the rpc responded; a grpcurl business error still contains 'Code:', a transport
+# failure does not).
+baseline_status = 500 if spec['is_error'] else 200
+candidate_status = 200 if ($REDRIVE_RC == 0 or 'Code:' in err_text) else 500
+row = {
+    'correlation_id': '$CORR',
+    'request_sequence': spec['request_sequence'],
+    'request_path': '/' + spec['rpc'],
+    'status_baseline': baseline_status,
+    'status_candidate': candidate_status,
+    'status_match': baseline_status == candidate_status,
+    'body_diff': [],
+    'candidate_body': candidate_body,
+}
+open('$STATE/http-diffs/$RUN_ID.jsonl', 'w').write(json.dumps(row) + '\n')
+print(f'    http-diff: recorded={baseline_status} replayed={candidate_status} match={row[\"status_match\"]}')"
 
 echo "==> [6/7] score with deja-orchestrator's divergence scorer"
 "$BRIDGE" score "$STATE" "$RUN_ID" | python3 -c "
 import json, sys
 card = json.load(sys.stdin)
 v = card.get('verdict', {})
+s = card.get('summary', {})
 print('    verdict.pass:', v.get('pass'))
 print('    reason:      ', v.get('reason'))
-print('    resolved_by_rank:', card.get('summary', {}).get('resolved_by_rank'))"
+print('    requests reproduced:', f\"{s.get('matched_correlations')}/{s.get('total_correlations')}\")
+print('    resolved_by_rank:', s.get('resolved_by_rank'))"
+
+# Register the run (and its recording) in the deja dashboard's store, if it is up —
+# the runs LIST is pg-backed; the detail/scorecard pages read the file artifacts.
+if docker ps --format '{{.Names}}' 2>/dev/null | grep -q '^deja-orchestrator-pg-1$'; then
+  python3 -c "
+import json
+card = json.load(open('$STATE/runs/$RUN_ID.scorecard.json'))
+run = json.load(open('$STATE/runs/$RUN_ID.json'))
+def q(v): return \"'\" + json.dumps(v).replace(\"'\", \"''\") + \"'\"
+verdict = \"'pass'\" if card.get('verdict', {}).get('pass') else \"'fail'\"
+print(f'''INSERT INTO replay_runs (run_id, mode, recording_id, candidate, params, expectation, created_by, state, started_at, verdict, scorecard)
+VALUES ('$RUN_ID', 'replay', '$REC_ID', {q(run['spec']['candidate_spec'])}, {q({'correlation': '$CORR'})}, NULL, 'replay-demo', 'completed', now(), {verdict}, {q(card)})
+ON CONFLICT (run_id) DO UPDATE SET verdict=EXCLUDED.verdict, scorecard=EXCLUDED.scorecard;
+INSERT INTO recordings (recording_id, source_path, event_count, correlation_count, byte_size, manifest, created_by)
+VALUES ('$REC_ID', 'kafka topic ucs-deja-recording-events (correlation $CORR)', 0, 1, 0, NULL, 'replay-demo')
+ON CONFLICT (recording_id) DO NOTHING;''')" \
+  | docker exec -i deja-orchestrator-pg-1 psql -q -U deja -d deja >/dev/null 2>&1 \
+    && echo "    registered in dashboard: http://127.0.0.1:8070/runs/$RUN_ID" \
+    || echo "    (dashboard registration failed — run still fully scored on disk)"
+else
+  echo "    (dashboard pg not running — skipping registration)"
+fi
 
 echo "==> [7/7] interactive HTML timeline"
 python3 "$DEJA_REPO/demo/visualize-replay.py" "$STATE" >/dev/null 2>&1 || true
