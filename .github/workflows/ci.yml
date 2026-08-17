@@ -58,7 +58,7 @@ jobs:
       any-rs: ${{ steps.filter.outputs.any-rs }}
       ci: ${{ steps.filter.outputs.ci }}
       connector-names: ${{ steps.connector-names.outputs.list }}
-      certified-connectors-touched: ${{ steps.certified-connectors.outputs.touched }}
+      certification-targets: ${{ steps.certified-connectors.outputs.targets }}
       new-connectors: ${{ steps.new-connectors.outputs.list }}
     steps:
       - name: Checkout repository
@@ -127,34 +127,46 @@ jobs:
           echo "list=$names" >> $GITHUB_OUTPUT
           echo "Changed connectors: $names"
 
-      - name: Check whether changed connectors are certified
+      # Selects which certified scenarios the test job should run.
+      #
+      # Shared code (core, proto, harness) is the change with the widest blast
+      # radius, so it selects the whole certified set rather than skipping
+      # certification. That is affordable because the run itself is seconds per
+      # scenario against an already-built binary, and it is safe for unrelated
+      # PRs because certify-connectors.sh only fails the build for a scenario it
+      # can show passes at the merge base.
+      - name: Select certification targets
         id: certified-connectors
         shell: bash
         run: |
-          touched="false"
+          manifest=".github/test/certified_connectors.json"
+          base_ref="${{ github.event.pull_request.base.sha || github.event.before }}"
 
-          # A certified connector's own files changed.
-          IFS=',' read -ra CONNECTORS <<< "${{ steps.connector-names.outputs.list }}"
-          for c in "${CONNECTORS[@]}"; do
-            [[ -z "$c" ]] && continue
-            if jq -e --arg c "$c" '.connectors[] | select(.name == $c)' \
-              .github/test/certified_connectors.json > /dev/null; then
-              touched="true"
-              break
-            fi
-          done
-
-          # The manifest itself changed (e.g. adding a new certified
-          # connector) — must also trigger a run, or a newly-manifested
-          # connector's first certification silently waits for some
-          # unrelated future PR to touch its own files.
-          if git diff --name-only "${{ github.event.pull_request.base.sha || github.event.before }}" HEAD \
-              -- .github/test/certified_connectors.json | grep -q .; then
-            touched="true"
+          shared_changed="false"
+          if [[ "${{ steps.filter.outputs.rust-core }}" == "true" \
+             || "${{ steps.filter.outputs.proto }}" == "true" ]]; then
+            shared_changed="true"
           fi
 
-          echo "touched=$touched" >> $GITHUB_OUTPUT
-          echo "Certified connector touched: $touched"
+          # Editing the manifest must run it, or a newly added entry waits for
+          # some unrelated future PR to touch that connector's files.
+          if git diff --name-only "$base_ref" HEAD -- "$manifest" | grep -q .; then
+            shared_changed="true"
+          fi
+
+          if [[ "$shared_changed" == "true" ]]; then
+            targets=$(jq -c '.connectors' "$manifest")
+            echo "Shared code changed — selecting the full certified set"
+          else
+            names_json=$(jq -Rc 'split(",") | map(select(length > 0))' \
+              <<< "${{ steps.connector-names.outputs.list }}")
+            targets=$(jq -c --argjson n "$names_json" \
+              '[.connectors[] | select(.name as $x | $n | index($x))]' "$manifest")
+            echo "Selecting certified connectors touched by this PR"
+          fi
+
+          echo "targets=$targets" >> $GITHUB_OUTPUT
+          echo "Certification targets: $targets"
 
       - name: Detect newly added connectors
         id: new-connectors
@@ -555,12 +567,15 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
         run: |
+          # Missing credentials are fatal to certification but not to the unit
+          # tests in this job, so this does not fail here — the certification
+          # steps below fail instead, and only when they were actually selected.
+          # An S3 or GPG hiccup must not take down CI for every open PR.
           if [[ -f ".github/test/creds.json" ]]; then
             echo "CONNECTOR_AUTH_FILE_PATH=${{ github.workspace }}/.github/test/creds.json" >> $GITHUB_ENV
             echo "Connector credentials available for tests"
           else
-            echo "No connector credentials available"
-            exit 1
+            echo "::warning::No connector credentials available — live certification cannot run"
           fi
 
       - name: Free up disk space
@@ -619,132 +634,72 @@ jobs:
               -E "$SCHEMA_EXCLUDE"
           fi
 
-      # Certification runs a real gRPC call against each certified connector's
-      # live sandbox. Scoped ONLY to the certified connectors' own files
-      # (certified-connectors-touched) — deliberately NOT triggered by
-      # core/proto/CI changes generally.
-      #
-      # Why not core/proto: a full-fleet, all-connector, real-sandbox regression
-      # run already exists (Jenkins "Generate Test Report" job in
-      # hyperswitch-infra, connector-service-report-pipeline branch,
-      # .jenkins/connector-service/generate-test-report.Jenkinsfile) and covers
-      # the "did this core/proto change break some connector" question at the
-      # pre-tag/nightly level, where it belongs — that's where deployment gets
-      # blocked, not individual PRs. Firing this per-PR gate on every core/proto
-      # change would tax every unrelated PR (e.g. a Citigate PR touching
-      # router_data.rs for its own field) with a real Stripe API call it has
-      # nothing to do with — the exact blast-radius problem this scoping avoids.
-      - name: Determine whether connector certification should run
-        if: ${{ env.RUN_TESTS == 'true' }}
-        id: cert-gate
+      # Certification calls each selected connector's live sandbox for real.
+      # The gRPC call itself takes seconds; the cost is building the binaries,
+      # so both are built once here with the same features the test run above
+      # used, and the certification steps reuse them via `--no-build`.
+      - name: Build certification binaries
+        if: ${{ env.RUN_TESTS == 'true' && (needs.changes.outputs.certification-targets != '[]' || needs.changes.outputs.new-connectors != '') }}
         shell: bash
         run: |
-          CERTIFIED_TOUCHED="${{ needs.changes.outputs.certified-connectors-touched }}"
+          cargo build --workspace --bins \
+            --features grpc-server/connector-request-kafka,grpc-server/log-transformations
 
-          if [[ "${CERTIFIED_TOUCHED}" == "true" ]]; then
-            echo "run=true" >> $GITHUB_OUTPUT
-          else
-            echo "run=false" >> $GITHUB_OUTPUT
-            echo "Skipping certification — no certified connector's own files changed"
-          fi
-
-      - name: Install grpcurl for test_ucs certification
-        if: ${{ env.RUN_TESTS == 'true' && (steps.cert-gate.outputs.run == 'true' || needs.changes.outputs.new-connectors != '') }}
+      # The test harness shells out to grpcurl to make the actual call.
+      - name: Install grpcurl
+        if: ${{ env.RUN_TESTS == 'true' && (needs.changes.outputs.certification-targets != '[]' || needs.changes.outputs.new-connectors != '') }}
         shell: bash
+        env:
+          GRPCURL_VERSION: "1.9.3"
+          GRPCURL_SHA256: "a926b62a85787ccf73ef8736b3ae554f1242e39d92bb8767a79d6dd23b11d1d5"
         run: |
-          if ! command -v grpcurl >/dev/null 2>&1; then
-            GRPCURL_VERSION="1.9.3"
-            curl -fsSL \
-              "https://github.com/fullstorydev/grpcurl/releases/download/v${GRPCURL_VERSION}/grpcurl_${GRPCURL_VERSION}_linux_x86_64.tar.gz" \
-              -o /tmp/grpcurl.tar.gz
-            tar -xzf /tmp/grpcurl.tar.gz -C /tmp grpcurl
-            sudo mv /tmp/grpcurl /usr/local/bin/grpcurl
-          fi
-          grpcurl --version
-
-      - name: Run certified connector authorizations via test_ucs
-        if: ${{ env.RUN_TESTS == 'true' && steps.cert-gate.outputs.run == 'true' }}
-        shell: bash
-        run: |
-          manifest=".github/test/certified_connectors.json"
-          count=$(jq '.connectors | length' "$manifest")
-
-          if [[ "$count" -eq 0 ]]; then
-            echo "No certified connectors configured — nothing to run"
+          if command -v grpcurl >/dev/null 2>&1; then
+            grpcurl --version
             exit 0
           fi
+          curl -fsSL \
+            "https://github.com/fullstorydev/grpcurl/releases/download/v${GRPCURL_VERSION}/grpcurl_${GRPCURL_VERSION}_linux_x86_64.tar.gz" \
+            -o /tmp/grpcurl.tar.gz
+          echo "${GRPCURL_SHA256}  /tmp/grpcurl.tar.gz" | sha256sum --check --strict
+          tar -xzf /tmp/grpcurl.tar.gz -C /tmp grpcurl
+          sudo mv /tmp/grpcurl /usr/local/bin/grpcurl
+          grpcurl --version
 
-          failures=0
-          for i in $(seq 0 $((count - 1))); do
-            name=$(jq -r ".connectors[$i].name" "$manifest")
-            suite=$(jq -r ".connectors[$i].suite" "$manifest")
-            scenario=$(jq -r ".connectors[$i].scenario" "$manifest")
-            skip_deps=$(jq -r ".connectors[$i].skip_dependencies // false" "$manifest")
+      - name: Certify selected connectors
+        if: ${{ env.RUN_TESTS == 'true' && needs.changes.outputs.certification-targets != '[]' }}
+        shell: bash
+        env:
+          TARGETS_JSON: ${{ needs.changes.outputs.certification-targets }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: .github/scripts/certify-connectors.sh
 
-            if ! jq -e --arg c "$name" 'has($c)' "${CONNECTOR_AUTH_FILE_PATH}" > /dev/null; then
-              echo "::error::Certified connector '$name' has no entry in the CI credentials file — cannot certify"
-              failures=$((failures + 1))
-              continue
-            fi
-
-            echo "::group::Certifying $name ($suite / $scenario)"
-            args=(--skip-setup --connector "$name" --suite "$suite" --scenario "$scenario" --interface grpc --report)
-            [[ "$skip_deps" == "true" ]] && args+=(--skip-dependencies)
-
-            # A real transformer/proto regression fails every attempt, so this
-            # retry only buys back the CI runs a genuine sandbox hiccup (timeout,
-            # transient 5xx from the connector) would otherwise cost an innocent PR.
-            attempt=1
-            max_attempts=3
-            succeeded="false"
-            until [[ "$attempt" -gt "$max_attempts" ]]; do
-              if ./scripts/run-tests "${args[@]}"; then
-                succeeded="true"
-                break
-              fi
-              echo "::warning::Attempt $attempt/$max_attempts failed for $name ($suite / $scenario)"
-              attempt=$((attempt + 1))
-              [[ "$attempt" -le "$max_attempts" ]] && sleep 10
-            done
-
-            if [[ "$succeeded" != "true" ]]; then
-              echo "::error::Certification failed for $name ($suite / $scenario) after $max_attempts attempts"
-              failures=$((failures + 1))
-            fi
-            echo "::endgroup::"
-          done
-
-          if [[ "$failures" -gt 0 ]]; then
-            echo "::error::$failures certified connector(s) failed certification"
-            exit 1
-          fi
-
-      # A brand-new connector (its connector_specs/<name>/ directory did not
-      # exist at this PR's base commit) gets a live-sandbox proof requirement
-      # on its own PR, regardless of whether it ever joins
-      # certified_connectors.json. This is separate from cert-gate above:
-      # it fires only for connectors newly added in *this* PR, not on every
-      # core/proto change, and it does not depend on the reviewed manifest.
+      # A connector whose connector_specs/<name>/ directory did not exist at this
+      # PR's base commit must prove itself on its own PR. The author declares what
+      # they verified in their own specs.json `verified_scenarios`; each entry needs
+      # { suite, scenario, skip_dependencies, has_live_creds, no_creds_reason }.
       #
-      # The connector author declares readiness themselves, in their own
-      # specs.json (verified_scenarios: an array, since a connector can — and
-      # for real coverage should — have multiple proven scenarios: different
-      # payment methods, capture modes, flows, not just one Authorize call).
-      # Each entry needs { suite, scenario, skip_dependencies, has_live_creds,
-      # no_creds_reason }. has_live_creds: false is not a silent or unexplained
-      # pass — no_creds_reason is mandatory in that case, visible directly in
-      # the PR diff (not just a CI log line), so "merged without live proof,
-      # and why" stays in the file a reviewer is already looking at. This
-      # array is expected to grow across later PRs as new payment methods/
-      # flows are added to the connector — it's a running record, not a
-      # one-time gate. has_live_creds: true actually runs the call and must
-      # PASS.
+      # The array is expected to grow as later PRs add payment methods and flows —
+      # it is a running record of what has been proven, not a one-time gate.
+      #
+      # has_live_creds: true runs the call and must pass. has_live_creds: false is
+      # allowed but never silent: no_creds_reason is mandatory, the connector is
+      # listed in the job summary and in a PR comment as unproven, and it cannot
+      # enter certified_connectors.json until it is re-verified with real
+      # credentials.
       - name: Verify newly added connectors' declared scenarios
         if: ${{ env.RUN_TESTS == 'true' && needs.changes.outputs.new-connectors != '' }}
         shell: bash
         run: |
           failures=0
+          unproven=()
+
+          if [[ -z "${CONNECTOR_AUTH_FILE_PATH:-}" || ! -s "${CONNECTOR_AUTH_FILE_PATH}" ]]; then
+            echo "::error::New connectors were added but no credentials file is available — cannot verify their declared scenarios."
+            exit 1
+          fi
+
           IFS=',' read -ra NEW_CONNECTORS <<< "${{ needs.changes.outputs.new-connectors }}"
+
           for name in "${NEW_CONNECTORS[@]}"; do
             specs_path="crates/internal/integration-tests/src/connector_specs/${name}/specs.json"
             if [[ ! -f "$specs_path" ]]; then
@@ -755,7 +710,7 @@ jobs:
 
             entry_count=$(jq '.verified_scenarios // [] | length' "$specs_path")
             if [[ "$entry_count" -eq 0 ]]; then
-              echo "::error::New connector '$name' has no \"verified_scenarios\" array in $specs_path — every new connector must declare at least one entry { suite, scenario, has_live_creds, no_creds_reason (if has_live_creds is false) } so its own PR proves (or explicitly and visibly defers) a real sandbox call. See stripe's certified_connectors.json entry for the suite/scenario shape."
+              echo "::error::New connector '$name' declares no \"verified_scenarios\" in $specs_path. Every new connector must declare at least one entry { suite, scenario, has_live_creds, no_creds_reason (when has_live_creds is false) } so its own PR either proves a real sandbox call or records, in the diff, that it did not."
               failures=$((failures + 1))
               continue
             fi
@@ -776,22 +731,24 @@ jobs:
 
               if [[ "$has_live_creds" != "true" ]]; then
                 if [[ -z "$no_creds_reason" ]]; then
-                  echo "::error::New connector '$name' verified_scenarios[$i] ($suite / $scenario) has has_live_creds: false but no no_creds_reason — a bare false with no explanation is not accepted, say why (e.g. \"sandbox access requested, pending <team/ticket>\")."
+                  echo "::error::New connector '$name' verified_scenarios[$i] ($suite / $scenario) sets has_live_creds: false with no no_creds_reason. State why, e.g. \"sandbox access requested, pending <team/ticket>\"."
                   failures=$((failures + 1))
                   continue
                 fi
-                echo "::warning::New connector '$name' verified_scenarios[$i] ($suite / $scenario) declares has_live_creds: false — merging WITHOUT live sandbox proof. Reason: $no_creds_reason. Tracked in $specs_path, not silently accepted: this connector cannot be added to certified_connectors.json until re-verified with real creds."
+                echo "::warning::'$name' ($suite / $scenario) is merging WITHOUT live sandbox proof. Reason: $no_creds_reason"
+                unproven+=("\`$name\` — $suite / $scenario — _${no_creds_reason}_")
                 continue
               fi
 
               if ! jq -e --arg c "$name" 'has($c)' "${CONNECTOR_AUTH_FILE_PATH}" > /dev/null; then
-                echo "::error::New connector '$name' verified_scenarios[$i] declares has_live_creds: true but has no entry in the CI credentials file — fix the declaration or add the creds"
+                echo "::error::New connector '$name' verified_scenarios[$i] sets has_live_creds: true but has no entry in the CI credentials file — fix the declaration or add the credentials"
                 failures=$((failures + 1))
                 continue
               fi
 
-              echo "::group::Verifying $name ($suite / $scenario)"
-              args=(--skip-setup --connector "$name" --suite "$suite" --scenario "$scenario" --interface grpc --report)
+              echo "::group::Verify $name ($suite / $scenario)"
+              args=(--skip-setup --no-build --connector "$name" --suite "$suite" \
+                    --scenario "$scenario" --interface grpc --report)
               [[ "$skip_deps" == "true" ]] && args+=(--skip-dependencies)
 
               if ! ./scripts/run-tests "${args[@]}"; then
@@ -802,10 +759,53 @@ jobs:
             done
           done
 
+          # Surface unproven declarations where a reviewer will see them without
+          # opening the job log.
+          if [[ ${#unproven[@]} -gt 0 ]]; then
+            {
+              echo "## ⚠️ New connectors merging without live sandbox proof"
+              echo ""
+              for u in "${unproven[@]}"; do echo "- $u"; done
+              echo ""
+              echo "Each line above is a \`has_live_creds: false\` entry in the connector's \`specs.json\`. Confirm the stated reason is real before approving."
+            } >> "$GITHUB_STEP_SUMMARY"
+            printf '%s\n' "${unproven[@]}" > /tmp/unproven.txt
+          fi
+
           if [[ "$failures" -gt 0 ]]; then
             echo "::error::$failures new connector scenario(s) failed verification"
             exit 1
           fi
+
+      - name: Comment unproven connector declarations on the PR
+        if: ${{ env.RUN_TESTS == 'true' && github.event_name == 'pull_request' && hashFiles('/tmp/unproven.txt') != '' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const lines = fs.readFileSync('/tmp/unproven.txt', 'utf8').trim().split('\n');
+            const marker = '<!-- unproven-connectors -->';
+            const body = [
+              marker,
+              '### ⚠️ Merging without live sandbox proof',
+              '',
+              ...lines.map(l => `- ${l}`),
+              '',
+              'These connectors declare `has_live_creds: false` in their `specs.json`.',
+              'No real sandbox call backs them. Confirm each stated reason before approving,',
+              'and note they cannot be added to `certified_connectors.json` until re-verified.',
+            ].join('\n');
+
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const existing = (await github.rest.issues.listComments({ owner, repo, issue_number }))
+              .data.find(c => c.body.includes(marker));
+
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
 
   # ── SDK Tests (FFI + gRPC) ────────────────────────────────────────────────
   # Builds all SDK binaries then runs gRPC tests first, followed by FFI tests

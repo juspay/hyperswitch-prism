@@ -8,11 +8,9 @@
 
 use std::fmt::Write;
 
-/// Extra, connector-specific inputs a signature scheme may need beyond the
-/// raw payload bytes and secret. Every field is optional so adding a new
-/// connector that needs one more piece of context (as phonepe needed
-/// `api_path`/`key_index`) means adding a field here and a match arm below —
-/// never a per-connector branch in the caller.
+/// Connector-specific inputs a signature scheme needs beyond the payload and
+/// secret. All fields are optional: a new scheme adds a field here and a match
+/// arm below, rather than a branch in the caller.
 #[derive(Debug, Default, Clone)]
 pub struct SignatureContext<'a> {
     pub timestamp: Option<i64>,
@@ -26,14 +24,11 @@ pub struct SignatureContext<'a> {
 
 /// Generate webhook signature for a given connector.
 ///
-/// `payload` must already be the exact bytes the connector's own
-/// verification code hashes — for most connectors that's the raw request
-/// body, but for phonepe it's the *inner* base64 `response` string PhonePe
-/// wraps its payload in (the connector's own webhook verification code
-/// decodes the outer JSON first, then hashes that inner string directly, not
-/// the outer body) — callers must extract that before calling this function.
+/// `payload` must be the exact bytes the connector's own verification code
+/// hashes. For most connectors that is the raw request body; for phonepe it is
+/// the inner base64 `response` string, which the caller must extract first.
 ///
-/// Returns the signature string that should be placed in the appropriate header.
+/// Returns the signature string for the connector's signature header.
 pub fn generate_signature(
     connector: &str,
     payload: &[u8],

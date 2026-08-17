@@ -19,6 +19,7 @@
 #   --report              Write report.json + markdown test_report/ files
 #   --skip-dependencies   Run only the selected scenario without suite dependencies
 #   --no-server           Do not start/stop the gRPC server automatically
+#   --no-build            Use pre-built target/debug binaries instead of invoking cargo
 #   --setup               Force re-run of the one-time setup wizard
 #   --skip-setup          Skip setup check entirely (assume setup is done)
 #
@@ -71,6 +72,7 @@ INTERFACE="grpc"
 ENDPOINT=""
 REPORT=false
 NO_SERVER=false
+NO_BUILD=false
 CARGO_EXTRA_FLAGS=()   # flags forwarded verbatim to test_ucs binary
 
 while [[ $# -gt 0 ]]; do
@@ -106,6 +108,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --no-server)
       NO_SERVER=true
+      shift
+      ;;
+    --no-build)
+      NO_BUILD=true
       shift
       ;;
     --connector|--suite|--scenario)
@@ -152,9 +158,17 @@ fi
 SERVER_MANAGED=false
 
 start_grpc_server() {
-  info "Building grpc-server (debug)..."
-  cargo build -p grpc-server \
-    --manifest-path "${REPO_ROOT}/Cargo.toml" 2>&1
+  if [[ "${NO_BUILD}" == "true" ]]; then
+    if [[ ! -x "${REPO_ROOT}/target/debug/grpc-server" ]]; then
+      error "--no-build was passed but target/debug/grpc-server does not exist"
+      return 1
+    fi
+    info "Using pre-built grpc-server (--no-build)"
+  else
+    info "Building grpc-server (debug)..."
+    cargo build -p grpc-server \
+      --manifest-path "${REPO_ROOT}/Cargo.toml" 2>&1
+  fi
 
   info "Starting grpc-server on ${GRPC_HOST}:${GRPC_PORT}..."
   CS__SERVER__HOST="${GRPC_HOST}" \
@@ -198,8 +212,16 @@ if [[ "${INTERFACE}" == "grpc" && "${NO_SERVER}" == "false" ]]; then
   start_grpc_server
 fi
 
-# ── Build cargo command ────────────────────────────────────────────────────────
-CMD=(cargo run -p integration-tests --bin test_ucs --)
+# ── Build test command ─────────────────────────────────────────────────────────
+if [[ "${NO_BUILD}" == "true" ]]; then
+  if [[ ! -x "${REPO_ROOT}/target/debug/test_ucs" ]]; then
+    error "--no-build was passed but target/debug/test_ucs does not exist"
+    exit 1
+  fi
+  CMD=("${REPO_ROOT}/target/debug/test_ucs")
+else
+  CMD=(cargo run -p integration-tests --bin test_ucs --)
+fi
 
 # Interface
 CMD+=(--interface "${INTERFACE}")

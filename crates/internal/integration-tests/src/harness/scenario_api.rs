@@ -1365,24 +1365,14 @@ pub fn apply_context_map(
     }
 }
 
-/// Determines whether a scenario can safely run with `--skip-dependencies`.
+/// Returns the first dependency-supplied path the scenario does not satisfy on
+/// its own, if any — i.e. the reason `--skip-dependencies` must be refused.
 ///
-/// Every `context_map` entry across the suite's declared dependencies names a
-/// `target_path` the dependency chain would otherwise fill in via
-/// [`apply_context_map`]. A scenario only stands on its own if, for every one
-/// of those paths, one of two things is true:
-///
-/// - it already supplies a real (non-null) value at that exact path, or
-/// - the path's immediate parent is a proto `oneof` container where the
-///   scenario populated a *different* sibling variant instead (e.g. it chose
-///   `payment_method.card` over `payment_method.token`) — the target is then
-///   structurally inapplicable, not missing.
-///
-/// Anything else means the request genuinely depends on a dependency's
-/// output and must not skip it. `--skip-dependencies` is therefore not a
-/// trusted override: it is a request that this check must independently
-/// confirm before it takes effect. Returns the first target path found to be
-/// truly unmet, if any.
+/// A path is satisfied when the scenario supplies a non-null value at it, or
+/// when the scenario picked a different variant of the same proto `oneof`
+/// (`payment_method.card` instead of `payment_method.token`), making the target
+/// structurally inapplicable. `--skip-dependencies` is a request, not an
+/// override: it takes effect only once this check confirms it.
 fn first_context_map_target_missing_from_scenario(
     suite_spec: &SuiteSpec,
     scenario_grpc_req: &Value,
@@ -1406,22 +1396,16 @@ fn first_context_map_target_missing_from_scenario(
     None
 }
 
-/// True if `target_path` resolves partway before disappearing, and the last
-/// object reached along the way is populated with a sibling key other than
-/// the one the path needed next — the signature of a proto `oneof` where a
-/// different variant was chosen (e.g. `payment_method.card` populated instead
-/// of `payment_method.token`, so `payment_method.token.token.value` never
-/// resolves past `payment_method`).
+/// True if `target_path` stops resolving at an object that holds a different
+/// populated key — a proto `oneof` where another variant was chosen.
 fn parent_has_different_populated_variant(scenario_grpc_req: &Value, target_path: &str) -> bool {
     let segments: Vec<&str> = target_path.split('.').collect();
     let mut current = scenario_grpc_req;
 
     for (i, segment) in segments.iter().enumerate() {
         let Some(next) = lookup_json_path_with_case_fallback(current, segment) else {
-            // `current` is the last object successfully reached; `segment`
-            // is the key that was expected next but isn't present. If
-            // `current` instead holds a different, populated key, that's a
-            // sibling oneof variant rather than a genuinely absent value.
+            // `segment` is absent; a different populated key on the same
+            // object means a sibling oneof variant was chosen.
             let Some(current_obj) = current.as_object() else {
                 return false;
             };
@@ -1430,8 +1414,7 @@ fn parent_has_different_populated_variant(scenario_grpc_req: &Value, target_path
                 .any(|(key, value)| key != *segment && !value.is_null());
         };
         if i == segments.len() - 1 {
-            // Fully resolved — this is the "has its own value" case, handled
-            // by the caller before this function is reached.
+            // Fully resolved — the caller already handled this case.
             return false;
         }
         current = next;
@@ -3487,12 +3470,10 @@ pub fn run_scenario_test_with_options(
     let mut failed = 0usize;
 
     if options.skip_dependencies {
-        // Must check the connector's *effective* request (base scenario merged
-        // with connector_specs/<connector>/override.json), not the raw base
-        // scenario.json. A connector's override can populate a context_map
-        // target the base scenario leaves empty (or vice versa), so checking
-        // the unmerged base request can green-light a skip that would actually
-        // send an incomplete request for that connector.
+        // Check the connector's effective request (base scenario merged with
+        // its override.json). An override can fill or empty a context_map
+        // target, so the unmerged base request can green-light a skip that
+        // would send an incomplete request for this connector.
         let (effective_grpc_req, _effective_assertions) =
             load_effective_scenario_for_connector(suite, scenario, connector)?;
         if let Some(unmet) =

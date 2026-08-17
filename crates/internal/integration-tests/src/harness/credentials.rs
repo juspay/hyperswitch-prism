@@ -102,7 +102,12 @@ fn normalize_value(value: serde_json::Value) -> serde_json::Value {
 /// Extracts the connector's auth JSON block from the creds file, handling:
 /// - Array-valued connectors (picks first entry).
 /// - Existing CI `connector_account_details` wrappers.
-/// - Nested connector accounts (picks first account with `connector_account_details`).
+/// - Nested connector accounts, keyed by environment or account name.
+///
+/// For the nested form, `default` wins if present; otherwise the
+/// lexicographically first key does. Picking whichever key happened to come
+/// first in the file would let CI certify against a different account than the
+/// one it certified against yesterday.
 fn extract_connector_block(
     root: &serde_json::Value,
     connector: &str,
@@ -127,11 +132,39 @@ fn extract_connector_block(
         return legacy_connector_account_details_to_block(connector, details);
     }
 
-    for nested in obj.values() {
-        if let Some(nested_obj) = nested.as_object() {
-            if let Some(details) = nested_obj.get("connector_account_details") {
-                return legacy_connector_account_details_to_block(connector, details);
+    let mut nested_keys: Vec<&String> = obj
+        .iter()
+        .filter(|(_, v)| {
+            v.as_object()
+                .is_some_and(|o| o.contains_key("connector_account_details"))
+        })
+        .map(|(k, _)| k)
+        .collect();
+    nested_keys.sort();
+
+    let chosen = nested_keys
+        .iter()
+        .find(|k| k.as_str() == "default")
+        .or_else(|| nested_keys.first());
+
+    if let Some(key) = chosen {
+        if let Some(details) = obj
+            .get(key.as_str())
+            .and_then(|v| v.get("connector_account_details"))
+        {
+            if nested_keys.len() > 1 {
+                #[allow(clippy::print_stderr)]
+                eprintln!(
+                    "[credentials] '{connector}' has {} nested accounts ({}); using '{key}'",
+                    nested_keys.len(),
+                    nested_keys
+                        .iter()
+                        .map(|k| k.as_str())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                );
             }
+            return legacy_connector_account_details_to_block(connector, details);
         }
     }
 
@@ -285,5 +318,29 @@ mod tests {
 
         assert_eq!(block.get("api_key"), Some(&serde_json::json!("sk_test")));
         assert!(!block.contains_key("default"));
+    }
+
+    #[test]
+    fn nested_account_selection_is_deterministic() {
+        // No `default`: the lexicographically first account wins, regardless of
+        // the order the keys appear in the file.
+        let root = serde_json::json!({
+            "stripe": {
+                "zeta":  { "connector_account_details": { "api_key": "from_zeta" } },
+                "alpha": { "connector_account_details": { "api_key": "from_alpha" } }
+            }
+        });
+        let block = extract_connector_block(&root, "stripe").expect("block should load");
+        assert_eq!(block.get("api_key"), Some(&serde_json::json!("from_alpha")));
+
+        // `default` takes precedence over an earlier-sorting sibling.
+        let root = serde_json::json!({
+            "stripe": {
+                "alpha":   { "connector_account_details": { "api_key": "from_alpha" } },
+                "default": { "connector_account_details": { "api_key": "from_default" } }
+            }
+        });
+        let block = extract_connector_block(&root, "stripe").expect("block should load");
+        assert_eq!(block.get("api_key"), Some(&serde_json::json!("from_default")));
     }
 }
