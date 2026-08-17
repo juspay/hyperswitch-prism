@@ -1,6 +1,0 @@
-{
-  "_note": "Connectors whose certified scenarios block the merge. Scenario detail lives in each connector's connector_specs/<name>/specs.json under verified_scenarios, so adding a flow or payment method never touches this file and connector PRs never contend over it. Promoting a connector here means its declared scenarios must pass against a live sandbox; see .github/scripts/certify-connectors.sh for how a failure is attributed.",
-  "blocking": [
-    "stripe"
-  ]
-}
