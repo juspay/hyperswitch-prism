@@ -665,27 +665,6 @@ jobs:
           sudo mv /tmp/grpcurl /usr/local/bin/grpcurl
           grpcurl --version
 
-      - name: Certify selected connectors
-        if: ${{ env.RUN_TESTS == 'true' && needs.changes.outputs.certification-targets != '[]' }}
-        shell: bash
-        env:
-          TARGETS_JSON: ${{ needs.changes.outputs.certification-targets }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: .github/scripts/certify-connectors.sh
-
-      # A connector whose connector_specs/<name>/ directory did not exist at this
-      # PR's base commit must prove itself on its own PR. The author declares what
-      # they verified in their own specs.json `verified_scenarios`; each entry needs
-      # { suite, scenario, skip_dependencies, has_live_creds, no_creds_reason }.
-      #
-      # The array is expected to grow as later PRs add payment methods and flows —
-      # it is a running record of what has been proven, not a one-time gate.
-      #
-      # has_live_creds: true runs the call and must pass. has_live_creds: false is
-      # allowed but never silent: no_creds_reason is mandatory, the connector is
-      # listed in the job summary and in a PR comment as unproven, and it cannot
-      # enter certified_connectors.json until it is re-verified with real
-      # credentials.
       - name: Verify newly added connectors' declared scenarios
         if: ${{ env.RUN_TESTS == 'true' && needs.changes.outputs.new-connectors != '' }}
         shell: bash
@@ -789,6 +768,27 @@ jobs:
             exit 1
           fi
 
+      - name: Certify selected connectors
+        if: ${{ env.RUN_TESTS == 'true' && needs.changes.outputs.certification-targets != '[]' }}
+        shell: bash
+        env:
+          TARGETS_JSON: ${{ needs.changes.outputs.certification-targets }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: .github/scripts/certify-connectors.sh
+
+      # A connector whose connector_specs/<name>/ directory did not exist at this
+      # PR's base commit must prove itself on its own PR. The author declares what
+      # they verified in their own specs.json `verified_scenarios`; each entry needs
+      # { suite, scenario, skip_dependencies, has_live_creds, no_creds_reason }.
+      #
+      # The array is expected to grow as later PRs add payment methods and flows —
+      # it is a running record of what has been proven, not a one-time gate.
+      #
+      # has_live_creds: true runs the call and must pass. has_live_creds: false is
+      # allowed but never silent: no_creds_reason is mandatory, the connector is
+      # listed in the job summary and in a PR comment as unproven, and it cannot
+      # enter certified_connectors.json until it is re-verified with real
+      # credentials.
       - name: Comment unproven connector declarations on the PR
         if: ${{ env.RUN_TESTS == 'true' && github.event_name == 'pull_request' && hashFiles('/tmp/unproven.txt') != '' }}
         uses: actions/github-script@v7

@@ -57,6 +57,10 @@ restore_head() {
     if [[ ${#head_paths[@]} -gt 0 ]]; then
       git checkout --force "${HEAD_SHA}" -- "${head_paths[@]}" >/dev/null 2>&1 || true
     fi
+    # The sources are back at HEAD but the binaries were built from the merge
+    # base. Remove them rather than rebuild: any later step using --no-build
+    # then fails loudly instead of silently testing merge-base code.
+    rm -f target/debug/grpc-server target/debug/test_ucs
   fi
 }
 trap restore_head EXIT
