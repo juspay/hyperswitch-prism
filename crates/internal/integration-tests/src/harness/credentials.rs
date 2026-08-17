@@ -108,6 +108,7 @@ fn normalize_value(value: serde_json::Value) -> serde_json::Value {
 /// lexicographically first key does. Picking whichever key happened to come
 /// first in the file would let CI certify against a different account than the
 /// one it certified against yesterday.
+#[allow(clippy::print_stderr)]
 fn extract_connector_block(
     root: &serde_json::Value,
     connector: &str,
@@ -153,7 +154,6 @@ fn extract_connector_block(
             .and_then(|v| v.get("connector_account_details"))
         {
             if nested_keys.len() > 1 {
-                #[allow(clippy::print_stderr)]
                 eprintln!(
                     "[credentials] '{connector}' has {} nested accounts ({}); using '{key}'",
                     nested_keys.len(),
