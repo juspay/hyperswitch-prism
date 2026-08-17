@@ -87,6 +87,24 @@ for name in "${CONNECTORS[@]}"; do
     continue
   fi
 
+  # Every flow the connector claims must have a scenario behind it. The claim
+  # itself is already forced to match the code by check_connector_specs, so this
+  # closes the last link: code -> supported_suites -> verified_scenarios. A flow
+  # that genuinely cannot be exercised still needs an entry, with
+  # has_live_creds: false and a reason — unproven is acceptable, unmentioned is
+  # not. Without this a connector could ship six flows and certify one.
+  uncovered=$(jq -r '
+    (.supported_suites // []) as $declared
+    | [ (.verified_scenarios // [])[].suite ] as $covered
+    | $declared - $covered
+    | .[]' "${specs}")
+  if [[ -n "${uncovered}" ]]; then
+    while IFS= read -r suite; do
+      echo "::error::New connector '${name}' declares support for ${suite} but no verified_scenarios entry covers it. Add one — with has_live_creds: false and a no_creds_reason if it cannot be exercised in CI."
+      failures=$((failures + 1))
+    done <<< "${uncovered}"
+  fi
+
   for i in $(seq 0 $((entry_count - 1))); do
     entry=$(jq -c ".verified_scenarios[$i]" "${specs}")
     suite=$(jq -r '.suite // empty' <<< "${entry}")
