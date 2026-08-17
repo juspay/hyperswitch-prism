@@ -21,7 +21,7 @@ use grpc_api_types::{
         PaymentServiceAuthorizeRequest, PaymentStatus,
     },
 };
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{Secret};
 use tonic::{transport::Channel, Request};
 use uuid::Uuid;
 
@@ -40,7 +40,6 @@ fn generate_unique_id(prefix: &str) -> String {
 
 // Constants for Novalnet connector
 const CONNECTOR_NAME: &str = "novalnet";
-const AUTH_TYPE: &str = "signature-key";
 const MERCHANT_ID: &str = "merchant_1234";
 
 // Test card data
@@ -53,35 +52,19 @@ const TEST_CARD_HOLDER: &str = "Test User";
 const TEST_EMAIL: &str = "customer@example.com";
 
 fn add_novalnet_metadata<T>(request: &mut Request<T>) {
-    let auth = utils::credential_utils::load_connector_auth(CONNECTOR_NAME)
-        .expect("Failed to load novalnet credentials");
+    let connector_config = utils::credential_utils::connector_config_header(CONNECTOR_NAME)
+        .expect("Failed to load connector config");
 
-    let (api_key, key1, api_secret) = match auth {
-        domain_types::router_data::ConnectorAuthType::SignatureKey {
-            api_key,
-            key1,
-            api_secret,
-        } => (api_key.expose(), key1.expose(), api_secret.expose()),
-        _ => panic!("Expected SignatureKey auth type for novalnet"),
-    };
+    request.metadata_mut().append(
+        "x-connector-config",
+        connector_config
+            .parse()
+            .expect("Failed to parse x-connector-config"),
+    );
 
     request.metadata_mut().append(
         "x-connector",
         CONNECTOR_NAME.parse().expect("Failed to parse x-connector"),
-    );
-    request
-        .metadata_mut()
-        .append("x-auth", AUTH_TYPE.parse().expect("Failed to parse x-auth"));
-    request.metadata_mut().append(
-        "x-api-key",
-        api_key.parse().expect("Failed to parse x-api-key"),
-    );
-    request
-        .metadata_mut()
-        .append("x-key1", key1.parse().expect("Failed to parse x-key1"));
-    request.metadata_mut().append(
-        "x-api-secret",
-        api_secret.parse().expect("Failed to parse x-api-secret"),
     );
     request.metadata_mut().append(
         "x-merchant-id",

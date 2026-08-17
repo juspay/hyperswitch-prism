@@ -5,7 +5,7 @@
 #![allow(dead_code)]
 
 use grpc_server::app;
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{Secret};
 use ucs_env::configs;
 mod common;
 mod utils;
@@ -89,31 +89,20 @@ fn generate_unique_request_ref_id(prefix: &str) -> String {
 // Helper function to add AuthorizeDotNet metadata headers to a request
 fn add_authorizenet_metadata<T>(request: &mut Request<T>) {
     // Get API credentials using the common credential loading utility
-    let auth = utils::credential_utils::load_connector_auth(CONNECTOR_NAME)
-        .expect("Failed to load Authorize.Net credentials");
+    let connector_config = utils::credential_utils::connector_config_header(CONNECTOR_NAME)
+        .expect("Failed to load connector config");
 
-    let (api_key, key1) = match auth {
-        domain_types::router_data::ConnectorAuthType::BodyKey { api_key, key1 } => {
-            (api_key.expose(), key1.expose())
-        }
-        _ => panic!("Expected BodyKey auth type for Authorize.Net"),
-    };
+    request.metadata_mut().append(
+        "x-connector-config",
+        connector_config
+            .parse()
+            .expect("Failed to parse x-connector-config"),
+    );
 
     request.metadata_mut().append(
         "x-connector",
         CONNECTOR_NAME.parse().expect("Failed to parse x-connector"),
     );
-    request.metadata_mut().append(
-        "x-auth",
-        "body-key".parse().expect("Failed to parse x-auth"),
-    );
-    request.metadata_mut().append(
-        "x-api-key",
-        api_key.parse().expect("Failed to parse x-api-key"),
-    );
-    request
-        .metadata_mut()
-        .append("x-key1", key1.parse().expect("Failed to parse x-key1"));
     // Add merchant ID which is required by the server
     request.metadata_mut().append(
         "x-merchant-id",
