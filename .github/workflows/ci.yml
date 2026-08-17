@@ -683,107 +683,13 @@ jobs:
           grpcurl --version
 
       - name: Verify newly added connectors' declared scenarios
+        id: verify-new-connectors
         if: ${{ env.RUN_TESTS == 'true' && needs.changes.outputs.new-connectors != '' }}
         shell: bash
-        run: |
-          failures=0
-          unproven=()
-
-          if [[ -z "${CONNECTOR_AUTH_FILE_PATH:-}" || ! -s "${CONNECTOR_AUTH_FILE_PATH}" ]]; then
-            echo "::error::New connectors were added but no credentials file is available — cannot verify their declared scenarios."
-            exit 1
-          fi
-
-          IFS=',' read -ra NEW_CONNECTORS <<< "${{ needs.changes.outputs.new-connectors }}"
-
-          for name in "${NEW_CONNECTORS[@]}"; do
-            # Style requirement, applied only to connectors that did not exist at
-            # the base commit. Flow coverage itself is enforced separately and
-            # reads hand-written impls too, so this is about keeping new code on
-            # one pattern — not about correctness. Scoping it to new connectors
-            # is what makes it enforceable with no exception list to add
-            # yourself to.
-            src_path="crates/integrations/connector-integration/src/connectors/${name}.rs"
-            if [[ -f "$src_path" ]] && ! grep -q 'macros::create_all_prerequisites!(' "$src_path"; then
-              echo "::error::New connector '$name' does not use create_all_prerequisites! in $src_path. New connectors must declare their flows through the macro; hand-written ConnectorIntegrationV2 impls are read by the coverage check but are not accepted as the primary flow declaration for new code."
-              failures=$((failures + 1))
-            fi
-
-            specs_path="crates/internal/integration-tests/src/connector_specs/${name}/specs.json"
-            if [[ ! -f "$specs_path" ]]; then
-              echo "::error::New connector '$name' has no specs.json at $specs_path"
-              failures=$((failures + 1))
-              continue
-            fi
-
-            entry_count=$(jq '.verified_scenarios // [] | length' "$specs_path")
-            if [[ "$entry_count" -eq 0 ]]; then
-              echo "::error::New connector '$name' declares no \"verified_scenarios\" in $specs_path. Every new connector must declare at least one entry { suite, scenario, has_live_creds, no_creds_reason (when has_live_creds is false) } so its own PR either proves a real sandbox call or records, in the diff, that it did not."
-              failures=$((failures + 1))
-              continue
-            fi
-
-            for i in $(seq 0 $((entry_count - 1))); do
-              entry=$(jq -c ".verified_scenarios[$i]" "$specs_path")
-              has_live_creds=$(jq -r '.has_live_creds // false' <<< "$entry")
-              suite=$(jq -r '.suite // empty' <<< "$entry")
-              scenario=$(jq -r '.scenario // empty' <<< "$entry")
-              skip_deps=$(jq -r '.skip_dependencies // false' <<< "$entry")
-              no_creds_reason=$(jq -r '.no_creds_reason // empty' <<< "$entry")
-
-              if [[ -z "$suite" || -z "$scenario" ]]; then
-                echo "::error::New connector '$name' verified_scenarios[$i] is missing suite/scenario in $specs_path"
-                failures=$((failures + 1))
-                continue
-              fi
-
-              if [[ "$has_live_creds" != "true" ]]; then
-                if [[ -z "$no_creds_reason" ]]; then
-                  echo "::error::New connector '$name' verified_scenarios[$i] ($suite / $scenario) sets has_live_creds: false with no no_creds_reason. State why, e.g. \"sandbox access requested, pending <team/ticket>\"."
-                  failures=$((failures + 1))
-                  continue
-                fi
-                echo "::warning::'$name' ($suite / $scenario) is merging WITHOUT live sandbox proof. Reason: $no_creds_reason"
-                unproven+=("\`$name\` — $suite / $scenario — _${no_creds_reason}_")
-                continue
-              fi
-
-              if ! jq -e --arg c "$name" 'has($c)' "${CONNECTOR_AUTH_FILE_PATH}" > /dev/null; then
-                echo "::error::New connector '$name' verified_scenarios[$i] sets has_live_creds: true but has no entry in the CI credentials file — fix the declaration or add the credentials"
-                failures=$((failures + 1))
-                continue
-              fi
-
-              echo "::group::Verify $name ($suite / $scenario)"
-              args=(--skip-setup --no-build --connector "$name" --suite "$suite" \
-                    --scenario "$scenario" --interface grpc --report)
-              [[ "$skip_deps" == "true" ]] && args+=(--skip-dependencies)
-
-              if ! ./scripts/run-tests "${args[@]}"; then
-                echo "::error::Verification failed for new connector $name ($suite / $scenario)"
-                failures=$((failures + 1))
-              fi
-              echo "::endgroup::"
-            done
-          done
-
-          # Surface unproven declarations where a reviewer will see them without
-          # opening the job log.
-          if [[ ${#unproven[@]} -gt 0 ]]; then
-            {
-              echo "## ⚠️ New connectors merging without live sandbox proof"
-              echo ""
-              for u in "${unproven[@]}"; do echo "- $u"; done
-              echo ""
-              echo "Each line above is a \`has_live_creds: false\` entry in the connector's \`specs.json\`. Confirm the stated reason is real before approving."
-            } >> "$GITHUB_STEP_SUMMARY"
-            printf '%s\n' "${unproven[@]}" > /tmp/unproven.txt
-          fi
-
-          if [[ "$failures" -gt 0 ]]; then
-            echo "::error::$failures new connector scenario(s) failed verification"
-            exit 1
-          fi
+        env:
+          NEW_CONNECTORS: ${{ needs.changes.outputs.new-connectors }}
+          UNPROVEN_FILE: ${{ runner.temp }}/unproven.txt
+        run: .github/scripts/verify-new-connectors.sh
 
       - name: Certify selected connectors
         if: ${{ env.RUN_TESTS == 'true' && needs.changes.outputs.certification-targets != '[]' }}
@@ -806,12 +712,14 @@ jobs:
       # listed in the job summary and in a PR comment as unproven. It does not
       # certify until has_live_creds is flipped to true in a later PR.
       - name: Comment unproven connector declarations on the PR
-        if: ${{ env.RUN_TESTS == 'true' && github.event_name == 'pull_request' && hashFiles('/tmp/unproven.txt') != '' }}
+        if: ${{ github.event_name == 'pull_request' && steps.verify-new-connectors.outputs.unproven == 'true' }}
         uses: actions/github-script@v7
+        env:
+          UNPROVEN_FILE: ${{ runner.temp }}/unproven.txt
         with:
           script: |
             const fs = require('fs');
-            const lines = fs.readFileSync('/tmp/unproven.txt', 'utf8').trim().split('\n');
+            const lines = fs.readFileSync(process.env.UNPROVEN_FILE, 'utf8').trim().split('\n');
             const marker = '<!-- unproven-connectors -->';
             const body = [
               marker,
