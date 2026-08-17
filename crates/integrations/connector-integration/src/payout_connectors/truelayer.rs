@@ -3,7 +3,12 @@ pub mod transformers;
 use std::collections::BTreeMap;
 
 use common_enums::CurrencyUnit;
-use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
+use common_utils::{
+    errors::CustomResult,
+    events,
+    ext_traits::ByteSliceExt,
+    request::{ConnectorRequestData, RequestContent},
+};
 use domain_types::{
     connector_flow::{
         PayoutCreate, PayoutCreateLink, PayoutCreateRecipient, PayoutEligibility,
@@ -89,7 +94,7 @@ impl TruelayerPayouts {
         let idempotency_key = uuid::Uuid::new_v4().to_string();
         let request_body = self
             .get_request_body(req)?
-            .map(|body| body.get_inner_value().expose().clone());
+            .map(|body| body.content.get_inner_value().expose().clone());
 
         let mut signed_headers = BTreeMap::new();
         signed_headers.insert(
@@ -185,19 +190,29 @@ impl ConnectorCommon for TruelayerPayouts {
 
         with_error_response_body!(event_builder, response);
 
+        let typed_connector_response = crate::connectors::macros::serialize_typed_connector_payload(
+            &response,
+            "typed_connector_response",
+        );
+
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.title.clone(),
             message: response
                 .errors
+                .clone()
                 .unwrap_or_else(|| serde_json::Value::String(response.title.clone()))
                 .to_string(),
-            reason: Some(response.detail),
+            reason: Some(response.detail.clone()),
             attempt_status: None,
-            connector_transaction_id: Some(response.trace_id),
+            connector_transaction_id: Some(response.trace_id.clone()),
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            typed_connector_response,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     }
 }
@@ -271,10 +286,15 @@ impl
             ServerAuthenticationTokenRequestData,
             ServerAuthenticationTokenResponseData,
         >,
-    ) -> CustomResult<Option<common_utils::request::RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<ConnectorRequestData>, IntegrationError> {
         let connector_req = TruelayerServerAuthenticationTokenRequest::try_from(req)?;
-        Ok(Some(common_utils::request::RequestContent::FormUrlEncoded(
-            Box::new(connector_req),
+        let typed = events::MaskedSerdeValue::from_masked_optional(
+            &connector_req,
+            "typed_connector_request",
+        );
+        Ok(Some(ConnectorRequestData::new(
+            RequestContent::FormUrlEncoded(Box::new(connector_req)),
+            typed,
         )))
     }
 
@@ -346,6 +366,11 @@ impl
 
         with_error_response_body!(event_builder, response);
 
+        let typed_connector_response = crate::connectors::macros::serialize_typed_connector_payload(
+            &response,
+            "typed_connector_response",
+        );
+
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.error,
@@ -359,6 +384,10 @@ impl
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            typed_connector_response,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     }
 }
@@ -412,11 +441,16 @@ impl
             PayoutTransferRequest,
             PayoutTransferResponse,
         >,
-    ) -> CustomResult<Option<common_utils::request::RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<ConnectorRequestData>, IntegrationError> {
         let connector_req = TruelayerPayoutRequest::try_from(req)?;
-        Ok(Some(common_utils::request::RequestContent::Json(Box::new(
-            connector_req,
-        ))))
+        let typed = events::MaskedSerdeValue::from_masked_optional(
+            &connector_req,
+            "typed_connector_request",
+        );
+        Ok(Some(ConnectorRequestData::new(
+            RequestContent::Json(Box::new(connector_req)),
+            typed,
+        )))
     }
 
     fn handle_response_v2(
