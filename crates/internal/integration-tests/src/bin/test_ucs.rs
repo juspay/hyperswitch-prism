@@ -209,9 +209,7 @@ fn run_non_interactive(args: &[String]) -> Result<(), String> {
     .map_err(|e| e.to_string())?;
 
     println!("\n[test_ucs] grand total: passed={passed} failed={failed} skipped={skipped}");
-    if failed > 0 {
-        return Err("one or more scenarios failed".to_string());
-    }
+    run_outcome(&scenario_selection, passed, failed)?;
 
     Ok(())
 }
@@ -473,9 +471,7 @@ fn run_interactive(args: &[String]) -> Result<(), String> {
     .map_err(|e| e.to_string())?;
 
     println!("\n[test_ucs] grand total: passed={passed} failed={failed} skipped={skipped}");
-    if failed > 0 {
-        return Err("one or more scenarios failed".to_string());
-    }
+    run_outcome(&scenario_selection, passed, failed)?;
 
     Ok(())
 }
@@ -539,6 +535,43 @@ fn build_equivalent_command(
 }
 
 // ── Execution ──────────────────────────────────────────────────────────────────
+
+/// Whether a selection obliges the run to have actually executed something.
+///
+/// `execute_plan` counts a scenario the harness declines to run — unsupported
+/// payment method, unmet dependency, filter mismatch — as `skipped`, leaving
+/// `failed` at zero. For a sweep that is correct: skips are expected and the
+/// run still succeeded. When the caller named one scenario, exiting zero
+/// without having run it reports success for work that never happened, and
+/// anything keyed off the exit code inherits that false negative.
+fn requires_execution(selection: &ScenarioSelection) -> bool {
+    match selection {
+        // The caller named exactly what to run.
+        ScenarioSelection::Specific(_) => true,
+        // A sweep may legitimately skip what a connector does not support.
+        ScenarioSelection::All | ScenarioSelection::Multiple(_) => false,
+    }
+}
+
+/// Turns the run totals into an exit outcome.
+fn run_outcome(
+    selection: &ScenarioSelection,
+    passed: usize,
+    failed: usize,
+) -> Result<(), String> {
+    if failed > 0 {
+        return Err("one or more scenarios failed".to_string());
+    }
+    if passed == 0 && requires_execution(selection) {
+        return Err(match selection {
+            ScenarioSelection::Specific(name) => {
+                format!("scenario '{name}' was skipped, not executed — nothing was verified")
+            }
+            _ => "no scenario executed — nothing was verified".to_string(),
+        });
+    }
+    Ok(())
+}
 
 fn execute_plan(
     connector_selection: &ConnectorSelection,
@@ -947,4 +980,39 @@ enum ScenarioSelection {
     All,
     Specific(String),
     Multiple(Vec<String>),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{run_outcome, ScenarioSelection};
+
+    #[test]
+    fn a_failure_is_always_a_failure() {
+        for selection in [
+            ScenarioSelection::All,
+            ScenarioSelection::Specific("s".to_string()),
+        ] {
+            assert!(run_outcome(&selection, 1, 1).is_err());
+        }
+    }
+
+    #[test]
+    fn a_named_scenario_that_never_ran_is_not_a_pass() {
+        // passed=0, failed=0 is what a skip looks like from the outside.
+        let err = run_outcome(&ScenarioSelection::Specific("no3ds".to_string()), 0, 0)
+            .expect_err("a skipped named scenario must not report success");
+        assert!(err.contains("no3ds"), "error should name the scenario: {err}");
+    }
+
+    #[test]
+    fn a_sweep_may_skip_everything() {
+        // Nothing ran, but nothing was promised either.
+        assert!(run_outcome(&ScenarioSelection::All, 0, 0).is_ok());
+        assert!(run_outcome(&ScenarioSelection::Multiple(vec!["a".to_string()]), 0, 0).is_ok());
+    }
+
+    #[test]
+    fn a_named_scenario_that_ran_and_passed_is_a_pass() {
+        assert!(run_outcome(&ScenarioSelection::Specific("s".to_string()), 1, 0).is_ok());
+    }
 }
