@@ -145,10 +145,40 @@ EOF
 fi
 BRIDGE="$BRIDGE_DIR/target/release/deja-bridge"
 
-echo "==> [2/7] pull tape from Kafka, select correlations"
+echo "==> [2/7] pull tape (Kafka topic + MinIO archive), select correlations"
+# Kafka = live transport (recent events, may not have shipped yet); MinIO = durable store
+# (survives Kafka wipes). Merge both and dedupe — envelope lines are byte-identical across
+# copies, so exact-line dedupe is lossless.
 docker exec deja-kafka /opt/kafka/bin/kafka-console-consumer.sh \
   --bootstrap-server localhost:9092 --topic ucs-deja-recording-events \
-  --from-beginning --timeout-ms 6000 2>/dev/null > /tmp/full_tape.jsonl
+  --from-beginning --timeout-ms 6000 2>/dev/null > /tmp/tape-kafka.jsonl || : > /tmp/tape-kafka.jsonl
+docker run --rm --network deja-local_default --entrypoint /bin/sh minio/mc:latest -c \
+  "mc alias set local http://minio:9000 minioadmin minioadmin >/dev/null && \
+   for f in \$(mc find local/deja-tapes/ --name '*.jsonl'); do mc cat \$f; echo; done" \
+  > /tmp/tape-minio.jsonl 2>/dev/null || : > /tmp/tape-minio.jsonl
+python3 -c "
+import json
+decoder = json.JSONDecoder()
+seen = set()
+out = open('/tmp/full_tape.jsonl', 'w')
+kafka = minio = 0
+for path in ('/tmp/tape-minio.jsonl', '/tmp/tape-kafka.jsonl'):
+    for line in open(path):
+        line = line.strip()
+        # Objects concatenated without trailing newlines can glue two JSON docs onto one
+        # physical line — split with raw_decode so every emitted line is one envelope.
+        while line:
+            try:
+                obj, end = decoder.raw_decode(line)
+            except json.JSONDecodeError:
+                break
+            doc = json.dumps(obj, separators=(',', ':'), ensure_ascii=False)
+            if doc not in seen:
+                seen.add(doc); out.write(doc + '\n')
+                if path.endswith('minio.jsonl'): minio += 1
+                else: kafka += 1
+            line = line[end:].lstrip()
+print(f'    tape: {minio} event(s) from MinIO + {kafka} new from Kafka = {minio + kafka} total')"
 # Selection: --all = every correlation on the tape · <id> [<id>…] = those · none = newest.
 if [[ "${1:-}" == "--all" ]]; then
   python3 -c "
