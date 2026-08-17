@@ -17,7 +17,7 @@ use domain_types::{
     types::Connectors,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, Maskable};
+use hyperswitch_masking::{ExposeInterface, Maskable, Secret};
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
     decode::BodyDecoding,
@@ -213,7 +213,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             network_advice_code: None,
             network_error_message: None,
             typed_connector_response: typed,
-            raw_connector_response: None,
+            raw_connector_response: Some(Secret::new(
+                String::from_utf8_lossy(&res.response).to_string(),
+            )),
             raw_connector_request: None,
             typed_connector_request: None,
         })
@@ -634,7 +636,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn process_redirect_response(
         &self,
         _request: &RequestDetails,
-        _connector_feature_data: Option<&hyperswitch_masking::Secret<String>>,
+        _connector_feature_data: Option<&Secret<String>>,
     ) -> CustomResult<RedirectDetailsResponse, errors::IntegrationError> {
         // Maya is a redirect-only connector. The redirect body carries no
         // meaningful payment state; final status is confirmed via PSync or
