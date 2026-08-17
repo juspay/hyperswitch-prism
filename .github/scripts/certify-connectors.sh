@@ -70,23 +70,33 @@ build_binaries() {
   return "${PIPESTATUS[0]}"
 }
 
-# Sorts a failure into one of two classes. `availability` means the connector
-# was not reachable or not answering properly, which says nothing about our
-# code; `contract` means we got far enough to disagree about the content.
-# Anything unrecognised is treated as `contract`, so an unknown failure is
-# investigated rather than waved through.
+# Whether the failure happened before or after the connector answered.
+#
+# The harness records `res_body` only when a response came back: an assertion
+# mismatch still carries one, a transport failure does not. That is a fact
+# about the exchange rather than a guess from the wording of an error, so a
+# legitimate content failure that happens to mention "timeout" is not mistaken
+# for an outage.
 classify_failure() {
-  local rc="$1" text="$2"
+  local rc="$1" report="$2" scenario="$3"
+
+  # Killed by the attempt timeout: nothing came back, and there may be no
+  # report to consult.
   if [[ "${rc}" -eq 124 || "${rc}" -eq 137 ]]; then
     printf 'availability'
     return
   fi
-  local lowered
-  lowered="$(tr '[:upper:]' '[:lower:]' <<< "${text}")"
-  if grep -qE 'connection (refused|reset)|timed out|timeout|deadline exceeded|temporarily unavailable|service unavailable|too many requests|rate limit|bad gateway|gateway timeout|no route to host|name resolution|dns|tls|handshake|http (429|502|503|504)|status: (unavailable|deadlineexceeded)' <<< "${lowered}"; then
-    printf 'availability'
-  else
+
+  local answered
+  answered=$(jq --arg s "${scenario}" '
+    [ .[]? | select(.scenario == $s and .is_dependency != true
+                    and .res_body != null) ] | length' \
+    "${report}" 2>/dev/null || echo 0)
+
+  if [[ "${answered:-0}" -gt 0 ]]; then
     printf 'contract'
+  else
+    printf 'availability'
   fi
 }
 
@@ -112,7 +122,7 @@ run_scenario() {
       | first // ""' "${report}" 2>/dev/null || true)
   fi
   LAST_CLASS=""
-  [[ "${LAST_RC}" -ne 0 ]] && LAST_CLASS="$(classify_failure "${LAST_RC}" "${LAST_ERROR}")"
+  [[ "${LAST_RC}" -ne 0 ]] && LAST_CLASS="$(classify_failure "${LAST_RC}" "${report}" "${scenario}")"
 
   return "${LAST_RC}"
 }
