@@ -554,11 +554,7 @@ fn requires_execution(selection: &ScenarioSelection) -> bool {
 }
 
 /// Turns the run totals into an exit outcome.
-fn run_outcome(
-    selection: &ScenarioSelection,
-    passed: usize,
-    failed: usize,
-) -> Result<(), String> {
+fn run_outcome(selection: &ScenarioSelection, passed: usize, failed: usize) -> Result<(), String> {
     if failed > 0 {
         return Err("one or more scenarios failed".to_string());
     }
