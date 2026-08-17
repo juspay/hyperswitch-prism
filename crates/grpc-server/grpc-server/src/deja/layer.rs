@@ -72,8 +72,12 @@ where
     }
 
     fn call(&mut self, req: Request<Body>) -> Self::Future {
-        // INACTIVE PASSTHROUGH — no hook installed. Zero cost, streaming untouched.
-        if !super::process_is_active() {
+        // PASSTHROUGH — no hook installed, or not a UCS rpc. Zero cost, streaming
+        // untouched. The path check is load-bearing beyond noise reduction: server
+        // reflection is a bidi-streaming rpc, and buffering its request body would
+        // deadlock the stream (the client waits for responses while collect() waits
+        // for end-of-stream).
+        if !super::process_is_active() || !is_recordable_path(req.uri().path()) {
             return Box::pin(self.inner.call(req));
         }
 
@@ -193,6 +197,13 @@ where
     }
 }
 
+/// Whether this rpc path belongs to a UCS service (proto package `types`). Health
+/// (`grpc.health.v1`), reflection (`grpc.reflection.*` — bidi streaming), and any other
+/// system service are never captured.
+fn is_recordable_path(path: &str) -> bool {
+    path.starts_with("/types.")
+}
+
 /// Clears the per-correlation recording decision on drop (covers `?`, panic, cancel).
 struct RecordingDecisionGuard(String);
 
@@ -241,5 +252,37 @@ impl http_body::Body for RecordingBody {
             }
             other => other,
         }
+    }
+
+    // Both delegations are load-bearing: h2 decides whether END_STREAM rides the headers
+    // frame from `is_end_stream` — a hardcoded `false` on a trailers-only (error) response
+    // makes the stream end without grpc-status trailers, which clients reject. (If the
+    // body is already ended at wrap time, tonic's `Body::new` short-circuits to an empty
+    // body and drops the wrapper; the finalizer then finalizes via its own Drop impl.)
+    fn is_end_stream(&self) -> bool {
+        self.inner.is_end_stream()
+    }
+
+    fn size_hint(&self) -> http_body::SizeHint {
+        self.inner.size_hint()
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
+mod tests {
+    #[test]
+    fn only_ucs_service_paths_are_recordable() {
+        assert!(super::is_recordable_path("/types.PaymentService/Authorize"));
+        assert!(super::is_recordable_path("/types.RefundService/Get"));
+        // System services pass through — reflection is bidi streaming and MUST not be
+        // buffered (deadlock), health is probe noise.
+        assert!(!super::is_recordable_path("/grpc.health.v1.Health/Check"));
+        assert!(!super::is_recordable_path(
+            "/grpc.reflection.v1.ServerReflection/ServerReflectionInfo"
+        ));
+        assert!(!super::is_recordable_path(
+            "/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo"
+        ));
     }
 }
