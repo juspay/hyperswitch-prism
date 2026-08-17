@@ -27,6 +27,13 @@ SUMMARY="${GITHUB_STEP_SUMMARY:-/dev/null}"
 HEAD_SHA="$(git rev-parse HEAD)"
 BASE_PREPARED=false
 
+GRPC_HOST="${GRPC_HOST:-0.0.0.0}"
+GRPC_PORT="${GRPC_PORT:-8000}"
+SERVER_BINARY="target/debug/grpc-server"
+
+# shellcheck source=../../scripts/grpc-server.sh
+source "scripts/grpc-server.sh"
+
 # Names are only ever read from the manifest, but they end up in `jq --arg`
 # lookups and file paths, so keep them to the shape a connector name can have.
 valid_name() { [[ "$1" =~ ^[a-z0-9_]+$ ]]; }
@@ -63,7 +70,7 @@ restore_head() {
     rm -f target/debug/grpc-server target/debug/test_ucs
   fi
 }
-trap restore_head EXIT
+trap 'grpc_server_stop; restore_head' EXIT
 
 build_binaries() {
   cargo build --workspace --bins 2>&1 | tail -5
@@ -107,8 +114,9 @@ run_scenario() {
   local report="${RUNNER_TEMP:-/tmp}/certify-report.json"
   rm -f "${report}"
 
-  local args=(--skip-setup --no-build --connector "${name}" --suite "${suite}"
-              --scenario "${scenario}" --interface grpc --report)
+  local args=(--skip-setup --no-build --no-server --connector "${name}"
+              --suite "${suite}" --scenario "${scenario}"
+              --interface grpc --report)
   [[ "${skip_deps}" == "true" ]] && args+=(--skip-dependencies)
 
   UCS_RUN_TEST_REPORT_PATH="${report}" \
@@ -156,6 +164,14 @@ prepare_base() {
     echo "::endgroup::"
     return 1
   fi
+  # The running server is still serving the HEAD binary. Left alone it would
+  # answer every merge-base scenario with HEAD's code, and the comparison the
+  # whole verdict rests on would be meaningless.
+  if ! grpc_server_restart "${SERVER_BINARY}" "${GRPC_HOST}" "${GRPC_PORT}"; then
+    echo "::warning::Could not restart the gRPC server on merge-base build"
+    echo "::endgroup::"
+    return 1
+  fi
   echo "::endgroup::"
   return 0
 }
@@ -171,6 +187,13 @@ fi
 # ever reaching the connector.
 if [[ -z "${CONNECTOR_AUTH_FILE_PATH:-}" || ! -s "${CONNECTOR_AUTH_FILE_PATH}" ]]; then
   echo "::error::${count} connector scenario(s) selected for certification but no credentials file is available."
+  exit 1
+fi
+
+# One server for the whole run, rather than a start and a shutdown wrapped
+# around every scenario. prepare_base restarts it after rebuilding.
+if ! grpc_server_start "${SERVER_BINARY}" "${GRPC_HOST}" "${GRPC_PORT}"; then
+  echo "::error::Could not start the gRPC server for certification"
   exit 1
 fi
 
