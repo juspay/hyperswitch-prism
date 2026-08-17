@@ -65,6 +65,14 @@ impl DejaConfig {
     pub fn is_observing(&self) -> bool {
         !matches!(self.mode, DejaMode::Disabled)
     }
+
+    /// The configured run id, filtering empty strings.
+    pub fn effective_run_id(&self) -> Option<&str> {
+        self.run_id
+            .as_deref()
+            .map(str::trim)
+            .filter(|run_id| !run_id.is_empty())
+    }
 }
 
 /// Record / replay / off.
@@ -95,6 +103,10 @@ pub struct RecordingKafkaConfig {
     pub brokers: Vec<String>,
     pub acks: String,
     pub idempotence: bool,
+    pub client_id: Option<String>,
+    pub compression: Option<String>,
+    pub linger_ms: Option<u64>,
+    pub message_timeout_ms: u64,
     /// Loss-budget knob: a full producer buffer surfaces as counted drops, never OOM.
     pub queue_buffering_max_messages: u64,
     pub queue_buffering_max_kbytes: u64,
@@ -107,9 +119,21 @@ impl Default for RecordingKafkaConfig {
             brokers: Vec::new(),
             acks: "all".to_string(),
             idempotence: true,
+            client_id: None,
+            compression: None,
+            linger_ms: None,
+            message_timeout_ms: 30_000,
             queue_buffering_max_messages: 100_000,
             queue_buffering_max_kbytes: 262_144,
         }
+    }
+}
+
+impl RecordingKafkaConfig {
+    /// The configured topic, filtering empty strings.
+    pub fn effective_topic(&self) -> Option<&str> {
+        let topic = self.topic.trim();
+        (!topic.is_empty()).then_some(topic)
     }
 }
 
@@ -119,6 +143,8 @@ pub struct ReplayConfig {
     /// Absolute tape path, or a path relative to `lookup_dir`.
     pub source: Option<String>,
     pub lookup_dir: Option<String>,
+    /// Where the replay hook writes its observed-call stream; in-memory when unset.
+    pub observed_sink: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -165,6 +191,10 @@ pub struct WriterConfig {
     pub queue_capacity: usize,
     pub batch_size: usize,
     pub flush_interval_ms: u64,
+    /// Flush after this many records (0 disables the record-count trigger).
+    pub flush_after_records: usize,
+    /// Bounded drain budget at shutdown.
+    pub shutdown_flush_ms: u64,
 }
 
 impl Default for WriterConfig {
@@ -173,6 +203,8 @@ impl Default for WriterConfig {
             queue_capacity: 8_192,
             batch_size: 500,
             flush_interval_ms: 1_000,
+            flush_after_records: 500,
+            shutdown_flush_ms: 5_000,
         }
     }
 }

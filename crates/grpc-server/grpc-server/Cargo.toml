@@ -85,6 +85,7 @@ prost-reflect = { version = "0.16.5", features = ["serde"], optional = true }
 http-body = { version = "1.0.1", optional = true }
 http-body-util = { version = "0.1.3", optional = true }
 bytes = { workspace = true, optional = true }
+rdkafka = { version = "0.36", optional = true }
 
 [build-dependencies]
 build_info = { git = "https://github.com/juspay/framework-libs-rs", rev = "3cdcc24b461917b29641942b04f3aef8110b1adf", package = "build_info", features = [
@@ -123,6 +124,7 @@ deja = [
     "dep:http-body",
     "dep:http-body-util",
     "dep:bytes",
+    "dep:rdkafka",
     "common_utils/deja",
     "domain_types/deja",
     "ucs_env/deja",

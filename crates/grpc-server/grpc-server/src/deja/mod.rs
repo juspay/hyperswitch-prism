@@ -5,8 +5,10 @@
 //! the ingress layer is a pure passthrough. So even feature-on, the server behaves exactly
 //! as feature-off until recording is deliberately switched on.
 
+pub mod boot;
 pub mod descriptors;
 pub mod layer;
+pub mod record_sink;
 pub mod sampler;
 
 use std::sync::{Arc, OnceLock};

@@ -18,11 +18,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // build, not a config/env value. `application_name`/`deployment_id`/`pod_name` come from config.
     config.runtime_metadata.version = ucs_env::git_describe!().to_string();
 
-    let _guard = logger::setup(
-        &config.log,
-        ucs_env::service_name!(),
-        [ucs_env::service_name!(), "grpc_server", "tower_http"],
-    );
+    // Install the déjà runtime hook before `logger::setup` and before any instrumented
+    // call: the hook cell latches on first peek. Record misconfiguration fails open
+    // (disabled hook + stderr note, boot continues); replay misconfiguration aborts boot.
+    #[cfg(feature = "deja")]
+    let deja_report = grpc_server::deja::boot::install(
+        &config.deja,
+        Some(&config.events.brokers),
+        config.runtime_metadata.pod_name.as_deref(),
+    )
+    .map_err(|error| format!("deja replay configuration error: {error}"))?;
 
     // Load superposition.toml for connector URL resolution
     let superposition_config_path = format!(
@@ -45,6 +50,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             );
         }
     }
+
+    let _guard = logger::setup(
+        &config.log,
+        ucs_env::service_name!(),
+        [ucs_env::service_name!(), "grpc_server", "tower_http"],
+    );
+
+    // Now that the logger is up, surface how the déjà hook resolved.
+    #[cfg(feature = "deja")]
+    tracing::info!(
+        mode = deja_report.mode,
+        run_id = ?deja_report.run_id,
+        detail = ?deja_report.detail,
+        "deja runtime hook installed"
+    );
 
     // Optionally push metrics over OTLP to an OpenTelemetry Collector (mirrors the
     // hyperswitch app). Additive to the Prometheus /metrics scrape endpoint.
