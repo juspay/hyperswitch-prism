@@ -143,6 +143,7 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
             ConnectorEnum::Tesouro => Box::new(connectors::Tesouro::<T>::new()),
             ConnectorEnum::Boost => Box::new(connectors::Boost::<T>::new()),
             ConnectorEnum::Citigate => Box::new(connectors::Citigate::<T>::new()),
+            ConnectorEnum::Klarna => Box::new(connectors::Klarna::<T>::new()),
         }
     }
 }

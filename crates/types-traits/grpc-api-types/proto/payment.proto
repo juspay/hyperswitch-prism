@@ -174,7 +174,7 @@ message ConnectorErrorDetails {
   optional string message = 2; // Human-readable error message
   optional string reason = 3;  // Detailed explanation
   optional string connector_transaction_id = 4; // Connector's unique transaction ID for debugging and support reference
-  
+
   // Attempt status from the connector flow (Payment/Refund/Dispute).
   // Extracted from ErrorResponse.attempt_status (domain_types::FlowStatus).
   // Only one of payment_status, refund_status, or dispute_status will be set.
@@ -1466,7 +1466,7 @@ message StudentDetails {
   optional SecretString student_email = 4; // PII — student's email address
 }
 
-// Whether the ticket can be refunded 
+// Whether the ticket can be refunded
 enum TicketRefundability {
   TICKET_REFUNDABILITY_UNSPECIFIED = 0;
   REFUNDABLE = 1;
@@ -2037,6 +2037,19 @@ message BankRedirectConnectorResponse {
       1; // Interac-specific customer information when using bank redirect
 }
 
+// Klarna-specific response data returned alongside an authorization
+message KlarnaSdkConnectorResponse {
+  // The Klarna sub-product the customer was authorized for, as reported by
+  // Klarna (e.g. "pay_later", "pay_now", "pay_over_time")
+  optional string payment_type = 1;
+}
+
+// Additional payment method data for Pay Later methods
+message PayLaterConnectorResponse {
+  optional KlarnaSdkConnectorResponse klarna_sdk =
+      1; // Klarna-specific response data
+}
+
 // Additional payment method connector response
 message AdditionalPaymentMethodConnectorResponse {
   oneof payment_method_data {
@@ -2047,6 +2060,7 @@ message AdditionalPaymentMethodConnectorResponse {
     ApplePayConnectorResponse apple_pay = 4; // Apple Pay-specific response data
     BankRedirectConnectorResponse bank_redirect =
         5; // Bank Redirect-specific response data
+    PayLaterConnectorResponse pay_later = 6; // Pay Later-specific response data
   }
 }
 
@@ -2134,7 +2148,16 @@ message ConnectorSpecificClientAuthenticationResponse {
     NexinetsClientAuthenticationResponse nexinets = 24;
     NexixpayClientAuthenticationResponse nexixpay = 25;
     RevolutClientAuthenticationResponse revolut = 26;
+    KlarnaClientAuthenticationResponse klarna = 27;
   }
+}
+
+// Klarna SDK initialization data — session_id + client_token for the Klarna Payments SDK
+message KlarnaClientAuthenticationResponse {
+  // The Klarna session identifier
+  string session_id = 1;
+  // The client token passed to the Klarna client-side SDK
+  SecretString client_token = 2;
 }
 
 // Adyen SDK initialization data — session_id + session_data for Adyen Drop-in/Components
@@ -2826,7 +2849,7 @@ message PaymentServiceGetResponse {
   // Settlement phase reported by the connector. See SettlementStatus for the
   // per-value semantics. Absent when the connector doesn't distinguish phases.
   optional SettlementStatus settlement_status = 34;
-  
+
 
   // Mandate reference details returned by the connector for future recurring payments.
   optional MandateReferenceDetails mandate_reference_details = 35;
@@ -3069,6 +3092,11 @@ message PaymentClientAuthenticationContext {
   optional Customer customer = 6;
   optional SecretString metadata = 7;
   optional string return_url = 8;
+  // Line items of the order. Required by connectors that build the session
+  // from the order contents (e.g. Klarna's `order_lines`).
+  repeated OrderDetailsWithAmount order_details = 9;
+  // Shipping address for the order, when known at session-creation time.
+  optional Address shipping_address = 10;
 }
 
 // Authenticator-specific context for client authentication token creation
@@ -3289,7 +3317,7 @@ message PaymentServiceRefundRequest {
   // Required by some connectors that demand a per-request idempotency token.
   optional string merchant_request_id = 17;
 
-  // Connector-side identifier for the original payment that this refund targets.  
+  // Connector-side identifier for the original payment that this refund targets.
   optional string connector_order_id = 18;
 
   // Optional typed payment method (e.g. wallet number for direct-wallet refunds).
@@ -3690,7 +3718,7 @@ message RecurringPaymentServiceChargeRequest {
   optional PartnerMerchantIdentifierDetails partner_merchant_identifier_details = 35;
 
   optional AuthenticationType auth_type = 36;
-  
+
   optional string complete_authorize_url = 37;
 
   // Channel through which the repeat payment was initiated.
@@ -3968,7 +3996,7 @@ message PaymentMethodAuthenticationServicePostAuthenticateRequest {
 
   // Redirection Information after DDC step
   optional RedirectionResponse redirection_response = 14;
-  
+
   // Capture Settings
   optional CaptureMethod capture_method = 15;
 }
@@ -4252,7 +4280,7 @@ message RefundServiceGetRequest {
   // Required by some connectors that demand a per-request idempotency token.
   optional string merchant_request_id = 16;
 
-  // Connector-side identifier for the original payment that this refund sync targets. 
+  // Connector-side identifier for the original payment that this refund sync targets.
   optional string connector_order_id = 17;
 
   // Split refund data for platform fee reversals and transfers
@@ -4442,7 +4470,7 @@ message PaymentMethodServiceCreateRequest {
 message PaymentMethodServiceCreateResponse {
   optional string merchant_payment_method_id = 1; // Merchant's reference ID for the payment method
   optional string connector_payment_method_id = 2; // Connector-issued payment method ID (incase of wallet_detail it is connector_wallet_id)
-  
+
   PaymentMethodDetails payment_method_details = 3; // details of the Payment method created
 
   // Customer Information
@@ -4464,7 +4492,7 @@ message PaymentMethodServiceCreateResponse {
 message PaymentMethodServiceGetRequest {
   optional string merchant_payment_method_id = 1; // Merchant's reference ID for the payment method
   optional string connector_payment_method_id = 2; // Connector-issued payment method ID (incase of wallet_detail it is connector_wallet_id)
-  
+
   // Customer Information
   optional Customer customer = 3;
   optional ConnectorState state = 4;   // State Information (for access token)
@@ -4478,7 +4506,7 @@ message PaymentMethodServiceGetRequest {
 message PaymentMethodServiceGetResponse {
   optional string merchant_payment_method_id = 1; // Merchant's reference ID for the payment method
   optional string connector_payment_method_id = 2; // Connector-issued payment method ID (incase of wallet_detail it is connector_wallet_id)
-  
+
   PaymentMethodDetails payment_method_details = 3; // details of the Payment method
 
   // Customer Information
@@ -4635,13 +4663,13 @@ message PaymentMethodServiceRechargeRequest {
   optional string connector_payment_method_id = 2; // Connector's payment method ID (wallet number at connector's end)
   optional string merchant_request_id = 3;         // Request ID generated by the caller system
   optional string merchant_recharge_id = 4;        // Merchant's recharge tracking ID (invoice number or reference)
-  
+
   // Recharge Details
   string product_id = 5;                           // Product or program under which the payment method exists
   Money amount = 6;                                // Recharge amount in minor currency units
   optional string description = 7;                 // Human-readable description or notes about the recharge
   PaymentMethodType payment_method_type = 8;       // Type of payment method (WALLET, GIFT_CARD, PREPAID_CARD, etc.)
-  
+
   // Configuration
   optional ConnectorState state = 9;               // State information for multi-step flows (access token, session data)
   optional SecretString metadata = 10; // Additional metadata for the connector
@@ -4656,11 +4684,11 @@ message PaymentMethodServiceRechargeResponse {
   optional string connector_payment_method_id = 2; // Connector's payment method ID
   optional string merchant_recharge_id = 3;        // Merchant's recharge tracking ID
   optional string connector_recharge_id = 4;       // Connector's recharge tracking ID (invoice number or reference)
-  
+
   // Recharge Result
   RechargeStatus status = 5;                       // Status of the recharge operation (SUCCESS, FAILURE, PENDING)
   PaymentMethodDetails payment_method_details = 6; // Updated payment method details after recharge
-  
+
   // Error and Debugging Information
   optional ErrorInfo error = 7;                    // Error details if the recharge failed
   uint32 status_code = 8;                          // HTTP status code from the connector
@@ -5624,6 +5652,14 @@ message HyperswitchConfig {
   optional string base_url = 50;
 }
 
+message KlarnaConfig {
+  // Klarna Secret — HTTP Basic auth password (BodyKey api_key).
+  SecretString api_key = 1;
+  // Klarna Key ID — HTTP Basic auth username (BodyKey key1).
+  SecretString key1 = 2;
+  optional string base_url = 50;
+}
+
 message GlomopayConfig {
   SecretString api_key = 1;
   optional string base_url = 50;
@@ -5975,6 +6011,8 @@ message ConnectorSpecificConfig {
     BoostConfig boost = 145;
     // CITIGATE = 137
     CitigateConfig citigate = 146;
+    // KLARNA = 45
+    KlarnaConfig klarna = 143;
   }
 }
 

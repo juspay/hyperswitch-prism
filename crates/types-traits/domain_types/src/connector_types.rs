@@ -164,6 +164,7 @@ pub enum ConnectorEnum {
     Tesouro,
     Boost,
     Citigate,
+    Klarna,
 }
 
 // snake case for enum variants
@@ -526,6 +527,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Boost => Ok(Self::Boost),
             grpc_api_types::payments::Connector::Grabpay => Ok(Self::Grabpay),
             grpc_api_types::payments::Connector::Citigate => Ok(Self::Citigate),
+            grpc_api_types::payments::Connector::Klarna => Ok(Self::Klarna),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -2372,6 +2374,9 @@ pub struct ClientAuthenticationTokenRequestData {
     pub customer: Option<CustomerInfo>,
     pub order_tax_amount: Option<MinorUnit>,
     pub shipping_cost: Option<MinorUnit>,
+    /// Shipping address for the order, when known at session-creation time.
+    /// Sent by connectors (e.g. Klarna) that accept it on the session request.
+    pub shipping_address: Option<payment_address::Address>,
     /// The specific payment method type for which the session token is being generated
     pub payment_method_type: Option<PaymentMethodType>,
     pub webhook_url: Option<String>,
@@ -5008,6 +5013,17 @@ pub enum ConnectorSpecificClientAuthenticationResponse {
     Nexixpay(NexixpayClientAuthenticationResponse),
     /// Revolut SDK initialization data — order_id and token for Revolut Pay widget initialization
     Revolut(RevolutClientAuthenticationResponse),
+    /// Klarna SDK initialization data — session_id + client_token for the Klarna Payments SDK
+    Klarna(KlarnaClientAuthenticationResponse),
+}
+
+/// Klarna's session_id and client_token for the Klarna Payments SDK
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct KlarnaClientAuthenticationResponse {
+    /// The Klarna session identifier
+    pub session_id: String,
+    /// The client token passed to the Klarna client-side SDK
+    pub client_token: Secret<String>,
 }
 
 /// Plaid Link token for client-side bank account linking via Plaid Link SDK
@@ -5683,6 +5699,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Tesouro(_) => Ok(Self::Payment(ConnectorEnum::Tesouro)),
             AuthType::Boost(_) => Ok(Self::Payment(ConnectorEnum::Boost)),
             AuthType::Citigate(_) => Ok(Self::Payment(ConnectorEnum::Citigate)),
+            AuthType::Klarna(_) => Ok(Self::Payment(ConnectorEnum::Klarna)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TsysTransit(_) => Ok(Self::Payment(ConnectorEnum::TsysTransit)),
             AuthType::TwocTwopPaco(_) => Ok(Self::Payment(ConnectorEnum::TwocTwopPaco)),

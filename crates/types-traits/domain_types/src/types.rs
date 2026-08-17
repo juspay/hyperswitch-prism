@@ -429,6 +429,7 @@ pub struct Connectors {
     pub boost: ConnectorParams,
     pub santander: ConnectorParams,
     pub citigate: ConnectorParams,
+    pub klarna: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -2156,9 +2157,14 @@ impl<
                 grpc_api_types::payments::payment_method::PaymentMethod::AfterpayClearpay(_) => Ok(
                     Self::PayLater(payment_method_data::PayLaterData::AfterpayClearpayRedirect {}),
                 ),
-                grpc_api_types::payments::payment_method::PaymentMethod::Klarna(_) => Ok(
-                    Self::PayLater(payment_method_data::PayLaterData::KlarnaRedirect {}),
-                ),
+                // An SDK authorization token selects the Klarna Payments flow;
+                // without one the payment goes through Klarna Checkout redirect.
+                grpc_api_types::payments::payment_method::PaymentMethod::Klarna(klarna) => {
+                    Ok(Self::PayLater(match klarna.token {
+                        Some(token) => payment_method_data::PayLaterData::KlarnaSdk { token },
+                        None => payment_method_data::PayLaterData::KlarnaRedirect {},
+                    }))
+                }
                 grpc_api_types::payments::payment_method::PaymentMethod::Alma(_) => Ok(
                     Self::PayLater(payment_method_data::PayLaterData::AlmaRedirect {}),
                 ),
@@ -6348,6 +6354,21 @@ impl ForeignTryFrom<ConnectorResponseData> for grpc_api_types::payments::Connect
                                                         customer_bank_name: customer_info_details.customer_bank_name,
                                                     }
                                                 }),
+                                            }),
+                                        }
+                                    )
+                                ),
+                            }
+                        }
+                        AdditionalPaymentMethodConnectorResponse::PayLater { klarna_sdk } => {
+                            grpc_api_types::payments::AdditionalPaymentMethodConnectorResponse {
+                                payment_method_data: Some(
+                                    grpc_api_types::payments::additional_payment_method_connector_response::PaymentMethodData::PayLater(
+                                        grpc_api_types::payments::PayLaterConnectorResponse {
+                                            klarna_sdk: klarna_sdk.as_ref().map(|klarna| {
+                                                grpc_api_types::payments::KlarnaSdkConnectorResponse {
+                                                    payment_type: klarna.payment_type.clone(),
+                                                }
                                             }),
                                         }
                                     )
@@ -10990,6 +11011,7 @@ impl ForeignTryFrom<MerchantAuthenticationServiceCreateClientAuthenticationToken
                     order_details: None,
                     order_tax_amount: None,
                     shipping_cost: None,
+                    shipping_address: None,
                     payment_method_type: None,
                     customer,
                     webhook_url: auth_ctx.webhook_url,
@@ -11032,11 +11054,30 @@ impl ForeignTryFrom<MerchantAuthenticationServiceCreateClientAuthenticationToken
                     .map(CustomerInfo::foreign_try_from)
                     .transpose()?;
 
+                // Order line items — required by connectors (e.g. Klarna) that
+                // build the session from the order contents.
+                let order_details = if payment_ctx.order_details.is_empty() {
+                    None
+                } else {
+                    Some(
+                        payment_ctx
+                            .order_details
+                            .into_iter()
+                            .map(OrderDetailsWithAmount::foreign_try_from)
+                            .collect::<Result<Vec<_>, _>>()?,
+                    )
+                };
+
+                let shipping_address = payment_ctx
+                    .shipping_address
+                    .map(Address::foreign_try_from)
+                    .transpose()?;
+
                 Ok(Self {
                     amount: money.amount,
                     currency: money.currency,
                     country,
-                    order_details: None,
+                    order_details,
                     customer,
                     order_tax_amount: payment_ctx
                         .order_tax_amount
@@ -11044,6 +11085,7 @@ impl ForeignTryFrom<MerchantAuthenticationServiceCreateClientAuthenticationToken
                     shipping_cost: payment_ctx
                         .shipping_cost
                         .map(common_utils::types::MinorUnit::new),
+                    shipping_address,
                     payment_method_type,
                     permissions,
                     webhook_url: None,
@@ -15440,6 +15482,18 @@ ConnectorSpecificClientAuthenticationResponse::Cybersource(cybersource_data) => 
                         grpc_api_types::payments::RevolutClientAuthenticationResponse {
                             order_id: revolut_data.order_id,
                             token: Some(revolut_data.token),
+                        },
+                    ),
+                ),
+            }
+        }
+        ConnectorSpecificClientAuthenticationResponse::Klarna(klarna_data) => {
+            grpc_api_types::payments::ConnectorSpecificClientAuthenticationResponse {
+                connector: Some(
+                    grpc_api_types::payments::connector_specific_client_authentication_response::Connector::Klarna(
+                        grpc_api_types::payments::KlarnaClientAuthenticationResponse {
+                            session_id: klarna_data.session_id,
+                            client_token: Some(klarna_data.client_token),
                         },
                     ),
                 ),
