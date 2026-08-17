@@ -22,7 +22,8 @@ use crate::{
     mandates::{CustomerAcceptance, MandateData},
     payment_address::{self, Address, AddressDetails, PhoneDetails},
     payment_method_data::{
-        self, Card, CustomerDocumentDetails, PaymentMethodData, PaymentMethodDataTypes,
+        self, Card, CustomerDocumentDetails, DefaultPCIHolder, PaymentMethodData,
+        PaymentMethodDataTypes,
     },
     router_data::{self, ConnectorResponseData},
     router_request_types::{
@@ -818,6 +819,7 @@ pub struct PaymentFlowData {
     /// idempotency token on their wire envelope.
     pub merchant_request_id: Option<String>,
     pub sender_payment_instrument_id: Option<String>,
+    pub connector_returned_payment_method_details: Option<PaymentMethodData<DefaultPCIHolder>>,
     /// Settlement phase reported by the connector.
     /// Lives on PaymentFlowData (not PaymentsSyncData) so other flows can
     /// populate it in the future if a connector starts reporting settlement state on authorize, capture, etc.
@@ -4163,7 +4165,7 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                     Self::LocalBankRedirect
                 }
                 payment_method_data::BankRedirectData::Eft { .. } => Self::Eft,
-                payment_method_data::BankRedirectData::OpenBanking {} => Self::OpenBanking,
+                payment_method_data::BankRedirectData::OpenBanking { .. } => Self::OpenBanking,
                 payment_method_data::BankRedirectData::Netbanking { .. } => Self::Netbanking,
             },
             PaymentMethodData::BankDebit(bank_debit_data) => match bank_debit_data {

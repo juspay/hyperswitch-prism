@@ -352,7 +352,7 @@
       },
       "OpenBanking": {
         "status": "not_supported",
-        "error": "Payment method BankRedirect(OpenBanking) is not supported by authorizedotnet"
+        "error": "Payment method BankRedirect(OpenBanking { account_number: None, sort_code: None, iban: None, account_holder_name: None, additional_details: None }) is not supported by authorizedotnet"
       },
       "OpenBankingPis": {
         "status": "not_supported",
