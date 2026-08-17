@@ -1,3 +1,4 @@
+pub mod crypto;
 pub mod transformers;
 
 use std::fmt::Debug;
