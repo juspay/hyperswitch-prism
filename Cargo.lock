@@ -1971,6 +1971,7 @@ dependencies = [
  "clap 4.6.0",
  "config",
  "connector_request_kafka",
+ "deja",
  "domain_types",
  "error-stack 0.4.1",
  "hex",

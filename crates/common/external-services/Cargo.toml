@@ -69,6 +69,7 @@ log_utils = { git = "https://github.com/juspay/framework-libs-rs", rev = "3cdcc2
 opentelemetry = { version = "0.27", optional = true, default-features = false, features = [
     "metrics",
 ] }
+deja = { git = "https://github.com/juspay/deja", rev = "2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3", optional = true, default-features = false }
 
 [features]
 # injector-client pulls in hyperswitch's injector crate (which transitively
@@ -82,6 +83,8 @@ connector-request-kafka = ["dep:connector_request_kafka"]
 # Push gRPC metrics over OTLP (in addition to the Prometheus /metrics endpoint).
 otel = ["dep:opentelemetry"]
 log-transformations = ["common_utils/log-transformations"]
+# Déjà record/replay: the connector-egress boundary on call_connector_api.
+deja = ["dep:deja", "common_utils/deja", "domain_types/deja", "common_enums/deja"]
 
 [lints]
 workspace = true
