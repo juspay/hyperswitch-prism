@@ -2230,6 +2230,14 @@ pub struct PaymentsPreAuthenticateData<T: PaymentMethodDataTypes> {
     pub mandate_reference: Option<MandateReferenceId>,
     /// Merchant transaction id, used to derive the FRM DDC sessionId (e.g. Kount).
     pub merchant_transaction_id: Option<String>,
+    /// Merchant-supplied connector metadata, mirroring `PaymentsAuthorizeData::metadata`.
+    ///
+    /// The gRPC request has always carried this (`PaymentMethodAuthenticationService
+    /// PreAuthenticateRequest.metadata`) but it was previously dropped on the floor here, so a
+    /// connector whose PreAuthenticate leg sends a full authorisation could not reach
+    /// merchant-supplied fields that have no home in the UCS payment model — Ilixium's
+    /// schema-mandatory `customer.dateOfBirth`, for one.
+    pub metadata: Option<common_utils::pii::SecretSerdeValue>,
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsPreAuthenticateData<T> {

@@ -1,16 +1,29 @@
 //! Ilixium — Direct API (card, one-time payments).
 //!
-//! Scope: the **Authorize**, **Capture**, **Void**, **PSync**, **Refund** and **RSync** flows, for
-//! **Card** payment methods. Authorize
-//! covers both the no-3DS and 3DS variants; the 3DS variant needs two round trips, and UCS
-//! drives both of them through this same `Authorize` flow:
+//! Scope: the **PreAuthenticate**, **Authorize**, **Capture**, **Void**, **PSync**, **Refund**
+//! and **RSync** flows, for **Card** payment methods.
 //!
-//! * `POST /direct/auth` — the authorisation. On a 3DS-enabled account it answers
-//!   `status.code = PENDING` with the ACS redirect data instead of a final result.
-//! * `POST /direct/threedcomplete` — the finalisation, sent when UCS re-invokes Authorize
-//!   after the ACS posts `md`/`paRes` back to `TermUrl`. Selected by
+//! Ilixium has exactly **one** authorisation endpoint, and it performs 3-D Secure inside it
+//! rather than through standalone authentication endpoints. A card payment is therefore one or
+//! two round trips depending on whether the issuer challenges:
+//!
+//! * `POST /direct/auth` — the authorisation. Runs as **PreAuthenticate** when the payment is
+//!   3DS (see the flow block below) and as **Authorize** when it is not. On a 3DS-enabled
+//!   account it *may* answer `status.code = PENDING` with the ACS redirect data instead of a
+//!   final result — but it may equally answer `SUCCESS`, because Ilixium decides at response
+//!   time whether a challenge is needed. A not-enrolled or frictionless card is charged by this
+//!   single call and has no second leg.
+//! * `POST /direct/threedcomplete` — the finalisation, sent as **Authorize** when UCS re-invokes
+//!   the flow after the ACS posts `md`/`paRes` back to `TermUrl`. Selected by
 //!   [`transformers::is_three_ds_completion`], which is also what the request-body builder
 //!   uses, so the URL and the body cannot disagree about which leg is being sent.
+//!
+//! This is why `/direct/threedcomplete` is modelled as `Authorize` and not as
+//! `PostAuthenticate`: it is what moves the money (the vendor is explicit that "no customer
+//! funds have been ring-fenced prior to this stage"), and the authentication flows are defined
+//! to produce authentication data for a *following* Authorize to spend. Modelling it as
+//! `PostAuthenticate` would leave an Authorize still to run, re-sending `/direct/auth` and
+//! earning response code 102, "Duplicate Merchant Ref".
 //!
 //! Capture and Void are each a single round trip:
 //!
@@ -66,7 +79,7 @@ use common_utils::{
     errors::CustomResult, events, ext_traits::ByteSliceExt, request::Method, types::StringMinorUnit,
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
+    connector_flow::{Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, Void},
     connector_types::*,
     errors,
     payment_method_data::PaymentMethodDataTypes,
@@ -85,8 +98,9 @@ use serde::Serialize;
 use transformers::{
     self as ilixium, IlixiumAuthorizeRequest, IlixiumCaptureRequest, IlixiumCaptureResponse,
     IlixiumHistoryRequest, IlixiumHistoryResponse, IlixiumPaymentResponse,
-    IlixiumRefundHistoryRequest, IlixiumRefundHistoryResponse, IlixiumRefundRequest,
-    IlixiumRefundResponse, IlixiumVoidRequest, IlixiumVoidResponse,
+    IlixiumPreAuthenticateRequest, IlixiumPreAuthenticateResponse, IlixiumRefundHistoryRequest,
+    IlixiumRefundHistoryResponse, IlixiumRefundRequest, IlixiumRefundResponse, IlixiumVoidRequest,
+    IlixiumVoidResponse,
 };
 
 use super::macros;
@@ -259,6 +273,13 @@ macros::create_all_prerequisites!(
             router_data: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ),
         (
+
+            flow: PreAuthenticate,
+            request_body: IlixiumPreAuthenticateRequest<T>,
+            response_body: IlixiumPreAuthenticateResponse,
+            router_data: RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
+        ),
+        (
             flow: Capture,
             request_body: IlixiumCaptureRequest,
             response_body: IlixiumCaptureResponse,
@@ -419,6 +440,54 @@ macros::macro_connector_implementation!(
                 AUTH_ENDPOINT
             };
             Ok(format!("{}{}", self.connector_base_url_payments(req), endpoint))
+        }
+    }
+);
+
+// =============================================================================
+// PRE-AUTHENTICATE — POST /direct/auth (the 3DS first leg)
+// =============================================================================
+// Same endpoint and same body as the Authorize first leg — Ilixium has exactly one authorisation
+// call. The split exists so the flow name matches what the call does: this leg initiates the
+// payment and may come back with an ACS challenge, and the follow-up `/direct/threedcomplete`
+// then runs as `Authorize`.
+//
+// The thing to understand here is that this leg is **terminal in two of its three outcomes**.
+// Ilixium decides at response time whether a challenge is needed, so `/direct/auth` answers:
+//
+// * `SUCCESS` when the account is not 3DS-enabled or the card is not enrolled / authenticates
+//   frictionlessly — the payment is charged and there is no second leg;
+// * `PENDING` + ACS data when a challenge is required — the only case with a second leg;
+// * `DECLINED` / `REJECTED` on failure.
+//
+// A second `/direct/auth` after a terminal outcome would be rejected with response code 102,
+// "Duplicate Merchant Ref" (or double-charge if the reference differed). Nothing here guards
+// against that because nothing has to: HS's `should_continue` after PreAuthenticate defaults to
+// `false`, so it finalises the attempt from this response and never runs the follow-up Authorize.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Ilixium,
+    curl_request: Json(IlixiumPreAuthenticateRequest),
+    curl_response: IlixiumPreAuthenticateResponse,
+    flow_name: PreAuthenticate,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsPreAuthenticateData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, errors::IntegrationError> {
+            Ok(format!("{}{}", self.connector_base_url_payments(req), AUTH_ENDPOINT))
         }
     }
 );
@@ -651,6 +720,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+// `PaymentPreAuthenticateV2<T>` is generic over the payment-method data type, like
+// `PaymentAuthorizeV2<T>`. Written out here now that the 3DS first leg is implemented for real
+// against `POST /direct/auth` and has left `macro_connector_flow_status_impls!`'s
+// `not_supported` list.
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentPreAuthenticateV2<T> for Ilixium<T>
+{
+}
+
 // `PaymentCapture` — unlike `PaymentAuthorizeV2<T>` — is not generic over the payment-method
 // data type. It was previously emitted by `macro_connector_flow_status_impls!`; now that
 // Capture is implemented for real it has left that macro's `not_implemented` list, so the
@@ -763,9 +841,11 @@ crate::connectors::macros::macro_connector_flow_status_impls!(
         GetConnectorCustomer,
         MandateRevoke,
         // 3-D Secure is performed by the platform inside /direct/auth +
-        // /direct/threedcomplete, not through standalone authentication endpoints.
+        // /direct/threedcomplete, not through standalone authentication endpoints. The first
+        // of those two runs as `PreAuthenticate` (implemented above); there is no separate
+        // authentication call for `Authenticate`/`PostAuthenticate` to model, because
+        // /direct/threedcomplete settles the payment and therefore runs as `Authorize`.
         Authenticate,
-        PreAuthenticate,
         PostAuthenticate,
         ServerAuthenticationToken,
         ServerSessionAuthenticationToken,

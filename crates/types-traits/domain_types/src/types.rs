@@ -16281,6 +16281,12 @@ impl<
                 .transpose()?,
             mandate_reference: None,
             merchant_transaction_id: value.merchant_transaction_id,
+            // Mirrors the Authorize conversion. Connectors whose PreAuthenticate leg sends a full
+            // authorisation need the merchant metadata the caller already puts on the wire.
+            metadata: value
+                .metadata
+                .map(|m| SecretSerdeValue::foreign_try_from((m, "metadata")))
+                .transpose()?,
         })
     }
 }
@@ -16602,8 +16608,27 @@ impl
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_order_id.clone(),
             ),
-            customer_id: None,
-            connector_customer: None,
+            // Mirrors the Authorize conversion, which reads both from `connector_customer_id`.
+            // Previously hardcoded `None`, so a connector reached through PreAuthenticate saw a
+            // different customer identity than the same connector reached through Authorize.
+            customer_id: value
+                .customer
+                .clone()
+                .and_then(|customer| customer.connector_customer_id)
+                .map(|customer_id| CustomerId::try_from(Cow::from(customer_id)))
+                .transpose()
+                .change_context(IntegrationError::InvalidDataFormat {
+                    field_name: "customer.connector_customer_id",
+                    context: IntegrationErrorContext {
+                        additional_context: Some("Failed to parse Customer Id".to_string()),
+                        suggested_action: Some("Provide a valid connector customer ID".to_string()),
+                        doc_url: None,
+                    },
+                })?,
+            connector_customer: value
+                .customer
+                .clone()
+                .and_then(|customer| customer.connector_customer_id),
             description: value.description,
             return_url: value.return_url.clone(),
             connector_feature_data: value

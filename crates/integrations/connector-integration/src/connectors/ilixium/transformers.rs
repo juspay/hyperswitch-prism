@@ -1,61 +1,3 @@
-//! Ilixium Direct API transformers.
-//!
-//! Scope: **Card, one-time (non-recurring) payments** — the Authorize, Capture and Void flows.
-//!
-//! The **Authorize** flow covers both the no-3DS and the 3DS variants. The 3DS variant is a
-//! two-leg flow that UCS drives through the *same* `Authorize` flow:
-//!
-//! 1. `POST /direct/auth` — returns `status.code = PENDING` plus the ACS redirect data.
-//!    The connector answers with a `RedirectForm::Form` that auto-POSTs `MD` / `PaReq` /
-//!    `TermUrl` to `cardResponse.threeDSecureAcsUrl`.
-//! 2. The ACS posts `md` / `paRes` back to `TermUrl`; UCS re-invokes `Authorize` with
-//!    `request.redirect_response` populated, and the connector then calls
-//!    `POST /direct/threedcomplete` to finalise the payment.
-//!
-//! The **Capture** flow is a single `POST /direct/capture` that completes a deferred-capture
-//! authorisation. It is keyed off the *original authorisation's* `transaction.merchantRef`
-//! (Ilixium has no separate capture identifier), which [`derive_merchant_ref`] recomputes from
-//! the same UCS reference the authorisation used.
-//!
-//! The **Void** flow is a single `POST /direct/reversal`. Ilixium calls a void a *reversal*;
-//! it is a separate endpoint (not a capture for zero) whose body is field-for-field identical to
-//! the capture body, and it is bound to the payment by the same original-authorisation
-//! `merchantRef`.
-//!
-//! The **PSync** flow is the odd one out. Ilixium publishes **no per-payment status endpoint** on
-//! the Direct API — no GET-by-id, no lookup by `merchantRef` or `gatewayRef` (the
-//! `/ipframe/apm/status` and `/ipframe/request/V2` `statusRequest` endpoints live on a different
-//! host, are tagged "Alternative Payment Methods" / "User Interface", and need a `responseKey`
-//! that `/direct/auth` never mints). The only query the Direct API offers is
-//! `POST /history/operations`, a **bulk, time-windowed reconciliation report** capped at a
-//! 24-hour window and carrying **no** server-side filter of any kind, so PSync fetches the window
-//! and filters `operation[]` client-side on `transaction.merchantRef`. See
-//! [`IlixiumHistoryRequest`] and [`IlixiumHistoryResponse`].
-//!
-//! The **Refund** flow is a single `POST /direct/refund`, implemented in its **variant A** form
-//! — a refund that references a previous transaction, carrying the same six fields as the
-//! capture and reversal bodies. The standalone variant (variant B, with its own card/token and
-//! customer) is not implemented: it is account-gated and may be disabled in production.
-//! Two things make it unlike Capture and Void despite the identical body shape:
-//! the original payment's reference has to come from `RefundsData` rather than from the flow's
-//! common data (see [`resolve_original_merchant_ref`]), and the response mints **no refund
-//! identifier** at all (see [`refund_identifier`]). Note also that `/direct/credit` is a payout,
-//! *not* a refund, and is never used here.
-//!
-//! The **RSync** flow is PSync's twin: the *same* `POST /history/operations` request, differing
-//! only in the client-side filter applied to `operation[]`. It scans for entries whose
-//! `transaction.merchantRef` is the **original payment's** and whose `type` is `REFUND` —
-//! `CREDIT` is a `/direct/credit` payout and is never a refund. Because a variant-A refund carries
-//! the payment's own `merchantRef` and echoes its `gatewayRef`, N partial refunds are
-//! indistinguishable except by `status.operationRef` (documented as "available soon"), so
-//! [`IlixiumHistoryResponse::match_refund_operation`] matches on `operationRef` when it can and
-//! falls back to a documented, explicitly-logged heuristic when it cannot.
-//!
-//! Wallets, APMs, bank transfers, mandates/MIT/recurring and tokenization are deliberately out of
-//! scope.
-//!
-//! Reference: `grace/rulesbook/codegen/references/ilixium/technical_specification.md`
-
 use base64::Engine;
 use common_enums::{AttemptStatus, AuthenticationType, Currency, RefundStatus};
 use common_utils::{
@@ -64,11 +6,11 @@ use common_utils::{
     types::StringMinorUnit,
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
+    connector_flow::{Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, Void},
     connector_types::{
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RawConnectorStatus, RefundFlowData, RefundSyncData,
-        RefundsData, RefundsResponseData, ResponseId,
+        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RawConnectorStatus,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
     errors,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
@@ -94,12 +36,6 @@ const ILIXIUM_MESSAGE_VERSION: u8 = 2;
 const MERCHANT_REF_MIN_LEN: usize = 4;
 const MERCHANT_REF_MAX_LEN: usize = 20;
 
-/// `emvco3ds.browserDetails.challengeWindowSize`. `05` = full screen.
-///
-/// UCS renders the ACS challenge as a full-page browser redirect (the connector emits a
-/// `RedirectForm::Form` that the browser navigates to), not inside a sized iframe, so the
-/// full-screen preset is the only one that matches how the challenge is actually displayed.
-/// The vendor's own example uses `01` (250x400), which would under-size a full-page challenge.
 const CHALLENGE_WINDOW_SIZE_FULL_SCREEN: &str = "05";
 
 /// The colour depths Ilixium accepts (`^1$|^4$|^8$|^15$|^16$|^24$|^32$|^48$`).
@@ -109,14 +45,6 @@ const ACCEPTED_COLOR_DEPTHS: [u8; 8] = [1, 4, 8, 15, 16, 24, 32, 48];
 // AUTH
 // =============================================================================
 
-/// Ilixium needs three secrets, so this maps onto the repo's `SignatureKey`-shaped
-/// auth type:
-///
-/// | field       | Ilixium name                | used as                            |
-/// |-------------|-----------------------------|------------------------------------|
-/// | `api_key`   | Digest Calculation Password | secret input to `X-MERCHANT-DIGEST`, **never transmitted** |
-/// | `key1`      | MerchantId                  | request body `merchant.merchantId` |
-/// | `api_secret`| AccountId                   | request body `merchant.accountId`  |
 #[derive(Debug, Clone)]
 pub struct IlixiumAuthType {
     pub merchant_password: Secret<String>,
@@ -164,22 +92,6 @@ impl TryFrom<&ConnectorSpecificConfig> for IlixiumAuthType {
 }
 
 impl IlixiumAuthType {
-    /// Ilixium's `X-MERCHANT-DIGEST` (https://docs.ilixium.com/docs/direct/digest).
-    ///
-    /// This is **not** an HMAC. It is two rounds of SHA-512 + standard (non-chunked) Base64,
-    /// where the password participates only in round two and is concatenated to the
-    /// **Base64 text** of round one:
-    ///
-    /// ```text
-    /// d1 = Base64(SHA-512(body_bytes))
-    /// d2 = Base64(SHA-512(UTF8(d1 || password)))
-    /// X-MERCHANT-DIGEST: d2
-    /// ```
-    ///
-    /// `body` must be the exact byte string that will be transmitted — the caller passes the
-    /// serialised request body straight from `get_request_body`, which is the same value the
-    /// framework puts on the wire (`RequestContent::get_body_bytes` re-uses
-    /// `get_inner_value`).
     pub fn compute_merchant_digest(
         &self,
         body: &str,
@@ -621,6 +533,194 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
+/// Everything the `/direct/auth` body needs, normalised out of whichever flow request is driving
+/// it.
+///
+/// `/direct/auth` is reachable from two flows: `Authorize` (non-3DS payments, and the 3DS first
+/// leg when the connector is not routed through PreAuthenticate) and `PreAuthenticate` (the 3DS
+/// first leg). The two carry the same information under different types — and
+/// [`PaymentsPreAuthenticateData`] carries strictly less of it — so both funnel through here
+/// rather than duplicating a 130-line body builder.
+///
+/// Fields the PreAuthenticate request cannot supply are `Option` and documented at the call site.
+pub(super) struct IlixiumAuthBodyInputs<'a, T: PaymentMethodDataTypes> {
+    pub payment_method_data: &'a PaymentMethodData<T>,
+    /// Already converted to Ilixium's minor-unit digit string by the caller, which owns the
+    /// flow-specific amount field (`minor_amount` vs `amount`).
+    pub amount: StringMinorUnit,
+    pub currency: Currency,
+    pub email: Option<Email>,
+    /// `None` on the PreAuthenticate leg — `PaymentsPreAuthenticateData` has no `customer_name`,
+    /// so the billing address is the only name source there.
+    pub customer_name: Option<&'a str>,
+    /// `None` on the PreAuthenticate leg — see [`extract_date_of_birth`].
+    pub metadata: Option<&'a common_utils::pii::SecretSerdeValue>,
+    pub browser_info: Option<&'a BrowserInformation>,
+    pub is_auto_capture: bool,
+    pub is_three_ds: bool,
+}
+
+/// Builds the `POST /direct/auth` body shared by the Authorize and PreAuthenticate flows.
+pub(super) fn build_ilixium_payments_request<T: PaymentMethodDataTypes + std::fmt::Debug>(
+    inputs: IlixiumAuthBodyInputs<'_, T>,
+    common: &PaymentFlowData,
+    connector_config: &ConnectorSpecificConfig,
+) -> Result<IlixiumPaymentsRequest<T>, error_stack::Report<errors::IntegrationError>> {
+    let card = match inputs.payment_method_data {
+        PaymentMethodData::Card(card_data) => IlixiumCard {
+            card_number: card_data.card_number.clone(),
+            // Ilixium wants MMyyyy with no separator, e.g. `012030`.
+            expiry_date: Secret::new(format!(
+                "{}{}",
+                card_data.get_card_expiry_month_2_digit()?.peek(),
+                card_data.get_expiry_year_4_digit().peek()
+            )),
+            security_code: card_data.card_cvc.clone(),
+        },
+        other => {
+            return Err(error_stack::report!(
+                errors::IntegrationError::NotImplemented(
+                    "Ilixium supports only raw card payments on POST /direct/auth; wallets, \
+                     APMs, bank transfers and stored-card tokens are out of scope for this \
+                     connector implementation"
+                        .to_string(),
+                    errors::IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Route this payment with PaymentMethodData::Card.".to_string(),
+                        ),
+                        doc_url: Some(
+                            "https://docs.ilixium.com/docs/api/authorisation".to_string()
+                        ),
+                        additional_context: Some(format!(
+                            "Unsupported payment_method_data variant for Ilixium \
+                             /direct/auth: {other:?}"
+                        )),
+                    },
+                )
+            ));
+        }
+    };
+
+    let auth = IlixiumAuthType::try_from(connector_config)?;
+
+    let amount = inputs.amount;
+
+    let country = common.get_optional_billing_country().ok_or_else(|| {
+        error_stack::report!(errors::IntegrationError::MissingRequiredField {
+            field_name: "payment_method_data.billing.address.country",
+            context: errors::IntegrationErrorContext {
+                suggested_action: Some(
+                    "Ilixium always requires customer.address.country, even on accounts \
+                     configured for Optional Address."
+                        .to_string(),
+                ),
+                doc_url: Some("https://docs.ilixium.com/docs/direct/optional-address".to_string()),
+                additional_context: None,
+            },
+        })
+    })?;
+
+    let email = inputs
+        .email
+        .clone()
+        .or_else(|| common.get_optional_billing_email())
+        .ok_or_else(|| {
+            error_stack::report!(errors::IntegrationError::MissingRequiredField {
+                field_name: "email",
+                context: errors::IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Ilixium requires customer.email on every authorisation.".to_string(),
+                    ),
+                    doc_url: None,
+                    additional_context: None,
+                },
+            })
+        })?;
+
+    let (first_name, surname) = split_customer_name(common, inputs.customer_name)?;
+
+    // `customer.customerId` is mandatory (pattern allows `-`, up to 255 chars), so the UCS
+    // customer id maps across verbatim when present. Ilixium ties a card to a single
+    // customer id (fraud code 121, "Duplicate Card"), which is why the real customer id is
+    // preferred over a per-payment synthetic; the payment reference is only a fallback for
+    // guest checkouts that carry no customer at all (tech spec UNDECIDED #2, options a+b).
+    let customer_id = common
+        .customer_id
+        .as_ref()
+        .map(|id| id.get_string_repr().to_string())
+        .unwrap_or_else(|| common.connector_request_reference_id.clone());
+
+    let ip_address = inputs
+        .browser_info
+        .and_then(|info| info.ip_address)
+        .map(|ip| Secret::new(ip.to_string()));
+
+    // `emvco3ds` is only meaningful on a 3-D Secure authorisation. Ilixium ignores it on
+    // non-3DS accounts, but sending it there would be noise, so it is gated strictly on the
+    // request's authentication type.
+    let emvco3ds = if inputs.is_three_ds {
+        let browser_info = inputs.browser_info.ok_or_else(|| {
+            error_stack::report!(errors::IntegrationError::MissingRequiredField {
+                field_name: "browser_info",
+                context: errors::IntegrationErrorContext {
+                    suggested_action: Some(
+                        "A 3-D Secure card authorisation must carry the browser profile \
+                         that populates emvco3ds.browserDetails."
+                            .to_string(),
+                    ),
+                    doc_url: Some("https://docs.ilixium.com/docs/direct/3dsecure".to_string()),
+                    additional_context: None,
+                },
+            })
+        })?;
+        Some(IlixiumEmvco3ds {
+            browser_details: build_browser_details(browser_info)?,
+        })
+    } else {
+        None
+    };
+
+    // `paymentInfo.country` is the country of origin of the transaction and
+    // `paymentInfo.ipAddress` is the cardholder's browser IP, which Ilixium recommends
+    // whenever 3-D Secure is in play. Both are optional, so the block is emitted whenever
+    // either value is known.
+    let payment_info = Some(IlixiumPaymentInfo {
+        country: Some(country),
+        ip_address,
+    });
+
+    Ok(IlixiumPaymentsRequest {
+        version: ILIXIUM_MESSAGE_VERSION,
+        deferred_capture: !inputs.is_auto_capture,
+        transaction: IlixiumTransaction {
+            transaction_type: IlixiumTransactionType::Ecommerce,
+            merchant_ref: derive_merchant_ref(&common.connector_request_reference_id)?,
+            amount,
+            currency: inputs.currency,
+        },
+        payment_method_type: IlixiumPaymentMethodType::Card,
+        merchant: IlixiumMerchant::from(&auth),
+        card,
+        customer: IlixiumCustomer {
+            customer_id,
+            email,
+            first_name,
+            surname,
+            date_of_birth: extract_date_of_birth(inputs.metadata),
+            address: IlixiumAddress {
+                address_line1: common.get_optional_billing_line1(),
+                city: common.get_optional_billing_city(),
+                province: common.get_optional_billing_state(),
+                postcode: common.get_optional_billing_zip(),
+                country,
+            },
+            mobile_number: common.get_billing_phone_number().ok(),
+        },
+        payment_info,
+        emvco3ds,
+    })
+}
+
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         &IlixiumRouterData<
@@ -651,43 +751,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let request = &router_data.request;
         let common = &router_data.resource_common_data;
 
-        let card = match &request.payment_method_data {
-            PaymentMethodData::Card(card_data) => IlixiumCard {
-                card_number: card_data.card_number.clone(),
-                // Ilixium wants MMyyyy with no separator, e.g. `012030`.
-                expiry_date: Secret::new(format!(
-                    "{}{}",
-                    card_data.get_card_expiry_month_2_digit()?.peek(),
-                    card_data.get_expiry_year_4_digit().peek()
-                )),
-                security_code: card_data.card_cvc.clone(),
-            },
-            other => {
-                return Err(error_stack::report!(
-                    errors::IntegrationError::NotImplemented(
-                        "Ilixium supports only raw card payments for Authorize; wallets, APMs, \
-                         bank transfers and stored-card tokens are out of scope for this \
-                         connector implementation"
-                            .to_string(),
-                        errors::IntegrationErrorContext {
-                            suggested_action: Some(
-                                "Route this payment with PaymentMethodData::Card.".to_string(),
-                            ),
-                            doc_url: Some(
-                                "https://docs.ilixium.com/docs/api/authorisation".to_string()
-                            ),
-                            additional_context: Some(format!(
-                                "Unsupported payment_method_data variant for Ilixium \
-                                 Authorize: {other:?}"
-                            )),
-                        },
-                    )
-                ));
-            }
-        };
-
-        let auth = IlixiumAuthType::try_from(&router_data.connector_config)?;
-
         let amount = item
             .connector
             .amount_converter
@@ -705,124 +768,126 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 },
             })?;
 
-        let country = common.get_optional_billing_country().ok_or_else(|| {
+        build_ilixium_payments_request(
+            IlixiumAuthBodyInputs {
+                payment_method_data: &request.payment_method_data,
+                amount,
+                currency: request.currency,
+                email: request.email.clone(),
+                customer_name: request.customer_name.as_deref(),
+                metadata: request.metadata.as_ref(),
+                browser_info: request.browser_info.as_ref(),
+                is_auto_capture: request.is_auto_capture(),
+                is_three_ds: common.auth_type == AuthenticationType::ThreeDs,
+            },
+            common,
+            &router_data.connector_config,
+        )
+    }
+}
+
+/// `POST /direct/auth` built from the **PreAuthenticate** leg.
+///
+/// Same body as the Authorize path — Ilixium has one authorisation endpoint — but
+/// [`PaymentsPreAuthenticateData`] is a narrower struct, so three things differ:
+///
+/// * `payment_method_data` and `currency` are `Option` here and must be unwrapped;
+/// * `amount` is a single `MinorUnit` (there is no separate `minor_amount`);
+/// * `is_auto_capture()` returns a `Result` (it rejects `ManualMultiple`/`Scheduled`) rather than
+///   a bare `bool`.
+///
+/// One input is unavailable on this leg: `customer_name`, so the billing address is the only
+/// name source (which [`split_customer_name`] already handles). `metadata` *is* available —
+/// `PaymentsPreAuthenticateData` carries it so `customer.dateOfBirth` resolves here exactly as
+/// it does on Authorize.
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        IlixiumRouterData<
+            RouterDataV2<
+                PreAuthenticate,
+                PaymentFlowData,
+                PaymentsPreAuthenticateData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for IlixiumPreAuthenticateRequest<T>
+{
+    type Error = error_stack::Report<errors::IntegrationError>;
+
+    fn try_from(
+        item: IlixiumRouterData<
+            RouterDataV2<
+                PreAuthenticate,
+                PaymentFlowData,
+                PaymentsPreAuthenticateData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let request = &router_data.request;
+        let common = &router_data.resource_common_data;
+
+        let missing = |field: &'static str| {
             error_stack::report!(errors::IntegrationError::MissingRequiredField {
-                field_name: "payment_method_data.billing.address.country",
+                field_name: field,
                 context: errors::IntegrationErrorContext {
                     suggested_action: Some(
-                        "Ilixium always requires customer.address.country, even on accounts \
-                         configured for Optional Address."
+                        "Ilixium's PreAuthenticate leg sends the full POST /direct/auth \
+                         authorisation, so it needs the same card, amount and currency an \
+                         Authorize would carry."
                             .to_string(),
                     ),
-                    doc_url: Some(
-                        "https://docs.ilixium.com/docs/direct/optional-address".to_string()
-                    ),
+                    doc_url: Some("https://docs.ilixium.com/docs/api/authorisation".to_string()),
                     additional_context: None,
                 },
             })
-        })?;
-
-        let email = request
-            .email
-            .clone()
-            .or_else(|| common.get_optional_billing_email())
-            .ok_or_else(|| {
-                error_stack::report!(errors::IntegrationError::MissingRequiredField {
-                    field_name: "email",
-                    context: errors::IntegrationErrorContext {
-                        suggested_action: Some(
-                            "Ilixium requires customer.email on every authorisation.".to_string(),
-                        ),
-                        doc_url: None,
-                        additional_context: None,
-                    },
-                })
-            })?;
-
-        let (first_name, surname) = split_customer_name(common, request.customer_name.as_deref())?;
-
-        // `customer.customerId` is mandatory (pattern allows `-`, up to 255 chars), so the UCS
-        // customer id maps across verbatim when present. Ilixium ties a card to a single
-        // customer id (fraud code 121, "Duplicate Card"), which is why the real customer id is
-        // preferred over a per-payment synthetic; the payment reference is only a fallback for
-        // guest checkouts that carry no customer at all (tech spec UNDECIDED #2, options a+b).
-        let customer_id = common
-            .customer_id
-            .as_ref()
-            .map(|id| id.get_string_repr().to_string())
-            .unwrap_or_else(|| common.connector_request_reference_id.clone());
-
-        let ip_address = request
-            .browser_info
-            .as_ref()
-            .and_then(|info| info.ip_address)
-            .map(|ip| Secret::new(ip.to_string()));
-
-        // `emvco3ds` is only meaningful on a 3-D Secure authorisation. Ilixium ignores it on
-        // non-3DS accounts, but sending it there would be noise, so it is gated strictly on the
-        // request's authentication type.
-        let is_three_ds = common.auth_type == AuthenticationType::ThreeDs;
-        let emvco3ds = if is_three_ds {
-            let browser_info = request.browser_info.as_ref().ok_or_else(|| {
-                error_stack::report!(errors::IntegrationError::MissingRequiredField {
-                    field_name: "browser_info",
-                    context: errors::IntegrationErrorContext {
-                        suggested_action: Some(
-                            "A 3-D Secure card authorisation must carry the browser profile \
-                             that populates emvco3ds.browserDetails."
-                                .to_string(),
-                        ),
-                        doc_url: Some("https://docs.ilixium.com/docs/direct/3dsecure".to_string()),
-                        additional_context: None,
-                    },
-                })
-            })?;
-            Some(IlixiumEmvco3ds {
-                browser_details: build_browser_details(browser_info)?,
-            })
-        } else {
-            None
         };
 
-        // `paymentInfo.country` is the country of origin of the transaction and
-        // `paymentInfo.ipAddress` is the cardholder's browser IP, which Ilixium recommends
-        // whenever 3-D Secure is in play. Both are optional, so the block is emitted whenever
-        // either value is known.
-        let payment_info = Some(IlixiumPaymentInfo {
-            country: Some(country),
-            ip_address,
-        });
+        let payment_method_data = request
+            .payment_method_data
+            .as_ref()
+            .ok_or_else(|| missing("payment_method_data"))?;
+        let currency = request.currency.ok_or_else(|| missing("currency"))?;
 
-        Ok(Self {
-            version: ILIXIUM_MESSAGE_VERSION,
-            deferred_capture: !request.is_auto_capture(),
-            transaction: IlixiumTransaction {
-                transaction_type: IlixiumTransactionType::Ecommerce,
-                merchant_ref: derive_merchant_ref(&common.connector_request_reference_id)?,
-                amount,
-                currency: request.currency,
-            },
-            payment_method_type: IlixiumPaymentMethodType::Card,
-            merchant: IlixiumMerchant::from(&auth),
-            card,
-            customer: IlixiumCustomer {
-                customer_id,
-                email,
-                first_name,
-                surname,
-                date_of_birth: extract_date_of_birth(request.metadata.as_ref()),
-                address: IlixiumAddress {
-                    address_line1: common.get_optional_billing_line1(),
-                    city: common.get_optional_billing_city(),
-                    province: common.get_optional_billing_state(),
-                    postcode: common.get_optional_billing_zip(),
-                    country,
+        let amount = item
+            .connector
+            .amount_converter
+            .convert(request.amount, currency)
+            .change_context(errors::IntegrationError::AmountConversionFailed {
+                context: errors::IntegrationErrorContext {
+                    suggested_action: None,
+                    doc_url: None,
+                    additional_context: Some(format!(
+                        "Failed to convert amount {} {} into Ilixium's transaction.amount \
+                         (minor units, digits only, sent as a JSON string).",
+                        request.amount.get_amount_as_i64(),
+                        currency
+                    )),
                 },
-                mobile_number: common.get_billing_phone_number().ok(),
+            })?;
+
+        build_ilixium_payments_request(
+            IlixiumAuthBodyInputs {
+                payment_method_data,
+                amount,
+                currency,
+                email: request.email.clone(),
+                // `PaymentsPreAuthenticateData` has no `customer_name`; the billing address is
+                // the only name source on this leg, which `split_customer_name` handles.
+                customer_name: None,
+                metadata: request.metadata.as_ref(),
+                browser_info: request.browser_info.as_ref(),
+                is_auto_capture: request.is_auto_capture()?,
+                // UCS forces `auth_type` to ThreeDs on the PreAuthenticate common data, and this
+                // leg only runs for 3DS payments, so `emvco3ds` is always required here.
+                is_three_ds: true,
             },
-            payment_info,
-            emvco3ds,
-        })
+            common,
+            &router_data.connector_config,
+        )
     }
 }
 
@@ -1682,6 +1747,18 @@ pub type IlixiumCaptureResponse = IlixiumPaymentResponse;
 /// A distinct alias for the same reason [`IlixiumCaptureResponse`] is one.
 pub type IlixiumVoidResponse = IlixiumPaymentResponse;
 
+/// The **PreAuthenticate** leg posts the very same `/direct/auth` body as Authorize does.
+///
+/// An alias rather than a reuse of the ident: `create_all_prerequisites!` mints one
+/// `<Ident>Templating` marker struct per named request ident, so a second flow cannot name
+/// `IlixiumPaymentsRequest` directly without defining that marker twice.
+pub type IlixiumPreAuthenticateRequest<T> = IlixiumPaymentsRequest<T>;
+
+/// `/direct/auth` answers the same `paymentResponse` envelope on the PreAuthenticate leg as it
+/// does on Authorize. A distinct alias for the same macro reason as
+/// [`IlixiumPreAuthenticateRequest`].
+pub type IlixiumPreAuthenticateResponse = IlixiumPaymentResponse;
+
 /// `/direct/refund` returns the same `paymentResponse` envelope, with `type` = `REFUND`.
 /// A distinct alias for the same reason [`IlixiumCaptureResponse`] is one.
 ///
@@ -2154,10 +2231,15 @@ fn refund_identifier(
 /// Builds the ACS auto-POST form. Ilixium never receives the return URL — the merchant owns
 /// the `TermUrl` — so the connector assembles the form itself (tech spec UNDECIDED #5,
 /// option (a)). The 1.x MPI field names `MD`/`PaReq` are retained by Ilixium even for 3DS2.
-fn build_three_ds_redirect_form<T: PaymentMethodDataTypes>(
+///
+/// `term_url` is supplied by the caller rather than read off the request, because the two flows
+/// that can receive a 3DS challenge hold it under different names and types: `Authorize` has
+/// `complete_authorize_url`/`router_return_url` (`Option<String>`), `PreAuthenticate` has
+/// `continue_redirection_url`/`router_return_url` (`Option<Url>`).
+fn build_three_ds_redirect_form(
     response: &IlixiumPaymentResponse,
     acs_url: &str,
-    request: &PaymentsAuthorizeData<T>,
+    term_url: Option<String>,
     http_code: u16,
 ) -> Result<RedirectForm, error_stack::Report<errors::ConnectorError>> {
     let deserialization_error = |detail: &str| {
@@ -2187,24 +2269,20 @@ fn build_three_ds_redirect_form<T: PaymentMethodDataTypes>(
         })?;
 
     // The ACS posts `md`/`paRes` back to TermUrl, which must be the UCS endpoint that
-    // re-invokes Authorize; `complete_authorize_url` is exactly that. `router_return_url` is
-    // the merchant-facing landing page and is only a fallback.
-    let term_url = request
-        .complete_authorize_url
-        .clone()
-        .or_else(|| request.router_return_url.clone())
-        .ok_or_else(|| {
-            error_stack::report!(errors::ConnectorError::ResponseHandlingFailed {
-                context: errors::ResponseTransformationErrorContext {
-                    http_status_code: Some(http_code),
-                    additional_context: Some(
-                        "Ilixium 3DS requires a TermUrl for the ACS form, but neither \
-                         complete_authorize_url nor router_return_url was supplied"
-                            .to_string(),
-                    ),
-                },
-            })
-        })?;
+    // re-invokes Authorize; `complete_authorize_url` / `continue_redirection_url` is exactly
+    // that. `router_return_url` is the merchant-facing landing page and is only a fallback.
+    let term_url = term_url.ok_or_else(|| {
+        error_stack::report!(errors::ConnectorError::ResponseHandlingFailed {
+            context: errors::ResponseTransformationErrorContext {
+                http_status_code: Some(http_code),
+                additional_context: Some(
+                    "Ilixium 3DS requires a TermUrl for the ACS form, but neither the \
+                     completion URL nor router_return_url was supplied"
+                        .to_string(),
+                ),
+            },
+        })
+    })?;
 
     let mut form_fields = std::collections::HashMap::with_capacity(3);
     form_fields.insert("MD".to_string(), md.peek().to_owned());
@@ -2274,12 +2352,18 @@ impl<T: PaymentMethodDataTypes>
         let status = map_attempt_status(&response, item.router_data.request.is_auto_capture());
 
         let redirection_data = match response.three_ds_acs_url() {
-            Some(acs_url) => Some(Box::new(build_three_ds_redirect_form(
-                &response,
-                acs_url,
-                &item.router_data.request,
-                item.http_code,
-            )?)),
+            Some(acs_url) => {
+                let request = &item.router_data.request;
+                Some(Box::new(build_three_ds_redirect_form(
+                    &response,
+                    acs_url,
+                    request
+                        .complete_authorize_url
+                        .clone()
+                        .or_else(|| request.router_return_url.clone()),
+                    item.http_code,
+                )?))
+            }
             None => None,
         };
 
@@ -2308,6 +2392,87 @@ impl<T: PaymentMethodDataTypes>
                 connector_response_reference_id: response.merchant_ref(),
                 incremental_authorization_allowed: None,
                 splits: None,
+                status_code: item.http_code,
+            })
+        };
+
+        Ok(Self {
+            response: payments_response,
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+/// `POST /direct/auth` response on the **PreAuthenticate** leg.
+///
+/// The same `paymentResponse` envelope and the same status mapping the Authorize leg uses — this
+/// *is* the authorisation, so `map_attempt_status` applies unchanged. Only the response variant
+/// differs.
+///
+/// Note this leg is terminal in two of its three outcomes. Ilixium decides at response time
+/// whether to challenge, so a `SUCCESS` here means the payment is already charged and there is no
+/// second leg. HS suppresses the follow-up Authorize (its `should_continue` default is `false`)
+/// and finalises the attempt from the status set below, so nothing further is required here to
+/// avoid a duplicate `/direct/auth` — see response code 102, "Duplicate Merchant Ref".
+impl<T: PaymentMethodDataTypes>
+    TryFrom<crate::types::ResponseRouterData<IlixiumPreAuthenticateResponse, Self>>
+    for RouterDataV2<
+        PreAuthenticate,
+        PaymentFlowData,
+        PaymentsPreAuthenticateData<T>,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: crate::types::ResponseRouterData<IlixiumPreAuthenticateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+        // The PreAuthenticate leg only ever runs for a 3DS payment, which UCS models as
+        // auto-capture unless the caller said otherwise; `deferredCapture` was derived from the
+        // same value on the way out, so the response is read back the same way.
+        let requested_auto_capture = item.router_data.request.is_auto_capture().unwrap_or(true);
+        let status = map_attempt_status(&response, requested_auto_capture);
+
+        let redirection_data = match response.three_ds_acs_url() {
+            Some(acs_url) => {
+                let request = &item.router_data.request;
+                Some(Box::new(build_three_ds_redirect_form(
+                    &response,
+                    acs_url,
+                    request
+                        .continue_redirection_url
+                        .as_ref()
+                        .or(request.router_return_url.as_ref())
+                        .map(ToString::to_string),
+                    item.http_code,
+                )?))
+            }
+            None => None,
+        };
+
+        let payments_response = if status == AttemptStatus::Failure {
+            Err(build_error_response(&response, status, item.http_code))
+        } else {
+            Ok(PaymentsResponseData::PreAuthenticateResponse {
+                resource_id: Some(
+                    response
+                        .gateway_ref()
+                        .map(ResponseId::ConnectorTransactionId)
+                        .unwrap_or(ResponseId::NoResponseId),
+                ),
+                // Ilixium performs 3-D Secure inside the platform and returns no CAVV/ECI to the
+                // merchant, so there is no authentication payload to carry forward. The two legs
+                // are linked by `transaction.merchantRef`, which both recompute deterministically
+                // from the same UCS reference — see `derive_merchant_ref`.
+                authentication_data: None,
+                redirection_data,
+                connector_response_reference_id: response.merchant_ref(),
                 status_code: item.http_code,
             })
         };
