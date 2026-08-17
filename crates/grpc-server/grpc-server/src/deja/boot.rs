@@ -217,6 +217,28 @@ fn replay_lookup_path(config: &DejaConfig, replay: &ReplayConfig) -> Result<Path
 fn install_replay(config: &DejaConfig) -> Result<InstallReport, String> {
     let lookup_path = replay_lookup_path(config, &config.replay)?;
 
+    // A directory source = a raw-tape artifact dir (`semantic-events.jsonl` of tagged
+    // DejaRecord lines): replay via the in-process event cascade — no pre-rendered
+    // lookup table (and no orchestrator) needed. A file source = a rendered
+    // LookupTable JSONL, the orchestrator's output.
+    if lookup_path.is_dir() {
+        let hook = deja::ReplayHook::from_artifact_dir(&lookup_path).map_err(|error| {
+            format!(
+                "failed to load replay artifacts '{}': {error}",
+                lookup_path.display()
+            )
+        })?;
+        return try_install_hook(
+            deja::RuntimeHook::Replay(hook),
+            InstallReport {
+                mode: "replay",
+                run_id: config.effective_run_id().map(str::to_owned),
+                detail: Some(format!("raw-tape artifacts '{}'", lookup_path.display())),
+            },
+        )
+        .map_err(|error| format!("failed to install replay runtime hook: {error}"));
+    }
+
     let hook = match non_empty(config.replay.observed_sink.as_deref()) {
         Some(path) => match deja::FileObservedSink::create(path) {
             Ok(sink) => deja::LookupTableHook::from_source(
