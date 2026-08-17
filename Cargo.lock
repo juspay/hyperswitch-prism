@@ -8391,6 +8391,7 @@ dependencies = [
  "config_patch_derive",
  "connector-integration",
  "deja",
+ "deja-core",
  "domain_types",
  "error-stack 0.4.1",
  "external-services",
