@@ -7,6 +7,7 @@
 
 pub mod boot;
 pub mod descriptors;
+pub mod http_layer;
 pub mod layer;
 pub mod record_sink;
 pub mod sampler;

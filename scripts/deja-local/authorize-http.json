@@ -1,0 +1,18 @@
+{
+  "amount": {"minor_amount": 1000, "currency": "USD"},
+  "payment_method": {"payment_method": {"card": {
+    "card_number": "4111111111111111",
+    "card_exp_month": "12",
+    "card_exp_year": "2050",
+    "card_cvc": "123",
+    "card_holder_name": "Smoke Test"
+  }}},
+  "return_url": "https://example.com/return",
+  "webhook_url": "https://example.com/webhook",
+  "customer": {"email": "customer@example.com", "id": "cus_smoke_1"},
+  "address": {},
+  "auth_type": "NO_THREE_DS",
+  "order_details": [],
+  "merchant_transaction_id": "deja_http_test_1",
+  "capture_method": "AUTOMATIC"
+}

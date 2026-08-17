@@ -21,3 +21,13 @@ pub trait RequestRecordingSampler: Send + Sync {
         facts: RequestRecordingFacts,
     ) -> Pin<Box<dyn Future<Output = bool> + Send + '_>>;
 }
+
+/// Clears the per-correlation recording decision on drop (covers `?`, panic, cancel).
+/// Shared by the gRPC and HTTP ingress layers.
+pub(crate) struct RecordingDecisionGuard(pub(crate) String);
+
+impl Drop for RecordingDecisionGuard {
+    fn drop(&mut self) {
+        deja::clear_recording_decision(&self.0);
+    }
+}

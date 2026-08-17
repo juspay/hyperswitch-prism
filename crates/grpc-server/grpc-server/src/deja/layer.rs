@@ -24,7 +24,7 @@ use tonic::body::Body;
 use tower::{Layer, Service};
 use tracing::Instrument as _;
 
-use super::sampler::{RequestRecordingFacts, RequestRecordingSampler};
+use super::sampler::{RecordingDecisionGuard, RequestRecordingFacts, RequestRecordingSampler};
 
 /// Tower layer installing the gRPC ingress boundary. Cheap to clone.
 #[derive(Clone)]
@@ -202,15 +202,6 @@ where
 /// system service are never captured.
 fn is_recordable_path(path: &str) -> bool {
     path.starts_with("/types.")
-}
-
-/// Clears the per-correlation recording decision on drop (covers `?`, panic, cancel).
-struct RecordingDecisionGuard(String);
-
-impl Drop for RecordingDecisionGuard {
-    fn drop(&mut self) {
-        deja::clear_recording_decision(&self.0);
-    }
 }
 
 /// Response-body wrapper that tees each data frame into the event finalizer and finalizes
