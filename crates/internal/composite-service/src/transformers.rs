@@ -999,7 +999,7 @@ impl
         });
 
         Self {
-            amount: item.amount.clone(),
+            amount: item.amount,
             customer: item.customer.clone(),
             address: item.address.clone(),
             order_details: item.order_details.clone(),
