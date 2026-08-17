@@ -144,42 +144,11 @@ jobs:
       - name: Select certification targets
         id: certified-connectors
         shell: bash
-        run: |
-          specs_root="crates/internal/integration-tests/src/connector_specs"
-
-          shared_changed="false"
-          if [[ "${{ steps.filter.outputs.rust-core }}" == "true" \
-             || "${{ steps.filter.outputs.proto }}" == "true" ]]; then
-            shared_changed="true"
-          fi
-
-          changed=",${{ steps.connector-names.outputs.list }},"
-          targets="[]"
-
-          for specs in "$specs_root"/*/specs.json; do
-            name=$(basename "$(dirname "$specs")")
-
-            if [[ "$shared_changed" != "true" && "$changed" != *",${name},"* ]]; then
-              continue
-            fi
-
-            entries=$(jq -c --arg n "$name" '
-              [ (.verified_scenarios // [])[]
-                | select(.has_live_creds == true)
-                | { name: $n, suite, scenario,
-                    skip_dependencies: (.skip_dependencies // false) } ]' "$specs")
-
-            targets=$(jq -c -s 'add' <<< "${targets}"$'\n'"${entries}")
-          done
-
-          if [[ "$shared_changed" == "true" ]]; then
-            echo "Shared code changed — selecting every certified connector"
-          else
-            echo "Selecting certified connectors touched by this PR"
-          fi
-
-          echo "targets=$targets" >> $GITHUB_OUTPUT
-          echo "Certification targets: $targets"
+        env:
+          RUST_CORE_CHANGED: ${{ steps.filter.outputs.rust-core }}
+          PROTO_CHANGED: ${{ steps.filter.outputs.proto }}
+          CHANGED_CONNECTORS: ${{ steps.connector-names.outputs.list }}
+        run: .github/scripts/select-certification-targets.sh
 
       - name: Detect newly added connectors
         id: new-connectors
