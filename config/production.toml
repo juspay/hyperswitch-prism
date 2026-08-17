@@ -24,6 +24,7 @@ bypass_urls = ["localhost", "local"]
 
 [connectors]
 tesouro.base_url = "https://api.tesouro.com"
+klarna.base_url = "https://api{{klarna_region}}.klarna.com/"
 kount.base_url = "https://api.kount.com"
 kount.secondary_base_url = "https://login.kount.com"
 plaid.base_url = "https://production.plaid.com"

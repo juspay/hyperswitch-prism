@@ -287,6 +287,7 @@ default_impl_verify_webhook_source_v2!(
         Hyperswitch,
         Affirm,
         Tesouro,
+        Klarna,
     ],
 );
 // PayPal has its own implementation in paypal.rs
@@ -365,6 +366,7 @@ default_impl_recharge_v2!(
     Tesouro,
     AbsaSanlam,
     Aci,
+    Klarna,
     Kount,
     Adyen,
     Airwallex,
@@ -587,6 +589,7 @@ default_impl_create_payment_method_v2!(
     Tesouro,
     AbsaSanlam,
     Aci,
+    Klarna,
     Kount,
     Adyen,
     Airwallex,
@@ -689,6 +692,7 @@ default_impl_get_payment_method_v2!(
     Tesouro,
     AbsaSanlam,
     Aci,
+    Klarna,
     Kount,
     Adyen,
     Airwallex,
@@ -885,6 +889,7 @@ default_impl_payment_method_eligibility_v2!(
         Truelayer,
         Hyperswitch,
         Affirm,
+        Klarna,
     ],
 );
 
@@ -997,6 +1002,7 @@ default_impl_refresh_payment_method_v2!(
     Imerchantsolutions,
     Itaubank,
     Jpmorgan,
+    Klarna,
     Kount,
     Loonio,
     Mifinity,

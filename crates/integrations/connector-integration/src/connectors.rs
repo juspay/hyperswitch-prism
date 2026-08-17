@@ -293,3 +293,5 @@ pub mod givepayments;
 pub use self::givepayments::Givepayments;
 pub mod tesouro;
 pub use self::tesouro::Tesouro;
+pub mod klarna;
+pub use self::klarna::Klarna;

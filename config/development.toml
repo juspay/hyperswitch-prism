@@ -59,6 +59,7 @@ connectors_with_webhook_source_verification_call = "paypal, truelayer"
 
 [connectors]
 tesouro.base_url = "https://api.sandbox.tesouro.com"
+klarna.base_url = "https://api{{klarna_region}}.playground.klarna.com/"
 kount.base_url = "https://api-sandbox.kount.com"
 kount.secondary_base_url = "https://login.kount.com"
 plaid.base_url = "https://sandbox.plaid.com"

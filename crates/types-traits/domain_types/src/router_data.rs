@@ -947,6 +947,13 @@ pub enum ConnectorSpecificConfig {
         api_secret: Secret<String>,
         base_url: Option<String>,
     },
+    Klarna {
+        // Klarna Secret — HTTP Basic auth password (BodyKey `api_key`).
+        api_key: Secret<String>,
+        // Klarna Key ID — HTTP Basic auth username (BodyKey `key1`).
+        key1: Secret<String>,
+        base_url: Option<String>,
+    },
 }
 
 impl ConnectorSpecificConfig {
@@ -1282,6 +1289,7 @@ impl ConnectorSpecificConfig {
                 key1,
                 api_secret
             },
+            Klarna { api_key },
             Imerchantsolutions { api_key },
             Interpayments { api_key },
             TwocTwopPaco {
@@ -1740,6 +1748,7 @@ impl ConnectorSpecificConfig {
                     key1,
                     api_secret
                 },
+                Klarna { api_key },
                 Imerchantsolutions { api_key },
                 Interpayments { api_key },
                 TwocTwopPaco {
@@ -2342,6 +2351,11 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 key1: tesouro.key1.ok_or_else(err)?,
                 api_secret: tesouro.api_secret.ok_or_else(err)?,
                 base_url: tesouro.base_url,
+            }),
+            AuthType::Klarna(klarna) => Ok(Self::Klarna {
+                api_key: klarna.api_key.ok_or_else(err)?,
+                key1: klarna.key1.ok_or_else(err)?,
+                base_url: klarna.base_url,
             }),
             AuthType::Imerchantsolutions(imerchantsolutions) => Ok(Self::Imerchantsolutions {
                 api_key: imerchantsolutions.api_key.ok_or_else(err)?,
@@ -3533,6 +3547,14 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
+                ConnectorEnum::Klarna => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Klarna {
+                        api_key: api_key.clone(),
+                        key1: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
                 ConnectorEnum::PinelabsOnline => match auth {
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::PinelabsOnline {
                         client_id: api_key.clone(),
@@ -4041,6 +4063,18 @@ pub enum AdditionalPaymentMethodConnectorResponse {
     BankRedirect {
         interac: Option<InteracCustomerInfo>,
     },
+    PayLater {
+        /// Klarna-specific data returned alongside the authorization
+        klarna_sdk: Option<KlarnaSdkResponse>,
+    },
+}
+
+/// Klarna-specific response data surfaced on an authorization.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct KlarnaSdkResponse {
+    /// The Klarna sub-product the customer was authorized for, as reported by
+    /// Klarna (e.g. `pay_later`, `pay_now`, `pay_over_time`).
+    pub payment_type: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

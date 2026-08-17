@@ -1085,7 +1085,13 @@ message AfterpayClearpay {
 
 // Klarna - Swedish BNPL service
 message Klarna {
-  // Fields will be added as needed for Klarna integration
+  // Authorization token produced by the client-side Klarna Payments SDK after
+  // the customer completes the widget. Its presence selects the Klarna flow:
+  //   set   -> SDK / Klarna Payments (POST payments/v1/authorizations/{token}/order)
+  //   unset -> Klarna Checkout v3 redirect (POST checkout/v3/orders)
+  // Obtain it by first calling CreateClientAuthenticationToken, which returns
+  // the session_id and client_token used to initialize the SDK.
+  optional string token = 1;
 }
 
 // Alma - French BNPL service
