@@ -1,0 +1,29 @@
+# Vector: consume déjà recording envelopes from Kafka, land them in MinIO as JSONL tape
+# objects. Each Kafka message payload IS one envelope (JSON line); codec "text" writes it
+# through verbatim — no re-parsing, byte-faithful tape.
+
+[sources.deja_recording]
+type = "kafka"
+bootstrap_servers = "kafka:29092"
+topics = ["ucs-deja-recording-events"]
+group_id = "deja-vector-shipper"
+auto_offset_reset = "earliest"
+
+[sinks.tapes]
+type = "aws_s3"
+inputs = ["deja_recording"]
+endpoint = "http://minio:9000"
+bucket = "deja-tapes"
+region = "us-east-1"
+key_prefix = "tapes/%F/"
+force_path_style = true
+compression = "none"
+filename_extension = "jsonl"
+encoding.codec = "text"
+batch.timeout_secs = 5
+batch.max_events = 1000
+healthcheck.enabled = false
+
+[sinks.tapes.auth]
+access_key_id = "minioadmin"
+secret_access_key = "minioadmin"
