@@ -145,61 +145,81 @@ EOF
 fi
 BRIDGE="$BRIDGE_DIR/target/release/deja-bridge"
 
-echo "==> [2/7] pull tape from Kafka, pick a correlation"
+echo "==> [2/7] pull tape from Kafka, select correlations"
 docker exec deja-kafka /opt/kafka/bin/kafka-console-consumer.sh \
   --bootstrap-server localhost:9092 --topic ucs-deja-recording-events \
   --from-beginning --timeout-ms 6000 2>/dev/null > /tmp/full_tape.jsonl
-CORR="${1:-$(python3 -c "
+# Selection: --all = every correlation on the tape · <id> [<id>…] = those · none = newest.
+if [[ "${1:-}" == "--all" ]]; then
+  python3 -c "
+import json
+seen = []
+for line in open('/tmp/full_tape.jsonl'):
+    e = json.loads(line)
+    if e.get('artifact_type') == 'deja_artifact_record' and e.get('correlation_id'):
+        c = e['correlation_id']
+        if c not in seen: seen.append(c)
+print('\n'.join(seen))" > /tmp/ucs-corrs.txt
+elif [ $# -ge 1 ]; then
+  printf '%s\n' "$@" > /tmp/ucs-corrs.txt
+else
+  python3 -c "
 import json
 last = ''
 for line in open('/tmp/full_tape.jsonl'):
     e = json.loads(line)
     if e.get('artifact_type') == 'deja_artifact_record' and e.get('correlation_id'):
         last = e['correlation_id']
-print(last)")}"
-[[ -n "$CORR" ]] || { echo "no recorded correlations on the topic — run record-demo.sh first"; exit 1; }
-echo "    correlation: $CORR"
+print(last)" > /tmp/ucs-corrs.txt
+fi
+[ -s /tmp/ucs-corrs.txt ] || { echo "no recorded correlations on the topic — run record-demo.sh first"; exit 1; }
+CORR_COUNT=$(wc -l < /tmp/ucs-corrs.txt | tr -d ' ')
+echo "    $CORR_COUNT correlation(s): $(paste -sd' ' - < /tmp/ucs-corrs.txt | cut -c1-120)"
 
-REC_ID="rec-${CORR}"
-echo "==> [3/7] stage events (D3 shim: grpc_incoming -> http_incoming) + extract re-drive spec"
+if [ "$CORR_COUNT" -gt 1 ]; then REC_ID="rec-${RUN_ID}"; else REC_ID="rec-$(head -1 /tmp/ucs-corrs.txt)"; fi
+echo "==> [3/7] stage events (D3 shim: grpc_incoming -> http_incoming) + extract re-drive specs"
 python3 -c "
-import json, sys
+import base64 as b64mod, json, sys
+corrs = [c.strip() for c in open('/tmp/ucs-corrs.txt') if c.strip()]
+corr_set = set(corrs)
 out = open('/tmp/ucs-rec.jsonl', 'w')
-kept, redrive = 0, None
+specs = []
+kept, skipped = 0, 0
 for line in open('/tmp/full_tape.jsonl'):
     env = json.loads(line)
     if env.get('artifact_type') != 'deja_artifact_record': continue
-    if env.get('correlation_id') != '$CORR': continue
+    if env.get('correlation_id') not in corr_set: continue
     e = dict(env['event'])
     if e.get('boundary') == 'grpc_incoming':
-        # Extract the recorded request so the re-drive sends EXACTLY what was recorded
-        # (any rpc, any payload — hyperswitch-driven correlations included).
+        # One spec per recorded ATTEMPT: the re-drive replays every recorded request in
+        # recorded order, so a correlation with k attempts is driven k times and all k
+        # recorded egress calls are consumed (occurrence counters advance in lockstep).
         args = e.get('args') or e.get('request') or {}
         if isinstance(args, str): args = json.loads(args)
         decoded = ((args.get('request') or {}).get('decoded'))
         if decoded is None:
-            print('    ERROR: recorded ingress is undecoded; cannot re-drive', file=sys.stderr)
-            sys.exit(1)
-        headers = [(n, v) for n, v in (args.get('metadata') or []) if n.startswith('x-')]
-        # The recorded RESPONSE rides the event result as raw gRPC frame bytes; carry it
-        # (base64) so the diff step can decode it via descriptors and compare for real.
-        import base64 as b64mod
-        res = e.get('result'); res = json.loads(res) if isinstance(res, str) else (res or {})
-        raw = ((res.get('response_body') or {}).get('raw_bytes')) or []
-        redrive = {'rpc': (args.get('rpc') or '').lstrip('/'), 'headers': headers, 'body': decoded,
-                   'is_error': bool(e.get('is_error')),
-                   'request_sequence': int(e.get('request_sequence') or 0),
-                   'recorded_response_b64': b64mod.b64encode(bytes(raw)).decode() if raw else None}
+            print(f'    WARN: undecoded ingress for {env[\"correlation_id\"]} — skipping that attempt', file=sys.stderr)
+            skipped += 1
+        else:
+            headers = [(n, v) for n, v in (args.get('metadata') or []) if n.startswith('x-')]
+            res = e.get('result'); res = json.loads(res) if isinstance(res, str) else (res or {})
+            raw = ((res.get('response_body') or {}).get('raw_bytes')) or []
+            specs.append({'correlation_id': env['correlation_id'],
+                          'global_sequence': int(e.get('global_sequence') or 0),
+                          'rpc': (args.get('rpc') or '').lstrip('/'), 'headers': headers,
+                          'body': decoded, 'is_error': bool(e.get('is_error')),
+                          'request_sequence': int(e.get('request_sequence') or 0),
+                          'recorded_response_b64': b64mod.b64encode(bytes(raw)).decode() if raw else None})
         e['boundary'] = 'http_incoming'
     out.write(json.dumps({'record_kind': 'boundary_event', **e}) + '\n'); kept += 1
 out.close()
-if redrive is None:
-    print('    ERROR: no grpc_incoming event for this correlation', file=sys.stderr); sys.exit(1)
-json.dump(redrive['body'], open('/tmp/ucs-redrive-body.json', 'w'))
-json.dump(redrive, open('/tmp/ucs-redrive-spec.json', 'w'))
-open('/tmp/ucs-redrive-rpc.txt', 'w').write(redrive['rpc'])
-open('/tmp/ucs-redrive-headers.txt', 'w').write('\n'.join(f'{n}: {v}' for n, v in redrive['headers']))
-print(f'    staged {kept} events; re-drive = {redrive[\"rpc\"]} with {len(redrive[\"headers\"])} recorded headers')"
+if not specs:
+    print('    ERROR: no re-drivable grpc_incoming events in the selection', file=sys.stderr); sys.exit(1)
+specs.sort(key=lambda s: s['global_sequence'])   # recorded order across correlations
+with open('/tmp/ucs-redrive-specs.jsonl', 'w') as f:
+    for s in specs: f.write(json.dumps(s) + '\n')
+note = f' ({skipped} undecoded attempt(s) skipped)' if skipped else ''
+print(f'    staged {kept} events; {len(specs)} recorded request(s) to re-drive{note}')"
 TABLE=$("$BRIDGE" prepare /tmp/ucs-rec.jsonl "$REC_ID" "$STATE" "$RUN_ID")
 
 echo "==> [4/7] boot UCS in replay mode (LookupTableHook) — connector NOT started"
@@ -228,23 +248,32 @@ grep -q "deja runtime hook installed" /tmp/deja-replay-server.log \
   || { echo "    BOOT FAILED — see /tmp/deja-replay-server.log"; exit 1; }
 echo "    replay hook installed from rendered table"
 
-echo "==> [5/7] re-drive the RECORDED request (rpc/metadata/payload from the tape)"
-REDRIVE_RPC=$(cat /tmp/ucs-redrive-rpc.txt)
-REDRIVE_HDRS=()
-while IFS= read -r line; do [ -n "$line" ] && REDRIVE_HDRS+=(-H "$line"); done < /tmp/ucs-redrive-headers.txt
-REDRIVE_RC=0
-grpcurl -max-time 20 -plaintext "${REDRIVE_HDRS[@]}" \
-  -d @ localhost:8000 "$REDRIVE_RPC" < /tmp/ucs-redrive-body.json \
-  > /tmp/ucs-redrive-reply.json 2>/tmp/ucs-redrive-err.txt || REDRIVE_RC=$?
-pkill -f "target/debug/grpc-server"; sleep 2
+echo "==> [5/7] re-drive ALL selected recorded requests (rpc/metadata/payload from the tape, recorded order)"
+: > "$STATE/http-diffs/$RUN_ID.jsonl"
+DRIVEN=0
+while IFS= read -r SPEC_LINE; do
+  [ -n "$SPEC_LINE" ] || continue
+  printf '%s' "$SPEC_LINE" > /tmp/ucs-spec-cur.json
+  python3 -c "
+import json
+spec = json.load(open('/tmp/ucs-spec-cur.json'))
+json.dump(spec['body'], open('/tmp/ucs-redrive-body.json', 'w'))
+open('/tmp/ucs-redrive-rpc.txt', 'w').write(spec['rpc'])
+open('/tmp/ucs-redrive-headers.txt', 'w').write('\n'.join(f'{n}: {v}' for n, v in spec['headers']))"
+  REDRIVE_RPC=$(cat /tmp/ucs-redrive-rpc.txt)
+  REDRIVE_HDRS=()
+  while IFS= read -r line; do [ -n "$line" ] && REDRIVE_HDRS+=(-H "$line"); done < /tmp/ucs-redrive-headers.txt
+  REDRIVE_RC=0
+  grpcurl -max-time 20 -plaintext "${REDRIVE_HDRS[@]}" \
+    -d @ localhost:8000 "$REDRIVE_RPC" < /tmp/ucs-redrive-body.json \
+    > /tmp/ucs-redrive-reply.json 2>/tmp/ucs-redrive-err.txt || REDRIVE_RC=$?
+  DRIVEN=$((DRIVEN + 1))
 
-# HTTP-diff row: the driver-side "was this request reproduced" record the scorer counts.
-# The recorded response is decoded from its gRPC frames via the server's descriptors
-# (bridge decode-response) and diffed FIELD-BY-FIELD against the replayed response —
-# the same comparison the D2 driver will own, done for real here.
-python3 -c "
+  # HTTP-diff row per driven request: recorded response decoded from its gRPC frames via
+  # the server's descriptors and diffed FIELD-BY-FIELD against the replayed response.
+  python3 -c "
 import json, subprocess
-spec = json.load(open('/tmp/ucs-redrive-spec.json'))
+spec = json.load(open('/tmp/ucs-spec-cur.json'))
 try: candidate_body = json.load(open('/tmp/ucs-redrive-reply.json'))
 except Exception: candidate_body = None
 try: err_text = open('/tmp/ucs-redrive-err.txt').read()
@@ -272,7 +301,7 @@ body_diff = []
 if baseline_body is not None and candidate_body is not None:
     walk(baseline_body, candidate_body, '\$', body_diff)
 row = {
-    'correlation_id': '$CORR',
+    'correlation_id': spec['correlation_id'],
     'request_sequence': spec['request_sequence'],
     'request_path': '/' + spec['rpc'],
     'status_baseline': baseline_status,
@@ -282,9 +311,12 @@ row = {
     'baseline_body': baseline_body,
     'candidate_body': candidate_body,
 }
-open('$STATE/http-diffs/$RUN_ID.jsonl', 'w').write(json.dumps(row) + '\n')
-compared = 'field-by-field' if baseline_body is not None and candidate_body is not None else 'status-only (no decodable bodies)'
-print(f'    http-diff: recorded={baseline_status} replayed={candidate_status} match={row[\"status_match\"]} · body: {compared}, {len(body_diff)} field(s) differ')"
+open('$STATE/http-diffs/$RUN_ID.jsonl', 'a').write(json.dumps(row) + '\n')
+compared = 'field-by-field' if baseline_body is not None and candidate_body is not None else 'status-only'
+print(f\"    {spec['correlation_id']} seq {spec['request_sequence']}: recorded={baseline_status} replayed={candidate_status} match={row['status_match']} · body {compared}, {len(body_diff)} field(s) differ\")"
+done < /tmp/ucs-redrive-specs.jsonl
+echo "    drove $DRIVEN recorded request(s)"
+pkill -f "target/debug/grpc-server"; sleep 2
 
 echo "==> [6/7] score with deja-orchestrator's divergence scorer"
 "$BRIDGE" score "$STATE" "$RUN_ID" | python3 -c "
@@ -307,10 +339,10 @@ run = json.load(open('$STATE/runs/$RUN_ID.json'))
 def q(v): return \"'\" + json.dumps(v).replace(\"'\", \"''\") + \"'\"
 verdict = \"'pass'\" if card.get('verdict', {}).get('pass') else \"'fail'\"
 print(f'''INSERT INTO replay_runs (run_id, mode, recording_id, candidate, params, expectation, created_by, state, started_at, verdict, scorecard)
-VALUES ('$RUN_ID', 'replay', '$REC_ID', {q(run['spec']['candidate_spec'])}, {q({'correlation': '$CORR'})}, NULL, 'replay-demo', 'completed', now(), {verdict}, {q(card)})
+VALUES ('$RUN_ID', 'replay', '$REC_ID', {q(run['spec']['candidate_spec'])}, {q({'correlations': [c.strip() for c in open('/tmp/ucs-corrs.txt') if c.strip()]})}, NULL, 'replay-demo', 'completed', now(), {verdict}, {q(card)})
 ON CONFLICT (run_id) DO UPDATE SET verdict=EXCLUDED.verdict, scorecard=EXCLUDED.scorecard;
 INSERT INTO recordings (recording_id, source_path, event_count, correlation_count, byte_size, manifest, created_by)
-VALUES ('$REC_ID', 'kafka topic ucs-deja-recording-events (correlation $CORR)', 0, 1, 0, NULL, 'replay-demo')
+VALUES ('$REC_ID', 'kafka topic ucs-deja-recording-events ($CORR_COUNT correlation(s))', 0, $CORR_COUNT, 0, NULL, 'replay-demo')
 ON CONFLICT (recording_id) DO NOTHING;''')" \
   | docker exec -i deja-orchestrator-pg-1 psql -q -U deja -d deja >/dev/null 2>&1 \
     && echo "    registered in dashboard: http://127.0.0.1:8070/runs/$RUN_ID" \
