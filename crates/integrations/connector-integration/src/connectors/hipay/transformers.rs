@@ -487,6 +487,10 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<HipayAuthorizeRespons
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             // Check if redirection is needed (for 3DS flows)
@@ -734,6 +738,10 @@ impl TryFrom<ResponseRouterData<HipayPSyncResponse, Self>>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 resource_common_data: PaymentFlowData {
                     status: AttemptStatus::Failure,
@@ -815,6 +823,10 @@ impl TryFrom<ResponseRouterData<HipayCaptureResponse, Self>>
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {
@@ -1000,6 +1012,10 @@ impl TryFrom<ResponseRouterData<HipayVoidResponse, Self>>
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {

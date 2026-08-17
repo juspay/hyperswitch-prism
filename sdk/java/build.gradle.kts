@@ -13,6 +13,12 @@ repositories {
     mavenCentral()
 }
 
+// Increase file size limit for the Kotlin compiler daemon to handle large generated files
+// (e.g. Payment.java ~21MB exceeds the default ~20MB limit)
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
+    kotlinDaemonJvmArguments.add("-Didea.max.intellisense.filesize=30000")
+}
+
 dependencies {
     // api = exposed to consumers at compile time (published as compile scope in POM)
     // Version must match protoc (protoc --version → libprotoc X.Y → protobuf-java 4.X.Y)

@@ -1,6 +1,9 @@
+#[cfg(feature = "log-transformations")]
+use std::borrow::Cow;
+use std::collections::HashMap;
+
 use hyperswitch_masking::ErasedMaskSerialize;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 use crate::errors::EventPublisherError;
 use crate::types::ExecutionMode;
@@ -474,6 +477,305 @@ pub struct KafkaTopicConfig {
     pub partition_key_field: String,
 }
 
+/// Controls whether transformations copy or replace the original source fields.
+#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum TransformationMode {
+    /// Add the new key but keep the original source field (default).
+    #[default]
+    Copy,
+    /// Add the new key and remove the original source field after all transformations complete.
+    Replace,
+}
+
+/// A single field entry for golden log lines.
+///
+/// Each entry is either a literal value or a reference to a span storage field.
+/// - `{ value = "literal" }` — injects a constant string.
+/// - `{ source = "span_field" }` — reads the value from the named span storage field at runtime.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(untagged)]
+pub enum LogFieldEntry {
+    /// Read value from the named field in span storage.
+    Source { source: String },
+    /// Use a literal string value.
+    Value { value: String },
+}
+
+/// A single compiled log field with pre-split target path segments.
+#[derive(Debug, Clone)]
+pub struct CompiledLogField {
+    /// Pre-split target path segments (e.g., `["api_details", "url"]`).
+    /// Segment 0 is the root key; segments 1.. are the nested sub-path.
+    pub target_segments: Vec<String>,
+    /// Top-level key — segment 0 of the target path.
+    pub target_root_key: String,
+    /// Resolved entry: either a source field name or a literal value.
+    pub entry: CompiledFieldEntry,
+}
+
+/// Resolved field entry — either a source field reference or a literal value.
+#[derive(Debug, Clone)]
+pub enum CompiledFieldEntry {
+    /// Read value from this field name in span storage at runtime.
+    Source(String),
+    /// Use this literal value.
+    Value(serde_json::Value),
+}
+
+/// Pre-compiled fields for one golden log line type (incoming or outgoing).
+#[derive(Debug, Clone, Default)]
+pub struct CompiledLogFields {
+    pub rules: Vec<CompiledLogField>,
+}
+
+impl CompiledLogFields {
+    /// Compile raw `target_path → LogFieldEntry` mappings into pre-split rules.
+    pub fn compile(raw: &HashMap<String, LogFieldEntry>) -> Self {
+        let rules = raw
+            .iter()
+            .filter_map(|(target_path, field_entry)| {
+                let segments: Vec<String> = target_path.split('.').map(String::from).collect();
+                let root_key = segments.first()?.clone();
+                let entry = match field_entry {
+                    LogFieldEntry::Source { source } => CompiledFieldEntry::Source(source.clone()),
+                    LogFieldEntry::Value { value } => {
+                        CompiledFieldEntry::Value(serde_json::Value::String(value.clone()))
+                    }
+                };
+                Some(CompiledLogField {
+                    target_segments: segments,
+                    target_root_key: root_key,
+                    entry,
+                })
+            })
+            .collect();
+        Self { rules }
+    }
+
+    /// Returns `true` if no field rules are configured.
+    pub fn is_empty(&self) -> bool {
+        self.rules.is_empty()
+    }
+}
+
+/// Holds compiled fields for both golden log lines.
+#[derive(Debug, Clone, Default)]
+pub struct CompiledLogFieldsConfig {
+    /// Runtime kill-switch: when `false`, `apply_log_fields` is skipped even
+    /// though the `log-transformations` feature is compiled in.
+    pub enabled: bool,
+    pub incoming: CompiledLogFields,
+    pub outgoing: CompiledLogFields,
+}
+
+impl CompiledLogFieldsConfig {
+    pub fn compile(
+        enabled: bool,
+        incoming: &HashMap<String, LogFieldEntry>,
+        outgoing: &HashMap<String, LogFieldEntry>,
+    ) -> Self {
+        Self {
+            enabled,
+            incoming: CompiledLogFields::compile(incoming),
+            outgoing: CompiledLogFields::compile(outgoing),
+        }
+    }
+}
+
+/// Apply compiled log field rules to the current span's storage.
+///
+/// For each rule:
+/// - `Source` entries read a value from the span storage snapshot.
+/// - `Value` entries use the literal value directly.
+///
+/// Dotted target paths build nested JSON objects. When writing a nested object,
+/// it is deep-merged with any existing value for the same root key in the span.
+#[cfg(feature = "log-transformations")]
+pub fn apply_log_fields(compiled: &CompiledLogFields) {
+    if compiled.is_empty() {
+        return;
+    }
+
+    // Snapshot span storage (needed for Source entries to read current values).
+    let snapshot: Option<HashMap<Cow<'static, str>, serde_json::Value>> =
+        log_utils::Storage::with_current_span(|storage| storage.values().clone());
+
+    // Build writes: for each rule, resolve the value and group by root key.
+    let mut writes: HashMap<String, serde_json::Value> = HashMap::new();
+    for rule in &compiled.rules {
+        let resolved_value = match &rule.entry {
+            CompiledFieldEntry::Value(v) => v.clone(),
+            CompiledFieldEntry::Source(field) => {
+                match snapshot
+                    .as_ref()
+                    .and_then(|s| s.get(field.as_str()))
+                    .cloned()
+                {
+                    Some(v) => v,
+                    None => continue, // source field not present in span, skip
+                }
+            }
+        };
+
+        if rule.target_segments.len() == 1 {
+            // Flat key: "connector" = { source = "gateway" }
+            writes.insert(rule.target_root_key.clone(), resolved_value);
+        } else {
+            // Nested target: "api_details.url" = { source = "request.url" }
+            let root = writes
+                .entry(rule.target_root_key.clone())
+                .or_insert_with(|| serde_json::json!({}));
+            if let Some(rest) = rule.target_segments.get(1..) {
+                set_nested_value_from_segments(root, rest, resolved_value);
+            }
+        }
+    }
+
+    // Filter out reserved keys BEFORE entering the span lock.
+    // `record_value` calls `tracing::warn!` for reserved keys, which re-enters
+    // the subscriber and deadlocks when called inside `with_current_span_mut`.
+    let writes: Vec<_> = writes
+        .into_iter()
+        .filter(|(key, _)| {
+            if log_utils::Storage::is_reserved(key) {
+                tracing::warn!(
+                    "Log field target key `{key}` is reserved by the logging infrastructure, skipping"
+                );
+                false
+            } else {
+                true
+            }
+        })
+        .collect();
+
+    if writes.is_empty() {
+        return;
+    }
+
+    // Write to span storage, deep-merging nested objects with existing values.
+    log_utils::Storage::with_current_span_mut(|storage| {
+        for (key, value) in writes {
+            if value.is_object() {
+                // Deep-merge with existing object if present
+                if let Some(existing) = storage.values().get(key.as_str()).cloned() {
+                    if existing.is_object() {
+                        let mut merged = existing;
+                        deep_merge_json(&mut merged, value);
+                        storage.record_value(key, merged);
+                        continue;
+                    }
+                }
+            }
+            storage.record_value(key, value);
+        }
+    });
+}
+
+/// Convert a set of headers with `Maskable` values into a `serde_json::Value` object.
+/// Normal values are preserved as-is; masked values use the standard masking format
+/// from `Maskable`'s `Debug` implementation.
+pub fn maskable_headers_to_json<'a>(
+    headers: impl IntoIterator<Item = &'a (String, hyperswitch_masking::Maskable<String>)>,
+) -> serde_json::Value {
+    headers
+        .into_iter()
+        .map(|(k, v)| {
+            let val = match v {
+                hyperswitch_masking::Maskable::Normal(s) => s.clone(),
+                hyperswitch_masking::Maskable::Masked(secret) => format!("{secret:?}"),
+            };
+            (k.clone(), serde_json::Value::String(val))
+        })
+        .collect::<serde_json::Map<String, serde_json::Value>>()
+        .into()
+}
+
+/// Record one or more key-value pairs as structured JSON directly into the
+/// current tracing span's storage.  Values written this way are emitted as
+/// proper nested JSON by the log formatter — no escaping.
+///
+/// All reserved-key filtering happens **outside** the span lock to avoid
+/// deadlocks (the storage layer logs a warning for reserved keys, which would
+/// re-enter the subscriber).
+#[cfg(feature = "logging")]
+pub fn record_json_fields_on_span(fields: Vec<(&'static str, serde_json::Value)>) {
+    // Filter reserved keys and log fields outside the span lock to avoid deadlocks
+    // (tracing::info!/warn! re-enters the subscriber).
+    let fields: Vec<_> = fields
+        .into_iter()
+        .filter(|(key, value)| {
+            if log_utils::Storage::is_reserved(key) {
+                tracing::warn!(
+                    "Span field `{key}` is reserved by the logging infrastructure, skipping"
+                );
+                false
+            } else {
+                tracing::info!(%value, "{key}");
+                true
+            }
+        })
+        .collect();
+
+    if fields.is_empty() {
+        return;
+    }
+
+    log_utils::Storage::with_current_span_mut(|storage| {
+        for (key, value) in fields {
+            storage.record_value(key, value);
+        }
+    });
+}
+
+/// Recursively merge `source` JSON object into `target`.
+/// Keys in `source` overwrite matching keys in `target`.
+/// Nested objects are merged recursively.
+#[cfg(feature = "log-transformations")]
+fn deep_merge_json(target: &mut serde_json::Value, source: serde_json::Value) {
+    if let (serde_json::Value::Object(target_map), serde_json::Value::Object(source_map)) =
+        (target, source)
+    {
+        for (key, value) in source_map {
+            let entry = target_map.entry(key).or_insert(serde_json::Value::Null);
+            if entry.is_object() && value.is_object() {
+                deep_merge_json(entry, value);
+            } else {
+                *entry = value;
+            }
+        }
+    }
+}
+
+/// Like `set_nested_value` but takes pre-split path segments instead of a dotted string.
+/// Avoids runtime `split('.')` — segments are pre-compiled at startup.
+#[cfg(feature = "log-transformations")]
+fn set_nested_value_from_segments(
+    target: &mut serde_json::Value,
+    segments: &[String],
+    value: serde_json::Value,
+) {
+    if segments.is_empty() {
+        return;
+    }
+    if let (1, Some(seg)) = (segments.len(), segments.first()) {
+        target[seg.as_str()] = value;
+        return;
+    }
+    // Walk intermediate segments, creating objects as needed
+    let mut current = target;
+    for (i, segment) in segments.iter().enumerate() {
+        if i == segments.len() - 1 {
+            current[segment.as_str()] = value;
+            return;
+        }
+        if !current[segment.as_str()].is_object() {
+            current[segment.as_str()] = serde_json::json!({});
+        }
+        current = &mut current[segment.as_str()];
+    }
+}
+
 /// Configuration for events system
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, config_patch_derive::Patch)]
 pub struct EventConfig {
@@ -483,6 +785,9 @@ pub struct EventConfig {
     pub connector_events: KafkaTopicConfig,
     /// Inbound request events.
     pub api_events: KafkaTopicConfig,
+    #[serde(default)]
+    #[patch(ignore)]
+    pub transformation_mode: TransformationMode,
     #[serde(default)]
     pub transformations: HashMap<String, String>, // target_path → source_field
     #[serde(default)]
@@ -508,6 +813,7 @@ impl Default for EventConfig {
             brokers: vec!["localhost:9092".to_string()],
             connector_events: KafkaTopicConfig::default(),
             api_events: KafkaTopicConfig::default(),
+            transformation_mode: TransformationMode::default(),
             transformations: HashMap::new(),
             static_values: HashMap::new(),
             extractions: HashMap::new(),
@@ -555,9 +861,11 @@ pub(crate) fn process_event_with_config(
     let normalize_path =
         |path: &str| -> String { path.replace("_DOT_", ".").replace("_dot_", ".") };
 
-    // Process transformations
+    // Process transformations — collect source fields used for potential removal in replace mode
+    let mut used_source_fields: Vec<&str> = Vec::new();
     for (target_path, source_field) in &config.transformations {
         if let Some(value) = result.get(source_field).cloned() {
+            used_source_fields.push(source_field.as_str());
             let normalized_path = normalize_path(target_path);
             if let Err(e) = set_nested_value(&mut result, &normalized_path, value) {
                 tracing::warn!(
@@ -567,6 +875,16 @@ pub(crate) fn process_event_with_config(
                     error = %e,
                     "Failed to set transformation, continuing with event processing"
                 );
+            }
+        }
+    }
+
+    // In replace mode, remove original source fields after all transformations complete.
+    // This is done after the loop so fan-out works (multiple targets reading the same source).
+    if matches!(config.transformation_mode, TransformationMode::Replace) {
+        if let Some(obj) = result.as_object_mut() {
+            for source_field in &used_source_fields {
+                obj.remove(*source_field);
             }
         }
     }

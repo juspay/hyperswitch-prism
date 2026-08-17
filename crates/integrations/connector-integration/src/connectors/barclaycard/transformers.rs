@@ -175,6 +175,7 @@ fn wallet_data_label(wallet_data: &WalletData) -> &'static str {
         WalletData::ApplePayRedirect(_) => "apple_pay_redirect",
         WalletData::ApplePayThirdPartySdk(_) => "apple_pay_third_party_sdk",
         WalletData::DanaRedirect {} => "dana_redirect",
+        WalletData::GrabpayRedirect {} => "grabpay_redirect",
         WalletData::GooglePay(_) => "google_pay",
         WalletData::GooglePayRedirect(_) => "google_pay_redirect",
         WalletData::GooglePayThirdPartySdk(_) => "google_pay_third_party_sdk",
@@ -204,6 +205,7 @@ fn wallet_data_label(wallet_data: &WalletData) -> &'static str {
         WalletData::EaseBuzzRedirect(_) => "easebuzz_redirect",
         WalletData::QwikcilverWalletDirect(_) => "qwikcilver_wallet_direct",
         WalletData::Skrill(_) => "skrill",
+        WalletData::PaymayaRedirect(_) => "paymaya_redirect",
     }
 }
 
@@ -550,6 +552,10 @@ fn transform_payment_response<F, Req>(
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 resource_common_data: PaymentFlowData {
                     status: common_enums::AttemptStatus::Failure,
@@ -622,6 +628,10 @@ fn get_error_response(
         network_advice_code,
         network_decline_code,
         network_error_message: None,
+        typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
     }
 }
 
@@ -1551,6 +1561,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     }),
                     resource_common_data: PaymentFlowData {
                         status: common_enums::AttemptStatus::Failure,
@@ -1865,6 +1879,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     }),
                     resource_common_data: PaymentFlowData {
                         status: common_enums::AttemptStatus::Failure,
@@ -2083,6 +2101,10 @@ fn build_auth_error_response(
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
+        typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
     }
 }
 

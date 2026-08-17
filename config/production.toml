@@ -23,6 +23,9 @@ connector_request_timeout = 30
 bypass_urls = ["localhost", "local"]
 
 [connectors]
+grabpay.base_url = "https://partner-api.grab.com/grabpay/partner/v2"
+maya.base_url = "https://pg.maya.ph"
+boost.base_url = "https://api.boostconnect.biz/gateway"
 tesouro.base_url = "https://api.tesouro.com"
 kount.base_url = "https://api.kount.com"
 kount.secondary_base_url = "https://login.kount.com"
@@ -134,6 +137,7 @@ trustly.base_url = "https://api.trustly.com/1"
 itaubank.base_url = "https://api.itau.com.br"
 itaubank.secondary_base_url = "https://sts.itau.com.br"
 deutschebank.base_url = "https://api.baas.db.com"
+santander.base_url = "https://trust-open.api.santander.com.br"
 pinelabs_online.base_url = "https://api.pluralpay.in/api/pay/v1"
 easebuzz.base_url = "https://pay.easebuzz.in"
 easebuzz.secondary_base_url = "https://dashboard.easebuzz.in"

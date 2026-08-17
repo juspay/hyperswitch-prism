@@ -92,6 +92,7 @@ jobs:
               - 'crates/**'
               - 'Cargo.toml'
               - 'Cargo.lock'
+              - 'config/**'
             sdk:
               - 'sdk/**'
               - 'crates/ffi/**'
@@ -471,6 +472,9 @@ jobs:
       - name: Run Connector Specs Coverage Check
         run: cargo run --all-features --bin check_connector_specs
 
+      - name: Run Superposition Config Validation
+        run: cargo test -p grpc-server --all-features --test test_superposition_config
+
   # ── Tests ─────────────────────────────────────────────────────────────────
 
   test:
@@ -601,7 +605,7 @@ jobs:
             done
             echo "🔍 Connector-only PR — scoping tests to: $CONNECTOR_NAMES"
             cargo nextest run \
-              --features grpc-server/connector-request-kafka \
+              --features grpc-server/connector-request-kafka,grpc-server/log-transformations \
               --config-file .nextest.toml \
               --profile ci \
               --no-tests=warn \
@@ -609,7 +613,7 @@ jobs:
           else
             echo "🔍 Running full test suite (event=$EVENT)"
             cargo nextest run \
-              --features grpc-server/connector-request-kafka \
+              --features grpc-server/connector-request-kafka,grpc-server/log-transformations \
               --config-file .nextest.toml \
               --profile ci \
               -E "$SCHEMA_EXCLUDE"

@@ -44,9 +44,9 @@ use transformers::{
 };
 
 use crate::connectors::macros;
+use crate::finalize_connector_response;
 use crate::types::ResponseRouterData;
 use crate::with_error_response_body;
-use crate::with_response_body;
 use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
 
@@ -700,9 +700,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ServerAuthenticationTokenRequestData,
             ServerAuthenticationTokenResponseData,
         >,
-    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let request = globalpay::GlobalpayAccessTokenRequest::try_from(req)?;
-        Ok(Some(RequestContent::Json(Box::new(request))))
+        let typed =
+            events::MaskedSerdeValue::from_masked_optional(&request, "typed_connector_request");
+        Ok(Some(common_utils::request::ConnectorRequestData::new(
+            RequestContent::Json(Box::new(request)),
+            typed,
+        )))
     }
 
     fn build_request_v2(
@@ -714,16 +719,25 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ServerAuthenticationTokenResponseData,
         >,
     ) -> CustomResult<Option<common_utils::request::Request>, IntegrationError> {
-        let request_body = self.get_request_body(req)?;
+        let request_data = self.get_request_body(req)?;
+        let (body, typed_request_value) = match request_data {
+            Some(data) => (
+                Some(data.content),
+                data.typed_request.map(|msv| msv.inner().clone()),
+            ),
+            None => (None, None),
+        };
         let mut request_builder = common_utils::request::RequestBuilder::new()
             .method(common_utils::request::Method::Post)
             .url(&self.get_url(req)?)
             .attach_default_headers()
             .headers(self.get_headers(req)?);
 
-        if let Some(body) = request_body {
+        if let Some(body) = body {
             request_builder = request_builder.set_body(body);
         }
+
+        request_builder = request_builder.set_typed_connector_request(typed_request_value);
 
         Ok(Some(request_builder.build()))
     }
@@ -756,13 +770,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 "globalpay: response body did not match the expected format; confirm API version and connector documentation."),
             )?;
 
-        with_response_body!(event_builder, response);
-
-        RouterDataV2::try_from(ResponseRouterData {
-            response,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        })
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -840,6 +848,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         with_error_response_body!(event_builder, response);
 
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.error_code,
@@ -850,6 +860,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     }
 }

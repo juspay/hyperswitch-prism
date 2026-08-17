@@ -40,6 +40,7 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
         ConnectorEnum::Calida => ConnectorSpecificConfig::Calida {
             api_key: k(),
             base_url: None,
+            shop_name: None,
         },
         ConnectorEnum::Celero => ConnectorSpecificConfig::Celero {
             api_key: k(),
@@ -694,6 +695,11 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             juspay_public_key: s(),
             base_url: None,
         },
+        ConnectorEnum::Maya => ConnectorSpecificConfig::Maya {
+            public_key: k(),
+            secret_key: s(),
+            base_url: None,
+        },
         ConnectorEnum::TsysTransit => ConnectorSpecificConfig::TsysTransit {
             device_id: id(),
             transaction_key: k(),
@@ -767,10 +773,23 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             api_key: k(),
             base_url: None,
         },
+        ConnectorEnum::Grabpay => ConnectorSpecificConfig::Grabpay {
+            partner_id: k(),
+            partner_secret: k(),
+            client_id: k(),
+            client_secret: k(),
+            merchant_id: k(),
+            base_url: None,
+        },
         ConnectorEnum::Tesouro => ConnectorSpecificConfig::Tesouro {
             api_key: k(),
             key1: k(),
             api_secret: k(),
+            base_url: None,
+        },
+        ConnectorEnum::Boost => ConnectorSpecificConfig::Boost {
+            client_id: k(),
+            merchant_secret: k(),
             base_url: None,
         },
     }

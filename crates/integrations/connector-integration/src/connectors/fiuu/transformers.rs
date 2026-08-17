@@ -606,7 +606,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | BankRedirectData::Trustly { .. }
                 | BankRedirectData::OnlineBankingThailand { .. }
                 | BankRedirectData::LocalBankRedirect {}
-                | BankRedirectData::OpenBanking {}
+                | BankRedirectData::OpenBanking { .. }
                 | BankRedirectData::Netbanking { .. } => {
                     Err(error_stack::report!(IntegrationError::NotSupported {
                         message: utils::get_unimplemented_payment_method_error_message("fiuu"),
@@ -639,6 +639,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::ApplePayRedirect(_)
                 | WalletData::ApplePayThirdPartySdk(_)
                 | WalletData::DanaRedirect {}
+                | WalletData::GrabpayRedirect {}
                 | WalletData::GooglePayRedirect(_)
                 | WalletData::GooglePayThirdPartySdk(_)
                 | WalletData::MbWayRedirect(_)
@@ -666,6 +667,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::CashfreeRedirect(_)
                 | WalletData::PayURedirect(_)
                 | WalletData::EaseBuzzRedirect(_)
+                | WalletData::PaymayaRedirect(_)
                 | WalletData::QwikcilverWalletDirect(_)
                 | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("fiuu"),
@@ -977,7 +979,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | BankRedirectData::Trustly { .. }
                 | BankRedirectData::OnlineBankingThailand { .. }
                 | BankRedirectData::LocalBankRedirect {}
-                | BankRedirectData::OpenBanking {}
+                | BankRedirectData::OpenBanking { .. }
                 | BankRedirectData::Netbanking { .. } => {
                     Err(error_stack::report!(IntegrationError::NotSupported {
                         message: utils::get_unimplemented_payment_method_error_message("fiuu"),
@@ -1008,6 +1010,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::ApplePayRedirect(_)
                 | WalletData::ApplePayThirdPartySdk(_)
                 | WalletData::DanaRedirect {}
+                | WalletData::GrabpayRedirect {}
                 | WalletData::GooglePayRedirect(_)
                 | WalletData::GooglePayThirdPartySdk(_)
                 | WalletData::MbWayRedirect(_)
@@ -1036,7 +1039,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::PayURedirect(_)
                 | WalletData::EaseBuzzRedirect(_)
                 | WalletData::QwikcilverWalletDirect(_)
-                | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
+                | WalletData::Skrill(_)
+                | WalletData::PaymayaRedirect(_) => Err(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("fiuu"),
                     Default::default(),
                 )
@@ -1390,11 +1394,11 @@ where
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
-                resource_common_data: PaymentFlowData {
-                    status: common_enums::AttemptStatus::Failure,
-                    ..router_data.resource_common_data
-                },
                 ..router_data
             }),
             FiuuPaymentsResponse::PaymentResponse(data) => match data.txn_data.request_data {
@@ -1473,6 +1477,10 @@ where
                             network_advice_code: None,
                             network_decline_code: None,
                             network_error_message: None,
+                            typed_connector_response: None,
+                            raw_connector_response: None,
+                            raw_connector_request: None,
+                            typed_connector_request: None,
                         })
                     } else {
                         Ok(PaymentsResponseData::TransactionResponse {
@@ -1527,6 +1535,10 @@ where
                                 network_advice_code: None,
                                 network_decline_code: None,
                                 network_error_message: None,
+                                typed_connector_response: None,
+                                raw_connector_response: None,
+                                raw_connector_request: None,
+                                typed_connector_request: None,
                             })
                         } else {
                             Ok(PaymentsResponseData::TransactionResponse {
@@ -1708,6 +1720,10 @@ impl<F> TryFrom<ResponseRouterData<FiuuRefundResponse, Self>>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..router_data
             }),
@@ -1738,6 +1754,10 @@ impl<F> TryFrom<ResponseRouterData<FiuuRefundResponse, Self>>
                             network_advice_code: None,
                             network_decline_code: None,
                             network_error_message: None,
+                            typed_connector_response: None,
+                            raw_connector_response: None,
+                            raw_connector_request: None,
+                            typed_connector_request: None,
                         }),
                         ..router_data
                     })
@@ -1972,6 +1992,10 @@ impl<F> TryFrom<ResponseRouterData<FiuuPaymentResponse, Self>>
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     })
                 } else {
                     None
@@ -2037,6 +2061,10 @@ impl<F> TryFrom<ResponseRouterData<FiuuPaymentResponse, Self>>
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     })
                 } else {
                     None
@@ -2265,6 +2293,10 @@ impl<F> TryFrom<ResponseRouterData<PaymentCaptureResponse, Self>>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             None
@@ -2401,6 +2433,10 @@ impl<F> TryFrom<ResponseRouterData<FiuuPaymentCancelResponse, Self>>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             None
@@ -2516,6 +2552,10 @@ impl<F> TryFrom<ResponseRouterData<FiuuRefundSyncResponse, Self>>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..router_data
             }),

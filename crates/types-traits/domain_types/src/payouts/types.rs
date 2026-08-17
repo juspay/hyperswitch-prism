@@ -39,6 +39,8 @@ impl
             raw_connector_response: None,
             connector_response_headers: None,
             raw_connector_request: None,
+            typed_connector_request: None,
+            typed_connector_response: None,
             access_token: value.access_token.map(|token| {
                 crate::connector_types::ServerAuthenticationTokenResponseData {
                     access_token: token,
@@ -603,6 +605,27 @@ impl ForeignTryFrom<grpc_api_types::payouts::PixBankTransferPayout>
             })?,
             tax_id: pix.tax_id,
             ispb: pix.ispb,
+            bank_code: pix.bank_code,
+            bank_account_type: pix
+                .bank_account_type
+                .map(|bank_type_raw| {
+                    common_enums::BankType::foreign_try_from(bank_type_raw).change_context(
+                        IntegrationError::InvalidDataFormat {
+                            field_name: "payout_method_data.bank_account_type",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(format!(
+                                    "unsupported bank_account_type value: {bank_type_raw}"
+                                )),
+                                suggested_action: Some(
+                                    "Provide a valid bank account type".to_string(),
+                                ),
+                                doc_url: None,
+                            },
+                        },
+                    )
+                })
+                .transpose()?,
+            account_holder_name: pix.account_holder_name,
         })
     }
 }
@@ -1163,6 +1186,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceTransferRequest>
                 .transpose()?,
             customer,
             address,
+            connector_eligibility_reference_id: value.connector_eligibility_reference_id,
         })
     }
 }
@@ -1522,6 +1546,8 @@ impl
             raw_connector_response: None,
             connector_response_headers: None,
             raw_connector_request: None,
+            typed_connector_request: None,
+            typed_connector_response: None,
             access_token: value.access_token.map(|token| {
                 crate::connector_types::ServerAuthenticationTokenResponseData {
                     access_token: token,
@@ -1563,6 +1589,8 @@ impl
             raw_connector_response: None,
             connector_response_headers: None,
             raw_connector_request: None,
+            typed_connector_request: None,
+            typed_connector_response: None,
             access_token: value.access_token.map(|token| {
                 crate::connector_types::ServerAuthenticationTokenResponseData {
                     access_token: token,
@@ -1604,6 +1632,8 @@ impl
             raw_connector_response: None,
             connector_response_headers: None,
             raw_connector_request: None,
+            typed_connector_request: None,
+            typed_connector_response: None,
             access_token: value.access_token.map(|token| {
                 crate::connector_types::ServerAuthenticationTokenResponseData {
                     access_token: token,
@@ -1645,6 +1675,8 @@ impl
             raw_connector_response: None,
             connector_response_headers: None,
             raw_connector_request: None,
+            typed_connector_request: None,
+            typed_connector_response: None,
             access_token: value.access_token.map(|token| {
                 crate::connector_types::ServerAuthenticationTokenResponseData {
                     access_token: token,
@@ -1686,6 +1718,8 @@ impl
             raw_connector_response: None,
             connector_response_headers: None,
             raw_connector_request: None,
+            typed_connector_request: None,
+            typed_connector_response: None,
             access_token: value.access_token.map(|token| {
                 crate::connector_types::ServerAuthenticationTokenResponseData {
                     access_token: token,
@@ -1727,6 +1761,8 @@ impl
             raw_connector_response: None,
             connector_response_headers: None,
             raw_connector_request: None,
+            typed_connector_request: None,
+            typed_connector_response: None,
             access_token: value.access_token.map(|token| {
                 crate::connector_types::ServerAuthenticationTokenResponseData {
                     access_token: token,
@@ -1768,6 +1804,8 @@ impl
             raw_connector_response: None,
             connector_response_headers: None,
             raw_connector_request: None,
+            typed_connector_request: None,
+            typed_connector_response: None,
             access_token: value.access_token.map(|token| {
                 crate::connector_types::ServerAuthenticationTokenResponseData {
                     access_token: token,
@@ -2233,6 +2271,8 @@ impl
             raw_connector_response: None,
             connector_response_headers: None,
             raw_connector_request: None,
+            typed_connector_request: None,
+            typed_connector_response: None,
             access_token: value.access_token.map(|token| {
                 crate::connector_types::ServerAuthenticationTokenResponseData {
                     access_token: token,
@@ -2262,6 +2302,12 @@ pub fn generate_payout_eligibility_response(
             let payout_status = grpc_api_types::payouts::payout_enums::PayoutStatus::foreign_from(
                 response.payout_status,
             ) as i32;
+            let connector_metadata = response.connector_metadata.as_ref().map(|value| {
+                hyperswitch_masking::Secret::new(
+                    hyperswitch_masking::PeekInterface::peek(value).to_string(),
+                )
+            });
+
             Ok(grpc_api_types::payouts::PayoutMethodEligibilityResponse {
                 merchant_payout_id: response.merchant_payout_id,
                 payout_status: Some(payout_status),
@@ -2269,18 +2315,21 @@ pub fn generate_payout_eligibility_response(
                 payout_eligible: response.payout_eligible,
                 error: None,
                 status_code: u32::from(response.status_code),
+                connector_metadata,
+                connector_eligibility_reference_id: response.connector_eligibility_reference_id,
             })
         }
+
         Err(err) => Ok(grpc_api_types::payouts::PayoutMethodEligibilityResponse {
             merchant_payout_id: Some(router_data_v2.resource_common_data.payout_id),
             payout_status: Some(
-                grpc_api_types::payouts::payout_enums::PayoutStatus::Pending as i32,
+                grpc_api_types::payouts::payout_enums::PayoutStatus::NotPermitted as i32,
             ),
-            connector_payout_id: err.connector_transaction_id.clone(),
-            // Transport / connector errors (timeout, 5xx, TLS, auth, signature) mean
-            // eligibility is *unknown* — not that the payee is ineligible. `Some(false)`
-            // is reserved for the connector-declared NOAP/NMTC path.
-            payout_eligible: None,
+            // A refused payee yields no payout id to act on.
+            connector_payout_id: None,
+            payout_eligible: Some(false),
+            connector_metadata: None,
+            connector_eligibility_reference_id: err.connector_transaction_id.clone(),
             error: Some(grpc_api_types::payouts::ErrorInfo {
                 unified_details: None,
                 connector_details: Some(grpc_api_types::payouts::ConnectorErrorDetails {

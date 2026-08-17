@@ -89,7 +89,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         true
     }
 
-    fn should_do_session_token(&self) -> bool {
+    fn should_do_session_token(
+        &self,
+        _connector_feature_data: Option<&hyperswitch_masking::Secret<String>>,
+    ) -> bool {
         true
     }
 }
@@ -385,6 +388,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })?;
 
         with_response_body!(event_builder, response);
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
 
         Ok(ErrorResponse {
             status_code: res.status_code,
@@ -404,6 +409,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     }
 

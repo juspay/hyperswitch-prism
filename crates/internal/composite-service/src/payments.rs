@@ -56,6 +56,7 @@ pub trait CompositeSessionTokenRequest {
         connector: &ConnectorEnum,
     ) -> MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest;
     fn has_session_token(&self) -> bool;
+    fn connector_feature_data(&self) -> Option<&hyperswitch_masking::Secret<String>>;
 }
 
 /// Trait for abstracting request construction for composite pre-authenticate flows.
@@ -118,6 +119,10 @@ impl CompositeSessionTokenRequest for CompositeAuthorizeRequest {
 
     fn has_session_token(&self) -> bool {
         self.session_token.is_some()
+    }
+
+    fn connector_feature_data(&self) -> Option<&hyperswitch_masking::Secret<String>> {
+        self.connector_feature_data.as_ref()
     }
 }
 
@@ -280,6 +285,10 @@ impl CompositeSessionTokenRequest
     fn has_session_token(&self) -> bool {
         self.session_token.is_some()
     }
+
+    fn connector_feature_data(&self) -> Option<&hyperswitch_masking::Secret<String>> {
+        self.connector_feature_data.as_ref()
+    }
 }
 
 /// Holds the mutable state accumulated during composite authorize flow execution.
@@ -402,7 +411,9 @@ where
         tonic::Status,
     > {
         let connector_data = ConnectorData::<domain_types::payment_method_data::DefaultPCIHolder>::get_connector_by_name(connector);
-        let should_do_session_token = connector_data.connector.should_do_session_token();
+        let should_do_session_token = connector_data
+            .connector
+            .should_do_session_token(payload.connector_feature_data());
 
         let should_create_session_token = !payload.has_session_token() && should_do_session_token;
 
@@ -1206,6 +1217,9 @@ where
         ),
         tonic::Status,
     > {
+        // `payload.connector_feature_data` already carries the redirect callback data
+        // (folded in by the caller from the verify-redirect response), so the token
+        // steps read it through the normal channel — no per-call payload mutation.
         let access_token_response = self
             .create_server_authentication_token(connector, payload, metadata, extensions)
             .await?;
@@ -1252,6 +1266,7 @@ where
                 merchant_order_id: payload.merchant_order_id.clone(),
                 request_details: payload.request_details.clone(),
                 redirect_response_secrets: payload.redirect_response_secrets.clone(),
+                connector_feature_data: payload.connector_feature_data.clone(),
             };
 
         // Create tonic request with metadata
@@ -1277,13 +1292,21 @@ where
         tonic::Response<grpc_api_types::payments::CompositeVerifyRedirectResponseResponse>,
         tonic::Status,
     > {
-        let (metadata, extensions, payload) = request.into_parts();
+        let (metadata, extensions, mut payload) = request.into_parts();
         let connector =
             connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
 
         let verify_response = self
             .verify_redirect_response(&payload, &metadata, &extensions)
             .await?;
+
+        // `process_redirect_response` folds the redirect callback (e.g. the OAuth `code`)
+        // into `connector_feature_data`. Carry that forward on the payload so the
+        // post-redirect token/authorize steps see it via the normal
+        // `connector_feature_data` channel — same as the initial authorize flow.
+        if verify_response.connector_feature_data.is_some() {
+            payload.connector_feature_data = verify_response.connector_feature_data.clone();
+        }
 
         let connector_data = ConnectorData::<
             domain_types::payment_method_data::DefaultPCIHolder,
@@ -1374,8 +1397,7 @@ where
         tonic::Response<grpc_api_types::payments::CompositeVerifyRedirectResponseResponse>,
         tonic::Status,
     > {
-        self.process_composite_verify_redirect_response(request)
-            .await
+        Box::pin(self.process_composite_verify_redirect_response(request)).await
     }
 }
 

@@ -290,6 +290,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     | WalletData::ApplePayRedirect(_)
                     | WalletData::ApplePayThirdPartySdk(_)
                     | WalletData::DanaRedirect {}
+                    | WalletData::GrabpayRedirect {}
                     | WalletData::GooglePayRedirect(_)
                     | WalletData::GooglePayThirdPartySdk(_)
                     | WalletData::MbWayRedirect(_)
@@ -315,6 +316,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     | WalletData::CashfreeRedirect(_)
                     | WalletData::PayURedirect(_)
                     | WalletData::EaseBuzzRedirect(_)
+                    | WalletData::PaymayaRedirect(_)
                     | WalletData::QwikcilverWalletDirect(_)
                     | WalletData::Skrill(_) => {
                         Err(error_stack::report!(IntegrationError::NotSupported {
@@ -2202,7 +2204,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     Some(common_enums::BankType::Transmission)
                     | Some(common_enums::BankType::Current)
                     | Some(common_enums::BankType::Bond)
-                    | Some(common_enums::BankType::SubscriptionShare) => {
+                    | Some(common_enums::BankType::SubscriptionShare)
+                    | Some(common_enums::BankType::Salary)
+                    | Some(common_enums::BankType::Payment) => {
                         return Err(error_stack::report!(IntegrationError::NotSupported {
                             message:
                                 domain_types::utils::get_unimplemented_payment_method_error_message(
@@ -2505,6 +2509,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::ApplePayRedirect(_)
                 | WalletData::ApplePayThirdPartySdk(_)
                 | WalletData::DanaRedirect {}
+                | WalletData::GrabpayRedirect {}
                 | WalletData::GooglePayRedirect(_)
                 | WalletData::GooglePayThirdPartySdk(_)
                 | WalletData::MbWayRedirect(_)
@@ -2529,6 +2534,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::CashfreeRedirect(_)
                 | WalletData::PayURedirect(_)
                 | WalletData::EaseBuzzRedirect(_)
+                | WalletData::PaymayaRedirect(_)
                 | WalletData::QwikcilverWalletDirect(_)
                 | WalletData::Skrill(_) => {
                     Err(error_stack::report!(IntegrationError::NotSupported {
@@ -3329,6 +3335,10 @@ impl TryFrom<ResponseRouterData<CybersourcePaymentsIncrementalAuthorizationRespo
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..item.router_data
             });
@@ -3597,6 +3607,10 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     }),
                     resource_common_data: PaymentFlowData {
                         status: common_enums::AttemptStatus::AuthenticationFailed,
@@ -3920,6 +3934,10 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 });
                 Ok(Self {
                     response,
@@ -4210,6 +4228,10 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 });
                 Ok(Self {
                     response,
@@ -4853,6 +4875,10 @@ impl ForeignTryFrom<&Response> for ErrorResponse {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     }
 }
@@ -4957,6 +4983,10 @@ pub fn get_error_response(
         network_advice_code,
         network_decline_code,
         network_error_message: None,
+        typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
     }
 }
 

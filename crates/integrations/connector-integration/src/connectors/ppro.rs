@@ -112,6 +112,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         with_error_response_body!(event_builder, response);
 
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.status.to_string(),
@@ -122,6 +124,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     }
 }
@@ -402,6 +408,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn process_redirect_response(
         &self,
         request: &RequestDetails,
+        _connector_feature_data: Option<&hyperswitch_masking::Secret<String>>,
     ) -> CustomResult<RedirectDetailsResponse, IntegrationError> {
         let charge_id = request.query_params.as_deref().and_then(|qs| {
             url::form_urlencoded::parse(qs.as_bytes())
@@ -418,6 +425,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             error_reason: None,
             response_amount: None,
             raw_connector_response: None,
+            connector_feature_data: None,
         })
     }
 }
