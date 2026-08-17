@@ -427,6 +427,7 @@ pub struct Connectors {
     pub grabpay: ConnectorParams,
     pub tesouro: ConnectorParams,
     pub santander: ConnectorParams,
+    pub worldpayraft: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]

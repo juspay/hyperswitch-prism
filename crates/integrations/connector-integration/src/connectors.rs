@@ -299,3 +299,6 @@ pub mod grabpay;
 pub use self::grabpay::Grabpay;
 pub mod tesouro;
 pub use self::tesouro::Tesouro;
+
+pub mod worldpayraft;
+pub use self::worldpayraft::Worldpayraft;
