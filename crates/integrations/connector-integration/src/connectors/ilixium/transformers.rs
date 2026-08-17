@@ -267,7 +267,7 @@ pub struct IlixiumAddress {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub postcode: Option<Secret<String>>,
     /// Always mandatory, even when the account is configured for Optional Address.
-    pub country: common_enums::CountryAlpha2,
+    pub country: common_enums::CountryAlpha3,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -289,12 +289,9 @@ pub struct IlixiumCustomer {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct IlixiumPaymentInfo {
-    /// ISO 3166 country of origin of the transaction.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub country: Option<common_enums::CountryAlpha2>,
     /// Cardholder browser IP — recommended by Ilixium whenever 3-D Secure is in play.
-    #[serde(rename = "ipAddress", skip_serializing_if = "Option::is_none")]
-    pub ip_address: Option<Secret<String>>,
+    #[serde(rename = "ipAddress")]
+    pub ip_address: Secret<String>,
 }
 
 /// Mandatory when the merchant's account performs 3-D Secure; ignored (but harmless) when the
@@ -619,6 +616,7 @@ pub(super) fn build_ilixium_payments_request<T: PaymentMethodDataTypes + std::fm
             },
         })
     })?;
+    let country = common_enums::CountryAlpha2::from_alpha2_to_alpha3(country);
 
     let email = inputs
         .email
@@ -680,14 +678,10 @@ pub(super) fn build_ilixium_payments_request<T: PaymentMethodDataTypes + std::fm
         None
     };
 
-    // `paymentInfo.country` is the country of origin of the transaction and
-    // `paymentInfo.ipAddress` is the cardholder's browser IP, which Ilixium recommends
-    // whenever 3-D Secure is in play. Both are optional, so the block is emitted whenever
-    // either value is known.
-    let payment_info = Some(IlixiumPaymentInfo {
-        country: Some(country),
-        ip_address,
-    });
+    // Emitted only when the browser IP is known — `ipAddress` is the block's sole field, so
+    // without it there is nothing to send and an empty `paymentInfo: {}` would be noise. See the
+    // struct docs for why `country` is deliberately absent.
+    let payment_info = ip_address.map(|ip_address| IlixiumPaymentInfo { ip_address });
 
     Ok(IlixiumPaymentsRequest {
         version: ILIXIUM_MESSAGE_VERSION,
