@@ -14,8 +14,8 @@ use domain_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
         ConnectorSpecificClientAuthenticationResponse,
         DatatransClientAuthenticationResponse as DatatransClientAuthenticationResponseDomain,
-        DatatransConnectorMetadataData, MandateReference, MandateReferenceId, PaymentFlowData,
-        PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
+        MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
@@ -282,61 +282,51 @@ pub struct DatatransPaymentsRequest<
     pub mcp: Option<MCPData>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct ConnectorIntentMetadata {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub datatrans: Option<MCPData>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MCPData {
     /// The targeted currency.
     pub currency: Currency,
     /// The amount in the targeted currency.
-    pub amount: i64,
+    pub amount: MinorUnit,
     /// Conversion rate received from the currency rates endpoint. Required for dynamic MCP.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "conversion_rate", skip_serializing_if = "Option::is_none")]
     pub conversion_rate: Option<f64>,
     /// Transaction datetime received from the currency rates endpoint.
     #[serde(
+        alias = "transaction_date",
         skip_serializing_if = "Option::is_none",
+        deserialize_with = "common_utils::custom_serde::iso8601::option::deserialize",
         serialize_with = "serialize_transaction_date_as_rfc3339"
     )]
     pub transaction_date: Option<PrimitiveDateTime>,
     /// RetrievalReferenceNumber received from the currency rates endpoint.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(
+        alias = "retrieval_reference_number",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub retrieval_reference_number: Option<String>,
+    #[serde(alias = "user_id")]
     pub user_id: String,
     /// The provider for multi currency processing.
     pub provider: String,
     /// Reason indicator received from the acquirer.
+    #[serde(alias = "reason_indicator")]
     pub reason_indicator: String,
-}
-
-impl From<DatatransConnectorMetadataData> for MCPData {
-    fn from(data: DatatransConnectorMetadataData) -> Self {
-        Self {
-            currency: data.currency,
-            amount: data.amount,
-            conversion_rate: data.conversion_rate,
-            transaction_date: data.transaction_date,
-            retrieval_reference_number: data.retrieval_reference_number,
-            user_id: data.user_id,
-            provider: data.provider,
-            reason_indicator: data.reason_indicator,
-        }
-    }
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CaptureMCPData {
     pub currency: Currency,
-    pub amount: i64,
-}
-
-impl From<&DatatransConnectorMetadataData> for CaptureMCPData {
-    fn from(data: &DatatransConnectorMetadataData) -> Self {
-        Self {
-            currency: data.currency,
-            amount: data.amount,
-        }
-    }
+    pub amount: MinorUnit,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -587,7 +577,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .request
                 .connector_intent_metadata
                 .as_ref()
-                .and_then(|metadata| metadata.peek().datatrans.clone().map(MCPData::from)),
+                .and_then(|metadata| {
+                    match serde_json::from_value::<ConnectorIntentMetadata>(metadata.peek().clone())
+                    {
+                        Ok(metadata) => metadata.datatrans,
+                        Err(error) => {
+                            tracing::error!(
+                                error = ?error,
+                                "Failed to deserialize connector intent metadata"
+                            );
+                            None
+                        }
+                    }
+                }),
         })
     }
 }
@@ -1145,7 +1147,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .request
                 .connector_intent_metadata
                 .as_ref()
-                .and_then(|metadata| metadata.peek().datatrans.clone().map(MCPData::from)),
+                .and_then(|metadata| {
+                    match serde_json::from_value::<ConnectorIntentMetadata>(metadata.peek().clone())
+                    {
+                        Ok(metadata) => metadata.datatrans,
+                        Err(error) => {
+                            tracing::error!(
+                                error = ?error,
+                                "Failed to deserialize connector intent metadata"
+                            );
+                            None
+                        }
+                    }
+                }),
         })
     }
 }
@@ -1556,7 +1570,22 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .request
                 .connector_intent_metadata
                 .as_ref()
-                .and_then(|metadata| metadata.peek().datatrans.as_ref().map(CaptureMCPData::from)),
+                .and_then(|metadata| {
+                    match serde_json::from_value::<ConnectorIntentMetadata>(metadata.peek().clone())
+                    {
+                        Ok(metadata) => metadata.datatrans.map(|data| CaptureMCPData {
+                            currency: data.currency,
+                            amount: data.amount,
+                        }),
+                        Err(error) => {
+                            tracing::error!(
+                                error = ?error,
+                                "Failed to deserialize connector intent metadata"
+                            );
+                            None
+                        }
+                    }
+                }),
         })
     }
 }

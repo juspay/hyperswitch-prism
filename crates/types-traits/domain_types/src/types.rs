@@ -4250,12 +4250,11 @@ impl<
             .clone()
             .map(|m| ForeignTryFrom::foreign_try_from((m, "feature_data")))
             .transpose()?;
-        let connector_intent_metadata: Option<Secret<connector_types::ConnectorIntentMetadata>> =
-            value
-                .connector_intent_metadata
-                .clone()
-                .map(|m| ForeignTryFrom::foreign_try_from((m, "connector_intent_metadata")))
-                .transpose()?;
+        let connector_intent_metadata = value
+            .connector_intent_metadata
+            .clone()
+            .map(|m| ForeignTryFrom::foreign_try_from((m, "connector_intent_metadata")))
+            .transpose()?;
         let merchant_account_id = connector_feature_data
             .as_ref()
             .and_then(|m: &SecretSerdeValue| m.peek().get("merchant_account_id"))

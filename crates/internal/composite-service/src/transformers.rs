@@ -316,7 +316,7 @@ impl
             authentication_data,
             metadata: item.metadata.clone(),
             connector_feature_data,
-            connector_intent_metadata: None,
+            connector_intent_metadata: item.connector_intent_metadata.clone(),
             return_url: item.return_url.clone(),
             webhook_url: item.webhook_url.clone(),
             complete_authorize_url: item.complete_authorize_url.clone(),
@@ -814,7 +814,7 @@ impl
             merchant_request_id: item.merchant_request_id.clone(),
             order_tax_amount: item.order_tax_amount,
             split_payments: item.split_payments.clone(),
-            connector_intent_metadata: None,
+            connector_intent_metadata: item.connector_intent_metadata.clone(),
         }
     }
 }
@@ -1118,7 +1118,7 @@ impl
             authentication_data: request.authentication_data.clone(),
             metadata: request.metadata.clone(),
             connector_feature_data: request.connector_feature_data.clone(),
-            connector_intent_metadata: None,
+            connector_intent_metadata: request.connector_intent_metadata.clone(),
             return_url: request.return_url.clone(),
             webhook_url: request.webhook_url.clone(),
             complete_authorize_url: request.complete_authorize_url.clone(),

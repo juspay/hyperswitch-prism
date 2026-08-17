@@ -759,55 +759,6 @@ pub struct RawConnectorStatus {
     pub reason: Option<String>,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct ConnectorIntentMetadata {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub datatrans: Option<DatatransConnectorMetadataData>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct DatatransConnectorMetadataData {
-    /// The targeted currency.
-    pub currency: Currency,
-    /// The amount in the targeted currency.
-    pub amount: i64,
-    /// Conversion rate received from the currency rates endpoint. Required for dynamic MCP.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub conversion_rate: Option<f64>,
-    /// Transaction datetime received from the currency rates endpoint.
-    #[serde(
-        // default,
-        skip_serializing_if = "Option::is_none",
-        with = "common_utils::custom_serde::iso8601::option"
-    )]
-    pub transaction_date: Option<PrimitiveDateTime>,
-    /// RetrievalReferenceNumber received from the currency rates endpoint.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub retrieval_reference_number: Option<String>,
-    pub user_id: String,
-    /// The provider for multi currency processing.
-    pub provider: String,
-    /// Reason indicator received from the acquirer.
-    pub reason_indicator: String,
-}
-
-impl ForeignTryFrom<(Secret<String>, &'static str)> for Secret<ConnectorIntentMetadata> {
-    type Error = IntegrationError;
-
-    fn foreign_try_from(
-        (metadata, field_name): (Secret<String>, &'static str),
-    ) -> Result<Self, error_stack::Report<Self::Error>> {
-        let raw = metadata.expose();
-        serde_json::from_str(&raw).map(Secret::new).change_context(
-            IntegrationError::InvalidDataFormat {
-                field_name,
-                context: IntegrationErrorContext::default(),
-            },
-        )
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct PaymentFlowData {
     pub merchant_id: common_utils::id_type::MerchantId,
@@ -1713,7 +1664,7 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub enable_overcapture: Option<bool>,
     pub setup_mandate_details: Option<MandateData>,
     pub connector_feature_data: Option<SecretSerdeValue>,
-    pub connector_intent_metadata: Option<Secret<ConnectorIntentMetadata>>,
+    pub connector_intent_metadata: Option<SecretSerdeValue>,
     pub connector_testing_data: Option<SecretSerdeValue>,
     pub payment_channel: Option<PaymentChannel>,
     pub enable_partial_authorization: Option<bool>,
@@ -3490,7 +3441,7 @@ pub struct PaymentsCaptureData {
     pub connector_transaction_id: ResponseId,
     pub multiple_capture_data: Option<MultipleCaptureRequestData>,
     pub connector_feature_data: Option<SecretSerdeValue>,
-    pub connector_intent_metadata: Option<Secret<ConnectorIntentMetadata>>,
+    pub connector_intent_metadata: Option<SecretSerdeValue>,
     pub integrity_object: Option<CaptureIntegrityObject>,
     pub browser_info: Option<BrowserInformation>,
     pub capture_method: Option<common_enums::CaptureMethod>,
@@ -3664,7 +3615,7 @@ pub struct RepeatPaymentData<T: PaymentMethodDataTypes> {
     pub connector_testing_data: Option<SecretSerdeValue>,
     pub merchant_account_id: Option<Secret<String>>,
     pub merchant_configured_currency: Option<Currency>,
-    pub connector_intent_metadata: Option<Secret<ConnectorIntentMetadata>>,
+    pub connector_intent_metadata: Option<SecretSerdeValue>,
     pub additional_payment_data: Option<AdditionalPaymentData>,
     /// Partner / merchant application identifiers (e.g. Adyen applicationInfo).
     pub partner_merchant_identifier_details: Option<PartnerMerchantIdentifierDetails>,
