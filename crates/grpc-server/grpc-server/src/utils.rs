@@ -296,34 +296,6 @@ where
     current_span.record("merchant_id", merchant_id);
     current_span.record("tenant_id", tenant_id);
     current_span.record("request_id", request_id);
-
-    // Standard request identifiers (order id / customer id / transaction id) surfaced as flat
-    // span fields so the log-field mapping can source them by flat key (it cannot reach into
-    // `request_body`), without declaring them on every handler's `#[instrument]`.
-    if let Some(ids) = masked_body.as_ref().map(|body| {
-        [
-            (
-                "merchant_order_id",
-                body.get("merchant_order_id").and_then(Value::as_str),
-            ),
-            (
-                "customer_id",
-                body.get("customer")
-                    .and_then(|customer| customer.get("id"))
-                    .and_then(Value::as_str),
-            ),
-            (
-                "merchant_transaction_id",
-                body.get("merchant_transaction_id").and_then(Value::as_str),
-            ),
-        ]
-    }) {
-        record_json_fields_on_span(
-            ids.into_iter()
-                .filter_map(|(key, value)| value.map(|value| (key, Value::from(value))))
-                .collect(),
-        );
-    }
     tracing::info!("Golden Log Line (incoming - request)");
     Ok(())
 }
