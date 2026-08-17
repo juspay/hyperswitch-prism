@@ -136,7 +136,7 @@
             "via": "HyperSwitch",
             "x-merchant-digest": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA=="
           },
-          "body": "{\"version\":2,\"deferredCapture\":false,\"transaction\":{\"transactionType\":\"ECOMMERCE\",\"merchantRef\":\"probe_txn_001\",\"amount\":\"1000\",\"currency\":\"USD\"},\"paymentMethodType\":\"CARD\",\"merchant\":{\"merchantId\":\"probe_key\",\"accountId\":\"probe_key\"},\"card\":{\"cardNumber\":\"4111111111111111\",\"expiryDate\":\"032030\",\"securityCode\":\"737\"},\"customer\":{\"customerId\":\"probe_txn_001\",\"email\":\"test@example.com\",\"firstName\":\"John\",\"surname\":\"Doe\",\"address\":{\"country\":\"US\"}},\"paymentInfo\":{\"country\":\"US\"}}"
+          "body": "{\"version\":2,\"deferredCapture\":false,\"transaction\":{\"transactionType\":\"ECOMMERCE\",\"merchantRef\":\"probe_txn_001\",\"amount\":\"1000\",\"currency\":\"USD\"},\"paymentMethodType\":\"CARD\",\"merchant\":{\"merchantId\":\"probe_key\",\"accountId\":\"probe_key\"},\"card\":{\"cardNumber\":\"4111111111111111\",\"expiryDate\":\"032030\",\"securityCode\":\"737\"},\"customer\":{\"customerId\":\"probe_txn_001\",\"email\":\"test@example.com\",\"firstName\":\"John\",\"surname\":\"Doe\",\"address\":{\"country\":\"USA\"}}}"
         }
       },
       "CashappQr": {
@@ -674,7 +674,7 @@
             "via": "HyperSwitch",
             "x-merchant-digest": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA=="
           },
-          "body": "{\"version\":2,\"deferredCapture\":false,\"transaction\":{\"transactionType\":\"ECOMMERCE\",\"merchantRef\":\"probe_proxy_txn_001\",\"amount\":\"1000\",\"currency\":\"USD\"},\"paymentMethodType\":\"CARD\",\"merchant\":{\"merchantId\":\"probe_key\",\"accountId\":\"probe_key\"},\"card\":{\"cardNumber\":\"{{$card_number}}\",\"expiryDate\":\"032030\",\"securityCode\":\"{{$card_cvc}}\"},\"customer\":{\"customerId\":\"probe_proxy_txn_001\",\"email\":\"test@example.com\",\"firstName\":\"John\",\"surname\":\"Doe\",\"address\":{\"country\":\"US\"}},\"paymentInfo\":{\"country\":\"US\"}}"
+          "body": "{\"version\":2,\"deferredCapture\":false,\"transaction\":{\"transactionType\":\"ECOMMERCE\",\"merchantRef\":\"probe_proxy_txn_001\",\"amount\":\"1000\",\"currency\":\"USD\"},\"paymentMethodType\":\"CARD\",\"merchant\":{\"merchantId\":\"probe_key\",\"accountId\":\"probe_key\"},\"card\":{\"cardNumber\":\"{{$card_number}}\",\"expiryDate\":\"032030\",\"securityCode\":\"{{$card_cvc}}\"},\"customer\":{\"customerId\":\"probe_proxy_txn_001\",\"email\":\"test@example.com\",\"firstName\":\"John\",\"surname\":\"Doe\",\"address\":{\"country\":\"USA\"}}}"
         }
       }
     },
