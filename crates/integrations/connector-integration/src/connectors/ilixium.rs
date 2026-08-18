@@ -130,9 +130,6 @@ const REFUND_ENDPOINT: &str = "/direct/refund";
 /// `/direct/` like every other endpoint above.
 const HISTORY_OPERATIONS_ENDPOINT: &str = "/history/operations";
 
-// =============================================================================
-// CONNECTOR COMMON IMPLEMENTATION
-// =============================================================================
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorCommon
     for Ilixium<T>
 {
@@ -152,16 +149,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         connectors.ilixium.base_url.as_ref()
     }
 
-    // NOTE: Ilixium has no static auth header. Every request is authenticated with
-    // `X-MERCHANT-DIGEST`, a two-round SHA-512/Base64 digest over the *exact* request body
-    // salted with the merchant's Digest Calculation Password — a value this trait method
-    // cannot compute, because it never sees the body. The real header is built in
-    // `build_headers` below, which every flow's `get_headers` delegates to. Merchant identity
-    // travels in the body (`merchant.merchantId` / `merchant.accountId`), not in a header.
-    //
-    // This impl exists only to satisfy the trait. It still resolves the auth type so a
-    // misconfigured merchant account fails loudly here rather than silently sending an
-    // unauthenticated request, and it deliberately returns no headers.
     fn get_auth_header(
         &self,
         auth_type: &ConnectorSpecificConfig,
@@ -170,10 +157,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         Ok(Vec::new())
     }
 
-    // Reached only for genuine transport/infrastructure failures: Ilixium answers HTTP 200
-    // for every documented business outcome, so declines and validation rejections are
-    // handled by the Authorize response mapping, not here. A non-2xx body is therefore most
-    // likely an intermediary (proxy/WAF/gateway) response, which may not be JSON at all.
     fn build_error_response(
         &self,
         res: Response,
@@ -244,24 +227,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     }
 }
 
-// =============================================================================
-// BODY DECODING IMPLEMENTATION
-// =============================================================================
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> BodyDecoding
     for Ilixium<T>
 {
 }
 
-// =============================================================================
-// AMOUNT CONVERTER
-// =============================================================================
-// `transaction.amount` is the minor-unit value, digits only, and the schema types it as a
-// JSON string (`^[\d]{1,12}$`).
 macros::create_amount_converter_wrapper!(connector_name: Ilixium, amount_type: StringMinorUnit);
 
-// =============================================================================
-// PREREQUISITES: struct, flow bridges, shared digest/header helpers
-// =============================================================================
 macros::create_all_prerequisites!(
     connector_name: Ilixium,
     generic_type: T,
@@ -305,10 +277,6 @@ macros::create_all_prerequisites!(
         ),
         (
             flow: RSync,
-            // The same `/history/operations` message PSync sends and parses, under its own idents:
-            // `create_all_prerequisites!` mints one `<Ident>Templating` marker struct per named
-            // request/response ident, so naming IlixiumHistoryRequest/Response on a second flow
-            // would define those markers twice. See `transformers::IlixiumRefundHistoryRequest`.
             request_body: IlixiumRefundHistoryRequest,
             response_body: IlixiumRefundHistoryResponse,
             router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
@@ -345,9 +313,6 @@ macros::create_all_prerequisites!(
         {
             let method = self.get_http_method();
             let body = match method {
-                // Every in-scope Ilixium endpoint is a POST; the digest covers the body only
-                // (no headers, no URL, no timestamp, no nonce), so a bodyless method digests
-                // the empty string.
                 Method::Get => String::default(),
                 Method::Post | Method::Put | Method::Delete | Method::Patch => self
                     .get_request_body(req)?
@@ -406,9 +371,6 @@ macros::create_all_prerequisites!(
     }
 );
 
-// =============================================================================
-// AUTHORIZE — POST /direct/auth, and POST /direct/threedcomplete on the 3DS return leg
-// =============================================================================
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Ilixium,
@@ -432,8 +394,6 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, errors::IntegrationError> {
-            // Same gate as the request-body builder in transformers.rs, so the endpoint and
-            // the payload always describe the same leg of the 3DS flow.
             let endpoint = if ilixium::is_three_ds_completion(&req.request) {
                 THREE_DS_COMPLETE_ENDPOINT
             } else {
@@ -444,26 +404,6 @@ macros::macro_connector_implementation!(
     }
 );
 
-// =============================================================================
-// PRE-AUTHENTICATE — POST /direct/auth (the 3DS first leg)
-// =============================================================================
-// Same endpoint and same body as the Authorize first leg — Ilixium has exactly one authorisation
-// call. The split exists so the flow name matches what the call does: this leg initiates the
-// payment and may come back with an ACS challenge, and the follow-up `/direct/threedcomplete`
-// then runs as `Authorize`.
-//
-// The thing to understand here is that this leg is **terminal in two of its three outcomes**.
-// Ilixium decides at response time whether a challenge is needed, so `/direct/auth` answers:
-//
-// * `SUCCESS` when the account is not 3DS-enabled or the card is not enrolled / authenticates
-//   frictionlessly — the payment is charged and there is no second leg;
-// * `PENDING` + ACS data when a challenge is required — the only case with a second leg;
-// * `DECLINED` / `REJECTED` on failure.
-//
-// A second `/direct/auth` after a terminal outcome would be rejected with response code 102,
-// "Duplicate Merchant Ref" (or double-charge if the reference differed). Nothing here guards
-// against that because nothing has to: HS's `should_continue` after PreAuthenticate defaults to
-// `false`, so it finalises the attempt from this response and never runs the follow-up Authorize.
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Ilixium,
@@ -492,13 +432,6 @@ macros::macro_connector_implementation!(
     }
 );
 
-// =============================================================================
-// CAPTURE — POST /direct/capture
-// =============================================================================
-// Completes a deferred-capture authorisation (one sent with `deferredCapture: true`, whose
-// response `type` was `AUTH`). The capture is bound to the original payment by
-// `transaction.merchantRef` — the *authorisation's* reference, not a gateway id — which is
-// why the body carries no transaction identifier of its own and the URL is a bare endpoint.
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Ilixium,
@@ -527,14 +460,6 @@ macros::macro_connector_implementation!(
     }
 );
 
-// =============================================================================
-// VOID (REVERSAL) — POST /direct/reversal
-// =============================================================================
-// Ilixium's void. A *separate* endpoint — not a capture for zero — whose body is
-// field-for-field identical to the capture body, and which is likewise bound to the payment by
-// `transaction.merchantRef` (the original authorisation's reference) rather than a gateway id,
-// so the URL is a bare endpoint. Partial reversals are rejected with response code 142, which
-// is why `IlixiumVoidRequest` refuses to build a body without a caller-supplied amount.
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Ilixium,
@@ -563,22 +488,6 @@ macros::macro_connector_implementation!(
     }
 );
 
-// =============================================================================
-// PSYNC — POST /history/operations
-// =============================================================================
-// Not a status lookup: Ilixium publishes none. This posts a `<= 24h` window and receives every
-// operation the merchant account recorded in it, which `IlixiumHistoryResponse::
-// latest_payment_operation` then filters down to this payment by `transaction.merchantRef` —
-// the request itself has nowhere to put a payment identifier (its four properties are the two
-// period bounds, `merchant` and `reportFormat`).
-//
-// Three consequences worth flagging at the call site:
-//
-// * it is a **POST with a body**, unlike the GET-based PSync most connectors have, so
-//   `curl_request` is present and `build_headers` digests the body as usual;
-// * the URL is *not* under `/direct/`;
-// * the response envelope is a genuinely different schema from `paymentResponse`, which is why
-//   `IlixiumHistoryResponse` is a new type rather than an alias.
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Ilixium,
@@ -607,25 +516,6 @@ macros::macro_connector_implementation!(
     }
 );
 
-// =============================================================================
-// REFUND — POST /direct/refund
-// =============================================================================
-// The **first** flow on this connector built on `RefundFlowData` rather than `PaymentFlowData`,
-// which is what forces the two differences from Capture/Void that are not visible in the body
-// shape (identical to theirs — `version`, `transaction`, `merchant`):
-//
-// * the URL is built with `connector_base_url_refunds`, the `RefundFlowData` counterpart of the
-//   payments helper — one host serves everything, but the common-data type differs;
-// * the original payment's `merchantRef` cannot come from
-//   `resource_common_data.connector_request_reference_id` the way Capture and Void source
-//   theirs, because on this flow UCS populates that field from `merchant_refund_id` — the
-//   *refund's* reference. See `transformers::resolve_original_merchant_ref`.
-//
-// Only variant A (a refund referencing a previous transaction) is implemented; the standalone
-// variant is account-gated. The payment must already be captured — an uncaptured authorisation
-// yields response code 111 and must be reversed via Void instead. Partial refunds are supported
-// and accumulate up to the original amount (code 125 once the *total* would exceed it, 124 once
-// it is fully refunded).
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Ilixium,
@@ -643,9 +533,6 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
-            // `build_headers` is generic over the flow-common-data type precisely so the refund
-            // flows can reuse it: the X-MERCHANT-DIGEST is computed from the serialised body
-            // alone and knows nothing about which flow produced it.
             self.build_headers(req)
         }
         fn get_url(
@@ -657,23 +544,6 @@ macros::macro_connector_implementation!(
     }
 );
 
-// =============================================================================
-// RSYNC — POST /history/operations
-// =============================================================================
-// **The same endpoint, the same request body and the same response envelope as PSync**, because
-// Ilixium publishes no refund-status endpoint at all and no lookup by refund id: the bulk,
-// time-windowed report is the only query the Direct API offers. Only the client-side filter over
-// `operation[]` differs — RSync selects entries whose `transaction.merchantRef` is the **original
-// payment's** and whose `type` is `REFUND`, never `CREDIT` (a /direct/credit payout is not a
-// refund). See `transformers::IlixiumHistoryResponse::match_refund_operation`.
-//
-// Two things distinguish this block from the PSync one:
-//
-// * it is built on `RefundFlowData`, so the URL uses `connector_base_url_refunds`;
-// * the original payment's `merchantRef` is resolved from `RefundSyncData` — never from
-//   `RefundFlowData::connector_request_reference_id`, which UCS populates from
-//   `merchant_refund_id` and which therefore identifies the *refund*. Exactly the trap the Refund
-//   flow had to avoid; both go through `transformers::resolve_original_merchant_ref`.
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Ilixium,
@@ -702,88 +572,51 @@ macros::macro_connector_implementation!(
     }
 );
 
-// =============================================================================
-// TRAIT REGISTRATION
-// =============================================================================
-// ===== CONNECTOR SERVICE TRAIT IMPLEMENTATION =====
-// Aggregate trait - composes all other connector traits.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Ilixium<T>
 {
 }
 
-// ===== FLOW MARKER TRAIT IMPLEMENTATIONS =====
-// Required by ConnectorServiceTrait's supertrait bounds; not auto-generated by
-// create_all_prerequisites! itself.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Ilixium<T>
 {
 }
 
-// `PaymentPreAuthenticateV2<T>` is generic over the payment-method data type, like
-// `PaymentAuthorizeV2<T>`. Written out here now that the 3DS first leg is implemented for real
-// against `POST /direct/auth` and has left `macro_connector_flow_status_impls!`'s
-// `not_supported` list.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentPreAuthenticateV2<T> for Ilixium<T>
 {
 }
 
-// `PaymentCapture` — unlike `PaymentAuthorizeV2<T>` — is not generic over the payment-method
-// data type. It was previously emitted by `macro_connector_flow_status_impls!`; now that
-// Capture is implemented for real it has left that macro's `not_implemented` list, so the
-// marker impl is written out here.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Ilixium<T>
 {
 }
 
-// `PaymentVoidV2` is likewise non-generic over the payment-method data type. Now that Void is
-// implemented for real it has left `macro_connector_flow_status_impls!`'s `not_implemented`
-// list, so the marker impl is written out here.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Ilixium<T>
 {
 }
 
-// `PaymentSyncV2` — non-generic over the payment-method data type, like the two above. Written
-// out here now that PSync is implemented against `POST /history/operations` and has left
-// `macro_connector_flow_status_impls!`'s `not_implemented` list.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Ilixium<T>
 {
 }
 
-// `RefundV2` — non-generic over the payment-method data type, like the three above. Written out
-// here now that Refund is implemented against `POST /direct/refund` and has left
-// `macro_connector_flow_status_impls!`'s `not_implemented` list.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Ilixium<T>
 {
 }
 
-// `RefundSyncV2` — non-generic over the payment-method data type, like the four above. Written out
-// here now that RSync is implemented against `POST /history/operations` (the same query PSync
-// uses, filtered to `type == REFUND`) and has left `macro_connector_flow_status_impls!`'s
-// `not_implemented` list.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Ilixium<T>
 {
 }
 
-// ===== BASE (NON-FLOW) TRAIT IMPLEMENTATIONS =====
-// These are simple marker traits that are NOT flows and therefore have no arm
-// in expand_flow_status_impl!. They must be impl'd manually.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Ilixium<T>
 {
 }
 
-// ===== INCOMING WEBHOOK IMPLEMENTATION =====
-// The Ilixium Direct API is fully synchronous for card payments: the outcome of
-// /direct/auth (or /direct/threedcomplete for 3DS) is returned inline in the HTTP
-// response, and the vendor documents no notification callback for this surface. The
-// default no-op implementation is therefore the correct one.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for Ilixium<T>
 {
@@ -794,37 +627,22 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-// ===== SOURCE VERIFICATION IMPLEMENTATION =====
-// Non-generic marker trait required by VerifyRedirectResponse for webhook
-// signature verification.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     interfaces::verification::SourceVerification for Ilixium<T>
 {
 }
 
-// ===== PAYOUT TRAIT IMPLEMENTATIONS =====
-// Emits payout marker-trait impls and default no-op ConnectorIntegrationV2
-// impls for all PayoutXxxV2 flows.
 crate::connectors::macros::macro_connector_payout_implementation!(
     connector: Ilixium,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize]
 );
 
-// ===== FLOW STATUS IMPLEMENTATIONS =====
-// `not_implemented` = Ilixium documents an API for it, this pass just doesn't cover it.
-// `not_supported`   = the documented Direct API has no equivalent concept at all.
-//
-// All six core flows — Authorize, Capture, Void, PSync, Refund and RSync — are implemented for
-// real above and appear in neither list.
 crate::connectors::macros::macro_connector_flow_status_impls!(
     connector: Ilixium,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     not_implemented: [
-        // Card tokens are returned on every payment attempt
-        // (paymentHistory.paymentAttempt[].token) and can drive stored-card payments;
-        // tokenization-as-a-flow and mandates/MIT are out of scope here.
         PaymentMethodToken,
         SetupMandate,
         RepeatPayment
@@ -833,24 +651,15 @@ crate::connectors::macros::macro_connector_flow_status_impls!(
         VoidPC,
         VoidPostRefund,
         IncrementalAuthorization,
-        // Ilixium has no order/intent object to create before authorising, and no
-        // customer-object endpoint: customer.customerId is merchant-supplied and travels
-        // inline in the authorisation body.
         CreateOrder,
         CreateConnectorCustomer,
         GetConnectorCustomer,
         MandateRevoke,
-        // 3-D Secure is performed by the platform inside /direct/auth +
-        // /direct/threedcomplete, not through standalone authentication endpoints. The first
-        // of those two runs as `PreAuthenticate` (implemented above); there is no separate
-        // authentication call for `Authenticate`/`PostAuthenticate` to model, because
-        // /direct/threedcomplete settles the payment and therefore runs as `Authorize`.
         Authenticate,
         PostAuthenticate,
         ServerAuthenticationToken,
         ServerSessionAuthenticationToken,
         ClientAuthenticationToken,
-        // The Direct API publishes no dispute/chargeback surface.
         Accept,
         SubmitEvidence,
         DefendDispute

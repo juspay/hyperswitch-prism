@@ -41,10 +41,6 @@ const CHALLENGE_WINDOW_SIZE_FULL_SCREEN: &str = "05";
 /// The colour depths Ilixium accepts (`^1$|^4$|^8$|^15$|^16$|^24$|^32$|^48$`).
 const ACCEPTED_COLOR_DEPTHS: [u8; 8] = [1, 4, 8, 15, 16, 24, 32, 48];
 
-// =============================================================================
-// AUTH
-// =============================================================================
-
 #[derive(Debug, Clone)]
 pub struct IlixiumAuthType {
     pub merchant_password: Secret<String>,
@@ -123,10 +119,6 @@ impl IlixiumAuthType {
     }
 }
 
-// =============================================================================
-// merchantRef derivation
-// =============================================================================
-
 /// Whether a value already satisfies Ilixium's `transaction.merchantRef` pattern
 /// (`^(?!.*£)[\w]{4,20}$`) and can therefore be sent verbatim.
 ///
@@ -197,10 +189,6 @@ pub fn derive_merchant_ref(
         .take(MERCHANT_REF_MAX_LEN)
         .collect())
 }
-
-// =============================================================================
-// SHARED REQUEST TYPES
-// =============================================================================
 
 #[derive(Debug, Clone, Copy, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -329,10 +317,6 @@ pub struct IlixiumBrowserDetails {
     pub challenge_window_size: String,
 }
 
-// =============================================================================
-// AUTHORIZE REQUEST (both legs)
-// =============================================================================
-
 /// Untagged request body for the Authorize flow.
 ///
 /// Leg 1 (`Auth`) is `POST /direct/auth`; leg 2 (`ThreeDsComplete`) is
@@ -398,10 +382,6 @@ pub fn is_three_ds_completion<T: PaymentMethodDataTypes>(
 ) -> bool {
     request.redirect_response.is_some()
 }
-
-// =============================================================================
-// REQUEST BUILDERS
-// =============================================================================
 
 /// `customer.dateOfBirth` is schema-mandatory (`ddmmyyyy`) but has no home in the UCS payment
 /// model (tech spec UNDECIDED #1). Rather than fabricate a placeholder date — which would be
@@ -566,7 +546,6 @@ pub(super) fn build_ilixium_payments_request<T: PaymentMethodDataTypes + std::fm
     let card = match inputs.payment_method_data {
         PaymentMethodData::Card(card_data) => IlixiumCard {
             card_number: card_data.card_number.clone(),
-            // Ilixium wants MMyyyy with no separator, e.g. `012030`.
             expiry_date: Secret::new(format!(
                 "{}{}",
                 card_data.get_card_expiry_month_2_digit()?.peek(),
@@ -637,11 +616,6 @@ pub(super) fn build_ilixium_payments_request<T: PaymentMethodDataTypes + std::fm
 
     let (first_name, surname) = split_customer_name(common, inputs.customer_name)?;
 
-    // `customer.customerId` is mandatory (pattern allows `-`, up to 255 chars), so the UCS
-    // customer id maps across verbatim when present. Ilixium ties a card to a single
-    // customer id (fraud code 121, "Duplicate Card"), which is why the real customer id is
-    // preferred over a per-payment synthetic; the payment reference is only a fallback for
-    // guest checkouts that carry no customer at all (tech spec UNDECIDED #2, options a+b).
     let customer_id = common
         .customer_id
         .as_ref()
@@ -653,9 +627,6 @@ pub(super) fn build_ilixium_payments_request<T: PaymentMethodDataTypes + std::fm
         .and_then(|info| info.ip_address)
         .map(|ip| Secret::new(ip.to_string()));
 
-    // `emvco3ds` is only meaningful on a 3-D Secure authorisation. Ilixium ignores it on
-    // non-3DS accounts, but sending it there would be noise, so it is gated strictly on the
-    // request's authentication type.
     let emvco3ds = if inputs.is_three_ds {
         let browser_info = inputs.browser_info.ok_or_else(|| {
             error_stack::report!(errors::IntegrationError::MissingRequiredField {
@@ -678,9 +649,6 @@ pub(super) fn build_ilixium_payments_request<T: PaymentMethodDataTypes + std::fm
         None
     };
 
-    // Emitted only when the browser IP is known — `ipAddress` is the block's sole field, so
-    // without it there is nothing to send and an empty `paymentInfo: {}` would be noise. See the
-    // struct docs for why `country` is deliberately absent.
     let payment_info = ip_address.map(|ip_address| IlixiumPaymentInfo { ip_address });
 
     Ok(IlixiumPaymentsRequest {
@@ -869,14 +837,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 amount,
                 currency,
                 email: request.email.clone(),
-                // `PaymentsPreAuthenticateData` has no `customer_name`; the billing address is
-                // the only name source on this leg, which `split_customer_name` handles.
                 customer_name: None,
                 metadata: request.metadata.as_ref(),
                 browser_info: request.browser_info.as_ref(),
                 is_auto_capture: request.is_auto_capture()?,
-                // UCS forces `auth_type` to ThreeDs on the PreAuthenticate common data, and this
-                // leg only runs for 3DS payments, so `emvco3ds` is always required here.
                 is_three_ds: true,
             },
             common,
@@ -972,9 +936,6 @@ impl<T: PaymentMethodDataTypes>
             })?
             .expose();
 
-        // The ACS form field names are case-inconsistent across issuers: the spec documents
-        // lowercase `md`/`paRes` on the TermUrl post-back, while the outbound form fields are
-        // `MD`/`PaReq`. Accept the documented casing plus the common variants.
         let pick = |candidates: &[&str], field_name: &'static str| {
             candidates
                 .iter()
@@ -1001,8 +962,6 @@ impl<T: PaymentMethodDataTypes>
         Ok(Self {
             version: ILIXIUM_MESSAGE_VERSION,
             merchant: IlixiumMerchant::from(&auth),
-            // Recomputed from the same reference the original /direct/auth used, so the two
-            // legs always quote an identical merchantRef without needing a persisted mapping.
             transaction: IlixiumThreeDsTransactionRef {
                 merchant_ref: derive_merchant_ref(
                     &router_data
@@ -1020,10 +979,6 @@ impl<T: PaymentMethodDataTypes>
         })
     }
 }
-
-// =============================================================================
-// CAPTURE REQUEST
-// =============================================================================
 
 /// `captureRequest.transaction`.
 ///
@@ -1097,25 +1052,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         Ok(Self {
             version: ILIXIUM_MESSAGE_VERSION,
             transaction: IlixiumCaptureTransaction {
-                // Recomputed from the same `connector_request_reference_id` the original
-                // /direct/auth derived its merchantRef from. `derive_merchant_ref` is
-                // deterministic, so the capture quotes byte-for-byte the reference Ilixium
-                // already knows the payment by — no persisted auth-to-capture mapping needed.
                 merchant_ref: derive_merchant_ref(&common.connector_request_reference_id)?,
                 amount,
-                // The platform rejects a capture whose currency differs from the original
-                // (code 103); UCS carries the payment's own currency through on the capture
-                // request, so it is passed straight across.
                 currency: request.currency,
             },
             merchant: IlixiumMerchant::from(&auth),
         })
     }
 }
-
-// =============================================================================
-// VOID (REVERSAL) REQUEST
-// =============================================================================
 
 /// `reversalRequest.transaction`.
 ///
@@ -1243,13 +1187,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         Ok(Self {
             version: ILIXIUM_MESSAGE_VERSION,
             transaction: IlixiumReversalTransaction {
-                // Recomputed from `connector_request_reference_id` exactly as Capture does.
-                // `derive_merchant_ref` is deterministic, so the reversal quotes byte-for-byte
-                // the reference Ilixium already knows the payment by — provided the caller puts
-                // the *original authorisation's* reference in `merchant_void_id`, which is what
-                // `connector_request_reference_id` is populated from on this flow (the capture
-                // flow has the same requirement on `merchant_capture_id`). A reference that
-                // matches no transaction yields response code 104.
                 merchant_ref: derive_merchant_ref(&common.connector_request_reference_id)?,
                 amount,
                 currency,
@@ -1258,10 +1195,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         })
     }
 }
-
-// =============================================================================
-// REFUND REQUEST
-// =============================================================================
 
 /// `refundRequest.transaction`, **variant A** — a refund that references a previous
 /// transaction.
@@ -1447,8 +1380,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let auth = IlixiumAuthType::try_from(&router_data.connector_config)?;
 
-        // Validated here, at request-build time, purely so the response mapping always has a
-        // fallback id to report for a refund Ilixium has already performed.
         resolve_refund_reference(request, common)?;
 
         let amount = item
@@ -1476,19 +1407,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     &request.connector_transaction_id,
                 )?,
                 amount,
-                // The platform rejects a refund whose currency differs from the original
-                // (code 103). `RefundsData::currency` is the original payment's currency, which
-                // is precisely what is required.
                 currency: request.currency,
             },
             merchant: IlixiumMerchant::from(&auth),
         })
     }
 }
-
-// =============================================================================
-// RESPONSE TYPES
-// =============================================================================
 
 /// Request-level outcome. **Every** business failure is returned as HTTP 200 with one of these
 /// codes, so this — never the HTTP status — is what the connector branches on.
@@ -1849,9 +1773,6 @@ fn map_attempt_status(
         IlixiumStatusCode::Declined | IlixiumStatusCode::Rejected | IlixiumStatusCode::Error => {
             AttemptStatus::Failure
         }
-        // RESUBMISSION appears in the OpenAPI enum but is undocumented; treat it, and any code
-        // this integration does not recognise, as still-in-flight rather than guessing a
-        // terminal outcome.
         IlixiumStatusCode::Resubmission | IlixiumStatusCode::Unknown => AttemptStatus::Pending,
     }
 }
@@ -1866,16 +1787,11 @@ fn map_attempt_status(
 fn map_capture_status(response: &IlixiumPaymentResponse) -> AttemptStatus {
     match response.status.code {
         IlixiumStatusCode::Success => AttemptStatus::Charged,
-        // The platform permits one operation at a time per transaction, so a capture that is
-        // still in flight has been accepted but not settled.
         IlixiumStatusCode::Pending => AttemptStatus::CaptureInitiated,
         IlixiumStatusCode::Cancelled => AttemptStatus::Voided,
         IlixiumStatusCode::Declined | IlixiumStatusCode::Rejected | IlixiumStatusCode::Error => {
             AttemptStatus::CaptureFailed
         }
-        // As in the Authorize mapping: RESUBMISSION is in the OpenAPI enum but undocumented,
-        // so it — and any code this integration does not recognise — is treated as still in
-        // flight rather than as a guessed terminal outcome.
         IlixiumStatusCode::Resubmission | IlixiumStatusCode::Unknown => {
             AttemptStatus::CaptureInitiated
         }
@@ -1892,19 +1808,11 @@ fn map_capture_status(response: &IlixiumPaymentResponse) -> AttemptStatus {
 fn map_void_status(response: &IlixiumPaymentResponse) -> AttemptStatus {
     match response.status.code {
         IlixiumStatusCode::Success => AttemptStatus::Voided,
-        // `CANCELLED` on a reversal envelope is the platform reporting the *transaction* as
-        // cancelled, which is the same end state a successful reversal produces.
         IlixiumStatusCode::Cancelled => AttemptStatus::Voided,
-        // PENDING is not documented for Reversal, but the platform permits one operation at a
-        // time per transaction (code 117), so a reversal still in flight has been accepted
-        // without having released the funds yet.
         IlixiumStatusCode::Pending => AttemptStatus::VoidInitiated,
         IlixiumStatusCode::Declined | IlixiumStatusCode::Rejected | IlixiumStatusCode::Error => {
             AttemptStatus::VoidFailed
         }
-        // As in the Authorize and Capture mappings: RESUBMISSION is in the OpenAPI enum but
-        // undocumented, so it — and any code this integration does not recognise — is treated
-        // as still in flight rather than as a guessed terminal outcome.
         IlixiumStatusCode::Resubmission | IlixiumStatusCode::Unknown => {
             AttemptStatus::VoidInitiated
         }
@@ -2033,20 +1941,11 @@ fn build_void_error_response(
 fn map_refund_status(response: &IlixiumPaymentResponse) -> RefundStatus {
     match response.status.code {
         IlixiumStatusCode::Success => RefundStatus::Success,
-        // PENDING is not documented for Refund. Ilixium permits one operation at a time per
-        // transaction (code 117), so a refund still in flight has been accepted without the
-        // funds having moved yet; RSync reconciles it from /history/operations.
         IlixiumStatusCode::Pending => RefundStatus::Pending,
-        // A refund is a money-out operation that the *merchant* initiates, so `CANCELLED` — "the
-        // customer chose to cancel the transaction" — describes the original payment, not this
-        // refund. Nothing was refunded, and unlike Void there is no end state it coincides with.
         IlixiumStatusCode::Cancelled
         | IlixiumStatusCode::Declined
         | IlixiumStatusCode::Rejected
         | IlixiumStatusCode::Error => RefundStatus::Failure,
-        // As in the three payment mappings: RESUBMISSION is in the OpenAPI enum but undocumented,
-        // so it — and any code this integration does not recognise — is treated as still in
-        // flight rather than as a guessed terminal outcome.
         IlixiumStatusCode::Resubmission | IlixiumStatusCode::Unknown => RefundStatus::Pending,
     }
 }
@@ -2122,9 +2021,6 @@ fn build_refund_error_response(
 
     ErrorResponse {
         status_code: http_code,
-        // As everywhere else in this connector: the machine-readable detail is
-        // status.reasons.reason, and status.code is the coarse bucket used when no reasons are
-        // sent at all.
         code: reason_codes
             .first()
             .cloned()
@@ -2203,9 +2099,6 @@ fn refund_identifier(
          not individually distinguishable at Ilixium until operationRef goes live."
     );
 
-    // Unreachable in practice: `IlixiumRefundRequest::try_from` refuses to build a body without
-    // a refund reference, so a response can only exist when one was present. Kept as a loud
-    // failure rather than an empty id in case that invariant is ever broken.
     refund_reference.ok_or_else(|| {
         error_stack::report!(errors::ConnectorError::ResponseDeserializationFailed {
             context: errors::ResponseTransformationErrorContext {
@@ -2262,9 +2155,6 @@ fn build_three_ds_redirect_form(
             deserialization_error("Ilixium 3DS PENDING response is missing threeDSecurePaReq")
         })?;
 
-    // The ACS posts `md`/`paRes` back to TermUrl, which must be the UCS endpoint that
-    // re-invokes Authorize; `complete_authorize_url` / `continue_redirection_url` is exactly
-    // that. `router_return_url` is the merchant-facing landing page and is only a fallback.
     let term_url = term_url.ok_or_else(|| {
         error_stack::report!(errors::ConnectorError::ResponseHandlingFailed {
             context: errors::ResponseTransformationErrorContext {
@@ -2308,9 +2198,6 @@ fn build_error_response(
 
     ErrorResponse {
         status_code: http_code,
-        // Ilixium's machine-readable failure detail lives in status.reasons.reason; the
-        // status.code itself is the coarse bucket and is the only thing available when the
-        // platform sends no reasons at all.
         code: reason_codes
             .first()
             .cloned()
@@ -2365,10 +2252,6 @@ impl<T: PaymentMethodDataTypes>
             Err(build_error_response(&response, status, item.http_code))
         } else {
             Ok(PaymentsResponseData::TransactionResponse {
-                // `transaction.gatewayRef` is Ilixium's own unique reference and the only id
-                // that identifies the transaction for follow-up operations. Validation
-                // rejections never reach here (they map to Failure above), but a PENDING
-                // response before the gateway has minted one still needs a sensible fallback.
                 resource_id: response
                     .gateway_ref()
                     .map(ResponseId::ConnectorTransactionId)
@@ -2378,11 +2261,6 @@ impl<T: PaymentMethodDataTypes>
                 connector_metadata: None,
                 network_txn_id: None,
                 network_txn_link_id: None,
-                // The echoed `transaction.merchantRef`. When the UCS reference had to be
-                // hashed down to fit Ilixium's 20-character `[\w]` limit, this is the only
-                // place the caller can learn the reference Ilixium's back office actually
-                // knows the payment by, so surfacing it here is what makes reconciliation
-                // possible.
                 connector_response_reference_id: response.merchant_ref(),
                 incremental_authorization_allowed: None,
                 splits: None,
@@ -2427,9 +2305,6 @@ impl<T: PaymentMethodDataTypes>
         item: crate::types::ResponseRouterData<IlixiumPreAuthenticateResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let response = item.response;
-        // The PreAuthenticate leg only ever runs for a 3DS payment, which UCS models as
-        // auto-capture unless the caller said otherwise; `deferredCapture` was derived from the
-        // same value on the way out, so the response is read back the same way.
         let requested_auto_capture = item.router_data.request.is_auto_capture().unwrap_or(true);
         let status = map_attempt_status(&response, requested_auto_capture);
 
@@ -2460,10 +2335,6 @@ impl<T: PaymentMethodDataTypes>
                         .map(ResponseId::ConnectorTransactionId)
                         .unwrap_or(ResponseId::NoResponseId),
                 ),
-                // Ilixium performs 3-D Secure inside the platform and returns no CAVV/ECI to the
-                // merchant, so there is no authentication payload to carry forward. The two legs
-                // are linked by `transaction.merchantRef`, which both recompute deterministically
-                // from the same UCS reference — see `derive_merchant_ref`.
                 authentication_data: None,
                 redirection_data,
                 connector_response_reference_id: response.merchant_ref(),
@@ -2497,11 +2368,6 @@ impl TryFrom<crate::types::ResponseRouterData<IlixiumVoidResponse, Self>>
             Err(build_void_error_response(&response, status, item.http_code))
         } else {
             Ok(PaymentsResponseData::TransactionResponse {
-                // A reversal echoes the *original payment's* `transaction.gatewayRef` — the
-                // connector transaction id UCS already holds. The only reversal-unique value
-                // Ilixium mints is `status.operationRef`, which is not a transaction
-                // identifier, so falling back to the id the request came in with keeps the
-                // payment addressable even if the platform omits the echo.
                 resource_id: ResponseId::ConnectorTransactionId(
                     response.gateway_ref().unwrap_or_else(|| {
                         item.router_data.request.connector_transaction_id.clone()
@@ -2512,9 +2378,6 @@ impl TryFrom<crate::types::ResponseRouterData<IlixiumVoidResponse, Self>>
                 connector_metadata: None,
                 network_txn_id: None,
                 network_txn_link_id: None,
-                // The echoed `transaction.merchantRef` — the original authorisation's
-                // reference, and the value Ilixium's back office knows the payment by once the
-                // UCS reference has been hashed down to the 20-character `[\w]` limit.
                 connector_response_reference_id: response.merchant_ref(),
                 incremental_authorization_allowed: None,
                 splits: None,
@@ -2552,11 +2415,6 @@ impl TryFrom<crate::types::ResponseRouterData<IlixiumCaptureResponse, Self>>
             ))
         } else {
             Ok(PaymentsResponseData::TransactionResponse {
-                // A capture echoes the *original payment's* `transaction.gatewayRef`, which is
-                // exactly the connector transaction id UCS already holds; the only
-                // capture-unique value Ilixium mints is `status.operationRef`, which is not a
-                // transaction identifier. Falling back to the id the request came in with
-                // keeps the payment addressable even if the platform omits the echo.
                 resource_id: response
                     .gateway_ref()
                     .map(ResponseId::ConnectorTransactionId)
@@ -2566,9 +2424,6 @@ impl TryFrom<crate::types::ResponseRouterData<IlixiumCaptureResponse, Self>>
                 connector_metadata: None,
                 network_txn_id: None,
                 network_txn_link_id: None,
-                // The echoed `transaction.merchantRef` — the original authorisation's
-                // reference, and the value Ilixium's back office knows the payment by once the
-                // UCS reference has been hashed down to the 20-character `[\w]` limit.
                 connector_response_reference_id: response.merchant_ref(),
                 incremental_authorization_allowed: None,
                 splits: None,
@@ -2616,9 +2471,6 @@ impl TryFrom<crate::types::ResponseRouterData<IlixiumRefundResponse, Self>>
                 )?,
                 refund_status: status,
                 status_code: item.http_code,
-                // `cardResponse.acquirerRef` is only ever populated on payment attempts; the
-                // refund envelope's paymentAttempt carries no acquirer reference number, and
-                // Ilixium documents none for refunds.
                 acquirer_reference_number: None,
             })
         };
@@ -2633,23 +2485,6 @@ impl TryFrom<crate::types::ResponseRouterData<IlixiumRefundResponse, Self>>
         })
     }
 }
-
-// =============================================================================
-// PSYNC — POST /history/operations
-// =============================================================================
-//
-// Ilixium publishes no per-payment status endpoint on the Direct API (tech spec, *Why PSync /
-// RSync cannot use the status endpoints*). `POST /history/operations` is the only query it
-// offers, and it is a **bulk reconciliation report**:
-//
-// * it is filtered **only** by merchant + time window — there is no `merchantRef`, `gatewayRef`,
-//   `operationRef`, `customerId`, `type` or `status` parameter, so every payment-level filter is
-//   applied client-side over the returned `operation[]` array;
-// * the window is capped at **24 hours**;
-// * unlike every other Ilixium message, the request carries **no `version` field**;
-// * `periodStartDate` / `periodEndDate` must match `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$` —
-//   no fractional seconds and no numeric offset — even though the timestamps the API *returns*
-//   carry milliseconds, so a returned `entryDate` can never be fed back unmodified.
 
 /// The maximum period `/history/operations` accepts, in hours. Exceeding it is a validation
 /// rejection (`VA73` family), not a truncation.
@@ -2848,9 +2683,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = &item.router_data;
         let auth = IlixiumAuthType::try_from(&router_data.connector_config)?;
 
-        // Derived and discarded: the reference has no home in this request body, but it is what
-        // the response mapping filters `operation[]` on, so a sync that could never match
-        // anything is refused here rather than after a pointless bulk report has been fetched.
         derive_merchant_ref(
             &router_data
                 .resource_common_data
@@ -2868,10 +2700,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         })
     }
 }
-
-// -----------------------------------------------------------------------------
-// PSYNC RESPONSE TYPES
-// -----------------------------------------------------------------------------
 
 /// `historyStatus.code` — a **different enum** from [`IlixiumStatusCode`], which is why this is a
 /// sibling type rather than a reuse.
@@ -3111,10 +2939,6 @@ fn map_history_sync_status(
             }
             Some(IlixiumOperationType::Auth) => AttemptStatus::Authorized,
             Some(IlixiumOperationType::Reversal) => AttemptStatus::Voided,
-            // A completed 3-D Secure authentication finalises whichever authorisation opened it,
-            // and the history entry does not say whether that authorisation deferred capture —
-            // so fall back to what this payment asked for, exactly as `map_attempt_status` does
-            // when the platform omits `type`.
             _ => {
                 if requested_auto_capture {
                     AttemptStatus::Charged
@@ -3123,8 +2947,6 @@ fn map_history_sync_status(
                 }
             }
         },
-        // Ilixium permits one operation at a time per transaction, so a PENDING entry is an
-        // operation that has been accepted and not yet resolved.
         IlixiumHistoryStatusCode::Pending => match operation_type {
             Some(IlixiumOperationType::Capture) => AttemptStatus::CaptureInitiated,
             Some(IlixiumOperationType::Reversal) => AttemptStatus::VoidInitiated,
@@ -3136,14 +2958,10 @@ fn map_history_sync_status(
         | IlixiumHistoryStatusCode::Error
         | IlixiumHistoryStatusCode::Exception
         | IlixiumHistoryStatusCode::ValidationErrors => match operation_type {
-            // A failed capture or reversal leaves the authorisation itself intact, which is what
-            // the flow-specific failure statuses convey and the generic `Failure` does not.
             Some(IlixiumOperationType::Capture) => AttemptStatus::CaptureFailed,
             Some(IlixiumOperationType::Reversal) => AttemptStatus::VoidFailed,
             _ => AttemptStatus::Failure,
         },
-        // An unrecognised code is treated as still in flight rather than as a guessed terminal
-        // outcome — the same choice the three payment-response mappers make.
         IlixiumHistoryStatusCode::Unknown => AttemptStatus::Pending,
     }
 }
@@ -3316,13 +3134,6 @@ impl TryFrom<crate::types::ResponseRouterData<IlixiumHistoryResponse, Self>>
         let response = item.response;
         let current_status = item.router_data.resource_common_data.status;
 
-        // The report is not filterable server-side, so the payment is selected by the same
-        // merchantRef the Authorize/Capture/Void legs derived — deterministically, from the same
-        // UCS reference — rather than by any id Ilixium minted. On a sync,
-        // `connector_request_reference_id` is populated from the request's
-        // `merchant_transaction_id`, so that field must carry the *original authorisation's*
-        // reference; omitting it leaves the reference empty and `derive_merchant_ref` refuses it
-        // by name rather than silently matching nothing.
         let merchant_ref = derive_merchant_ref(
             &item
                 .router_data
@@ -3340,8 +3151,6 @@ impl TryFrom<crate::types::ResponseRouterData<IlixiumHistoryResponse, Self>>
             },
         })?;
 
-        // The envelope status is the outcome of the *query*. Anything but SUCCESS means the
-        // report could not be produced, which tells us nothing about the payment.
         if response.status.code != IlixiumHistoryStatusCode::Success {
             return Ok(Self {
                 response: Err(build_history_query_error(
@@ -3364,8 +3173,6 @@ impl TryFrom<crate::types::ResponseRouterData<IlixiumHistoryResponse, Self>>
             });
         };
 
-        // `operation[].status` is schema-required; an entry without one carries no outcome at
-        // all, so it is handled exactly like an entry that was never recorded.
         let Some(operation_status) = operation.status.as_ref() else {
             return Ok(Self {
                 response: Err(build_history_not_found_error(
@@ -3385,8 +3192,6 @@ impl TryFrom<crate::types::ResponseRouterData<IlixiumHistoryResponse, Self>>
         let gateway_ref = operation.gateway_ref();
         let operation_merchant_ref = operation.merchant_ref().map(ToOwned::to_owned);
 
-        // The raw outcome as the platform worded it. History messages omit ISO-8583 codes, so
-        // this text will not match the corresponding /direct/* response's message.
         let raw_connector_status = RawConnectorStatus {
             code: Some(format!("{:?}", operation_status.code).to_uppercase()),
             message: operation_status.message.clone(),
@@ -3408,16 +3213,10 @@ impl TryFrom<crate::types::ResponseRouterData<IlixiumHistoryResponse, Self>>
             ))
         } else {
             Ok(PaymentsResponseData::TransactionResponse {
-                // `transaction.gatewayRef` is Ilixium's own reference for the transaction. When
-                // the report omits it, the id the sync was issued with is still correct, so it
-                // is echoed rather than downgraded to `NoResponseId`.
                 resource_id: gateway_ref.clone().map_or_else(
                     || item.router_data.request.connector_transaction_id.clone(),
                     ResponseId::ConnectorTransactionId,
                 ),
-                // A history entry has no `cardResponse`, so there is no ACS URL, no authCode, no
-                // 3-D Secure data and no token to recover here — PSync can never produce a
-                // redirect.
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
@@ -3441,30 +3240,6 @@ impl TryFrom<crate::types::ResponseRouterData<IlixiumHistoryResponse, Self>>
         })
     }
 }
-
-// =============================================================================
-// RSYNC — POST /history/operations
-// =============================================================================
-//
-// **The same endpoint, the same request body and the same envelope as PSync** — only the
-// client-side filter over `operation[]` differs. Ilixium publishes no refund-status endpoint and
-// no lookup by refund id of any kind, so a refund sync is the identical bulk, `<= 24h`
-// reconciliation report, scanned for entries whose `transaction.merchantRef` is the **original
-// payment's** and whose `type` is `REFUND`.
-//
-// `type == "CREDIT"` is deliberately **excluded**: that is a `/direct/credit` payout to a payment
-// method — its own request schema, its own error codes (126, 205–208) — and never a refund of a
-// payment. The vendor's published example carries one, on a different `merchantRef`, precisely so
-// the distinction is observable.
-//
-// Everything the window and the envelope need is already built for PSync and reused verbatim:
-// [`resolve_history_window`], [`format_history_period`], [`extract_history_period_start`],
-// [`IlixiumHistoryStatusCode`], [`IlixiumHistoryStatus`], [`IlixiumHistoryTransaction`],
-// [`IlixiumHistoryOperation`] and [`IlixiumHistoryResponse`]. The four traps PSync had to handle
-// are therefore already handled: the envelope's `status.code` is the history enum (which adds
-// `EXCEPTION` / `VALIDATION_ERRORS` and drops `RESUBMISSION`), `transactionType` is the
-// `CNP_*` enum, history entries carry no `paymentHistory` / `cardResponse`, and the period bounds
-// are rendered as `yyyy-MM-ddTHH:mm:ssZ` with no fractional seconds.
 
 /// The RSync request body — **the same message PSync sends**, aliased under its own name.
 ///
@@ -3498,12 +3273,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let request = &router_data.request;
         let auth = IlixiumAuthType::try_from(&router_data.connector_config)?;
 
-        // Derived and discarded, exactly as PSync does — but from `RefundSyncData`, never from
-        // `RefundFlowData::connector_request_reference_id`, which on this flow is
-        // `merchant_refund_id` and identifies the *refund*. The value has no home in the request
-        // body (its four properties are the two period bounds, `merchant` and `reportFormat`), yet
-        // it is the whole of the client-side filter, so a sync that could never match anything is
-        // refused here rather than after a pointless bulk report has been fetched.
         resolve_original_merchant_ref(
             request.connector_order_id.as_deref(),
             &request.connector_transaction_id,
@@ -3520,10 +3289,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         })
     }
 }
-
-// -----------------------------------------------------------------------------
-// RSYNC RESPONSE MATCHING
-// -----------------------------------------------------------------------------
 
 /// Length of a ULID in its canonical Crockford-Base32 text form.
 const OPERATION_REF_LEN: usize = 26;
@@ -3616,7 +3381,6 @@ impl IlixiumHistoryResponse {
             .enumerate()
             .filter(|(_, operation)| {
                 operation.merchant_ref() == Some(merchant_ref)
-                    // `REFUND` and nothing else. In particular never `CREDIT`, which is a payout.
                     && operation.operation_type == Some(IlixiumOperationType::Refund)
             })
             .collect();
@@ -3633,10 +3397,6 @@ impl IlixiumHistoryResponse {
                 return Some(RefundOperationMatch::Exact(operation));
             }
 
-            // The platform is populating `operationRef`, and none of this payment's refunds is the
-            // one being synced. Falling through to the heuristic here would hand back a *different*
-            // refund's outcome under this refund's id, which is exactly the silent misattribution
-            // this flow has to avoid.
             if candidates
                 .iter()
                 .any(|(_, operation)| operation.operation_ref().is_some())
@@ -3645,9 +3405,6 @@ impl IlixiumHistoryResponse {
             }
         }
 
-        // Narrow by amount when that is possible *and* leaves something — a report entry may omit
-        // `transaction.amount` entirely, and an empty narrowing would turn a findable refund into a
-        // spurious "not in window".
         let narrowed: Vec<(usize, &IlixiumHistoryOperation)> = match minor_refund_amount {
             Some(amount) => {
                 let matching: Vec<(usize, &IlixiumHistoryOperation)> = candidates
@@ -3695,23 +3452,13 @@ impl IlixiumHistoryResponse {
 fn map_history_refund_status(status: &IlixiumHistoryStatus) -> RefundStatus {
     match status.code {
         IlixiumHistoryStatusCode::Success => RefundStatus::Success,
-        // Ilixium permits one operation at a time per transaction (code 117), so a PENDING refund
-        // entry is one the platform accepted and has not yet resolved.
         IlixiumHistoryStatusCode::Pending => RefundStatus::Pending,
-        // As in `map_refund_status`: `CANCELLED` describes the original payment ("the customer
-        // chose to cancel the transaction"), not this merchant-initiated refund, so it means the
-        // refund did not happen. `VALIDATION_ERRORS` on an *operation* entry is the recorded
-        // rejection of that refund — the vendor's own example shows exactly this, a `REJECTED`
-        // REFUND entry with reason 103 — and not a complaint about the history query, which would
-        // appear on the envelope instead.
         IlixiumHistoryStatusCode::Cancelled
         | IlixiumHistoryStatusCode::Declined
         | IlixiumHistoryStatusCode::Rejected
         | IlixiumHistoryStatusCode::Error
         | IlixiumHistoryStatusCode::Exception
         | IlixiumHistoryStatusCode::ValidationErrors => RefundStatus::Failure,
-        // A code this integration does not recognise is treated as still in flight rather than as
-        // a guessed terminal outcome — the same choice all four sibling mappers make.
         IlixiumHistoryStatusCode::Unknown => RefundStatus::Pending,
     }
 }
@@ -3909,10 +3656,6 @@ impl TryFrom<crate::types::ResponseRouterData<IlixiumRefundHistoryResponse, Self
         let request = &item.router_data.request;
         let current_status = item.router_data.resource_common_data.status;
 
-        // The **original payment's** reference, resolved from `RefundSyncData` through the same
-        // ladder the Refund flow uses — never from `RefundFlowData::connector_request_reference_id`,
-        // which is `merchant_refund_id` and identifies the refund. Ilixium keys REFUND history
-        // entries by the payment's `merchantRef`, so anything else matches nothing.
         let merchant_ref = resolve_original_merchant_ref(
             request.connector_order_id.as_deref(),
             &request.connector_transaction_id,
@@ -3928,8 +3671,6 @@ impl TryFrom<crate::types::ResponseRouterData<IlixiumRefundHistoryResponse, Self
             },
         })?;
 
-        // The envelope status is the outcome of the *query*. Anything but SUCCESS means the report
-        // could not be produced, which tells us nothing about the refund.
         if response.status.code != IlixiumHistoryStatusCode::Success {
             return Ok(Self {
                 response: Err(build_refund_history_query_error(
@@ -3978,8 +3719,6 @@ impl TryFrom<crate::types::ResponseRouterData<IlixiumRefundHistoryResponse, Self
 
         let operation = matched.operation();
 
-        // `operation[].status` is schema-required; an entry without one carries no outcome at all,
-        // so it is handled exactly like an entry that was never recorded.
         let Some(operation_status) = operation.status.as_ref() else {
             return Ok(Self {
                 response: Err(build_refund_not_found_error(
@@ -3993,8 +3732,6 @@ impl TryFrom<crate::types::ResponseRouterData<IlixiumRefundHistoryResponse, Self
 
         let status = map_history_refund_status(operation_status);
 
-        // The raw outcome as the platform worded it. History messages omit ISO-8583 codes, so this
-        // text will not match the corresponding /direct/refund response's message.
         let raw_connector_status = RawConnectorStatus {
             code: Some(format!("{:?}", operation_status.code).to_uppercase()),
             message: operation_status.message.clone(),
@@ -4020,8 +3757,6 @@ impl TryFrom<crate::types::ResponseRouterData<IlixiumRefundHistoryResponse, Self
                 )?,
                 refund_status: status,
                 status_code: item.http_code,
-                // A history entry has no `cardResponse`, so there is no acquirer reference number
-                // to recover — and Ilixium documents none for refunds in any case.
                 acquirer_reference_number: None,
             })
         };

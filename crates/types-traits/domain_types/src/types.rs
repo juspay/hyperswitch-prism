@@ -16285,8 +16285,6 @@ impl<
                 .transpose()?,
             mandate_reference: None,
             merchant_transaction_id: value.merchant_transaction_id,
-            // Mirrors the Authorize conversion. Connectors whose PreAuthenticate leg sends a full
-            // authorisation need the merchant metadata the caller already puts on the wire.
             metadata: value
                 .metadata
                 .map(|m| SecretSerdeValue::foreign_try_from((m, "metadata")))
@@ -16612,9 +16610,6 @@ impl
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_order_id.clone(),
             ),
-            // Mirrors the Authorize conversion, which reads both from `connector_customer_id`.
-            // Previously hardcoded `None`, so a connector reached through PreAuthenticate saw a
-            // different customer identity than the same connector reached through Authorize.
             customer_id: value
                 .customer
                 .clone()
