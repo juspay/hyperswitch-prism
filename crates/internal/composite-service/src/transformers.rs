@@ -1,11 +1,12 @@
 use domain_types::connector_types::{ConnectorEnum, ConnectorVariant};
 use grpc_api_types::payments::{
     CompositeAuthorizeRequest, CompositeCaptureRequest, CompositeGetRequest,
-    CompositePaymentMethodCreateRequest, CompositePaymentMethodGetRequest,
-    CompositePaymentMethodRechargeRequest, CompositePreAuthenticateRequest,
-    CompositeRefundGetRequest, CompositeRefundRequest, CompositeVerifyRedirectResponseRequest,
-    CompositeVoidRequest, ConnectorState, CustomerServiceCreateRequest,
-    CustomerServiceCreateResponse, CustomerServiceGetRequest, CustomerServiceGetResponse,
+    CompositePaymentMethodCreateRequest, CompositePaymentMethodEligibilityRequest,
+    CompositePaymentMethodGetRequest, CompositePaymentMethodRechargeRequest,
+    CompositePreAuthenticateRequest, CompositeRefundGetRequest, CompositeRefundRequest,
+    CompositeVerifyRedirectResponseRequest, CompositeVoidRequest, ConnectorState,
+    CustomerServiceCreateRequest, CustomerServiceCreateResponse, CustomerServiceGetRequest,
+    CustomerServiceGetResponse,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
     MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest,
@@ -16,9 +17,10 @@ use grpc_api_types::payments::{
     PaymentMethodAuthenticationServicePostAuthenticateResponse,
     PaymentMethodAuthenticationServicePreAuthenticateRequest,
     PaymentMethodAuthenticationServicePreAuthenticateResponse, PaymentMethodServiceCreateRequest,
-    PaymentMethodServiceGetRequest, PaymentMethodServiceRechargeRequest,
-    PaymentMethodServiceTokenizeRequest, PaymentMethodServiceTokenizeResponse,
-    PaymentServiceAuthorizeRequest, PaymentServiceCaptureRequest, PaymentServiceCreateOrderRequest,
+    PaymentMethodServiceEligibilityRequest, PaymentMethodServiceGetRequest,
+    PaymentMethodServiceRechargeRequest, PaymentMethodServiceTokenizeRequest,
+    PaymentMethodServiceTokenizeResponse, PaymentServiceAuthorizeRequest,
+    PaymentServiceCaptureRequest, PaymentServiceCreateOrderRequest,
     PaymentServiceCreateOrderResponse, PaymentServiceGetRequest, PaymentServiceRefundRequest,
     PaymentServiceVerifyRedirectResponseResponse, PaymentServiceVoidRequest,
     RefundServiceGetRequest,
@@ -949,6 +951,66 @@ impl
             metadata: item.metadata.clone(),
             connector_feature_data: item.connector_feature_data.clone(),
             test_mode: item.test_mode,
+        }
+    }
+}
+
+impl ForeignFrom<(&CompositePaymentMethodEligibilityRequest, &ConnectorVariant)>
+    for MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest
+{
+    fn foreign_from(
+        (item, connector): (&CompositePaymentMethodEligibilityRequest, &ConnectorVariant),
+    ) -> Self {
+        Self {
+            merchant_access_token_id: item.merchant_access_token_id.clone(),
+            connector: grpc_connector_from_connector_variant(connector),
+            metadata: item.metadata.clone(),
+            connector_feature_data: item.connector_feature_data.clone(),
+            test_mode: item.test_mode,
+            merchant_request_id: item.merchant_request_id.clone(),
+        }
+    }
+}
+
+impl
+    ForeignFrom<(
+        &CompositePaymentMethodEligibilityRequest,
+        Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
+    )> for PaymentMethodServiceEligibilityRequest
+{
+    fn foreign_from(
+        (item, access_token_response): (
+            &CompositePaymentMethodEligibilityRequest,
+            Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
+        ),
+    ) -> Self {
+        let access_token_from_req = item
+            .state
+            .as_ref()
+            .and_then(|state| state.access_token.clone());
+        let access_token = get_access_token(access_token_from_req, access_token_response);
+        let connector_customer_id = item
+            .state
+            .as_ref()
+            .and_then(|state| state.connector_customer_id.clone());
+        let resolved_state = Some(ConnectorState {
+            access_token,
+            connector_customer_id,
+        });
+
+        Self {
+            amount: item.amount,
+            customer: item.customer.clone(),
+            address: item.address.clone(),
+            order_details: item.order_details.clone(),
+            country: item.country,
+            payment_method_type: item.payment_method_type,
+            description: item.description.clone(),
+            metadata: item.metadata.clone(),
+            connector_feature_data: item.connector_feature_data.clone(),
+            test_mode: item.test_mode,
+            connector_payment_method_id: item.connector_payment_method_id.clone(),
+            state: resolved_state,
         }
     }
 }

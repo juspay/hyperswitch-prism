@@ -900,6 +900,7 @@ enum Connector {
   MAYA = 134;
   GRABPAY = 135;
   BOOST = 136;
+  CITIGATE = 137;
 }
 
 // Payment method types
@@ -2821,6 +2822,7 @@ message PaymentServiceGetResponse {
   optional ConnectorSplitResponseData splits = 32;
 
   optional SecretString connector_feature_data = 33;
+
   // Settlement phase reported by the connector. See SettlementStatus for the
   // per-value semantics. Absent when the connector doesn't distinguish phases.
   optional SettlementStatus settlement_status = 34;
@@ -2834,6 +2836,10 @@ message PaymentServiceGetResponse {
   // Another reference for the connector's transaction, returned in the connector's response.
   // Distinct from connector_transaction_id — e.g. Stripe charge ID (ch_xxx), order codes, invoice numbers.
   optional string connector_reference_id = 37;
+
+  // Payment method details received from the connector mid-payment, intended for
+  // saving for the returning-customer flow.
+  optional PaymentMethod connector_returned_payment_method_details = 40;
 }
 
 // Request message for voiding a payment
@@ -4836,8 +4842,9 @@ message BamboraapacConfig {
 }
 
 message CalidaConfig {
-  SecretString api_key = 1;
-  optional string base_url = 50;
+SecretString api_key = 1;
+optional SecretString shop_name = 2;
+optional string base_url = 50;
 }
 
 message CeleroConfig {
@@ -5644,6 +5651,12 @@ message BoostConfig {
   optional string base_url = 50;
 }
 
+message CitigateConfig {
+  SecretString api_key = 1;
+  SecretString key1 = 2;
+  optional string base_url = 50;
+}
+
 message MonerisConfig {
   SecretString client_secret = 1;
   SecretString merchant_id = 2;
@@ -5967,8 +5980,10 @@ message ConnectorSpecificConfig {
     GrabpayConfig grabpay = 144;
     // BOOST = 136
     BoostConfig boost = 145;
+    // CITIGATE = 137
+    CitigateConfig citigate = 146;
     // MONERIS = 48
-    MonerisConfig moneris = 146;
+    MonerisConfig moneris = 147;
   }
 }
 
@@ -6239,6 +6254,15 @@ message PaymentMethodServiceEligibilityRequest {
 
   // Sandbox/test mode flag (true for test environment).
   optional bool test_mode = 10;
+
+  // Connector-issued payment method ID (e.g. wallet number) being checked,
+  // when known. Mirrors PaymentMethodServiceGetRequest's identifier so
+  // connectors can reuse the same lookup as PaymentMethodService.Get.
+  optional string connector_payment_method_id = 11;
+
+  // State Information (for access token), set by CompositePaymentMethodService.Eligibility
+  // after bootstrapping the connector's session token.
+  optional ConnectorState state = 12;
 }
 
 // Response from a pre-checkout eligibility check.
@@ -6261,6 +6285,11 @@ message PaymentMethodServiceEligibilityResponse {
 
   // Response headers from the connector.
   map<string, string> response_headers = 6;
+
+  // Payment method details resolved as part of the eligibility check (e.g.
+  // wallet/gift-card balance and items), when the connector call that
+  // determines eligibility also returns them.
+  optional PaymentMethodDetails payment_method_details = 9;
 }
 
 // ============================================================================
