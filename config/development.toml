@@ -19,7 +19,7 @@ buffer_limit = 100000
 [server]
 host = "0.0.0.0"
 port = 8000
-type = "http"
+type = "grpc"
 
 [metrics]
 host = "0.0.0.0"
