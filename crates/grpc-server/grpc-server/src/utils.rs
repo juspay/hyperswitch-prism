@@ -842,16 +842,18 @@ macro_rules! implement_connector_operation {
                 };
 
                 let call_connector_action = connector_integration.get_call_connector_action();
-                let response_result = external_services::service::execute_connector_processing_step(
-                    proxy,
-                    connector_integration,
-                    router_data,
-                    all_keys_required,
-                    event_params,
-                    token_data,
-                    call_connector_action,
-                    test_context,
-                    api_tag,
+                let response_result = Box::pin(
+                    external_services::service::execute_connector_processing_step(
+                        proxy,
+                        connector_integration,
+                        router_data,
+                        all_keys_required,
+                        event_params,
+                        token_data,
+                        call_connector_action,
+                        test_context,
+                        api_tag,
+                    ),
                 )
                 .await
                 .to_grpc_error()?;
@@ -1139,16 +1141,18 @@ macro_rules! implement_connector_operation {
                 log_fields: &config.log_fields.outgoing,
             };
             let call_connector_action = connector_integration.get_call_connector_action();
-            let response_result = external_services::service::execute_connector_processing_step(
-                &config.proxy,
-                connector_integration,
-                router_data,
-                $all_keys_required,
-                event_params,
-                None,
-                call_connector_action,
-                test_context,
-                api_tag,
+            let response_result = Box::pin(
+                external_services::service::execute_connector_processing_step(
+                    &config.proxy,
+                    connector_integration,
+                    router_data,
+                    $all_keys_required,
+                    event_params,
+                    None,
+                    call_connector_action,
+                    test_context,
+                    api_tag,
+                ),
             )
             .await
             .to_grpc_error()?;
