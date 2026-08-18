@@ -966,6 +966,11 @@ pub enum ConnectorSpecificConfig {
         merchant_secret: Secret<String>,
         base_url: Option<String>,
     },
+    Citigate {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        base_url: Option<String>,
+    },
     /// Ilixium Direct API.
     /// `api_key`    = Digest Calculation Password (input to X-MERCHANT-DIGEST, never sent)
     /// `key1`       = MerchantId (request body `merchant.merchantId`)
@@ -1323,6 +1328,7 @@ impl ConnectorSpecificConfig {
                 api_secret
             },
             Boost { api_key },
+            Citigate { api_key, key1 },
             Ilixium {
                 api_key,
                 key1,
@@ -1798,6 +1804,7 @@ impl ConnectorSpecificConfig {
                     api_secret
                 },
                 Boost { api_key },
+                Citigate { api_key, key1 },
                 Ilixium {
                     api_key,
                     key1,
@@ -2424,6 +2431,11 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 client_id: boost.client_id.ok_or_else(err)?,
                 merchant_secret: boost.merchant_secret.ok_or_else(err)?,
                 base_url: boost.base_url,
+            }),
+            AuthType::Citigate(citigate) => Ok(Self::Citigate {
+                api_key: citigate.api_key.ok_or_else(err)?,
+                key1: citigate.key1.ok_or_else(err)?,
+                base_url: citigate.base_url,
             }),
             AuthType::Ilixium(ilixium) => Ok(Self::Ilixium {
                 api_key: ilixium.api_key.ok_or_else(err)?,
@@ -3652,6 +3664,14 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
+                ConnectorEnum::Citigate => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Citigate {
+                        api_key: api_key.clone(),
+                        key1: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
                 ConnectorEnum::PinelabsOnline => match auth {
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::PinelabsOnline {
                         client_id: api_key.clone(),
@@ -3870,6 +3890,11 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     _ => Err(err().into()),
                 },
                 PayoutConnectorEnum::Santander => Err(err().into()),
+                // TrueLayer payouts need client_id, client_secret, merchant_account_id,
+                // private_key and kid. The legacy `x-auth` header cannot carry more than
+                // three values, so it can never supply a usable config here — reject it
+                // outright rather than build one that fails later on a missing field.
+                PayoutConnectorEnum::Truelayer => Err(err().into()),
             },
         }
     }
