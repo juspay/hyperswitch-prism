@@ -5,11 +5,11 @@ use std::fmt::Debug;
 use bytes::Bytes;
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund},
+    connector_flow::{Authorize, Capture, PSync, RSync, Refund, RepeatPayment},
     connector_types::{
         ConnectorSpecifications, PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData,
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData,
+        RefundsResponseData, RepeatPaymentData,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
@@ -25,8 +25,8 @@ use interfaces::{
 use serde::Serialize;
 use transformers::{
     self as elavon, ElavonCaptureResponse, ElavonPSyncResponse, ElavonPaymentsResponse,
-    ElavonRSyncResponse, ElavonRefundResponse, XMLCaptureRequest, XMLElavonRequest,
-    XMLPSyncRequest, XMLRSyncRequest, XMLRefundRequest,
+    ElavonRSyncResponse, ElavonRefundResponse, ElavonRepeatPaymentResponse, XMLCaptureRequest,
+    XMLElavonRequest, XMLPSyncRequest, XMLRSyncRequest, XMLRefundRequest, XMLRepeatPaymentRequest,
 };
 
 use super::macros;
@@ -61,6 +61,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Elavon<T>
+{
+}
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::RepeatPaymentV2<T> for Elavon<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -232,6 +236,12 @@ macros::create_all_prerequisites!(
             request_body: XMLRSyncRequest,
             response_body: ElavonRSyncResponse,
             router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ),
+        (
+            flow: RepeatPayment,
+            request_body: XMLRepeatPaymentRequest,
+            response_body: ElavonRepeatPaymentResponse,
+            router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [],
@@ -422,6 +432,39 @@ macros::macro_connector_implementation!(
     }
 );
 
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type],
+    connector: Elavon,
+    curl_request: FormUrlEncoded(XMLRepeatPaymentRequest),
+    curl_response: ElavonRepeatPaymentResponse,
+    flow_name: RepeatPayment,
+    resource_common_data: PaymentFlowData,
+    flow_request: RepeatPaymentData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    preprocess_response: true,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!(
+                "{}processxml.do",
+                req.resource_common_data.connectors.elavon.base_url
+            ))
+        }
+    }
+);
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorSpecifications
     for Elavon<T>
 {
@@ -437,7 +480,6 @@ macros::macro_connector_flow_status_impls!(
         PaymentMethodToken,
         MandateRevoke,
         VoidPC,
-        RepeatPayment,
     ],
     not_supported: [
         VoidPostRefund,
