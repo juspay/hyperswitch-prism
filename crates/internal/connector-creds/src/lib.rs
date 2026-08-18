@@ -105,16 +105,31 @@ fn extract_connector_block(
     Ok(obj.clone())
 }
 
-/// Builds the `x-connector-config` header value for one connector, and proves it
-/// deserializes into [`ConnectorSpecificConfig`] before returning it.
-///
-/// Validating here means a malformed entry names itself and its connector,
-/// instead of surfacing later as a connector-side auth rejection that reads like
-/// a genuine defect.
-pub fn connector_config_header(
+/// Collects every key the entry carries, as a dotted path, skipping nulls.
+fn key_paths(value: &serde_json::Value, prefix: &str, out: &mut Vec<String>) {
+    if let serde_json::Value::Object(map) = value {
+        for (k, v) in map {
+            if v.is_null() {
+                continue;
+            }
+            let path = if prefix.is_empty() {
+                k.clone()
+            } else {
+                format!("{prefix}.{k}")
+            };
+            out.push(path.clone());
+            key_paths(v, &path, out);
+        }
+    }
+}
+
+/// Reads one connector's entry and shapes it into the `x-connector-config`
+/// payload: legacy shape rejected, `metadata` stripped, `{"value": …}` unwrapped,
+/// wrapped under the PascalCase oneof variant.
+fn build_wrapped_config(
     creds_file: &Path,
     connector: &str,
-) -> Result<String, CredentialError> {
+) -> Result<serde_json::Value, CredentialError> {
     let content = fs::read_to_string(creds_file)?;
     let root: serde_json::Value = serde_json::from_str(&content)?;
 
@@ -132,15 +147,95 @@ pub fn connector_config_header(
         .map(|(k, v)| (k, normalize_value(v)))
         .collect();
 
-    let wrapped = serde_json::json!({
+    Ok(serde_json::json!({
         "config": {
             pascal_connector_name(connector): serde_json::Value::Object(normalized)
         }
-    });
+    }))
+}
 
-    serde_json::from_value::<ConnectorSpecificConfig>(wrapped.clone()).map_err(|error| {
+/// Key paths present in the entry but absent after a round-trip through
+/// [`ConnectorSpecificConfig`] — i.e. fields the config message does not define
+/// and therefore silently discards.
+fn dropped_field_paths(
+    sent_value: &serde_json::Value,
+    kept_value: &serde_json::Value,
+) -> Vec<String> {
+    let (mut sent, mut kept) = (Vec::new(), Vec::new());
+    key_paths(sent_value, "", &mut sent);
+    key_paths(kept_value, "", &mut kept);
+    sent.into_iter().filter(|k| !kept.contains(k)).collect()
+}
+
+/// Names the credential fields this connector's config message does not define.
+///
+/// Empty means every field in the entry reached the config. Callers that can
+/// afford to reject a questionable entry — a gate reviewing a newly added
+/// connector, say — can use this to do so; [`connector_config_header`] only
+/// warns, because its other callers skip a connector whose credentials fail to
+/// load and a skipped connector is invisible.
+pub fn unknown_config_fields(
+    creds_file: &Path,
+    connector: &str,
+) -> Result<Vec<String>, CredentialError> {
+    let wrapped = build_wrapped_config(creds_file, connector)?;
+    let parsed: ConnectorSpecificConfig = serde_json::from_value(wrapped.clone())
+        .map_err(|e| CredentialError::InvalidConfig(connector.to_string(), e.to_string()))?;
+    let round_tripped = serde_json::to_value(&parsed)
+        .map_err(|e| CredentialError::InvalidConfig(connector.to_string(), e.to_string()))?;
+    Ok(dropped_field_paths(&wrapped, &round_tripped))
+}
+
+/// Builds the `x-connector-config` header value for one connector, and proves it
+/// deserializes into [`ConnectorSpecificConfig`] before returning it.
+///
+/// Two failures are possible and only one of them is loud by default. A field of
+/// the wrong *type* fails deserialization. A field of the wrong *name* does not:
+/// the generated config messages derive a plain `Deserialize` with no
+/// `deny_unknown_fields`, so an unrecognised key is dropped and the connector
+/// receives an all-empty config, which comes back as an authentication failure
+/// that looks like a connector defect. Field names differ per connector
+/// (`authorizedotnet` uses `name`/`transaction_key`, `paysafe`
+/// `username`/`password`/`account_id`), so that is the likelier mistake of the
+/// two. Round-tripping the parsed config and comparing key paths catches it
+/// here, where it can name the offending field.
+#[allow(clippy::print_stderr)]
+pub fn connector_config_header(
+    creds_file: &Path,
+    connector: &str,
+) -> Result<String, CredentialError> {
+    let wrapped = build_wrapped_config(creds_file, connector)?;
+
+    let parsed: ConnectorSpecificConfig =
+        serde_json::from_value(wrapped.clone()).map_err(|error| {
+            CredentialError::InvalidConfig(connector.to_string(), error.to_string())
+        })?;
+
+    let round_tripped = serde_json::to_value(&parsed).map_err(|error| {
         CredentialError::InvalidConfig(connector.to_string(), error.to_string())
     })?;
+
+    let dropped = dropped_field_paths(&wrapped, &round_tripped);
+    if !dropped.is_empty() {
+        // Warn rather than fail. The sweep path in the harness skips a connector
+        // whose credentials do not load, so rejecting here would make it vanish
+        // from the report entirely — worse than running it with a field the
+        // config ignores, because an absent connector reads as "nothing to see".
+        // A connector that genuinely needs the field still fails visibly, at the
+        // connector, with this line in the log to explain why.
+        eprintln!(
+            "[credentials] '{connector}': {} ignored by the config message ({}). \
+             Check the field names against this connector's ConnectorSpecificConfig \
+             variant — unknown fields are dropped, which reaches the connector as \
+             an authentication failure.",
+            if dropped.len() == 1 {
+                "1 field is"
+            } else {
+                "fields are"
+            },
+            dropped.join(", ")
+        );
+    }
 
     Ok(wrapped.to_string())
 }
@@ -182,6 +277,14 @@ mod tests {
     // a string". Five connectors hit that when a second loader skipped the
     // unwrapping.
     #[test]
+    fn a_correct_entry_drops_nothing() {
+        let file = write(r#"{"stripe":{"api_key":{"value":"sk_test_123"}}}"#);
+        assert!(unknown_config_fields(file.path(), "stripe")
+            .expect("should load")
+            .is_empty());
+    }
+
+    #[test]
     fn value_wrapped_secrets_are_accepted() {
         let file = write(r#"{"stripe":{"api_key":{"value":"sk_test_123"}}}"#);
         let header = connector_config_header(file.path(), "stripe").expect("should load");
@@ -210,6 +313,76 @@ mod tests {
         let file = write(r#"{"stripe":[{"api_key":"first"},{"api_key":"second"}]}"#);
         let header = connector_config_header(file.path(), "stripe").expect("should load");
         assert!(header.contains("first"), "got {header}");
+    }
+
+    // Not every config field is a flat Secret. Paysafe nests a message under
+    // account_id and Cashtocode keys a map by currency, and normalize_value
+    // recurses through both. No *Config message declares a field named "value"
+    // (checked against the generated types), so unwrapping cannot shadow a real
+    // field — but these shapes are the ones that would break silently, by
+    // producing an all-None config rather than an error.
+    #[test]
+    fn nested_message_fields_survive_normalisation() {
+        let file = write(
+            r#"{"paysafe":{"username":{"value":"u"},"password":{"value":"p"},
+                "account_id":{"card":{"USD":{"no_three_ds":{"value":"acct_card_usd"}}}}}}"#,
+        );
+        let header = connector_config_header(file.path(), "paysafe").expect("should load");
+        assert!(header.contains(r#""username":"u""#), "got {header}");
+        assert!(
+            header.contains("acct_card_usd"),
+            "account_id was dropped: {header}"
+        );
+    }
+
+    #[test]
+    fn map_valued_fields_survive_normalisation() {
+        let file = write(
+            r#"{"cashtocode":{"auth_key_map":{"EUR":{"password_classic":{"value":"pw"},
+                                                     "username_classic":{"value":"un"}}}}}"#,
+        );
+        let header = connector_config_header(file.path(), "cashtocode").expect("should load");
+        assert!(header.contains("EUR"), "map key lost: {header}");
+        assert!(
+            header.contains(r#""password_classic":"pw""#),
+            "nested secret not unwrapped: {header}"
+        );
+    }
+
+    // Renamed fields are the quiet failure: serde ignores unknown keys, so a
+    // wrong name yields an all-None config that reaches the connector and comes
+    // back as an auth error.
+    #[test]
+    fn renamed_fields_are_carried_through_verbatim() {
+        let file =
+            write(r#"{"authorizedotnet":{"name":{"value":"n"},"transaction_key":{"value":"tk"}}}"#);
+        let header = connector_config_header(file.path(), "authorizedotnet").expect("should load");
+        assert!(header.contains(r#""name":"n""#), "got {header}");
+        assert!(header.contains(r#""transaction_key":"tk""#), "got {header}");
+    }
+
+    // The quiet failure this check exists for: `password` is not a field of
+    // CashtocodeCurrencyAuthData (it is `password_classic`). Serde drops it, and
+    // without the round-trip comparison the entry would validate as an
+    // all-empty config and fail at the connector instead.
+    #[test]
+    fn a_field_the_config_does_not_define_is_named() {
+        let file = write(r#"{"cashtocode":{"auth_key_map":{"EUR":{"password":{"value":"pw"}}}}}"#);
+        let dropped = unknown_config_fields(file.path(), "cashtocode").expect("should load");
+        assert_eq!(
+            dropped,
+            vec!["config.Cashtocode.auth_key_map.EUR.password".to_string()]
+        );
+        // Still usable: the loader warns rather than making the connector vanish
+        // from a sweep that skips connectors whose credentials fail to load.
+        assert!(connector_config_header(file.path(), "cashtocode").is_ok());
+    }
+
+    #[test]
+    fn a_misspelled_top_level_field_is_named() {
+        let file = write(r#"{"stripe":{"api_ky":"sk_test_x"}}"#);
+        let dropped = unknown_config_fields(file.path(), "stripe").expect("should load");
+        assert_eq!(dropped, vec!["config.Stripe.api_ky".to_string()]);
     }
 
     #[test]
