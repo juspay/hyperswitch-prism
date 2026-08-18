@@ -129,6 +129,11 @@ deja = [
     "domain_types/deja",
     "ucs_env/deja",
     "external-services/deja",
+    # Call-graph skeleton spans (`ucs::*` / `connector::*`) — pure cfg switches
+    # in these crates, no extra dependencies.
+    "interfaces/deja",
+    "ucs_interface_common/deja",
+    "connector-integration/deja",
 ]
 
 [lints]
