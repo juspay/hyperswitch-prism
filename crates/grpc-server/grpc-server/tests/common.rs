@@ -1,4 +1,4 @@
-use std::{future::Future, sync::Arc};
+use std::sync::Arc;
 
 use grpc_api_types::{
     frm::fraud_and_risk_management_service_client::FraudAndRiskManagementServiceClient,
@@ -204,7 +204,7 @@ fn build_server(
 pub async fn server_and_client_stub<T>(
     service: grpc_server::app::Service,
     base_config: Arc<Config>,
-) -> Result<(impl Future<Output = ()>, T), Box<dyn std::error::Error>>
+) -> Result<(tokio::task::JoinHandle<()>, T), Box<dyn std::error::Error>>
 where
     T: AutoClient,
 {
@@ -221,20 +221,22 @@ where
 
     let router = build_server(service, interceptor);
 
-    let serve_future = async move {
+    // Spawn the server future as a separate tokio task *before* the next await.
+    // This moves the large router+stream async state machine onto the heap
+    // (task allocation) rather than into the caller's async state machine.
+    // Keeping it in the caller would embed the large future in the test
+    // function's state machine, which lives on the test thread's stack and
+    // overflows for connectors with complex transformers (e.g. Stripe).
+    let server_handle = tokio::spawn(async move {
         let result = router.serve_with_incoming(stream).await;
-        // Server must be running fine...
         assert!(result.is_ok());
-    };
+    });
 
     let socket = Arc::clone(&socket);
-    // Connect to the server over a Unix socket
-    // The URL will be ignored.
     let channel = Endpoint::try_from("http://any.url")?
         .connect_with_connector(service_fn(move |_: Uri| {
             let socket = Arc::clone(&socket);
             async move {
-                // Wrap the UnixStream with TokioIo to make it compatible with hyper
                 let unix_stream = tokio::net::UnixStream::connect(&*socket).await?;
                 Ok::<_, std::io::Error>(TokioIo::new(unix_stream))
             }
@@ -243,7 +245,7 @@ where
 
     let client = T::new(channel);
 
-    Ok((serve_future, client))
+    Ok((server_handle, client))
 }
 
 /// # Panics
@@ -253,7 +255,7 @@ where
 pub async fn server_and_channel_stub(
     service: grpc_server::app::Service,
     base_config: Arc<Config>,
-) -> Result<(impl Future<Output = ()>, Channel), Box<dyn std::error::Error>> {
+) -> Result<(tokio::task::JoinHandle<()>, Channel), Box<dyn std::error::Error>> {
     let socket = NamedTempFile::new()?;
     let socket = Arc::new(socket.into_temp_path());
     std::fs::remove_file(&*socket)?;
@@ -267,10 +269,12 @@ pub async fn server_and_channel_stub(
 
     let router = build_server(service, interceptor);
 
-    let serve_future = async move {
+    // Same reasoning as server_and_client_stub: spawn before the next await
+    // so the large server future never enters the caller's state machine.
+    let server_handle = tokio::spawn(async move {
         let result = router.serve_with_incoming(stream).await;
         assert!(result.is_ok());
-    };
+    });
 
     let socket = Arc::clone(&socket);
     let channel = Endpoint::try_from("http://any.url")?
@@ -283,7 +287,7 @@ pub async fn server_and_channel_stub(
         }))
         .await?;
 
-    Ok((serve_future, channel))
+    Ok((server_handle, channel))
 }
 
 #[macro_export]
@@ -292,33 +296,30 @@ macro_rules! grpc_test {
         let config = configs::Config::new().expect("Failed while parsing config");
         let base_config = std::sync::Arc::new(config);
         let server = app::Service::new(base_config.clone()).await;
-        let (server_fut, mut $client) =
+        // server_handle is a JoinHandle<()> — a small heap pointer.
+        // The actual serve future lives in a spawned tokio task (heap-allocated),
+        // so it never enters the test function's async state machine and cannot
+        // overflow the test thread's stack regardless of how complex the server is.
+        let (server_handle, mut $client) =
             common::server_and_client_stub::<$c_type>(server, base_config)
                 .await
                 .expect("Failed to create the server client pair");
-        tokio::pin!(server_fut);
-        let response = async { $body };
-
-        tokio::select! {
-            _ = server_fut => panic!("Server failed"),
-            _ = response => {}
-        }
+        $body
+        // Clean up: signal the server task to stop.
+        // If the server task already panicked, the gRPC calls in $body would
+        // have failed with transport errors, surfacing the failure naturally.
+        server_handle.abort();
     };
     ([$($client:ident: $c_type:ty),+], $body:block) => {
         let config = configs::Config::new().expect("Failed while parsing config");
         let base_config = std::sync::Arc::new(config);
         let server = app::Service::new(base_config.clone()).await;
-        let (server_fut, channel) =
+        let (server_handle, channel) =
             common::server_and_channel_stub(server, base_config)
                 .await
                 .expect("Failed to create the server channel");
         $(let mut $client = <$c_type as common::AutoClient>::new(channel.clone());)+
-        tokio::pin!(server_fut);
-        let response = async { $body };
-
-        tokio::select! {
-            _ = server_fut => panic!("Server failed"),
-            _ = response => {}
-        }
+        $body
+        server_handle.abort();
     };
 }
