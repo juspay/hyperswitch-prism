@@ -1,13 +1,22 @@
----
-title: Transfer Payout
-description: Transfer funds for an existing payout.
----
+# transfer Method
 
-# Transfer Payout
+<!--
+---
+title: transfer (Python SDK)
+description: Transfer funds for an existing payout. Using the Python SDK.
+last_updated: 2026-08-13
+generated_from: backend/grpc-api-types/proto/services.proto
+auto_generated: true
+reviewed_by: ''
+reviewed_at: ''
+approved: false
+sdk_language: python
+---
+-->
 
 ## Overview
 
-The `Transfer` RPC in the Payout Service is used to execute the actual fund transfer for a previously initiated payout, or to perform a combined create and transfer operation depending on the processor's flow.
+The `transfer` method in the Payout Service is used to execute the actual fund transfer for a previously initiated payout, or to perform a combined create and transfer operation depending on the processor's flow.
 
 ## Purpose
 
@@ -15,7 +24,7 @@ Use this operation to move funds to the destination payout method.
 
 | Scenario | Developer Implementation |
 |----------|--------------------------|
-| Execute a payout transfer | Call `Transfer` with the required payout details and amount. |
+| Execute a payout transfer | Call `transfer` with the required payout details and amount. |
 
 ## Request Fields
 
@@ -50,28 +59,46 @@ Use this operation to move funds to the destination payout method.
 
 ## Example
 
-```bash
-grpcurl -H "x-connector: stripe" \
-  -H "x-connector-config: {\"config\":{\"Stripe\":{\"api_key\":\"$STRIPE_API_KEY\"}}}" \
-  -d '{
-    "amount": {"minor_amount": 1000, "currency": "USD"},
-    "destination_currency": "USD",
-    "payout_method_data": {
-      "card": {
-        "card_number": "4242424242424242",
-        "card_exp_month": "12",
-        "card_exp_year": "2027"
-      }
-    }
-  }' \
-  localhost:8080 types.PayoutService/Transfer
+### SDK Setup
+
+```python
+from hyperswitch_prism import PayoutClient
+
+payout_client = PayoutClient(
+    connector='stripe',
+    api_key='[REDACTED_ENV_SECRET]',
+    environment='SANDBOX'
+)
 ```
 
-```json
+### Request
+
+```python
+request = {
+    "amount": {
+        "minor_amount": 1000,
+        "currency": "USD"
+    },
+    "destination_currency": "USD",
+    "payout_method_data": {
+        "card": {
+            "card_number": "4242424242424242",
+            "card_exp_month": "12",
+            "card_exp_year": "2027"
+        }
+    }
+}
+
+response = await payout_client.transfer(request)
+```
+
+### Response
+
+```python
 {
-  "payout_status": "SUCCESS",
-  "connector_payout_id": "tr_1Hh1XYZ2eZvKYlo2C",
-  "status_code": 200
+    "payout_status": "SUCCESS",
+    "connector_payout_id": "tr_1Hh1XYZ2eZvKYlo2C",
+    "status_code": 200
 }
 ```
 

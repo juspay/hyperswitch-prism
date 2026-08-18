@@ -1,13 +1,22 @@
----
-title: Create Payout Link
-description: Create a link for the recipient to claim a payout.
----
+# create_link Method
 
-# Create Payout Link
+<!--
+---
+title: create_link (Python SDK)
+description: Create a link for the recipient to claim a payout. Using the Python SDK.
+last_updated: 2026-08-13
+generated_from: backend/grpc-api-types/proto/services.proto
+auto_generated: true
+reviewed_by: ''
+reviewed_at: ''
+approved: false
+sdk_language: python
+---
+-->
 
 ## Overview
 
-The `CreateLink` RPC generates a URL that can be sent to a recipient, allowing them to securely provide their own payout method details (like bank account information) to claim the funds.
+The `create_link` method generates a URL that can be sent to a recipient, allowing them to securely provide their own payout method details (like bank account information) to claim the funds.
 
 ## Purpose
 
@@ -15,7 +24,7 @@ Use this operation when you do not have the recipient's payout method details up
 
 | Scenario | Developer Implementation |
 |----------|--------------------------|
-| Send funds to a user via email | Call `CreateLink` and share the generated URL with the user. |
+| Send funds to a user via email | Call `create_link` and share the generated URL with the user. |
 
 ## Request Fields
 
@@ -50,21 +59,39 @@ Use this operation when you do not have the recipient's payout method details up
 
 ## Example
 
-```bash
-grpcurl -H "x-connector: stripe" \
-  -H "x-connector-config: {\"config\":{\"Stripe\":{\"api_key\":\"$STRIPE_API_KEY\"}}}" \
-  -d '{
-    "amount": {"minor_amount": 1000, "currency": "USD"},
-    "destination_currency": "USD"
-  }' \
-  localhost:8080 types.PayoutService/CreateLink
+### SDK Setup
+
+```python
+from hyperswitch_prism import PayoutClient
+
+payout_client = PayoutClient(
+    connector='stripe',
+    api_key='[REDACTED_ENV_SECRET]',
+    environment='SANDBOX'
+)
 ```
 
-```json
+### Request
+
+```python
+request = {
+    "amount": {
+        "minor_amount": 1000,
+        "currency": "USD"
+    },
+    "destination_currency": "USD"
+}
+
+response = await payout_client.create_link(request)
+```
+
+### Response
+
+```python
 {
-  "payout_status": "REQUIRES_PAYOUT_METHOD_DATA",
-  "connector_payout_id": "po_1Hh1XYZ2eZvKYlo2C",
-  "status_code": 200
+    "payout_status": "REQUIRES_PAYOUT_METHOD_DATA",
+    "connector_payout_id": "po_1Hh1XYZ2eZvKYlo2C",
+    "status_code": 200
 }
 ```
 

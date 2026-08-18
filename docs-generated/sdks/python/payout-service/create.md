@@ -1,13 +1,22 @@
----
-title: Create Payout
-description: Create a new payout to transfer funds to a customer or vendor.
----
+# create Method
 
-# Create Payout
+<!--
+---
+title: create (Python SDK)
+description: Create a new payout to transfer funds to a customer or vendor. Using the Python SDK.
+last_updated: 2026-08-13
+generated_from: backend/grpc-api-types/proto/services.proto
+auto_generated: true
+reviewed_by: ''
+reviewed_at: ''
+approved: false
+sdk_language: python
+---
+-->
 
 ## Overview
 
-The `Create` RPC in the Payout Service is used to initiate a transfer of funds from your merchant account to a customer, vendor, or third-party entity. This is commonly used in marketplaces, gig-economy platforms, or any business model requiring external disbursements.
+The `create` method in the Payout Service is used to initiate a transfer of funds from your merchant account to a customer, vendor, or third-party entity. This is commonly used in marketplaces, gig-economy platforms, or any business model requiring external disbursements.
 
 ## Purpose
 
@@ -15,7 +24,7 @@ This operation is the first step in the payout lifecycle. Use this when you have
 
 | Scenario | Developer Implementation |
 |----------|--------------------------|
-| Send funds to a vendor | Call `Create` with the vendor's bank account details and payout amount. |
+| Send funds to a vendor | Call `create` with the vendor's bank account details and payout amount. |
 | Refund a customer via an alternative method | Provide the customer's wallet or card details in the `payout_method_data`. |
 
 ## Request Fields
@@ -51,28 +60,46 @@ This operation is the first step in the payout lifecycle. Use this when you have
 
 ## Example
 
-```bash
-grpcurl -H "x-connector: stripe" \
-  -H "x-connector-config: {\"config\":{\"Stripe\":{\"api_key\":\"$STRIPE_API_KEY\"}}}" \
-  -d '{
-    "amount": {"minor_amount": 1000, "currency": "USD"},
-    "destination_currency": "USD",
-    "payout_method_data": {
-      "card": {
-        "card_number": "4242424242424242",
-        "card_exp_month": "12",
-        "card_exp_year": "2027"
-      }
-    }
-  }' \
-  localhost:8080 types.PayoutService/Create
+### SDK Setup
+
+```python
+from hyperswitch_prism import PayoutClient
+
+payout_client = PayoutClient(
+    connector='stripe',
+    api_key='[REDACTED_ENV_SECRET]',
+    environment='SANDBOX'
+)
 ```
 
-```json
+### Request
+
+```python
+request = {
+    "amount": {
+        "minor_amount": 1000,
+        "currency": "USD"
+    },
+    "destination_currency": "USD",
+    "payout_method_data": {
+        "card": {
+            "card_number": "4242424242424242",
+            "card_exp_month": "12",
+            "card_exp_year": "2027"
+        }
+    }
+}
+
+response = await payout_client.create(request)
+```
+
+### Response
+
+```python
 {
-  "payout_status": "PENDING",
-  "connector_payout_id": "po_1Hh1XYZ2eZvKYlo2C",
-  "status_code": 200
+    "payout_status": "PENDING",
+    "connector_payout_id": "po_1Hh1XYZ2eZvKYlo2C",
+    "status_code": 200
 }
 ```
 

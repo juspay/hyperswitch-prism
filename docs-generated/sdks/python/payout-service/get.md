@@ -1,13 +1,22 @@
----
-title: Get Payout
-description: Retrieve the current status and details of a payout.
----
+# get Method
 
-# Get Payout
+<!--
+---
+title: get (Python SDK)
+description: Retrieve the current status and details of a payout. Using the Python SDK.
+last_updated: 2026-08-13
+generated_from: backend/grpc-api-types/proto/services.proto
+auto_generated: true
+reviewed_by: ''
+reviewed_at: ''
+approved: false
+sdk_language: python
+---
+-->
 
 ## Overview
 
-The `Get` RPC allows you to check the current status of a payout. This is essential for syncing your internal systems with the payment processor's state, especially for asynchronous payout methods like bank transfers.
+The `get` method allows you to check the current status of a payout. This is essential for syncing your internal systems with the payment processor's state, especially for asynchronous payout methods like bank transfers.
 
 ## Purpose
 
@@ -15,7 +24,7 @@ Use this operation to poll for the status of a payout or to verify details befor
 
 | Scenario | Developer Implementation |
 |----------|--------------------------|
-| Check if a payout succeeded | Call `Get` with the `merchant_payout_id` or `connector_payout_id`. |
+| Check if a payout succeeded | Call `get` with the `merchant_payout_id` or `connector_payout_id`. |
 
 ## Request Fields
 
@@ -38,21 +47,36 @@ Use this operation to poll for the status of a payout or to verify details befor
 
 ## Example
 
-```bash
-grpcurl -H "x-connector: stripe" \
-  -H "x-connector-config: {\"config\":{\"Stripe\":{\"api_key\":\"$STRIPE_API_KEY\"}}}" \
-  -d '{
-    "merchant_payout_id": "po_internal_12345"
-  }' \
-  localhost:8080 types.PayoutService/Get
+### SDK Setup
+
+```python
+from hyperswitch_prism import PayoutClient
+
+payout_client = PayoutClient(
+    connector='stripe',
+    api_key='[REDACTED_ENV_SECRET]',
+    environment='SANDBOX'
+)
 ```
 
-```json
+### Request
+
+```python
+request = {
+    "merchant_payout_id": "po_internal_12345"
+}
+
+response = await payout_client.get(request)
+```
+
+### Response
+
+```python
 {
-  "merchant_payout_id": "po_internal_12345",
-  "payout_status": "SUCCESS",
-  "connector_payout_id": "po_1Hh1XYZ2eZvKYlo2C",
-  "status_code": 200
+    "merchant_payout_id": "po_internal_12345",
+    "payout_status": "SUCCESS",
+    "connector_payout_id": "po_1Hh1XYZ2eZvKYlo2C",
+    "status_code": 200
 }
 ```
 
