@@ -26,6 +26,30 @@ fn creds_file_path() -> PathBuf {
 ///
 /// Returns the JSON exactly as the header expects it:
 /// `{"config":{"Stripe":{"api_key":"..."}}}`
+///
+/// When the credentials file exists — which is always the case in CI — a
+/// connector missing or malformed in it is a defect, and this panics rather
+/// than returning `Err`.
+///
+/// The distinction matters because of how the error tends to get handled.
+/// `Err` invites `.ok()` and an early `return`, which Rust records as a passing
+/// test: four Paysafe cases reported PASS in 15ms for exactly that reason,
+/// never having issued a request. A panic cannot be turned into a silent pass.
+/// Without a credentials file at all — a local checkout — the `Err` is
+/// preserved, so tests can still skip off-CI.
 pub fn connector_config_header(connector_name: &str) -> Result<String, CredentialError> {
-    connector_creds::connector_config_header(&creds_file_path(), connector_name)
+    let path = creds_file_path();
+    let result = connector_creds::connector_config_header(&path, connector_name);
+
+    if let Err(error) = &result {
+        assert!(
+            !path.exists(),
+            "credentials file {} is present but '{connector_name}' could not be loaded from it: \
+             {error}. In CI this is a defect, not a reason to skip. Fix the entry, or mark the \
+             test #[ignore] with a reason so the gap is visible instead of counted as a pass.",
+            path.display()
+        );
+    }
+
+    result
 }
