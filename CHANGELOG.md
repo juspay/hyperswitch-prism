@@ -19,6 +19,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.08.18.0
+
+### Features
+
+- **connector:** [Truelayer] Implementation ([#2047](https://github.com/juspay/connector-service/pull/2047)) ([`c108428`](https://github.com/juspay/connector-service/commit/c10842866847364522aa838db0f9fecc6ea01e0e))
+- **logs:** Euler-parity golden-line sources + mapping config (on #2075) ([#2076](https://github.com/juspay/connector-service/pull/2076)) ([`4d43c1f`](https://github.com/juspay/connector-service/commit/4d43c1f9f668e4802194e9678552e19f5ddd5337))
+
+### Bug Fixes
+
+- **maya:** Capture missing response fields + surface raw connector response ([#2134](https://github.com/juspay/connector-service/pull/2134)) ([`317e347`](https://github.com/juspay/connector-service/commit/317e34743d61a5c87b59f32893194e8f7f93e51c))
+- **sync:** Return merchant_transaction_id on failed payment sync response ([#2141](https://github.com/juspay/connector-service/pull/2141)) ([`a5a726d`](https://github.com/juspay/connector-service/commit/a5a726d59c1f15082fc6ac56096944ad4bd5ac55))
+
+### Refactors
+
+- **deps:** Make log_utils optional and fix default log format visibility ([#2137](https://github.com/juspay/connector-service/pull/2137)) ([`c470753`](https://github.com/juspay/connector-service/commit/c470753df1cd561d6c21eb3e5d3bebf973a300e0))
+
+**Full Changelog:** [`2026.08.17.0...2026.08.18.0`](https://github.com/juspay/connector-service/compare/2026.08.17.0...2026.08.18.0)
+
+- - -
+
 ## 2026.08.17.0
 
 ### Features
