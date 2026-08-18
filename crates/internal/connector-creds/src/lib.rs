@@ -167,25 +167,6 @@ fn dropped_field_paths(
     sent.into_iter().filter(|k| !kept.contains(k)).collect()
 }
 
-/// Names the credential fields this connector's config message does not define.
-///
-/// Empty means every field in the entry reached the config. Callers that can
-/// afford to reject a questionable entry — a gate reviewing a newly added
-/// connector, say — can use this to do so; [`connector_config_header`] only
-/// warns, because its other callers skip a connector whose credentials fail to
-/// load and a skipped connector is invisible.
-pub fn unknown_config_fields(
-    creds_file: &Path,
-    connector: &str,
-) -> Result<Vec<String>, CredentialError> {
-    let wrapped = build_wrapped_config(creds_file, connector)?;
-    let parsed: ConnectorSpecificConfig = serde_json::from_value(wrapped.clone())
-        .map_err(|e| CredentialError::InvalidConfig(connector.to_string(), e.to_string()))?;
-    let round_tripped = serde_json::to_value(&parsed)
-        .map_err(|e| CredentialError::InvalidConfig(connector.to_string(), e.to_string()))?;
-    Ok(dropped_field_paths(&wrapped, &round_tripped))
-}
-
 /// Builds the `x-connector-config` header value for one connector, and proves it
 /// deserializes into [`ConnectorSpecificConfig`] before returning it.
 ///
@@ -245,6 +226,16 @@ pub fn connector_config_header(
 mod tests {
     use super::*;
 
+    /// Composes the two private steps the loader uses, so a test can assert on
+    /// exactly what the warning reports without a public API that has no caller.
+    fn dropped_for(path: &Path, connector: &str) -> Vec<String> {
+        let wrapped = build_wrapped_config(path, connector).expect("entry should build");
+        let parsed: ConnectorSpecificConfig =
+            serde_json::from_value(wrapped.clone()).expect("entry should parse");
+        let round_tripped = serde_json::to_value(&parsed).expect("config should serialize");
+        dropped_field_paths(&wrapped, &round_tripped)
+    }
+
     fn write(contents: &str) -> tempfile::NamedTempFile {
         use std::io::Write;
         let mut file = tempfile::NamedTempFile::new().expect("temp file");
@@ -279,9 +270,7 @@ mod tests {
     #[test]
     fn a_correct_entry_drops_nothing() {
         let file = write(r#"{"stripe":{"api_key":{"value":"sk_test_123"}}}"#);
-        assert!(unknown_config_fields(file.path(), "stripe")
-            .expect("should load")
-            .is_empty());
+        assert!(dropped_for(file.path(), "stripe").is_empty());
     }
 
     #[test]
@@ -368,7 +357,7 @@ mod tests {
     #[test]
     fn a_field_the_config_does_not_define_is_named() {
         let file = write(r#"{"cashtocode":{"auth_key_map":{"EUR":{"password":{"value":"pw"}}}}}"#);
-        let dropped = unknown_config_fields(file.path(), "cashtocode").expect("should load");
+        let dropped = dropped_for(file.path(), "cashtocode");
         assert_eq!(
             dropped,
             vec!["config.Cashtocode.auth_key_map.EUR.password".to_string()]
@@ -381,7 +370,7 @@ mod tests {
     #[test]
     fn a_misspelled_top_level_field_is_named() {
         let file = write(r#"{"stripe":{"api_ky":"sk_test_x"}}"#);
-        let dropped = unknown_config_fields(file.path(), "stripe").expect("should load");
+        let dropped = dropped_for(file.path(), "stripe");
         assert_eq!(dropped, vec!["config.Stripe.api_ky".to_string()]);
     }
 
