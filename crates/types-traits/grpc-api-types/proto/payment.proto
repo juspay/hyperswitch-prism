@@ -5981,8 +5981,8 @@ message ConnectorSpecificConfig {
     BoostConfig boost = 145;
     // CITIGATE = 137
     CitigateConfig citigate = 146;
-    // GOTYME_SANLAM = 146
-    GotymeSanlamConfig gotyme_sanlam = 146;
+    // GOTYME_SANLAM = 147
+    GotymeSanlamConfig gotyme_sanlam = 147;
   }
 }
 
