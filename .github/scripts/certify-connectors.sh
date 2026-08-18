@@ -77,29 +77,45 @@ build_binaries() {
   return "${PIPESTATUS[0]}"
 }
 
-# Whether the failure happened before or after the request left the harness.
+# Whether the connector answered, or the request never got an answer at all.
 #
-# `res_body` is present exactly when the harness got as far as invoking grpcurl
-# and reading its output; it is absent when the scenario died earlier (bad
-# config, unbuildable payload, grpcurl not spawnable). That is a fact about the
-# exchange rather than a guess from the wording of an error, so a legitimate
+# Read from the response record rather than the wording of an error, so a
 # content failure that happens to mention "timeout" is not mistaken for an
-# outage.
+# outage. Three states, in order of certainty:
 #
-# Known limit: `res_body` is NOT proof the connector answered. On a failed call
-# the harness fills it by scanning grpcurl's verbose output for the longest
-# valid JSON (scenario_api.rs, extract_best_json_value), which picks up the
-# echoed `x-connector-config` request header when no response arrived. A
-# connection refused therefore lands in `contract`, not `availability`. It does
-# not change a verdict today — both sides of the arbitration misread it the same
-# way, so the comparison still cancels — but do not build new logic on
-# `res_body` meaning "answered" until the harness stops doing this.
+#   rc 124/137            killed by the attempt timeout; there may be no report.
+#   res_body.raw_response the harness could not parse a response body, so it
+#                         stored grpcurl's output verbatim. Verified against a
+#                         closed port: this is what `connection refused` yields.
+#   res_body present      grpcurl produced parseable JSON.
+#
+# The last one is weaker than it looks and must not be read as "the connector
+# answered": on a failed call the harness fills res_body by scanning grpcurl's
+# verbose output for the longest valid JSON (scenario_api.rs,
+# extract_best_json_value), which picks up the echoed `x-connector-config`
+# request header. Observed in the report pipeline, where entries that received
+# zero responses carry `res_body: {"config":{"Aci":{...}}}`. Those calls did
+# reach a server that answered with a gRPC status, so `contract` is still the
+# right answer for them — but the field is not evidence for it. Do not build new
+# logic on res_body meaning "answered" until the harness records that directly.
 classify_failure() {
   local rc="$1" report="$2" scenario="$3"
 
   # Killed by the attempt timeout: nothing came back, and there may be no
   # report to consult.
   if [[ "${rc}" -eq 124 || "${rc}" -eq 137 ]]; then
+    printf 'availability'
+    return
+  fi
+
+  # No response body could be parsed: grpcurl's raw output was stored instead.
+  local unparseable
+  unparseable=$(jq --arg s "${scenario}" '
+    [ .[]? | select(.scenario == $s and .is_dependency != true
+                    and (.res_body.raw_response? != null)) ] | length' \
+    "${report}" 2>/dev/null || echo 0)
+
+  if [[ "${unparseable:-0}" -gt 0 ]]; then
     printf 'availability'
     return
   fi
