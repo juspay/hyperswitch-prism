@@ -396,7 +396,7 @@ pub struct PayoutCreateRecipientRequest {
     pub payout_method_data: Option<PayoutMethodData>,
     pub recipient_type: common_enums::PayoutRecipientType,
 
-    pub address: Option<super::super::payment_address::Address>,
+    pub address: Option<PayoutAddress>,
 
     pub customer: Option<PayoutCustomer>,
 
@@ -436,62 +436,70 @@ impl PayoutCreateRecipientRequest {
     pub fn get_billing(&self) -> Result<&Address, Error> {
         self.address
             .as_ref()
-            .ok_or_else(missing_field_err("address"))
+            .and_then(|a| a.billing_address.as_ref())
+            .ok_or_else(missing_field_err("address.billing_address"))
     }
 
     pub fn get_billing_address(&self) -> Result<&crate::payment_address::AddressDetails, Error> {
         self.get_billing()?
             .address
             .as_ref()
-            .ok_or_else(missing_field_err("address.address"))
+            .ok_or_else(missing_field_err("address.billing_address.address"))
     }
 
     pub fn get_optional_billing_line1(&self) -> Option<Secret<String>> {
         self.address
             .as_ref()
-            .and_then(|a| a.address.as_ref())
+            .and_then(|a| a.billing_address.as_ref())
+            .and_then(|b| b.address.as_ref())
             .and_then(|addr| addr.line1.clone())
     }
 
     pub fn get_optional_billing_line2(&self) -> Option<Secret<String>> {
         self.address
             .as_ref()
-            .and_then(|a| a.address.as_ref())
+            .and_then(|a| a.billing_address.as_ref())
+            .and_then(|b| b.address.as_ref())
             .and_then(|addr| addr.line2.clone())
     }
 
     pub fn get_optional_billing_city(&self) -> Option<Secret<String>> {
         self.address
             .as_ref()
-            .and_then(|a| a.address.as_ref())
+            .and_then(|a| a.billing_address.as_ref())
+            .and_then(|b| b.address.as_ref())
             .and_then(|addr| addr.city.clone())
     }
 
     pub fn get_optional_billing_state(&self) -> Option<Secret<String>> {
         self.address
             .as_ref()
-            .and_then(|a| a.address.as_ref())
+            .and_then(|a| a.billing_address.as_ref())
+            .and_then(|b| b.address.as_ref())
             .and_then(|addr| addr.state.clone())
     }
 
     pub fn get_optional_billing_zip(&self) -> Option<Secret<String>> {
         self.address
             .as_ref()
-            .and_then(|a| a.address.as_ref())
+            .and_then(|a| a.billing_address.as_ref())
+            .and_then(|b| b.address.as_ref())
             .and_then(|addr| addr.zip.clone())
     }
 
     pub fn get_optional_billing_country(&self) -> Option<common_enums::CountryAlpha2> {
         self.address
             .as_ref()
-            .and_then(|a| a.address.as_ref())
+            .and_then(|a| a.billing_address.as_ref())
+            .and_then(|b| b.address.as_ref())
             .and_then(|addr| addr.country)
     }
 
     pub fn get_optional_billing_email(&self) -> Option<Secret<String>> {
         self.address
             .as_ref()
-            .and_then(|a| a.email.as_ref())
+            .and_then(|a| a.billing_address.as_ref())
+            .and_then(|b| b.email.as_ref())
             .map(|e| Secret::new(e.peek().to_string()))
     }
 
@@ -603,7 +611,12 @@ impl PayoutCreateRecipientRequest {
         self.customer
             .as_ref()
             .and_then(|c| c.email.clone())
-            .or_else(|| self.address.as_ref().and_then(|a| a.email.clone()))
+            .or_else(|| {
+                self.address
+                    .as_ref()
+                    .and_then(|a| a.billing_address.as_ref())
+                    .and_then(|b| b.email.clone())
+            })
     }
 
     pub fn is_company(&self) -> bool {

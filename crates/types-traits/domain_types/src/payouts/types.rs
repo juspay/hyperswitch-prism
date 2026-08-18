@@ -1524,60 +1524,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateRecipientRequest
 
         let address = value
             .address
-            .map(|addr| -> Result<_, error_stack::Report<IntegrationError>> {
-                let billing = addr.billing_address;
-                let address_details =
-                    billing
-                        .as_ref()
-                        .map(|b| super::super::payment_address::AddressDetails {
-                            city: b.city.clone(),
-                            country: b.country_alpha2_code.and_then(|c| {
-                                grpc_api_types::payments::CountryAlpha2::try_from(c)
-                                    .ok()
-                                    .and_then(|cc| {
-                                        common_enums::CountryAlpha2::try_from(cc.as_str_name()).ok()
-                                    })
-                            }),
-                            line1: b.line1.clone(),
-                            line2: b.line2.clone(),
-                            line3: b.line3.clone(),
-                            zip: b.zip_code.clone(),
-                            state: b.state.clone(),
-                            first_name: b.first_name.clone(),
-                            last_name: b.last_name.clone(),
-                            origin_zip: None,
-                        });
-                let phone_details = billing.as_ref().and_then(|b| {
-                    b.phone_number.as_ref().map(|phone| {
-                        super::super::payment_address::PhoneDetails {
-                            number: Some(phone.clone()),
-                            country_code: b.phone_country_code.clone(),
-                        }
-                    })
-                });
-                let email = billing
-                    .as_ref()
-                    .and_then(|b| b.email.as_ref())
-                    .map(|e| {
-                        common_utils::pii::Email::try_from(e.peek().clone()).map_err(|err| {
-                            tracing::warn!(?err, "Failed to parse billing email");
-                            error_stack::Report::new(IntegrationError::InvalidDataFormat {
-                                field_name: "address.billing_address.email",
-                                context: IntegrationErrorContext {
-                                    additional_context: Some("Invalid billing email".to_owned()),
-                                    ..Default::default()
-                                },
-                            })
-                            .attach_printable(format!("{err:?}"))
-                        })
-                    })
-                    .transpose()?;
-                Ok(super::super::payment_address::Address {
-                    address: address_details,
-                    phone: phone_details,
-                    email,
-                })
-            })
+            .map(payouts::payouts_types::PayoutAddress::foreign_try_from)
             .transpose()?;
 
         let customer = value
