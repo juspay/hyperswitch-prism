@@ -46,7 +46,7 @@ regex = "1.11.1"
 semver = { version = "1.0.26", features = ["serde"] }
 openssl = { version = "0.10", features = ["vendored"] }
 josekit = "0.8.7"
-deja = { git = "https://github.com/juspay/deja", rev = "2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3", optional = true, default-features = false }
+deja = { git = "https://github.com/iemyashasvi/deja", rev = "55fb014ed57f4a1d2d827b8990e4235cc10da0b7", optional = true, default-features = false }
 
 # Optional features
 [features]

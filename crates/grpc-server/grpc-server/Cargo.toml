@@ -79,8 +79,8 @@ uuid = { workspace = true }
 chrono = "0.4.31"
 # Déjà record/replay (optional). deja-core carries the graph/envelope types; prost-reflect
 # decodes captured gRPC messages to proto3-JSON via the emitted FILE_DESCRIPTOR_SET.
-deja = { git = "https://github.com/juspay/deja", rev = "2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3", default-features = false, optional = true }
-deja-core = { git = "https://github.com/juspay/deja", rev = "2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3", package = "deja-core", default-features = false, optional = true }
+deja = { git = "https://github.com/iemyashasvi/deja", rev = "55fb014ed57f4a1d2d827b8990e4235cc10da0b7", default-features = false, optional = true }
+deja-core = { git = "https://github.com/iemyashasvi/deja", rev = "55fb014ed57f4a1d2d827b8990e4235cc10da0b7", package = "deja-core", default-features = false, optional = true }
 prost-reflect = { version = "0.16.5", features = ["serde"], optional = true }
 http-body = { version = "1.0.1", optional = true }
 http-body-util = { version = "0.1.3", optional = true }
