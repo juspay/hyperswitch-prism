@@ -77,13 +77,23 @@ build_binaries() {
   return "${PIPESTATUS[0]}"
 }
 
-# Whether the failure happened before or after the connector answered.
+# Whether the failure happened before or after the request left the harness.
 #
-# The harness records `res_body` only when a response came back: an assertion
-# mismatch still carries one, a transport failure does not. That is a fact
-# about the exchange rather than a guess from the wording of an error, so a
-# legitimate content failure that happens to mention "timeout" is not mistaken
-# for an outage.
+# `res_body` is present exactly when the harness got as far as invoking grpcurl
+# and reading its output; it is absent when the scenario died earlier (bad
+# config, unbuildable payload, grpcurl not spawnable). That is a fact about the
+# exchange rather than a guess from the wording of an error, so a legitimate
+# content failure that happens to mention "timeout" is not mistaken for an
+# outage.
+#
+# Known limit: `res_body` is NOT proof the connector answered. On a failed call
+# the harness fills it by scanning grpcurl's verbose output for the longest
+# valid JSON (scenario_api.rs, extract_best_json_value), which picks up the
+# echoed `x-connector-config` request header when no response arrived. A
+# connection refused therefore lands in `contract`, not `availability`. It does
+# not change a verdict today — both sides of the arbitration misread it the same
+# way, so the comparison still cancels — but do not build new logic on
+# `res_body` meaning "answered" until the harness stops doing this.
 classify_failure() {
   local rc="$1" report="$2" scenario="$3"
 
