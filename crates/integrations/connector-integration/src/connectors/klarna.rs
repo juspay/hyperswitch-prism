@@ -202,6 +202,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         with_error_response_body!(event_builder, response);
 
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
+
         // Klarna has two error shapes (see `KlarnaErrorResponse`): the API
         // validation error carries `error_code` + `error_messages`/`error_message`;
         // the auth/gateway error (e.g. 401) carries `http_status_code` +
@@ -237,6 +240,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     }
 }
@@ -471,14 +478,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn get_request_body(
         &self,
         req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-    ) -> CustomResult<Option<macro_types::RequestContent>, errors::IntegrationError> {
+    ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, errors::IntegrationError> {
         let bridge = self.capture;
         let input_data = KlarnaRouterData {
             connector: self.to_owned(),
             router_data: req.clone(),
         };
         let request = bridge.request_body(input_data)?;
-        Ok(Some(macro_types::RequestContent::Json(Box::new(request))))
+        let typed = events::MaskedSerdeValue::from_masked_optional(
+            &request,
+            "typed_connector_request",
+        );
+        Ok(Some(common_utils::request::ConnectorRequestData::new(
+            common_utils::request::RequestContent::Json(Box::new(request)),
+            typed,
+        )))
     }
 
     fn handle_response_v2(
@@ -580,14 +594,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn get_request_body(
         &self,
         req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-    ) -> CustomResult<Option<macro_types::RequestContent>, errors::IntegrationError> {
+    ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, errors::IntegrationError> {
         let bridge = self.refund;
         let input_data = KlarnaRouterData {
             connector: self.to_owned(),
             router_data: req.clone(),
         };
         let request = bridge.request_body(input_data)?;
-        Ok(Some(macro_types::RequestContent::Json(Box::new(request))))
+        let typed = events::MaskedSerdeValue::from_masked_optional(
+            &request,
+            "typed_connector_request",
+        );
+        Ok(Some(common_utils::request::ConnectorRequestData::new(
+            common_utils::request::RequestContent::Json(Box::new(request)),
+            typed,
+        )))
     }
 
     fn handle_response_v2(
@@ -745,7 +766,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn get_request_body(
         &self,
         _req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-    ) -> CustomResult<Option<macro_types::RequestContent>, errors::IntegrationError> {
+    ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, errors::IntegrationError> {
         // Klarna's cancel endpoint takes an empty POST; there is no request body.
         Ok(None)
     }

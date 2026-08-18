@@ -6012,7 +6012,7 @@ message ConnectorSpecificConfig {
     // CITIGATE = 137
     CitigateConfig citigate = 146;
     // KLARNA = 45
-    KlarnaConfig klarna = 143;
+    KlarnaConfig klarna = 147;
   }
 }
 

@@ -3645,6 +3645,8 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         key1: key1.clone(),
                         base_url: None,
                     }),
+                    _ => Err(err().into()),
+                },
                 ConnectorEnum::Klarna => match auth {
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Klarna {
                         api_key: api_key.clone(),
