@@ -296,8 +296,8 @@ macro_rules! grpc_test {
             common::server_and_client_stub::<$c_type>(server, base_config)
                 .await
                 .expect("Failed to create the server client pair");
-        let server_fut = Box::pin(server_fut);
-        let response = Box::pin(async { $body });
+        tokio::pin!(server_fut);
+        let response = async { $body };
 
         tokio::select! {
             _ = server_fut => panic!("Server failed"),
@@ -313,8 +313,8 @@ macro_rules! grpc_test {
                 .await
                 .expect("Failed to create the server channel");
         $(let mut $client = <$c_type as common::AutoClient>::new(channel.clone());)+
-        let server_fut = Box::pin(server_fut);
-        let response = Box::pin(async { $body });
+        tokio::pin!(server_fut);
+        let response = async { $body };
 
         tokio::select! {
             _ = server_fut => panic!("Server failed"),
