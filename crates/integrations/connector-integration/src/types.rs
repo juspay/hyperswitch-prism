@@ -142,6 +142,7 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
             ConnectorEnum::Grabpay => Box::new(connectors::Grabpay::<T>::new()),
             ConnectorEnum::Tesouro => Box::new(connectors::Tesouro::<T>::new()),
             ConnectorEnum::Boost => Box::new(connectors::Boost::<T>::new()),
+            ConnectorEnum::Citigate => Box::new(connectors::Citigate::<T>::new()),
             ConnectorEnum::Worldpayraft => Box::new(connectors::Worldpayraft::<T>::new()),
         }
     }
@@ -231,6 +232,7 @@ impl PayoutConnectorData {
                 Box::new(payout_connectors::CybersourcePayouts::new())
             }
             PayoutConnectorEnum::Santander => Box::new(payout_connectors::SantanderPayouts::new()),
+            PayoutConnectorEnum::Truelayer => Box::new(payout_connectors::TruelayerPayouts::new()),
         }
     }
 }

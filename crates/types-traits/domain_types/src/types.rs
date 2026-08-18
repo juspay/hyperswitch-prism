@@ -428,6 +428,7 @@ pub struct Connectors {
     pub tesouro: ConnectorParams,
     pub boost: ConnectorParams,
     pub santander: ConnectorParams,
+    pub citigate: ConnectorParams,
     pub worldpayraft: ConnectorParams,
 }
 
@@ -709,6 +710,9 @@ impl Connectors {
             ConnectorEnum::Payme => {
                 patched.payme.apply(params_patch);
             }
+            ConnectorEnum::Tamara => {
+                patched.tamara.apply(params_patch);
+            }
             ConnectorEnum::Placetopay => {
                 patched.placetopay.apply(params_patch);
             }
@@ -799,7 +803,7 @@ impl Connectors {
                     context: IntegrationErrorContext {
                         additional_context: Some(format!(
                             "Connector '{}' is not supported for dynamic URL patching from superposition. \
-                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, multisafepay, nexixpay, payload, payme, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat, givepayments, boost",
+                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, multisafepay, nexixpay, payload, payme, tamara, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat, givepayments, boost",
                             connector
                         )),
                         ..Default::default()
@@ -843,6 +847,7 @@ impl Connectors {
                         server_ca_bundle: None,
                     })
             }
+            PayoutConnectorEnum::Truelayer => patched.truelayer.apply(params_patch),
         }
         Ok(patched)
     }
@@ -6005,6 +6010,13 @@ impl
 
         let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
 
+        let access_token = value
+            .state
+            .as_ref()
+            .and_then(|state| state.access_token.as_ref())
+            .map(ServerAuthenticationTokenResponseData::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
             raw_connector_status: None,
             merchant_id: merchant_id_from_header,
@@ -6031,7 +6043,7 @@ impl
             minor_amount_captured: None,
             minor_amount_capturable: None,
             amount: None,
-            access_token: None,
+            access_token,
             session_token: None,
             reference_id: None,
             connector_order_id: None,
@@ -6505,6 +6517,9 @@ pub fn generate_payment_method_eligibility_response(
             .into(),
             status_code: response.status_code,
             error_info: None,
+            payment_method_details: response
+                .payment_method_details
+                .map(grpc_api_types::payments::PaymentMethodDetails::foreign_from),
             raw_connector_request,
             typed_connector_request,
             raw_connector_response,
@@ -6528,6 +6543,7 @@ pub fn generate_payment_method_eligibility_response(
                 }),
                 issuer_details: None,
             }),
+            payment_method_details: None,
             raw_connector_request,
             typed_connector_request,
             raw_connector_response,
@@ -8534,7 +8550,12 @@ pub fn generate_payment_sync_response(
                     &e.connector_transaction_id,
                 ),
                 connector_reference_id: None,
-                merchant_transaction_id: None,
+                merchant_transaction_id: Some(
+                    router_data_v2
+                        .resource_common_data
+                        .connector_request_reference_id
+                        .clone(),
+                ),
                 mandate_reference: None,
                 mandate_reference_details: None,
                 status: status as i32,
@@ -9610,6 +9631,7 @@ impl ForeignTryFrom<PaymentMethodServiceEligibilityRequest> for PaymentMethodEli
         Ok(Self {
             amount,
             customer,
+            connector_payment_method_id: value.connector_payment_method_id,
             country_code: country,
             payment_method_type,
             description: value.description,

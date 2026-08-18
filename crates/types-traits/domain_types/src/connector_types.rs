@@ -163,6 +163,7 @@ pub enum ConnectorEnum {
     Grabpay,
     Tesouro,
     Boost,
+    Citigate,
     Worldpayraft,
 }
 
@@ -246,6 +247,7 @@ pub enum PayoutConnectorEnum {
     Worldpayxml,
     Cybersource,
     Santander,
+    Truelayer,
 }
 
 impl TryFrom<ConnectorEnum> for PayoutConnectorEnum {
@@ -258,6 +260,7 @@ impl TryFrom<ConnectorEnum> for PayoutConnectorEnum {
             ConnectorEnum::Itaubank => Ok(Self::Itaubank),
             ConnectorEnum::Worldpayxml => Ok(Self::Worldpayxml),
             ConnectorEnum::Cybersource => Ok(Self::Cybersource),
+            ConnectorEnum::Truelayer => Ok(Self::Truelayer),
             _ => Err(IntegrationError::InvalidDataFormat {
                 field_name: "connector",
                 context: IntegrationErrorContext::default(),
@@ -299,6 +302,7 @@ impl ForeignTryFrom<AuthType> for PayoutConnectorEnum {
             AuthType::Worldpayxml(_) => Ok(Self::Worldpayxml),
             AuthType::Cybersource(_) => Ok(Self::Cybersource),
             AuthType::Santander(_) => Ok(Self::Santander),
+            AuthType::Truelayer(_) => Ok(Self::Truelayer),
             _ => Err(error_stack::Report::new(
                 IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -522,6 +526,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Givepayments => Ok(Self::Givepayments),
             grpc_api_types::payments::Connector::Boost => Ok(Self::Boost),
             grpc_api_types::payments::Connector::Grabpay => Ok(Self::Grabpay),
+            grpc_api_types::payments::Connector::Citigate => Ok(Self::Citigate),
             grpc_api_types::payments::Connector::Worldpayraft => Ok(Self::Worldpayraft),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
@@ -1590,6 +1595,10 @@ pub struct PaymentMethodEligibilityData {
     pub amount: common_utils::types::Money,
     /// Customer details (phone, email, name, etc.) for eligibility check.
     pub customer: Option<CustomerInfo>,
+    /// Connector-issued payment method ID (e.g. wallet number) being checked,
+    /// when known. Mirrors `GetPaymentMethodData`'s identifier so connectors
+    /// can reuse the same lookup as `GetPaymentMethod`.
+    pub connector_payment_method_id: Option<String>,
     /// Market/country the eligibility check is for. BNPL eligibility is
     /// country-gated, so connectors operating per-market rely on this.
     /// (Billing/shipping address and order line items are carried on the
@@ -1611,6 +1620,10 @@ pub struct PaymentMethodEligibilityData {
 #[derive(Debug, Clone)]
 pub struct PaymentMethodEligibilityResponse {
     pub eligibility: common_enums::EligibilityStatus,
+    /// Payment method details resolved as part of the eligibility check (e.g.
+    /// wallet/gift-card balance and items), when the connector call that
+    /// determines eligibility also returns them.
+    pub payment_method_details: Option<payment_method_data::PaymentMethodDetails>,
     pub status_code: u32,
 }
 
@@ -5671,6 +5684,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Maya(_) => Ok(Self::Payment(ConnectorEnum::Maya)),
             AuthType::Tesouro(_) => Ok(Self::Payment(ConnectorEnum::Tesouro)),
             AuthType::Boost(_) => Ok(Self::Payment(ConnectorEnum::Boost)),
+            AuthType::Citigate(_) => Ok(Self::Payment(ConnectorEnum::Citigate)),
             AuthType::Worldpayraft(_) => Ok(Self::Payment(ConnectorEnum::Worldpayraft)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TsysTransit(_) => Ok(Self::Payment(ConnectorEnum::TsysTransit)),

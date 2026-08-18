@@ -900,7 +900,8 @@ enum Connector {
   MAYA = 134;
   GRABPAY = 135;
   BOOST = 136;
-  WORLDPAYRAFT = 137;
+  CITIGATE = 137;
+  WORLDPAYRAFT = 138;
 }
 
 // Payment method types
@@ -5651,6 +5652,12 @@ message BoostConfig {
   optional string base_url = 50;
 }
 
+message CitigateConfig {
+  SecretString api_key = 1;
+  SecretString key1 = 2;
+  optional string base_url = 50;
+}
+
 message WorldpayraftConfig {
   SecretString license = 1;
   SecretString merchant_id = 2;
@@ -5973,8 +5980,10 @@ message ConnectorSpecificConfig {
     GrabpayConfig grabpay = 144;
     // BOOST = 136
     BoostConfig boost = 145;
-    // WORLDPAYRAFT = 137
-    WorldpayraftConfig worldpayraft = 146;
+    // CITIGATE = 137
+    CitigateConfig citigate = 146;
+    // WORLDPAYRAFT = 138
+    WorldpayraftConfig worldpayraft = 147;
   }
 }
 
@@ -6245,6 +6254,15 @@ message PaymentMethodServiceEligibilityRequest {
 
   // Sandbox/test mode flag (true for test environment).
   optional bool test_mode = 10;
+
+  // Connector-issued payment method ID (e.g. wallet number) being checked,
+  // when known. Mirrors PaymentMethodServiceGetRequest's identifier so
+  // connectors can reuse the same lookup as PaymentMethodService.Get.
+  optional string connector_payment_method_id = 11;
+
+  // State Information (for access token), set by CompositePaymentMethodService.Eligibility
+  // after bootstrapping the connector's session token.
+  optional ConnectorState state = 12;
 }
 
 // Response from a pre-checkout eligibility check.
@@ -6267,6 +6285,11 @@ message PaymentMethodServiceEligibilityResponse {
 
   // Response headers from the connector.
   map<string, string> response_headers = 6;
+
+  // Payment method details resolved as part of the eligibility check (e.g.
+  // wallet/gift-card balance and items), when the connector call that
+  // determines eligibility also returns them.
+  optional PaymentMethodDetails payment_method_details = 9;
 }
 
 // ============================================================================
