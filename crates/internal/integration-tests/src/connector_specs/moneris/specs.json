@@ -1,0 +1,13 @@
+{
+  "connector": "moneris",
+  "supported_suites": [
+    "MerchantAuthenticationService/CreateServerAuthenticationToken",
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "PaymentService/Get",
+    "PaymentService/Refund",
+    "PaymentService/Void",
+    "RecurringPaymentService/Charge",
+    "RefundService/Get"
+  ]
+}
