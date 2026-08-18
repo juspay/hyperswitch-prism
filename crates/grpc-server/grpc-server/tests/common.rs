@@ -286,93 +286,39 @@ pub async fn server_and_channel_stub(
     Ok((serve_future, channel))
 }
 
-/// Stack size for the dedicated test thread.
-///
-/// The default Rust test thread stack is 2 MB (RUST_MIN_STACK).  Stripe's
-/// response-processing path — deep serde/tonic/hyper call chains plus complex
-/// transformer functions — can exceed that limit and cause SIGABRT.  All other
-/// connectors fit comfortably; Stripe is the boundary case.  16 MB gives headroom
-/// for both the current depth and near-future growth without being gratuitous.
-pub const GRPC_TEST_STACK_SIZE: usize = 16 * 1024 * 1024;
-
 #[macro_export]
 macro_rules! grpc_test {
-    // Single-client variant ─────────────────────────────────────────────────
     ($client:ident, $c_type:ty, $body:block) => {
-        // The Rust test harness spawns each test on a thread whose stack is
-        // RUST_MIN_STACK (default 2 MB).  For connectors like Stripe whose
-        // response processing uses more than that (deep serde + tonic + hyper
-        // call chains), the test panics with SIGABRT.  The fix is to run the
-        // entire test — setup, gRPC calls, and assertions — on a dedicated
-        // thread with a larger stack.  The outer tokio runtime (from
-        // #[tokio::test]) merely waits for this thread to join.
-        std::thread::Builder::new()
-            .name(
-                std::thread::current()
-                    .name()
-                    .unwrap_or("grpc_test")
-                    .to_string(),
-            )
-            .stack_size(common::GRPC_TEST_STACK_SIZE)
-            .spawn(move || {
-                tokio::runtime::Builder::new_current_thread()
-                    .enable_all()
-                    .build()
-                    .expect("Failed to build tokio runtime for grpc_test thread")
-                    .block_on(async {
-                        let config =
-                            configs::Config::new().expect("Failed while parsing config");
-                        let base_config = std::sync::Arc::new(config);
-                        let server = app::Service::new(base_config.clone()).await;
-                        let (server_fut, mut $client) =
-                            common::server_and_client_stub::<$c_type>(server, base_config)
-                                .await
-                                .expect("Failed to create the server client pair");
-                        // With 16 MB of stack on this thread, spawning the
-                        // large server future is safe. The task runs on this
-                        // thread's tokio runtime cooperatively with the test.
-                        let server_handle = tokio::spawn(server_fut);
-                        $body
-                        server_handle.abort();
-                    })
-            })
-            .expect("Failed to spawn grpc_test thread")
-            .join()
-            .expect("grpc_test thread panicked");
+        let config = configs::Config::new().expect("Failed while parsing config");
+        let base_config = std::sync::Arc::new(config);
+        let server = app::Service::new(base_config.clone()).await;
+        let (server_fut, mut $client) =
+            common::server_and_client_stub::<$c_type>(server, base_config)
+                .await
+                .expect("Failed to create the server client pair");
+        let server_fut = Box::pin(server_fut);
+        let response = Box::pin(async { $body });
+
+        tokio::select! {
+            _ = server_fut => panic!("Server failed"),
+            _ = response => {}
+        }
     };
-    // Multi-client variant ──────────────────────────────────────────────────
     ([$($client:ident: $c_type:ty),+], $body:block) => {
-        std::thread::Builder::new()
-            .name(
-                std::thread::current()
-                    .name()
-                    .unwrap_or("grpc_test")
-                    .to_string(),
-            )
-            .stack_size(common::GRPC_TEST_STACK_SIZE)
-            .spawn(|| {
-                tokio::runtime::Builder::new_current_thread()
-                    .enable_all()
-                    .build()
-                    .expect("Failed to build tokio runtime for grpc_test thread")
-                    .block_on(async {
-                        let config =
-                            configs::Config::new().expect("Failed while parsing config");
-                        let base_config = std::sync::Arc::new(config);
-                        let server = app::Service::new(base_config.clone()).await;
-                        let (server_fut, channel) =
-                            common::server_and_channel_stub(server, base_config)
-                                .await
-                                .expect("Failed to create the server channel");
-                        let server_handle = tokio::spawn(server_fut);
-                        $(let mut $client =
-                            <$c_type as common::AutoClient>::new(channel.clone());)+
-                        $body
-                        server_handle.abort();
-                    })
-            })
-            .expect("Failed to spawn grpc_test thread")
-            .join()
-            .expect("grpc_test thread panicked");
+        let config = configs::Config::new().expect("Failed while parsing config");
+        let base_config = std::sync::Arc::new(config);
+        let server = app::Service::new(base_config.clone()).await;
+        let (server_fut, channel) =
+            common::server_and_channel_stub(server, base_config)
+                .await
+                .expect("Failed to create the server channel");
+        $(let mut $client = <$c_type as common::AutoClient>::new(channel.clone());)+
+        let server_fut = Box::pin(server_fut);
+        let response = Box::pin(async { $body });
+
+        tokio::select! {
+            _ = server_fut => panic!("Server failed"),
+            _ = response => {}
+        }
     };
 }
