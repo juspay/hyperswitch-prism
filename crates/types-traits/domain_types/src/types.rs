@@ -428,6 +428,7 @@ pub struct Connectors {
     pub tesouro: ConnectorParams,
     pub boost: ConnectorParams,
     pub santander: ConnectorParams,
+    pub citigate: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
