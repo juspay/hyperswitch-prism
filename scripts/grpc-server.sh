@@ -13,7 +13,7 @@ GRPC_SERVER_PID=""
 
 # grpc_server_start <binary> <host> <port>
 grpc_server_start() {
-  local binary="$1" host="$2" port="$3" i
+  local binary="$1" host="$2" port="$3"
 
   if [[ ! -x "${binary}" ]]; then
     echo "gRPC server binary not found at ${binary}" >&2
@@ -27,7 +27,7 @@ grpc_server_start() {
     "${binary}" > /dev/null 2>&1 &
   GRPC_SERVER_PID=$!
 
-  for i in $(seq 1 40); do
+  for _ in $(seq 1 40); do
     if nc -z 127.0.0.1 "${port}" 2>/dev/null; then
       return 0
     fi
@@ -48,14 +48,13 @@ grpc_server_start() {
 
 grpc_server_stop() {
   [[ -n "${GRPC_SERVER_PID}" ]] || return 0
-  local i
 
   kill "${GRPC_SERVER_PID}" 2>/dev/null || true
 
   # Bounded, then forced. An unbounded `wait` here held a CI job open for two
   # hours after the scenario had already passed: the server does not exit on
   # SIGTERM promptly, and nothing else was going to release the shell.
-  for i in $(seq 1 40); do
+  for _ in $(seq 1 40); do
     kill -0 "${GRPC_SERVER_PID}" 2>/dev/null || break
     sleep 0.25
   done
