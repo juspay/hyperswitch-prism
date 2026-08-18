@@ -1,7 +1,9 @@
 use crate::{connectors::braintree::BraintreeRouterData, types::ResponseRouterData, utils};
+use base64::Engine;
 use common_enums::enums;
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
+    ext_traits::XmlExt,
     pii,
     types::{MinorUnit, StringMajorUnit},
 };
@@ -299,10 +301,27 @@ pub struct VaultTransactionBody {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MandateTransactionBody {
+    amount: StringMajorUnit,
+    merchant_account_id: Secret<String>,
+    channel: String,
+    order_id: String,
+    payment_initiator: PaymentInitiatorType,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PaymentInitiatorType {
+    Unscheduled,
+}
+
+#[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum TransactionBody {
     Regular(RegularTransactionBody),
     Vault(VaultTransactionBody),
+    Mandate(MandateTransactionBody),
 }
 
 #[derive(Debug, Serialize)]
@@ -363,16 +382,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 true => constants::CHARGE_CREDIT_CARD_MUTATION.to_string(),
                 false => constants::AUTHORIZE_CREDIT_CARD_MUTATION.to_string(),
             },
-            TransactionBody::Regular(RegularTransactionBody {
+            TransactionBody::Mandate(MandateTransactionBody {
                 amount,
                 merchant_account_id: metadata.merchant_account_id,
                 channel: constants::CHANNEL_CODE.to_string(),
-                customer_details: None,
                 order_id: item
                     .router_data
                     .resource_common_data
                     .connector_request_reference_id
                     .clone(),
+                payment_initiator: PaymentInitiatorType::Unscheduled,
             }),
         );
         Ok(Self {
@@ -605,6 +624,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Crypto(_)
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
@@ -701,6 +721,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                                 connector_mandate_id: Some(pm.id.clone().expose()),
                                 payment_method_id: None,
                                 connector_mandate_request_reference_id: None,
+                                mandate_metadata: None,
                             })
                         }),
                         connector_metadata: None,
@@ -851,6 +872,10 @@ fn get_error_response<T>(
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
+        typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
     }))
 }
 
@@ -870,6 +895,10 @@ fn create_failure_error_response<T: ToString>(
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
+        typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
     }
 }
 
@@ -955,6 +984,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                                 connector_mandate_id: Some(pm.id.clone().expose()),
                                 payment_method_id: None,
                                 connector_mandate_request_reference_id: None,
+                                mandate_metadata: None,
                             })
                         }),
                         connector_metadata: None,
@@ -996,6 +1026,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                                 connector_mandate_id: Some(pm.id.clone().expose()),
                                 payment_method_id: None,
                                 connector_mandate_request_reference_id: None,
+                                mandate_metadata: None,
                             })
                         }),
                         connector_metadata: None,
@@ -1307,6 +1338,7 @@ impl<F> TryFrom<ResponseRouterData<BraintreeRefundResponse, Self>>
                             connector_refund_id: refund_data.id.clone(),
                             refund_status,
                             status_code: item.http_code,
+                            acquirer_reference_number: None,
                         })
                     }
                 }
@@ -1509,6 +1541,7 @@ impl<F> TryFrom<ResponseRouterData<BraintreeRSyncResponse, Self>>
                     connector_refund_id: connector_refund_id.to_string(),
                     refund_status: enums::RefundStatus::from(edge_data.node.status.clone()),
                     status_code: item.http_code,
+                    acquirer_reference_number: None,
                 });
                 Ok(Self {
                     response,
@@ -1606,6 +1639,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
@@ -1710,6 +1744,8 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                             .id
                             .expose()
                             .clone(),
+                        connector_payment_method_id: None,
+                        status_code: item.http_code,
                     })
                 }
             },
@@ -2640,6 +2676,7 @@ fn get_braintree_redirect_form<
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
@@ -2722,6 +2759,155 @@ pub struct DisputeEvidence {
     pub id: Secret<String>,
     pub created_at: Option<PrimitiveDateTime>,
     pub url: url::Url,
+}
+
+// Maps the Braintree notification `kind` to the prism webhook event type.
+// Ports HS `get_status` (hyperswitch braintree/transformers.rs `get_status`) 1:1.
+pub(super) fn get_status(status: &str) -> connector_types::EventType {
+    match status {
+        "dispute_opened" => connector_types::EventType::DisputeOpened,
+        "dispute_lost" => connector_types::EventType::DisputeLost,
+        "dispute_won" => connector_types::EventType::DisputeWon,
+        "dispute_accepted" | "dispute_auto_accepted" => connector_types::EventType::DisputeAccepted,
+        "dispute_expired" => connector_types::EventType::DisputeExpired,
+        "dispute_disputed" => connector_types::EventType::DisputeChallenged,
+        _ => connector_types::EventType::IncomingWebhookEventUnspecified,
+    }
+}
+
+// Maps the Braintree notification `kind` to the prism dispute status.
+// Mirrors how the HS router derives `DisputeStatus` from the webhook event.
+pub(super) fn get_dispute_status(status: &str) -> enums::DisputeStatus {
+    match status {
+        "dispute_opened" => enums::DisputeStatus::DisputeOpened,
+        "dispute_lost" => enums::DisputeStatus::DisputeLost,
+        "dispute_won" => enums::DisputeStatus::DisputeWon,
+        "dispute_accepted" | "dispute_auto_accepted" => enums::DisputeStatus::DisputeAccepted,
+        "dispute_expired" => enums::DisputeStatus::DisputeExpired,
+        "dispute_disputed" => enums::DisputeStatus::DisputeChallenged,
+        _ => enums::DisputeStatus::DisputeOpened,
+    }
+}
+
+// Maps the Braintree dispute `kind` to the prism dispute stage.
+// Ports HS `get_dispute_stage` 1:1.
+pub(super) fn get_dispute_stage(
+    code: &str,
+) -> Result<enums::DisputeStage, Report<domain_types::errors::WebhookError>> {
+    match code {
+        "CHARGEBACK" => Ok(enums::DisputeStage::Dispute),
+        "PRE_ARBITRATION" => Ok(enums::DisputeStage::PreArbitration),
+        "RETRIEVAL" => Ok(enums::DisputeStage::PreDispute),
+        _ => Err(error_stack::report!(
+            domain_types::errors::WebhookError::WebhookBodyDecodingFailed
+        )),
+    }
+}
+
+// Decodes the form-urlencoded webhook envelope (`bt_signature` + `bt_payload`).
+pub(super) fn get_webhook_object_from_body(
+    body: &[u8],
+) -> Result<BraintreeWebhookResponse, Report<domain_types::errors::WebhookError>> {
+    serde_urlencoded::from_bytes::<BraintreeWebhookResponse>(body)
+        .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)
+        .attach_printable(
+            "failed to url-decode the Braintree webhook body (bt_signature/bt_payload)",
+        )
+}
+
+// Base64-decodes the (newline-stripped) `bt_payload` and parses the XML `Notification`.
+pub(super) fn decode_webhook_payload(
+    payload: &[u8],
+) -> Result<Notification, Report<domain_types::errors::WebhookError>> {
+    let decoded_response = super::BASE64_ENGINE
+        .decode(payload)
+        .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)
+        .attach_printable("failed to base64-decode the Braintree bt_payload")?;
+
+    let xml_response = String::from_utf8(decoded_response)
+        .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)
+        .attach_printable("Braintree bt_payload is not valid UTF-8")?;
+
+    xml_response
+        .parse_xml::<Notification>()
+        .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)
+        .attach_printable("failed to parse the Braintree notification XML")
+}
+
+// `bt_signature` is `pubkey1|sig1&pubkey2|sig2&...`; pick the signature whose
+// public key matches the merchant's Braintree public key.
+pub(super) fn get_matching_webhook_signature(
+    signature_pairs: &[(&str, &str)],
+    secret: &str,
+) -> Option<String> {
+    signature_pairs
+        .iter()
+        .find(|(public_key, _)| *public_key == secret)
+        .map(|(_, signature)| signature.to_string())
+}
+
+// Full request -> `Notification` decode: urlencoded envelope, then base64 + XML on the
+// newline-stripped `bt_payload`. Mirrors the two-step decode the trait methods performed inline.
+pub(super) fn decode_from_request(
+    request: &connector_types::RequestDetails,
+) -> Result<Notification, Report<domain_types::errors::WebhookError>> {
+    let notif = get_webhook_object_from_body(&request.body)?;
+    decode_webhook_payload(notif.bt_payload.replace('\n', "").as_bytes())
+}
+
+// Builds the typed webhook resource reference for a dispute notification.
+pub(super) fn get_webhook_reference(
+    notification: &Notification,
+) -> Result<
+    Option<connector_types::WebhookResourceReference>,
+    Report<domain_types::errors::WebhookError>,
+> {
+    match &notification.dispute {
+        // HS emits `PaymentId(ConnectorTransactionId(transaction.id))`. The shadow normaliser
+        // maps a prism Dispute reference via `connector_dispute_id.or(connector_transaction_id)`,
+        // preferring connector_dispute_id, so it MUST be `None` here to match HS byte-for-byte.
+        Some(dispute_data) => Ok(Some(connector_types::WebhookResourceReference::Dispute(
+            connector_types::DisputeWebhookReference {
+                connector_dispute_id: None,
+                connector_transaction_id: Some(dispute_data.transaction.id.clone()),
+            },
+        ))),
+        None => Err(error_stack::report!(
+            domain_types::errors::WebhookError::WebhookReferenceIdNotFound
+        )),
+    }
+}
+
+// Builds the dispute webhook response, including the webhook amount conversion.
+pub(super) fn build_webhook_dispute_response(
+    notification: &Notification,
+    raw_body: &[u8],
+) -> Result<
+    connector_types::DisputeWebhookDetailsResponse,
+    Report<domain_types::errors::WebhookError>,
+> {
+    match &notification.dispute {
+        Some(dispute_data) => Ok(connector_types::DisputeWebhookDetailsResponse {
+            amount: domain_types::utils::convert_amount_for_webhook(
+                &common_utils::types::StringMinorUnitForConnector,
+                dispute_data.amount_disputed,
+                dispute_data.currency_iso_code,
+            )?,
+            currency: dispute_data.currency_iso_code,
+            dispute_id: dispute_data.id.clone(),
+            status: get_dispute_status(notification.kind.as_str()),
+            stage: get_dispute_stage(dispute_data.kind.as_str())?,
+            connector_response_reference_id: None,
+            dispute_message: dispute_data.reason.clone(),
+            connector_reason_code: dispute_data.reason_code.clone(),
+            raw_connector_response: Some(String::from_utf8_lossy(raw_body).to_string()),
+            status_code: 200,
+            response_headers: None,
+        }),
+        None => Err(error_stack::report!(
+            domain_types::errors::WebhookError::WebhookResourceObjectNotFound
+        )),
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -2819,6 +3005,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Crypto(_)
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
@@ -2940,6 +3127,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 connector_mandate_id: Some(pm.id.clone().expose()),
                                 payment_method_id: None,
                                 connector_mandate_request_reference_id: None,
+                                mandate_metadata: None,
                             })
                         }),
                         connector_metadata: None,
@@ -3179,6 +3367,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
@@ -3235,6 +3424,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     connector_mandate_id: Some(payment_method_id.clone()),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
                 }));
                 Ok(Self {
                     resource_common_data: PaymentFlowData {

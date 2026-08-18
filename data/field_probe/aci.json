@@ -226,7 +226,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Dana": {
         "status": "not_implemented",
@@ -238,7 +238,7 @@
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "EVoucher": {
         "status": "not_implemented",
@@ -357,7 +357,7 @@
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "GoPay": {
         "status": "not_implemented",
@@ -527,7 +527,7 @@
       },
       "MobilePayRedirect": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Momo": {
         "status": "not_implemented",
@@ -571,7 +571,7 @@
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "OpenBankingUk": {
         "status": "not_implemented",
@@ -590,8 +590,8 @@
         "error": "This feature is not implemented: Selected payment method through Aci"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Aci"
       },
       "PayURedirect": {
         "status": "not_implemented",
@@ -607,11 +607,11 @@
       },
       "Paysera": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
@@ -701,8 +701,8 @@
         "error": "This feature is not implemented: Selected payment method through Aci"
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
       },
       "Sofort": {
         "status": "supported",
@@ -859,6 +859,12 @@
         "error": "create_connector_customer flow not supported by aci connector"
       }
     },
+    "customer_get": {
+      "default": {
+        "status": "not_supported",
+        "error": "get_connector_customer flow not supported by aci connector"
+      }
+    },
     "dispute_accept": {
       "default": {
         "status": "not_supported",
@@ -978,7 +984,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "entityId=probe_id&amount=10.00&currency=USD&paymentType=DB&card.number=%7B%7B%24card_number%7D%7D&card.holder=John&card.expiryMonth=%7B%7B%24card_exp_month%7D%7D&card.expiryYear=%7B%7B%24card_exp_year%7D%7D&card.cvv=%7B%7B%24card_cvc%7D%7D&paymentBrand=VISA&shopperResultUrl=https%3A%2F%2Fexample.com%2Freturn"
+          "body": "entityId=probe_id&amount=10.00&currency=USD&paymentType=DB&card.number=%7B%7B%24card_number%7D%7D&card.holder=John&card.expiryMonth=03&card.expiryYear=2030&card.cvv=%7B%7B%24card_cvc%7D%7D&paymentBrand=VISA&shopperResultUrl=https%3A%2F%2Fexample.com%2Freturn"
         }
       }
     },
@@ -1017,7 +1023,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "entityId=probe_id&paymentBrand=VISA&card.number=%7B%7B%24card_number%7D%7D&card.holder=John+Doe&card.expiryMonth=%7B%7B%24card_exp_month%7D%7D&card.expiryYear=%7B%7B%24card_exp_year%7D%7D&card.cvv=%7B%7B%24card_cvc%7D%7D&paymentBrand=VISA"
+          "body": "entityId=probe_id&paymentBrand=VISA&card.number=%7B%7B%24card_number%7D%7D&card.holder=John+Doe&card.expiryMonth=03&card.expiryYear=2030&card.cvv=%7B%7B%24card_cvc%7D%7D&paymentBrand=VISA"
         }
       }
     },
@@ -1062,6 +1068,11 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: mandate_revoke flow for aci"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "refund": {

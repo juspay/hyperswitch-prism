@@ -112,6 +112,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         with_error_response_body!(event_builder, response);
 
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.status.to_string(),
@@ -122,6 +124,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     }
 }
@@ -265,7 +271,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 charge.payment_charge_id.clone(),
             )),
             status,
-            connector_response_reference_id: charge.merchant_payment_charge_reference,
+            connector_response_reference_id: charge.merchant_payment_charge_reference.clone(),
+            connector_request_reference_id: charge.merchant_payment_charge_reference,
             error_code,
             error_message,
             error_reason,
@@ -314,16 +321,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             None => (None, None),
         };
 
-        let refund_id = charge
-            .refund_id
-            .clone()
-            .unwrap_or_else(|| charge.payment_charge_id.clone());
-
         Ok(
             domain_types::connector_types::RefundWebhookDetailsResponse {
-                connector_refund_id: Some(refund_id.clone()),
+                connector_refund_id: charge.refund_id.clone(),
+                merchant_transaction_id: charge.merchant_payment_charge_reference.clone(),
                 status,
-                connector_response_reference_id: Some(refund_id),
+                connector_response_reference_id: charge.merchant_refund_reference.clone(),
                 error_code,
                 error_message,
                 raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
@@ -405,6 +408,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn process_redirect_response(
         &self,
         request: &RequestDetails,
+        _connector_feature_data: Option<&hyperswitch_masking::Secret<String>>,
     ) -> CustomResult<RedirectDetailsResponse, IntegrationError> {
         let charge_id = request.query_params.as_deref().and_then(|qs| {
             url::form_urlencoded::parse(qs.as_bytes())
@@ -421,6 +425,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             error_reason: None,
             response_amount: None,
             raw_connector_response: None,
+            connector_feature_data: None,
         })
     }
 }
@@ -522,6 +527,17 @@ static PPRO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
         },
     );
 
+    ppro_supported_payment_methods.add(
+        common_enums::PaymentMethod::Upi,
+        common_enums::PaymentMethodType::UpiQr,
+        PaymentMethodDetails {
+            mandates: FeatureStatus::NotSupported,
+            refunds: FeatureStatus::Supported,
+            supported_capture_methods: ppro_bridge_supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
     let bank_redirect_methods = vec![
         (
             common_enums::PaymentMethodType::Ideal,
@@ -553,6 +569,17 @@ static PPRO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
             },
         );
     }
+
+    ppro_supported_payment_methods.add(
+        common_enums::PaymentMethod::PayLater,
+        common_enums::PaymentMethodType::AfterpayClearpay,
+        PaymentMethodDetails {
+            mandates: FeatureStatus::NotSupported,
+            refunds: FeatureStatus::Supported,
+            supported_capture_methods: ppro_bridge_supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
 
     ppro_supported_payment_methods
 });
@@ -1001,6 +1028,7 @@ macros::macro_connector_flow_status_impls!(
         VoidPostRefund,
         VoidPC,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         IncrementalAuthorization,
     ],
 );

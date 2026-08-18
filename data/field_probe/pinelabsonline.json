@@ -9,420 +9,420 @@
     },
     "authorize": {
       "Ach": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(8) is not supported by PinelabsOnline"
       },
       "AchBankTransfer": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(9) is not supported by PinelabsOnline"
       },
       "Affirm": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(6) is not supported by PinelabsOnline"
       },
       "Afterpay": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(6) is not supported by PinelabsOnline"
       },
       "Alfamart": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(15) is not supported by PinelabsOnline"
       },
       "AliPayRedirect": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
       },
       "AmazonPayRedirect": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
       },
       "ApplePay": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
       },
       "ApplePayDecrypted": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
       },
       "ApplePayThirdPartySdk": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
       },
       "Bacs": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(8) is not supported by PinelabsOnline"
       },
       "BacsBankTransfer": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(9) is not supported by PinelabsOnline"
       },
       "BancontactCard": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(7) is not supported by PinelabsOnline"
       },
       "BcaBankTransfer": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(9) is not supported by PinelabsOnline"
       },
       "Becs": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(8) is not supported by PinelabsOnline"
       },
       "BillDeskRedirect": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
       },
       "Bizum": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(7) is not supported by PinelabsOnline"
       },
       "Blik": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(7) is not supported by PinelabsOnline"
       },
       "Bluecode": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
       },
       "BniVaBankTransfer": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(9) is not supported by PinelabsOnline"
       },
       "Boleto": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(15) is not supported by PinelabsOnline"
       },
       "BriVaBankTransfer": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(9) is not supported by PinelabsOnline"
       },
       "Card": {
         "status": "error",
         "error": "Failed to obtain authentication type"
       },
       "CashappQr": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
       },
       "CashfreeRedirect": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
       },
       "CimbVaBankTransfer": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(9) is not supported by PinelabsOnline"
       },
       "ClassicReward": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(12) is not supported by PinelabsOnline"
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Dana": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
       },
       "DanamonVaBankTransfer": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(9) is not supported by PinelabsOnline"
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "EVoucher": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(12) is not supported by PinelabsOnline"
       },
       "EaseBuzzRedirect": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
       },
       "Efecty": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(15) is not supported by PinelabsOnline"
       },
       "Eft": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(7) is not supported by PinelabsOnline"
       },
       "Eps": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(7) is not supported by PinelabsOnline"
       },
       "FamilyMart": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(15) is not supported by PinelabsOnline"
       },
       "GCash": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
       },
       "Giropay": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(7) is not supported by PinelabsOnline"
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "GoPay": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
       },
       "GooglePay": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
       },
       "GooglePayDecrypted": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
       },
       "GooglePayThirdPartySdk": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
       },
       "Ideal": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(7) is not supported by PinelabsOnline"
       },
       "Indomaret": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(15) is not supported by PinelabsOnline"
       },
       "IndonesianBankTransfer": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(9) is not supported by PinelabsOnline"
       },
       "InstantBankTransfer": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(9) is not supported by PinelabsOnline"
       },
       "InstantBankTransferFinland": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(9) is not supported by PinelabsOnline"
       },
       "InstantBankTransferPoland": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(9) is not supported by PinelabsOnline"
       },
       "Interac": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(7) is not supported by PinelabsOnline"
       },
       "KakaoPay": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
       },
       "Klarna": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(6) is not supported by PinelabsOnline"
       },
       "Lawson": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(15) is not supported by PinelabsOnline"
       },
       "LazyPayRedirect": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
       },
       "LocalBankRedirect": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(7) is not supported by PinelabsOnline"
       },
       "LocalBankTransfer": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(9) is not supported by PinelabsOnline"
       },
       "MandiriVaBankTransfer": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(9) is not supported by PinelabsOnline"
       },
       "MbWay": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
       },
       "Mifinity": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
       },
       "MiniStop": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(15) is not supported by PinelabsOnline"
       },
       "MobilePayRedirect": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Momo": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
       },
       "MultibancoBankTransfer": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(9) is not supported by PinelabsOnline"
       },
       "Netbanking": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(7) is not supported by PinelabsOnline"
       },
       "OnlineBankingCzechRepublic": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(7) is not supported by PinelabsOnline"
       },
       "OnlineBankingFinland": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(7) is not supported by PinelabsOnline"
       },
       "OnlineBankingFpx": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(7) is not supported by PinelabsOnline"
       },
       "OnlineBankingPoland": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(7) is not supported by PinelabsOnline"
       },
       "OnlineBankingSlovakia": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(7) is not supported by PinelabsOnline"
       },
       "OnlineBankingThailand": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(7) is not supported by PinelabsOnline"
       },
       "OpenBanking": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(7) is not supported by PinelabsOnline"
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "OpenBankingUk": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(7) is not supported by PinelabsOnline"
       },
       "Oxxo": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(15) is not supported by PinelabsOnline"
       },
       "PagoEfectivo": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(15) is not supported by PinelabsOnline"
       },
       "PayEasy": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(15) is not supported by PinelabsOnline"
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(16) is not supported by PinelabsOnline"
       },
       "PayURedirect": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
       },
       "PaypalRedirect": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
       },
       "PaypalSdk": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
       },
       "Paysera": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "PermataBankTransfer": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(9) is not supported by PinelabsOnline"
       },
       "PhonePeRedirect": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
       },
       "Pix": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(9) is not supported by PinelabsOnline"
       },
       "Przelewy24": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(7) is not supported by PinelabsOnline"
       },
       "Pse": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(9) is not supported by PinelabsOnline"
       },
       "RedCompra": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(15) is not supported by PinelabsOnline"
       },
       "RedPagos": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(15) is not supported by PinelabsOnline"
       },
       "RevolutPay": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
       },
       "SamsungPay": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
       },
       "Satispay": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
       },
       "Seicomart": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(15) is not supported by PinelabsOnline"
       },
       "Sepa": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(8) is not supported by PinelabsOnline"
       },
       "SepaBankTransfer": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(9) is not supported by PinelabsOnline"
       },
       "SepaGuaranteedDebit": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(8) is not supported by PinelabsOnline"
       },
       "SevenEleven": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(15) is not supported by PinelabsOnline"
       },
       "Skrill": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
       },
       "Sofort": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(7) is not supported by PinelabsOnline"
       },
       "Swish": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
       },
       "TouchNGo": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
       },
       "Trustly": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(7) is not supported by PinelabsOnline"
       },
       "Twint": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
       },
       "UpiCollect": {
         "status": "error",
@@ -437,16 +437,16 @@
         "error": "Failed to obtain authentication type"
       },
       "Vipps": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
       },
       "WeChatPayQr": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
       },
       "Wero": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(5) is not supported by PinelabsOnline"
       }
     },
     "capture": {
@@ -492,6 +492,12 @@
       "default": {
         "status": "not_supported",
         "error": "create_connector_customer flow not supported by pinelabs_online connector"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_supported",
+        "error": "get_connector_customer flow not supported by pinelabs_online connector"
       }
     },
     "dispute_accept": {
@@ -586,6 +592,11 @@
         "error": "This feature is not implemented: mandate_revoke flow for pinelabs_online"
       }
     },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "refund": {
       "default": {
         "status": "error",
@@ -612,8 +623,8 @@
     },
     "token_authorize": {
       "default": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
+        "status": "not_supported",
+        "error": "Payment method not supported for PineLabs Online: Discriminant(17) is not supported by PinelabsOnline"
       }
     },
     "token_setup_recurring": {

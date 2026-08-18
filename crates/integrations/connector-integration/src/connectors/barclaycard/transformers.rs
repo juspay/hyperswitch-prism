@@ -1,24 +1,36 @@
 use std::fmt::Debug;
 
+use base64::Engine;
+use common_utils::ext_traits::ValueExt;
 use common_utils::types::StringMajorUnit;
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void},
+    connector_flow::{
+        Authenticate, Authorize, Capture, PSync, PostAuthenticate, PreAuthenticate, RSync, Refund,
+        RepeatPayment, SetupMandate, Void,
+    },
     connector_types::{
         MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
-        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        ResponseId, SetupMandateRequestData,
+        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsResponseData,
+        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
-    errors::{ConnectorError, IntegrationError},
-    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
+    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, WalletData},
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
+    router_request_types,
+    router_response_types::RedirectForm,
 };
-use hyperswitch_masking::{ExposeInterface, ExposeOptionInterface, Secret};
+use error_stack::ResultExt;
+use hyperswitch_masking::{ExposeInterface, ExposeOptionInterface, PeekInterface, Secret};
 use serde::Serialize;
 
 use super::{requests, responses, BarclaycardAmountConvertor, BarclaycardRouterData};
-use crate::{types::ResponseRouterData, utils};
+use crate::{
+    types::ResponseRouterData,
+    utils::{self, CardTypeCode},
+};
 
 /// CAVV (Cardholder Authentication Verification Value) Algorithm
 ///
@@ -40,6 +52,10 @@ const COMMERCE_INDICATOR_INTERNET: &str = "internet";
 /// transaction. Used when the MIT carries a raw card + network transaction id (NTI).
 const COMMERCE_INDICATOR_RECURRING: &str = "recurring";
 
+/// `processingInformation.commerceIndicator` for Mastercard ApplePay encrypted
+/// tokens after payer authentication.
+const COMMERCE_INDICATOR_SECURE_PAYMENT_AUTHENTICATION: &str = "spa";
+
 /// `paymentInformation.card.typeSelectionIndicator` — "1" tells Barclaycard that the
 /// `type` field above refers to the primary card type (as opposed to a co-badged
 /// secondary network). Barclaycard requires this for every card payment.
@@ -50,6 +66,164 @@ const TYPE_SELECTION_INDICATOR_PRIMARY: &str = "1";
 /// flow). Other reason codes exist for installment/recurring/resubmission MITs but are
 /// not used here.
 const MIT_REASON_NTI: &str = "7";
+
+const CONNECTOR_NAME: &str = "Barclaycard";
+const FLOW_AUTHORIZE: &str = "Authorize";
+const FLOW_PRE_AUTHENTICATE: &str = "PreAuthenticate";
+const FLOW_AUTHENTICATE: &str = "Authenticate";
+const FLOW_POST_AUTHENTICATE: &str = "PostAuthenticate";
+
+const FIELD_APPLE_PAY_ENCRYPTED_DATA: &str = "Apple pay encrypted data";
+const FIELD_GOOGLE_PAY_WALLET_TOKEN: &str = "gpay wallet_token";
+const FIELD_PAYMENT_METHOD_DATA: &str = "payment_method_data";
+const FIELD_CURRENCY: &str = "currency";
+const FIELD_EMAIL: &str = "email";
+const FIELD_BILLING: &str = "billing";
+const FIELD_REDIRECT_RESPONSE: &str = "redirect_response";
+const FIELD_REDIRECT_RESPONSE_PARAMS: &str = "request.redirect_response.params";
+const FIELD_REDIRECT_RESPONSE_PARAMS_REFERENCE_ID: &str =
+    "request.redirect_response.params.reference_id";
+const FIELD_CONTINUE_REDIRECTION_URL: &str = "continue_redirection_url";
+const FIELD_REDIRECT_RESPONSE_PAYLOAD: &str = "request.redirect_response.payload";
+const FIELD_BARCLAYCARD_REDIRECTION_AUTH_RESPONSE: &str = "BarclaycardRedirectionAuthResponse";
+
+/// `processingInformation.paymentSolution` code for ApplePay wallet payments.
+/// Barclaycard mirrors Cybersource: ApplePay = "001", GooglePay = "012".
+const APPLE_PAY_PAYMENT_SOLUTION: &str = "001";
+
+/// `processingInformation.paymentSolution` code for GooglePay wallet payments.
+/// Barclaycard mirrors Cybersource: ApplePay = "001", GooglePay = "012".
+const GOOGLE_PAY_PAYMENT_SOLUTION: &str = "012";
+
+/// `paymentInformation.fluidData.descriptor` for ApplePay encrypted tokens.
+/// Barclaycard's Cybersource guide specifies `FID=COMMON.APPLE.INAPP.PAYMENT`
+/// (base64-encoded) for ApplePay encrypted-payment data.
+const FLUID_DATA_DESCRIPTOR: &str = "RklEPUNPTU1PTi5BUFBMRS5JTkFQUC5QQVlNRU5U";
+
+/// ApplePay SDK network name used for Mastercard-specific wallet treatment.
+const APPLE_PAY_NETWORK_MASTERCARD: &str = "mastercard";
+
+/// `consumerAuthenticationInformation.ucafCollectionIndicator` for Mastercard.
+const UCAF_COLLECTION_INDICATOR_AUTHENTICATED: &str = "2";
+
+fn barclaycard_context(
+    flow: &'static str,
+    additional_context: impl Into<String>,
+    suggested_action: impl Into<String>,
+) -> IntegrationErrorContext {
+    utils::integration_ctx(
+        format!("{CONNECTOR_NAME} {flow}: {}", additional_context.into()),
+        suggested_action,
+    )
+}
+
+fn missing_required_field_error(field_name: &'static str, flow: &'static str) -> IntegrationError {
+    IntegrationError::MissingRequiredField {
+        field_name,
+        context: barclaycard_context(
+            flow,
+            format!("missing required field `{field_name}`"),
+            format!("Provide `{field_name}` before invoking {CONNECTOR_NAME} {flow}."),
+        ),
+    }
+}
+
+fn payment_method_data_label<T: PaymentMethodDataTypes>(
+    payment_method_data: &PaymentMethodData<T>,
+) -> &'static str {
+    match payment_method_data {
+        PaymentMethodData::Card(_) => "card",
+        PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            "card_details_for_network_transaction_id"
+        }
+        PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_) => {
+            "decrypted_wallet_token_details_for_network_transaction_id"
+        }
+        PaymentMethodData::CardRedirect(_) => "card_redirect",
+        PaymentMethodData::Wallet(wallet_data) => wallet_data_label(wallet_data),
+        PaymentMethodData::PayLater(_) => "pay_later",
+        PaymentMethodData::BankRedirect(_) => "bank_redirect",
+        PaymentMethodData::BankDebit(_) => "bank_debit",
+        PaymentMethodData::BankTransfer(_) => "bank_transfer",
+        PaymentMethodData::Crypto(_) => "crypto",
+        PaymentMethodData::MandatePayment => "mandate_payment",
+        PaymentMethodData::Reward => "reward",
+        PaymentMethodData::RealTimePayment(_) => "real_time_payment",
+        PaymentMethodData::Upi(_) => "upi",
+        PaymentMethodData::Voucher(_) => "voucher",
+        PaymentMethodData::GiftCard(_) => "gift_card",
+        PaymentMethodData::PaymentMethodToken(_) => "payment_method_token",
+        PaymentMethodData::OpenBanking(_) => "open_banking",
+        PaymentMethodData::NetworkToken(_) => "network_token",
+        PaymentMethodData::CardWithNoCvc(_) => "card_with_no_cvc",
+        PaymentMethodData::MobilePayment(_) => "mobile_payment",
+    }
+}
+
+fn wallet_data_label(wallet_data: &WalletData) -> &'static str {
+    match wallet_data {
+        WalletData::AliPayQr(_) => "alipay_qr",
+        WalletData::AliPayRedirect(_) => "alipay_redirect",
+        WalletData::AliPayHkRedirect(_) => "alipay_hk_redirect",
+        WalletData::BluecodeRedirect {} => "bluecode_redirect",
+        WalletData::AmazonPayRedirect(_) => "amazon_pay_redirect",
+        WalletData::MomoRedirect(_) => "momo_redirect",
+        WalletData::KakaoPayRedirect(_) => "kakao_pay_redirect",
+        WalletData::GoPayRedirect(_) => "gopay_redirect",
+        WalletData::GcashRedirect(_) => "gcash_redirect",
+        WalletData::ApplePay(_) => "apple_pay",
+        WalletData::ApplePayRedirect(_) => "apple_pay_redirect",
+        WalletData::ApplePayThirdPartySdk(_) => "apple_pay_third_party_sdk",
+        WalletData::DanaRedirect {} => "dana_redirect",
+        WalletData::GrabpayRedirect {} => "grabpay_redirect",
+        WalletData::GooglePay(_) => "google_pay",
+        WalletData::GooglePayRedirect(_) => "google_pay_redirect",
+        WalletData::GooglePayThirdPartySdk(_) => "google_pay_third_party_sdk",
+        WalletData::MbWayRedirect(_) => "mb_way_redirect",
+        WalletData::MobilePayRedirect(_) => "mobile_pay_redirect",
+        WalletData::PaypalRedirect(_) => "paypal_redirect",
+        WalletData::PaypalSdk(_) => "paypal_sdk",
+        WalletData::Paze(_) => "paze",
+        WalletData::SamsungPay(_) => "samsung_pay",
+        WalletData::TwintRedirect {} => "twint_redirect",
+        WalletData::VippsRedirect {} => "vipps_redirect",
+        WalletData::TouchNGoRedirect(_) => "touch_n_go_redirect",
+        WalletData::WeChatPayRedirect(_) => "wechat_pay_redirect",
+        WalletData::WeChatPayQr(_) => "wechat_pay_qr",
+        WalletData::CashappQr(_) => "cashapp_qr",
+        WalletData::SwishQr(_) => "swish_qr",
+        WalletData::Mifinity(_) => "mifinity",
+        WalletData::RevolutPay(_) => "revolut_pay",
+        WalletData::MbWay(_) => "mb_way",
+        WalletData::Satispay(_) => "satispay",
+        WalletData::Wero(_) => "wero",
+        WalletData::LazyPayRedirect(_) => "lazy_pay_redirect",
+        WalletData::PhonePeRedirect(_) => "phone_pe_redirect",
+        WalletData::BillDeskRedirect(_) => "billdesk_redirect",
+        WalletData::CashfreeRedirect(_) => "cashfree_redirect",
+        WalletData::PayURedirect(_) => "payu_redirect",
+        WalletData::EaseBuzzRedirect(_) => "easebuzz_redirect",
+        WalletData::QwikcilverWalletDirect(_) => "qwikcilver_wallet_direct",
+        WalletData::Skrill(_) => "skrill",
+        WalletData::PaymayaRedirect(_) => "paymaya_redirect",
+    }
+}
+
+fn unsupported_payment_method_error<T: PaymentMethodDataTypes>(
+    payment_method_data: &PaymentMethodData<T>,
+    flow: &'static str,
+    supported_methods: &'static str,
+) -> IntegrationError {
+    let payment_method = payment_method_data_label(payment_method_data);
+    IntegrationError::not_implemented(
+        format!("Payment method `{payment_method}` is not supported for {CONNECTOR_NAME} {flow}"),
+        barclaycard_context(
+            flow,
+            format!("unsupported payment method `{payment_method}`"),
+            format!("Use one of the supported payment methods for this flow: {supported_methods}."),
+        ),
+    )
+}
 
 #[derive(Debug, Clone)]
 pub struct BarclaycardAuthType {
@@ -97,7 +271,10 @@ fn get_barclaycard_card_type(card_network: common_enums::CardNetwork) -> Option<
         | common_enums::CardNetwork::Star
         | common_enums::CardNetwork::Accel
         | common_enums::CardNetwork::Pulse
-        | common_enums::CardNetwork::Nyce => None,
+        | common_enums::CardNetwork::Nyce
+        | common_enums::CardNetwork::Prop
+        | common_enums::CardNetwork::PrivateLabel
+        | common_enums::CardNetwork::Dinacard => None,
     }
 }
 
@@ -375,6 +552,10 @@ fn transform_payment_response<F, Req>(
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 resource_common_data: PaymentFlowData {
                     status: common_enums::AttemptStatus::Failure,
@@ -447,6 +628,10 @@ fn get_error_response(
         network_advice_code,
         network_decline_code,
         network_error_message: None,
+        typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
     }
 }
 
@@ -482,30 +667,195 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             router_data.request.currency,
         )?;
 
-        let ccard = match &router_data.request.payment_method_data {
-            PaymentMethodData::Card(card) => Ok(card),
-            _ => Err(IntegrationError::NotImplemented(
-                "Only card payments are supported".to_string(),
-                Default::default(),
-            )),
-        }?;
+        // Build the payment_information block and, for wallet payments, the
+        // processingInformation.paymentSolution code. Card payments leave payment_solution
+        // unset; ApplePay uses APPLE_PAY_PAYMENT_SOLUTION (matching the
+        // Cybersource/Barclays mapping).
+        //
+        // Also compute the commerceIndicator (network-specific for encrypted ApplePay:
+        // COMMERCE_INDICATOR_SECURE_PAYMENT_AUTHENTICATION for Mastercard,
+        // COMMERCE_INDICATOR_INTERNET otherwise; COMMERCE_INDICATOR_INTERNET for Card,
+        // GooglePay and decrypted ApplePay) and the consumerAuthenticationInformation
+        // (ApplePay sets UCAF_COLLECTION_INDICATOR_AUTHENTICATED for Mastercard, None
+        // otherwise; Card/GooglePay None).
+        let (
+            payment_information,
+            payment_solution,
+            commerce_indicator,
+            consumer_authentication_information,
+        ): (
+            requests::PaymentInformation<T>,
+            Option<String>,
+            String,
+            Option<requests::ConsumerAuthenticationInformation>,
+        ) = match &router_data.request.payment_method_data {
+            PaymentMethodData::Card(ccard) => {
+                // Derive the Cybersource card-type code from the card network, falling back to
+                // the card-number issuer when the network is absent (cards arrive without an
+                // enriched network in this flow). Mirrors the HS-Direct Barclaycard connector
+                // so the request matches in shadow mode.
+                let card_type = match ccard
+                    .card_network
+                    .clone()
+                    .and_then(get_barclaycard_card_type)
+                {
+                    Some(code) => Some(code.to_string()),
+                    None => domain_types::utils::get_card_issuer(ccard.card_number.peek())
+                        .ok()
+                        .and_then(|issuer| issuer.type_code())
+                        .map(|s| s.to_string()),
+                };
 
-        let card_network = ccard.card_network.clone();
-        let card_type = card_network
-            .and_then(get_barclaycard_card_type)
-            .map(|s| s.to_string());
+                (
+                    requests::PaymentInformation::Cards(Box::new(
+                        requests::CardPaymentInformation {
+                            card: requests::Card {
+                                number: ccard.card_number.clone(),
+                                expiration_month: ccard.card_exp_month.clone(),
+                                // HS-Direct passes the raw (2-digit) exp year through; match it
+                                // for byte-parity instead of normalizing to 4-digit.
+                                expiration_year: ccard.card_exp_year.clone(),
+                                security_code: ccard.card_cvc.clone(),
+                                card_type,
+                                type_selection_indicator: Some(
+                                    TYPE_SELECTION_INDICATOR_PRIMARY.to_owned(),
+                                ),
+                            },
+                        },
+                    )),
+                    None,
+                    COMMERCE_INDICATOR_INTERNET.to_string(),
+                    None,
+                )
+            }
+            PaymentMethodData::Wallet(WalletData::ApplePay(apple_pay_data)) => {
+                // ApplePay sets consumerAuthenticationInformation.ucafCollectionIndicator for
+                // Mastercard (None otherwise) on both the decrypted and encrypted paths,
+                // mirroring the Cybersource whitelabel reference.
+                let is_mastercard = apple_pay_data
+                    .payment_method
+                    .network
+                    .eq_ignore_ascii_case(APPLE_PAY_NETWORK_MASTERCARD);
+                let consumer_authentication_information =
+                    Some(requests::ConsumerAuthenticationInformation {
+                        ucaf_collection_indicator: is_mastercard
+                            .then(|| UCAF_COLLECTION_INDICATOR_AUTHENTICATED.to_string()),
+                        cavv: None,
+                        ucaf_authentication_data: None,
+                        xid: None,
+                        directory_server_transaction_id: None,
+                        specification_version: None,
+                        pa_specification_version: None,
+                        eci_raw: None,
+                        pares_status: None,
+                        acs_transaction_id: None,
+                        cavv_algorithm: None,
+                    });
 
-        let payment_information =
-            requests::PaymentInformation::Cards(Box::new(requests::CardPaymentInformation {
-                card: requests::Card {
-                    number: ccard.card_number.clone(),
-                    expiration_month: ccard.card_exp_month.clone(),
-                    expiration_year: ccard.get_expiry_year_4_digit(),
-                    security_code: ccard.card_cvc.clone(),
-                    card_type,
-                    type_selection_indicator: Some(TYPE_SELECTION_INDICATOR_PRIMARY.to_owned()),
-                },
-            }));
+                let (payment_information, commerce_indicator) = match apple_pay_data
+                    .payment_data
+                    .get_decrypted_apple_pay_payment_data_optional()
+                {
+                    // Decrypted token: send the PAN + cryptogram directly under tokenizedCard.
+                    // commerceIndicator is always "internet" for the decrypted path.
+                    Some(decrypt_data) => (
+                        requests::PaymentInformation::ApplePayDecrypted(Box::new(
+                            requests::ApplePayPaymentInformation {
+                                tokenized_card: requests::TokenizedCard {
+                                    number: decrypt_data.clone().application_primary_account_number,
+                                    cryptogram: decrypt_data
+                                        .clone()
+                                        .payment_data
+                                        .online_payment_cryptogram,
+                                    transaction_type: requests::TransactionType::InApp,
+                                    expiration_year: decrypt_data.get_four_digit_expiry_year(),
+                                    expiration_month: decrypt_data.get_expiry_month(),
+                                },
+                            },
+                        )),
+                        COMMERCE_INDICATOR_INTERNET.to_string(),
+                    ),
+                    // Encrypted token: forward the encrypted blob as fluidData and let
+                    // Barclaycard decrypt it. commerceIndicator is network-specific:
+                    // COMMERCE_INDICATOR_SECURE_PAYMENT_AUTHENTICATION for Mastercard,
+                    // COMMERCE_INDICATOR_INTERNET otherwise.
+                    None => {
+                        let apple_pay_encrypted_data = apple_pay_data
+                            .payment_data
+                            .get_encrypted_apple_pay_payment_data_mandatory()
+                            .change_context(IntegrationError::MissingRequiredField {
+                                field_name: FIELD_APPLE_PAY_ENCRYPTED_DATA,
+                                context: barclaycard_context(
+                                    FLOW_AUTHORIZE,
+                                    "encrypted ApplePay data is required when decrypted ApplePay data is absent",
+                                    "Send either decrypted ApplePay token fields or the encrypted ApplePay payment data.",
+                                ),
+                            })?;
+                        let commerce_indicator = if is_mastercard {
+                            COMMERCE_INDICATOR_SECURE_PAYMENT_AUTHENTICATION.to_string()
+                        } else {
+                            COMMERCE_INDICATOR_INTERNET.to_string()
+                        };
+                        (
+                            requests::PaymentInformation::ApplePayEncrypted(Box::new(
+                                requests::ApplePayTokenPaymentInformation {
+                                    fluid_data: requests::FluidData {
+                                        value: Secret::from(apple_pay_encrypted_data.clone()),
+                                        descriptor: Some(FLUID_DATA_DESCRIPTOR.to_string()),
+                                    },
+                                    tokenized_card: requests::ApplePayTokenizedCard {
+                                        transaction_type: requests::TransactionType::InApp,
+                                    },
+                                },
+                            )),
+                            commerce_indicator,
+                        )
+                    }
+                };
+                (
+                    payment_information,
+                    Some(APPLE_PAY_PAYMENT_SOLUTION.to_string()),
+                    commerce_indicator,
+                    consumer_authentication_information,
+                )
+            }
+            PaymentMethodData::Wallet(WalletData::GooglePay(google_pay_data)) => {
+                // Forward the encrypted Google Pay token as base64-encoded fluidData and
+                // let Barclaycard decrypt it (mirrors the Cybersource whitelabel mapping).
+                let google_pay_token = google_pay_data
+                    .tokenization_data
+                    .get_encrypted_google_pay_token()
+                    .change_context(IntegrationError::MissingRequiredField {
+                        field_name: FIELD_GOOGLE_PAY_WALLET_TOKEN,
+                        context: barclaycard_context(
+                            FLOW_AUTHORIZE,
+                            "encrypted GooglePay token is required",
+                            "Send GooglePay tokenization_data.token for Barclaycard GooglePay Authorize.",
+                        ),
+                    })?;
+                (
+                    requests::PaymentInformation::GooglePay(Box::new(
+                        requests::GooglePayTokenPaymentInformation {
+                            fluid_data: requests::FluidData {
+                                value: Secret::from(
+                                    base64::engine::general_purpose::STANDARD
+                                        .encode(google_pay_token),
+                                ),
+                                descriptor: None,
+                            },
+                        },
+                    )),
+                    Some(GOOGLE_PAY_PAYMENT_SOLUTION.to_string()),
+                    COMMERCE_INDICATOR_INTERNET.to_string(),
+                    None,
+                )
+            }
+            unsupported_payment_method_data => Err(unsupported_payment_method_error(
+                unsupported_payment_method_data,
+                FLOW_AUTHORIZE,
+                "card, apple_pay, google_pay",
+            ))?,
+        };
 
         let email = router_data
             .resource_common_data
@@ -532,12 +882,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         };
 
         let processing_information = requests::ProcessingInformation {
-            commerce_indicator: COMMERCE_INDICATOR_INTERNET.to_string(),
+            commerce_indicator,
             capture: Some(matches!(
                 router_data.request.capture_method,
                 Some(common_enums::CaptureMethod::Automatic) | None
             )),
-            payment_solution: None, // Only set for wallet payments (GooglePay="012", ApplePay="001")
+            payment_solution, // Only set for wallet payments (GooglePay="012", ApplePay="001")
             cavv_algorithm: Some(CAVV_ALGORITHM_ATN.to_string()),
         };
 
@@ -557,11 +907,32 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .expose_option()
             .map(utils::convert_metadata_to_merchant_defined_info);
 
+        // Thread external 3DS authentication results into the Authorize request. When the
+        // orchestrator supplies authentication_data (after the Authenticate/PostAuthenticate
+        // steps), it takes precedence over the wallet-derived ucaf block. Non-3DS / wallet
+        // flows keep their existing consumer_authentication_information unchanged.
+        //
+        // The cryptogram carrier is network-conditional (Mastercard -> ucafAuthenticationData,
+        // Visa/others -> cavv), so pass the card network into the builder.
+        let card_network_for_3ds = match &router_data.request.payment_method_data {
+            PaymentMethodData::Card(ccard) => ccard.card_network.clone(),
+            _ => None,
+        };
+        let consumer_authentication_information = router_data
+            .request
+            .authentication_data
+            .clone()
+            .map(|authn_data| {
+                build_consumer_authentication_information(authn_data, card_network_for_3ds.clone())
+            })
+            .or(consumer_authentication_information);
+
         Ok(Self {
             processing_information,
             payment_information,
             order_information,
             client_reference_information,
+            consumer_authentication_information,
             merchant_defined_information,
         })
     }
@@ -870,6 +1241,7 @@ impl TryFrom<ResponseRouterData<responses::BarclaycardRefundResponse, Self>>
                 connector_refund_id: item.response.id,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             })
         };
 
@@ -931,6 +1303,7 @@ impl TryFrom<ResponseRouterData<responses::BarclaycardRsyncResponse, Self>>
                         connector_refund_id: item.response.id,
                         refund_status,
                         status_code: item.http_code,
+                        acquirer_reference_number: None,
                     })
                 }
             }
@@ -941,6 +1314,7 @@ impl TryFrom<ResponseRouterData<responses::BarclaycardRsyncResponse, Self>>
                     Err(_) => common_enums::RefundStatus::Pending,
                 },
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
         };
 
@@ -1096,6 +1470,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         connector_mandate_id: Some(payment_instrument.id.clone().expose()),
                         payment_method_id: None,
                         connector_mandate_request_reference_id: None,
+                        mandate_metadata: None,
                     });
 
                 let mut status = map_barclaycard_attempt_status((
@@ -1186,6 +1561,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     }),
                     resource_common_data: PaymentFlowData {
                         status: common_enums::AttemptStatus::Failure,
@@ -1336,7 +1715,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                 reason: Some(MIT_REASON_NTI.to_string()),
                                 original_authorized_amount,
                                 previous_transaction_id: Some(Secret::new(
-                                    network_transaction_id.clone(),
+                                    network_transaction_id.network_transaction_id.clone(),
                                 )),
                             },
                         ),
@@ -1346,7 +1725,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             }
             MandateReferenceId::NetworkTokenWithNTI(_) => Err(IntegrationError::NotImplemented(
                 "Network token with NTI based MIT is not supported for Barclaycard".to_string(),
-                Default::default(),
+                IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Use ConnectorMandateId for stored TMS repeat payments, or use NetworkMandateId with raw card data for NTI-based MITs. NetworkTokenWithNTI is not mapped for Barclaycard RepeatPayment."
+                            .to_string(),
+                    ),
+                    doc_url: None,
+                    additional_context: Some(
+                        "Barclaycard RepeatPayment received a NetworkTokenWithNTI mandate reference. This transformer currently supports stored TMS payment instruments from connector_mandate_id and raw card MITs with a network transaction id; it does not build the Barclaycard payload fields required for network token credentials plus NTI".to_string(),
+                    ),
+                },
             ))?,
         };
 
@@ -1491,9 +1879,753 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     }),
                     resource_common_data: PaymentFlowData {
                         status: common_enums::AttemptStatus::Failure,
+                        ..item.router_data.resource_common_data
+                    },
+                    ..item.router_data
+                })
+            }
+        }
+    }
+}
+
+// --- 3DS External Authentication (PreAuthenticate / Authenticate / PostAuthenticate) ---
+
+/// Build the card `PaymentInformation` block shared by the three external-authentication
+/// request builders. Mirrors the Card branch of the Authorize builder; only card payments
+/// are supported for 3DS external authentication.
+fn build_auth_card_payment_information<T>(
+    ccard: &domain_types::payment_method_data::Card<T>,
+) -> requests::PaymentInformation<T>
+where
+    T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
+{
+    // Derive the Cybersource card-type code from the card network, falling back to the
+    // card-number issuer when the network is absent (the 3DS external-authentication cards
+    // arrive without an enriched network). Mirrors the HS-Direct Barclaycard connector so the
+    // PreAuthenticate / Authenticate requests match in shadow mode.
+    let card_type = match ccard
+        .card_network
+        .clone()
+        .and_then(get_barclaycard_card_type)
+    {
+        Some(code) => Some(code.to_string()),
+        None => domain_types::utils::get_card_issuer(ccard.card_number.peek())
+            .ok()
+            .and_then(|issuer| issuer.type_code())
+            .map(|s| s.to_string()),
+    };
+
+    requests::PaymentInformation::Cards(Box::new(requests::CardPaymentInformation {
+        card: requests::Card {
+            number: ccard.card_number.clone(),
+            expiration_month: ccard.card_exp_month.clone(),
+            // HS-Direct passes the raw (2-digit) exp year through; match it for byte-parity.
+            expiration_year: ccard.card_exp_year.clone(),
+            security_code: ccard.card_cvc.clone(),
+            card_type,
+            type_selection_indicator: Some(TYPE_SELECTION_INDICATOR_PRIMARY.to_owned()),
+        },
+    }))
+}
+
+/// Map external 3DS authentication results onto Barclaycard's `consumerAuthenticationInformation`.
+///
+/// Mirrors the HS-Direct Barclaycard connector field-for-field so the request is byte-identical:
+/// - The cryptogram carrier is network-conditional: Mastercard puts it in `ucafAuthenticationData`
+///   (with Mastercard `ucafCollectionIndicator`); Visa/others put it in `cavv` and leave
+///   `ucafAuthenticationData` null. This needs the card network, which a bare `From` impl can't
+///   see, so this is a function taking `card_network` explicitly.
+/// - `specificationVersion` and `paSpecificationVersion` are both set from `message_version`.
+/// - `paresStatus` is derived from the authentication result when present.
+fn build_consumer_authentication_information(
+    value: router_request_types::AuthenticationData,
+    card_network: Option<common_enums::CardNetwork>,
+) -> requests::ConsumerAuthenticationInformation {
+    let (ucaf_authentication_data, cavv, ucaf_collection_indicator) =
+        if card_network == Some(common_enums::CardNetwork::Mastercard) {
+            (
+                value.cavv.clone(),
+                None,
+                value
+                    .ucaf_collection_indicator
+                    .or_else(|| Some(UCAF_COLLECTION_INDICATOR_AUTHENTICATED.to_string())),
+            )
+        } else {
+            (None, value.cavv, None)
+        };
+
+    requests::ConsumerAuthenticationInformation {
+        cavv,
+        ucaf_collection_indicator,
+        ucaf_authentication_data,
+        xid: value.transaction_id,
+        directory_server_transaction_id: value.ds_trans_id.map(Secret::new),
+        specification_version: value.message_version.clone(),
+        pa_specification_version: value.message_version,
+        eci_raw: value.eci,
+        pares_status: value
+            .trans_status
+            .map(requests::BarclaycardParesStatus::from),
+        acs_transaction_id: value.acs_transaction_id,
+        cavv_algorithm: None,
+    }
+}
+
+/// Redirect-payload returned by the device-data-collection step, parsed in PostAuthenticate.
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct BarclaycardRedirectionAuthResponse {
+    pub transaction_id: String,
+}
+
+/// Build the `AuthenticationData` surfaced to the orchestrator from a validate response.
+///
+/// Mirrors Cybersource: `cavv` is populated from UCAF data when present (Mastercard) else from
+/// the `cavv` field, `eci` from `indicator`.
+fn get_authentication_data_for_validation_response(
+    response: responses::BarclaycardConsumerAuthInformationEnrollmentResponse,
+) -> router_request_types::AuthenticationData {
+    let trans_status = response
+        .validate_response
+        .pares_status
+        .map(common_enums::TransactionStatus::from);
+    let cavv = response
+        .validate_response
+        .ucaf_authentication_data
+        .or(response.validate_response.cavv);
+    let eci = response.validate_response.indicator;
+    let ucaf_collection_indicator = response.validate_response.ucaf_collection_indicator.clone();
+    let ds_trans_id = response
+        .validate_response
+        .directory_server_transaction_id
+        .map(|id| id.expose());
+    router_request_types::AuthenticationData {
+        ucaf_collection_indicator,
+        eci,
+        cavv,
+        threeds_server_transaction_id: response.validate_response.three_d_s_server_transaction_id,
+        message_version: response.validate_response.specification_version,
+        trans_status,
+        ds_trans_id,
+        acs_transaction_id: response.validate_response.acs_transaction_id,
+        transaction_id: response.validate_response.xid,
+        exemption_indicator: None,
+        network_params: None,
+        created_at: None,
+        challenge_code: None,
+        challenge_cancel: None,
+        challenge_code_reason: None,
+        message_extension: None,
+        authentication_type: None,
+    }
+}
+
+/// Frictionless `AuthenticationData` for the Authenticate response.
+///
+/// Mirrors Cybersource: `eci` comes from `indicator`; `pares_status`, when present, is
+/// preserved as `trans_status` for the final Authorize request.
+fn get_authentication_data_for_authenticate_response(
+    validate_response: &responses::BarclaycardConsumerAuthValidateResponse,
+) -> router_request_types::AuthenticationData {
+    router_request_types::AuthenticationData {
+        eci: validate_response.indicator.clone(),
+        cavv: validate_response.cavv.clone(),
+        threeds_server_transaction_id: None,
+        message_version: validate_response.specification_version.clone(),
+        ds_trans_id: validate_response
+            .directory_server_transaction_id
+            .as_ref()
+            .map(|id| id.clone().expose()),
+        acs_transaction_id: None,
+        trans_status: validate_response
+            .pares_status
+            .clone()
+            .map(common_enums::TransactionStatus::from),
+        transaction_id: validate_response.xid.clone(),
+        ucaf_collection_indicator: validate_response.ucaf_collection_indicator.clone(),
+        exemption_indicator: None,
+        network_params: None,
+        created_at: None,
+        challenge_code: None,
+        challenge_cancel: None,
+        challenge_code_reason: None,
+        message_extension: None,
+        authentication_type: None,
+    }
+}
+
+/// `three_ds_data` JSON surfaced in `connector_feature_data` for the Authenticate response.
+fn get_three_ds_data_for_authenticate_response(
+    validate_response: &responses::BarclaycardConsumerAuthValidateResponse,
+) -> serde_json::Value {
+    serde_json::json!({
+        "ucafCollectionIndicator": validate_response.ucaf_collection_indicator,
+        "cavv": validate_response.cavv,
+        "ucafAuthenticationData": validate_response.ucaf_authentication_data,
+        "xid": validate_response.xid,
+        "specificationVersion": validate_response.specification_version,
+        "directoryServerTransactionId": validate_response.directory_server_transaction_id,
+        "indicator": validate_response.indicator,
+    })
+}
+
+fn build_auth_error_response(
+    error_response: responses::BarclaycardErrorInformationResponse,
+    http_code: u16,
+) -> ErrorResponse {
+    let detailed_error_info =
+        format_error_details(error_response.error_information.details.as_ref());
+    let reason = get_error_reason(
+        error_response.error_information.message.clone(),
+        detailed_error_info,
+        None,
+    );
+    let error_message = error_response.error_information.reason;
+    ErrorResponse {
+        code: error_message
+            .clone()
+            .unwrap_or_else(|| common_utils::consts::NO_ERROR_CODE.to_string()),
+        message: error_message
+            .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string()),
+        reason,
+        status_code: http_code,
+        attempt_status: None,
+        connector_transaction_id: Some(error_response.id),
+        network_advice_code: None,
+        network_decline_code: None,
+        network_error_message: None,
+        typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
+    }
+}
+
+// --- PreAuthenticate (risk/v1/authentication-setups) ---
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        BarclaycardRouterData<
+            RouterDataV2<
+                PreAuthenticate,
+                PaymentFlowData,
+                PaymentsPreAuthenticateData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for requests::BarclaycardAuthSetupRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        item: BarclaycardRouterData<
+            RouterDataV2<
+                PreAuthenticate,
+                PaymentFlowData,
+                PaymentsPreAuthenticateData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let payment_method_data = router_data
+            .request
+            .payment_method_data
+            .as_ref()
+            .ok_or_else(|| {
+                missing_required_field_error(FIELD_PAYMENT_METHOD_DATA, FLOW_PRE_AUTHENTICATE)
+            })?;
+
+        match payment_method_data {
+            PaymentMethodData::Card(ccard) => Ok(Self {
+                payment_information: build_auth_card_payment_information(ccard),
+                client_reference_information: requests::ClientReferenceInformation {
+                    code: Some(
+                        router_data
+                            .resource_common_data
+                            .connector_request_reference_id
+                            .clone(),
+                    ),
+                },
+            }),
+            unsupported_payment_method_data => Err(unsupported_payment_method_error(
+                unsupported_payment_method_data,
+                FLOW_PRE_AUTHENTICATE,
+                "card",
+            ))?,
+        }
+    }
+}
+
+impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<responses::BarclaycardAuthSetupResponse, Self>>
+    for RouterDataV2<F, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<responses::BarclaycardAuthSetupResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        match item.response {
+            responses::BarclaycardAuthSetupResponse::ClientAuthSetupInfo(info_response) => {
+                Ok(Self {
+                    resource_common_data: PaymentFlowData {
+                        status: common_enums::AttemptStatus::AuthenticationPending,
+                        ..item.router_data.resource_common_data
+                    },
+                    response: Ok(PaymentsResponseData::PreAuthenticateResponse {
+                        resource_id: None,
+                        redirection_data: Some(Box::new(RedirectForm::CybersourceAuthSetup {
+                            access_token: info_response
+                                .consumer_authentication_information
+                                .access_token
+                                .expose(),
+                            ddc_url: info_response
+                                .consumer_authentication_information
+                                .device_data_collection_url,
+                            reference_id: info_response
+                                .consumer_authentication_information
+                                .reference_id,
+                        })),
+                        connector_response_reference_id: Some(
+                            info_response
+                                .client_reference_information
+                                .code
+                                .unwrap_or(info_response.id.clone()),
+                        ),
+                        status_code: item.http_code,
+                        authentication_data: None,
+                    }),
+                    ..item.router_data
+                })
+            }
+            responses::BarclaycardAuthSetupResponse::ErrorInformation(error_response) => Ok(Self {
+                response: Err(build_auth_error_response(*error_response, item.http_code)),
+                resource_common_data: PaymentFlowData {
+                    status: common_enums::AttemptStatus::AuthenticationFailed,
+                    ..item.router_data.resource_common_data
+                },
+                ..item.router_data
+            }),
+        }
+    }
+}
+
+// --- Authenticate (risk/v1/authentications) ---
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        BarclaycardRouterData<
+            RouterDataV2<
+                Authenticate,
+                PaymentFlowData,
+                PaymentsAuthenticateData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for requests::BarclaycardAuthEnrollmentRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        item: BarclaycardRouterData<
+            RouterDataV2<
+                Authenticate,
+                PaymentFlowData,
+                PaymentsAuthenticateData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let client_reference_information = requests::ClientReferenceInformation {
+            code: Some(
+                router_data
+                    .resource_common_data
+                    .connector_request_reference_id
+                    .clone(),
+            ),
+        };
+
+        let payment_method_data = router_data
+            .request
+            .payment_method_data
+            .as_ref()
+            .ok_or_else(|| {
+                missing_required_field_error(FIELD_PAYMENT_METHOD_DATA, FLOW_AUTHENTICATE)
+            })?;
+        let payment_information = match payment_method_data {
+            PaymentMethodData::Card(ccard) => build_auth_card_payment_information(ccard),
+            unsupported_payment_method_data => Err(unsupported_payment_method_error(
+                unsupported_payment_method_data,
+                FLOW_AUTHENTICATE,
+                "card",
+            ))?,
+        };
+
+        let currency = router_data
+            .request
+            .currency
+            .ok_or_else(|| missing_required_field_error(FIELD_CURRENCY, FLOW_AUTHENTICATE))?;
+        let total_amount =
+            BarclaycardAmountConvertor::convert(router_data.request.amount, currency)?;
+
+        let email = router_data
+            .resource_common_data
+            .get_billing_email()
+            .or(router_data
+                .request
+                .email
+                .clone()
+                .ok_or_else(|| missing_required_field_error(FIELD_EMAIL, FLOW_AUTHENTICATE)))?;
+
+        let billing = router_data
+            .resource_common_data
+            .address
+            .get_payment_method_billing()
+            .ok_or_else(|| missing_required_field_error(FIELD_BILLING, FLOW_AUTHENTICATE))?;
+        let bill_to = build_bill_to(billing, email)?;
+
+        let order_information = requests::OrderInformationWithBill {
+            amount_details: requests::Amount {
+                total_amount,
+                currency,
+            },
+            bill_to: Some(bill_to),
+        };
+
+        let redirect_response = router_data
+            .request
+            .redirect_response
+            .clone()
+            .ok_or_else(|| {
+                missing_required_field_error(FIELD_REDIRECT_RESPONSE, FLOW_AUTHENTICATE)
+            })?;
+        let param = redirect_response.params.ok_or_else(|| {
+            missing_required_field_error(FIELD_REDIRECT_RESPONSE_PARAMS, FLOW_AUTHENTICATE)
+        })?;
+        let reference_id = param
+            .peek()
+            .split('=')
+            .next_back()
+            .ok_or_else(|| {
+                missing_required_field_error(
+                    FIELD_REDIRECT_RESPONSE_PARAMS_REFERENCE_ID,
+                    FLOW_AUTHENTICATE,
+                )
+            })?
+            .to_string();
+
+        let return_url = router_data
+            .request
+            .continue_redirection_url
+            .clone()
+            .ok_or_else(|| {
+                missing_required_field_error(FIELD_CONTINUE_REDIRECTION_URL, FLOW_AUTHENTICATE)
+            })?
+            .to_string();
+
+        Ok(Self {
+            payment_information,
+            client_reference_information,
+            consumer_authentication_information:
+                requests::BarclaycardConsumerAuthInformationRequest {
+                    return_url,
+                    reference_id,
+                },
+            order_information,
+        })
+    }
+}
+
+impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<responses::BarclaycardAuthenticateResponse, Self>>
+    for RouterDataV2<F, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<responses::BarclaycardAuthenticateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        match item.response {
+            responses::BarclaycardAuthenticateResponse::ClientAuthCheckInfo(info_response) => {
+                let status = common_enums::AttemptStatus::from(info_response.status);
+                match status {
+                    status if domain_types::utils::is_payment_failure(status) => {
+                        let response = Err(get_error_response(
+                            &info_response.error_information,
+                            &None,
+                            &None,
+                            Some(status),
+                            item.http_code,
+                            info_response.id.clone(),
+                        ));
+                        Ok(Self {
+                            resource_common_data: PaymentFlowData {
+                                status,
+                                ..item.router_data.resource_common_data
+                            },
+                            response,
+                            ..item.router_data
+                        })
+                    }
+                    status => {
+                        let connector_response_reference_id = Some(
+                            info_response
+                                .client_reference_information
+                                .code
+                                .unwrap_or(info_response.id.clone()),
+                        );
+
+                        // Challenge flow: access_token + step_up_url both present => redirect the
+                        // cardholder to the ACS. Otherwise the authentication is frictionless.
+                        let redirection_data = match (
+                            info_response
+                                .consumer_authentication_information
+                                .access_token
+                                .clone(),
+                            info_response
+                                .consumer_authentication_information
+                                .step_up_url
+                                .clone(),
+                        ) {
+                            (Some(token), Some(step_up_url)) => {
+                                Some(RedirectForm::CybersourceConsumerAuth {
+                                    access_token: token.expose(),
+                                    step_up_url,
+                                })
+                            }
+                            _ => None,
+                        };
+
+                        let validate_response = &info_response
+                            .consumer_authentication_information
+                            .validate_response;
+                        let connector_feature_data = Some(serde_json::json!({
+                            "three_ds_data":
+                                get_three_ds_data_for_authenticate_response(validate_response)
+                        }));
+                        let authentication_data = Some(
+                            get_authentication_data_for_authenticate_response(validate_response),
+                        );
+
+                        Ok(Self {
+                            resource_common_data: PaymentFlowData {
+                                status,
+                                ..item.router_data.resource_common_data
+                            },
+                            response: Ok(PaymentsResponseData::AuthenticateResponse {
+                                resource_id: None,
+                                redirection_data: redirection_data.map(Box::new),
+                                connector_response_reference_id,
+                                authentication_data,
+                                connector_feature_data,
+                                status_code: item.http_code,
+                            }),
+                            ..item.router_data
+                        })
+                    }
+                }
+            }
+            responses::BarclaycardAuthenticateResponse::ErrorInformation(error_response) => {
+                Ok(Self {
+                    response: Err(build_auth_error_response(*error_response, item.http_code)),
+                    resource_common_data: PaymentFlowData {
+                        status: common_enums::AttemptStatus::AuthenticationFailed,
+                        ..item.router_data.resource_common_data
+                    },
+                    ..item.router_data
+                })
+            }
+        }
+    }
+}
+
+// --- PostAuthenticate (risk/v1/authentication-results) ---
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        BarclaycardRouterData<
+            RouterDataV2<
+                PostAuthenticate,
+                PaymentFlowData,
+                PaymentsPostAuthenticateData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for requests::BarclaycardAuthValidateRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        item: BarclaycardRouterData<
+            RouterDataV2<
+                PostAuthenticate,
+                PaymentFlowData,
+                PaymentsPostAuthenticateData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let client_reference_information = requests::ClientReferenceInformation {
+            code: Some(
+                router_data
+                    .resource_common_data
+                    .connector_request_reference_id
+                    .clone(),
+            ),
+        };
+
+        let payment_method_data = router_data
+            .request
+            .payment_method_data
+            .as_ref()
+            .ok_or_else(|| {
+                missing_required_field_error(FIELD_PAYMENT_METHOD_DATA, FLOW_POST_AUTHENTICATE)
+            })?;
+        let payment_information = match payment_method_data {
+            PaymentMethodData::Card(ccard) => build_auth_card_payment_information(ccard),
+            unsupported_payment_method_data => Err(unsupported_payment_method_error(
+                unsupported_payment_method_data,
+                FLOW_POST_AUTHENTICATE,
+                "card",
+            ))?,
+        };
+
+        let currency = router_data
+            .request
+            .currency
+            .ok_or_else(|| missing_required_field_error(FIELD_CURRENCY, FLOW_POST_AUTHENTICATE))?;
+        let total_amount =
+            BarclaycardAmountConvertor::convert(router_data.request.amount, currency)?;
+        let order_information = requests::OrderInformation {
+            amount_details: requests::Amount {
+                total_amount,
+                currency,
+            },
+        };
+
+        let redirect_response = router_data
+            .request
+            .redirect_response
+            .clone()
+            .ok_or_else(|| {
+                missing_required_field_error(FIELD_REDIRECT_RESPONSE, FLOW_POST_AUTHENTICATE)
+            })?;
+        let redirection_response: BarclaycardRedirectionAuthResponse = redirect_response
+            .payload
+            .ok_or_else(|| {
+                missing_required_field_error(
+                    FIELD_REDIRECT_RESPONSE_PAYLOAD,
+                    FLOW_POST_AUTHENTICATE,
+                )
+            })?
+            .expose()
+            .parse_value(FIELD_BARCLAYCARD_REDIRECTION_AUTH_RESPONSE)
+            .change_context(IntegrationError::InvalidDataFormat {
+                field_name: FIELD_BARCLAYCARD_REDIRECTION_AUTH_RESPONSE,
+                context: barclaycard_context(
+                    FLOW_POST_AUTHENTICATE,
+                    "redirect_response.payload could not be parsed as BarclaycardRedirectionAuthResponse",
+                    "Send the ACS redirect payload returned by Barclaycard for PostAuthenticate.",
+                ),
+            })?;
+
+        Ok(Self {
+            payment_information,
+            client_reference_information,
+            consumer_authentication_information:
+                requests::BarclaycardConsumerAuthInformationValidateRequest {
+                    authentication_transaction_id: redirection_response.transaction_id,
+                },
+            order_information,
+        })
+    }
+}
+
+impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<responses::BarclaycardPostAuthenticateResponse, Self>>
+    for RouterDataV2<F, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<responses::BarclaycardPostAuthenticateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        match item.response {
+            responses::BarclaycardAuthenticateResponse::ClientAuthCheckInfo(info_response) => {
+                let status = common_enums::AttemptStatus::from(info_response.status);
+                match status {
+                    status if domain_types::utils::is_payment_failure(status) => {
+                        let response = Err(get_error_response(
+                            &info_response.error_information,
+                            &None,
+                            &None,
+                            Some(status),
+                            item.http_code,
+                            info_response.id.clone(),
+                        ));
+                        Ok(Self {
+                            resource_common_data: PaymentFlowData {
+                                status,
+                                ..item.router_data.resource_common_data
+                            },
+                            response,
+                            ..item.router_data
+                        })
+                    }
+                    status => {
+                        let connector_response_reference_id = Some(
+                            info_response
+                                .client_reference_information
+                                .code
+                                .unwrap_or(info_response.id.clone()),
+                        );
+
+                        let validate_response = &info_response
+                            .consumer_authentication_information
+                            .validate_response;
+                        let three_ds_data = serde_json::to_value(validate_response)
+                            .change_context(ConnectorError::ResponseDeserializationFailed {
+                                context: Default::default(),
+                            })?;
+                        let connector_feature_data = Some(Secret::new(serde_json::json!({
+                            "three_ds_data": three_ds_data
+                        })));
+
+                        Ok(Self {
+                            resource_common_data: PaymentFlowData {
+                                status,
+                                connector_feature_data,
+                                ..item.router_data.resource_common_data
+                            },
+                            response: Ok(PaymentsResponseData::PostAuthenticateResponse {
+                                authentication_data: Some(
+                                    get_authentication_data_for_validation_response(
+                                        info_response.consumer_authentication_information,
+                                    ),
+                                ),
+                                connector_response_reference_id,
+                                status_code: item.http_code,
+                            }),
+                            ..item.router_data
+                        })
+                    }
+                }
+            }
+            responses::BarclaycardAuthenticateResponse::ErrorInformation(error_response) => {
+                Ok(Self {
+                    response: Err(build_auth_error_response(*error_response, item.http_code)),
+                    resource_common_data: PaymentFlowData {
+                        status: common_enums::AttemptStatus::AuthenticationFailed,
                         ..item.router_data.resource_common_data
                     },
                     ..item.router_data

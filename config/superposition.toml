@@ -85,7 +85,7 @@ api_tags_tags_psync = { value = "", schema = { type = "string" } }
 environment = { position = 1, schema = { type = "string", enum = ["sandbox", "development", "production"] } }
 
 # Connector dimension - determines which payment processor URLs to use
-connector = { position = 2, schema = { type = "string", enum = ["stripe", "adyen", "paypal", "razorpay", "checkout", "braintree", "worldpay", "cybersource", "payme", "bluesnap", "fiserv", "trustpay", "volt", "hipay", "xendit", "phonepe", "cashfree", "payu", "paytm", "dlocal", "rapyd", "aci", "nuvei", "forte", "authorizedotnet", "elavon", "bamboraapac", "billwerk", "paysafe", "worldpayvantiv", "worldpayxml", "tsys", "tsys_transit", "bankofamerica", "powertranz", "revolut", "airwallex", "bambora", "shift4", "multisafepay", "iatapay", "jpmorgan", "nmi", "nexixpay", "authipay", "stax", "trustpayments", "fiservemea", "datatrans", "silverflow", "celero", "globalpay", "razorpayv2", "fiuu", "payload", "cashtocode", "novalnet", "nexinets", "noon", "mifinity", "calida", "cryptopay", "helcim", "placetopay", "barclaycard", "gigadat", "loonio", "mollie", "absa_sanlam", "truelayer", "trustly", "twoc_twop_paco", "zift", "revolv3", "fiservcommercehub", "finix", "wellsfargo", "imerchantsolutions", "qwikcilver", "kount"] } }
+connector = { position = 2, schema = { type = "string", enum = ["glomopay", "stripe", "adyen", "paypal", "razorpay", "checkout", "braintree", "worldpay", "cybersource", "payme", "bluesnap", "fiserv", "trustpay", "volt", "hipay", "xendit", "phonepe", "cashfree", "payu", "paytm", "dlocal", "rapyd", "aci", "nuvei", "forte", "authorizedotnet", "elavon", "bamboraapac", "billwerk", "paysafe", "worldpayvantiv", "worldpayxml", "tsys", "tsys_transit", "bankofamerica", "powertranz", "revolut", "airwallex", "bambora", "shift4", "multisafepay", "iatapay", "jpmorgan", "nmi", "nexixpay", "authipay", "stax", "trustpayments", "fiservemea", "datatrans", "silverflow", "celero", "globalpay", "razorpayv2", "fiuu", "payload", "cashtocode", "novalnet", "nexinets", "noon", "mifinity", "calida", "cryptopay", "helcim", "placetopay", "barclaycard", "gigadat", "loonio", "mollie", "absa_sanlam", "truelayer", "trustly", "twoc_twop_paco", "zift", "revolv3", "fiservcommercehub", "finix", "wellsfargo", "imerchantsolutions", "qwikcilver", "flywire", "boost", "plaid", "grabpay", "maya", "tamara"] } }
 
 # ============================================================================
 # Development Environment Overrides
@@ -121,6 +121,11 @@ common_environment = "production"
 # ============================================================================
 # Connector URL Overrides (Sandbox/Development - default)
 # ============================================================================
+
+# Glomopay
+[[overrides]]
+_context_ = { connector = "glomopay" }
+connector_base_url = "https://api.glomopay.com/api/v1/"
 
 # Stripe
 [[overrides]]
@@ -337,6 +342,11 @@ connector_base_url = "https://sandbox-merchant.revolut.com/"
 _context_ = { connector = "airwallex" }
 connector_base_url = "https://api-demo.airwallex.com/api/v1"
 
+# Tamara
+[[overrides]]
+_context_ = { connector = "tamara" }
+connector_base_url = "https://api-sandbox.tamara.co"
+
 # Bambora
 [[overrides]]
 _context_ = { connector = "bambora" }
@@ -510,6 +520,11 @@ connector_base_url = "https://api.gigadatsolutions.com/"
 _context_ = { connector = "imerchantsolutions" }
 connector_base_url = "https://api.imerchantsolutions.com/"
 
+# Flywire
+[[overrides]]
+_context_ = { connector = "flywire" }
+connector_base_url = "https://api-platform-sandbox.flywire.com"
+
 # Loonio
 [[overrides]]
 _context_ = { connector = "loonio" }
@@ -545,11 +560,10 @@ connector_base_url = "https://api.trustly.com/v1/"
 _context_ = { connector = "twoc_twop_paco" }
 connector_base_url = "https://core.demo-paco.2c2p.com"
 
-# Kount (FRM) — sandbox
+# Plaid (Authenticator) — sandbox
 [[overrides]]
-_context_ = { connector = "kount" }
-connector_base_url = "https://api-sandbox.kount.com"
-connector_secondary_base_url = "https://login.kount.com"
+_context_ = { connector = "plaid" }
+connector_base_url = "https://sandbox.plaid.com"
 
 # Qwikcilver / Pine Labs (UAE sandbox `qc3` — terminal-bound)
 [[overrides]]
@@ -566,6 +580,11 @@ connector_base_url = "https://api.wellsfargo.com/payments/v1/"
 _context_ = { connector = "zift" }
 connector_base_url = "https://api.zift.io/"
 
+# Boost Connect (BCPG) — staging host, used as the default (sandbox/development).
+[[overrides]]
+_context_ = { connector = "boost" }
+connector_base_url = "https://stage-api.boostconnect.biz/gateway"
+
 # ============================================================================
 # Production Environment Overrides
 # ============================================================================
@@ -580,6 +599,11 @@ connector_dispute_base_url = "https://{{merchant_endpoint_prefix}}-ca-live.adyen
 [[overrides]]
 _context_ = { connector = "paypal", environment = "production" }
 connector_base_url = "https://api-m.paypal.com/"
+
+# Tamara Production
+[[overrides]]
+_context_ = { connector = "tamara", environment = "production" }
+connector_base_url = "https://api.tamara.co"
 
 # Braintree Production
 [[overrides]]
@@ -874,13 +898,12 @@ connector_base_url = "https://api.trustly.com/v1/"
 # 2C2P PACO Production
 [[overrides]]
 _context_ = { connector = "twoc_twop_paco", environment = "production" }
-connector_base_url = "https://core.paco.2c2p.com/"
+connector_base_url = "https://core.paco.2c2p.com"
 
-# Kount (FRM) Production
+# Plaid (Authenticator) — production
 [[overrides]]
-_context_ = { connector = "kount", environment = "production" }
-connector_base_url = "https://api.kount.com"
-connector_secondary_base_url = "https://login.kount.com"
+_context_ = { connector = "plaid", environment = "production" }
+connector_base_url = "https://production.plaid.com"
 
 # Wells Fargo Production
 [[overrides]]
@@ -891,3 +914,38 @@ connector_base_url = "https://api.wellsfargo.com/payments/v1/"
 [[overrides]]
 _context_ = { connector = "zift", environment = "production" }
 connector_base_url = "https://api.zift.io/"
+
+# Flywire Production
+[[overrides]]
+_context_ = { connector = "flywire", environment = "production" }
+connector_base_url = "https://api-platform.flywire.com"
+
+# Flywire Development
+[[overrides]]
+_context_ = { connector = "flywire", environment = "development" }
+connector_base_url = "https://api-platform-sandbox.flywire.com"
+
+# Boost Connect (BCPG) Production
+[[overrides]]
+_context_ = { connector = "boost", environment = "production" }
+connector_base_url = "https://api.boostconnect.biz/gateway"
+
+# GrabPay
+[[overrides]]
+_context_ = { connector = "grabpay" }
+connector_base_url = "https://partner-api.stg-myteksi.com/grabpay/partner/v2"
+
+# Maya
+[[overrides]]
+_context_ = { connector = "maya" }
+connector_base_url = "https://pg-sandbox.paymaya.com"
+
+# GrabPay Production
+[[overrides]]
+_context_ = { connector = "grabpay", environment = "production" }
+connector_base_url = "https://partner-api.grab.com/grabpay/partner/v2"
+
+# Maya Production
+[[overrides]]
+_context_ = { connector = "maya", environment = "production" }
+connector_base_url = "https://pg.maya.ph"

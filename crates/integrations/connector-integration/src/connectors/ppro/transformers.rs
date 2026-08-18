@@ -5,7 +5,10 @@ use serde::{Deserialize, Serialize};
 
 use super::PproRouterData;
 use crate::types::ResponseRouterData;
-use domain_types::errors::{ConnectorError, IntegrationError, WebhookError};
+use crate::utils::GetOptionalPaymentMethodType;
+use domain_types::errors::{
+    ConnectorError, IntegrationError, IntegrationErrorContext, WebhookError,
+};
 use domain_types::{
     connector_flow::{Capture, RSync, Refund, RepeatPayment, SetupMandate, Void},
     connector_types::{
@@ -17,6 +20,7 @@ use domain_types::{
     payment_method_data::PaymentMethodDataTypes,
     router_data::ErrorResponse,
     router_data_v2::RouterDataV2,
+    router_response_types::RedirectForm,
 };
 use interfaces::webhooks::IncomingWebhookEvent;
 
@@ -61,11 +65,11 @@ pub struct PproPaymentsRequest {
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PproAuthenticationType {
     Redirect,
+    ScanCode,
     // TODO: Uncomment when adding support for other authentication flows
-    // ScanCode,
     // MultiFactor,
     // AppNotification,
-    // AppIntent,
+    AppIntent,
     #[serde(other)]
     Unknown,
 }
@@ -83,11 +87,10 @@ pub struct PproAuthenticationSettings {
 pub struct PproAuthSettingsDetails {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub return_url: Option<String>,
-    // TODO: Uncomment when adding support for other authentication flows
-    // #[serde(skip_serializing_if = "Option::is_none")]
-    // pub scan_by: Option<String>,
-    // #[serde(skip_serializing_if = "Option::is_none")]
-    // pub mobile_intent_uri: Option<String>
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scan_by: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mobile_intent_uri: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -131,6 +134,7 @@ where
         let payment_method = match router_data.request.payment_method_type {
             Some(common_enums::PaymentMethodType::BancontactCard) => "BANCONTACT".to_string(),
             Some(common_enums::PaymentMethodType::UpiIntent) => "UPI".to_string(),
+            Some(common_enums::PaymentMethodType::UpiQr) => "UPI".to_string(),
             Some(common_enums::PaymentMethodType::AliPay) => "ALIPAY".to_string(),
             Some(common_enums::PaymentMethodType::WeChatPay) => "WECHATPAY".to_string(),
             Some(common_enums::PaymentMethodType::MbWay) => "MBWAY".to_string(),
@@ -139,6 +143,7 @@ where
             Some(common_enums::PaymentMethodType::Ideal) => "IDEAL".to_string(),
             Some(common_enums::PaymentMethodType::Trustly) => "TRUSTLY".to_string(),
             Some(common_enums::PaymentMethodType::Blik) => "BLIK".to_string(),
+            Some(common_enums::PaymentMethodType::AfterpayClearpay) => "AFTERPAY".to_string(),
             Some(ref pm) => {
                 return Err(IntegrationError::NotSupported {
                     message: format!("payment method {pm} is not supported by PPRO"),
@@ -161,31 +166,24 @@ where
             value: common_utils::MinorUnit::new(router_data.request.amount.get_amount_as_i64()),
         };
 
-        // Currently only Redirect authentication is requested.
-        // TODO: When adding other authentication flows, extend this list based on payment method:
-        //
-        // authentication_settings.push(PproAuthenticationSettings {
-        //     r#type: PproAuthenticationType::ScanCode,
-        //     settings: None,
-        // });
-        // authentication_settings.push(PproAuthenticationSettings {
-        //     r#type: PproAuthenticationType::MultiFactor,
-        //     settings: None,
-        // });
-        // authentication_settings.push(PproAuthenticationSettings {
-        //     r#type: PproAuthenticationType::AppNotification,
-        //     settings: None,
-        // });
-        // authentication_settings.push(PproAuthenticationSettings {
-        //     r#type: PproAuthenticationType::AppIntent,
-        //     settings: Some(PproAuthSettingsDetails {
-        //         return_url: None,
-        //         scan_by: None,
-        //         mobile_intent_uri: router_data.request.router_return_url.clone(),
-        //     }),
-        // });
-        let authentication_settings =
-            router_data
+        let authentication_settings = match router_data.request.payment_method_type {
+            Some(common_enums::PaymentMethodType::UpiIntent) => {
+                Some(vec![PproAuthenticationSettings {
+                    r#type: PproAuthenticationType::AppIntent,
+                    settings: Some(PproAuthSettingsDetails {
+                        return_url: None,
+                        scan_by: None,
+                        mobile_intent_uri: router_data.request.router_return_url.clone(),
+                    }),
+                }])
+            }
+            Some(common_enums::PaymentMethodType::UpiQr) => {
+                Some(vec![PproAuthenticationSettings {
+                    r#type: PproAuthenticationType::ScanCode,
+                    settings: None,
+                }])
+            }
+            _ => router_data
                 .request
                 .router_return_url
                 .as_ref()
@@ -194,23 +192,42 @@ where
                         r#type: PproAuthenticationType::Redirect,
                         settings: Some(PproAuthSettingsDetails {
                             return_url: Some(return_url.to_string()),
+                            scan_by: None,
+                            mobile_intent_uri: None,
                         }),
                     }]
-                });
+                }),
+        };
 
         let email = router_data
             .resource_common_data
             .get_optional_billing_email()
             .or_else(|| router_data.request.get_optional_email());
 
+        // PPRO requires consumer email and country for Afterpay payments.
+        if matches!(
+            router_data.request.payment_method_type,
+            Some(common_enums::PaymentMethodType::AfterpayClearpay)
+        ) {
+            if email.is_none() {
+                return Err(IntegrationError::MissingRequiredField {
+                    field_name: "email",
+                    context: IntegrationErrorContext {
+                        additional_context: Some("Afterpay requires consumer email".to_string()),
+                        ..Default::default()
+                    },
+                }
+                .into());
+            }
+            router_data.resource_common_data.get_billing_country()?;
+        }
+
         let merchant_consumer_reference = if matches!(
             router_data.request.payment_method_type,
             Some(common_enums::PaymentMethodType::Trustly)
         ) {
-            let id = router_data
-                .resource_common_data
-                .get_connector_customer_id()?;
-            Some(sanitize_merchant_consumer_reference(&id))
+            let id = router_data.resource_common_data.get_customer_id()?;
+            Some(sanitize_merchant_consumer_reference(id.get_string_repr()))
         } else {
             None
         };
@@ -462,19 +479,18 @@ pub struct PproAuthDetailsResponse {
     pub request_url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub request_method: Option<PproHttpMethod>,
-    // TODO: Uncomment when adding support for other authentication flows
-    // #[serde(skip_serializing_if = "Option::is_none")]
-    // pub code_type: Option<String>,
-    // #[serde(skip_serializing_if = "Option::is_none")]
-    // pub code_image: Option<String>,
-    // #[serde(skip_serializing_if = "Option::is_none")]
-    // pub code_payload: Option<String>,
-    // #[serde(skip_serializing_if = "Option::is_none")]
-    // pub code_document: Option<String>,
-    // #[serde(skip_serializing_if = "Option::is_none")]
-    // pub scan_by: Option<String>,
-    // #[serde(skip_serializing_if = "Option::is_none")]
-    // pub mobile_intent_uri: Option<String>
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub code_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub code_image: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub code_payload: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub code_document: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scan_by: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mobile_intent_uri: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -550,6 +566,7 @@ where
 #[serde(rename_all = "camelCase")]
 pub struct PproRefundRequest {
     pub amount: common_utils::MinorUnit,
+    pub merchant_refund_reference: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub refund_reason: Option<PproRefundReason>,
 }
@@ -570,6 +587,7 @@ where
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: item.router_data.request.minor_refund_amount,
+            merchant_refund_reference: item.router_data.request.refund_id.clone(),
             refund_reason: item
                 .router_data
                 .request
@@ -599,6 +617,9 @@ pub struct PproErrorResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PproWebhookType {
+    PaymentChargeCreated,
+    PaymentChargeAuthenticationPending,
+    PaymentChargeProviderConfirmationPending,
     PaymentChargeAuthorizationSucceeded,
     PaymentChargeSuccess,
     PaymentChargeAuthorizationFailed,
@@ -608,6 +629,7 @@ pub enum PproWebhookType {
     PaymentChargeCaptureFailed,
     PaymentChargeVoidSucceeded,
     PaymentChargeVoidFailed,
+    PaymentChargeRefundPending,
     PaymentChargeRefundSucceeded,
     PaymentChargeRefundFailed,
     PaymentAgreementActive,
@@ -622,12 +644,18 @@ impl TryFrom<PproWebhookType> for EventType {
 
     fn try_from(event_type: PproWebhookType) -> Result<Self, Self::Error> {
         match event_type {
+            PproWebhookType::PaymentChargeCreated
+            | PproWebhookType::PaymentChargeAuthenticationPending
+            | PproWebhookType::PaymentChargeProviderConfirmationPending => {
+                Ok(Self::PaymentIntentProcessing)
+            }
             PproWebhookType::PaymentChargeCaptureSucceeded => Ok(Self::PaymentIntentCaptureSuccess),
             PproWebhookType::PaymentChargeFailed
             | PproWebhookType::PaymentChargeAuthorizationFailed
             | PproWebhookType::PaymentChargeDiscarded => Ok(Self::PaymentIntentFailure),
             PproWebhookType::PaymentChargeAuthorizationSucceeded
             | PproWebhookType::PaymentChargeSuccess => Ok(Self::PaymentIntentAuthorizationSuccess),
+            PproWebhookType::PaymentChargeRefundPending => Ok(Self::RefundProcessing),
             PproWebhookType::PaymentChargeRefundSucceeded => Ok(Self::RefundSuccess),
             PproWebhookType::PaymentChargeRefundFailed => Ok(Self::RefundFailure),
             PproWebhookType::PaymentChargeVoidSucceeded => Ok(Self::PaymentIntentCancelled),
@@ -647,6 +675,11 @@ impl TryFrom<PproWebhookType> for IncomingWebhookEvent {
 
     fn try_from(event_type: PproWebhookType) -> Result<Self, Self::Error> {
         match event_type {
+            PproWebhookType::PaymentChargeCreated
+            | PproWebhookType::PaymentChargeProviderConfirmationPending => {
+                Ok(Self::PaymentIntentProcessing)
+            }
+            PproWebhookType::PaymentChargeAuthenticationPending => Ok(Self::PaymentActionRequired),
             PproWebhookType::PaymentChargeAuthorizationSucceeded
             | PproWebhookType::PaymentChargeSuccess => Ok(Self::PaymentIntentSuccess),
             PproWebhookType::PaymentChargeAuthorizationFailed
@@ -656,6 +689,7 @@ impl TryFrom<PproWebhookType> for IncomingWebhookEvent {
             PproWebhookType::PaymentChargeCaptureFailed => Ok(Self::PaymentIntentCaptureFailure),
             PproWebhookType::PaymentChargeVoidSucceeded => Ok(Self::PaymentIntentCancelled),
             PproWebhookType::PaymentChargeVoidFailed => Ok(Self::PaymentIntentCancelFailure),
+            PproWebhookType::PaymentChargeRefundPending => Ok(Self::RefundProcessing),
             PproWebhookType::PaymentChargeRefundSucceeded => Ok(Self::RefundSuccess),
             PproWebhookType::PaymentChargeRefundFailed => Ok(Self::RefundFailure),
             PproWebhookType::PaymentAgreementActive => Ok(Self::MandateActive),
@@ -689,6 +723,8 @@ pub struct PproWebhookChargeData {
     pub failure: Option<PproFailure>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub refund_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant_refund_reference: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -709,6 +745,8 @@ pub enum PproWebhookData {
 
 impl<F, Req> TryFrom<ResponseRouterData<PproPaymentsResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, Req, PaymentsResponseData>
+where
+    Req: GetOptionalPaymentMethodType,
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<PproPaymentsResponse, Self>) -> Result<Self, Self::Error> {
@@ -740,49 +778,21 @@ impl<F, Req> TryFrom<ResponseRouterData<PproPaymentsResponse, Self>>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 });
             }
         }
 
-        let mut redirection_data: Option<domain_types::router_response_types::RedirectForm> = None;
+        let mut redirection_data: Option<RedirectForm> = None;
         if status == common_enums::AttemptStatus::AuthenticationPending {
             if let Some(auth_methods) = item.response.authentication_methods.as_ref() {
-                // Currently only Redirect flow is supported.
-                // TODO: When adding other authentication flows, use priority-based selection:
-                //
-                // let priorities: Vec<PproAuthenticationType> = match &item.router_data.request.payment_method_data {
-                //     PaymentMethodData::Wallet(WalletData::SatispaySdk(_)) => {
-                //         vec![PproAuthenticationType::AppIntent, PproAuthenticationType::ScanCode, PproAuthenticationType::Redirect]
-                //     }
-                //     PaymentMethodData::Wallet(WalletData::MbWaySdk(_)) => {
-                //         vec![PproAuthenticationType::AppNotification, PproAuthenticationType::Redirect]
-                //     }
-                //     PaymentMethodData::Upi(UpiData::UpiIntent(_)) => {
-                //         vec![PproAuthenticationType::Redirect, PproAuthenticationType::ScanCode]
-                //     }
-                //     _ => vec![PproAuthenticationType::Redirect],
-                // };
-                //
-                // Then iterate priorities and match:
-                //   ScanCode   -> details.code_payload  -> RedirectForm::Uri
-                //   AppIntent  -> details.mobile_intent_uri -> RedirectForm::Uri
-                //   Redirect   -> details.request_url   -> RedirectForm::Form
-                //   AppNotification / MultiFactor -> no redirect needed
-                //
-                // Find the Redirect authentication method from PPRO's response
-                for method in auth_methods {
-                    if method.r#type == PproAuthenticationType::Redirect {
-                        if let Some(details) = &method.details {
-                            if let Some(url) = &details.request_url {
-                                redirection_data =
-                                    Some(domain_types::router_response_types::RedirectForm::Uri {
-                                        uri: url.to_string(),
-                                    });
-                                break;
-                            }
-                        }
-                    }
-                }
+                redirection_data = build_auth_redirect(
+                    auth_methods,
+                    item.router_data.request.get_optional_payment_method_type(),
+                );
             }
         }
 
@@ -793,6 +803,7 @@ impl<F, Req> TryFrom<ResponseRouterData<PproPaymentsResponse, Self>>
                 connector_mandate_id: Some(instr_id.clone()),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: None,
+                mandate_metadata: None,
             })
         });
 
@@ -929,12 +940,17 @@ impl<F, Req, T> TryFrom<ResponseRouterData<PproRefundResponse, Self>>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             Ok(RefundsResponseData {
                 connector_refund_id: item.response.id.clone(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             })
         };
 
@@ -992,6 +1008,7 @@ impl TryFrom<ResponseRouterData<PproRSyncResponse, Self>>
             connector_refund_id: connector_refund_id.clone(),
             refund_status,
             status_code: item.http_code,
+            acquirer_reference_number: None,
         });
 
         Ok(Self {
@@ -1028,6 +1045,33 @@ pub struct PproAgreementRequest {
     pub authentication_settings: Option<Vec<PproAuthenticationSettings>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub instrument: Option<PproInstrument>,
+}
+
+/// Builds a `RedirectForm` from the PPRO authentication method matching the requested
+/// payment method: UPI Intent → `APP_INTENT`, UPI QR → `SCAN_CODE`, otherwise `REDIRECT`.
+pub(crate) fn build_auth_redirect(
+    auth_methods: &[PproAuthenticationResponse],
+    payment_method_type: Option<common_enums::PaymentMethodType>,
+) -> Option<RedirectForm> {
+    let matched_type = match payment_method_type {
+        Some(common_enums::PaymentMethodType::UpiIntent) => PproAuthenticationType::AppIntent,
+        Some(common_enums::PaymentMethodType::UpiQr) => PproAuthenticationType::ScanCode,
+        _ => PproAuthenticationType::Redirect,
+    };
+
+    auth_methods.iter().find_map(|method| {
+        if method.r#type != matched_type {
+            return None;
+        }
+        let details = method.details.as_ref()?;
+        let uri = match matched_type {
+            PproAuthenticationType::AppIntent => details.mobile_intent_uri.clone(),
+            PproAuthenticationType::ScanCode => details.code_payload.clone(),
+            PproAuthenticationType::Redirect => details.request_url.clone(),
+            PproAuthenticationType::Unknown => None,
+        }?;
+        Some(RedirectForm::Uri { uri })
+    })
 }
 
 #[derive(Debug, Serialize)]
@@ -1151,6 +1195,8 @@ where
                         r#type: PproAuthenticationType::Redirect,
                         settings: Some(PproAuthSettingsDetails {
                             return_url: Some(return_url.clone()),
+                            scan_by: None,
+                            mobile_intent_uri: None,
                         }),
                     }]
                 });
@@ -1161,10 +1207,8 @@ where
             router_data.request.payment_method_type,
             Some(common_enums::PaymentMethodType::Trustly)
         ) {
-            let id = router_data
-                .resource_common_data
-                .get_connector_customer_id()?;
-            Some(sanitize_merchant_consumer_reference(&id))
+            let id = router_data.resource_common_data.get_customer_id()?;
+            Some(sanitize_merchant_consumer_reference(id.get_string_repr()))
         } else {
             None
         };
@@ -1349,8 +1393,8 @@ pub fn get_ppro_bank_code(bank_name: common_enums::BankNames) -> Option<String> 
 }
 
 /// Sanitize the merchantConsumerReference
-fn sanitize_merchant_consumer_reference(connector_customer_id: &str) -> String {
-    connector_customer_id
+fn sanitize_merchant_consumer_reference(customer_id: &str) -> String {
+    customer_id
         .chars()
         .filter(|c| c.is_ascii_alphanumeric() || "@$%&*-+/.,".contains(*c))
         .take(50)
@@ -1394,6 +1438,10 @@ impl<F, Req> TryFrom<ResponseRouterData<PproAgreementResponse, Self>>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 });
             }
         }
@@ -1402,19 +1450,7 @@ impl<F, Req> TryFrom<ResponseRouterData<PproAgreementResponse, Self>>
         let mut redirection_data = None;
         if status == common_enums::AttemptStatus::AuthenticationPending {
             if let Some(auth_methods) = item.response.authentication_methods.as_ref() {
-                for method in auth_methods {
-                    if method.r#type == PproAuthenticationType::Redirect {
-                        if let Some(details) = &method.details {
-                            if let Some(url) = &details.request_url {
-                                redirection_data =
-                                    Some(domain_types::router_response_types::RedirectForm::Uri {
-                                        uri: url.clone(),
-                                    });
-                                break;
-                            }
-                        }
-                    }
-                }
+                redirection_data = build_auth_redirect(auth_methods, None);
             }
         }
 
@@ -1423,6 +1459,7 @@ impl<F, Req> TryFrom<ResponseRouterData<PproAgreementResponse, Self>>
             connector_mandate_id: Some(item.response.id.clone()),
             payment_method_id: None,
             connector_mandate_request_reference_id: None,
+            mandate_metadata: None,
         }));
 
         let response = if let Some(err) = error_response {

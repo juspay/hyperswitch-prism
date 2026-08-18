@@ -1,12 +1,17 @@
 # Mollie Connector
 
-Server-side provider logic for **Mollie** via the Hyperswitch Prism connector service. Mollie uses **Mollie Components** (in-page card tokenization): the card is entered and tokenized client-side into a single-use `cardToken` (card data never touches the server, PCI SAQ-A), the token is persisted to the session, and the server then charges it. One-off card payments complete via a **3DS redirect**, after which the order is finalised.
+Server-side provider logic for **Mollie** via the Hyperswitch Prism connector service. Two payment methods are supported:
+
+- **Card (Mollie Components)** — in-page card tokenization: the card is entered and tokenized client-side into a single-use `cardToken` (card data never touches the server, PCI SAQ-A), the token is persisted to the session, and the server then charges it. One-off card payments complete via a **3DS redirect**, after which the order is finalised.
+- **Klarna (Pay later)** — a **redirect** method with **no client-side tokenization**. The storefront collects billing (name + email + postal address) and re-initiates with `paymentMethodType: "klarna"`; `authorizePayment` builds the Klarna payment and Mollie returns a **hosted Klarna checkout URL** to redirect to. Klarna via Mollie is **EUR-only / EU markets**.
+
+Both methods capture automatically (`CaptureMethod.AUTOMATIC`) and surface the next step as `data.redirectUrl` for the storefront to follow; the post-redirect retry PSyncs to the terminal status.
 
 ## Files
 
 | File | Role |
 |------|------|
-| `index.ts` | `initiatePayment`, `reInitiatePayment`, `authorizePayment`, `shouldSkipVoid` |
+| `index.ts` | `initiatePayment`, `reInitiatePayment`, `authorizePayment`, `shouldSkipVoid`; `KlarnaBilling` + `toKlarnaBillingAddress` (maps the storefront billing form to the SDK billing address for the Klarna arm) |
 
 ## Payment flow
 
@@ -50,6 +55,44 @@ Storefront              Medusa backend               UCS / Prism            Moll
 6. **Idempotent retry (PSync)** — on the retry, `authorizePayment` sees an existing `connectorTransactionId` and **syncs status via `getPaymentStatus`** instead of re-authorizing (the `cardToken` is single-use). Mollie `paid` → `CAPTURED` and the order is created.
 7. **Refund / Cancel** — go through UCS synchronously. `shouldSkipVoid` skips the void when no real Mollie payment exists yet (`data.id` still equals the Medusa session id).
 
+## Klarna (Pay later) flow
+
+Klarna is a redirect method — there is no in-page tokenization. The storefront collects billing in a form (`MollieKlarnaForm`) and Klarna via Mollie requires a **EUR** session.
+
+```
+Storefront              Medusa backend               UCS / Prism            Mollie
+    |                        |                            |                    |
+    |== create EUR session ==|  initiatePayment (mollie)  |                    |
+    |   (Klarna is EU-only)  |  returns profileId         |                    |
+    |                        |                            |                    |
+    |== Klarna billing form: name + email + address =========================>|
+    |                        |                            |                    |
+    |-- re-initiate session->|  reInitiatePayment:        |                    |
+    |   { paymentMethodType: |  persist billing + method  |                    |
+    |     "klarna", billing, |  in session.data (no call) |                    |
+    |     returnUrl }        |                            |                    |
+    |                        |                            |                    |
+    |-- place order -------->|-- authorizePayment ------->|                    |
+    |                        |   paymentMethod.klarna {}  |--- POST /payments ->|
+    |                        |   + billingAddress         |   (Klarna order)    |
+    |                        |   CaptureMethod.AUTOMATIC  |                    |
+    |<- requires_more -------|<-- redirectUrl ------------|<- hosted checkout --|
+    |                        |                            |                    |
+    |== Redirect to Mollie-hosted Klarna checkout ==========================>|
+    |   customer completes Klarna                                              |
+    |<== Redirect back to returnUrl ========================================|
+    |                        |                            |                    |
+    |-- place order (retry)->|-- authorizePayment (PSync)>|--- GET /payments ->|
+    |<-- order --------------|<-- CAPTURED ---------------|<-- status: paid ----|
+```
+
+### Notes
+
+- **EUR-only** — Klarna via Mollie is restricted to EU markets, so the storefront must create the payment session in **EUR**. (Card has no such restriction.)
+- **Billing is required** — `authorizePayment` validates that `firstName`, `email`, and `line1` are present and returns `PaymentSessionStatus.ERROR` otherwise. The connector reads billing via `get_payment_method_billing()`, which falls back to the request `billing_address`, so the top-level `billingAddress` built by `toKlarnaBillingAddress` is sufficient. An unknown/unmappable country code is logged and omitted (Klarna's risk check needs a valid billing country).
+- **No client token** — the Klarna arm sends `paymentMethod.klarna {}`; the connector builds the order line itself from the amount + description.
+- **Idempotent retry** — identical to Card: once a `connectorTransactionId` exists, the retry PSyncs instead of re-authorizing.
+
 ## Session data
 
 Produced by `initiatePayment`:
@@ -59,19 +102,27 @@ Produced by `initiatePayment`:
 | `profileId` | Public Mollie profile id (`pfl_…`) for the Mollie Components form |
 | `minorAmount`, `currency` | Amount in minor units and ISO currency code |
 
-Added after re-initiation:
+Added after re-initiation (Card):
 
 | Field | Description |
 |-------|-------------|
 | `cardToken` | Single-use Mollie Components card token |
 | `returnUrl` | Storefront URL Mollie redirects to after 3DS |
 
+Added after re-initiation (Klarna):
+
+| Field | Description |
+|-------|-------------|
+| `paymentMethodType` | `"klarna"` — routes `authorizePayment` to the Klarna arm |
+| `billing` | `KlarnaBilling`: `firstName`, `lastName`, `email`, `line1`, `line2?`, `city`, `postalCode`, `country` (ISO 3166-1 alpha-2) |
+| `returnUrl` | Storefront URL Mollie redirects to after the Klarna hosted checkout |
+
 Added after `authorizePayment`:
 
 | Field | Description |
 |-------|-------------|
 | `id`, `connectorTransactionId` | Mollie payment reference (`tr_…`) — drives the idempotent PSync on retry |
-| `redirectUrl` | 3DS GET URL the storefront must send the customer to |
+| `redirectUrl` | GET URL the storefront must send the customer to — Card: the 3DS page; Klarna: the Mollie-hosted Klarna checkout |
 | `prismStatus` | Raw connector status (diagnostics) |
 
 ## Webhooks

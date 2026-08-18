@@ -131,6 +131,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             }) {
             Ok(elavon_response) => {
                 with_error_response_body!(event_builder, elavon_response);
+                let typed = macros::serialize_typed_connector_payload(&elavon_response, "typed_connector_response");
                 match elavon_response.result {
                     elavon::ElavonResult::Error(error_payload) => Ok(ErrorResponse {
                         status_code: res.status_code,
@@ -142,6 +143,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                         network_decline_code: None,
                         network_advice_code: None,
                         network_error_message: None,
+                        typed_connector_response: typed,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     }),
                     elavon::ElavonResult::Success(success_payload) => Ok(ErrorResponse {
                         status_code: res.status_code,
@@ -156,6 +161,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                         network_decline_code: None,
                         network_advice_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
                     }),
                 }
             }
@@ -180,6 +189,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
                 })
             }
         }
@@ -440,5 +453,6 @@ macros::macro_connector_flow_status_impls!(
         ServerSessionAuthenticationToken,
         ServerAuthenticationToken,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
     ],
 );

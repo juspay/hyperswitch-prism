@@ -5,24 +5,29 @@ use common_utils::{
     types::{FloatMajorUnit, StringMajorUnit},
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, CreateOrder, PSync, RSync, Refund, Void},
+    connector_flow::{
+        Authorize, Capture, CreateOrder, PSync, RSync, RefreshPaymentMethod, Refund, Void,
+    },
     connector_types::{
-        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentVoidData,
-        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
+        CardRefreshOutcome, CardRefreshResult, PaymentCreateOrderData, PaymentCreateOrderResponse,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RefreshPaymentMethodData,
+        RefreshPaymentMethodFlowData, RefreshPaymentMethodResponseData, RefreshPaymentMethodResult,
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
     errors,
     payment_method_data::{
-        BankRedirectData, PayLaterData, PaymentMethodData, PaymentMethodDataTypes,
+        BankRedirectData, CardWithNoCvc, PayLaterData, PaymentMethodData, PaymentMethodDataTypes,
         RealTimePaymentData, UpiData, WalletData,
     },
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
 };
-use hyperswitch_masking::{ExposeInterface, Secret};
+use error_stack::ResultExt;
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::{collections::HashMap, str::FromStr};
 
 use crate::connectors::juspay::JuspayAmountConvertor;
 
@@ -59,6 +64,7 @@ pub struct JuspayErrorResponse {
     pub status: Option<String>,
     pub error_code: Option<String>,
     pub error_message: Option<String>,
+    pub user_message: Option<String>,
     pub error_info: Option<JuspayErrorInfo>,
 }
 
@@ -666,6 +672,7 @@ fn wallet_to_juspay(
         )),
         WalletData::BluecodeRedirect {}
         | WalletData::DanaRedirect {}
+        | WalletData::GrabpayRedirect {}
         | WalletData::MbWayRedirect(_)
         | WalletData::MobilePayRedirect(_)
         | WalletData::TwintRedirect {}
@@ -678,7 +685,9 @@ fn wallet_to_juspay(
         | WalletData::Satispay(_)
         | WalletData::Wero(_)
         | WalletData::Paze(_)
-        | WalletData::QwikcilverWalletDirect(_) => Err(error_stack::report!(
+        | WalletData::QwikcilverWalletDirect(_)
+        | WalletData::Skrill(_)
+        | WalletData::PaymayaRedirect(_) => Err(error_stack::report!(
             errors::IntegrationError::NotImplemented(
                 format!("Juspay wallet variant not supported: {wallet:?}"),
                 Default::default(),
@@ -761,7 +770,8 @@ fn paylater_to_juspay(
         | PayLaterData::AfterpayClearpayRedirect {}
         | PayLaterData::PayBrightRedirect {}
         | PayLaterData::WalleyRedirect {}
-        | PayLaterData::AlmaRedirect {}) => Err(error_stack::report!(
+        | PayLaterData::AlmaRedirect {}
+        | PayLaterData::TamaraRedirect {}) => Err(error_stack::report!(
             errors::IntegrationError::NotImplemented(
                 format!(
                     "Juspay CONSUMER_FINANCE does not map cleanly from {other:?} \
@@ -1200,6 +1210,7 @@ impl TryFrom<ResponseRouterData<JuspayRefundResponse, Self>>
                 connector_refund_id,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,
@@ -1255,6 +1266,7 @@ impl TryFrom<ResponseRouterData<JuspayRefundSyncResponse, Self>>
                 connector_refund_id: resolved_refund_id,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,
@@ -1333,6 +1345,530 @@ impl TryFrom<ResponseRouterData<JuspayVoidResponse, Self>>
                 ..router_data.resource_common_data
             },
             ..router_data
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct JuspayCardSyncAuthType {
+    pub api_key: Secret<String>,
+    pub juspay_encryption_public_key: Secret<String>,
+    pub response_decryption_private_key: Secret<String>,
+    pub card_sync_key_id: Secret<String>,
+}
+
+impl TryFrom<&ConnectorSpecificConfig> for JuspayCardSyncAuthType {
+    type Error = error_stack::Report<errors::IntegrationError>;
+
+    fn try_from(config: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
+        let missing = |field_name: &'static str| {
+            error_stack::report!(errors::IntegrationError::MissingRequiredField {
+                field_name,
+                context: Default::default(),
+            })
+        };
+
+        match config {
+            ConnectorSpecificConfig::Juspay {
+                api_key,
+                juspay_encryption_public_key,
+                response_decryption_private_key,
+                card_sync_key_id,
+                ..
+            } => Ok(Self {
+                api_key: api_key.to_owned(),
+                juspay_encryption_public_key: juspay_encryption_public_key
+                    .to_owned()
+                    .ok_or_else(|| missing("juspay_encryption_public_key"))?,
+                response_decryption_private_key: response_decryption_private_key
+                    .to_owned()
+                    .ok_or_else(|| missing("response_decryption_private_key"))?,
+                card_sync_key_id: card_sync_key_id
+                    .to_owned()
+                    .ok_or_else(|| missing("card_sync_key_id"))?,
+            }),
+            _ => Err(error_stack::report!(
+                errors::IntegrationError::FailedToObtainAuthType {
+                    context: errors::IntegrationErrorContext {
+                        additional_context: Some(
+                            "Juspay account updater received a connector config for a different \
+                             connector; only ConnectorSpecificConfig::Juspay carries the card-sync \
+                             keys"
+                                .to_owned()
+                        ),
+                        suggested_action: Some(
+                            "Send the Juspay connector config as x-connector-config metadata on \
+                             the Refresh request"
+                                .to_owned()
+                        ),
+                        doc_url: None,
+                    }
+                }
+            )),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum JuspayCardNetwork {
+    Visa,
+    Mastercard,
+}
+
+impl TryFrom<&CardNetwork> for JuspayCardNetwork {
+    type Error = error_stack::Report<errors::IntegrationError>;
+
+    fn try_from(network: &CardNetwork) -> Result<Self, Self::Error> {
+        match network {
+            CardNetwork::Visa => Ok(Self::Visa),
+            CardNetwork::Mastercard => Ok(Self::Mastercard),
+            unsupported => Err(error_stack::report!(
+                errors::IntegrationError::NotSupported {
+                    message: format!(
+                        "card network {unsupported} is not supported for account updater; supported: Visa, Mastercard"
+                    ),
+                    connector: "juspay",
+                    context: Default::default(),
+                }
+            )),
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct JuspayCardSyncPlaintext {
+    account_number: Secret<String>,
+    expiry_month: Secret<String>,
+    expiry_year: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JuspayCardSyncRequest {
+    pub network: JuspayCardNetwork,
+    pub card_data: Secret<String>,
+    pub key_id: Secret<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum JuspayCardSyncResponseCode {
+    AccountUpdated,
+    ExpiryUpdated,
+    NoChange,
+    CardClosed,
+    CardNotFound,
+    ContactIssuer,
+    #[serde(untagged)]
+    Unknown(String),
+}
+
+impl JuspayCardSyncResponseCode {
+    pub fn as_provider_code(&self) -> String {
+        match self {
+            Self::AccountUpdated => "ACCOUNT_UPDATED".to_string(),
+            Self::ExpiryUpdated => "EXPIRY_UPDATED".to_string(),
+            Self::NoChange => "NO_CHANGE".to_string(),
+            Self::CardClosed => "CARD_CLOSED".to_string(),
+            Self::CardNotFound => "CARD_NOT_FOUND".to_string(),
+            Self::ContactIssuer => "CONTACT_ISSUER".to_string(),
+            Self::Unknown(code) => code.clone(),
+        }
+    }
+}
+
+impl From<&JuspayCardSyncResponseCode> for CardRefreshOutcome {
+    fn from(code: &JuspayCardSyncResponseCode) -> Self {
+        match code {
+            JuspayCardSyncResponseCode::AccountUpdated => Self::AccountUpdated,
+            JuspayCardSyncResponseCode::ExpiryUpdated => Self::ExpiryUpdated,
+            JuspayCardSyncResponseCode::NoChange => Self::NoChange,
+            JuspayCardSyncResponseCode::CardClosed => Self::Closed,
+            JuspayCardSyncResponseCode::CardNotFound => Self::NotFound,
+            JuspayCardSyncResponseCode::ContactIssuer => Self::ContactIssuer,
+            JuspayCardSyncResponseCode::Unknown(_) => Self::Unrecognized,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum JuspayCardSyncStatus {
+    Success,
+    Failure,
+    #[serde(untagged)]
+    Unknown(String),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JuspayCardSyncResponse {
+    pub status: Option<JuspayCardSyncStatus>,
+    pub response_code: Option<JuspayCardSyncResponseCode>,
+    pub response_message: Option<String>,
+    pub payload: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JuspayCardSyncPayload {
+    pub updated_account_number: Option<Secret<String>>,
+    pub is_account_updated: Option<bool>,
+    pub updated_expiry_date: Option<Secret<String>>,
+}
+
+/// A malformed value in Juspay's *response*. Request-side validation uses the
+/// error variants directly, so the two failure origins stay distinct.
+pub(crate) fn invalid_gateway_response(field_name: &'static str) -> errors::IntegrationError {
+    errors::IntegrationError::InvalidDataFormat {
+        field_name,
+        context: Default::default(),
+    }
+}
+
+fn normalize_expiry_month(
+    month: &Secret<String>,
+) -> Result<Secret<String>, error_stack::Report<errors::IntegrationError>> {
+    let parsed = month
+        .peek()
+        .trim()
+        .parse::<u8>()
+        .map_err(|_| error_stack::report!(invalid_gateway_response("card_exp_month")))
+        .attach_printable("card expiry month is not a number")?;
+
+    let month = cards::validate::CardExpirationMonth::try_from(parsed)
+        .change_context(invalid_gateway_response("card_exp_month"))
+        .attach_printable("card expiry month is out of range")?;
+
+    Ok(Secret::new(month.two_digits()))
+}
+
+pub fn build_card_sync_request(
+    card: &CardWithNoCvc,
+    auth: &JuspayCardSyncAuthType,
+) -> Result<JuspayCardSyncRequest, error_stack::Report<errors::IntegrationError>> {
+    let card_network = card
+        .card_network
+        .as_ref()
+        .ok_or_else(|| {
+            error_stack::report!(errors::IntegrationError::MissingRequiredField {
+                field_name: "card_network",
+                context: Default::default(),
+            })
+        })
+        .attach_printable("card sync requires an explicit card network")?;
+    let network = JuspayCardNetwork::try_from(card_network)?;
+
+    let account_number = card.card_number.get_card_no();
+    let min_len = super::JUSPAY_MIN_PAN_LENGTH;
+    if account_number.len() < min_len {
+        return Err(error_stack::report!(
+            errors::IntegrationError::InvalidDataFormat {
+                field_name: "card_number",
+                context: Default::default(),
+            }
+        ))
+        .attach_printable(format!(
+            "card number is shorter than the {min_len} digits Juspay accepts"
+        ));
+    }
+
+    // Field formatting lives on the card type; reuse it rather than re-derive.
+    let plaintext = JuspayCardSyncPlaintext {
+        account_number: Secret::new(account_number),
+        expiry_month: card
+            .get_card_expiry_month_2_digit()
+            .map_err(error_stack::Report::new)?,
+        expiry_year: card.get_expiry_year_4_digit(),
+    };
+
+    let serialized = serde_json::to_string(&plaintext)
+        .change_context(errors::IntegrationError::RequestEncodingFailed {
+            context: Default::default(),
+        })
+        .attach_printable("failed to serialize the card-sync plaintext")?;
+
+    let serialized = serde_json::to_string(&serialized)
+        .change_context(errors::IntegrationError::RequestEncodingFailed {
+            context: Default::default(),
+        })
+        .attach_printable("failed to re-encode the card-sync plaintext as a JSON string")?;
+
+    let card_data = super::crypto::encrypt_card_data(
+        &Secret::new(serialized),
+        &auth.juspay_encryption_public_key,
+    )?;
+
+    Ok(JuspayCardSyncRequest {
+        network,
+        card_data,
+        key_id: auth.card_sync_key_id.clone(),
+    })
+}
+
+fn parse_updated_expiry(
+    expiry: &Secret<String>,
+) -> Result<(Secret<String>, Secret<String>), error_stack::Report<errors::IntegrationError>> {
+    let raw = expiry.peek().trim();
+    if raw.len() != 4 || !raw.bytes().all(|b| b.is_ascii_digit()) {
+        return Err(error_stack::report!(invalid_gateway_response(
+            "updated_expiry_date"
+        )))
+        .attach_printable("updatedExpiryDate is not four ASCII digits in MMYY form");
+    }
+
+    let (month, year) = raw.split_at(2);
+
+    let month = normalize_expiry_month(&Secret::new(month.to_string()))
+        .change_context(invalid_gateway_response("updated_expiry_date"))?;
+    let year =
+        domain_types::utils::expand_expiry_year_to_four_digits(&Secret::new(year.to_string()));
+
+    Ok((month, year))
+}
+
+fn parse_updated_card_number(
+    number: &Secret<String>,
+) -> Result<cards::CardNumber, error_stack::Report<errors::IntegrationError>> {
+    cards::CardNumber::from_str(number.peek())
+        .map_err(|_| error_stack::report!(invalid_gateway_response("updated_account_number")))
+        .attach_printable("the card number returned by Juspay failed validation")
+}
+
+fn decrypt_card_sync_payload(
+    payload: &Secret<String>,
+    auth: &JuspayCardSyncAuthType,
+) -> Result<JuspayCardSyncPayload, error_stack::Report<errors::IntegrationError>> {
+    let plaintext =
+        super::crypto::decrypt_payload(payload.peek(), &auth.response_decryption_private_key)?;
+
+    serde_json::from_str(plaintext.peek())
+        .change_context(invalid_gateway_response("payload"))
+        .attach_printable("decrypted Juspay payload did not match the expected shape")
+}
+
+pub fn parse_card_sync_response(
+    response: &JuspayCardSyncResponse,
+    auth: &JuspayCardSyncAuthType,
+    status_code: u16,
+    submitted_card: &CardWithNoCvc,
+) -> Result<RefreshPaymentMethodResponseData, error_stack::Report<errors::IntegrationError>> {
+    let response_code = response
+        .response_code
+        .as_ref()
+        .ok_or_else(|| error_stack::report!(invalid_gateway_response("response_code")))
+        .attach_printable("a SUCCESS envelope arrived without a responseCode")?;
+
+    let outcome = CardRefreshOutcome::from(response_code);
+
+    let unchanged = |outcome| RefreshPaymentMethodResponseData {
+        result: Some(RefreshPaymentMethodResult::Card(CardRefreshResult {
+            outcome,
+            card: submitted_card.clone(),
+        })),
+        status_code,
+    };
+
+    // Undefined what a payload means under an unmapped code, so don't decrypt it.
+    if outcome == CardRefreshOutcome::Unrecognized {
+        tracing::warn!(
+            target: "juspay_card_sync",
+            response_code = %response_code.as_provider_code(),
+            "unmapped card sync response code; returning the submitted card unchanged"
+        );
+        return Ok(unchanged(outcome));
+    }
+
+    let payload = response
+        .payload
+        .as_ref()
+        .map(|payload| decrypt_card_sync_payload(payload, auth))
+        .transpose()?;
+
+    if !outcome.is_update_outcome() {
+        if let Some(payload) = &payload {
+            if payload.updated_account_number.is_some() {
+                return Err(error_stack::report!(invalid_gateway_response(
+                    "updated_account_number"
+                )))
+                .attach_printable("a terminal outcome returned a card number, which it must not");
+            }
+            if payload.updated_expiry_date.is_some() {
+                return Err(error_stack::report!(invalid_gateway_response(
+                    "updated_expiry_date"
+                )))
+                .attach_printable("a terminal outcome returned an expiry, which it must not");
+            }
+        }
+
+        return Ok(unchanged(outcome));
+    }
+
+    let payload = payload
+        .ok_or_else(|| error_stack::report!(invalid_gateway_response("payload")))
+        .attach_printable("an update outcome arrived without a payload")?;
+
+    let card_number = payload
+        .updated_account_number
+        .as_ref()
+        .map(parse_updated_card_number)
+        .transpose()?;
+
+    let expiry = payload
+        .updated_expiry_date
+        .as_ref()
+        .map(parse_updated_expiry)
+        .transpose()?;
+
+    match outcome {
+        CardRefreshOutcome::AccountUpdated if card_number.is_none() => {
+            return Err(error_stack::report!(invalid_gateway_response(
+                "updated_account_number"
+            )))
+            .attach_printable("ACCOUNT_UPDATED arrived without a replacement card number");
+        }
+        CardRefreshOutcome::ExpiryUpdated if expiry.is_none() => {
+            return Err(error_stack::report!(invalid_gateway_response(
+                "updated_expiry_date"
+            )))
+            .attach_printable("EXPIRY_UPDATED arrived without a replacement expiry");
+        }
+        _ => {}
+    }
+
+    let (card_exp_month, card_exp_year) = match expiry {
+        Some((month, year)) => (month, year),
+        None => (
+            submitted_card.card_exp_month.clone(),
+            submitted_card.card_exp_year.clone(),
+        ),
+    };
+
+    Ok(RefreshPaymentMethodResponseData {
+        result: Some(RefreshPaymentMethodResult::Card(CardRefreshResult {
+            outcome,
+            card: CardWithNoCvc {
+                card_number: card_number.unwrap_or_else(|| submitted_card.card_number.clone()),
+                card_exp_month,
+                card_exp_year,
+                ..submitted_card.clone()
+            },
+        })),
+        status_code,
+    })
+}
+
+pub fn build_card_sync_failure(
+    response: &JuspayCardSyncResponse,
+    status_code: u16,
+) -> domain_types::router_data::ErrorResponse {
+    let code = response
+        .response_code
+        .as_ref()
+        .map(JuspayCardSyncResponseCode::as_provider_code)
+        .unwrap_or_else(|| "UNKNOWN".to_string());
+
+    domain_types::router_data::ErrorResponse {
+        status_code,
+        message: response
+            .response_message
+            .clone()
+            .unwrap_or_else(|| format!("juspay: card sync inquiry failed ({code})")),
+        code,
+        reason: response.response_message.clone(),
+        attempt_status: None,
+        connector_transaction_id: None,
+        network_decline_code: None,
+        network_advice_code: None,
+        network_error_message: None,
+        typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
+    }
+}
+
+type RefreshRouterData<T> = RouterDataV2<
+    RefreshPaymentMethod,
+    RefreshPaymentMethodFlowData,
+    RefreshPaymentMethodData<T>,
+    RefreshPaymentMethodResponseData,
+>;
+
+pub(crate) fn refreshable_card<T: PaymentMethodDataTypes + std::fmt::Debug>(
+    request: &RefreshPaymentMethodData<T>,
+) -> Result<&CardWithNoCvc, error_stack::Report<errors::IntegrationError>> {
+    match &request.payment_method_data {
+        PaymentMethodData::CardWithNoCvc(card) => Ok(card),
+        // Do not Debug-format the instrument — some variants have unmasked fields.
+        _ => Err(error_stack::report!(
+            errors::IntegrationError::NotSupported {
+                message: "account updater accepts card_with_no_cvc only".to_string(),
+                connector: "juspay",
+                context: Default::default(),
+            }
+        )),
+    }
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<crate::connectors::juspay::JuspayRouterData<RefreshRouterData<T>, T>>
+    for JuspayCardSyncRequest
+{
+    type Error = error_stack::Report<errors::IntegrationError>;
+
+    fn try_from(
+        wrapper: crate::connectors::juspay::JuspayRouterData<RefreshRouterData<T>, T>,
+    ) -> Result<Self, Self::Error> {
+        let router_data = wrapper.router_data;
+        let auth = JuspayCardSyncAuthType::try_from(&router_data.connector_config)?;
+        let card = refreshable_card(&router_data.request)?;
+        build_card_sync_request(card, &auth)
+    }
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<JuspayCardSyncResponse, Self>> for RefreshRouterData<T>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<JuspayCardSyncResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let handling_failed = || errors::ConnectorError::ResponseHandlingFailed {
+            context: errors::ResponseTransformationErrorContext {
+                http_status_code: Some(item.http_code),
+                ..Default::default()
+            },
+        };
+
+        let response = match item.response.status.as_ref() {
+            Some(JuspayCardSyncStatus::Success) => {
+                let auth = JuspayCardSyncAuthType::try_from(&item.router_data.connector_config)
+                    .change_context(handling_failed())?;
+                let submitted_card =
+                    refreshable_card(&item.router_data.request).change_context(handling_failed())?;
+
+                Ok(
+                    parse_card_sync_response(&item.response, &auth, item.http_code, submitted_card)
+                        .change_context(handling_failed())?,
+                )
+            }
+            Some(JuspayCardSyncStatus::Failure) => {
+                Err(build_card_sync_failure(&item.response, item.http_code))
+            }
+            unexpected => {
+                return Err(error_stack::report!(handling_failed())).attach_printable(format!(
+                    "unexpected card sync envelope status: {unexpected:?}"
+                ));
+            }
+        };
+
+        Ok(Self {
+            response,
+            ..item.router_data
         })
     }
 }

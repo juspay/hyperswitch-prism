@@ -81,6 +81,10 @@ fn get_webhook_response(
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     } else {
         Ok(PaymentsResponseData::TransactionResponse {
@@ -413,6 +417,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         network_decline_code: None,
                         network_advice_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -661,6 +669,7 @@ impl TryFrom<ResponseRouterData<responses::PeachpaymentsRefundResponse, Self>>
                 connector_refund_id: item.response.transaction_id.clone(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -682,6 +691,7 @@ impl TryFrom<ResponseRouterData<responses::PeachpaymentsRefundSyncResponse, Self
                 connector_refund_id: item.response.transaction_id.clone(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -735,6 +745,9 @@ impl TryFrom<common_enums::CardNetwork> for requests::CardNetworkLowercase {
             common_enums::CardNetwork::Pulse => Ok(Self::Pulse),
             common_enums::CardNetwork::Accel => Ok(Self::Accel),
             common_enums::CardNetwork::Nyce => Ok(Self::Nyce),
+            common_enums::CardNetwork::Prop => Ok(Self::Prop),
+            common_enums::CardNetwork::PrivateLabel => Ok(Self::PrivateLabel),
+            common_enums::CardNetwork::Dinacard => Ok(Self::Dinacard),
         }
     }
 }
@@ -896,6 +909,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         network_decline_code: None,
                         network_advice_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     })
                 } else {
                     // Use the transaction_id as the connector_mandate_id
@@ -904,6 +921,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         connector_mandate_id: Some(data.transaction_id.clone()),
                         payment_method_id: None,
                         connector_mandate_request_reference_id: None,
+                        mandate_metadata: None,
                     }));
 
                     Ok(PaymentsResponseData::TransactionResponse {
@@ -1147,6 +1165,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         network_decline_code: None,
                         network_advice_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {

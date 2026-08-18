@@ -149,7 +149,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Dana": {
         "status": "not_implemented",
@@ -161,7 +161,7 @@
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "EVoucher": {
         "status": "not_implemented",
@@ -197,7 +197,7 @@
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "GoPay": {
         "status": "not_implemented",
@@ -285,7 +285,7 @@
       },
       "MobilePayRedirect": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Momo": {
         "status": "not_implemented",
@@ -329,7 +329,7 @@
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "OpenBankingUk": {
         "status": "not_implemented",
@@ -348,8 +348,8 @@
         "error": "This feature is not implemented: Selected payment method through revolv3"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through revolv3"
       },
       "PayURedirect": {
         "status": "not_implemented",
@@ -365,11 +365,11 @@
       },
       "Paysera": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
@@ -432,8 +432,8 @@
         "error": "This feature is not implemented: Selected payment method through revolv3"
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through revolv3"
       },
       "Sofort": {
         "status": "not_implemented",
@@ -531,6 +531,12 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: create_connector_customer flow for revolv3"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: get_connector_customer flow for revolv3"
       }
     },
     "dispute_accept": {
@@ -633,7 +639,7 @@
             "via": "HyperSwitch",
             "x-revolv3-token": "probe_key"
           },
-          "body": "{\"paymentMethod\":{\"billingAddress\":{\"addressLine1\":null,\"addressLine2\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"phoneNumber\":null,\"email\":null,\"country\":null},\"billingFirstName\":null,\"billingLastName\":null,\"billingFullName\":\"John Doe\",\"creditCard\":{\"paymentAccountNumber\":\"{{$card_number}}\",\"expirationDate\":\"{{$card_exp_month}}{{$card_exp_year}}\",\"securityCode\":\"{{$card_cvc}}\"}},\"invoice\":{\"merchantInvoiceRefId\":null,\"amount\":{\"value\":10.0,\"currency\":\"USD\"},\"orderProcessingChannel\":null},\"threeDs\":null,\"networkProcessing\":null,\"dynamicDescriptor\":null}"
+          "body": "{\"paymentMethod\":{\"billingAddress\":{\"addressLine1\":null,\"addressLine2\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"phoneNumber\":null,\"email\":null,\"country\":null},\"billingFirstName\":null,\"billingLastName\":null,\"billingFullName\":\"John Doe\",\"creditCard\":{\"paymentAccountNumber\":\"{{$card_number}}\",\"expirationDate\":\"0330\",\"securityCode\":\"{{$card_cvc}}\"}},\"invoice\":{\"merchantInvoiceRefId\":null,\"amount\":{\"value\":10.0,\"currency\":\"USD\"},\"orderProcessingChannel\":null},\"threeDs\":null,\"networkProcessing\":null,\"dynamicDescriptor\":null}"
         }
       }
     },
@@ -672,7 +678,7 @@
             "via": "HyperSwitch",
             "x-revolv3-token": "probe_key"
           },
-          "body": "{\"paymentMethod\":{\"billingAddress\":{\"addressLine1\":null,\"addressLine2\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"phoneNumber\":null,\"email\":null,\"country\":null},\"billingFirstName\":null,\"billingLastName\":null,\"billingFullName\":\"John Doe\",\"creditCard\":{\"paymentAccountNumber\":\"{{$card_number}}\",\"expirationDate\":\"{{$card_exp_month}}{{$card_exp_year}}\",\"securityCode\":\"{{$card_cvc}}\"}},\"networkProcessing\":{\"processingType\":\"InitialRecurring\",\"originalNetworkTransactionId\":null},\"amount\":{\"value\":0.0,\"currency\":\"USD\"},\"orderProcessingChannel\":null,\"dynamicDescriptor\":null}"
+          "body": "{\"paymentMethod\":{\"billingAddress\":{\"addressLine1\":null,\"addressLine2\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"phoneNumber\":null,\"email\":null,\"country\":null},\"billingFirstName\":null,\"billingLastName\":null,\"billingFullName\":\"John Doe\",\"creditCard\":{\"paymentAccountNumber\":\"{{$card_number}}\",\"expirationDate\":\"0330\",\"securityCode\":\"{{$card_cvc}}\"}},\"networkProcessing\":{\"processingType\":\"InitialRecurring\",\"originalNetworkTransactionId\":null},\"amount\":{\"value\":0.0,\"currency\":\"USD\"},\"orderProcessingChannel\":null,\"dynamicDescriptor\":null}"
         }
       }
     },
@@ -686,6 +692,11 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: mandate_revoke flow for revolv3"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "refund": {

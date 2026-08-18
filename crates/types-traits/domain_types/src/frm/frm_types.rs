@@ -3,12 +3,13 @@ use crate::{
         ConnectorResponseHeaders, CustomerInfo, RawConnectorRequestResponse,
         ServerAuthenticationTokenResponseData,
     },
+    mandates::MandateAmountData,
     payment_address::{OrderDetailsWithAmount, PaymentAddress},
     payment_method_data::{DefaultPCIHolder, PaymentMethodData},
     router_request_types::BrowserInformation,
     types::Connectors,
 };
-use common_enums::{AttemptStatus, FrmDecision};
+use common_enums::{AttemptStatus, FrmDecision, PaymentMethodType};
 use common_utils::types::Money;
 use hyperswitch_masking::Secret;
 
@@ -18,7 +19,9 @@ pub struct FrmFlowData {
     pub connectors: Connectors,
     pub access_token: Option<ServerAuthenticationTokenResponseData>,
     pub raw_connector_response: Option<Secret<String>>,
+    pub typed_connector_response: Option<String>,
     pub raw_connector_request: Option<Secret<String>>,
+    pub typed_connector_request: Option<String>,
     pub connector_response_headers: Option<http::HeaderMap>,
 }
 
@@ -38,6 +41,22 @@ impl RawConnectorRequestResponse for FrmFlowData {
     fn set_raw_connector_request(&mut self, request: Option<Secret<String>>) {
         self.raw_connector_request = request;
     }
+
+    fn set_typed_connector_response(&mut self, response: Option<String>) {
+        self.typed_connector_response = response;
+    }
+
+    fn get_typed_connector_response(&self) -> Option<String> {
+        self.typed_connector_response.clone()
+    }
+
+    fn set_typed_connector_request(&mut self, request: Option<String>) {
+        self.typed_connector_request = request;
+    }
+
+    fn get_typed_connector_request(&self) -> Option<String> {
+        self.typed_connector_request.clone()
+    }
 }
 
 impl ConnectorResponseHeaders for FrmFlowData {
@@ -48,6 +67,13 @@ impl ConnectorResponseHeaders for FrmFlowData {
     fn get_connector_response_headers(&self) -> Option<&http::HeaderMap> {
         self.connector_response_headers.as_ref()
     }
+}
+
+/// Merchant details used for FRM risk scoring.
+#[derive(Debug, Clone, Default)]
+pub struct MerchantDetails {
+    pub merchant_id: Option<String>,
+    pub merchant_category_code: Option<u32>,
 }
 
 /// Request data for pre-risk check
@@ -63,6 +89,13 @@ pub struct PreRiskCheckRequest {
     pub metadata: Option<Secret<String>>,
     pub connector_feature_data: Option<Secret<String>>,
     pub test_mode: Option<bool>,
+    /// Recurring / subscription details for risk scoring (shared MandateAmountData;
+    /// `amount` is the per-period billing amount, `frequency` the billing period).
+    pub mandate_details: Option<MandateAmountData>,
+    /// Merchant details (id + MCC) for risk scoring.
+    pub merchant_details: Option<MerchantDetails>,
+    /// Payment method sub-type (e.g. `Card`, `GooglePay`, `UpiCollect`) for risk scoring.
+    pub payment_method_type: Option<PaymentMethodType>,
 }
 
 /// Response data for pre-risk check
@@ -89,6 +122,7 @@ pub struct PostRiskCheckRequest {
     pub payment_status: Option<AttemptStatus>,
     pub connector_transaction_id: Option<String>,
     pub payment_connector: Option<grpc_api_types::payments::Connector>,
+    pub address: Option<PaymentAddress>,
 }
 
 /// Response data for post-risk check
@@ -111,6 +145,10 @@ pub struct FrmPaymentOutcomeRequest {
     pub payment_status: Option<AttemptStatus>,
     pub merchant_transaction_id: Option<String>,
     pub frm_decision: Option<FrmDecision>,
+    /// Merchant details (id + MCC) for the Update Order call.
+    pub merchant_details: Option<MerchantDetails>,
+    /// Connector-specific feature data (e.g. AVS/CVV verification results) for the Update Order call.
+    pub connector_feature_data: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone)]
@@ -122,6 +160,8 @@ pub struct FrmRefundProcessedRequest {
     pub merchant_refund_id: Option<String>,
     pub refund_reason: Option<String>,
     pub frm_decision: Option<FrmDecision>,
+    /// Merchant details (id + MCC) for the Update Order call.
+    pub merchant_details: Option<MerchantDetails>,
 }
 
 #[derive(Debug, Clone)]

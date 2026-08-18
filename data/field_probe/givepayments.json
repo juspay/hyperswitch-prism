@@ -1,0 +1,850 @@
+{
+  "connector": "givepayments",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_supported",
+        "error": "authenticate flow not supported by givepayments connector"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "AchBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "Affirm": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "Afterpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "Alfamart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "AliPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "AmazonPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "ApplePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "ApplePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "Bacs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "BacsBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "BancontactCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "BcaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "Becs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "Bizum": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "Blik": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "Bluecode": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "BniVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "Boleto": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "BriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "Card": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "browser_info": {
+            "user_agent": "Mozilla/5.0 (probe-bot)",
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://api-sandbox.givepayments.com/payments",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "gp-requestor-ip": "1.2.3.4",
+            "gp-requestor-ua": "Mozilla/5.0 (probe-bot)",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":1000,\"paymethod\":{\"card\":{\"name\":\"John Doe\",\"number\":\"4111111111111111\",\"cvv\":\"737\",\"exp_year\":2030,\"exp_month\":3,\"tokenize\":false}},\"customer\":{\"email\":\"test@example.com\"}}"
+        }
+      },
+      "CashappQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "ClassicReward": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Dana": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "Efecty": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "Eft": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "Eps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "FamilyMart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "GCash": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "Giropay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "GoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "GooglePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "GooglePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "Ideal": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "Indomaret": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "InstantBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "Interac": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "KakaoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "Klarna": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "Lawson": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "LocalBankRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "LocalBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "MbWay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "Mifinity": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "MiniStop": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Momo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "Netbanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "OnlineBankingFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "OnlineBankingFpx": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "OnlineBankingPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "OnlineBankingThailand": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "OpenBanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "OpenBankingUk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "Oxxo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "PagoEfectivo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "PayEasy": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "PaySafeCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "PaypalRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "PaypalSdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "PhonePeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "Pix": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "Przelewy24": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "Pse": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "RedCompra": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "RedPagos": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "RevolutPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "SamsungPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "Satispay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "Seicomart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "Sepa": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "SepaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "SevenEleven": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "Skrill": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "Sofort": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "Swish": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "TouchNGo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "Trustly": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "Twint": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "UpiCollect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "UpiIntent": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "UpiQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "Vipps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "WeChatPayQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
+      "Wero": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "not_supported",
+        "error": "capture flow not supported by givepayments connector"
+      }
+    },
+    "create_client_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "client_authentication_token flow not supported by givepayments connector"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_order flow for givepayments"
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_authentication_token flow for givepayments"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by givepayments connector"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by givepayments connector"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_supported",
+        "error": "get_connector_customer flow not supported by givepayments connector"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by givepayments connector"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by givepayments connector"
+      }
+    },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by givepayments connector"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by givepayments connector"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://api-sandbox.givepayments.com/payments/probe_connector_txn_001",
+          "method": "Get",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": null
+        }
+      }
+    },
+    "handle_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"id\": \"GS_EV_pmV0LOyQvHYnG1VNZD2QeE\",\"created_at\": \"1661990400\",\"type\": \"payment.captured\",\"data\": { \"type\": \"payment\", \"object\": { \"id\": \"GS_TXN_cKP1ctmwThYaA5UJrUG67A\", \"id\": \"GS_TXN_cKP1ctmwThYaA5UJrUG67A\", \"created_at\": 1661990400, \"updated_at\": 1661990400, \"settled_at\": null, \"status\": \"successful\", \"processing_state\": \"captured\", \"total_amount\": 500, \"net_amount\": 500, \"fee_amount\": 44, \"fees_paid_by\": \"merchant\", \"description\": \"\", \"reversal_status\": \"not_reversed\", \"billing_descriptor\": \"1OFFICESUPPLIESSTORE\", \"risk\": { \"quarantine\": false, \"risk_level\": \"low\", \"assessment\": \"\" }, \"paymethod\": { \"type\": \"card\", \"card\": { \"id\": \"GS_PMC_7cmafx7A532uIiZaGRsE4D\", \"created_at\": 1661990400, \"updated_at\": 1661990400, \"brand\": \"visa\", \"name\": \"Jack Francis\", \"number_last4\": \"1111\", \"exp_year\": 2023, \"exp_month\": 8, \"is_debit\": false, \"user\": \"GS_USR_5z9QxI1cG1YAAZGV9nos4B\", \"address\": null }}, \"customer\": \"GS_CUS_2rbzrEaeBNwNMafRxKBfSb\", \"merchant\": \"GS_MER_OVC3SKymD34SH5NjEhPa8D\" }}, \"merchant\": \"GS_MER_OVC3SKymD34SH5NjEhPa8D\"}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"id\": \"GS_EV_pmV0LOyQvHYnG1VNZD2QeE\",\"created_at\": \"1661990400\",\"type\": \"payment.captured\",\"data\": { \"type\": \"payment\", \"object\": { \"id\": \"GS_TXN_cKP1ctmwThYaA5UJrUG67A\", \"id\": \"GS_TXN_cKP1ctmwThYaA5UJrUG67A\", \"created_at\": 1661990400, \"updated_at\": 1661990400, \"settled_at\": null, \"status\": \"successful\", \"processing_state\": \"captured\", \"total_amount\": 500, \"net_amount\": 500, \"fee_amount\": 44, \"fees_paid_by\": \"merchant\", \"description\": \"\", \"reversal_status\": \"not_reversed\", \"billing_descriptor\": \"1OFFICESUPPLIESSTORE\", \"risk\": { \"quarantine\": false, \"risk_level\": \"low\", \"assessment\": \"\" }, \"paymethod\": { \"type\": \"card\", \"card\": { \"id\": \"GS_PMC_7cmafx7A532uIiZaGRsE4D\", \"created_at\": 1661990400, \"updated_at\": 1661990400, \"brand\": \"visa\", \"name\": \"Jack Francis\", \"number_last4\": \"1111\", \"exp_year\": 2023, \"exp_month\": 8, \"is_debit\": false, \"user\": \"GS_USR_5z9QxI1cG1YAAZGV9nos4B\", \"address\": null }}, \"customer\": \"GS_CUS_2rbzrEaeBNwNMafRxKBfSb\", \"merchant\": \"GS_MER_OVC3SKymD34SH5NjEhPa8D\" }}, \"merchant\": \"GS_MER_OVC3SKymD34SH5NjEhPa8D\"}"
+        }
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by givepayments connector"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"id\": \"GS_EV_pmV0LOyQvHYnG1VNZD2QeE\",\"created_at\": \"1661990400\",\"type\": \"payment.captured\",\"data\": { \"type\": \"payment\", \"object\": { \"id\": \"GS_TXN_cKP1ctmwThYaA5UJrUG67A\", \"id\": \"GS_TXN_cKP1ctmwThYaA5UJrUG67A\", \"created_at\": 1661990400, \"updated_at\": 1661990400, \"settled_at\": null, \"status\": \"successful\", \"processing_state\": \"captured\", \"total_amount\": 500, \"net_amount\": 500, \"fee_amount\": 44, \"fees_paid_by\": \"merchant\", \"description\": \"\", \"reversal_status\": \"not_reversed\", \"billing_descriptor\": \"1OFFICESUPPLIESSTORE\", \"risk\": { \"quarantine\": false, \"risk_level\": \"low\", \"assessment\": \"\" }, \"paymethod\": { \"type\": \"card\", \"card\": { \"id\": \"GS_PMC_7cmafx7A532uIiZaGRsE4D\", \"created_at\": 1661990400, \"updated_at\": 1661990400, \"brand\": \"visa\", \"name\": \"Jack Francis\", \"number_last4\": \"1111\", \"exp_year\": 2023, \"exp_month\": 8, \"is_debit\": false, \"user\": \"GS_USR_5z9QxI1cG1YAAZGV9nos4B\", \"address\": null }}, \"customer\": \"GS_CUS_2rbzrEaeBNwNMafRxKBfSb\", \"merchant\": \"GS_MER_OVC3SKymD34SH5NjEhPa8D\" }}, \"merchant\": \"GS_MER_OVC3SKymD34SH5NjEhPa8D\"}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"id\": \"GS_EV_pmV0LOyQvHYnG1VNZD2QeE\",\"created_at\": \"1661990400\",\"type\": \"payment.captured\",\"data\": { \"type\": \"payment\", \"object\": { \"id\": \"GS_TXN_cKP1ctmwThYaA5UJrUG67A\", \"id\": \"GS_TXN_cKP1ctmwThYaA5UJrUG67A\", \"created_at\": 1661990400, \"updated_at\": 1661990400, \"settled_at\": null, \"status\": \"successful\", \"processing_state\": \"captured\", \"total_amount\": 500, \"net_amount\": 500, \"fee_amount\": 44, \"fees_paid_by\": \"merchant\", \"description\": \"\", \"reversal_status\": \"not_reversed\", \"billing_descriptor\": \"1OFFICESUPPLIESSTORE\", \"risk\": { \"quarantine\": false, \"risk_level\": \"low\", \"assessment\": \"\" }, \"paymethod\": { \"type\": \"card\", \"card\": { \"id\": \"GS_PMC_7cmafx7A532uIiZaGRsE4D\", \"created_at\": 1661990400, \"updated_at\": 1661990400, \"brand\": \"visa\", \"name\": \"Jack Francis\", \"number_last4\": \"1111\", \"exp_year\": 2023, \"exp_month\": 8, \"is_debit\": false, \"user\": \"GS_USR_5z9QxI1cG1YAAZGV9nos4B\", \"address\": null }}, \"customer\": \"GS_CUS_2rbzrEaeBNwNMafRxKBfSb\", \"merchant\": \"GS_MER_OVC3SKymD34SH5NjEhPa8D\" }}, \"merchant\": \"GS_MER_OVC3SKymD34SH5NjEhPa8D\"}"
+        }
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_supported",
+        "error": "post_authenticate flow not supported by givepayments connector"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_supported",
+        "error": "pre_authenticate flow not supported by givepayments connector"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_proxy_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "browser_info": {
+            "user_agent": "Mozilla/5.0 (probe-bot)",
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://api-sandbox.givepayments.com/payments",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "gp-requestor-ip": "1.2.3.4",
+            "gp-requestor-ua": "Mozilla/5.0 (probe-bot)",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":1000,\"paymethod\":{\"card\":{\"name\":\"John Doe\",\"number\":\"{{$card_number}}\",\"cvv\":\"{{$card_cvc}}\",\"exp_year\":2030,\"exp_month\":3,\"tokenize\":false}},\"customer\":{\"email\":\"test@example.com\"}}"
+        }
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for givepayments"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "connector_recurring_payment_id": {
+            "mandate_id_type": {
+              "connector_mandate_id": {
+                "connector_mandate_id": "probe-mandate-123"
+              }
+            }
+          },
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "token": {
+              "token": "probe_pm_token"
+            }
+          },
+          "return_url": "https://example.com/recurring-return",
+          "email": "test@example.com",
+          "connector_customer_id": "cust_probe_123",
+          "browser_info": {
+            "color_depth": 24,
+            "screen_height": 900,
+            "screen_width": 1440,
+            "java_enabled": false,
+            "java_script_enabled": true,
+            "language": "en-US",
+            "time_zone_offset_minutes": -480,
+            "accept_header": "application/json",
+            "user_agent": "Mozilla/5.0 (probe-bot)",
+            "accept_language": "en-US,en;q=0.9",
+            "ip_address": "1.2.3.4"
+          },
+          "payment_method_type": "PAY_PAL",
+          "off_session": true
+        },
+        "sample": {
+          "url": "https://api-sandbox.givepayments.com/payments",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "gp-requestor-ip": "1.2.3.4",
+            "gp-requestor-ua": "Mozilla/5.0 (probe-bot)",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":1000,\"paymethod\":{\"card_token\":{\"id\":\"probe-mandate-123\"}},\"customer\":{\"email\":\"test@example.com\"}}"
+        }
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for givepayments"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "payment_amount": 1000,
+          "refund_amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "reason": "customer_request"
+        },
+        "sample": {
+          "url": "https://api-sandbox.givepayments.com/refunds",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"payment\":\"probe_connector_txn_001\",\"amount\":1000,\"reason\":\"customer_request\",\"description\":\"customer_request\",\"external_reference\":\"probe_refund_001\"}"
+        }
+      }
+    },
+    "refund_get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "refund_id": "probe_refund_id_001"
+        },
+        "sample": {
+          "url": "https://api-sandbox.givepayments.com/refunds/probe_refund_id_001",
+          "method": "Get",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": null
+        }
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void_post_capture flow for givepayments"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for givepayments"
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for givepayments"
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for givepayments"
+      }
+    },
+    "verify_redirect": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void flow for givepayments"
+      }
+    }
+  }
+}

@@ -487,6 +487,10 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<HipayAuthorizeRespons
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             // Check if redirection is needed (for 3DS flows)
@@ -585,6 +589,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
@@ -635,6 +640,8 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<HipayTokenResponse, S
         Ok(Self {
             response: Ok(PaymentMethodTokenResponse {
                 token: item.response.token.expose(),
+                connector_payment_method_id: None,
+                status_code: item.http_code,
             }),
             ..item.router_data
         })
@@ -731,6 +738,10 @@ impl TryFrom<ResponseRouterData<HipayPSyncResponse, Self>>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 resource_common_data: PaymentFlowData {
                     status: AttemptStatus::Failure,
@@ -812,6 +823,10 @@ impl TryFrom<ResponseRouterData<HipayCaptureResponse, Self>>
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {
@@ -900,6 +915,7 @@ impl TryFrom<ResponseRouterData<HipayRefundResponse, Self>>
                 connector_refund_id: item.response.transaction_reference.clone(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -932,6 +948,7 @@ impl TryFrom<ResponseRouterData<HipayRSyncResponse, Self>>
                 connector_refund_id: item.response.id.to_string(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -995,6 +1012,10 @@ impl TryFrom<ResponseRouterData<HipayVoidResponse, Self>>
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {

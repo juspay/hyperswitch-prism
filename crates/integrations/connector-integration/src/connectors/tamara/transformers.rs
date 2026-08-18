@@ -2,9 +2,13 @@ use std::fmt::Debug;
 
 use crate::connectors::tamara::TamaraRouterData;
 use crate::types::ResponseRouterData;
+use crate::utils;
 use common_enums::EligibilityStatus;
 use common_enums::{AttemptStatus, Currency, RefundStatus};
-use common_utils::{types::MinorUnit, Email};
+use common_utils::{
+    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit},
+    Email,
+};
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, PaymentMethodEligibility, RSync, Refund, Void},
     connector_types::{
@@ -14,7 +18,7 @@ use domain_types::{
         ResponseId,
     },
     errors,
-    payment_method_data::PaymentMethodDataTypes,
+    payment_method_data::{PayLaterData, PaymentMethodData, PaymentMethodDataTypes},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
@@ -202,6 +206,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
+        //Tamaraconnector only supports PayLater payment method.
+        match &router_data.request.payment_method_data {
+            PaymentMethodData::PayLater(PayLaterData::TamaraRedirect {}) => {}
+            _ => {
+                return Err(errors::IntegrationError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Tamara"),
+                    errors::IntegrationErrorContext::default(),
+                )
+                .into())
+            }
+        }
         let amount = router_data.request.amount;
         let currency = router_data.request.currency;
         let order_ref = router_data
@@ -214,8 +229,43 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .router_return_url
             .clone()
             .unwrap_or_default();
-        let shipping_amount = router_data.request.shipping_cost.unwrap_or(MinorUnit(0));
-        let tax_amount = router_data.request.order_tax_amount.unwrap_or(MinorUnit(0));
+        let converter = FloatMajorUnitForConnector;
+        let amount = converter.convert(amount, currency).change_context(
+            errors::IntegrationError::RequestEncodingFailed {
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to convert authorize amount from minor to major units".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            },
+        )?;
+        let shipping_amount = converter
+            .convert(
+                router_data.request.shipping_cost.unwrap_or(MinorUnit(0)),
+                currency,
+            )
+            .change_context(errors::IntegrationError::RequestEncodingFailed {
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to convert shipping amount from minor to major units".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            })?;
+        let tax_amount = converter
+            .convert(
+                router_data.request.order_tax_amount.unwrap_or(MinorUnit(0)),
+                currency,
+            )
+            .change_context(errors::IntegrationError::RequestEncodingFailed {
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to convert tax amount from minor to major units".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            })?;
         let country_code = router_data
             .resource_common_data
             .get_shipping_or_billing_country()?
@@ -245,32 +295,45 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .resource_common_data
             .get_optional_shipping_or_billing_country_string();
 
-        let items = router_data
+        let items: Vec<TamaraLineItem> = router_data
             .resource_common_data
             .order_details
             .clone()
             .map(|od| {
                 od.iter()
                     .enumerate()
-                    .map(|(i, data)| TamaraLineItem {
-                        name: data.product_name.clone(),
-                        quantity: data.quantity,
-                        reference_id: data
-                            .product_id
-                            .clone()
-                            .unwrap_or_else(|| format!("item_{i}")),
-                        sku: data
-                            .product_id
-                            .clone()
-                            .unwrap_or_else(|| format!("item_{i}")),
-                        total_amount: TamaraAmount {
-                            amount: data.amount,
-                            currency,
-                        },
+                    .map(|(i, data)| {
+                        let item_amount = converter
+                            .convert(data.amount, currency)
+                            .change_context(errors::IntegrationError::RequestEncodingFailed {
+                                context: errors::IntegrationErrorContext {
+                                    additional_context: Some(
+                                        "Failed to convert line item amount from minor to major units"
+                                            .to_string(),
+                                    ),
+                                    ..Default::default()
+                                },
+                            })?;
+                        Ok(TamaraLineItem {
+                            name: data.product_name.clone(),
+                            quantity: data.quantity,
+                            reference_id: data
+                                .product_id
+                                .clone()
+                                .unwrap_or_else(|| format!("item_{i}")),
+                            sku: data
+                                .product_id
+                                .clone()
+                                .unwrap_or_else(|| format!("item_{i}")),
+                            total_amount: TamaraAmount {
+                                amount: item_amount,
+                                currency,
+                            },
+                        })
                     })
-                    .collect()
+                    .collect::<Result<Vec<_>, error_stack::Report<errors::IntegrationError>>>()
             })
-            .unwrap_or_default();
+            .unwrap_or(Ok(Vec::new()))?;
 
         Ok(Self {
             total_amount: TamaraAmount { amount, currency },
@@ -422,6 +485,7 @@ impl TryFrom<ResponseRouterData<TamaraRSyncResponse, Self>>
                 connector_refund_id: item.response.order_id.clone(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data.clone()
         })
@@ -464,10 +528,24 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     ..Default::default()
                 },
             })?;
+        let converter = FloatMajorUnitForConnector;
+        let amount = converter
+            .convert(
+                item.router_data.request.minor_amount_to_capture,
+                item.router_data.request.currency,
+            )
+            .change_context(errors::IntegrationError::RequestEncodingFailed {
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to convert capture amount from minor to major units".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            })?;
         Ok(Self {
             order_id,
             total_amount: TamaraAmount {
-                amount: item.router_data.request.minor_amount_to_capture,
+                amount,
                 currency: item.router_data.request.currency,
             },
         })
@@ -476,7 +554,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TamaraAmount {
-    pub amount: MinorUnit,
+    pub amount: FloatMajorUnit,
     pub currency: Currency,
 }
 
@@ -561,6 +639,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 }
             }
         ))?;
+        let converter = FloatMajorUnitForConnector;
+        let amount = converter.convert(amount, currency).change_context(
+            errors::IntegrationError::RequestEncodingFailed {
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to convert void amount from minor to major units".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            },
+        )?;
         Ok(Self {
             total_amount: TamaraAmount { amount, currency },
         })
@@ -639,9 +728,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     }
                 }
             ))?;
+        let converter = FloatMajorUnitForConnector;
+        let amount = converter
+            .convert(
+                item.router_data.request.minor_refund_amount,
+                item.router_data.request.currency,
+            )
+            .change_context(errors::IntegrationError::RequestEncodingFailed {
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to convert refund amount from minor to major units".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            })?;
         Ok(Self {
             total_amount: TamaraAmount {
-                amount: item.router_data.request.minor_refund_amount,
+                amount,
                 currency: item.router_data.request.currency,
             },
             merchant_refund_id: item.router_data.request.refund_id.clone(),
@@ -670,6 +773,7 @@ impl TryFrom<ResponseRouterData<TamaraRefundResponse, Self>>
                 connector_refund_id: item.response.refund_id,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data.clone()
         })
@@ -766,8 +870,8 @@ pub struct TamaraEligibilityRequest {
 
 #[derive(Debug, Serialize)]
 pub struct TamaraEligibilityOrder {
-    pub total_amount: TamaraAmount,
-    pub country_code: Option<String>,
+    pub amount: FloatMajorUnit,
+    pub currency: Currency,
 }
 
 #[derive(Debug, Serialize)]
@@ -816,25 +920,22 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         ))?;
         let email = customer.get_email()?;
         let phone_number = customer.get_phone_number()?;
-        // Prefer the explicit country on the request, otherwise derive it from
-        // the billing/shipping address carried on the flow data.
-        let country_code = data
-            .country_code
-            .map(|country| country.to_string())
-            .or_else(|| {
-                let from_address = item
-                    .router_data
-                    .resource_common_data
-                    .get_optional_shipping_or_billing_country_string();
-                (!from_address.is_empty()).then_some(from_address)
-            });
+        let converter = FloatMajorUnitForConnector;
+        let amount = converter
+            .convert(data.amount.amount, data.amount.currency)
+            .change_context(errors::IntegrationError::RequestEncodingFailed {
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to convert eligibility amount from minor to major units"
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
+            })?;
         Ok(Self {
             order: TamaraEligibilityOrder {
-                total_amount: TamaraAmount {
-                    amount: data.amount.amount,
-                    currency: data.amount.currency,
-                },
-                country_code,
+                amount,
+                currency: data.amount.currency,
             },
             customer: TamaraEligibilityCustomer {
                 phone_number,
@@ -873,6 +974,7 @@ impl TryFrom<ResponseRouterData<TamaraEligibilityResponse, Self>>
         Ok(Self {
             response: Ok(PaymentMethodEligibilityResponse {
                 eligibility,
+                payment_method_details: None,
                 status_code: u32::from(item.http_code),
             }),
             ..item.router_data.clone()

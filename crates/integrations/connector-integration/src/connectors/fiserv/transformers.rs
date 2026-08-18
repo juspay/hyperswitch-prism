@@ -541,6 +541,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
             | PaymentMethodData::Upi(_)
+            | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
@@ -850,6 +851,10 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             });
         } else {
             router_data_out.response = Ok(response_payload);
@@ -920,6 +925,10 @@ impl<F> TryFrom<ResponseRouterData<FiservCaptureResponse, Self>>
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             });
         } else {
             router_data_out.response = Ok(response_payload);
@@ -988,6 +997,10 @@ impl<F> TryFrom<ResponseRouterData<FiservVoidResponse, Self>>
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             });
         } else {
             router_data_out.response = Ok(response_payload);
@@ -1066,6 +1079,10 @@ impl<F> TryFrom<ResponseRouterData<FiservSyncResponse, Self>>
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             });
         } else {
             router_data_out.response = Ok(response_payload);
@@ -1106,6 +1123,7 @@ impl<F> TryFrom<ResponseRouterData<FiservRefundResponse, Self>>
                 }),
             refund_status,
             status_code: http_code,
+            acquirer_reference_number: None,
         };
 
         if refund_status == enums::RefundStatus::Failure {
@@ -1122,6 +1140,10 @@ impl<F> TryFrom<ResponseRouterData<FiservRefundResponse, Self>>
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             });
         } else {
             router_data_out.response = Ok(response_payload);
@@ -1174,6 +1196,7 @@ impl<F> TryFrom<ResponseRouterData<FiservRefundSyncResponse, Self>>
                 }),
             refund_status,
             status_code: http_code,
+            acquirer_reference_number: None,
         };
 
         if refund_status == enums::RefundStatus::Failure {
@@ -1190,6 +1213,10 @@ impl<F> TryFrom<ResponseRouterData<FiservRefundSyncResponse, Self>>
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             });
         } else {
             router_data_out.response = Ok(response_payload);
@@ -1235,6 +1262,10 @@ impl<F, Req, Res> TryFrom<ResponseRouterData<FiservErrorResponse, Self>>
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         });
 
         Ok(router_data_out)

@@ -378,6 +378,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         with_error_response_body!(event_builder, response);
 
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.error_ref.clone(),
@@ -388,6 +390,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     }
 }
@@ -579,7 +585,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 transaction.transaction_id.clone(),
             )),
             status,
-            connector_response_reference_id: Some(transaction.reference_id),
+            connector_response_reference_id: Some(transaction.reference_id.clone()),
+            connector_request_reference_id: Some(transaction.reference_id),
             mandate_reference: None,
             error_code,
             error_message,
@@ -635,6 +642,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         Ok(RefundWebhookDetailsResponse {
             connector_refund_id: Some(transaction.transaction_id),
+            merchant_transaction_id: None,
             status: refund_status,
             connector_response_reference_id: Some(transaction.reference_id),
             error_code,
@@ -676,6 +684,7 @@ macros::macro_connector_flow_status_impls!(
         VoidPostRefund,
         Accept,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         DefendDispute,
         ServerAuthenticationToken,
         IncrementalAuthorization,

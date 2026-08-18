@@ -180,7 +180,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Dana": {
         "status": "not_implemented",
@@ -192,7 +192,7 @@
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "EVoucher": {
         "status": "not_implemented",
@@ -284,7 +284,7 @@
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "GoPay": {
         "status": "not_implemented",
@@ -485,7 +485,7 @@
       },
       "MobilePayRedirect": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Momo": {
         "status": "not_implemented",
@@ -529,7 +529,7 @@
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "OpenBankingUk": {
         "status": "not_implemented",
@@ -548,8 +548,8 @@
         "error": "This feature is not implemented: Selected payment method through multisafepay"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
       },
       "PayURedirect": {
         "status": "not_implemented",
@@ -595,11 +595,11 @@
       },
       "Paysera": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
@@ -693,8 +693,8 @@
         "error": "This feature is not implemented: Selected payment method through multisafepay"
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
       },
       "Sofort": {
         "status": "supported",
@@ -852,6 +852,12 @@
         "error": "create_connector_customer flow not supported by multisafepay connector"
       }
     },
+    "customer_get": {
+      "default": {
+        "status": "not_supported",
+        "error": "get_connector_customer flow not supported by multisafepay connector"
+      }
+    },
     "dispute_accept": {
       "default": {
         "status": "not_implemented",
@@ -938,8 +944,41 @@
     },
     "proxy_authorize": {
       "default": {
-        "status": "not_supported",
-        "error": "Multisafepay requires a numeric YYMM expiry value; vault token placeholders are not supported for proxy flows is not supported by Multisafepay"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_proxy_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "description": "Probe payment"
+        },
+        "sample": {
+          "url": "https://testapi.multisafepay.com/v1/json/orders?api_key=probe_key",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"type\":\"direct\",\"order_id\":\"probe_proxy_txn_001\",\"gateway\":\"VISA\",\"currency\":\"USD\",\"amount\":1000,\"description\":\"Probe payment\",\"payment_options\":{\"redirect_url\":\"https://example.com/return\",\"cancel_url\":\"https://example.com/return\"},\"customer\":{\"reference\":\"probe_proxy_txn_001\",\"email\":\"test@example.com\"},\"gateway_info\":{\"card_number\":\"{{$card_number}}\",\"card_expiry_date\":3003,\"card_cvc\":\"{{$card_cvc}}\",\"card_holder_name\":null,\"flexible_3d\":null,\"moto\":null,\"term_url\":null},\"delivery\":{},\"days_active\":30,\"seconds_active\":259200}"
+        }
       }
     },
     "proxy_setup_recurring": {
@@ -958,6 +997,11 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: mandate_revoke flow for multisafepay"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "refund": {

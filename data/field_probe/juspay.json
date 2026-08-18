@@ -283,7 +283,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Dana": {
         "status": "not_implemented",
@@ -295,7 +295,7 @@
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "EVoucher": {
         "status": "not_implemented",
@@ -358,7 +358,7 @@
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "GoPay": {
         "status": "supported",
@@ -639,7 +639,7 @@
       },
       "MobilePayRedirect": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Momo": {
         "status": "supported",
@@ -735,11 +735,11 @@
       },
       "OpenBanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Juspay does not support bank redirect variant: OpenBanking"
+        "error": "This feature is not implemented: Juspay does not support bank redirect variant: OpenBanking { account_number: None, sort_code: None, iban: None, account_holder_name: None, additional_details: None }"
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "OpenBankingUk": {
         "status": "not_implemented",
@@ -758,8 +758,8 @@
         "error": "This feature is not implemented: Juspay Authorize does not support payment method variant Voucher(PayEasy(JCSVoucherData)); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant GiftCard(PaySafeCard); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
       },
       "PayURedirect": {
         "status": "not_implemented",
@@ -833,11 +833,11 @@
       },
       "Paysera": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
@@ -966,8 +966,8 @@
         "error": "This feature is not implemented: Juspay Authorize does not support payment method variant Voucher(SevenEleven(JCSVoucherData)); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Juspay wallet variant not supported: Skrill(SkrillData)"
       },
       "Sofort": {
         "status": "not_implemented",
@@ -1224,6 +1224,12 @@
         "error": "This feature is not implemented: create_connector_customer flow for juspay"
       }
     },
+    "customer_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: get_connector_customer flow for juspay"
+      }
+    },
     "dispute_accept": {
       "default": {
         "status": "not_supported",
@@ -1345,7 +1351,7 @@
             "via": "HyperSwitch",
             "x-merchantid": "probe_merchant"
           },
-          "body": "order_id=probe_proxy_txn_001&merchant_id=probe_merchant&payment_method_type=CARD&payment_method=VISA&card_number=%7B%7B%24card_number%7D%7D&card_exp_month=%7B%7B%24card_exp_month%7D%7D&card_exp_year=%7B%7B%24card_exp_year%7D%7D&name_on_card=John+Doe&card_security_code=%7B%7B%24card_cvc%7D%7D&format=json&auth_type=NO_THREE_DS"
+          "body": "order_id=probe_proxy_txn_001&merchant_id=probe_merchant&payment_method_type=CARD&payment_method=VISA&card_number=%7B%7B%24card_number%7D%7D&card_exp_month=03&card_exp_year=30&name_on_card=John+Doe&card_security_code=%7B%7B%24card_cvc%7D%7D&format=json&auth_type=NO_THREE_DS"
         }
       }
     },
@@ -1365,6 +1371,12 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: mandate_revoke flow for juspay"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "error",
+        "error": "Invalid connector configuration: juspay_encryption_public_key"
       }
     },
     "refund": {

@@ -378,6 +378,10 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PayboxAuthorizeRespon
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..item.router_data
             })
@@ -676,6 +680,10 @@ impl TryFrom<ResponseRouterData<PayboxCaptureResponse, Self>>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..item.router_data
             })
@@ -839,6 +847,10 @@ impl TryFrom<ResponseRouterData<PayboxVoidResponse, Self>>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..item.router_data
             })
@@ -975,6 +987,7 @@ impl TryFrom<ResponseRouterData<PayboxRefundResponse, Self>>
                     connector_refund_id: item.response.paybox_order_id.clone(),
                     refund_status: RefundStatus::Success,
                     status_code: item.http_code,
+                    acquirer_reference_number: None,
                 }),
                 resource_common_data: RefundFlowData {
                     status: RefundStatus::Success,
@@ -994,6 +1007,10 @@ impl TryFrom<ResponseRouterData<PayboxRefundResponse, Self>>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..item.router_data
             })
@@ -1091,6 +1108,7 @@ impl TryFrom<ResponseRouterData<PayboxRSyncResponse, Self>>
                 connector_refund_id: item.response.paybox_order_id.clone(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,
@@ -1294,6 +1312,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PayboxSetupMandateRes
                     .customer_id
                     .as_ref()
                     .map(|id| id.peek().to_string()),
+                mandate_metadata: None,
             }));
 
             Ok(Self {
@@ -1330,6 +1349,10 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PayboxSetupMandateRes
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..item.router_data
             })
@@ -1550,6 +1573,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PayboxRepeatPaymentRe
                                 .customer_id
                                 .as_ref()
                                 .map(|id| id.peek().to_string()),
+                            mandate_metadata: None,
                         })
                     });
 
@@ -1587,6 +1611,10 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PayboxRepeatPaymentRe
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..item.router_data
             })

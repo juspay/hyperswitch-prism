@@ -291,7 +291,7 @@ macros::macro_connector_implementation!(
                     .topic(self.get_kafka_topic(req)?.as_str())
                     .attach_default_headers()
                     .headers(self.get_headers(req)?)
-                    .set_optional_payload(self.get_request_body(req)?)
+                    .set_optional_payload(self.get_request_body(req)?.map(|d| d.content))
                     .build(),
             ))
         }
@@ -368,6 +368,7 @@ macros::macro_connector_flow_status_impls!(
         VoidPC,
         ClientAuthenticationToken,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         IncrementalAuthorization,
     ],
 );

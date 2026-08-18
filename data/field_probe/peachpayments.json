@@ -151,7 +151,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Dana": {
         "status": "not_supported",
@@ -163,7 +163,7 @@
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "EVoucher": {
         "status": "not_supported",
@@ -199,7 +199,7 @@
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "GoPay": {
         "status": "not_supported",
@@ -287,7 +287,7 @@
       },
       "MobilePayRedirect": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Momo": {
         "status": "not_supported",
@@ -331,7 +331,7 @@
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "OpenBankingUk": {
         "status": "not_supported",
@@ -351,7 +351,7 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Payment method not supported is not supported by peachpayments"
       },
       "PayURedirect": {
         "status": "not_supported",
@@ -367,11 +367,11 @@
       },
       "Paysera": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "PermataBankTransfer": {
         "status": "not_supported",
@@ -435,7 +435,7 @@
       },
       "Skrill": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Payment method not supported is not supported by peachpayments"
       },
       "Sofort": {
         "status": "not_supported",
@@ -535,6 +535,12 @@
       "default": {
         "status": "not_supported",
         "error": "create_connector_customer flow not supported by peachpayments connector"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_supported",
+        "error": "get_connector_customer flow not supported by peachpayments connector"
       }
     },
     "dispute_accept": {
@@ -687,7 +693,7 @@
             "x-exi-auth-ver": "v1",
             "x-tenant-id": "probe_secret"
           },
-          "body": "{\"paymentMethod\":\"ecommerce_card_payment_only\",\"referenceId\":\"probe_proxy_txn_001\",\"ecommerceCardPaymentOnlyTransactionData\":{\"merchantInformation\":{\"clientMerchantReferenceId\":\"probe_merchant_ref_001\"},\"routing\":{\"route\":\"probe_route_001\"},\"card\":{\"pan\":\"{{$card_number}}\",\"cardholderName\":\"John Doe\",\"expiryYear\":\"{{$card_exp_year}}\",\"expiryMonth\":\"{{$card_exp_month}}\",\"cvv\":\"{{$card_cvc}}\"},\"amount\":{\"amount\":1000,\"currencyCode\":\"USD\"}},\"sendDateTime\":\"2020-01-01T00:00:00+00:00\"}"
+          "body": "{\"paymentMethod\":\"ecommerce_card_payment_only\",\"referenceId\":\"probe_proxy_txn_001\",\"ecommerceCardPaymentOnlyTransactionData\":{\"merchantInformation\":{\"clientMerchantReferenceId\":\"probe_merchant_ref_001\"},\"routing\":{\"route\":\"probe_route_001\"},\"card\":{\"pan\":\"{{$card_number}}\",\"cardholderName\":\"John Doe\",\"expiryYear\":\"30\",\"expiryMonth\":\"03\",\"cvv\":\"{{$card_cvc}}\"},\"amount\":{\"amount\":1000,\"currencyCode\":\"USD\"}},\"sendDateTime\":\"2020-01-01T00:00:00+00:00\"}"
         }
       }
     },
@@ -728,7 +734,7 @@
             "x-exi-auth-ver": "v1",
             "x-tenant-id": "probe_secret"
           },
-          "body": "{\"paymentMethod\":\"ecommerce_card_payment_only\",\"referenceId\":\"probe_proxy_mandate_001\",\"ecommerceCardPaymentOnlyTransactionData\":{\"merchantInformation\":{\"clientMerchantReferenceId\":\"probe_merchant_ref_001\"},\"routing\":{\"route\":\"probe_route_001\"},\"card\":{\"pan\":\"{{$card_number}}\",\"cardholderName\":\"John Doe\",\"expiryYear\":\"{{$card_exp_year}}\",\"expiryMonth\":\"{{$card_exp_month}}\",\"cvv\":\"{{$card_cvc}}\"},\"amount\":{\"amount\":0,\"currencyCode\":\"USD\"},\"cofData\":{\"type\":\"recurring\",\"source\":\"cit\",\"mode\":\"initial\"}},\"sendDateTime\":\"2020-01-01T00:00:00+00:00\"}"
+          "body": "{\"paymentMethod\":\"ecommerce_card_payment_only\",\"referenceId\":\"probe_proxy_mandate_001\",\"ecommerceCardPaymentOnlyTransactionData\":{\"merchantInformation\":{\"clientMerchantReferenceId\":\"probe_merchant_ref_001\"},\"routing\":{\"route\":\"probe_route_001\"},\"card\":{\"pan\":\"{{$card_number}}\",\"cardholderName\":\"John Doe\",\"expiryYear\":\"30\",\"expiryMonth\":\"03\",\"cvv\":\"{{$card_cvc}}\"},\"amount\":{\"amount\":0,\"currencyCode\":\"USD\"},\"cofData\":{\"type\":\"recurring\",\"source\":\"cit\",\"mode\":\"initial\"}},\"sendDateTime\":\"2020-01-01T00:00:00+00:00\"}"
         }
       }
     },
@@ -742,6 +748,11 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: mandate_revoke flow for peachpayments"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "refund": {

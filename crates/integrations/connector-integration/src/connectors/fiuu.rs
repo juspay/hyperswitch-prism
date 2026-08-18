@@ -5,6 +5,7 @@ use std::{any::type_name, borrow::Cow, collections::HashMap, fmt::Debug};
 use bytes::Bytes;
 use common_enums::CurrencyUnit;
 use common_utils::{
+    consts,
     crypto::{self, GenerateDigest, VerifySignature},
     errors::CustomResult,
     events,
@@ -51,8 +52,8 @@ use transformers::{
 
 use super::macros;
 use crate::{
-    types::ResponseRouterData, utils::xml_utils::flatten_json_structure, with_error_response_body,
-    with_response_body,
+    finalize_connector_response, types::ResponseRouterData,
+    utils::xml_utils::flatten_json_structure, with_error_response_body,
 };
 use domain_types::errors::ConnectorError;
 use domain_types::errors::{IntegrationError, WebhookError};
@@ -303,28 +304,64 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         event_builder: Option<&mut events::Event>,
         _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        let response: fiuu::FiuuErrorResponse = res
-            .response
-            .parse_struct("fiuu::FiuuErrorResponse")
-            .change_context(
-                crate::utils::response_deserialization_fail(
-                    res.status_code,
-                "fiuu: response body did not match the expected format; confirm API version and connector documentation."),
-            )?;
+        if res.response.is_empty() {
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: consts::NO_ERROR_CODE.to_string(),
+                message: consts::NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
+            });
+        }
 
-        with_error_response_body!(event_builder, response);
+        let response: Result<
+            fiuu::FiuuErrorResponse,
+            error_stack::Report<common_utils::errors::ParsingError>,
+        > = res.response.parse_struct("FiuuErrorResponse");
 
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.error_code.clone(),
-            message: response.error_desc.clone(),
-            reason: Some(response.error_desc.clone()),
-            attempt_status: None,
-            connector_transaction_id: None,
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
-        })
+        match response {
+            Ok(response) => {
+                with_error_response_body!(event_builder, response);
+
+                let typed = macros::serialize_typed_connector_payload(
+                    &response,
+                    "typed_connector_response",
+                );
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: response.error_code.clone(),
+                    message: response.error_desc.clone(),
+                    reason: Some(response.error_desc.clone()),
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
+                })
+            }
+            Err(error_msg) => {
+                if let Some(event) = event_builder {
+                    event.set_connector_response(&serde_json::json!({
+                        "error": "Error response parsing failed",
+                        "status_code": res.status_code
+                    }));
+                }
+                error!(deserialization_error =? error_msg);
+                crate::utils::handle_json_response_deserialization_failure(res, "fiuu")
+            }
+        }
     }
 }
 
@@ -596,15 +633,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn get_request_body(
         &self,
         req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-    ) -> CustomResult<Option<macro_types::RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let bridge = self.p_sync;
         let input_data = FiuuRouterData {
             connector: self.to_owned(),
             router_data: req.clone(),
         };
         let request = bridge.request_body(input_data)?;
+        let typed =
+            events::MaskedSerdeValue::from_masked_optional(&request, "typed_connector_request");
         let form_data = <FiuuPaymentSyncRequest as GetFormData>::get_form_data(&request);
-        Ok(Some(macro_types::RequestContent::FormData(form_data)))
+        Ok(Some(common_utils::request::ConnectorRequestData::new(
+            macro_types::RequestContent::FormData(form_data),
+            typed,
+        )))
     }
 
     fn handle_response_v2(
@@ -634,16 +676,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     Err(error_stack::Report::from(crate::utils::response_deserialization_fail(res.status_code, "fiuu: response body did not match the expected format; confirm API version and connector documentation.")))
                         .attach_printable(format!("Expected content type to be text/plain;charset=UTF-8 , but received different content type as {content_header} in response"))?
                 }?;
-                with_response_body!(event_builder, response);
-
-                RouterDataV2::try_from(ResponseRouterData {
-                    response,
-                    router_data: data.clone(),
-                    http_code: res.status_code,
-                })
-                .change_context(
-                    crate::utils::response_handling_fail_for_connector(res.status_code, "fiuu"),
-                )
+                finalize_connector_response!(event_builder, response, data, res.status_code)
             }
             None => {
                 // We don't get headers for payment webhook response handling
@@ -655,16 +688,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             res.status_code,
                         "fiuu: response body did not match the expected format; confirm API version and connector documentation."),
                     )?;
-                with_response_body!(event_builder, response);
-
-                RouterDataV2::try_from(ResponseRouterData {
-                    response,
-                    router_data: data.clone(),
-                    http_code: res.status_code,
-                })
-                .change_context(
-                    crate::utils::response_handling_fail_for_connector(res.status_code, "fiuu"),
-                )
+                finalize_connector_response!(event_builder, response, data, res.status_code)
             }
         }
     }
@@ -811,6 +835,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
+        if request.body.is_empty() {
+            return Ok(EventType::EndpointVerification);
+        }
         let header = request
             .headers
             .get("content-type")
@@ -907,6 +934,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     merchant_refund_id: None,
                     // txn_id is the connector ID of the original payment.
                     connector_transaction_id: Some(r.txn_id),
+                    merchant_transaction_id: None,
                 })
             }
         };
@@ -983,7 +1011,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 ),
             ),
             status,
-            connector_response_reference_id: Some(webhook_payment.order_id),
+            connector_response_reference_id: Some(webhook_payment.order_id.clone()),
+            connector_request_reference_id: Some(webhook_payment.order_id),
             error_code: error_code.clone(),
             error_message: error_message.clone(),
             raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
@@ -1001,6 +1030,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                 connector_mandate_id: Some(token.expose()),
                                 payment_method_id: None,
                                 connector_mandate_request_reference_id: None,
+                                mandate_metadata: None,
                             })
                         })
                 }),
@@ -1156,6 +1186,7 @@ macros::macro_connector_flow_status_impls!(
         ServerSessionAuthenticationToken,
         ServerAuthenticationToken,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         MandateRevoke,
         PaymentMethodToken,
         PreAuthenticate,

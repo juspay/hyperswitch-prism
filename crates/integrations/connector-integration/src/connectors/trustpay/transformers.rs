@@ -28,7 +28,7 @@ use domain_types::{
         ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
         SetupMandateRequestData, ThirdPartySdkSessionResponse,
     },
-    errors::{ConnectorError, IntegrationError, WebhookError},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext, WebhookError},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{
         BankRedirectData, BankTransferData, Card, PaymentMethodData, PaymentMethodDataTypes,
@@ -191,7 +191,7 @@ impl TryFrom<&BankRedirectData> for TrustpayPaymentMethod {
             | BankRedirectData::OnlineBankingFpx { .. }
             | BankRedirectData::OnlineBankingThailand { .. }
             | BankRedirectData::LocalBankRedirect {}
-            | BankRedirectData::OpenBanking {}
+            | BankRedirectData::OpenBanking { .. }
             | BankRedirectData::Netbanking { .. } => Err(IntegrationError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("trustpay"),
                 Default::default(),
@@ -604,6 +604,10 @@ fn handle_cards_response(
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     } else {
         None
@@ -685,6 +689,10 @@ fn handle_bank_redirects_error_response(
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
+        typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
     });
     let payment_response_data = PaymentsResponseData::TransactionResponse {
         resource_id: ResponseId::NoResponseId,
@@ -742,6 +750,10 @@ fn handle_bank_redirects_sync_response(
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     } else {
         None
@@ -801,6 +813,10 @@ pub fn handle_webhook_response(
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     } else {
         None
@@ -862,6 +878,10 @@ pub fn handle_webhook_response_incoming_webhook(
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     } else {
         None
@@ -1129,6 +1149,10 @@ impl TryFrom<ResponseRouterData<TrustpayAuthUpdateResponse, Self>>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..item.router_data
             }),
@@ -1808,6 +1832,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
@@ -1990,6 +2015,10 @@ fn handle_cards_refund_response(
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         }),
         None => None,
     };
@@ -1997,6 +2026,7 @@ fn handle_cards_refund_response(
         connector_refund_id: response.instance_id,
         refund_status,
         status_code,
+        acquirer_reference_number: None,
     };
     Ok((error, refund_response_data))
 }
@@ -2027,6 +2057,10 @@ pub fn handle_webhooks_refund_response(
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         }
         false => None,
@@ -2045,6 +2079,7 @@ pub fn handle_webhooks_refund_response(
         },
         refund_status,
         status_code,
+        acquirer_reference_number: None,
     };
     Ok((error, refund_response_data))
 }
@@ -2083,6 +2118,10 @@ pub fn handle_webhooks_refund_response_incoming_webhook(
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         }
         false => None,
@@ -2094,6 +2133,7 @@ pub fn handle_webhooks_refund_response_incoming_webhook(
             .ok_or_else(|| report!(WebhookError::WebhookProcessingFailed))?,
         refund_status,
         status_code,
+        acquirer_reference_number: None,
     };
     Ok((error, refund_response_data))
 }
@@ -2115,6 +2155,10 @@ fn handle_bank_redirects_refund_response(
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         }),
         false => None,
     };
@@ -2122,6 +2166,7 @@ fn handle_bank_redirects_refund_response(
         connector_refund_id: response.payment_request_id.to_string(),
         refund_status,
         status_code,
+        acquirer_reference_number: None,
     };
     (error, refund_response_data)
 }
@@ -2155,6 +2200,10 @@ fn handle_bank_redirects_refund_sync_response(
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         }
         false => None,
@@ -2163,6 +2212,7 @@ fn handle_bank_redirects_refund_sync_response(
         connector_refund_id: response.payment_information.references.payment_request_id,
         refund_status,
         status_code,
+        acquirer_reference_number: None,
     };
     (error, refund_response_data)
 }
@@ -2185,12 +2235,17 @@ fn handle_bank_redirects_refund_sync_error_response(
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
+        typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
     });
     //unreachable case as we are sending error as Some()
     let refund_response_data = RefundsResponseData {
         connector_refund_id: "".to_string(),
         refund_status: enums::RefundStatus::Failure,
         status_code,
+        acquirer_reference_number: None,
     };
     (error, refund_response_data)
 }
@@ -2782,6 +2837,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             None
@@ -2792,6 +2851,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             connector_mandate_id: Some(response.instance_id.clone()),
             payment_method_id: None,
             connector_mandate_request_reference_id: None,
+            mandate_metadata: None,
         }));
 
         let payment_response_data = PaymentsResponseData::TransactionResponse {
@@ -2848,14 +2908,21 @@ fn extract_trustpay_mandate_id(mandate_reference: &MandateReferenceId) -> Result
                     context: Default::default(),
                 })
             }),
-        MandateReferenceId::NetworkMandateId(_) | MandateReferenceId::NetworkTokenWithNTI(_) => {
-            Err(report!(IntegrationError::NotSupported {
-                message: "Network mandate / NTI not supported for trustpay RepeatPayment"
-                    .to_string(),
-                connector: "trustpay",
-                context: Default::default(),
-            }))
-        }
+        MandateReferenceId::NetworkMandateId(_)
+        | MandateReferenceId::NetworkTokenWithNTI(_) => Err(report!(IntegrationError::NotSupported {
+            message: "Network mandate / NTI not supported for trustpay RepeatPayment".to_string(),
+            connector: "trustpay",
+            context: IntegrationErrorContext {
+                suggested_action: Some(
+                    "Use ConnectorMandateId with the Trustpay InstanceId returned during the initial setup/payment. Trustpay RepeatPayment cannot be built from NetworkMandateId or NetworkTokenWithNTI."
+                        .to_string(),
+                ),
+                doc_url: None,
+                additional_context: Some(
+                    "Trustpay RepeatPayment received a network mandate reference. This request builder only sends the connector mandate InstanceId as the recurring payment reference; network mandate references provide an NTI or network token data, but do not provide the Trustpay InstanceId required by this endpoint".to_string(),
+                ),
+            },
+        })),
     }
 }
 
@@ -2944,6 +3011,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             None

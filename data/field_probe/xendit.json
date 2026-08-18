@@ -153,7 +153,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Dana": {
         "status": "not_implemented",
@@ -165,7 +165,7 @@
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "EVoucher": {
         "status": "not_implemented",
@@ -201,7 +201,7 @@
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "GoPay": {
         "status": "not_implemented",
@@ -289,7 +289,7 @@
       },
       "MobilePayRedirect": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Momo": {
         "status": "not_implemented",
@@ -333,7 +333,7 @@
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "OpenBankingUk": {
         "status": "not_implemented",
@@ -352,8 +352,8 @@
         "error": "This feature is not implemented: Selected payment method through xendit"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through xendit"
       },
       "PayURedirect": {
         "status": "not_implemented",
@@ -369,11 +369,11 @@
       },
       "Paysera": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
@@ -436,8 +436,8 @@
         "error": "This feature is not implemented: Selected payment method through xendit"
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through xendit"
       },
       "Sofort": {
         "status": "not_implemented",
@@ -535,6 +535,12 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: create_connector_customer flow for xendit"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: get_connector_customer flow for xendit"
       }
     },
     "dispute_accept": {
@@ -658,7 +664,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":10.0,\"currency\":\"USD\",\"capture_method\":\"AUTOMATIC\",\"payment_method\":{\"type\":\"CARD\",\"card\":{\"channel_properties\":{\"success_return_url\":\"https://example.com/return\",\"failure_return_url\":\"https://example.com/return\",\"skip_three_d_secure\":true},\"card_information\":{\"card_number\":\"{{$card_number}}\",\"expiry_month\":\"{{$card_exp_month}}\",\"expiry_year\":\"{{$card_exp_year}}\",\"cvv\":\"{{$card_cvc}}\",\"cardholder_name\":\"John Doe\",\"cardholder_email\":\"test@example.com\",\"cardholder_phone_number\":\"+14155552671\"}},\"reusability\":\"ONE_TIME_USE\",\"reference_id\":\"probe_proxy_txn_001\"}}"
+          "body": "{\"amount\":10.0,\"currency\":\"USD\",\"capture_method\":\"AUTOMATIC\",\"payment_method\":{\"type\":\"CARD\",\"card\":{\"channel_properties\":{\"success_return_url\":\"https://example.com/return\",\"failure_return_url\":\"https://example.com/return\",\"skip_three_d_secure\":true},\"card_information\":{\"card_number\":\"{{$card_number}}\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvv\":\"{{$card_cvc}}\",\"cardholder_name\":\"John Doe\",\"cardholder_email\":\"test@example.com\",\"cardholder_phone_number\":\"+14155552671\"}},\"reusability\":\"ONE_TIME_USE\",\"reference_id\":\"probe_proxy_txn_001\"}}"
         }
       }
     },
@@ -678,6 +684,11 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: mandate_revoke flow for xendit"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "refund": {

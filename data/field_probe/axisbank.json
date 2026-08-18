@@ -10,443 +10,443 @@
     "authorize": {
       "Ach": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "AchBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "Affirm": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "Afterpay": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "Alfamart": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "AliPayRedirect": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "AmazonPayRedirect": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "ApplePay": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "ApplePayDecrypted": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "ApplePayThirdPartySdk": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "Bacs": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "BacsBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "BancontactCard": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "BcaBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "Becs": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "BillDeskRedirect": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "Bizum": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "Blik": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "Bluecode": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "BniVaBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "Boleto": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "BriVaBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "Card": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "CashappQr": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "CashfreeRedirect": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "CimbVaBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "ClassicReward": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Dana": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "DanamonVaBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "EVoucher": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "EaseBuzzRedirect": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "Efecty": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "Eft": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "Eps": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "FamilyMart": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "GCash": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "Giropay": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "GoPay": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "GooglePay": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "GooglePayDecrypted": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "GooglePayThirdPartySdk": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "Ideal": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "Indomaret": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "IndonesianBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "InstantBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "InstantBankTransferFinland": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "InstantBankTransferPoland": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "Interac": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "KakaoPay": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "Klarna": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "Lawson": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "LazyPayRedirect": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "LocalBankRedirect": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "LocalBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "MandiriVaBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "MbWay": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "Mifinity": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "MiniStop": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "MobilePayRedirect": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Momo": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "MultibancoBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "Netbanking": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "OnlineBankingCzechRepublic": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "OnlineBankingFinland": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "OnlineBankingFpx": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "OnlineBankingPoland": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "OnlineBankingSlovakia": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "OnlineBankingThailand": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "OpenBanking": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "OpenBankingUk": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "Oxxo": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "PagoEfectivo": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "PayEasy": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "error",
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "PayURedirect": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "PaypalRedirect": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "PaypalSdk": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "Paysera": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "PermataBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "PhonePeRedirect": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "Pix": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "Przelewy24": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "Pse": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "RedCompra": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "RedPagos": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "RevolutPay": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "SamsungPay": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "Satispay": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "Seicomart": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "Sepa": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "SepaBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "SepaGuaranteedDebit": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "SevenEleven": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "error",
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "Sofort": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "Swish": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "TouchNGo": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "Trustly": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "Twint": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "UpiCollect": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "UpiIntent": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "UpiQr": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "Vipps": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "WeChatPayQr": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       },
       "Wero": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       }
     },
     "capture": {
@@ -485,6 +485,12 @@
         "error": "This feature is not implemented: create_connector_customer flow for axisbank"
       }
     },
+    "customer_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: get_connector_customer flow for axisbank"
+      }
+    },
     "dispute_accept": {
       "default": {
         "status": "not_implemented",
@@ -517,7 +523,7 @@
     "get": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
+        "error": "Invalid connector configuration: merchant_private_key"
       }
     },
     "handle_event": {
@@ -556,7 +562,7 @@
     "proxy_authorize": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       }
     },
     "proxy_setup_recurring": {
@@ -577,16 +583,21 @@
         "error": "This feature is not implemented: mandate_revoke flow for axisbank"
       }
     },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "refund": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
+        "error": "Invalid connector configuration: merchant_private_key"
       }
     },
     "refund_get": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Stuck on field: refund_money. refund_money is required for Juspay UPI Stack refund status check — Missing required field: refund_money. refund_money is required for Juspay UPI Stack refund status check"
       }
     },
     "reverse": {
@@ -604,7 +615,7 @@
     "token_authorize": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+        "error": "Invalid connector configuration: merchant_private_key"
       }
     },
     "token_setup_recurring": {

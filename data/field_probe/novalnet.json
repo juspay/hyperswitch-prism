@@ -227,7 +227,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Dana": {
         "status": "not_implemented",
@@ -239,7 +239,7 @@
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "EVoucher": {
         "status": "not_implemented",
@@ -275,7 +275,7 @@
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "GoPay": {
         "status": "not_implemented",
@@ -405,7 +405,7 @@
       },
       "MobilePayRedirect": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Momo": {
         "status": "not_implemented",
@@ -449,7 +449,7 @@
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "OpenBankingUk": {
         "status": "not_implemented",
@@ -468,8 +468,8 @@
         "error": "This feature is not implemented: Selected payment method through novalnet"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through novalnet"
       },
       "PayURedirect": {
         "status": "not_implemented",
@@ -516,11 +516,11 @@
       },
       "Paysera": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
@@ -615,8 +615,8 @@
         "error": "This feature is not implemented: Selected payment method through novalnet"
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through novalnet"
       },
       "Sofort": {
         "status": "not_implemented",
@@ -714,6 +714,12 @@
       "default": {
         "status": "not_supported",
         "error": "create_connector_customer flow not supported by novalnet connector"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_supported",
+        "error": "get_connector_customer flow not supported by novalnet connector"
       }
     },
     "dispute_accept": {
@@ -886,7 +892,7 @@
             "via": "HyperSwitch",
             "x-nn-access-key": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA=="
           },
-          "body": "{\"merchant\":{\"signature\":\"probe_key\",\"tariff\":\"probe_id\"},\"customer\":{\"first_name\":\"John\",\"last_name\":null,\"email\":\"test@example.com\",\"mobile\":null,\"billing\":{\"house_no\":null,\"street\":null,\"city\":null,\"zip\":null,\"country_code\":null},\"no_nc\":1,\"birth_date\":null},\"transaction\":{\"test_mode\":0,\"payment_type\":\"CREDITCARD\",\"amount\":\"1000\",\"currency\":\"USD\",\"order_no\":\"probe_proxy_txn_001\",\"payment_data\":{\"card_number\":\"{{$card_number}}\",\"card_expiry_month\":\"{{$card_exp_month}}\",\"card_expiry_year\":\"{{$card_exp_year}}\",\"card_cvc\":\"{{$card_cvc}}\",\"card_holder\":\"John\"},\"hook_url\":\"https://example.com/webhook\",\"return_url\":\"https://example.com/return\",\"error_return_url\":\"https://example.com/return\",\"enforce_3d\":null,\"create_token\":null},\"custom\":{\"lang\":\"en\"}}"
+          "body": "{\"merchant\":{\"signature\":\"probe_key\",\"tariff\":\"probe_id\"},\"customer\":{\"first_name\":\"John\",\"last_name\":null,\"email\":\"test@example.com\",\"mobile\":null,\"billing\":{\"house_no\":null,\"street\":null,\"city\":null,\"zip\":null,\"country_code\":null},\"no_nc\":1,\"birth_date\":null},\"transaction\":{\"test_mode\":0,\"payment_type\":\"CREDITCARD\",\"amount\":\"1000\",\"currency\":\"USD\",\"order_no\":\"probe_proxy_txn_001\",\"payment_data\":{\"card_number\":\"{{$card_number}}\",\"card_expiry_month\":\"03\",\"card_expiry_year\":\"2030\",\"card_cvc\":\"{{$card_cvc}}\",\"card_holder\":\"John\"},\"hook_url\":\"https://example.com/webhook\",\"return_url\":\"https://example.com/return\",\"error_return_url\":\"https://example.com/return\",\"enforce_3d\":null,\"create_token\":null},\"custom\":{\"lang\":\"en\"}}"
         }
       }
     },
@@ -932,7 +938,7 @@
             "via": "HyperSwitch",
             "x-nn-access-key": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA=="
           },
-          "body": "{\"merchant\":{\"signature\":\"probe_key\",\"tariff\":\"probe_id\"},\"customer\":{\"first_name\":\"John\",\"last_name\":null,\"email\":\"test@example.com\",\"mobile\":null,\"billing\":{\"house_no\":null,\"street\":null,\"city\":null,\"zip\":null,\"country_code\":null},\"no_nc\":1,\"birth_date\":null},\"transaction\":{\"test_mode\":0,\"payment_type\":\"CREDITCARD\",\"amount\":0,\"currency\":\"USD\",\"order_no\":\"probe_proxy_mandate_001\",\"payment_data\":{\"card_number\":\"{{$card_number}}\",\"card_expiry_month\":\"{{$card_exp_month}}\",\"card_expiry_year\":\"{{$card_exp_year}}\",\"card_cvc\":\"{{$card_cvc}}\",\"card_holder\":\"John\"},\"hook_url\":\"https://example.com/webhook\",\"return_url\":\"https://example.com/return\",\"error_return_url\":\"https://example.com/return\",\"enforce_3d\":null,\"create_token\":1},\"custom\":{\"lang\":\"en\"}}"
+          "body": "{\"merchant\":{\"signature\":\"probe_key\",\"tariff\":\"probe_id\"},\"customer\":{\"first_name\":\"John\",\"last_name\":null,\"email\":\"test@example.com\",\"mobile\":null,\"billing\":{\"house_no\":null,\"street\":null,\"city\":null,\"zip\":null,\"country_code\":null},\"no_nc\":1,\"birth_date\":null},\"transaction\":{\"test_mode\":0,\"payment_type\":\"CREDITCARD\",\"amount\":0,\"currency\":\"USD\",\"order_no\":\"probe_proxy_mandate_001\",\"payment_data\":{\"card_number\":\"{{$card_number}}\",\"card_expiry_month\":\"03\",\"card_expiry_year\":\"2030\",\"card_cvc\":\"{{$card_cvc}}\",\"card_holder\":\"John\"},\"hook_url\":\"https://example.com/webhook\",\"return_url\":\"https://example.com/return\",\"error_return_url\":\"https://example.com/return\",\"enforce_3d\":null,\"create_token\":1},\"custom\":{\"lang\":\"en\"}}"
         }
       }
     },
@@ -979,6 +985,11 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: mandate_revoke flow for novalnet"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "refund": {

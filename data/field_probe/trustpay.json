@@ -212,7 +212,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Dana": {
         "status": "not_supported",
@@ -224,7 +224,7 @@
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "EVoucher": {
         "status": "not_supported",
@@ -336,7 +336,7 @@
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "GoPay": {
         "status": "not_supported",
@@ -585,7 +585,7 @@
       },
       "MobilePayRedirect": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Momo": {
         "status": "not_supported",
@@ -629,7 +629,7 @@
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "OpenBankingUk": {
         "status": "not_implemented",
@@ -649,7 +649,7 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "PayURedirect": {
         "status": "not_supported",
@@ -665,11 +665,11 @@
       },
       "Paysera": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "PermataBankTransfer": {
         "status": "not_supported",
@@ -774,7 +774,7 @@
       },
       "Skrill": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "Sofort": {
         "status": "supported",
@@ -926,6 +926,12 @@
       "default": {
         "status": "not_supported",
         "error": "create_connector_customer flow not supported by trustpay connector"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_supported",
+        "error": "get_connector_customer flow not supported by trustpay connector"
       }
     },
     "dispute_accept": {
@@ -1101,7 +1107,7 @@
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
-          "body": "amount=10.00&currency=USD&pan=%7B%7B%24card_number%7D%7D&cvv=%7B%7B%24card_cvc%7D%7D&exp=%7B%7B%24card_exp_month%7D%7D%2F%7B%7B%24card_exp_year%7D%7D&cardholder=John&reference=probe_proxy_txn_001&redirectUrl=https%3A%2F%2Fexample.com%2Freturn&billing%5Bcity%5D=Seattle&billing%5Bcountry%5D=US&billing%5Bstreet1%5D=123+Main+St&billing%5Bpostcode%5D=98101&customer%5Bemail%5D=test%40example.com&customer%5BipAddress%5D=1.2.3.4&browser%5BacceptHeader%5D=*&browser%5Blanguage%5D=en-US&browser%5BscreenHeight%5D=1080&browser%5BscreenWidth%5D=1920&browser%5Btimezone%5D=3600&browser%5BuserAgent%5D=Mozilla%2F5.0+%28probe-bot%29&browser%5BjavaEnabled%5D=false&browser%5BjavaScriptEnabled%5D=true&browser%5BscreenColorDepth%5D=24&browser%5BchallengeWindow%5D=1&browser%5BpaymentType%5D=Plain"
+          "body": "amount=10.00&currency=USD&pan=%7B%7B%24card_number%7D%7D&cvv=%7B%7B%24card_cvc%7D%7D&exp=03%2F30&cardholder=John&reference=probe_proxy_txn_001&redirectUrl=https%3A%2F%2Fexample.com%2Freturn&billing%5Bcity%5D=Seattle&billing%5Bcountry%5D=US&billing%5Bstreet1%5D=123+Main+St&billing%5Bpostcode%5D=98101&customer%5Bemail%5D=test%40example.com&customer%5BipAddress%5D=1.2.3.4&browser%5BacceptHeader%5D=*&browser%5Blanguage%5D=en-US&browser%5BscreenHeight%5D=1080&browser%5BscreenWidth%5D=1920&browser%5Btimezone%5D=3600&browser%5BuserAgent%5D=Mozilla%2F5.0+%28probe-bot%29&browser%5BjavaEnabled%5D=false&browser%5BjavaScriptEnabled%5D=true&browser%5BscreenColorDepth%5D=24&browser%5BchallengeWindow%5D=1&browser%5BpaymentType%5D=Plain"
         }
       }
     },
@@ -1159,6 +1165,11 @@
       "default": {
         "status": "not_supported",
         "error": "mandate_revoke flow not supported by trustpay connector"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "refund": {

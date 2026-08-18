@@ -1,3 +1,4 @@
+use crate::events::MaskedSerdeValue;
 use hyperswitch_masking::{Maskable, Secret};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -56,6 +57,7 @@ pub struct Request {
     pub certificate: Option<Secret<String>>,
     pub certificate_key: Option<Secret<String>>,
     pub body: Option<RequestContent>,
+    pub typed_connector_request_value: Option<serde_json::Value>,
     pub ca_certificate: Option<Secret<String>>,
 }
 
@@ -96,6 +98,28 @@ pub enum RequestContent {
     FormData(MultipartData),
     Xml(Box<dyn hyperswitch_masking::ErasedMaskSerialize + Send>),
     RawBytes(Vec<u8>),
+}
+
+/// Bundles the wire-format request body with its typed observability payload.
+///
+/// The macro-generated `get_request_body` returns this so that the typed
+/// connector request struct is serialized *before* conversion to FormData or
+/// RawBytes (which would otherwise lose the typed information).
+#[derive(Debug)]
+pub struct ConnectorRequestData {
+    /// The actual request content sent over the wire.
+    pub content: RequestContent,
+    /// Masked serialization of the connector's typed request struct, for observability.
+    pub typed_request: Option<MaskedSerdeValue>,
+}
+
+impl ConnectorRequestData {
+    pub fn new(content: RequestContent, typed_request: Option<MaskedSerdeValue>) -> Self {
+        Self {
+            content,
+            typed_request,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -199,6 +223,35 @@ impl RequestContent {
         }
     }
 
+    /// Masked-serialize the inner value for Json/FormUrlEncoded/Xml variants.
+    /// Returns `(Value, String)` — Value for event logging, String for typed_connector_request.
+    /// Returns `None` for FormData/RawBytes.
+    pub fn masked_serialize_inner(&self) -> Option<(serde_json::Value, String)> {
+        match self {
+            Self::Json(i) | Self::FormUrlEncoded(i) | Self::Xml(i) => (**i)
+                .masked_serialize()
+                .inspect_err(|error| {
+                    tracing::warn!(
+                        error = %error,
+                        "failed to masked-serialize connector request"
+                    );
+                })
+                .ok()
+                .and_then(|value| {
+                    serde_json::to_string(&value)
+                        .inspect_err(|error| {
+                            tracing::warn!(
+                                error = %error,
+                                "failed to stringify masked connector request"
+                            );
+                        })
+                        .ok()
+                        .map(|s| (value, s))
+                }),
+            Self::FormData(_) | Self::RawBytes(_) => None,
+        }
+    }
+
     pub fn get_body_bytes(&self) -> Result<(Option<Vec<u8>>, Option<String>), RequestError> {
         use hyperswitch_masking::ExposeInterface;
         match self {
@@ -223,6 +276,7 @@ impl Request {
             certificate: None,
             certificate_key: None,
             body: None,
+            typed_connector_request_value: None,
             ca_certificate: None,
         }
     }
@@ -272,6 +326,7 @@ pub struct RequestBuilder {
     pub certificate: Option<Secret<String>>,
     pub certificate_key: Option<Secret<String>>,
     pub body: Option<RequestContent>,
+    pub typed_connector_request_value: Option<serde_json::Value>,
     pub ca_certificate: Option<Secret<String>>,
 }
 
@@ -284,6 +339,7 @@ impl RequestBuilder {
             certificate: None,
             certificate_key: None,
             body: None,
+            typed_connector_request_value: None,
             ca_certificate: None,
         }
     }
@@ -318,6 +374,11 @@ impl RequestBuilder {
         self
     }
 
+    pub fn set_typed_connector_request(mut self, request: Option<serde_json::Value>) -> Self {
+        self.typed_connector_request_value = request;
+        self
+    }
+
     pub fn set_body<T: Into<RequestContent>>(mut self, body: T) -> Self {
         self.body.replace(body.into());
         self
@@ -346,6 +407,7 @@ impl RequestBuilder {
             certificate: self.certificate,
             certificate_key: self.certificate_key,
             body: self.body,
+            typed_connector_request_value: self.typed_connector_request_value,
             ca_certificate: self.ca_certificate,
         }
     }

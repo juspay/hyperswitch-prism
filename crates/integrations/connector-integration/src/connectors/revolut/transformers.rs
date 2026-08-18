@@ -857,6 +857,7 @@ impl<F> TryFrom<ResponseRouterData<RevolutRefundResponse, Self>>
                 connector_refund_id: response.id.clone(),
                 refund_status: status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -885,6 +886,7 @@ impl<F> TryFrom<ResponseRouterData<RevolutRefundResponse, Self>>
                 connector_refund_id: response.id.clone(),
                 refund_status: status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -1028,7 +1030,8 @@ impl TryFrom<RevolutWebhookBody> for WebhookDetailsResponse {
             error_message: None,
             error_reason: None,
             status_code: 200,
-            connector_response_reference_id: webhook_body.merchant_order_ext_ref,
+            connector_response_reference_id: webhook_body.merchant_order_ext_ref.clone(),
+            connector_request_reference_id: webhook_body.merchant_order_ext_ref,
             mandate_reference: None,
             raw_connector_response: None,
             response_headers: None,

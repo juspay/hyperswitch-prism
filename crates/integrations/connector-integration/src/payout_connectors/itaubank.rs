@@ -2,20 +2,29 @@ pub mod transformers;
 
 use common_enums::CurrencyUnit;
 use common_utils::{
-    errors::CustomResult, events, ext_traits::ByteSliceExt, request::RequestContent,
+    errors::CustomResult,
+    events,
+    ext_traits::ByteSliceExt,
+    request::{ConnectorRequestData, RequestContent},
 };
 use domain_types::{
     connector_flow::{
-        PayoutCreate, PayoutCreateLink, PayoutCreateRecipient, PayoutEnrollDisburseAccount,
-        PayoutGet, PayoutStage, PayoutTransfer, PayoutVoid,
+        PayoutCreate, PayoutCreateLink, PayoutCreateRecipient, PayoutEligibility,
+        PayoutEnrollDisburseAccount, PayoutGet, PayoutStage, PayoutTransfer, PayoutVoid,
+        ServerAuthenticationToken,
+    },
+    connector_types::{
+        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
     },
     errors::{ConnectorError, IntegrationError},
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payouts::payouts_types::{
         PayoutCreateLinkRequest, PayoutCreateLinkResponse, PayoutCreateRecipientRequest,
         PayoutCreateRecipientResponse, PayoutCreateRequest, PayoutCreateResponse,
-        PayoutEnrollDisburseAccountRequest, PayoutEnrollDisburseAccountResponse, PayoutFlowData,
-        PayoutGetRequest, PayoutGetResponse, PayoutStageRequest, PayoutStageResponse,
-        PayoutTransferRequest, PayoutTransferResponse, PayoutVoidRequest, PayoutVoidResponse,
+        PayoutEligibilityRequest, PayoutEligibilityResponse, PayoutEnrollDisburseAccountRequest,
+        PayoutEnrollDisburseAccountResponse, PayoutFlowData, PayoutGetRequest, PayoutGetResponse,
+        PayoutStageRequest, PayoutStageResponse, PayoutTransferRequest, PayoutTransferResponse,
+        PayoutVoidRequest, PayoutVoidResponse,
     },
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -28,14 +37,16 @@ use interfaces::{
     api::ConnectorCommon,
     connector_integration_v2::ConnectorIntegrationV2,
     connector_types::{
-        PayoutCreateLinkV2, PayoutCreateRecipientV2, PayoutCreateV2, PayoutEnrollDisburseAccountV2,
-        PayoutGetV2, PayoutServiceTrait, PayoutStageV2, PayoutTransferV2, PayoutVoidV2,
+        PayoutCreateLinkV2, PayoutCreateRecipientV2, PayoutCreateV2, PayoutEligibilityV2,
+        PayoutEnrollDisburseAccountV2, PayoutGetV2, PayoutServiceTrait, PayoutStageV2,
+        PayoutTransferV2, PayoutVoidV2, ServerAuthentication,
     },
 };
 
-use crate::types::ResponseRouterData;
+use crate::{finalize_connector_response, types::ResponseRouterData};
 use transformers::{
-    ItaubankAuthType, ItaubankErrorResponse, ItaubankPayoutGetResponse, ItaubankTransferRequest,
+    ItaubankAccessTokenRequest, ItaubankAccessTokenResponse, ItaubankAuthType,
+    ItaubankErrorResponse, ItaubankPayoutGetResponse, ItaubankTransferRequest,
     ItaubankTransferResponse,
 };
 
@@ -124,6 +135,10 @@ impl ConnectorCommon for ItaubankPayouts {
             Ok(error_res) => {
                 event_builder.map(|i| i.set_connector_response(&error_res));
                 let message = construct_itaubank_error_message(&error_res);
+                let typed = crate::connectors::macros::serialize_typed_connector_payload(
+                    &error_res,
+                    "typed_connector_response",
+                );
                 Ok(ErrorResponse {
                     status_code: res.status_code,
                     code: error_res.codigo,
@@ -134,6 +149,10 @@ impl ConnectorCommon for ItaubankPayouts {
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 })
             }
             Err(_) => {
@@ -152,9 +171,161 @@ impl ConnectorCommon for ItaubankPayouts {
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 })
             }
         }
+    }
+}
+
+// ===== SERVER AUTHENTICATION (merchant-auth / access token) =====
+
+impl ServerAuthentication for ItaubankPayouts {}
+
+impl
+    ConnectorIntegrationV2<
+        ServerAuthenticationToken,
+        MerchantAuthenticationFlowData,
+        ServerAuthenticationTokenRequestData,
+        ServerAuthenticationTokenResponseData,
+    > for ItaubankPayouts
+{
+    fn get_http_method(&self) -> common_utils::request::Method {
+        common_utils::request::Method::Post
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        "application/x-www-form-urlencoded"
+    }
+
+    fn get_certificate(
+        &self,
+        req: &RouterDataV2<
+            ServerAuthenticationToken,
+            MerchantAuthenticationFlowData,
+            ServerAuthenticationTokenRequestData,
+            ServerAuthenticationTokenResponseData,
+        >,
+    ) -> CustomResult<Option<hyperswitch_masking::Secret<String>>, IntegrationError> {
+        let auth = ItaubankAuthType::try_from(&req.connector_config)?;
+        Ok(auth.certificates)
+    }
+
+    fn get_certificate_key(
+        &self,
+        req: &RouterDataV2<
+            ServerAuthenticationToken,
+            MerchantAuthenticationFlowData,
+            ServerAuthenticationTokenRequestData,
+            ServerAuthenticationTokenResponseData,
+        >,
+    ) -> CustomResult<Option<hyperswitch_masking::Secret<String>>, IntegrationError> {
+        let auth = ItaubankAuthType::try_from(&req.connector_config)?;
+        Ok(auth.private_key)
+    }
+
+    fn get_url(
+        &self,
+        req: &RouterDataV2<
+            ServerAuthenticationToken,
+            MerchantAuthenticationFlowData,
+            ServerAuthenticationTokenRequestData,
+            ServerAuthenticationTokenResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        // Itaú exposes the OAuth token endpoint on secondary_base_url for
+        // payout configs; older configs use the JWT endpoint on base_url.
+        if let Some(secondary_base_url) = req
+            .resource_common_data
+            .connectors
+            .itaubank
+            .secondary_base_url
+            .as_deref()
+        {
+            Ok(format!("{}/api/oauth/token", secondary_base_url))
+        } else {
+            let base_url = self.base_url(&req.resource_common_data.connectors);
+            Ok(format!("{}/api/oauth/jwt", base_url))
+        }
+    }
+
+    fn get_headers(
+        &self,
+        _req: &RouterDataV2<
+            ServerAuthenticationToken,
+            MerchantAuthenticationFlowData,
+            ServerAuthenticationTokenRequestData,
+            ServerAuthenticationTokenResponseData,
+        >,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+        Ok(vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                "application/x-www-form-urlencoded".to_string().into(),
+            ),
+            (headers::ACCEPT.to_string(), "*/*".to_string().into()),
+        ])
+    }
+
+    fn get_request_body(
+        &self,
+        req: &RouterDataV2<
+            ServerAuthenticationToken,
+            MerchantAuthenticationFlowData,
+            ServerAuthenticationTokenRequestData,
+            ServerAuthenticationTokenResponseData,
+        >,
+    ) -> CustomResult<Option<ConnectorRequestData>, IntegrationError> {
+        let connector_req = ItaubankAccessTokenRequest::try_from(req)?;
+        let typed = events::MaskedSerdeValue::from_masked_optional(
+            &connector_req,
+            "typed_connector_request",
+        );
+        Ok(Some(ConnectorRequestData::new(
+            RequestContent::FormUrlEncoded(Box::new(connector_req)),
+            typed,
+        )))
+    }
+
+    fn handle_response_v2(
+        &self,
+        data: &RouterDataV2<
+            ServerAuthenticationToken,
+            MerchantAuthenticationFlowData,
+            ServerAuthenticationTokenRequestData,
+            ServerAuthenticationTokenResponseData,
+        >,
+        event_builder: Option<&mut events::Event>,
+        res: Response,
+    ) -> CustomResult<
+        RouterDataV2<
+            ServerAuthenticationToken,
+            MerchantAuthenticationFlowData,
+            ServerAuthenticationTokenRequestData,
+            ServerAuthenticationTokenResponseData,
+        >,
+        ConnectorError,
+    > {
+        let response: ItaubankAccessTokenResponse = res
+            .response
+            .parse_struct("ItaubankAccessTokenResponse")
+            .change_context(ConnectorError::ResponseDeserializationFailed {
+                context: Default::default(),
+            })?;
+
+        finalize_connector_response!(event_builder, response, data, res.status_code)
+    }
+
+    fn get_error_response_v2(
+        &self,
+        res: Response,
+        event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
+        self.build_error_response(res, event_builder, _connector_config)
     }
 }
 
@@ -269,9 +440,16 @@ impl
             PayoutTransferRequest,
             PayoutTransferResponse,
         >,
-    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<ConnectorRequestData>, IntegrationError> {
         let connector_req = ItaubankTransferRequest::try_from(req)?;
-        Ok(Some(RequestContent::Json(Box::new(connector_req))))
+        let typed = events::MaskedSerdeValue::from_masked_optional(
+            &connector_req,
+            "typed_connector_request",
+        );
+        Ok(Some(ConnectorRequestData::new(
+            RequestContent::Json(Box::new(connector_req)),
+            typed,
+        )))
     }
 
     fn handle_response_v2(
@@ -288,34 +466,14 @@ impl
         RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>,
         ConnectorError,
     > {
-        let response: Result<ItaubankTransferResponse, _> =
-            res.response.parse_struct("ItaubankTransferResponse");
+        let response: ItaubankTransferResponse = res
+            .response
+            .parse_struct("ItaubankTransferResponse")
+            .change_context(ConnectorError::ResponseDeserializationFailed {
+                context: Default::default(),
+            })?;
 
-        match response {
-            Ok(transfer_res) => {
-                event_builder.map(|i| i.set_connector_response(&transfer_res));
-                Ok(RouterDataV2 {
-                    response: Ok(PayoutTransferResponse {
-                        merchant_payout_id: None,
-                        payout_status: transfer_res.transfer_status.get_payout_status(),
-                        connector_payout_id: Some(transfer_res.id),
-                        status_code: res.status_code,
-                    }),
-                    ..data.clone()
-                })
-            }
-            Err(_) => {
-                tracing::error!(
-                    "Failed to parse transfer response from Itaubank. Status: {}, Raw: {:?}",
-                    res.status_code,
-                    res.response
-                );
-                Err(ConnectorError::ResponseDeserializationFailed {
-                    context: Default::default(),
-                }
-                .into())
-            }
-        }
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -413,7 +571,7 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
     fn handle_response_v2(
         &self,
         data: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
-        _event_builder: Option<&mut events::Event>,
+        event_builder: Option<&mut events::Event>,
         res: Response,
     ) -> CustomResult<
         RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
@@ -426,11 +584,7 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
                 context: Default::default(),
             })?;
 
-        RouterDataV2::try_from(ResponseRouterData {
-            response,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        })
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -582,6 +736,34 @@ impl
         Err(IntegrationError::connector_flow_not_implemented(
             self.id(),
             "payout_enroll_disburse_account",
+            Default::default(),
+        )
+        .into())
+    }
+}
+
+impl PayoutEligibilityV2 for ItaubankPayouts {}
+
+impl
+    ConnectorIntegrationV2<
+        PayoutEligibility,
+        PayoutFlowData,
+        PayoutEligibilityRequest,
+        PayoutEligibilityResponse,
+    > for ItaubankPayouts
+{
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            PayoutEligibility,
+            PayoutFlowData,
+            PayoutEligibilityRequest,
+            PayoutEligibilityResponse,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(IntegrationError::connector_flow_not_implemented(
+            self.id(),
+            "payout_eligibility",
             Default::default(),
         )
         .into())

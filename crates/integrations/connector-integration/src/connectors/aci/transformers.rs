@@ -195,6 +195,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | WalletData::ApplePay(_)
             | WalletData::ApplePayThirdPartySdk(_)
             | WalletData::DanaRedirect { .. }
+            | WalletData::GrabpayRedirect { .. }
             | WalletData::GooglePay(_)
             | WalletData::BluecodeRedirect {}
             | WalletData::GooglePayThirdPartySdk(_)
@@ -224,7 +225,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | WalletData::CashfreeRedirect(_)
             | WalletData::PayURedirect(_)
             | WalletData::EaseBuzzRedirect(_)
-            | WalletData::QwikcilverWalletDirect(_) => Err(IntegrationError::NotImplemented(
+            | WalletData::PaymayaRedirect(_)
+            | WalletData::QwikcilverWalletDirect(_)
+            | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
                 "Payment method".to_string(),
                 Default::default(),
             ))?,
@@ -421,7 +424,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | BankRedirectData::OnlineBankingThailand { .. }
             | BankRedirectData::LocalBankRedirect {}
             | BankRedirectData::OpenBankingUk { .. }
-            | BankRedirectData::OpenBanking {}
+            | BankRedirectData::OpenBanking { .. }
             | BankRedirectData::Netbanking { .. } => Err(IntegrationError::NotImplemented(
                 "Payment method".to_string(),
                 Default::default(),
@@ -750,6 +753,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | PaymentMethodData::BankTransfer(_)
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::CardRedirect(_)
@@ -1372,6 +1376,7 @@ where
                 connector_mandate_id: Some(id.expose()),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: None,
+                mandate_metadata: None,
             });
 
         let auto_capture = matches!(
@@ -1399,6 +1404,10 @@ where
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {
@@ -1559,6 +1568,10 @@ impl<F, T> TryFrom<ResponseRouterData<AciCaptureResponse, Self>>
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {
@@ -1761,12 +1774,17 @@ impl<F> TryFrom<ResponseRouterData<AciRefundResponse, Self>>
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             Ok(RefundsResponseData {
                 connector_refund_id: item.response.id,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             })
         };
         Ok(Self {
@@ -1786,6 +1804,7 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             connector_mandate_id: Some(item.response.id.clone()),
             payment_method_id: None,
             connector_mandate_request_reference_id: None,
+            mandate_metadata: None,
         });
 
         let status = if SUCCESSFUL_CODES.contains(&item.response.result.code.as_str()) {
@@ -1807,6 +1826,10 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {

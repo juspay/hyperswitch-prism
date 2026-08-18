@@ -464,6 +464,10 @@ impl Revolv3SaleResponse {
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             let mandate_reference = self.payment_method_id.as_ref().map(|connector_mandate_id| {
@@ -471,6 +475,7 @@ impl Revolv3SaleResponse {
                     connector_mandate_id: Some(connector_mandate_id.to_string()),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
                 }
             });
 
@@ -504,6 +509,7 @@ impl Revolv3AuthorizeResponse {
                     connector_mandate_id: Some(connector_mandate_id.to_string()),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
                 }
             })
         });
@@ -548,6 +554,10 @@ impl Revolv3AuthorizeResponse {
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
             }),
         }
@@ -673,6 +683,10 @@ impl TryFrom<ResponseRouterData<Revolv3PaymentSyncResponse, Self>>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             let mandate_reference = item.response.payment_method.and_then(|payment_method| {
@@ -683,6 +697,7 @@ impl TryFrom<ResponseRouterData<Revolv3PaymentSyncResponse, Self>>
                             connector_mandate_id: Some(connector_mandate_id.to_string()),
                             payment_method_id: None,
                             connector_mandate_request_reference_id: None,
+                            mandate_metadata: None,
                         },
                     )
             });
@@ -817,12 +832,17 @@ impl TryFrom<ResponseRouterData<Revolv3RefundResponse, Self>>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             Ok(RefundsResponseData {
                 connector_refund_id: item.response.invoice.invoice_id.to_string(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             })
         };
 
@@ -873,12 +893,17 @@ impl TryFrom<ResponseRouterData<Revolv3RefundSyncResponse, Self>>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             Ok(RefundsResponseData {
                 connector_refund_id: item.response.invoice_id.to_string(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             })
         };
 

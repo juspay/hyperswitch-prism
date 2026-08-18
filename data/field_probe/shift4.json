@@ -151,7 +151,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Dana": {
         "status": "not_implemented",
@@ -163,7 +163,7 @@
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "EVoucher": {
         "status": "not_implemented",
@@ -224,7 +224,7 @@
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "GoPay": {
         "status": "not_implemented",
@@ -337,7 +337,7 @@
       },
       "MobilePayRedirect": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Momo": {
         "status": "not_implemented",
@@ -377,11 +377,11 @@
       },
       "OpenBanking": {
         "status": "not_supported",
-        "error": "BankRedirect type OpenBanking is not supported by Shift4 is not supported by Shift4"
+        "error": "BankRedirect type OpenBanking { account_number: None, sort_code: None, iban: None, account_holder_name: None, additional_details: None } is not supported by Shift4 is not supported by Shift4"
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "OpenBankingUk": {
         "status": "not_supported",
@@ -400,8 +400,8 @@
         "error": "This feature is not implemented: Payment method"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
       },
       "PayURedirect": {
         "status": "not_implemented",
@@ -417,11 +417,11 @@
       },
       "Paysera": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
@@ -484,8 +484,8 @@
         "error": "This feature is not implemented: Payment method"
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
       },
       "Sofort": {
         "status": "not_supported",
@@ -617,6 +617,12 @@
           },
           "body": "{\"email\":\"test@example.com\"}"
         }
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: get_connector_customer flow for shift4"
       }
     },
     "dispute_accept": {
@@ -755,7 +761,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"captured\":true,\"card\":{\"number\":\"{{$card_number}}\",\"expMonth\":\"{{$card_exp_month}}\",\"expYear\":\"{{$card_exp_year}}\",\"cardholderName\":\"John\"}}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"captured\":true,\"card\":{\"number\":\"{{$card_number}}\",\"expMonth\":\"03\",\"expYear\":\"2030\",\"cardholderName\":\"John\"}}"
         }
       }
     },
@@ -796,7 +802,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":0,\"currency\":\"USD\",\"captured\":false,\"card\":{\"number\":\"{{$card_number}}\",\"expMonth\":\"{{$card_exp_month}}\",\"expYear\":\"{{$card_exp_year}}\",\"cardholderName\":\"John\"}}"
+          "body": "{\"amount\":0,\"currency\":\"USD\",\"captured\":false,\"card\":{\"number\":\"{{$card_number}}\",\"expMonth\":\"03\",\"expYear\":\"2030\",\"cardholderName\":\"John\"}}"
         }
       }
     },
@@ -841,6 +847,11 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: mandate_revoke flow for shift4"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "refund": {
@@ -991,7 +1002,11 @@
             "mandate_type": {
               "multi_use": {
                 "amount": 0,
-                "currency": "USD"
+                "currency": "USD",
+                "amount_money": {
+                  "minor_amount": 0,
+                  "currency": "USD"
+                }
               }
             }
           },

@@ -680,6 +680,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             connector_mandate_id: Some(item.response.transaction_id.to_string()),
             payment_method_id: None,
             connector_mandate_request_reference_id: None,
+            mandate_metadata: None,
         };
 
         Ok(Self {
@@ -796,6 +797,7 @@ impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
                 connector_refund_id: item.response.transaction_id.to_string(),
                 refund_status: common_enums::RefundStatus::from(item.response),
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -812,6 +814,7 @@ impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
                 connector_refund_id: item.response.transaction_id.to_string(),
                 refund_status: common_enums::RefundStatus::from(item.response),
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })

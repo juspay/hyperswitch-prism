@@ -836,6 +836,7 @@ pub enum PaymentMethod<
     AdyenMandatePaymentMethod(Box<AdyenMandate>),
 }
 
+#[serde_with::skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenMandate {
@@ -898,6 +899,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 pub enum AdyenRecurringModel {
     UnscheduledCardOnFile,
     CardOnFile,
+    #[serde(other)]
+    Unknown,
 }
 
 #[serde_with::skip_serializing_none]
@@ -915,6 +918,7 @@ pub struct AdditionalData {
     recurring_shopper_reference: Option<String>,
     network_tx_reference: Option<Secret<String>>,
     /// Network-issued link id chaining related transactions (`transactionLinkId`).
+    #[serde(rename = "transactionLinkId")]
     transaction_link_id: Option<String>,
     funds_availability: Option<String>,
     refusal_reason_raw: Option<String>,
@@ -1386,7 +1390,10 @@ fn get_adyen_card_network(card_network: common_enums::CardNetwork) -> Option<Car
         common_enums::CardNetwork::Accel => Some(CardBrand::Accel),
         common_enums::CardNetwork::Pulse => Some(CardBrand::Pulse),
         common_enums::CardNetwork::Nyce => Some(CardBrand::Nyce),
-        common_enums::CardNetwork::Interac => None,
+        common_enums::CardNetwork::Interac
+        | common_enums::CardNetwork::Prop
+        | common_enums::CardNetwork::PrivateLabel
+        | common_enums::CardNetwork::Dinacard => None,
     }
 }
 
@@ -1567,7 +1574,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | WalletData::CashfreeRedirect(_)
             | WalletData::PayURedirect(_)
             | WalletData::EaseBuzzRedirect(_)
-            | WalletData::QwikcilverWalletDirect(_) => Err(IntegrationError::NotImplemented(
+            | WalletData::PaymayaRedirect(_)
+            | WalletData::QwikcilverWalletDirect(_)
+            | WalletData::GrabpayRedirect { .. }
+            | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
                 ("payment_method").into(),
                 Default::default(),
             )
@@ -2190,6 +2200,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     })?;
                 Ok(Self::AlmaPayLater)
             }
+            PayLaterData::TamaraRedirect { .. } => Err(IntegrationError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Adyen"),
+                Default::default(),
+            )
+            .into()),
             PayLaterData::AtomeRedirect { .. } => {
                 router_data
                     .resource_common_data
@@ -3889,6 +3904,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | PaymentMethodData::OpenBanking(_)
                 | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
                 | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+                | PaymentMethodData::CardWithNoCvc(_)
                 | PaymentMethodData::MobilePayment(_) => Err(IntegrationError::NotImplemented(
                     ("payment method").into(),
                     Default::default(),
@@ -4104,6 +4120,8 @@ pub enum ActionType {
     #[serde(rename = "qrCode")]
     QrCode,
     Voucher,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -4159,6 +4177,8 @@ pub enum AdyenWebhookStatus {
     Expired,
     AdjustedAuthorization,
     AdjustAuthorizationFailed,
+    #[serde(other)]
+    Unknown,
 }
 
 //Creating custom struct which can be consumed in Psync Handler triggered from Webhooks
@@ -4196,6 +4216,8 @@ pub enum AdyenStatus {
     RedirectShopper,
     Refused,
     PresentToShopper,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -4253,6 +4275,7 @@ impl ForeignTryFrom<(bool, AdyenWebhookStatus)> for AttemptStatus {
                     ConnectorError::response_handling_failed_http_status_unknown()
                 ))
             }
+            AdyenWebhookStatus::Unknown => Ok(Self::Unspecified),
         }
     }
 }
@@ -4281,6 +4304,9 @@ fn get_adyen_payment_status(
             Some(common_enums::PaymentMethodType::Pix) => AttemptStatus::AuthenticationPending,
             _ => AttemptStatus::Pending,
         },
+        // Unknown means Adyen returned a status value not in our enum; signal hyperswitch core
+        // to retain the previous attempt status rather than corrupting DB state.
+        AdyenStatus::Unknown => AttemptStatus::Unspecified,
     }
 }
 
@@ -4706,6 +4732,10 @@ pub fn get_adyen_response(
                 .and_then(|data| data.extract_network_advice_code()),
             network_decline_code,
             network_error_message,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     } else {
         None
@@ -4718,6 +4748,7 @@ pub fn get_adyen_response(
             connector_mandate_id: Some(mandate_id.expose()),
             payment_method_id: None,
             connector_mandate_request_reference_id: None,
+            mandate_metadata: None,
         });
     let network_txn_id = response
         .additional_data
@@ -4816,6 +4847,10 @@ pub fn get_present_to_shopper_response(
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     } else {
         None
@@ -4907,6 +4942,10 @@ pub fn get_redirection_error_response(
             network_advice_code,
             network_decline_code,
             network_error_message,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     };
     // We don't get connector transaction id for redirections in Adyen.
@@ -4962,6 +5001,10 @@ pub fn get_qr_code_response(
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     } else {
         None
@@ -5089,6 +5132,10 @@ pub fn get_webhook_response(
             network_advice_code: None,
             network_decline_code,
             network_error_message,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     } else {
         None
@@ -5120,6 +5167,7 @@ pub fn get_webhook_response(
                 connector_mandate_id: Some(mandate_id.clone().expose()),
                 payment_method_id: response.recurring_shopper_reference.clone(),
                 connector_mandate_request_reference_id: None,
+                mandate_metadata: None,
             });
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(
@@ -5251,6 +5299,10 @@ pub fn get_redirection_response(
             network_advice_code: None,
             network_decline_code,
             network_error_message,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     } else {
         None
@@ -5436,6 +5488,8 @@ pub enum DisputeStatus {
     Lost,
     Accepted,
     Won,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Deserialize)]
@@ -5496,6 +5550,7 @@ pub(crate) fn get_adyen_mandate_reference_from_webhook(
                 connector_mandate_id: Some(mandate_id.peek().to_string()),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: None,
+                mandate_metadata: None,
             })
         })
 }
@@ -5638,7 +5693,12 @@ pub(crate) fn get_adyen_webhook_event_type(
         WebhookEventCode::SecondChargeback | WebhookEventCode::PrearbitrationLost => {
             Ok(EventType::DisputeLost)
         }
-        WebhookEventCode::Unknown => Err(WebhookError::WebhookEventTypeNotFound),
+        WebhookEventCode::Unknown => {
+            tracing::warn!(
+                "Received unknown Adyen webhook event code; acknowledging without processing"
+            );
+            Ok(EventType::IncomingWebhookEventUnspecified)
+        }
     }
 }
 
@@ -5703,7 +5763,7 @@ fn get_additional_data_for_repeat_payment<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 >(
     item: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
-) -> Option<AdditionalData> {
+) -> Result<Option<AdditionalData>, Error> {
     let (authorisation_type, manual_capture) = match item.request.capture_method {
         Some(common_enums::CaptureMethod::Manual)
         | Some(common_enums::CaptureMethod::ManualMultiple) => {
@@ -5727,10 +5787,20 @@ fn get_additional_data_for_repeat_payment<
         Some("false".to_string())
     };
 
-    Some(AdditionalData {
+    let transaction_link_id = match &item.request.mandate_reference {
+        MandateReferenceId::NetworkMandateId(ref_data) => ref_data.transaction_link_id.clone(),
+        MandateReferenceId::NetworkTokenWithNTI(ref_data) => ref_data.transaction_link_id.clone(),
+        MandateReferenceId::ConnectorMandateId(_) => None,
+    };
+
+    let capture_delay_hours =
+        get_capture_delay_hours(&item.request.metadata, item.request.capture_method)?;
+
+    Ok(Some(AdditionalData {
         authorisation_type,
         manual_capture,
         execute_three_d,
+        capture_delay_hours,
         network_tx_reference: None,
         recurring_detail_reference: None,
         recurring_shopper_reference: None,
@@ -5741,8 +5811,9 @@ fn get_additional_data_for_repeat_payment<
                 .as_ref()
                 .and_then(to_adyen_exemption)
         }),
+        transaction_link_id,
         ..AdditionalData::default()
-    })
+    }))
 }
 
 type RecurringDetails = (Option<AdyenRecurringModel>, Option<bool>, Option<String>);
@@ -5882,68 +5953,8 @@ fn get_additional_data<
         Some("false".to_string())
     };
 
-    // Mirror hyperswitch: metadata.capture_delay_hours -> additionalData.captureDelayHours.
-    let capture_delay_hours = {
-        let metadata_capture_delay =
-            get_adyen_metadata(item.request.metadata.clone().map(|m| m.expose()))
-                .capture_delay_hours;
-
-        let capture_method = item.request.capture_method.unwrap_or_default();
-        match capture_method {
-            common_enums::CaptureMethod::Manual | common_enums::CaptureMethod::ManualMultiple => {
-                // For manual capture, capture_delay_hours should be None
-                if let Some(hours) = metadata_capture_delay {
-                    return Err(IntegrationError::InvalidDataFormat {
-                        field_name: "metadata.capture_delay_hours",
-                        context: IntegrationErrorContext {
-                            additional_context: Some(format!(
-                                "Adyen does not accept capture_delay_hours for manual capture \
-                                 (capture_method = {capture_method:?}), but metadata supplied {hours}"
-                            )),
-                            suggested_action: Some(
-                                "Remove capture_delay_hours from metadata when capture_method is \
-                                 Manual/ManualMultiple, or switch to automatic capture"
-                                    .to_string(),
-                            ),
-                            doc_url: Some(
-                                "https://docs.adyen.com/online-payments/capture/".to_string(),
-                            ),
-                        },
-                    }
-                    .into());
-                }
-                None
-            }
-            // For automatic capture, only 0 (or None) is valid
-            common_enums::CaptureMethod::Automatic
-            | common_enums::CaptureMethod::Scheduled
-            | common_enums::CaptureMethod::SequentialAutomatic => match metadata_capture_delay {
-                None => None,
-                Some(0) => Some(0),
-                Some(hours) => {
-                    return Err(IntegrationError::InvalidDataFormat {
-                        field_name: "metadata.capture_delay_hours",
-                        context: IntegrationErrorContext {
-                            additional_context: Some(format!(
-                                "Adyen only accepts capture_delay_hours of 0 (or unset) for \
-                                 automatic capture (capture_method = {capture_method:?}), but \
-                                 metadata supplied {hours}"
-                            )),
-                            suggested_action: Some(
-                                "Set metadata.capture_delay_hours to 0 (or omit it) for automatic \
-                                 capture"
-                                    .to_string(),
-                            ),
-                            doc_url: Some(
-                                "https://docs.adyen.com/online-payments/capture/".to_string(),
-                            ),
-                        },
-                    }
-                    .into());
-                }
-            },
-        }
-    };
+    let capture_delay_hours =
+        get_capture_delay_hours(&item.request.metadata, item.request.capture_method)?;
 
     Ok(Some(AdditionalData {
         authorisation_type,
@@ -6176,6 +6187,7 @@ impl<F, Req> TryFrom<ResponseRouterData<AdyenRefundResponse, Self>>
             connector_refund_id: response.psp_reference,
             refund_status: status,
             status_code: http_code,
+            acquirer_reference_number: None,
         };
 
         Ok(Self {
@@ -6380,7 +6392,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .get_optional_billing_full_name()
         });
 
-        let additional_data = get_additional_data_for_setup_mandate(&item.router_data);
+        let additional_data = get_additional_data_for_setup_mandate(&item.router_data)?;
 
         let adyen_metadata =
             get_adyen_metadata(item.router_data.request.metadata.clone().expose_option());
@@ -6511,6 +6523,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
                 | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                 | PaymentMethodData::NetworkToken(_)
+                | PaymentMethodData::CardWithNoCvc(_)
                 | PaymentMethodData::MobilePayment(_)
                 | PaymentMethodData::PaymentMethodToken(_) => Err(
                     IntegrationError::NotImplemented(("payment method").into(), Default::default())
@@ -6687,7 +6700,7 @@ fn get_additional_data_for_setup_mandate<
         SetupMandateRequestData<T>,
         PaymentsResponseData,
     >,
-) -> Option<AdditionalData> {
+) -> Result<Option<AdditionalData>, Error> {
     let (authorisation_type, manual_capture) = match item.request.capture_method {
         Some(common_enums::CaptureMethod::Manual)
         | Some(common_enums::CaptureMethod::ManualMultiple) => {
@@ -6711,10 +6724,14 @@ fn get_additional_data_for_setup_mandate<
         Some("false".to_string())
     };
 
-    Some(AdditionalData {
+    let capture_delay_hours =
+        get_capture_delay_hours(&item.request.metadata, item.request.capture_method)?;
+
+    Ok(Some(AdditionalData {
         authorisation_type,
         manual_capture,
         execute_three_d,
+        capture_delay_hours,
         network_tx_reference: None,
         recurring_detail_reference: None,
         recurring_shopper_reference: None,
@@ -6722,7 +6739,7 @@ fn get_additional_data_for_setup_mandate<
         riskdata,
         sca_exemption: None,
         ..AdditionalData::default()
-    })
+    }))
 }
 
 fn is_mandate_payment_for_setup_mandate<
@@ -6779,7 +6796,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let (recurring_processing_model, store_payment_method, shopper_reference) =
             get_recurring_processing_model_for_repeat_payment(&item.router_data)?;
         let browser_info = None;
-        let additional_data = get_additional_data_for_repeat_payment(&item.router_data);
+        let additional_data = get_additional_data_for_repeat_payment(&item.router_data)?;
         let return_url = item.router_data.request.router_return_url.clone().ok_or(
             IntegrationError::MissingRequiredField {
                 field_name: "return_url",
@@ -6846,7 +6863,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             cvc: None,
                             holder_name: test_holder_name.or(card_holder_name),
                             brand: Some(brand),
-                            network_payment_reference: Some(Secret::new(network_mandate_id)),
+                            network_payment_reference: Some(Secret::new(
+                                network_mandate_id.network_transaction_id.clone(),
+                            )),
                         };
                         PaymentMethod::AdyenPaymentMethod(Box::new(AdyenPaymentMethod::AdyenCard(
                             Box::new(adyen_card),
@@ -6903,7 +6922,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .map(|m| m.expose()),
         );
 
-        let (store, splits) = (adyen_metadata.store.clone(), None);
+        let (store, splits) = match item.router_data.request.split_payments.as_ref() {
+            Some(SplitPaymentsDetails::AdyenSplitPayment(adyen_split_payment)) => {
+                get_adyen_split_request(adyen_split_payment, item.router_data.request.currency)
+            }
+            _ => (adyen_metadata.store.clone(), None),
+        };
         let device_fingerprint = adyen_metadata.device_fingerprint.clone();
         let platform_chargeback_logic = adyen_metadata.platform_chargeback_logic.clone();
 
@@ -7069,6 +7093,10 @@ impl<F, Req> TryFrom<ResponseRouterData<AdyenDisputeAcceptResponse, Self>>
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             };
 
             Ok(Self {
@@ -7274,6 +7302,10 @@ impl<F, Req> TryFrom<ResponseRouterData<AdyenSubmitEvidenceResponse, Self>>
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             };
 
             Ok(Self {
@@ -7396,6 +7428,10 @@ impl<F, Req> TryFrom<ResponseRouterData<AdyenDefendDisputeResponse, Self>>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..router_data
             }),
@@ -7406,12 +7442,15 @@ impl<F, Req> TryFrom<ResponseRouterData<AdyenDefendDisputeResponse, Self>>
 pub(crate) fn get_dispute_stage_and_status(
     code: WebhookEventCode,
     dispute_status: Option<DisputeStatus>,
-) -> (common_enums::DisputeStage, common_enums::DisputeStatus) {
+) -> Result<
+    (common_enums::DisputeStage, common_enums::DisputeStatus),
+    error_stack::Report<WebhookError>,
+> {
     use common_enums::{DisputeStage, DisputeStatus as HSDisputeStatus};
 
     match code {
         WebhookEventCode::NotificationOfChargeback => {
-            (DisputeStage::PreDispute, HSDisputeStatus::DisputeOpened)
+            Ok((DisputeStage::PreDispute, HSDisputeStatus::DisputeOpened))
         }
         WebhookEventCode::Chargeback => {
             let status = match dispute_status {
@@ -7421,30 +7460,53 @@ pub(crate) fn get_dispute_stage_and_status(
                 Some(DisputeStatus::Lost) | None => HSDisputeStatus::DisputeLost,
                 Some(DisputeStatus::Accepted) => HSDisputeStatus::DisputeAccepted,
                 Some(DisputeStatus::Won) => HSDisputeStatus::DisputeWon,
+                Some(DisputeStatus::Unknown) => {
+                    return Err(
+                        error_stack::report!(WebhookError::WebhookBodyDecodingFailed)
+                            .attach_printable(
+                                "Received unknown Adyen dispute status in Chargeback event; \
+                         cannot determine dispute state without a known status",
+                            ),
+                    );
+                }
             };
-            (DisputeStage::Dispute, status)
+            Ok((DisputeStage::Dispute, status))
         }
         WebhookEventCode::ChargebackReversed => {
+            if let Some(DisputeStatus::Unknown) = dispute_status {
+                return Err(
+                    error_stack::report!(WebhookError::WebhookBodyDecodingFailed).attach_printable(
+                        "Received unknown Adyen dispute status in ChargebackReversed event",
+                    ),
+                );
+            }
             let status = match dispute_status {
                 Some(DisputeStatus::Pending) => HSDisputeStatus::DisputeChallenged,
                 _ => HSDisputeStatus::DisputeWon,
             };
-            (DisputeStage::Dispute, status)
+            Ok((DisputeStage::Dispute, status))
         }
         WebhookEventCode::SecondChargeback => {
-            (DisputeStage::PreArbitration, HSDisputeStatus::DisputeLost)
+            Ok((DisputeStage::PreArbitration, HSDisputeStatus::DisputeLost))
         }
         WebhookEventCode::PrearbitrationWon => {
+            if let Some(DisputeStatus::Unknown) = dispute_status {
+                return Err(
+                    error_stack::report!(WebhookError::WebhookBodyDecodingFailed).attach_printable(
+                        "Received unknown Adyen dispute status in PrearbitrationWon event",
+                    ),
+                );
+            }
             let status = match dispute_status {
                 Some(DisputeStatus::Pending) => HSDisputeStatus::DisputeOpened,
                 _ => HSDisputeStatus::DisputeWon,
             };
-            (DisputeStage::PreArbitration, status)
+            Ok((DisputeStage::PreArbitration, status))
         }
         WebhookEventCode::PrearbitrationLost => {
-            (DisputeStage::PreArbitration, HSDisputeStatus::DisputeLost)
+            Ok((DisputeStage::PreArbitration, HSDisputeStatus::DisputeLost))
         }
-        _ => (DisputeStage::Dispute, HSDisputeStatus::DisputeOpened),
+        _ => Ok((DisputeStage::Dispute, HSDisputeStatus::DisputeOpened)),
     }
 }
 
@@ -8181,4 +8243,64 @@ fn construct_charge_response(
         store,
         split_items: splits,
     })
+}
+
+fn get_capture_delay_hours(
+    metadata: &Option<SecretSerdeValue>,
+    capture_method: Option<common_enums::CaptureMethod>,
+) -> Result<Option<u64>, Error> {
+    let metadata_capture_delay =
+        get_adyen_metadata(metadata.clone().map(|m| m.expose())).capture_delay_hours;
+
+    // Mirror hyperswitch: metadata.capture_delay_hours -> additionalData.captureDelayHours.
+    let capture_method = capture_method.unwrap_or_default();
+    match capture_method {
+        common_enums::CaptureMethod::Manual | common_enums::CaptureMethod::ManualMultiple => {
+            // For manual capture, capture_delay_hours should be None.
+            if let Some(hours) = metadata_capture_delay {
+                return Err(IntegrationError::InvalidDataFormat {
+                    field_name: "metadata.capture_delay_hours",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(format!(
+                            "Adyen does not accept capture_delay_hours for manual capture \
+                             (capture_method = {capture_method:?}), but metadata supplied {hours}"
+                        )),
+                        suggested_action: Some(
+                            "Remove capture_delay_hours from metadata when capture_method is \
+                             Manual/ManualMultiple, or switch to automatic capture"
+                                .to_string(),
+                        ),
+                        doc_url: Some(
+                            "https://docs.adyen.com/online-payments/capture/".to_string(),
+                        ),
+                    },
+                }
+                .into());
+            }
+            Ok(None)
+        }
+        // For automatic capture, only 0 (or None) is valid.
+        common_enums::CaptureMethod::Automatic
+        | common_enums::CaptureMethod::Scheduled
+        | common_enums::CaptureMethod::SequentialAutomatic => match metadata_capture_delay {
+            None => Ok(None),
+            Some(0) => Ok(Some(0)),
+            Some(hours) => Err(IntegrationError::InvalidDataFormat {
+                field_name: "metadata.capture_delay_hours",
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "Adyen only accepts capture_delay_hours of 0 (or unset) for \
+                         automatic capture (capture_method = {capture_method:?}), but \
+                         metadata supplied {hours}"
+                    )),
+                    suggested_action: Some(
+                        "Set metadata.capture_delay_hours to 0 (or omit it) for automatic capture"
+                            .to_string(),
+                    ),
+                    doc_url: Some("https://docs.adyen.com/online-payments/capture/".to_string()),
+                },
+            }
+            .into()),
+        },
+    }
 }

@@ -58,6 +58,14 @@ pub fn create_router(state: AppState) -> Router {
             post(handlers::composite::payment_methods::recharge),
         )
         .route(
+            "/composite/payment_methods/eligibility",
+            post(handlers::composite::payment_methods::eligibility),
+        )
+        .route(
+            "/composite/pre_authenticate",
+            post(handlers::composite::payments::pre_authenticate),
+        )
+        .route(
             "/composite/frm/pre_risk_check",
             post(handlers::composite::frm::pre_risk_check),
         )
@@ -105,6 +113,10 @@ pub fn create_router(state: AppState) -> Router {
             "/payments/repeat_everything",
             post(handlers::payments::repeat_everything),
         )
+        .route(
+            "/payments/revoke_mandate",
+            post(handlers::payments::revoke_mandate),
+        )
         .route("/payments/refund", post(handlers::payments::refund))
         // .route("/payments/dispute", post(handlers::payments::dispute))
         .route(
@@ -122,6 +134,10 @@ pub fn create_router(state: AppState) -> Router {
         .route(
             "/payments/server_authentication_token",
             post(handlers::payments::server_authentication_token),
+        )
+        .route(
+            "/payments/client_authentication_token",
+            post(handlers::payments::client_authentication_token),
         )
         .route("/payments/transform", post(handlers::payments::transform))
         .route(

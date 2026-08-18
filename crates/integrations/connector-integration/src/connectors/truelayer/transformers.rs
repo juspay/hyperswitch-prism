@@ -12,7 +12,9 @@ use domain_types::{
         VerifyWebhookSourceFlowData,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
-    payment_method_data::{BankRedirectData, PaymentMethodData, PaymentMethodDataTypes},
+    payment_method_data::{
+        BankRedirectData, DefaultPCIHolder, PaymentMethodData, PaymentMethodDataTypes,
+    },
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_request_types::VerifyWebhookSourceRequestData,
@@ -21,7 +23,7 @@ use domain_types::{
     utils::is_payment_failure,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::Secret;
+use hyperswitch_masking::{PeekInterface, Secret};
 use openssl::{
     bn::{BigNum, BigNumContext},
     ec::{EcGroup, EcKey, EcPoint},
@@ -31,6 +33,7 @@ use openssl::{
     pkey::Public,
 };
 use serde::{Deserialize, Serialize};
+use serde_with::skip_serializing_none;
 use std::collections::HashMap;
 
 use crate::{connectors::truelayer::TruelayerRouterData, types::ResponseRouterData, utils};
@@ -41,6 +44,9 @@ const SCOPE: &str = "payments";
 const SIG_BYTES_EXPECTED_LENGTH: usize = 132;
 const P521_COORDINATE_BYTE_LEN: usize = 66;
 const PREFIX: &str = "/api";
+const SCHEME_SELECTION_TYPE: &str = "instant_preferred";
+const PAYMENT_METHOD_TYPE: &str = "bank_transfer";
+const BENEFICIARY_TYPE: &str = "merchant_account";
 
 pub struct TruelayerAuthType {
     pub(super) client_id: Secret<String>,
@@ -241,12 +247,47 @@ struct PaymentMethod {
     beneficiary: Beneficiary,
 }
 
+#[skip_serializing_none]
 #[derive(Debug, Clone, Serialize, PartialEq)]
 struct ProviderSelection {
+    #[serde(rename = "type")]
+    _type: ProviderSelectionType,
+    provider_id: Option<String>,
+    remitter: Option<Remitter>,
+    scheme_selection: Option<SchemeSelection>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+struct SchemeSelection {
     #[serde(rename = "type")]
     _type: String,
 }
 
+#[skip_serializing_none]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+struct Remitter {
+    account_identifier: TruelayerAccountIdentifier,
+    account_holder_name: Option<Secret<String>>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TruelayerAccountIdentifier {
+    #[serde(rename = "type")]
+    identifier_type: TruelayerAccountIdentifierType,
+    sort_code: Option<Secret<String>>,
+    account_number: Option<Secret<String>>,
+    iban: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+enum ProviderSelectionType {
+    UserSelected,
+    Preselected,
+}
+
+#[skip_serializing_none]
 #[derive(Debug, Clone, Serialize, PartialEq)]
 struct Beneficiary {
     #[serde(rename = "type")]
@@ -342,7 +383,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         match &item.router_data.request.payment_method_data {
-            PaymentMethodData::BankRedirect(BankRedirectData::OpenBanking { .. }) => {
+            PaymentMethodData::BankRedirect(BankRedirectData::OpenBanking {
+                account_number,
+                sort_code,
+                iban,
+                account_holder_name,
+                additional_details,
+            }) => {
                 let currency = item.router_data.request.currency;
                 let amount_in_minor = item.router_data.request.amount;
 
@@ -357,13 +404,56 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
                 let metadata = TruelayerMetadata::try_from(&item.router_data.connector_config)?;
 
+                let provider_id = additional_details
+                    .as_ref()
+                    .and_then(|details| details.peek().get("provider_id"))
+                    .and_then(|pid| pid.as_str())
+                    .map(|s| s.to_string());
+
+                let provider_selection = if provider_id.is_some()
+                    && account_holder_name.is_some()
+                    && ((account_number.is_some() && sort_code.is_some()) || iban.is_some())
+                {
+                    ProviderSelection {
+                        _type: ProviderSelectionType::Preselected,
+                        provider_id: provider_id.clone(),
+                        remitter: Some(Remitter {
+                            account_holder_name: account_holder_name.clone(),
+                            account_identifier: if account_number.is_some() && sort_code.is_some() {
+                                TruelayerAccountIdentifier {
+                                    identifier_type:
+                                        TruelayerAccountIdentifierType::SortCodeAccountNumber,
+                                    sort_code: sort_code.clone(),
+                                    account_number: account_number.clone(),
+                                    iban: None,
+                                }
+                            } else {
+                                TruelayerAccountIdentifier {
+                                    identifier_type: TruelayerAccountIdentifierType::Iban,
+                                    sort_code: None,
+                                    account_number: None,
+                                    iban: iban.clone(),
+                                }
+                            },
+                        }),
+                        scheme_selection: Some(SchemeSelection {
+                            _type: SCHEME_SELECTION_TYPE.to_string(),
+                        }),
+                    }
+                } else {
+                    ProviderSelection {
+                        _type: ProviderSelectionType::UserSelected,
+                        provider_id: None,
+                        remitter: None,
+                        scheme_selection: None,
+                    }
+                };
+
                 let payment_method = PaymentMethod {
-                    _type: "bank_transfer".to_string(),
-                    provider_selection: ProviderSelection {
-                        _type: "user_selected".to_string(),
-                    },
+                    _type: PAYMENT_METHOD_TYPE.to_string(),
+                    provider_selection,
                     beneficiary: Beneficiary {
-                        _type: "merchant_account".to_string(),
+                        _type: BENEFICIARY_TYPE.to_string(),
                         merchant_account_id: metadata.merchant_account_id.clone(),
                         account_holder_name: metadata.account_holder_name.clone(),
                         reference: normalize_connector_request_reference_id(
@@ -477,6 +567,10 @@ impl<F, T> TryFrom<ResponseRouterData<TruelayerPaymentsResponseData, Self>>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             };
 
             Ok(Self {
@@ -547,6 +641,17 @@ pub struct TruelayerPSyncResponse {
     failure_reason: Option<String>,
     failure_stage: Option<String>,
     payment_source: Option<TruelayerPaymentSource>,
+    payment_method: Option<TruelayerPaymentMethod>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TruelayerPaymentMethod {
+    provider_selection: Option<TruelayerProviderSelection>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TruelayerProviderSelection {
+    provider_id: Option<String>,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<TruelayerPSyncResponseData, Self>>
@@ -599,6 +704,10 @@ impl<F, T> TryFrom<ResponseRouterData<TruelayerPSyncResponseData, Self>>
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     };
 
                     Ok(Self {
@@ -610,12 +719,65 @@ impl<F, T> TryFrom<ResponseRouterData<TruelayerPSyncResponseData, Self>>
                         ..item.router_data
                     })
                 } else {
+                    let account_holder_name = response
+                        .payment_source
+                        .as_ref()
+                        .and_then(|s| s.account_holder_name.clone());
+
+                    let mut sort_code: Option<Secret<String>> = None;
+                    let mut account_number: Option<Secret<String>> = None;
+                    let mut iban: Option<Secret<String>> = None;
+
+                    if let Some(source) = response.payment_source.as_ref() {
+                        for identifier in source.account_identifiers.iter().flatten() {
+                            match identifier.identifier_type {
+                                TruelayerAccountIdentifierType::SortCodeAccountNumber => {
+                                    sort_code = identifier.sort_code.clone();
+                                    account_number = identifier.account_number.clone();
+                                }
+                                TruelayerAccountIdentifierType::Iban => {
+                                    iban = identifier.iban.clone();
+                                }
+                                TruelayerAccountIdentifierType::Unknown => {}
+                            }
+                        }
+                    }
+
+                    let provider_id = response
+                        .payment_method
+                        .as_ref()
+                        .and_then(|pm| pm.provider_selection.as_ref())
+                        .and_then(|ps| ps.provider_id.clone());
+
+                    let has_returned_open_banking_details = provider_id.is_some()
+                        && account_holder_name.is_some()
+                        && ((account_number.is_some() && sort_code.is_some()) || iban.is_some());
+
+                    let additional_details = provider_id
+                        .map(|pid| Secret::new(serde_json::json!({ "provider_id": pid })));
+
+                    let connector_returned_payment_method_details =
+                        if has_returned_open_banking_details {
+                            Some(PaymentMethodData::<DefaultPCIHolder>::BankRedirect(
+                                BankRedirectData::OpenBanking {
+                                    account_number,
+                                    sort_code,
+                                    iban,
+                                    account_holder_name,
+                                    additional_details,
+                                },
+                            ))
+                        } else {
+                            None
+                        };
+
                     Ok(Self {
                         resource_common_data: PaymentFlowData {
                             status,
                             sender_payment_instrument_id: response
                                 .payment_source
                                 .and_then(|source| source.id),
+                            connector_returned_payment_method_details,
                             ..item.router_data.resource_common_data
                         },
                         response: Ok(PaymentsResponseData::TransactionResponse {
@@ -680,6 +842,10 @@ impl<F, T> TryFrom<ResponseRouterData<TruelayerPSyncResponseData, Self>>
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     };
 
                     Ok(Self {
@@ -773,6 +939,7 @@ impl TryFrom<ResponseRouterData<TruelayerRefundResponse, Self>>
                 connector_refund_id: item.response.id.to_string(),
                 refund_status: common_enums::RefundStatus::Pending,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -835,12 +1002,17 @@ impl TryFrom<ResponseRouterData<TruelayerRsyncResponse, Self>>
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     })
                 } else {
                     Ok(RefundsResponseData {
                         connector_refund_id: rsync_response.id,
                         refund_status: status,
                         status_code: item.http_code,
+                        acquirer_reference_number: None,
                     })
                 };
 
@@ -871,6 +1043,10 @@ impl TryFrom<ResponseRouterData<TruelayerRsyncResponse, Self>>
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     })
                 } else {
                     Ok(RefundsResponseData {
@@ -883,6 +1059,7 @@ impl TryFrom<ResponseRouterData<TruelayerRsyncResponse, Self>>
                         })?,
                         refund_status: status,
                         status_code: item.http_code,
+                        acquirer_reference_number: None,
                     })
                 };
 
@@ -1015,9 +1192,21 @@ pub struct TruelayerWebhookBody {
     pub payment_source: Option<TruelayerPaymentSource>,
 }
 
+/// Discriminator for the type of account identifier provided in a payment source.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum TruelayerAccountIdentifierType {
+    SortCodeAccountNumber,
+    Iban,
+    #[serde(other)]
+    Unknown,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TruelayerPaymentSource {
     pub id: Option<String>,
+    pub account_holder_name: Option<Secret<String>>,
+    pub account_identifiers: Option<Vec<TruelayerAccountIdentifier>>,
 }
 
 pub fn get_webhook_event(

@@ -281,6 +281,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                 .unwrap_or_default()
         };
 
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.error_code.unwrap_or_else(|| "UNKNOWN".to_string()),
@@ -294,6 +296,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     }
 }
@@ -479,6 +485,7 @@ macros::macro_connector_flow_status_impls!(
         VoidPC,
         PaymentMethodToken,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         ServerAuthenticationToken,
         ServerSessionAuthenticationToken,
         CreateOrder,

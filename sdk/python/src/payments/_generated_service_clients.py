@@ -11,6 +11,10 @@ class CustomerClient(_ConnectorClientBase):
         """CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information."""
         return self._execute_flow("customer_create", request, _pb2.CustomerServiceCreateResponse, options)
 
+    def customer_get(self, request, options=None):
+        """CustomerService.Get — Retrieves customer details from the payment processor. Callers typically use this before Create to implement get-or-create semantics for connectors that reject duplicates (e.g. Glomopay)."""
+        return self._execute_flow("customer_get", request, _pb2.CustomerServiceGetResponse, options)
+
 class DisputeClient(_ConnectorClientBase):
     """DisputeService flows"""
 
@@ -84,6 +88,10 @@ class PaymentMethodClient(_ConnectorClientBase):
     def eligibility(self, request, options=None):
         """PaymentMethodService.Eligibility — Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check)"""
         return self._execute_flow("eligibility", request, _pb2.PaymentMethodServiceEligibilityResponse, options)
+
+    def refresh(self, request, options=None):
+        """PaymentMethodService.Refresh — Refresh a payment method the caller already holds in full. The request carries the instrument itself, not a reference to it: use Refresh when you own the complete payment method details and the provider exposes an endpoint that evaluates them."""
+        return self._execute_flow("refresh", request, _pb2.PaymentMethodServiceRefreshResponse, options)
 
     def tokenize(self, request, options=None):
         """PaymentMethodService.Tokenize — Tokenize payment method for secure storage. Replaces raw card details with secure token for one-click payments and recurring billing."""
@@ -162,6 +170,10 @@ class PayoutClient(_ConnectorClientBase):
     def payout_create_recipient(self, request, options=None):
         """PayoutService.CreateRecipient — Create payout recipient."""
         return self._execute_flow("payout_create_recipient", request, _pb2.PayoutServiceCreateRecipientResponse, options)
+
+    def payout_eligibility(self, request, options=None):
+        """PayoutService.Eligibility — Check eligibility of a payout before initiating it (e.g. SEPA VoP / payee verification)."""
+        return self._execute_flow("payout_eligibility", request, _pb2.PayoutMethodEligibilityResponse, options)
 
     def payout_enroll_disburse_account(self, request, options=None):
         """PayoutService.EnrollDisburseAccount — Enroll disburse account."""

@@ -79,6 +79,7 @@ pub enum Bank {
     Pix(PixBankTransfer),
     PixKey(PixKeyBankTransfer),
     PixEmv(PixEmvBankTransfer),
+    OpenBanking(OpenBanking),
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug)]
@@ -134,6 +135,9 @@ pub struct SepaBankTransfer {
 
     /// [8 / 11 digits] Bank Identifier Code (bic) / Swift Code - used in many countries for identifying a bank and it's branches
     pub bic: Option<Secret<String>>,
+
+    /// Name of the account holder. For a debtor (source) account this is the ordering party.
+    pub account_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug)]
@@ -152,6 +156,15 @@ pub struct PixBankTransfer {
 
     /// An 8-digit routing code that uniquely identifies the specific bank, fintech, or payment institution
     pub ispb: Option<Secret<String>>,
+
+    /// The bank code (COMPE code) used to identify the bank
+    pub bank_code: Option<String>,
+
+    /// The bank account type
+    pub bank_account_type: Option<common_enums::BankType>,
+
+    /// The account holder name
+    pub account_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug)]
@@ -186,6 +199,14 @@ pub struct Interac {
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug)]
+pub struct OpenBanking {
+    /// Account holder name
+    pub account_holder_name: Secret<String>,
+    /// International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.
+    pub iban: Secret<String>,
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug)]
 pub struct OpenBankingUk {
     /// Account holder name
     pub account_holder_name: Secret<String>,
@@ -197,6 +218,9 @@ pub struct OpenBankingUk {
 pub struct Passthrough {
     /// PSP token generated for the payout method
     pub psp_token: Secret<String>,
+
+    /// PSP customer ID
+    pub psp_customer_id: Option<Secret<String>>,
 
     /// Payout method type of the token
     pub token_type: common_enums::PaymentMethodType,

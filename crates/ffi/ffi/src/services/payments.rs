@@ -2,10 +2,10 @@ use crate::macros::{req_transformer, res_transformer};
 use external_services;
 use grpc_api_types::payments::{ConnectorError, IntegrationError};
 use grpc_api_types::payments::{
-    CustomerServiceCreateRequest, CustomerServiceCreateResponse, DisputeServiceAcceptRequest,
-    DisputeServiceAcceptResponse, DisputeServiceDefendRequest, DisputeServiceDefendResponse,
-    DisputeServiceSubmitEvidenceRequest, DisputeServiceSubmitEvidenceResponse,
-    EventServiceHandleRequest, EventServiceHandleResponse,
+    CustomerServiceCreateRequest, CustomerServiceCreateResponse, CustomerServiceGetRequest,
+    CustomerServiceGetResponse, DisputeServiceAcceptRequest, DisputeServiceAcceptResponse,
+    DisputeServiceDefendRequest, DisputeServiceDefendResponse, DisputeServiceSubmitEvidenceRequest,
+    DisputeServiceSubmitEvidenceResponse, EventServiceHandleRequest, EventServiceHandleResponse,
     MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
@@ -19,6 +19,7 @@ use grpc_api_types::payments::{
     PaymentMethodAuthenticationServicePreAuthenticateRequest,
     PaymentMethodAuthenticationServicePreAuthenticateResponse,
     PaymentMethodServiceEligibilityRequest, PaymentMethodServiceEligibilityResponse,
+    PaymentMethodServiceRefreshRequest, PaymentMethodServiceRefreshResponse,
     PaymentMethodServiceTokenizeRequest, PaymentMethodServiceTokenizeResponse,
     PaymentServiceAuthorizeRequest, PaymentServiceAuthorizeResponse, PaymentServiceCaptureRequest,
     PaymentServiceCaptureResponse, PaymentServiceCreateOrderRequest,
@@ -37,10 +38,11 @@ use grpc_api_types::payments::{
 use domain_types::{
     connector_flow::{
         Accept, Authenticate, Authorize, Capture, ClientAuthenticationToken,
-        CreateConnectorCustomer, CreateOrder, DefendDispute, IncrementalAuthorization,
-        MandateRevoke, PSync, PaymentMethodEligibility, PaymentMethodToken, PostAuthenticate,
-        PreAuthenticate, RSync, Refund, RepeatPayment, ServerAuthenticationToken,
-        ServerSessionAuthenticationToken, SetupMandate, SubmitEvidence, Void, VoidPC,
+        CreateConnectorCustomer, CreateOrder, DefendDispute, GetConnectorCustomer,
+        IncrementalAuthorization, MandateRevoke, PSync, PaymentMethodEligibility,
+        PaymentMethodToken, PostAuthenticate, PreAuthenticate, RSync, RefreshPaymentMethod, Refund,
+        RepeatPayment, ServerAuthenticationToken, ServerSessionAuthenticationToken, SetupMandate,
+        SubmitEvidence, Void, VoidPC,
     },
     connector_types::{
         AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
@@ -51,11 +53,12 @@ use domain_types::{
         PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
         PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, RequestDetails,
-        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
-        ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
-        SetupMandateRequestData, SubmitEvidenceData,
+        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData,
+        RefreshPaymentMethodData, RefreshPaymentMethodFlowData, RefreshPaymentMethodResponseData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        RequestDetails, ServerAuthenticationTokenRequestData,
+        ServerAuthenticationTokenResponseData, ServerSessionAuthenticationTokenRequestData,
+        ServerSessionAuthenticationTokenResponseData, SetupMandateRequestData, SubmitEvidenceData,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
 };
@@ -332,6 +335,36 @@ res_transformer!(
     },
 );
 
+// get connector customer request transformer
+req_transformer!(
+    fn_name: customer_get_req_transformer,
+    request_type: CustomerServiceGetRequest,
+    flow_marker: GetConnectorCustomer,
+    resource_common_data_type: PaymentFlowData,
+    request_data_type: ConnectorCustomerData,
+    response_data_type: ConnectorCustomerResponse,
+    connector_data_type: T,
+    request_data_fn: |p: &CustomerServiceGetRequest| {
+        domain_types::utils::ForeignTryFrom::foreign_try_from(p.clone())
+    },
+);
+
+// get connector customer response transformer
+res_transformer!(
+    fn_name: customer_get_res_transformer,
+    request_type: CustomerServiceGetRequest,
+    response_type: CustomerServiceGetResponse,
+    flow_marker: GetConnectorCustomer,
+    resource_common_data_type: PaymentFlowData,
+    request_data_type: ConnectorCustomerData,
+    response_data_type: ConnectorCustomerResponse,
+    generate_response_fn: generate_get_connector_customer_response,
+    connector_data_type: T,
+    request_data_fn: |p: &CustomerServiceGetRequest| {
+        domain_types::utils::ForeignTryFrom::foreign_try_from(p.clone())
+    },
+);
+
 // repeat payment (charge) request transformer
 req_transformer!(
     fn_name: charge_req_transformer,
@@ -509,6 +542,36 @@ res_transformer!(
     connector_data_type: T,
     request_data_fn: |p: &PaymentMethodServiceEligibilityRequest| {
         domain_types::utils::ForeignTryFrom::foreign_try_from(p.clone())
+    },
+);
+
+// refresh (account updater) request transformer
+req_transformer!(
+    fn_name: refresh_req_transformer,
+    request_type: PaymentMethodServiceRefreshRequest,
+    flow_marker: RefreshPaymentMethod,
+    resource_common_data_type: RefreshPaymentMethodFlowData,
+    request_data_type: RefreshPaymentMethodData<domain_types::payment_method_data::DefaultPCIHolder>,
+    response_data_type: RefreshPaymentMethodResponseData,
+    connector_data_type: domain_types::payment_method_data::DefaultPCIHolder,
+    request_data_fn: |p: &PaymentMethodServiceRefreshRequest| {
+        domain_types::types::build_request_data_with_some_pmd(p.payment_method.clone(), p.clone())
+    },
+);
+
+// refresh (account updater) response transformer
+res_transformer!(
+    fn_name: refresh_res_transformer,
+    request_type: PaymentMethodServiceRefreshRequest,
+    response_type: PaymentMethodServiceRefreshResponse,
+    flow_marker: RefreshPaymentMethod,
+    resource_common_data_type: RefreshPaymentMethodFlowData,
+    request_data_type: RefreshPaymentMethodData<domain_types::payment_method_data::DefaultPCIHolder>,
+    response_data_type: RefreshPaymentMethodResponseData,
+    generate_response_fn: generate_refresh_payment_method_response,
+    connector_data_type: domain_types::payment_method_data::DefaultPCIHolder,
+    request_data_fn: |p: &PaymentMethodServiceRefreshRequest| {
+        domain_types::types::build_request_data_with_some_pmd(p.payment_method.clone(), p.clone())
     },
 );
 
@@ -952,12 +1015,15 @@ pub fn verify_redirect_response_transformer(
     use domain_types::utils::ForeignTryFrom as _;
     use interfaces::verification::ConnectorSourceVerificationSecrets;
 
+    let connector_feature_data = payload.connector_feature_data;
+
     let request_details_proto = payload.request_details.ok_or_else(|| {
         Box::new(ConnectorError {
             error_message: "Missing required field: request_details".to_string(),
             error_code: "MISSING_REQUIRED_FIELD".to_string(),
             http_status_code: None,
             error_info: None,
+            ..Default::default()
         })
     })?;
 
@@ -967,6 +1033,7 @@ pub fn verify_redirect_response_transformer(
             error_code: "CONVERSION_FAILED".to_string(),
             http_status_code: None,
             error_info: None,
+            ..Default::default()
         })
     })?;
 
@@ -980,6 +1047,7 @@ pub fn verify_redirect_response_transformer(
                         error_code: "CONVERSION_FAILED".to_string(),
                         http_status_code: None,
                         error_info: None,
+                        ..Default::default()
                     })
                 })
         })
@@ -1010,13 +1078,14 @@ pub fn verify_redirect_response_transformer(
 
     let redirect_details = connector_data
         .connector
-        .process_redirect_response(&updated_request_details)
+        .process_redirect_response(&updated_request_details, connector_feature_data.as_ref())
         .map_err(|e| {
             Box::new(ConnectorError {
                 error_message: format!("{e}"),
                 error_code: "PROCESS_REDIRECT_ERROR".to_string(),
                 http_status_code: None,
                 error_info: None,
+                ..Default::default()
             })
         })?;
 
@@ -1030,6 +1099,7 @@ pub fn verify_redirect_response_transformer(
             error_code: "CONVERSION_FAILED".to_string(),
             http_status_code: None,
             error_info: None,
+            ..Default::default()
         })
     })
 }

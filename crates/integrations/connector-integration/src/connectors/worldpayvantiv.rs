@@ -47,7 +47,7 @@ use self::transformers::{
 };
 
 use super::macros;
-use crate::{types::ResponseRouterData, utils, with_response_body};
+use crate::{finalize_connector_response, types::ResponseRouterData, utils, with_response_body};
 use domain_types::errors::{ConnectorError, IntegrationError, WebhookError};
 use error_stack::report;
 
@@ -129,12 +129,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentsIncrementalAuthorizationData,
             PaymentsResponseData,
         >,
-    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let request = WorldpayvantivPaymentsRequest::try_from(WorldpayvantivRouterData {
             router_data: req.clone(),
             connector: self.clone(),
         })?;
-        Ok(Some(RequestContent::Xml(Box::new(request))))
+        let typed =
+            events::MaskedSerdeValue::from_masked_optional(&request, "typed_connector_request");
+        Ok(Some(common_utils::request::ConnectorRequestData::new(
+            RequestContent::Xml(Box::new(request)),
+            typed,
+        )))
     }
 
     fn handle_response_v2(
@@ -161,14 +166,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let response: CnpOnlineResponse = deserialize_xml_to_struct(&xml_str).change_context(
             utils::response_handling_fail_for_connector(res.status_code, "worldpayvantiv"),
         )?;
-        if let Some(i) = event_builder {
-            i.set_connector_response(&response)
-        }
-        RouterDataV2::try_from(ResponseRouterData {
-            response,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        })
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -331,6 +329,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         with_response_body!(event_builder, response);
 
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.response_code,
@@ -341,6 +341,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     }
 
@@ -535,12 +539,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     fn get_request_body(
         &self,
         req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let request = WorldpayvantivPaymentsRequest::try_from(WorldpayvantivRouterData {
             router_data: req.clone(),
             connector: self.clone(),
         })?;
-        Ok(Some(RequestContent::Xml(Box::new(request))))
+        let typed =
+            events::MaskedSerdeValue::from_masked_optional(&request, "typed_connector_request");
+        Ok(Some(common_utils::request::ConnectorRequestData::new(
+            RequestContent::Xml(Box::new(request)),
+            typed,
+        )))
     }
 
     fn handle_response_v2(
@@ -557,14 +566,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let response: CnpOnlineResponse = deserialize_xml_to_struct(&xml_str).change_context(
             utils::response_handling_fail_for_connector(res.status_code, "worldpayvantiv"),
         )?;
-        if let Some(i) = event_builder {
-            i.set_connector_response(&response)
-        }
-        RouterDataV2::try_from(ResponseRouterData {
-            response,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        })
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -606,12 +608,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     fn get_request_body(
         &self,
         req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let request = WorldpayvantivPaymentsRequest::try_from(WorldpayvantivRouterData {
             router_data: req.clone(),
             connector: self.clone(),
         })?;
-        Ok(Some(RequestContent::Xml(Box::new(request))))
+        let typed =
+            events::MaskedSerdeValue::from_masked_optional(&request, "typed_connector_request");
+        Ok(Some(common_utils::request::ConnectorRequestData::new(
+            RequestContent::Xml(Box::new(request)),
+            typed,
+        )))
     }
 
     fn handle_response_v2(
@@ -628,14 +635,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let response: CnpOnlineResponse = deserialize_xml_to_struct(&xml_str).change_context(
             utils::response_handling_fail_for_connector(res.status_code, "worldpayvantiv"),
         )?;
-        if let Some(i) = event_builder {
-            i.set_connector_response(&response)
-        }
-        RouterDataV2::try_from(ResponseRouterData {
-            response,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        })
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -696,12 +696,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentsCancelPostCaptureData,
             PaymentsResponseData,
         >,
-    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let request = WorldpayvantivPaymentsRequest::try_from(WorldpayvantivRouterData {
             router_data: req.clone(),
             connector: self.clone(),
         })?;
-        Ok(Some(RequestContent::Xml(Box::new(request))))
+        let typed =
+            events::MaskedSerdeValue::from_masked_optional(&request, "typed_connector_request");
+        Ok(Some(common_utils::request::ConnectorRequestData::new(
+            RequestContent::Xml(Box::new(request)),
+            typed,
+        )))
     }
 
     fn handle_response_v2(
@@ -723,14 +728,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let response: CnpOnlineResponse = deserialize_xml_to_struct(&xml_str).change_context(
             utils::response_handling_fail_for_connector(res.status_code, "worldpayvantiv"),
         )?;
-        if let Some(i) = event_builder {
-            i.set_connector_response(&response)
-        }
-        RouterDataV2::try_from(ResponseRouterData {
-            response,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        })
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -772,12 +770,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     fn get_request_body(
         &self,
         req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let request = WorldpayvantivPaymentsRequest::try_from(WorldpayvantivRouterData {
             router_data: req.clone(),
             connector: self.clone(),
         })?;
-        Ok(Some(RequestContent::Xml(Box::new(request))))
+        let typed =
+            events::MaskedSerdeValue::from_masked_optional(&request, "typed_connector_request");
+        Ok(Some(common_utils::request::ConnectorRequestData::new(
+            RequestContent::Xml(Box::new(request)),
+            typed,
+        )))
     }
 
     fn handle_response_v2(
@@ -794,14 +797,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let response: CnpOnlineResponse = deserialize_xml_to_struct(&xml_str).change_context(
             utils::response_handling_fail_for_connector(res.status_code, "worldpayvantiv"),
         )?;
-        if let Some(i) = event_builder {
-            i.set_connector_response(&response)
-        }
-        RouterDataV2::try_from(ResponseRouterData {
-            response,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        })
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -853,7 +849,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     fn get_request_body(
         &self,
         _req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         // GET request doesn't need a body
         Ok(None)
     }
@@ -874,14 +870,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 res.status_code,
                 "worldpayvantiv",
             ))?;
-        if let Some(i) = event_builder {
-            i.set_connector_response(&response)
-        }
-        RouterDataV2::try_from(ResponseRouterData {
-            response,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        })
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -929,6 +918,7 @@ macros::macro_connector_flow_status_impls!(
         VoidPostRefund,
         CreateOrder,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         ServerAuthenticationToken,
     ],
 );

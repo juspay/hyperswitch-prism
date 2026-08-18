@@ -10,7 +10,7 @@ use domain_types::{
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, RepeatPaymentData, ResponseId,
     },
-    errors::{ConnectorError, IntegrationError},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{
         PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
         WalletData as WalletDataPaymentMethod,
@@ -117,7 +117,8 @@ fn fetch_payment_instrument<
                 },
                 cvc: card.card_cvc,
                 card_holder_name: billing_address
-                    .and_then(|address| address.get_optional_full_name()),
+                    .and_then(|address| address.get_optional_full_name())
+                    .map(crate::utils::normalize_cardholder_name),
                 billing_address: billing_address
                     .and_then(|addr| addr.address.clone())
                     .and_then(|address| {
@@ -205,7 +206,7 @@ fn fetch_payment_instrument<
             | WalletDataPaymentMethod::GcashRedirect(_)
             | WalletDataPaymentMethod::ApplePayRedirect(_)
             | WalletDataPaymentMethod::ApplePayThirdPartySdk(_)
-            | WalletDataPaymentMethod::DanaRedirect {}
+            | WalletDataPaymentMethod::DanaRedirect {} | WalletDataPaymentMethod::GrabpayRedirect {}
             | WalletDataPaymentMethod::GooglePayRedirect(_)
             | WalletDataPaymentMethod::GooglePayThirdPartySdk(_)
             | WalletDataPaymentMethod::MbWayRedirect(_)
@@ -233,7 +234,9 @@ fn fetch_payment_instrument<
             | WalletDataPaymentMethod::CashfreeRedirect(_)
             | WalletDataPaymentMethod::PayURedirect(_)
             | WalletDataPaymentMethod::EaseBuzzRedirect(_)
-            | WalletDataPaymentMethod::QwikcilverWalletDirect(_) => {
+            | WalletDataPaymentMethod::PaymayaRedirect(_)
+            | WalletDataPaymentMethod::QwikcilverWalletDirect(_)
+            | WalletDataPaymentMethod::Skrill(_) => {
                 Err(error_stack::report!(IntegrationError::NotSupported {
                     message: utils::get_unimplemented_payment_method_error_message("worldpay"),
                     connector: "Worldpay",
@@ -248,6 +251,7 @@ fn fetch_payment_instrument<
         | PaymentMethodData::Crypto(_)
         | PaymentMethodData::Reward
         | PaymentMethodData::RealTimePayment(_)
+        | PaymentMethodData::CardWithNoCvc(_)
         | PaymentMethodData::MobilePayment(_)
         | PaymentMethodData::Upi(_)
         | PaymentMethodData::Voucher(_)
@@ -424,7 +428,9 @@ fn get_token_and_agreement<
                         MandateReferenceId::NetworkMandateId(network_transaction_id) => {
                             Some(CustomerAgreement {
                                 agreement_type: CustomerAgreementType::Unscheduled,
-                                scheme_reference: Some(network_transaction_id.into()),
+                                scheme_reference: Some(
+                                    network_transaction_id.network_transaction_id.into(),
+                                ),
                                 stored_card_usage: None,
                             })
                         }
@@ -433,6 +439,59 @@ fn get_token_and_agreement<
             }),
         ),
         _ => (None, None),
+    }
+}
+
+// Dangling helper: strip a phone number down to ASCII digits (Worldpay rejects
+// `+`, spaces and separators in instruction.customer.phone)
+fn normalize_phone_number(phone: Secret<String>) -> Option<Secret<String>> {
+    let digits: String = phone
+        .expose()
+        .chars()
+        .filter(|c| c.is_ascii_digit())
+        .collect();
+    (!digits.is_empty()).then(|| Secret::new(digits))
+}
+
+// Dangling helper: additional Mastercard authentication data; omitted entirely
+// when no field is available
+fn create_instruction_customer(
+    email: Option<pii::Email>,
+    phone: Option<Secret<String>>,
+    ip_address: Option<Secret<String, pii::IpAddress>>,
+) -> Option<InstructionCustomer> {
+    (email.is_some() || phone.is_some() || ip_address.is_some()).then_some(InstructionCustomer {
+        email,
+        phone,
+        ip_address,
+    })
+}
+
+// Dangling helper: shipping details require line1 + city + zip + country to be
+// meaningful to Worldpay; omitted entirely otherwise
+fn create_shipping(shipping: Option<&domain_types::payment_address::Address>) -> Option<Shipping> {
+    let shipping = shipping?;
+    let details = shipping.address.as_ref()?;
+    match (
+        details.line1.clone(),
+        details.city.clone(),
+        details.zip.clone(),
+        details.country,
+    ) {
+        (Some(address1), Some(city), Some(postal_code), Some(country_code)) => Some(Shipping {
+            first_name: details.first_name.clone(),
+            last_name: details.last_name.clone(),
+            address: ShippingAddress {
+                address1,
+                address2: details.line2.clone(),
+                address3: details.line3.clone(),
+                city,
+                state: details.state.clone(),
+                postal_code,
+                country_code,
+            },
+        }),
+        _ => None,
     }
 }
 
@@ -481,6 +540,29 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             item.router_data.request.mandate_id.clone(),
         );
 
+        let instruction_customer = create_instruction_customer(
+            item.router_data.request.email.clone().or_else(|| {
+                item.router_data
+                    .resource_common_data
+                    .get_optional_billing_email()
+            }),
+            item.router_data
+                .resource_common_data
+                .get_optional_billing_phone_number()
+                .or_else(|| {
+                    item.router_data
+                        .resource_common_data
+                        .get_optional_shipping_phone_number()
+                })
+                .and_then(normalize_phone_number),
+            item.router_data.request.get_ip_address_as_optional(),
+        );
+        let shipping = create_shipping(
+            item.router_data
+                .resource_common_data
+                .get_optional_shipping(),
+        );
+
         Ok(Self {
             instruction: Instruction {
                 settlement: get_settlement_info(
@@ -506,6 +588,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 three_ds,
                 token_creation,
                 customer_agreement,
+                customer: instruction_customer,
+                shipping,
             },
             merchant: Merchant {
                 entity: WorldpayAuthType::try_from(&item.router_data.connector_config)?.entity_id,
@@ -577,14 +661,32 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 // NTI flow would need raw card details, which RepeatPayment doesn't have
                 return Err(IntegrationError::NotImplemented(
                     "NetworkMandateId not supported in RepeatPayment".to_string(),
-                    Default::default(),
+                    IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Use ConnectorMandateId with the stored Worldpay card token for this RepeatPayment path, or implement a separate raw-card MIT request before sending NetworkMandateId."
+                                .to_string(),
+                        ),
+                        doc_url: None,
+                        additional_context: Some(
+                            "Worldpay RepeatPayment received a NetworkMandateId mandate reference. The current transformer builds PaymentInstrument::CardToken from connector_mandate_id; NetworkMandateId carries an NTI for raw-card MIT handling and cannot be represented by the token instrument built here".to_string(),
+                        ),
+                    },
                 )
                 .into());
             }
             MandateReferenceId::NetworkTokenWithNTI(_) => {
                 return Err(IntegrationError::NotImplemented(
                     "NetworkTokenWithNTI not supported in RepeatPayment yet".to_string(),
-                    Default::default(),
+                    IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Use ConnectorMandateId with the stored Worldpay card token for this RepeatPayment path, or implement a dedicated Worldpay network-token MIT request before sending NetworkTokenWithNTI."
+                                .to_string(),
+                        ),
+                        doc_url: None,
+                        additional_context: Some(
+                            "Worldpay RepeatPayment received a NetworkTokenWithNTI mandate reference. The current transformer builds PaymentInstrument::CardToken from connector_mandate_id; it does not extract or map network token credentials, cryptogram data, or the NTI into the Worldpay repeat-payment request".to_string(),
+                        ),
+                    },
                 )
                 .into());
             }
@@ -600,6 +702,29 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
             _ => None,
         };
+
+        let instruction_customer = create_instruction_customer(
+            item.router_data.request.email.clone().or_else(|| {
+                item.router_data
+                    .resource_common_data
+                    .get_optional_billing_email()
+            }),
+            item.router_data
+                .resource_common_data
+                .get_optional_billing_phone_number()
+                .or_else(|| {
+                    item.router_data
+                        .resource_common_data
+                        .get_optional_shipping_phone_number()
+                })
+                .and_then(normalize_phone_number),
+            item.router_data.request.get_ip_address_as_optional(),
+        );
+        let shipping = create_shipping(
+            item.router_data
+                .resource_common_data
+                .get_optional_shipping(),
+        );
 
         Ok(Self {
             instruction: Instruction {
@@ -621,6 +746,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     stored_card_usage: Some(StoredCardUsageType::Subsequent), // CRITICAL: MIT indicator
                     scheme_reference: None,
                 }),
+                customer: instruction_customer,
+                shipping,
             },
             merchant: Merchant {
                 entity: WorldpayAuthType::try_from(&item.router_data.connector_config)?.entity_id,
@@ -832,6 +959,7 @@ impl<F, T>
                         connector_mandate_id: Some(mandate_token.href.clone().expose()),
                         payment_method_id: Some(mandate_token.token_id.clone()),
                         connector_mandate_request_reference_id: None,
+                        mandate_metadata: None,
                     }),
                     res.scheme_reference.clone(),
                     None,
@@ -982,6 +1110,10 @@ impl<F, T>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             }),
             (_, Some((code, message, advice_code))) => Err(ErrorResponse {
                 code: code.clone(),
@@ -995,6 +1127,10 @@ impl<F, T>
                 // You can use raw response codes to inform your retry logic. A rawCode is only returned if specifically requested.
                 network_decline_code: Some(code),
                 network_error_message: Some(message),
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             }),
         };
         Ok(Self {
@@ -1187,6 +1323,7 @@ impl<F> TryFrom<ResponseRouterData<WorldpayPaymentsResponse, Self>>
             connector_refund_id: item.router_data.request.refund_id.clone(),
             refund_status,
             status_code: item.http_code,
+            acquirer_reference_number: None,
         });
 
         Ok(Self {
@@ -1216,6 +1353,7 @@ impl<F> TryFrom<ResponseRouterData<WorldpayEventResponse, Self>>
                 .clone(),
             refund_status,
             status_code: item.http_code,
+            acquirer_reference_number: None,
         });
 
         Ok(Self {

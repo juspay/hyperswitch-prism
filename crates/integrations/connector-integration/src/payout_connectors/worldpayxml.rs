@@ -6,20 +6,26 @@ use common_utils::{
     errors::CustomResult,
     events,
     ext_traits::{ByteSliceExt, XmlExt},
-    request::RequestContent,
+    request::{ConnectorRequestData, RequestContent},
 };
 use domain_types::{
     connector_flow::{
-        PayoutCreate, PayoutCreateLink, PayoutCreateRecipient, PayoutEnrollDisburseAccount,
-        PayoutGet, PayoutStage, PayoutTransfer, PayoutVoid,
+        PayoutCreate, PayoutCreateLink, PayoutCreateRecipient, PayoutEligibility,
+        PayoutEnrollDisburseAccount, PayoutGet, PayoutStage, PayoutTransfer, PayoutVoid,
+        ServerAuthenticationToken,
     },
-    errors::{ConnectorError, IntegrationError},
+    connector_types::{
+        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+    },
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payouts::payouts_types::{
         PayoutCreateLinkRequest, PayoutCreateLinkResponse, PayoutCreateRecipientRequest,
         PayoutCreateRecipientResponse, PayoutCreateRequest, PayoutCreateResponse,
-        PayoutEnrollDisburseAccountRequest, PayoutEnrollDisburseAccountResponse, PayoutFlowData,
-        PayoutGetRequest, PayoutGetResponse, PayoutStageRequest, PayoutStageResponse,
-        PayoutTransferRequest, PayoutTransferResponse, PayoutVoidRequest, PayoutVoidResponse,
+        PayoutEligibilityRequest, PayoutEligibilityResponse, PayoutEnrollDisburseAccountRequest,
+        PayoutEnrollDisburseAccountResponse, PayoutFlowData, PayoutGetRequest, PayoutGetResponse,
+        PayoutStageRequest, PayoutStageResponse, PayoutTransferRequest, PayoutTransferResponse,
+        PayoutVoidRequest, PayoutVoidResponse,
     },
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -32,13 +38,15 @@ use interfaces::{
     api::ConnectorCommon,
     connector_integration_v2::ConnectorIntegrationV2,
     connector_types::{
-        PayoutCreateLinkV2, PayoutCreateRecipientV2, PayoutCreateV2, PayoutEnrollDisburseAccountV2,
-        PayoutGetV2, PayoutServiceTrait, PayoutStageV2, PayoutTransferV2, PayoutVoidV2,
+        PayoutCreateLinkV2, PayoutCreateRecipientV2, PayoutCreateV2, PayoutEligibilityV2,
+        PayoutEnrollDisburseAccountV2, PayoutGetV2, PayoutServiceTrait, PayoutStageV2,
+        PayoutTransferV2, PayoutVoidV2, ServerAuthentication,
     },
 };
 
 use crate::{
     connectors::worldpayxml::{requests, responses},
+    finalize_connector_response,
     types::ResponseRouterData,
     with_error_response_body,
 };
@@ -171,6 +179,10 @@ impl ConnectorCommon for WorldpayxmlPayouts {
                 "worldpayxml: response body did not match the expected format; confirm API version and connector documentation.",
             ))?;
 
+        let typed = crate::connectors::macros::serialize_typed_connector_payload(
+            &response,
+            "typed_connector_response",
+        );
         match response {
             responses::WorldpayxmlErrorResponse::Standard(error_response) => {
                 with_error_response_body!(event_builder, error_response);
@@ -188,9 +200,43 @@ impl ConnectorCommon for WorldpayxmlPayouts {
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 })
             }
         }
+    }
+}
+
+// ===== SERVER AUTHENTICATION (not implemented) =====
+
+impl ServerAuthentication for WorldpayxmlPayouts {}
+
+impl
+    ConnectorIntegrationV2<
+        ServerAuthenticationToken,
+        MerchantAuthenticationFlowData,
+        ServerAuthenticationTokenRequestData,
+        ServerAuthenticationTokenResponseData,
+    > for WorldpayxmlPayouts
+{
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            ServerAuthenticationToken,
+            MerchantAuthenticationFlowData,
+            ServerAuthenticationTokenRequestData,
+            ServerAuthenticationTokenResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(IntegrationError::connector_flow_not_implemented(
+            ConnectorCommon::id(self),
+            "server_authentication_token",
+            IntegrationErrorContext::default(),
+        )
+        .into())
     }
 }
 
@@ -253,9 +299,14 @@ impl
             PayoutTransferRequest,
             PayoutTransferResponse,
         >,
-    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<ConnectorRequestData>, IntegrationError> {
         let connector_req = requests::WorldpayxmlPayoutTransferRequest::try_from(req)?;
-        Ok(Some(Self::encode_soap_xml(&connector_req)?))
+        let typed = events::MaskedSerdeValue::from_masked_optional(
+            &connector_req,
+            "typed_connector_request",
+        );
+        let content = Self::encode_soap_xml(&connector_req)?;
+        Ok(Some(ConnectorRequestData::new(content, typed)))
     }
 
     fn handle_response_v2(
@@ -266,7 +317,7 @@ impl
             PayoutTransferRequest,
             PayoutTransferResponse,
         >,
-        _event_builder: Option<&mut events::Event>,
+        event_builder: Option<&mut events::Event>,
         res: Response,
     ) -> CustomResult<
         RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>,
@@ -274,11 +325,7 @@ impl
     > {
         let response: responses::WorldpayxmlPayoutTransferResponse =
             Self::parse_xml_response(res.response, res.status_code)?;
-        RouterDataV2::try_from(ResponseRouterData {
-            response,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        })
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -328,15 +375,20 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
     fn get_request_body(
         &self,
         req: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
-    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<ConnectorRequestData>, IntegrationError> {
         let connector_req = requests::WorldpayxmlPayoutGetRequest::try_from(req)?;
-        Ok(Some(Self::encode_soap_xml(&connector_req)?))
+        let typed = events::MaskedSerdeValue::from_masked_optional(
+            &connector_req,
+            "typed_connector_request",
+        );
+        let content = Self::encode_soap_xml(&connector_req)?;
+        Ok(Some(ConnectorRequestData::new(content, typed)))
     }
 
     fn handle_response_v2(
         &self,
         data: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
-        _event_builder: Option<&mut events::Event>,
+        event_builder: Option<&mut events::Event>,
         res: Response,
     ) -> CustomResult<
         RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
@@ -344,11 +396,7 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
     > {
         let response: responses::WorldpayxmlPayoutGetResponse =
             Self::parse_xml_response(res.response, res.status_code)?;
-        RouterDataV2::try_from(ResponseRouterData {
-            response,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        })
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -398,15 +446,20 @@ impl ConnectorIntegrationV2<PayoutVoid, PayoutFlowData, PayoutVoidRequest, Payou
     fn get_request_body(
         &self,
         req: &RouterDataV2<PayoutVoid, PayoutFlowData, PayoutVoidRequest, PayoutVoidResponse>,
-    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<ConnectorRequestData>, IntegrationError> {
         let connector_req = requests::WorldpayxmlPayoutVoidRequest::try_from(req)?;
-        Ok(Some(Self::encode_soap_xml(&connector_req)?))
+        let typed = events::MaskedSerdeValue::from_masked_optional(
+            &connector_req,
+            "typed_connector_request",
+        );
+        let content = Self::encode_soap_xml(&connector_req)?;
+        Ok(Some(ConnectorRequestData::new(content, typed)))
     }
 
     fn handle_response_v2(
         &self,
         data: &RouterDataV2<PayoutVoid, PayoutFlowData, PayoutVoidRequest, PayoutVoidResponse>,
-        _event_builder: Option<&mut events::Event>,
+        event_builder: Option<&mut events::Event>,
         res: Response,
     ) -> CustomResult<
         RouterDataV2<PayoutVoid, PayoutFlowData, PayoutVoidRequest, PayoutVoidResponse>,
@@ -414,11 +467,7 @@ impl ConnectorIntegrationV2<PayoutVoid, PayoutFlowData, PayoutVoidRequest, Payou
     > {
         let response: responses::WorldpayxmlPayoutVoidResponse =
             Self::parse_xml_response(res.response, res.status_code)?;
-        RouterDataV2::try_from(ResponseRouterData {
-            response,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        })
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -552,6 +601,34 @@ impl
         Err(IntegrationError::connector_flow_not_implemented(
             self.id(),
             "payout_enroll_disburse_account",
+            Default::default(),
+        )
+        .into())
+    }
+}
+
+impl PayoutEligibilityV2 for WorldpayxmlPayouts {}
+
+impl
+    ConnectorIntegrationV2<
+        PayoutEligibility,
+        PayoutFlowData,
+        PayoutEligibilityRequest,
+        PayoutEligibilityResponse,
+    > for WorldpayxmlPayouts
+{
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            PayoutEligibility,
+            PayoutFlowData,
+            PayoutEligibilityRequest,
+            PayoutEligibilityResponse,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(IntegrationError::connector_flow_not_implemented(
+            self.id(),
+            "payout_eligibility",
             Default::default(),
         )
         .into())

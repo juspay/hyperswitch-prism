@@ -115,7 +115,7 @@ macros::create_all_prerequisites!(
 
             // Get request body for signature generation
             let temp_request_body = self.get_request_body(req)?;
-            let request_body_str = match temp_request_body {
+            let request_body_str = match temp_request_body.map(|d| d.content) {
                 Some(RequestContent::Json(json_body)) => serde_json::to_string(&json_body)
                     .change_context(IntegrationError::RequestEncodingFailed { context: Default::default() })?,
                 None => String::new(), // For GET requests
@@ -558,6 +558,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             _ => Some(common_enums::AttemptStatus::Failure),
         };
 
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.code.unwrap_or_default(),
@@ -571,6 +573,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     }
 }
@@ -599,5 +605,6 @@ macros::macro_connector_flow_status_impls!(
         DefendDispute,
         SubmitEvidence,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
     ],
 );

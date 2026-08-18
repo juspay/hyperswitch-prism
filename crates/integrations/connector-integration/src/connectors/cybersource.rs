@@ -44,6 +44,10 @@ use error_stack::{Report, ResultExt};
 use ring::{digest, hmac};
 use time::OffsetDateTime;
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
+/// JWT segments are base64url WITHOUT padding (RFC 7515); used to decode the
+/// Flex Microform capture-context JWT payload.
+pub const BASE64_URL_SAFE_NO_PAD_ENGINE: base64::engine::GeneralPurpose =
+    base64::engine::general_purpose::URL_SAFE_NO_PAD;
 
 use transformers::{
     self as cybersource, CybersourceAuthEnrollmentRequest, CybersourceAuthSetupRequest,
@@ -59,11 +63,11 @@ use transformers::{
     CybersourcePaymentsResponse as CybersourceRepeatPaymentResponse, CybersourceRefundRequest,
     CybersourceRefundResponse, CybersourceRepeatPaymentRequest, CybersourceRsyncResponse,
     CybersourceTransactionResponse, CybersourceVoidPCRequest, CybersourceVoidRequest,
-    CybersourceZeroMandateRequest,
+    CybersourceZeroMandateRequest, ForeignTryFrom,
 };
 
 use super::macros;
-use crate::{types::ResponseRouterData, with_error_response_body};
+use crate::{finalize_connector_response, types::ResponseRouterData, with_error_response_body};
 use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
 
@@ -314,7 +318,7 @@ macros::create_all_prerequisites!(
             .collect();
         let sha256 = self.generate_digest(
             cybersource_req
-                .map(|req| req.get_inner_value().expose())
+                .map(|req| req.content.get_inner_value().expose())
                 .unwrap_or_default()
                 .as_bytes()
         );
@@ -470,6 +474,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             Ok(transformers::CybersourceErrorResponse::StandardError(response)) => {
                 with_error_response_body!(event_builder, response);
 
+                let typed = macros::serialize_typed_connector_payload(
+                    &response,
+                    "typed_connector_response",
+                );
                 let (code, message, reason) = match response.error_information {
                     Some(ref error_info) => {
                         let detailed_error_info = error_info.details.as_ref().map(|details| {
@@ -525,6 +533,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 })
             }
             Ok(transformers::CybersourceErrorResponse::AuthenticationError(response)) => {
@@ -539,6 +551,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 })
             }
             Ok(transformers::CybersourceErrorResponse::NotAvailableError(response)) => {
@@ -565,6 +581,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 })
             }
             Err(error_msg) => {
@@ -602,6 +622,27 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}pts/v2/payments/", self.connector_base_url_payments(req)))
+        }
+        fn get_5xx_error_response(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            // Cybersource returns a structured body on 5xx (e.g. HTTP 502
+            // `{"status":"SERVER_ERROR","reason":"SYSTEM_ERROR","message":"..."}`).
+            // `ErrorResponse::foreign_try_from(&res)` parses it so the shadow UCS
+            // `response.Err.{code,message}` mirror the Direct gateway (which maps
+            // `status` -> code) instead of the generic `bad_gateway` / HTTP-status
+            // discriminator. Falls back to the standard error handler when the body is
+            // not in the server-error shape.
+            match ErrorResponse::foreign_try_from(&res) {
+                Ok(error_response) => {
+                    with_error_response_body!(event_builder, error_response);
+                    Ok(error_response)
+                }
+                Err(_) => self.build_error_response(res, event_builder, connector_config),
+            }
         }
     }
 );
@@ -1022,16 +1063,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ClientAuthenticationTokenRequestData,
             PaymentsResponseData,
         >,
-    ) -> CustomResult<Option<common_utils::request::RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let bridge = self.client_authentication_token;
         let input_data = CybersourceRouterData {
             connector: self.to_owned(),
             router_data: req.clone(),
         };
         let request = bridge.request_body(input_data)?;
-        Ok(Some(common_utils::request::RequestContent::Json(Box::new(
-            request,
-        ))))
+        let typed =
+            events::MaskedSerdeValue::from_masked_optional(&request, "typed_connector_request");
+        Ok(Some(common_utils::request::ConnectorRequestData::new(
+            common_utils::request::RequestContent::Json(Box::new(request)),
+            typed,
+        )))
     }
     fn handle_response_v2(
         &self,
@@ -1079,7 +1123,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let payload = parts.get(1).ok_or_else(|| {
             Report::new(ConnectorError::response_handling_failed(res.status_code))
         })?;
-        let decoded_bytes = Engine::decode(&BASE64_ENGINE, payload)
+        // Flex capture-context JWT segments are base64url WITHOUT padding
+        // (RFC 7515); STANDARD base64 fails for ~3/4 of payloads depending on
+        // length (varies with targetOrigins, e.g. long tunnel domains).
+        let decoded_bytes = Engine::decode(&BASE64_URL_SAFE_NO_PAD_ENGINE, payload)
             .map_err(|_| ConnectorError::response_handling_failed(res.status_code))?;
         let decoded_str = String::from_utf8(decoded_bytes)
             .map_err(|_| ConnectorError::response_handling_failed(res.status_code))?;
@@ -1110,23 +1157,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             client_library,
             client_library_integrity,
         };
-        event_builder.map(|i| i.set_connector_response(&response_body));
-
-        let response_router_data = ResponseRouterData {
-            response: response_body,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        };
-
-        let result = RouterDataV2::<
-            ClientAuthenticationToken,
-            MerchantAuthenticationFlowData,
-            ClientAuthenticationTokenRequestData,
-            PaymentsResponseData,
-        >::try_from(response_router_data)
-        .map_err(|e| e.change_context(ConnectorError::response_handling_failed(res.status_code)))?;
-
-        Ok(result)
+        finalize_connector_response!(event_builder, response_body, data, res.status_code)
     }
     fn get_error_response_v2(
         &self,
@@ -1234,7 +1265,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             MandateRevokeRequestData,
             MandateRevokeResponseData,
         >,
-    ) -> CustomResult<Option<common_utils::request::RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         Ok(None)
     }
     fn handle_response_v2(
@@ -1256,15 +1287,30 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
         ConnectorError,
     > {
+        use domain_types::connector_types::RawConnectorRequestResponse;
+
         if matches!(res.status_code, 204) {
-            event_builder.map(|i| i.set_connector_response(&serde_json::json!({"mandate_status": common_enums::MandateStatus::Revoked.to_string()})));
-            Ok(RouterDataV2 {
+            let synthetic_response = serde_json::json!({"mandate_status": common_enums::MandateStatus::Revoked.to_string()});
+            let masked = events::MaskedSerdeValue::from_masked_optional(
+                &synthetic_response,
+                "connector_response",
+            );
+            if let Some(ref msv) = masked {
+                if let Some(evt) = event_builder {
+                    evt.response_data = Some(msv.clone());
+                }
+            }
+            let mut result = RouterDataV2 {
                 response: Ok(MandateRevokeResponseData {
                     mandate_status: common_enums::MandateStatus::Revoked,
                     status_code: res.status_code,
                 }),
                 ..data.clone()
-            })
+            };
+            result
+                .resource_common_data
+                .set_typed_connector_response(masked.as_ref().map(|m| m.inner().to_string()));
+            Ok(result)
         } else {
             // If http_code != 204 || http_code != 4xx, we dont know any other response scenario yet.
             let response_value: serde_json::Value = serde_json::from_slice(&res.response)
@@ -1274,14 +1320,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 ))?;
             let response_string = response_value.to_string();
 
-            event_builder.map(|i| {
-                i.set_connector_response(
-                    &serde_json::json!({"response_string": response_string.clone()}),
-                )
-            });
+            let synthetic_response =
+                serde_json::json!({"response_string": response_string.clone()});
+            let masked = events::MaskedSerdeValue::from_masked_optional(
+                &synthetic_response,
+                "connector_response",
+            );
+            if let Some(ref msv) = masked {
+                if let Some(evt) = event_builder {
+                    evt.response_data = Some(msv.clone());
+                }
+            }
             tracing::info!(connector_response=?response_string);
 
-            Ok(RouterDataV2 {
+            let mut result = RouterDataV2 {
                 response: Err(ErrorResponse {
                     code: NO_ERROR_CODE.to_string(),
                     message: response_string.clone(),
@@ -1292,9 +1344,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..data.clone()
-            })
+            };
+            result
+                .resource_common_data
+                .set_typed_connector_response(masked.as_ref().map(|m| m.inner().to_string()));
+            Ok(result)
         }
     }
     fn get_error_response_v2(
@@ -1317,6 +1377,7 @@ macros::macro_connector_flow_status_impls!(
         PaymentMethodToken,
         ServerAuthenticationToken,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
     ],
     not_supported: [
         VoidPostRefund,

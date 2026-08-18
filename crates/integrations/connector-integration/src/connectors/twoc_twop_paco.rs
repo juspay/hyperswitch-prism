@@ -123,6 +123,7 @@ macros::macro_connector_flow_status_impls!(
         Accept,
         ServerSessionAuthenticationToken,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         PaymentMethodToken,
         ServerAuthenticationToken,
         ClientAuthenticationToken,
@@ -402,7 +403,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             )
         };
 
-        let (code, message) = if looks_like_jose {
+        let (code, message, typed) = if looks_like_jose {
             match TwocTwopPacoAuthType::try_from(connector_config) {
                 Ok(auth) => {
                     match common_utils::crypto::jose::decrypt_then_verify(trimmed, &auth.jose_cfg) {
@@ -413,19 +414,26 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                                 .unwrap_or_else(|| value.clone());
                             match serde_json::from_value::<TwocTwopPacoNonUiResponse>(inner) {
                                 Ok(parsed) => {
+                                    let typed = macros::serialize_typed_connector_payload(
+                                        &parsed,
+                                        "typed_connector_response",
+                                    );
                                     let prior = parsed
                                         .merged_result()
                                         .and_then(|b| b.prior_payment_response_details.clone());
                                     let api = parsed.api_response.clone();
                                     with_error_response_body!(event_builder, parsed);
-                                    twoc_twop_paco::error_code_message(&api, &prior)
+                                    let (code, message) =
+                                        twoc_twop_paco::error_code_message(&api, &prior);
+                                    (code, message, typed)
                                 }
                                 Err(err) => {
                                     tracing::warn!(
                                         error = %err,
                                         "twoc_twop_paco: failed to parse decrypted error envelope"
                                     );
-                                    fallback("envelope parse failed")
+                                    let (code, message) = fallback("envelope parse failed");
+                                    (code, message, None)
                                 }
                             }
                         }
@@ -434,19 +442,31 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                                 error = %err,
                                 "twoc_twop_paco: JOSE decrypt failed for error response"
                             );
-                            fallback("JOSE decrypt failed")
+                            let (code, message) = fallback("JOSE decrypt failed");
+                            (code, message, None)
                         }
                     }
                 }
-                Err(_) => fallback("connector auth config missing"),
+                Err(_) => {
+                    let (code, message) = fallback("connector auth config missing");
+                    (code, message, None)
+                }
             }
         } else {
             match serde_json::from_slice::<TwocTwopPacoErrorResponse>(&body) {
                 Ok(parsed) => {
+                    let typed = macros::serialize_typed_connector_payload(
+                        &parsed,
+                        "typed_connector_response",
+                    );
                     with_error_response_body!(event_builder, parsed);
-                    parsed.flatten()
+                    let (code, message) = parsed.flatten();
+                    (code, message, typed)
                 }
-                Err(_) => fallback("response is neither JOSE nor recognised JSON"),
+                Err(_) => {
+                    let (code, message) = fallback("response is neither JOSE nor recognised JSON");
+                    (code, message, None)
+                }
             }
         };
 
@@ -462,6 +482,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     }
 }

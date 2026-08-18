@@ -162,6 +162,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         };
         match response {
             Ok(BankofamericaErrorResponse::StandardError(response)) => {
+                let typed = macros::serialize_typed_connector_payload(
+                    &response,
+                    "typed_connector_response",
+                );
                 let (code, message, reason) = match response.error_information {
                     Some(ref error_info) => {
                         let detailed_error_info = error_info.details.as_ref().map(|details| {
@@ -216,19 +220,33 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 })
             }
-            Ok(BankofamericaErrorResponse::AuthenticationError(response)) => Ok(ErrorResponse {
-                status_code: res.status_code,
-                code: NO_ERROR_CODE.to_string(),
-                message: response.response.rmsg.clone(),
-                reason: Some(response.response.rmsg),
-                attempt_status: None,
-                connector_transaction_id: None,
-                network_advice_code: None,
-                network_decline_code: None,
-                network_error_message: None,
-            }),
+            Ok(BankofamericaErrorResponse::AuthenticationError(response)) => {
+                let typed = macros::serialize_typed_connector_payload(
+                    &response,
+                    "typed_connector_response",
+                );
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: NO_ERROR_CODE.to_string(),
+                    message: response.response.rmsg.clone(),
+                    reason: Some(response.response.rmsg),
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
+                })
+            }
             Err(error_msg) => {
                 tracing::error!(deserialization_error =? error_msg);
                 domain_types::utils::handle_json_response_deserialization_failure(
@@ -327,7 +345,7 @@ macros::create_all_prerequisites!(
         let path: String = url.chars().skip(skip_len).collect();
         let sha256 = self.generate_digest(
             bankofamerica_req
-                .map(|req| req.get_inner_value().expose())
+                .map(|req| req.content.get_inner_value().expose())
                 .unwrap_or_default()
                 .as_bytes()
         );
@@ -724,6 +742,7 @@ macros::macro_connector_flow_status_impls!(
         ServerAuthenticationToken,
         PaymentMethodToken,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         PreAuthenticate,
         Authenticate,
         PostAuthenticate,

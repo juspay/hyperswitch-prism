@@ -223,7 +223,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 payload.transaction_id.clone(),
             )),
             status,
-            connector_response_reference_id: Some(payload.merchant_transaction_id),
+            connector_response_reference_id: Some(payload.merchant_transaction_id.clone()),
+            connector_request_reference_id: Some(payload.merchant_transaction_id),
             mandate_reference: None,
             error_code,
             error_message,
@@ -835,13 +836,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
         // Parse PhonePe error response (unified for both sync and payments)
+        let typed;
         let (error_message, error_code, attempt_status) = if let Ok(error_response) =
             res.response
                 .parse_struct::<phonepe::PhonepeErrorResponse>("PhonePe ErrorResponse")
         {
             let attempt_status = phonepe::get_phonepe_error_status(&error_response.code);
+            typed = macros::serialize_typed_connector_payload(
+                &error_response,
+                "typed_connector_response",
+            );
             (error_response.message, error_response.code, attempt_status)
         } else {
+            typed = None;
             let raw_response = String::from_utf8_lossy(&res.response);
             (
                 "Unknown PhonePe error".to_string(),
@@ -860,6 +867,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     }
 }
@@ -906,6 +917,7 @@ macros::macro_connector_flow_status_impls!(
         PostAuthenticate,
         ServerSessionAuthenticationToken,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         ClientAuthenticationToken,
     ],
 );

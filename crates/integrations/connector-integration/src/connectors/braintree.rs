@@ -5,10 +5,11 @@ use base64::Engine;
 use common_enums::{CurrencyUnit, PaymentMethod, PaymentMethodType};
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
+    crypto::{self, SignMessage},
     errors::CustomResult,
     events,
     ext_traits::ByteSliceExt,
-    types::StringMajorUnit,
+    types::{StringMajorUnit, StringMinorUnit},
     ParsingError,
 };
 use domain_types::{
@@ -17,11 +18,12 @@ use domain_types::{
         RepeatPayment, SetupMandate, Void, VoidPC,
     },
     connector_types::{
-        ClientAuthenticationTokenRequestData, PaymentFlowData, PaymentMethodTokenResponse,
+        ClientAuthenticationTokenRequestData, ConnectorWebhookSecrets,
+        DisputeWebhookDetailsResponse, EventType, PaymentFlowData, PaymentMethodTokenResponse,
         PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthorizeData,
         PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        SetupMandateRequestData,
+        RequestDetails, SetupMandateRequestData, WebhookResourceReference,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
@@ -49,11 +51,12 @@ use transformers::{
 };
 
 use super::macros;
-use crate::{types::ResponseRouterData, with_error_response_body};
+use crate::{finalize_connector_response, types::ResponseRouterData, with_error_response_body};
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 
 use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
+use domain_types::errors::WebhookError;
 use error_stack::ResultExt;
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
@@ -108,6 +111,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             Ok(braintree::ErrorResponses::BraintreeApiErrorResponse(response)) => {
                 with_error_response_body!(event_builder, response);
 
+                let typed = macros::serialize_typed_connector_payload(
+                    &response,
+                    "typed_connector_response",
+                );
                 let error_object = response.api_error_response.errors;
                 let error = error_object.errors.first().or(error_object
                     .transaction
@@ -132,10 +139,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 })
             }
             Ok(braintree::ErrorResponses::BraintreeErrorResponse(response)) => {
                 with_error_response_body!(event_builder, response);
+                let typed = macros::serialize_typed_connector_payload(
+                    &response,
+                    "typed_connector_response",
+                );
                 Ok(ErrorResponse {
                     status_code: res.status_code,
                     code: NO_ERROR_CODE.to_string(),
@@ -146,6 +161,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 })
             }
             Err(_) => {
@@ -224,7 +243,134 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for Braintree<T>
 {
+    fn verify_webhook_source(
+        &self,
+        request: RequestDetails,
+        connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<bool, Report<WebhookError>> {
+        let connector_webhook_secrets = connector_webhook_secret.ok_or_else(|| {
+            tracing::warn!(
+                target: "braintree_webhook",
+                "no webhook secret configured for Braintree source verification"
+            );
+            error_stack::report!(WebhookError::WebhookVerificationSecretNotFound)
+        })?;
+
+        let notif = braintree::get_webhook_object_from_body(&request.body)
+            .inspect_err(|error| {
+                tracing::warn!(
+                    target: "braintree_webhook",
+                    ?error,
+                    "failed to decode the Braintree webhook body for source verification"
+                );
+            })
+            .change_context(WebhookError::WebhookSourceVerificationFailed)?;
+
+        // `bt_signature` is `pubkey1|sig1&pubkey2|sig2&...`; split into (public_key, signature) pairs.
+        let signature_pairs: Vec<(&str, &str)> = notif
+            .bt_signature
+            .split('&')
+            .map(|pair| pair.split_once('|').unwrap_or(("", "")))
+            .collect();
+
+        // `additional_secret` holds the merchant's Braintree public key.
+        let public_key = connector_webhook_secrets
+            .additional_secret
+            .as_ref()
+            .ok_or_else(|| {
+                tracing::warn!(
+                    target: "braintree_webhook",
+                    "missing Braintree public key (additional_secret) for source verification"
+                );
+                error_stack::report!(WebhookError::WebhookVerificationSecretNotFound)
+            })?;
+
+        let extracted_signature =
+            braintree::get_matching_webhook_signature(&signature_pairs, public_key.peek())
+                .ok_or_else(|| {
+                    tracing::warn!(
+                        target: "braintree_webhook",
+                        "no bt_signature entry matched the merchant Braintree public key"
+                    );
+                    error_stack::report!(WebhookError::WebhookSignatureNotFound)
+                })?;
+
+        let message = notif.bt_payload.as_bytes();
+
+        // Signing key is the SHA1 digest of the private key (`secret`), then HMAC-SHA1 over the payload.
+        let sha1_hash_key = ring::digest::digest(
+            &ring::digest::SHA1_FOR_LEGACY_USE_ONLY,
+            &connector_webhook_secrets.secret,
+        );
+
+        let signed_message = crypto::HmacSha1
+            .sign_message(sha1_hash_key.as_ref(), message)
+            .inspect_err(|error| {
+                tracing::warn!(
+                    target: "braintree_webhook",
+                    ?error,
+                    "failed to compute the HMAC-SHA1 signature over the Braintree bt_payload"
+                );
+            })
+            .change_context(WebhookError::WebhookSourceVerificationFailed)?;
+
+        let payload_sign = hex::encode(signed_message);
+
+        Ok(payload_sign.as_bytes().eq(extracted_signature.as_bytes()))
+    }
+
+    fn get_event_type(&self, request: RequestDetails) -> Result<EventType, Report<WebhookError>> {
+        let notif = braintree::decode_from_request(&request)?;
+        Ok(braintree::get_status(notif.kind.as_str()))
+    }
+
+    fn get_webhook_event_reference(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Option<WebhookResourceReference>, Report<WebhookError>> {
+        let notif = braintree::decode_from_request(&request)?;
+        braintree::get_webhook_reference(&notif)
+    }
+
+    fn process_dispute_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<DisputeWebhookDetailsResponse, Report<WebhookError>> {
+        let notif = braintree::decode_from_request(&request)?;
+        braintree::build_webhook_dispute_response(&notif, &request.body)
+    }
+
+    fn get_webhook_resource_object(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, Report<WebhookError>> {
+        let notif = braintree::decode_from_request(&request)?;
+        Ok(Box::new(notif))
+    }
+
+    fn get_webhook_api_response(
+        &self,
+        _request: RequestDetails,
+        _error_kind: Option<connector_types::IncomingWebhookFlowError>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<interfaces::api::EventAckResponse, Report<WebhookError>> {
+        Ok(interfaces::api::EventAckResponse {
+            status_code: 200,
+            headers: vec![],
+            body: Some(b"[accepted]".to_vec()),
+        })
+    }
+
+    fn sample_webhook_body(&self) -> &'static [u8] {
+        // form-urlencoded `bt_signature=<pubkey>|<sig>&bt_payload=<base64 dispute_opened XML>`.
+        // Dummy values only; `bt_payload` base64 decodes to a minimal `dispute_opened` notification.
+        br#"bt_signature=dummy_public_key%7Cdummy_signature&bt_payload=PG5vdGlmaWNhdGlvbj48a2luZD5kaXNwdXRlX29wZW5lZDwva2luZD48dGltZXN0YW1wPjIwMjQtMDEtMDFUMDA6MDA6MDBaPC90aW1lc3RhbXA%2BPGRpc3B1dGU%2BPGFtb3VudF9kaXNwdXRlZD4xMDAwPC9hbW91bnRfZGlzcHV0ZWQ%2BPGN1cnJlbmN5X2lzb19jb2RlPlVTRDwvY3VycmVuY3lfaXNvX2NvZGU%2BPGlkPmR1bW15X2Rpc3B1dGVfaWRfMDAxPC9pZD48a2luZD5DSEFSR0VCQUNLPC9raW5kPjxzdGF0dXM%2Bb3Blbjwvc3RhdHVzPjxyZWFzb24%2BZnJhdWQ8L3JlYXNvbj48cmVhc29uX2NvZGU%2BODM8L3JlYXNvbl9jb2RlPjx0cmFuc2FjdGlvbj48YW1vdW50PjEwLjAwPC9hbW91bnQ%2BPGlkPmR1bW15X3R4bl9pZF8wMDE8L2lkPjwvdHJhbnNhY3Rpb24%2BPC9kaXNwdXRlPjwvbm90aWZpY2F0aW9uPg%3D%3D"#
+    }
 }
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::VerifyRedirectResponse for Braintree<T>
 {
@@ -307,7 +453,8 @@ macros::create_all_prerequisites!(
         )
     ],
     amount_converters: [
-        amount_converter: StringMajorUnit
+        amount_converter: StringMajorUnit,
+        amount_converter_webhooks: StringMinorUnit
         ],
     member_functions: {
         pub fn build_headers<F, FCD, Req, Res>(
@@ -404,16 +551,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentsAuthorizeData<T>,
             PaymentsResponseData,
         >,
-    ) -> CustomResult<Option<common_utils::request::RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let connector_router_data = BraintreeRouterData {
             connector: self.to_owned(),
             router_data: req.to_owned(),
         };
         let connector_req: BraintreePaymentsRequest =
             BraintreePaymentsRequest::try_from(connector_router_data)?;
-        Ok(Some(common_utils::request::RequestContent::Json(Box::new(
-            connector_req,
-        ))))
+        let typed = events::MaskedSerdeValue::from_masked_optional(
+            &connector_req,
+            "typed_connector_request",
+        );
+        Ok(Some(common_utils::request::ConnectorRequestData::new(
+            common_utils::request::RequestContent::Json(Box::new(connector_req)),
+            typed,
+        )))
     }
 
     fn handle_response_v2(
@@ -440,12 +592,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             res.status_code,
                         "braintree: response body did not match the expected format; confirm API version and connector documentation."),
                     )?;
-                event_builder.map(|i| i.set_connector_response(&response));
-                RouterDataV2::try_from(ResponseRouterData {
-                    response,
-                    router_data: data.clone(),
-                    http_code: res.status_code,
-                })
+                finalize_connector_response!(event_builder, response, data, res.status_code)
             }
             false => {
                 let response: BraintreeAuthResponse = res
@@ -456,12 +603,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             res.status_code,
                         "braintree: response body did not match the expected format; confirm API version and connector documentation."),
                     )?;
-                event_builder.map(|i| i.set_connector_response(&response));
-                RouterDataV2::try_from(ResponseRouterData {
-                    response,
-                    router_data: data.clone(),
-                    http_code: res.status_code,
-                })
+                finalize_connector_response!(event_builder, response, data, res.status_code)
             }
         }
     }
@@ -773,6 +915,7 @@ macros::macro_connector_flow_status_impls!(
         ServerSessionAuthenticationToken,
         ServerAuthenticationToken,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         SubmitEvidence,
         DefendDispute,
         Accept,

@@ -2,16 +2,20 @@ use std::{collections::HashMap, str::FromStr, sync::RwLock, time::Duration};
 
 use base64::Engine;
 use common_enums::ApiClientError;
+#[cfg(all(feature = "injector-client", feature = "log-transformations"))]
+use common_utils::events::apply_log_fields;
 #[cfg(feature = "injector-client")]
 use common_utils::{
     consts::{X_API_TAG, X_API_URL, X_SESSION_ID},
-    events::{EventStage, MaskedSerdeValue},
+    events::{maskable_headers_to_json, EventStage, MaskedSerdeValue},
     request::TransportType,
 };
 use common_utils::{
+    events::{record_json_fields_on_span, CompiledLogFields},
     ext_traits::AsyncExt,
     lineage,
     request::{Method, Request, RequestContent},
+    request_metrics::ConnectorLatencyTracker,
 };
 use domain_types::{
     connector_types::{ConnectorResponseHeaders, RawConnectorRequestResponse},
@@ -107,6 +111,14 @@ pub trait ConnectorRequestReference {
 
 pub trait AdditionalHeaders {
     fn get_vault_headers(&self) -> Option<&HashMap<String, Secret<String>>>;
+
+    fn get_payment_method_header(&self) -> Option<String> {
+        None
+    }
+
+    fn get_payment_method_type_header(&self) -> Option<String> {
+        None
+    }
 }
 
 impl ConnectorRequestReference for domain_types::connector_types::PaymentFlowData {
@@ -121,6 +133,18 @@ impl ConnectorRequestReference for domain_types::connector_types::VerifyWebhookS
     }
 }
 
+impl ConnectorRequestReference for domain_types::connector_types::RefreshPaymentMethodFlowData {
+    fn get_connector_request_reference_id(&self) -> &str {
+        &self.connector_request_reference_id
+    }
+}
+
+impl AdditionalHeaders for domain_types::connector_types::RefreshPaymentMethodFlowData {
+    fn get_vault_headers(&self) -> Option<&HashMap<String, Secret<String>>> {
+        None
+    }
+}
+
 impl AdditionalHeaders for domain_types::connector_types::VerifyWebhookSourceFlowData {
     fn get_vault_headers(&self) -> Option<&HashMap<String, Secret<String>>> {
         None
@@ -130,6 +154,15 @@ impl AdditionalHeaders for domain_types::connector_types::VerifyWebhookSourceFlo
 impl AdditionalHeaders for domain_types::connector_types::PaymentFlowData {
     fn get_vault_headers(&self) -> Option<&HashMap<String, Secret<String>>> {
         self.vault_headers.as_ref()
+    }
+
+    fn get_payment_method_header(&self) -> Option<String> {
+        Some(self.payment_method.to_string())
+    }
+
+    fn get_payment_method_type_header(&self) -> Option<String> {
+        self.payment_method_type
+            .map(|payment_method_type| payment_method_type.to_string())
     }
 }
 
@@ -210,7 +243,9 @@ impl AdditionalHeaders for domain_types::frm::frm_types::FrmFlowData {
         None
     }
 }
-use common_utils::events::{Event, EventConfig, FlowName};
+use common_utils::events::{Event, EventConfig, FlowName, RuntimeMetadata};
+#[cfg(feature = "injector-client")]
+use common_utils::types::ExecutionMode;
 #[cfg(feature = "injector-client")]
 // TokenData is now imported from hyperswitch_injector
 use common_utils::{consts, emit_event_with_config};
@@ -263,6 +298,11 @@ impl GetFlowStatus for domain_types::connector_types::RefundFlowData {
     }
 }
 impl GetFlowStatus for domain_types::connector_types::DisputeFlowData {
+    fn flow_status(&self) -> Option<domain_types::router_data::FlowStatus> {
+        None
+    }
+}
+impl GetFlowStatus for domain_types::connector_types::RefreshPaymentMethodFlowData {
     fn flow_status(&self) -> Option<domain_types::router_data::FlowStatus> {
         None
     }
@@ -347,6 +387,8 @@ where
                             .set_connector_response_headers(body.headers.clone());
                     }
 
+                    // typed_connector_response is now set inside handle_response_v2
+                    // (serialized once and used for both event logging and typed response)
                     let handle_response_result = connector.handle_response_v2(
                         &updated_router_data,
                         event.as_deref_mut(),
@@ -355,16 +397,20 @@ where
 
                     // Log response body and headers using properly masked data from connector
                     if let Some(evt) = event.as_deref_mut() {
+                        let mut json_fields: Vec<(&'static str, serde_json::Value)> = Vec::new();
+
                         if let Some(response_data) = &evt.response_data {
-                            tracing::Span::current().record(
-                                "response.body",
-                                tracing::field::display(response_data.inner()),
-                            );
+                            json_fields.push(("response.body", response_data.inner().clone()));
                         }
 
                         // Log response headers from event (already masked)
-                        tracing::Span::current()
-                            .record("response.headers", tracing::field::debug(&evt.headers));
+                        if let Ok(headers_json) = serde_json::to_value(&evt.headers) {
+                            json_fields.push(("response.headers", headers_json));
+                        }
+
+                        if !json_fields.is_empty() {
+                            record_json_fields_on_span(json_fields);
+                        }
                     }
 
                     handle_response_result?
@@ -404,7 +450,7 @@ where
                             .set_connector_response_headers(body.headers.clone());
                     }
 
-                    let error_response = match body.status_code {
+                    let mut error_response = match body.status_code {
                         500..=511 => connector.get_5xx_error_response(
                             body.clone(),
                             event.as_deref_mut(),
@@ -416,6 +462,17 @@ where
                             &updated_router_data.connector_config,
                         )?,
                     };
+                    if error_response.typed_connector_response.is_none() {
+                        if let Some(params) = event_params {
+                            tracing::warn!(
+                                connector = %params.connector_name,
+                                flow = %params.flow_name,
+                                status_code = body.status_code,
+                                "typed_connector_response is missing on error path — connector's build_error_response did not produce a typed error value"
+                            );
+                        }
+                    }
+
                     if let Some(evt) = event {
                         evt.set_error_response(&error_response);
                     }
@@ -444,8 +501,19 @@ where
                             &flow_status_label(flow_status),
                         );
                     }
+                    {
+                        error_response.raw_connector_response = updated_router_data
+                            .resource_common_data
+                            .get_raw_connector_response();
+                        error_response.raw_connector_request = updated_router_data
+                            .resource_common_data
+                            .get_raw_connector_request();
+                        error_response.typed_connector_request = updated_router_data
+                            .resource_common_data
+                            .get_typed_connector_request();
+                    }
                     Err(error_stack::report!(
-                        ConnectorError::ConnectorErrorResponse(error_response)
+                        ConnectorError::ConnectorErrorResponse(Box::new(error_response))
                     ))?
                 }
             };
@@ -501,6 +569,8 @@ pub struct EventProcessingParams<'a> {
     pub service_type: &'a str,
     pub flow_name: FlowName,
     pub event_config: &'a EventConfig,
+    /// Deployment/runtime identity threaded from application state, stamped onto every event.
+    pub runtime_metadata: &'a RuntimeMetadata,
     pub request_id: &'a str,
     pub lineage_ids: &'a lineage::LineageIds<'a>,
     pub reference_id: &'a Option<String>,
@@ -510,7 +580,13 @@ pub struct EventProcessingParams<'a> {
     pub proxy_name: Option<&'a str>,
     pub tenant_id: &'a str,
     pub merchant_id: &'a str,
+    pub org_id: &'a str,
     pub return_raw_connector_data: bool,
+    pub connector_latency: ConnectorLatencyTracker,
+    /// Runtime kill-switch for log field application.
+    pub log_fields_enabled: bool,
+    /// Pre-compiled log fields (transformations + static values) for golden log lines.
+    pub log_fields: &'a CompiledLogFields,
 }
 
 #[cfg(feature = "injector-client")]
@@ -527,7 +603,10 @@ pub struct EventProcessingParams<'a> {
         response.error_message = Empty,
         response.status_code = Empty,
         message_ = "Golden Log Line (outgoing)",
+        // `latency` is the pre-existing human-readable string; `latency_ms` is the same
+        // duration as a plain number of milliseconds, for numeric downstream consumers.
         latency = Empty,
+        latency_ms = Empty,
     )
 )]
 #[allow(clippy::too_many_arguments)]
@@ -595,6 +674,25 @@ where
                         .set_raw_connector_request(Some(
                             extract_raw_connector_request(request).into(),
                         ));
+                    if request.typed_connector_request_value.is_none()
+                        && request.body.as_ref().is_some_and(|b| {
+                            !matches!(b, RequestContent::FormData(_) | RequestContent::RawBytes(_))
+                        })
+                    {
+                        tracing::warn!(
+                            connector = %event_params.connector_name,
+                            flow = %event_params.flow_name,
+                            "typed_connector_request is missing — connector's build_request_v2 did not produce a typed request value"
+                        );
+                    }
+                    updated_router_data
+                        .resource_common_data
+                        .set_typed_connector_request(
+                            request
+                                .typed_connector_request_value
+                                .as_ref()
+                                .and_then(|v| serde_json::to_string(v).ok()),
+                        );
                     updated_router_data
                 }
                 _ => updated_router_data,
@@ -622,6 +720,26 @@ where
                         consts::X_MERCHANT_ID,
                         Maskable::Masked(Secret::new(event_params.merchant_id.to_string())),
                     );
+                    if !event_params.org_id.is_empty() {
+                        req.add_header(
+                            consts::X_ORG_ID,
+                            Maskable::Masked(Secret::new(event_params.org_id.to_string())),
+                        );
+                    }
+                    if let Some(payment_method) =
+                        router_data.resource_common_data.get_payment_method_header()
+                    {
+                        req.add_header(consts::X_PAYMENT_METHOD, Maskable::Normal(payment_method));
+                    }
+                    if let Some(payment_method_type) = router_data
+                        .resource_common_data
+                        .get_payment_method_type_header()
+                    {
+                        req.add_header(
+                            consts::X_PAYMENT_METHOD_TYPE,
+                            Maskable::Normal(payment_method_type),
+                        );
+                    }
                 }
                 req
             });
@@ -682,13 +800,17 @@ where
 
                     let masked_headers = request.headers.clone();
                     tracing::info!(headers=?masked_headers, "headers of connector request");
-                    tracing::Span::current()
-                        .record("request.headers", tracing::field::debug(&masked_headers));
+                    record_json_fields_on_span(vec![(
+                        "request.headers",
+                        maskable_headers_to_json(&masked_headers),
+                    )]);
 
-                    let masked_request = mask_connector_request(&request.body);
+                    let masked_request = request
+                        .typed_connector_request_value
+                        .clone()
+                        .unwrap_or_else(|| mask_connector_request(&request.body));
                     tracing::info!(request=?masked_request, "request of connector");
-                    tracing::Span::current()
-                        .record("request.body", tracing::field::display(&masked_request));
+                    record_json_fields_on_span(vec![("request.body", masked_request.clone())]);
 
                     let response = if let Some(token_data) = token_data {
                         tracing::debug!(
@@ -815,6 +937,9 @@ where
                         })
                     };
                     let external_service_elapsed = external_service_start_latency.elapsed();
+                    event_params
+                        .connector_latency
+                        .add_connector_time(external_service_elapsed);
                     metrics::EXTERNAL_SERVICE_API_CALLS_LATENCY
                         .with_label_values(&[
                             &method.to_string(),
@@ -853,19 +978,20 @@ where
                         &masked_request,
                     );
 
-                    let result = handle_connector_response(
-                        response.change_context(
-                            ConnectorError::response_handling_failed_http_status_unknown(),
-                        ),
-                        updated_router_data,
-                        &connector,
-                        Some(&mut event),
-                        all_keys_required,
-                        &method.to_string(),
-                        url,
-                        Some(&event_params),
-                    )
-                    .map_err(report_connector_response_to_flow);
+                    let result = match response {
+                        Ok(body) => handle_connector_response(
+                            Ok(body),
+                            updated_router_data,
+                            &connector,
+                            Some(&mut event),
+                            all_keys_required,
+                            &method.to_string(),
+                            url,
+                            Some(&event_params),
+                        )
+                        .map_err(report_connector_response_to_flow),
+                        Err(transport_err) => Err(transport_err),
+                    };
 
                     emit_event_with_config(event, event_params.event_config);
                     result
@@ -905,13 +1031,14 @@ where
 
                     let masked_headers = record.headers.clone();
                     tracing::info!(headers=?masked_headers, "headers of connector request");
-                    tracing::Span::current()
-                        .record("request.headers", tracing::field::debug(&record.headers));
+                    record_json_fields_on_span(vec![(
+                        "request.headers",
+                        maskable_headers_to_json(&masked_headers),
+                    )]);
 
                     let masked_request = mask_connector_request(&record.payload);
                     tracing::info!(request=?masked_request, "request of connector");
-                    tracing::Span::current()
-                        .record("request.body", tracing::field::display(&masked_request));
+                    record_json_fields_on_span(vec![("request.body", masked_request.clone())]);
 
                     let response = publish_to_kafka(record)
                         .await
@@ -927,6 +1054,9 @@ where
                         });
 
                     let external_service_elapsed = external_service_start_latency.elapsed();
+                    event_params
+                        .connector_latency
+                        .add_connector_time(external_service_elapsed);
                     metrics::EXTERNAL_SERVICE_API_CALLS_LATENCY
                         .with_label_values(&[
                             "PUBLISH",
@@ -967,19 +1097,20 @@ where
                         &masked_request,
                     );
 
-                    let result = handle_connector_response(
-                        response.change_context(
-                            ConnectorError::response_handling_failed_http_status_unknown(),
-                        ),
-                        router_data,
-                        &connector,
-                        Some(&mut event),
-                        all_keys_required,
-                        "PUBLISH",
-                        topic,
-                        Some(&event_params),
-                    )
-                    .map_err(report_connector_response_to_flow);
+                    let result = match response {
+                        Ok(body) => handle_connector_response(
+                            Ok(body),
+                            router_data,
+                            &connector,
+                            Some(&mut event),
+                            all_keys_required,
+                            "PUBLISH",
+                            topic,
+                            Some(&event_params),
+                        )
+                        .map_err(report_connector_response_to_flow),
+                        Err(publish_err) => Err(publish_err),
+                    };
 
                     emit_event_with_config(event, event_params.event_config);
                     result
@@ -991,6 +1122,21 @@ where
 
     let result_with_integrity_check = match result {
         Ok(data) => {
+            if data
+                .resource_common_data
+                .get_typed_connector_response()
+                .is_none()
+                && data
+                    .resource_common_data
+                    .get_raw_connector_response()
+                    .is_some()
+            {
+                tracing::warn!(
+                    connector = %event_params.connector_name,
+                    flow = %event_params.flow_name,
+                    "typed_connector_response is missing on success path — connector's handle_response_v2 did not produce a typed response value"
+                );
+            }
             data.request
                 .check_integrity(&data.request.clone(), None)
                 .map_err(|err| {
@@ -1012,6 +1158,13 @@ where
 
     let elapsed = start.elapsed().as_millis();
     tracing::Span::current().record("latency", elapsed);
+    // Additive numeric latency alongside the existing string `latency`.
+    tracing::Span::current().record("latency_ms", u64::try_from(elapsed).unwrap_or_default());
+    // Apply outgoing log fields (transformations + static values) before emitting the golden log line
+    #[cfg(feature = "log-transformations")]
+    if event_params.log_fields_enabled {
+        apply_log_fields(event_params.log_fields);
+    }
     tracing::info!(tag = ?Tag::OutgoingApi, log_type = "api", "Outgoing Request completed");
     result_with_integrity_check
 }
@@ -1019,15 +1172,14 @@ where
 #[cfg(feature = "injector-client")]
 fn mask_connector_request(request_content: &Option<RequestContent>) -> serde_json::Value {
     match request_content {
-        Some(request) => match request {
-            RequestContent::Json(i)
-            | RequestContent::FormUrlEncoded(i)
-            | RequestContent::Xml(i) => (**i)
-                .masked_serialize()
-                .unwrap_or(json!({ "error": "failed to mask serialize connector request"})),
-            RequestContent::FormData(_) => json!({"request_type": "FORM_DATA"}),
-            RequestContent::RawBytes(_) => json!({"request_type": "RAW_BYTES"}),
-        },
+        Some(request) => request
+            .masked_serialize_inner()
+            .map(|(v, _)| v)
+            .unwrap_or_else(|| match request {
+                RequestContent::FormData(_) => json!({"request_type": "FORM_DATA"}),
+                RequestContent::RawBytes(_) => json!({"request_type": "RAW_BYTES"}),
+                _ => serde_json::Value::Null,
+            }),
         None => serde_json::Value::Null,
     }
 }
@@ -1056,6 +1208,7 @@ fn create_event(
         url,
         method,
         stage: EventStage::ConnectorCall,
+        execution_mode: ExecutionMode::from_shadow_flag(event_params.shadow_mode),
         latency_ms,
         status_code,
         request_data: MaskedSerdeValue::from_masked_optional(masked_request, "connector_request"),
@@ -1064,6 +1217,9 @@ fn create_event(
         headers: event_headers,
         additional_fields: HashMap::new(),
         lineage_ids: event_params.lineage_ids.to_owned(),
+        // Deployment/runtime identity (compiled version + optional app/deployment/pod), threaded
+        // from application state; serialized as top-level event fields.
+        runtime_metadata: event_params.runtime_metadata.clone(),
     };
 
     event.add_reference_id(event_params.reference_id.as_deref());
@@ -1102,6 +1258,7 @@ pub async fn call_connector_api(
         proxy_name,
         request.certificate,
         request.certificate_key,
+        request.ca_certificate,
         test_mode,
     )?;
 
@@ -1261,6 +1418,7 @@ pub fn create_client(
     proxy_name: &str,
     client_certificate: Option<Secret<String>>,
     client_certificate_key: Option<Secret<String>>,
+    ca_certificate_pem: Option<Secret<String>>,
     test_mode: bool,
 ) -> CustomResult<Client, ApiClientError> {
     match (client_certificate.clone(), client_certificate_key.clone()) {
@@ -1269,18 +1427,21 @@ pub fn create_client(
                 get_client_builder(proxy_config, should_bypass_proxy, proxy_name, test_mode)?;
 
             let identity = create_identity_from_certificate_and_key(
-                encoded_certificate.clone(),
+                encoded_certificate,
                 encoded_certificate_key,
             )?;
-            let certificate_list = create_certificate(encoded_certificate)?;
-            let client_builder = certificate_list
+            // NOTE: the client identity certificate is no longer registered as a root CA.
+            // Server verification now uses webpki roots plus ca_certificate_pem only.
+            let client_builder = ca_certificate_pem
+                .map(create_certificate)
+                .transpose()?
+                .unwrap_or_default()
                 .into_iter()
-                .fold(client_builder, |client_builder, certificate| {
-                    client_builder.add_root_certificate(certificate)
-                });
+                .fold(
+                    client_builder.identity(identity).use_rustls_tls(),
+                    |b, ca| b.add_root_certificate(ca),
+                );
             client_builder
-                .identity(identity)
-                .use_rustls_tls()
                 .build()
                 .change_context(ApiClientError::ClientConstructionFailed)
                 .attach_printable("Failed to construct client with certificate and certificate key")
@@ -1288,6 +1449,9 @@ pub fn create_client(
         _ => get_base_client(proxy_config, should_bypass_proxy, proxy_name, test_mode),
     }
 }
+
+/// Default total timeout (seconds) for a single connector API call.
+const DEFAULT_CONNECTOR_REQUEST_TIMEOUT_SECS: u64 = 30;
 
 static DEFAULT_CLIENT: OnceCell<Client> = OnceCell::new();
 static PROXY_CLIENT_CACHE: OnceCell<RwLock<HashMap<(Proxy, String), Client>>> = OnceCell::new();
@@ -1411,6 +1575,11 @@ fn get_client_builder(
             proxy_config
                 .idle_pool_connection_timeout
                 .unwrap_or_default(),
+        ))
+        .timeout(Duration::from_secs(
+            proxy_config
+                .connector_request_timeout
+                .unwrap_or(DEFAULT_CONNECTOR_REQUEST_TIMEOUT_SECS),
         ));
 
     // Disable automatic gzip decompression in test mode
@@ -1489,6 +1658,16 @@ pub fn create_identity_from_certificate_and_key(
         .change_context(ApiClientError::CertificateDecodeFailed)
 }
 
+/// Single PEM-bundle parser used by BOTH runtime client construction
+/// ([`create_certificate`]) and config-load validation, so the two can never
+/// drift apart (e.g. one switching to `from_pem` while the other doesn't).
+pub fn parse_ca_pem_bundle(
+    pem: &[u8],
+) -> Result<Vec<reqwest::Certificate>, error_stack::Report<ApiClientError>> {
+    reqwest::Certificate::from_pem_bundle(pem)
+        .change_context(ApiClientError::CertificateDecodeFailed)
+}
+
 pub fn create_certificate(
     encoded_certificate: Secret<String>,
 ) -> Result<Vec<reqwest::Certificate>, error_stack::Report<ApiClientError>> {
@@ -1498,8 +1677,7 @@ pub fn create_certificate(
 
     let certificate = String::from_utf8(decoded_certificate)
         .change_context(ApiClientError::CertificateDecodeFailed)?;
-    reqwest::Certificate::from_pem_bundle(certificate.as_bytes())
-        .change_context(ApiClientError::CertificateDecodeFailed)
+    parse_ca_pem_bundle(certificate.as_bytes())
 }
 
 async fn handle_response(

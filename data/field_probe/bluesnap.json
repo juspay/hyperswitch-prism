@@ -259,7 +259,7 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Dana": {
         "status": "not_implemented",
@@ -271,7 +271,7 @@
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "EVoucher": {
         "status": "not_implemented",
@@ -307,7 +307,7 @@
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "GoPay": {
         "status": "not_implemented",
@@ -474,7 +474,7 @@
       },
       "MobilePayRedirect": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Momo": {
         "status": "not_implemented",
@@ -518,7 +518,7 @@
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "OpenBankingUk": {
         "status": "not_implemented",
@@ -537,8 +537,8 @@
         "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "PayURedirect": {
         "status": "not_implemented",
@@ -554,11 +554,11 @@
       },
       "Paysera": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
@@ -651,8 +651,8 @@
         "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected wallet type is not supported"
       },
       "Sofort": {
         "status": "not_implemented",
@@ -770,6 +770,12 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: create_connector_customer flow for bluesnap"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: get_connector_customer flow for bluesnap"
       }
     },
     "dispute_accept": {
@@ -918,7 +924,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"cardTransactionType\":\"AUTH_CAPTURE\",\"creditCard\":{\"cardNumber\":\"{{$card_number}}\",\"securityCode\":\"{{$card_cvc}}\",\"expirationMonth\":\"{{$card_exp_month}}\",\"expirationYear\":\"{{$card_exp_year}}\"},\"transactionFraudInfo\":{\"fraudSessionId\":\"probe_proxy_txn_001\"},\"merchantTransactionId\":\"probe_proxy_txn_001\"}"
+          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"cardTransactionType\":\"AUTH_CAPTURE\",\"creditCard\":{\"cardNumber\":\"{{$card_number}}\",\"securityCode\":\"{{$card_cvc}}\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\"},\"transactionFraudInfo\":{\"fraudSessionId\":\"probe_proxy_txn_001\"},\"merchantTransactionId\":\"probe_proxy_txn_001\"}"
         }
       }
     },
@@ -938,6 +944,11 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: mandate_revoke flow for bluesnap"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "refund": {

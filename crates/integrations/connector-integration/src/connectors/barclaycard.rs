@@ -8,9 +8,13 @@ use base64::Engine;
 use common_enums::CurrencyUnit;
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, Method};
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void},
+    connector_flow::{
+        Authenticate, Authorize, Capture, PSync, PostAuthenticate, PreAuthenticate, RSync, Refund,
+        RepeatPayment, SetupMandate, Void,
+    },
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthenticateData, PaymentsAuthorizeData,
+        PaymentsCaptureData, PaymentsPostAuthenticateData, PaymentsPreAuthenticateData,
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
@@ -32,11 +36,13 @@ use time::OffsetDateTime;
 use transformers::{self as barclaycard};
 
 use requests::{
+    BarclaycardAuthEnrollmentRequest, BarclaycardAuthSetupRequest, BarclaycardAuthValidateRequest,
     BarclaycardCaptureRequest, BarclaycardPaymentsRequest, BarclaycardRefundRequest,
     BarclaycardRepeatPaymentRequest, BarclaycardSetupMandateRequest, BarclaycardVoidRequest,
 };
 use responses::{
-    BarclaycardAuthorizeResponse, BarclaycardCaptureResponse, BarclaycardRefundResponse,
+    BarclaycardAuthSetupResponse, BarclaycardAuthenticateResponse, BarclaycardAuthorizeResponse,
+    BarclaycardCaptureResponse, BarclaycardPostAuthenticateResponse, BarclaycardRefundResponse,
     BarclaycardRepeatPaymentResponse, BarclaycardRsyncResponse, BarclaycardSetupMandateResponse,
     BarclaycardTransactionResponse, BarclaycardVoidResponse,
 };
@@ -130,6 +136,56 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Barclaycard<T>
 {
+    fn next_authentication_step(
+        &self,
+        auth_type: common_enums::AuthenticationType,
+        payment_method: common_enums::PaymentMethod,
+        redirect_state: connector_types::RedirectState,
+        completed_step: Option<connector_types::AuthenticationStep>,
+    ) -> connector_types::AuthenticationStep {
+        use connector_types::{AuthenticationStep, RedirectState};
+        if auth_type == common_enums::AuthenticationType::ThreeDs
+            && payment_method == common_enums::PaymentMethod::Card
+        {
+            match (redirect_state, completed_step) {
+                (RedirectState::InitialRequest, _) => AuthenticationStep::PreAuthenticate,
+
+                (RedirectState::RedirectWithParams, None) => AuthenticationStep::Authenticate,
+
+                (RedirectState::RedirectWithParams, Some(AuthenticationStep::Authenticate)) => {
+                    AuthenticationStep::Authorize
+                }
+
+                (RedirectState::RedirectWithoutParams, None) => {
+                    AuthenticationStep::PostAuthenticate
+                }
+
+                (
+                    RedirectState::RedirectWithoutParams,
+                    Some(AuthenticationStep::PostAuthenticate),
+                ) => AuthenticationStep::Authorize,
+
+                _ => AuthenticationStep::Authorize,
+            }
+        } else {
+            AuthenticationStep::Authorize
+        }
+    }
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentPreAuthenticateV2<T> for Barclaycard<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentAuthenticateV2<T> for Barclaycard<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentPostAuthenticateV2<T> for Barclaycard<T>
+{
 }
 
 // SetupMandate implementation is below using macro_connector_implementation!
@@ -143,6 +199,24 @@ macros::create_all_prerequisites!(
             request_body: BarclaycardPaymentsRequest<T>,
             response_body: BarclaycardAuthorizeResponse,
             router_data: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: PreAuthenticate,
+            request_body: BarclaycardAuthSetupRequest<T>,
+            response_body: BarclaycardAuthSetupResponse,
+            router_data: RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: Authenticate,
+            request_body: BarclaycardAuthEnrollmentRequest<T>,
+            response_body: BarclaycardAuthenticateResponse,
+            router_data: RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: PostAuthenticate,
+            request_body: BarclaycardAuthValidateRequest<T>,
+            response_body: BarclaycardPostAuthenticateResponse,
+            router_data: RouterDataV2<PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>,
         ),
         (
             flow: Capture,
@@ -261,7 +335,7 @@ macros::create_all_prerequisites!(
                 .collect();
             let sha256 = self.generate_digest(
                 barclaycard_req
-                    .map(|req| req.get_inner_value().expose())
+                    .map(|req| req.content.get_inner_value().expose())
                     .unwrap_or_default()
                     .as_bytes()
             );
@@ -338,6 +412,93 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}/pts/v2/payments/", self.connector_base_url_payments(req)))
+        }
+    }
+);
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Barclaycard,
+    curl_request: Json(BarclaycardAuthSetupRequest<T>),
+    curl_response: BarclaycardAuthSetupResponse,
+    flow_name: PreAuthenticate,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsPreAuthenticateData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/risk/v1/authentication-setups", self.connector_base_url_payments(req)))
+        }
+    }
+);
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Barclaycard,
+    curl_request: Json(BarclaycardAuthEnrollmentRequest<T>),
+    curl_response: BarclaycardAuthenticateResponse,
+    flow_name: Authenticate,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsAuthenticateData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/risk/v1/authentications", self.connector_base_url_payments(req)))
+        }
+    }
+);
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Barclaycard,
+    curl_request: Json(BarclaycardAuthValidateRequest<T>),
+    curl_response: BarclaycardPostAuthenticateResponse,
+    flow_name: PostAuthenticate,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsPostAuthenticateData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/risk/v1/authentication-results", self.connector_base_url_payments(req)))
         }
     }
 );
@@ -436,7 +597,7 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             let connector_transaction_id = match &req.request.connector_transaction_id {
-                ResponseId::ConnectorTransactionId(id) => Ok(id),
+                ResponseId::ConnectorTransactionId(id) if !id.is_empty() => Ok(id),
                 _ => Err(IntegrationError::MissingConnectorTransactionID { context: Default::default() })
 }?;
             Ok(format!(
@@ -606,15 +767,38 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         event_builder: Option<&mut events::Event>,
         _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        let response: responses::BarclaycardErrorResponse = res
-            .response
-            .parse_struct("BarclaycardErrorResponse")
-            .change_context(
-                crate::utils::response_deserialization_fail(
-                    res.status_code,
-                "barclaycard: response body did not match the expected format; confirm API version and connector documentation."),
-            )?;
+        let response: responses::BarclaycardErrorResponse =
+            match res.response.parse_struct("BarclaycardErrorResponse") {
+                Ok(parsed) => parsed,
+                Err(_) => {
+                    // Some upstream/proxy failures (e.g. a 404/5xx) return a non-JSON body
+                    // (HTML or plain text) that matches no BarclaycardErrorResponse variant.
+                    // Surface a clean error carrying the raw body instead of failing to
+                    // deserialize, which would otherwise mask the real status with an
+                    // opaque internal error.
+                    let raw_body = String::from_utf8_lossy(res.response.as_ref());
+                    let reason = (!raw_body.trim().is_empty())
+                        .then(|| raw_body.chars().take(1024).collect::<String>());
+                    return Ok(ErrorResponse {
+                        status_code: res.status_code,
+                        code: res.status_code.to_string(),
+                        message: common_utils::consts::NO_ERROR_MESSAGE.to_string(),
+                        reason,
+                        attempt_status: None,
+                        connector_transaction_id: None,
+                        network_decline_code: None,
+                        network_advice_code: None,
+                        network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
+                    });
+                }
+            };
 
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         match response {
             responses::BarclaycardErrorResponse::Standard(error_response) => {
                 with_error_response_body!(event_builder, error_response);
@@ -665,6 +849,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 })
             }
             responses::BarclaycardErrorResponse::Server(server_error) => {
@@ -698,6 +886,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 })
             }
             responses::BarclaycardErrorResponse::Authentication(auth_error) => {
@@ -713,6 +905,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 })
             }
         }
@@ -725,12 +921,10 @@ macros::macro_connector_flow_status_impls!(
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     not_implemented: [
         IncrementalAuthorization,
-        PostAuthenticate,
-        Authenticate,
-        PreAuthenticate,
         VoidPC,
         PaymentMethodToken,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         ServerAuthenticationToken,
         ServerSessionAuthenticationToken,
         ClientAuthenticationToken,

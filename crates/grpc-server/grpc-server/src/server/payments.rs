@@ -7,15 +7,19 @@ use crate::{
 };
 use common_enums;
 use common_utils::{events::FlowName, lineage, metadata::MaskedMetadata, SecretSerdeValue};
-use connector_integration::types::{ConnectorData, ConnectorDataProvider};
+use connector_integration::types::{
+    AuthenticatorConnectorData, ConnectorData, ConnectorDataProvider, FrmConnectorData,
+    PayoutConnectorData,
+};
 use domain_types::payment_method_data;
 use domain_types::{
     connector_flow::{
         Authenticate, Authorize, Capture, ClientAuthenticationToken, CreateConnectorCustomer,
-        CreateOrder, CreatePaymentMethod, GetPaymentMethod, IncrementalAuthorization,
-        MandateRevoke, PSync, PaymentMethodEligibility, PaymentMethodToken, PostAuthenticate,
-        PreAuthenticate, Recharge, Refund, RepeatPayment, ServerAuthenticationToken,
-        ServerSessionAuthenticationToken, SetupMandate, Void, VoidPC,
+        CreateOrder, CreatePaymentMethod, GetConnectorCustomer, GetPaymentMethod,
+        IncrementalAuthorization, MandateRevoke, PSync, PaymentMethodEligibility,
+        PaymentMethodToken, PostAuthenticate, PreAuthenticate, Recharge, RefreshPaymentMethod,
+        Refund, RepeatPayment, ServerAuthenticationToken, ServerSessionAuthenticationToken,
+        SetupMandate, Void, VoidPC,
     },
     connector_types::{
         ClientAuthenticationTokenRequestData, ConnectorCustomerData, ConnectorCustomerResponse,
@@ -28,10 +32,12 @@ use domain_types::{
         PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
         PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData,
-        RawConnectorRequestResponse, RechargeRequestData, RechargeResponseData, RefundFlowData,
-        RefundsData, RefundsResponseData, RepeatPaymentData, ServerAuthenticationTokenRequestData,
-        ServerAuthenticationTokenResponseData, ServerSessionAuthenticationTokenRequestData,
-        ServerSessionAuthenticationTokenResponseData, SetupMandateRequestData,
+        RawConnectorRequestResponse, RechargeRequestData, RechargeResponseData,
+        RefreshPaymentMethodData, RefreshPaymentMethodFlowData, RefreshPaymentMethodResponseData,
+        RefundFlowData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+        ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
+        SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
@@ -39,13 +45,15 @@ use domain_types::{
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     types::{
-        generate_create_order_response, generate_create_payment_method_response,
+        generate_create_connector_customer_response, generate_create_order_response,
+        generate_create_payment_method_response, generate_get_connector_customer_response,
         generate_get_payment_method_response, generate_payment_authenticate_response,
         generate_payment_capture_response, generate_payment_incremental_authorization_response,
         generate_payment_method_eligibility_response, generate_payment_post_authenticate_response,
         generate_payment_pre_authenticate_response, generate_payment_sdk_session_token_response,
         generate_payment_sync_response, generate_payment_void_post_capture_response,
-        generate_payment_void_response, generate_recharge_response, generate_refund_response,
+        generate_payment_void_response, generate_recharge_response,
+        generate_refresh_payment_method_response, generate_refund_response,
         generate_repeat_payment_response, generate_setup_mandate_response,
         tokenized_authorize_to_base, tokenized_setup_recurring_to_base, AuthorizationRequest,
         PaymentMethodDataAction, SetupRecurringRequest,
@@ -74,7 +82,8 @@ use grpc_api_types::payments::{
     PaymentMethodServiceCreateResponse, PaymentMethodServiceEligibilityRequest,
     PaymentMethodServiceEligibilityResponse, PaymentMethodServiceGetRequest,
     PaymentMethodServiceGetResponse, PaymentMethodServiceRechargeRequest,
-    PaymentMethodServiceRechargeResponse, PaymentMethodServiceTokenizeRequest,
+    PaymentMethodServiceRechargeResponse, PaymentMethodServiceRefreshRequest,
+    PaymentMethodServiceRefreshResponse, PaymentMethodServiceTokenizeRequest,
     PaymentMethodServiceTokenizeResponse, PaymentServiceAuthorizeRequest,
     PaymentServiceAuthorizeResponse, PaymentServiceCaptureRequest, PaymentServiceCaptureResponse,
     PaymentServiceCreateOrderRequest, PaymentServiceCreateOrderResponse, PaymentServiceGetRequest,
@@ -89,7 +98,7 @@ use grpc_api_types::payments::{
     RecurringPaymentServiceChargeResponse, RecurringPaymentServiceRevokeRequest,
     RecurringPaymentServiceRevokeResponse, RefundResponse,
 };
-use hyperswitch_masking::{ExposeInterface, PeekInterface};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use injector::TokenData;
 use interfaces::{
     connector_integration_v2::BoxedConnectorIntegrationV2,
@@ -98,7 +107,7 @@ use interfaces::{
 use tracing::info;
 use ucs_env::{
     configs::Config,
-    error::{IntoGrpcStatus, ResultExtGrpc},
+    error::{InternalError, ReportExtGrpcError, ResultExtGrpc, ResultExtGrpcError},
 };
 
 #[derive(Debug, Clone)]
@@ -114,6 +123,8 @@ struct EventParams<'a> {
     proxy_name: Option<&'a str>,
     tenant_id: &'a str,
     merchant_id: &'a str,
+    org_id: &'a str,
+    connector_latency: common_utils::request_metrics::ConnectorLatencyTracker,
 }
 
 /// Helper function for converting CardDetails to TokenData with structured types
@@ -199,32 +210,47 @@ trait PaymentOperationsInternal {
     async fn internal_void_payment(
         &self,
         request: RequestData<PaymentServiceVoidRequest>,
-    ) -> Result<tonic::Response<PaymentServiceVoidResponse>, tonic::Status>;
+    ) -> Result<
+        tonic::Response<PaymentServiceVoidResponse>,
+        error_stack::Report<ucs_env::error::GrpcError>,
+    >;
 
     async fn internal_void_post_capture(
         &self,
         request: RequestData<PaymentServiceReverseRequest>,
-    ) -> Result<tonic::Response<PaymentServiceReverseResponse>, tonic::Status>;
+    ) -> Result<
+        tonic::Response<PaymentServiceReverseResponse>,
+        error_stack::Report<ucs_env::error::GrpcError>,
+    >;
 
     async fn internal_refund(
         &self,
         request: RequestData<PaymentServiceRefundRequest>,
-    ) -> Result<tonic::Response<RefundResponse>, tonic::Status>;
+    ) -> Result<tonic::Response<RefundResponse>, error_stack::Report<ucs_env::error::GrpcError>>;
 
     async fn internal_payment_capture(
         &self,
         request: RequestData<PaymentServiceCaptureRequest>,
-    ) -> Result<tonic::Response<PaymentServiceCaptureResponse>, tonic::Status>;
+    ) -> Result<
+        tonic::Response<PaymentServiceCaptureResponse>,
+        error_stack::Report<ucs_env::error::GrpcError>,
+    >;
 
     async fn internal_incremental_authorization(
         &self,
         request: RequestData<PaymentServiceIncrementalAuthorizationRequest>,
-    ) -> Result<tonic::Response<PaymentServiceIncrementalAuthorizationResponse>, tonic::Status>;
+    ) -> Result<
+        tonic::Response<PaymentServiceIncrementalAuthorizationResponse>,
+        error_stack::Report<ucs_env::error::GrpcError>,
+    >;
 
     async fn internal_create_order(
         &self,
         request: RequestData<PaymentServiceCreateOrderRequest>,
-    ) -> Result<tonic::Response<PaymentServiceCreateOrderResponse>, tonic::Status>;
+    ) -> Result<
+        tonic::Response<PaymentServiceCreateOrderResponse>,
+        error_stack::Report<ucs_env::error::GrpcError>,
+    >;
 }
 
 trait PaymentMethodAuthOperational {
@@ -233,7 +259,7 @@ trait PaymentMethodAuthOperational {
         request: RequestData<PaymentMethodAuthenticationServicePreAuthenticateRequest>,
     ) -> Result<
         tonic::Response<PaymentMethodAuthenticationServicePreAuthenticateResponse>,
-        tonic::Status,
+        error_stack::Report<ucs_env::error::GrpcError>,
     >;
 
     async fn internal_authenticate(
@@ -241,7 +267,7 @@ trait PaymentMethodAuthOperational {
         request: RequestData<PaymentMethodAuthenticationServiceAuthenticateRequest>,
     ) -> Result<
         tonic::Response<PaymentMethodAuthenticationServiceAuthenticateResponse>,
-        tonic::Status,
+        error_stack::Report<ucs_env::error::GrpcError>,
     >;
 
     async fn internal_post_authenticate(
@@ -249,7 +275,7 @@ trait PaymentMethodAuthOperational {
         request: RequestData<PaymentMethodAuthenticationServicePostAuthenticateRequest>,
     ) -> Result<
         tonic::Response<PaymentMethodAuthenticationServicePostAuthenticateResponse>,
-        tonic::Status,
+        error_stack::Report<ucs_env::error::GrpcError>,
     >;
 }
 
@@ -257,7 +283,28 @@ trait RecurringPaymentOperational {
     async fn internal_mandate_revoke(
         &self,
         request: RequestData<RecurringPaymentServiceRevokeRequest>,
-    ) -> Result<tonic::Response<RecurringPaymentServiceRevokeResponse>, tonic::Status>;
+    ) -> Result<
+        tonic::Response<RecurringPaymentServiceRevokeResponse>,
+        error_stack::Report<ucs_env::error::GrpcError>,
+    >;
+}
+
+trait CustomerOperationsInternal {
+    async fn internal_create_connector_customer(
+        &self,
+        request: RequestData<grpc_api_types::payments::CustomerServiceCreateRequest>,
+    ) -> Result<
+        tonic::Response<grpc_api_types::payments::CustomerServiceCreateResponse>,
+        error_stack::Report<ucs_env::error::GrpcError>,
+    >;
+
+    async fn internal_get_connector_customer(
+        &self,
+        request: RequestData<grpc_api_types::payments::CustomerServiceGetRequest>,
+    ) -> Result<
+        tonic::Response<grpc_api_types::payments::CustomerServiceGetResponse>,
+        error_stack::Report<ucs_env::error::GrpcError>,
+    >;
 }
 
 trait MerchantAuthenticationOperational {
@@ -266,7 +313,7 @@ trait MerchantAuthenticationOperational {
         request: RequestData<MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest>,
     ) -> Result<
         tonic::Response<MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse>,
-        tonic::Status,
+        error_stack::Report<ucs_env::error::GrpcError>,
     >;
 }
 
@@ -293,6 +340,40 @@ pub struct Payments {
 
 #[derive(Clone)]
 pub struct Customer;
+
+impl CustomerOperationsInternal for Customer {
+    implement_connector_operation!(
+        fn_name: internal_create_connector_customer,
+        log_prefix: "CREATE_CONNECTOR_CUSTOMER",
+        request_type: grpc_api_types::payments::CustomerServiceCreateRequest,
+        response_type: grpc_api_types::payments::CustomerServiceCreateResponse,
+        flow_marker: CreateConnectorCustomer,
+        resource_common_data_type: PaymentFlowData,
+        request_data_type: ConnectorCustomerData,
+        response_data_type: ConnectorCustomerResponse,
+        request_data_constructor: ConnectorCustomerData::foreign_try_from,
+        common_flow_data_constructor: PaymentFlowData::foreign_try_from,
+        generate_response_fn: generate_create_connector_customer_response,
+        connector_data_type: ConnectorData<DefaultPCIHolder>,
+        all_keys_required: None
+    );
+
+    implement_connector_operation!(
+        fn_name: internal_get_connector_customer,
+        log_prefix: "GET_CONNECTOR_CUSTOMER",
+        request_type: grpc_api_types::payments::CustomerServiceGetRequest,
+        response_type: grpc_api_types::payments::CustomerServiceGetResponse,
+        flow_marker: GetConnectorCustomer,
+        resource_common_data_type: PaymentFlowData,
+        request_data_type: ConnectorCustomerData,
+        response_data_type: ConnectorCustomerResponse,
+        request_data_constructor: ConnectorCustomerData::foreign_try_from,
+        common_flow_data_constructor: PaymentFlowData::foreign_try_from,
+        generate_response_fn: generate_get_connector_customer_response,
+        connector_data_type: ConnectorData<DefaultPCIHolder>,
+        all_keys_required: None
+    );
+}
 
 #[tonic::async_trait]
 impl CustomerService for Customer {
@@ -329,126 +410,59 @@ impl CustomerService for Customer {
             .extensions()
             .get::<String>()
             .cloned()
-            .unwrap_or_else(|| "PaymentService".to_string());
-        let config = get_config_from_request(&request)?;
+            .unwrap_or_else(|| "CustomerService".to_string());
+        let config = get_config_from_request(&request).into_grpc_status()?;
         grpc_logging_wrapper(
             request,
             &service_name,
-            config.clone(),
+            config,
             FlowName::CreateConnectorCustomer,
-            |request_data| {
-                let service_name = service_name.clone();
-                let config = config.clone();
-                Box::pin(async move {
-                    let payload = request_data.payload;
-                    let metadata_payload = request_data.extracted_metadata;
-                    let (connector, request_id, lineage_ids) = (
-                        metadata_payload.connector,
-                        metadata_payload.request_id,
-                        metadata_payload.lineage_ids,
-                    );
-                    let connector_config = &metadata_payload.connector_config;
-                    //get connector data
-                    let connector_data: ConnectorData<DefaultPCIHolder> =
-                        ConnectorData::from_connector_variant(&connector).ok_or_else(|| {
-                            tonic::Status::invalid_argument("Invalid Connector Received")
-                        })?;
-
-                    // Get connector integration
-                    let connector_integration: BoxedConnectorIntegrationV2<
-                        '_,
-                        CreateConnectorCustomer,
-                        PaymentFlowData,
-                        ConnectorCustomerData,
-                        ConnectorCustomerResponse,
-                    > = connector_data.connector.get_connector_integration_v2();
-
-                    let connectors = utils::connectors_with_connector_config_overrides(
-                        connector_config,
-                        &config,
-                    )
-                    .into_grpc_status()?;
-
-                    // Create common request data
-                    let payment_flow_data = PaymentFlowData::foreign_try_from((
-                        payload.clone(),
-                        connectors,
-                        &request_data.masked_metadata,
-                    ))
-                    .map_err(|e| e.into_grpc_status())?;
-
-                    // Create connector customer request data directly
-                    let connector_customer_request_data =
-                        ConnectorCustomerData::foreign_try_from(payload.clone())
-                            .into_grpc_status()?;
-
-                    // Create router data for connector customer flow
-                    let connector_customer_router_data = RouterDataV2::<
-                        CreateConnectorCustomer,
-                        PaymentFlowData,
-                        ConnectorCustomerData,
-                        ConnectorCustomerResponse,
-                    > {
-                        flow: std::marker::PhantomData,
-                        resource_common_data: payment_flow_data.clone(),
-                        connector_config: connector_config.clone(),
-                        request: connector_customer_request_data.clone(),
-                        response: Err(ErrorResponse::default()),
-                    };
-
-                    // Get API tag for CreateConnectorCustomer flow
-                    let api_tag = config
-                        .api_tags
-                        .get_tag(FlowName::CreateConnectorCustomer, None);
-
-                    // Create test context if test mode is enabled
-                    let test_context =
-                        config.test.create_test_context(&request_id).map_err(|e| {
-                            tonic::Status::internal(format!("Test mode configuration error: {e}"))
-                        })?;
-
-                    // Execute connector processing
-                    let external_event_params = EventProcessingParams {
-                        connector_name: &connector.get_connector_name(),
-                        service_name: &service_name,
-                        service_type: utils::service_type_str(&config.server.type_),
-                        flow_name: FlowName::CreateConnectorCustomer,
-                        event_config: &config.events,
-                        request_id: &request_id,
-                        lineage_ids: &lineage_ids,
-                        reference_id: &metadata_payload.reference_id,
-                        resource_id: &metadata_payload.resource_id,
-                        shadow_mode: metadata_payload.shadow_mode,
-                        proxy_name: metadata_payload.proxy_name.as_deref(),
-                        tenant_id: &metadata_payload.tenant_id,
-                        merchant_id: metadata_payload.merchant_id.as_str(),
-                        return_raw_connector_data: config.common.return_raw_connector_data,
-                    };
-
-                    let response = Box::pin(
-                        external_services::service::execute_connector_processing_step(
-                            &config.proxy,
-                            connector_integration,
-                            connector_customer_router_data,
-                            None,
-                            external_event_params,
-                            None,
-                            common_enums::CallConnectorAction::Trigger,
-                            test_context,
-                            api_tag,
-                        ),
-                    )
-                    .await
-                    .into_grpc_status()?;
-
-                    // Generate response using the new function
-                    let connector_customer_response =
-                        domain_types::types::generate_create_connector_customer_response(response)
-                            .map_err(|e| e.into_grpc_status())?;
-
-                    Ok(tonic::Response::new(connector_customer_response))
-                })
+            |request_data| async move {
+                self.internal_create_connector_customer(request_data).await
             },
+        )
+        .await
+    }
+
+    #[tracing::instrument(
+        name = "get",
+        fields(
+            name = common_utils::consts::NAME,
+            service_name = common_utils::consts::PAYMENT_SERVICE_NAME,
+            service_method = FlowName::GetConnectorCustomer.as_str(),
+            request_body = tracing::field::Empty,
+            response_body = tracing::field::Empty,
+            error_message = tracing::field::Empty,
+            merchant_id = tracing::field::Empty,
+            gateway = tracing::field::Empty,
+            request_id = tracing::field::Empty,
+            status_code = tracing::field::Empty,
+            message_ = "Golden Log Line (incoming)",
+            response_time = tracing::field::Empty,
+            tenant_id = tracing::field::Empty,
+            flow = FlowName::GetConnectorCustomer.as_str(),
+            flow_specific_fields.status = tracing::field::Empty,
+        ),
+        skip(self, request)
+    )]
+    async fn get(
+        &self,
+        request: tonic::Request<grpc_api_types::payments::CustomerServiceGetRequest>,
+    ) -> Result<tonic::Response<grpc_api_types::payments::CustomerServiceGetResponse>, tonic::Status>
+    {
+        info!("GET_CONNECTOR_CUSTOMER_FLOW: initiated");
+        let service_name = request
+            .extensions()
+            .get::<String>()
+            .cloned()
+            .unwrap_or_else(|| "CustomerService".to_string());
+        let config = get_config_from_request(&request).into_grpc_status()?;
+        grpc_logging_wrapper(
+            request,
+            &service_name,
+            config,
+            FlowName::GetConnectorCustomer,
+            |request_data| async move { self.internal_get_connector_customer(request_data).await },
         )
         .await
     }
@@ -478,10 +492,16 @@ impl Payments {
         request_id: &str,
         token_data: Option<TokenData>,
         payment_method_data: payment_method_data::PaymentMethodData<T>,
-    ) -> Result<PaymentServiceAuthorizeResponse, tonic::Status> {
+    ) -> Result<PaymentServiceAuthorizeResponse, error_stack::Report<ucs_env::error::GrpcError>>
+    {
         //get connector data
-        let connector_data = ConnectorData::from_connector_variant(&connector)
-            .ok_or_else(|| tonic::Status::invalid_argument("Invalid Connector Received"))?;
+        let connector_data =
+            ConnectorData::from_connector_variant(&connector).ok_or_else(|| {
+                ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat {
+                    field_name: "connector",
+                    context: domain_types::errors::IntegrationErrorContext::default(),
+                })
+            })?;
 
         // Get connector integration
         let connector_integration: BoxedConnectorIntegrationV2<
@@ -492,26 +512,26 @@ impl Payments {
             PaymentsResponseData,
         > = connector_data.connector.get_connector_integration_v2();
 
-        let connectors = utils::get_resolved_connectors(
+        let connectors = utils::apply_url_overrides(
             config,
-            &connector_data.connector_name,
+            &metadata_payload.connector,
             &connector_config,
             metadata_payload.environment.as_deref(),
         )
         .map_err(|e| {
             tracing::error!("Failed to resolve connector overrides: {:?}", e);
-            e.into_grpc_status()
+            e.to_grpc_error()
         })?;
 
         // Create common request data
         let payment_flow_data =
             PaymentFlowData::foreign_try_from((payload.clone(), connectors, metadata))
-                .into_grpc_status()?;
+                .to_grpc_error()?;
 
         // Create connector request data
         let payment_authorize_data =
             PaymentsAuthorizeData::foreign_try_from((payload.clone(), payment_method_data.clone()))
-                .into_grpc_status()?;
+                .to_grpc_error()?;
 
         // Construct router data
         let router_data = RouterDataV2::<
@@ -533,18 +553,23 @@ impl Payments {
             .get_tag(FlowName::Authorize, router_data.request.payment_method_type);
 
         // Create test context if test mode is enabled
-        let test_context = config
-            .test
-            .create_test_context(request_id)
-            .map_err(|e| tonic::Status::internal(format!("Test mode configuration error: {e}")))?;
+        let test_context = config.test.create_test_context(request_id).map_err(|e| {
+            error_stack::Report::new(ucs_env::error::GrpcError::from(
+                InternalError::TestContextCreationFailed {
+                    reason: e.to_string(),
+                },
+            ))
+        })?;
 
         // Execute connector processing
+
         let event_params = EventProcessingParams {
             connector_name: &connector.get_connector_name(),
             service_name,
             service_type: utils::service_type_str(&config.server.type_),
             flow_name: FlowName::Authorize,
             event_config: &config.events,
+            runtime_metadata: &config.runtime_metadata,
             request_id,
             lineage_ids: &metadata_payload.lineage_ids,
             reference_id: &metadata_payload.reference_id,
@@ -553,29 +578,35 @@ impl Payments {
             proxy_name: metadata_payload.proxy_name.as_deref(),
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
+            org_id: metadata_payload.org_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
+            connector_latency: metadata_payload.connector_latency.clone(),
+            log_fields_enabled: config.log_fields.enabled,
+            log_fields: &config.log_fields.outgoing,
         };
 
         // Execute connector processing - ONLY the authorize call
-        let response = external_services::service::execute_connector_processing_step(
-            &config.proxy,
-            connector_integration,
-            router_data,
-            None,
-            event_params,
-            token_data,
-            common_enums::CallConnectorAction::Trigger,
-            test_context,
-            api_tag,
+        let response = Box::pin(
+            external_services::service::execute_connector_processing_step(
+                &config.proxy,
+                connector_integration,
+                router_data,
+                None,
+                event_params,
+                token_data,
+                common_enums::CallConnectorAction::Trigger,
+                test_context,
+                api_tag,
+            ),
         )
         .await;
 
         // Generate response - connector flow errors propagate as Err(tonic::Status)
-        let success_response = response.into_grpc_status()?;
+        let success_response = response.to_grpc_error()?;
 
         let authorize_response =
             domain_types::types::generate_payment_authorize_response(success_response)
-                .into_grpc_status()?;
+                .to_grpc_error()?;
 
         Ok(authorize_response)
     }
@@ -604,10 +635,16 @@ impl Payments {
         request_id: &str,
         token_data: Option<TokenData>,
         payment_method_data: payment_method_data::PaymentMethodData<T>,
-    ) -> Result<PaymentServiceSetupRecurringResponse, tonic::Status> {
+    ) -> Result<PaymentServiceSetupRecurringResponse, error_stack::Report<ucs_env::error::GrpcError>>
+    {
         //get connector data
-        let connector_data = ConnectorData::from_connector_variant(&connector)
-            .ok_or_else(|| tonic::Status::invalid_argument("Invalid Connector Received"))?;
+        let connector_data =
+            ConnectorData::from_connector_variant(&connector).ok_or_else(|| {
+                ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat {
+                    field_name: "connector",
+                    context: domain_types::errors::IntegrationErrorContext::default(),
+                })
+            })?;
 
         // Get connector integration
         let connector_integration: BoxedConnectorIntegrationV2<
@@ -618,23 +655,25 @@ impl Payments {
             PaymentsResponseData,
         > = connector_data.connector.get_connector_integration_v2();
 
-        let connectors = utils::connectors_with_connector_config_overrides(
-            &metadata_payload.connector_config,
+        let connectors = utils::apply_url_overrides(
             config,
+            &metadata_payload.connector,
+            &metadata_payload.connector_config,
+            metadata_payload.environment.as_deref(),
         )
-        .into_grpc_status()?;
+        .to_grpc_error()?;
 
         // Create common request data
         let payment_flow_data =
             PaymentFlowData::foreign_try_from((payload.clone(), connectors, metadata))
-                .map_err(|e| e.into_grpc_status())?;
+                .map_err(|e| e.to_grpc_error())?;
 
         // Create connector request data
         let setup_mandate_request_data = SetupMandateRequestData::foreign_try_from((
             payload.clone(),
             payment_method_data.clone(),
         ))
-        .map_err(|e| e.into_grpc_status())?;
+        .map_err(|e| e.to_grpc_error())?;
 
         // Construct router data
         let router_data: RouterDataV2<
@@ -657,10 +696,13 @@ impl Payments {
         );
 
         // Create test context if test mode is enabled
-        let test_context = config
-            .test
-            .create_test_context(request_id)
-            .map_err(|e| tonic::Status::internal(format!("Test mode configuration error: {e}")))?;
+        let test_context = config.test.create_test_context(request_id).map_err(|e| {
+            error_stack::Report::new(ucs_env::error::GrpcError::from(
+                InternalError::TestContextCreationFailed {
+                    reason: e.to_string(),
+                },
+            ))
+        })?;
 
         let event_params = EventProcessingParams {
             connector_name: &connector.get_connector_name(),
@@ -668,6 +710,7 @@ impl Payments {
             service_type: utils::service_type_str(&config.server.type_),
             flow_name: FlowName::SetupMandate,
             event_config: &config.events,
+            runtime_metadata: &config.runtime_metadata,
             request_id,
             lineage_ids: &metadata_payload.lineage_ids,
             reference_id: &metadata_payload.reference_id,
@@ -676,7 +719,11 @@ impl Payments {
             proxy_name: metadata_payload.proxy_name.as_deref(),
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
+            org_id: metadata_payload.org_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
+            connector_latency: metadata_payload.connector_latency.clone(),
+            log_fields_enabled: config.log_fields.enabled,
+            log_fields: &config.log_fields.outgoing,
         };
 
         let response = Box::pin(
@@ -695,10 +742,10 @@ impl Payments {
         .await;
 
         // Generate response - connector flow errors propagate as Err(tonic::Status)
-        let success_response = response.into_grpc_status()?;
+        let success_response = response.to_grpc_error()?;
 
         let setup_mandate_response =
-            generate_setup_mandate_response(success_response).into_grpc_status()?;
+            generate_setup_mandate_response(success_response).to_grpc_error()?;
 
         Ok(setup_mandate_response)
     }
@@ -835,7 +882,7 @@ impl PaymentService for Payments {
             .get::<String>()
             .cloned()
             .unwrap_or_else(|| "PaymentService".to_string());
-        let config = get_config_from_request(&request)?;
+        let config = get_config_from_request(&request).into_grpc_status()?;
         Box::pin(grpc_logging_wrapper(request, &service_name, config.clone(), FlowName::Authorize, |request_data| {
             let service_name = service_name.clone();
             Box::pin(async move {
@@ -845,10 +892,10 @@ impl PaymentService for Payments {
                 // Convert proto request to intermediate type
                 let payload: AuthorizationRequest = proto_payload.clone().into();
 
-                let payment_method_data_action = PaymentMethodDataAction::get_payment_method_data_action(proto_payload.payment_method.clone().ok_or(tonic::Status::invalid_argument("missing request_details in the payload"))?)
+                let payment_method_data_action = PaymentMethodDataAction::get_payment_method_data_action(proto_payload.payment_method.clone().ok_or(ucs_env::error::GrpcError::from(IntegrationError::MissingRequiredField { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() }))?)
                     .map_err(|err| {
                         tracing::error!("PAYMENT_AUTHORIZE_FLOW: failed to get payment method data action - error: {:?}", err);
-                        tonic::Status::invalid_argument("Invalid payment method data")
+                        ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() })
                     })?;
 
                 let authorize_response = match payment_method_data_action {
@@ -856,7 +903,7 @@ impl PaymentService for Payments {
                         let token_data = proxy_card_details.to_token_data();
                         let payment_method_data = payment_method_data::PaymentMethodData::Card(payment_method_data::Card::<VaultTokenHolder>::foreign_try_from(proxy_card_details).map_err(|err| {
                             tracing::error!("PAYMENT_AUTHORIZE_FLOW: failed to get payment method data action - error: {:?}", err);
-                            tonic::Status::invalid_argument("Invalid payment method data")
+                            ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() })
                         })?);
                         tracing::info!("INJECTOR: Authorization completed successfully with injector");
                         Box::pin(self.process_authorization_internal::<VaultTokenHolder>(
@@ -877,7 +924,7 @@ impl PaymentService for Payments {
                         tracing::info!("REGULAR: Processing regular payment authorization (no injector)");
                         let payment_method_data = payment_method_data::PaymentMethodData::Card(payment_method_data::Card::<DefaultPCIHolder>::foreign_try_from(card_details).map_err(|err| {
                             tracing::error!("PAYMENT_AUTHORIZE_FLOW: failed to get payment method data action - error: {:?}", err);
-                            tonic::Status::invalid_argument("Invalid payment method data")
+                            ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() })
                         })?);
                         tracing::info!("REGULAR: Authorization completed successfully without injector");
                         Box::pin(self.process_authorization_internal::<DefaultPCIHolder>(
@@ -895,10 +942,10 @@ impl PaymentService for Payments {
                         .await?
                     }
                     PaymentMethodDataAction::Default => {
-                        let payment_method_data = payment_method_data::PaymentMethodData::convert_to_domain_model_for_non_card_payment_methods(proto_payload.payment_method.clone().ok_or(tonic::Status::invalid_argument("missing request_details in the payload"))?)
+                        let payment_method_data = payment_method_data::PaymentMethodData::convert_to_domain_model_for_non_card_payment_methods(proto_payload.payment_method.clone().ok_or(ucs_env::error::GrpcError::from(IntegrationError::MissingRequiredField { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() }))?)
                             .map_err(|err| {
                                 tracing::error!("Failed to convert payment method data: {:?}", err);
-                                tonic::Status::invalid_argument("Invalid payment method data")
+                                ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() })
                             })?;
                         tracing::info!("REGULAR: Authorization completed successfully without injector");
                         Box::pin(self.process_authorization_internal::<DefaultPCIHolder>(
@@ -915,8 +962,29 @@ impl PaymentService for Payments {
                         ))
                         .await?
                     }
+                    PaymentMethodDataAction::CardWithNoCvc(card_details) => {
+                        tracing::info!("REGULAR: Processing payment authorization with CardWithNoCvc");
+                        let payment_method_data = payment_method_data::PaymentMethodData::CardWithNoCvc(
+                            payment_method_data::CardWithNoCvc::foreign_try_from(card_details).map_err(|err| {
+                                tracing::error!("PAYMENT_AUTHORIZE_FLOW: failed to convert CardWithNoCvc - error: {:?}", err);
+                                ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() })
+                            })?
+                        );
+                        Box::pin(self.process_authorization_internal::<DefaultPCIHolder>(
+                            &config,
+                            payload,
+                            metadata_payload.connector.clone(),
+                            metadata_payload.connector_config.clone(),
+                            metadata,
+                            &metadata_payload,
+                            &service_name,
+                            &metadata_payload.request_id,
+                            None,
+                            payment_method_data,
+                        ))
+                        .await?
+                    }
                 };
-
 
                 Ok(tonic::Response::new(authorize_response))
             })
@@ -955,7 +1023,7 @@ impl PaymentService for Payments {
             .get::<String>()
             .cloned()
             .unwrap_or_else(|| "PaymentService".to_string());
-        let config = get_config_from_request(&request)?;
+        let config = get_config_from_request(&request).into_grpc_status()?;
 
         grpc_logging_wrapper(
             request,
@@ -973,7 +1041,7 @@ impl PaymentService for Payments {
                     let payload = request_data.payload;
                     let connector_data: ConnectorData<DefaultPCIHolder> =
                         ConnectorData::from_connector_variant(&connector)
-                        .ok_or_else(|| tonic::Status::invalid_argument("Invalid Connector Received"))?;
+                        .ok_or_else(|| ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "connector", context: domain_types::errors::IntegrationErrorContext { suggested_action: Some("Check connector rollout/configuration and call only flows implemented for this connector".to_string()), ..Default::default() } }))?;
                     // Get connector integration
                     let connector_integration: BoxedConnectorIntegrationV2<
                         '_,
@@ -985,15 +1053,15 @@ impl PaymentService for Payments {
 
                     // Create connector request data
                     let payments_sync_data =
-                        PaymentsSyncData::foreign_try_from(payload.clone()).into_grpc_status()?;
+                        PaymentsSyncData::foreign_try_from(payload.clone()).to_grpc_error()?;
 
-                    let connectors = utils::get_resolved_connectors(
+                    let connectors = utils::apply_url_overrides(
                         &config,
-                        &connector_data.connector_name,
+                        &connector,
                         &metadata_payload.connector_config,
                         metadata_payload.environment.as_deref(),
                     )
-                    .into_grpc_status()?;
+                    .to_grpc_error()?;
 
                     // Create common request data
                     let payment_flow_data = PaymentFlowData::foreign_try_from((
@@ -1001,7 +1069,7 @@ impl PaymentService for Payments {
                         connectors,
                         &request_data.masked_metadata,
                     ))
-                    .into_grpc_status()?;
+                    .to_grpc_error()?;
 
                     let should_do_access_token = connector_data
                         .connector
@@ -1012,12 +1080,10 @@ impl PaymentService for Payments {
                             .state
                             .as_ref()
                             .and_then(|state| state.access_token.as_ref())
-                            .ok_or_else(|| tonic::Status::unauthenticated(
-                                "Connector requires an access token; provide it via state.access_token",
-                            ))?;
+                            .ok_or_else(|| ucs_env::error::GrpcError::from(IntegrationError::FailedToObtainAuthType { context: domain_types::errors::IntegrationErrorContext::default() }))?;
                         let access_token_data =
                             ServerAuthenticationTokenResponseData::foreign_try_from(access_token)
-                                .map_err(|e| tonic::Status::unauthenticated(format!("Invalid access token: {e}")))?;
+                                .map_err(|_e| ucs_env::error::GrpcError::from(IntegrationError::FailedToObtainAuthType { context: domain_types::errors::IntegrationErrorContext::default() }))?;
                         payment_flow_data.set_access_token(Some(access_token_data))
                     } else {
                         payment_flow_data
@@ -1050,8 +1116,11 @@ impl PaymentService for Payments {
                         .test
                         .create_test_context(&metadata_payload.request_id)
                         .map_err(|e| {
-                            tonic::Status::internal(format!("Test mode configuration error: {e}"))
+                            error_stack::Report::new(ucs_env::error::GrpcError::from(InternalError::TestContextCreationFailed {
+                                reason: e.to_string(),
+                            }))
                         })?;
+
 
                     let event_params = EventProcessingParams {
                         connector_name: &connector.get_connector_name(),
@@ -1059,6 +1128,7 @@ impl PaymentService for Payments {
                         service_type: utils::service_type_str(&config.server.type_),
                         flow_name,
                         event_config: &config.events,
+                        runtime_metadata: &config.runtime_metadata,
                         request_id: &metadata_payload.request_id,
                         lineage_ids: &metadata_payload.lineage_ids,
                         reference_id: &metadata_payload.reference_id,
@@ -1067,7 +1137,11 @@ impl PaymentService for Payments {
                         proxy_name: metadata_payload.proxy_name.as_deref(),
                         tenant_id: &metadata_payload.tenant_id,
                         merchant_id: metadata_payload.merchant_id.as_str(),
+                        org_id: metadata_payload.org_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
+                connector_latency: metadata_payload.connector_latency.clone(),
+                        log_fields_enabled: config.log_fields.enabled,
+            log_fields: &config.log_fields.outgoing,
                     };
 
                     // handle_response field removed from proto (field 5 reserved)
@@ -1087,11 +1161,11 @@ impl PaymentService for Payments {
                         ),
                     )
                     .await
-                    .into_grpc_status()?;
+                    .to_grpc_error()?;
 
                     // Generate response
                     let final_response =
-                        generate_payment_sync_response(response_result).into_grpc_status()?;
+                        generate_payment_sync_response(response_result).to_grpc_error()?;
                     Ok(tonic::Response::new(final_response))
                 })
             },
@@ -1129,7 +1203,7 @@ impl PaymentService for Payments {
             .get::<String>()
             .cloned()
             .unwrap_or_else(|| "PaymentService".to_string());
-        let config = get_config_from_request(&request)?;
+        let config = get_config_from_request(&request).into_grpc_status()?;
         grpc_logging_wrapper(
             request,
             &service_name,
@@ -1171,7 +1245,7 @@ impl PaymentService for Payments {
             .get::<String>()
             .cloned()
             .unwrap_or_else(|| "PaymentService".to_string());
-        let config = get_config_from_request(&request)?;
+        let config = get_config_from_request(&request).into_grpc_status()?;
         grpc_logging_wrapper(
             request,
             &service_name,
@@ -1183,21 +1257,23 @@ impl PaymentService for Payments {
                     let connector = &metadata_payload.connector;
                     let connector_data: ConnectorData<DefaultPCIHolder> =
                         ConnectorData::from_connector_variant(connector)
-                        .ok_or_else(|| tonic::Status::invalid_argument("Invalid Connector Received"))?;
+                        .ok_or_else(|| ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "connector", context: domain_types::errors::IntegrationErrorContext { suggested_action: Some("Check connector rollout/configuration and call only flows implemented for this connector".to_string()), ..Default::default() } }))?;
 
                     // Check if connector supports access tokens
-                    let connectors = utils::connectors_with_connector_config_overrides(
-                        &metadata_payload.connector_config,
+                    let connectors = utils::apply_url_overrides(
                         &config,
+                        &metadata_payload.connector,
+                        &metadata_payload.connector_config,
+                        metadata_payload.environment.as_deref(),
                     )
-                    .into_grpc_status()?;
+                    .to_grpc_error()?;
 
                     let temp_payment_flow_data = PaymentFlowData::foreign_try_from((
                         request_data.payload.clone(),
                         connectors,
                         &request_data.masked_metadata,
                     ))
-                    .map_err(|e| e.into_grpc_status())?;
+                    .map_err(|e| e.to_grpc_error())?;
                     let should_do_access_token = connector_data
                         .connector
                         .should_do_access_token(Some(temp_payment_flow_data.payment_method));
@@ -1208,12 +1284,10 @@ impl PaymentService for Payments {
                             .state
                             .as_ref()
                             .and_then(|state| state.access_token.as_ref())
-                            .ok_or_else(|| tonic::Status::unauthenticated(
-                                "Connector requires an access token; provide it via state.access_token",
-                            ))?;
+                            .ok_or_else(|| ucs_env::error::GrpcError::from(IntegrationError::FailedToObtainAuthType { context: domain_types::errors::IntegrationErrorContext::default() }))?;
                         // Validate the token is well-formed
                         ServerAuthenticationTokenResponseData::foreign_try_from(access_token)
-                            .map_err(|e| tonic::Status::unauthenticated(format!("Invalid access token: {e}")))?;
+                            .map_err(|_e| ucs_env::error::GrpcError::from(IntegrationError::FailedToObtainAuthType { context: domain_types::errors::IntegrationErrorContext::default() }))?;
                     }
 
                     self.internal_void_payment(request_data).await
@@ -1253,7 +1327,7 @@ impl PaymentService for Payments {
             .get::<String>()
             .cloned()
             .unwrap_or_else(|| "PaymentService".to_string());
-        let config = get_config_from_request(&request)?;
+        let config = get_config_from_request(&request).into_grpc_status()?;
         grpc_logging_wrapper(
             request,
             &service_name,
@@ -1294,7 +1368,7 @@ impl PaymentService for Payments {
             .get::<String>()
             .cloned()
             .unwrap_or_else(|| "PaymentService".to_string());
-        let config = get_config_from_request(&request)?;
+        let config = get_config_from_request(&request).into_grpc_status()?;
         grpc_logging_wrapper(
             request,
             &service_name,
@@ -1310,19 +1384,20 @@ impl PaymentService for Payments {
                         .request_details
                         .map(domain_types::connector_types::RequestDetails::foreign_try_from)
                         .transpose()
-                        .map_err(|e| e.into_grpc_status())?
-                        .ok_or(tonic::Status::invalid_argument("missing request_details in the payload"))?;
+                        .map_err(|e| e.to_grpc_error())?
+                        .ok_or(ucs_env::error::GrpcError::from(IntegrationError::MissingRequiredField { field_name: "request_details", context: domain_types::errors::IntegrationErrorContext::default() }))?;
 
                     let secrets = payload
                         .redirect_response_secrets
                         .map(domain_types::connector_types::ConnectorRedirectResponseSecrets::foreign_try_from)
                         .transpose()
-                        .map_err(|e| e.into_grpc_status())?
+                        .map_err(|e| e.to_grpc_error())?
                         .map(ConnectorSourceVerificationSecrets::RedirectResponseSecret);
+                    let connector_feature_data = payload.connector_feature_data;
 
                        let connector_data: ConnectorData<DefaultPCIHolder> =
                         ConnectorData::from_connector_variant(&connector)
-                        .ok_or_else(|| tonic::Status::invalid_argument("Invalid Connector Received"))?;
+                        .ok_or_else(|| ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "connector", context: domain_types::errors::IntegrationErrorContext { suggested_action: Some("Check connector rollout/configuration and call only flows implemented for this connector".to_string()), ..Default::default() } }))?;
 
                     let decoded_body = match connector_data
                         .connector
@@ -1371,11 +1446,12 @@ impl PaymentService for Payments {
                         .connector
                         .process_redirect_response(
                             &updated_request_details,
+                            connector_feature_data.as_ref(),
                         )
-                        .into_grpc_status()?;
+                        .to_grpc_error()?;
 
                     let response = PaymentServiceVerifyRedirectResponseResponse::foreign_try_from((source_verified, redirect_details_response))
-                        .map_err(|e| e.into_grpc_status())?;
+                        .map_err(|e| e.to_grpc_error())?;
 
                     Ok(tonic::Response::new(response))
                 }
@@ -1413,7 +1489,7 @@ impl PaymentService for Payments {
             .get::<String>()
             .cloned()
             .unwrap_or_else(|| "PaymentService".to_string());
-        let config = get_config_from_request(&request)?;
+        let config = get_config_from_request(&request).into_grpc_status()?;
         grpc_logging_wrapper(
             request,
             &service_name,
@@ -1455,7 +1531,7 @@ impl PaymentService for Payments {
             .get::<String>()
             .cloned()
             .unwrap_or_else(|| "PaymentService".to_string());
-        let config = get_config_from_request(&request)?;
+        let config = get_config_from_request(&request).into_grpc_status()?;
         grpc_logging_wrapper(
             request,
             &service_name,
@@ -1467,21 +1543,23 @@ impl PaymentService for Payments {
                     let connector = &metadata_payload.connector;
                        let connector_data: ConnectorData<DefaultPCIHolder> =
                         ConnectorData::from_connector_variant(connector)
-                        .ok_or_else(|| tonic::Status::invalid_argument("Invalid Connector Received"))?;
+                        .ok_or_else(|| ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "connector", context: domain_types::errors::IntegrationErrorContext { suggested_action: Some("Check connector rollout/configuration and call only flows implemented for this connector".to_string()), ..Default::default() } }))?;
 
                     // Check if connector supports access tokens
-                    let connectors = utils::connectors_with_connector_config_overrides(
-                        &metadata_payload.connector_config,
+                    let connectors = utils::apply_url_overrides(
                         &config,
+                        &metadata_payload.connector,
+                        &metadata_payload.connector_config,
+                        metadata_payload.environment.as_deref(),
                     )
-                    .into_grpc_status()?;
+                    .to_grpc_error()?;
 
                     let temp_payment_flow_data = PaymentFlowData::foreign_try_from((
                         request_data.payload.clone(),
                         connectors,
                         &request_data.masked_metadata,
                     ))
-                    .map_err(|e| e.into_grpc_status())?;
+                    .map_err(|e| e.to_grpc_error())?;
                     let should_do_access_token = connector_data
                         .connector
                         .should_do_access_token(Some(temp_payment_flow_data.payment_method));
@@ -1492,12 +1570,10 @@ impl PaymentService for Payments {
                             .state
                             .as_ref()
                             .and_then(|state| state.access_token.as_ref())
-                            .ok_or_else(|| tonic::Status::unauthenticated(
-                                "Connector requires an access token; provide it via state.access_token",
-                            ))?;
+                            .ok_or_else(|| ucs_env::error::GrpcError::from(IntegrationError::FailedToObtainAuthType { context: domain_types::errors::IntegrationErrorContext::default() }))?;
                         // Validate the token is well-formed
                         ServerAuthenticationTokenResponseData::foreign_try_from(access_token)
-                            .map_err(|e| tonic::Status::unauthenticated(format!("Invalid access token: {e}")))?;
+                            .map_err(|_e| ucs_env::error::GrpcError::from(IntegrationError::FailedToObtainAuthType { context: domain_types::errors::IntegrationErrorContext::default() }))?;
                     }
 
                     self.internal_payment_capture(request_data).await
@@ -1538,7 +1614,7 @@ impl PaymentService for Payments {
             .get::<String>()
             .cloned()
             .unwrap_or_else(|| "PaymentService".to_string());
-        let config = get_config_from_request(&request)?;
+        let config = get_config_from_request(&request).into_grpc_status()?;
         grpc_logging_wrapper(
             request,
             &service_name,
@@ -1556,10 +1632,10 @@ impl PaymentService for Payments {
                         &metadata_payload.request_id,
                         &metadata_payload.lineage_ids,
                     );
-                    let payment_method_data_action = PaymentMethodDataAction::get_payment_method_data_action(proto_payload.payment_method.clone().ok_or(tonic::Status::invalid_argument("missing request_details in the payload"))?)
+                    let payment_method_data_action = PaymentMethodDataAction::get_payment_method_data_action(proto_payload.payment_method.clone().ok_or(ucs_env::error::GrpcError::from(IntegrationError::MissingRequiredField { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() }))?)
                     .map_err(|err| {
                         tracing::error!("SETUP_RECURRING_FLOW: failed to get payment method data action - error: {:?}", err);
-                        tonic::Status::invalid_argument("Invalid payment method data")
+                        ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() })
                     })?;
 
                     let setup_mandate_response = match payment_method_data_action {
@@ -1567,7 +1643,7 @@ impl PaymentService for Payments {
                         let token_data = proxy_card_details.to_token_data();
                         let payment_method_data = payment_method_data::PaymentMethodData::Card(payment_method_data::Card::<VaultTokenHolder>::foreign_try_from(proxy_card_details).map_err(|err| {
                             tracing::error!("SETUP_RECURRING_FLOW: failed to get payment method data action - error: {:?}", err);
-                            tonic::Status::invalid_argument("Invalid payment method data")
+                            ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() })
                         })?);
 
                     Box::pin(self.handle_setup_recurring_internal::<VaultTokenHolder>(
@@ -1583,13 +1659,12 @@ impl PaymentService for Payments {
                         payment_method_data,
                         ))
                         .await?
-
                     },
                     PaymentMethodDataAction::Card(card_details) => {
                         tracing::info!("SETUP_RECURRING_FLOW: Processing regular setup recurring (no injector)");
                         let payment_method_data = payment_method_data::PaymentMethodData::Card(payment_method_data::Card::<DefaultPCIHolder>::foreign_try_from(card_details).map_err(|err| {
                             tracing::error!("SETUP_RECURRING_FLOW: failed to get payment method data action - error: {:?}", err);
-                            tonic::Status::invalid_argument("Invalid payment method data")
+                            ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() })
                         })?);
                         Box::pin(self.handle_setup_recurring_internal::<DefaultPCIHolder>(
                         &config,
@@ -1605,11 +1680,30 @@ impl PaymentService for Payments {
                         )).await?
                     },
                     PaymentMethodDataAction::Default => {
-                        let payment_method_data = payment_method_data::PaymentMethodData::convert_to_domain_model_for_non_card_payment_methods(proto_payload.payment_method.clone().ok_or(tonic::Status::invalid_argument("missing request_details in the payload"))?)
+                        let payment_method_data = payment_method_data::PaymentMethodData::convert_to_domain_model_for_non_card_payment_methods(proto_payload.payment_method.clone().ok_or(ucs_env::error::GrpcError::from(IntegrationError::MissingRequiredField { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() }))?)
                             .map_err(|err| {
                                 tracing::error!("Failed to convert payment method data: {:?}", err);
-                                tonic::Status::invalid_argument("Invalid payment method data")
+                                ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() })
                             })?;
+                        Box::pin(self.handle_setup_recurring_internal::<DefaultPCIHolder>(
+                        &config,
+                        payload,
+                        metadata_payload.connector.clone(),
+                        metadata_payload.connector_config.clone(),
+                        &request_data.masked_metadata,
+                        &metadata_payload,
+                        &service_name,
+                        request_id,
+                        None,
+                        payment_method_data,
+                        )).await?
+                    }
+                    PaymentMethodDataAction::CardWithNoCvc(card_details) => {
+                        tracing::info!("SETUP_RECURRING_FLOW: Processing setup recurring with CardWithNoCvc");
+                        let payment_method_data = payment_method_data::PaymentMethodData::CardWithNoCvc(payment_method_data::CardWithNoCvc::foreign_try_from(card_details).map_err(|err| {
+                            tracing::error!("SETUP_RECURRING_FLOW: failed to convert CardWithNoCvc - error: {:?}", err);
+                            ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() })
+                        })?);
                         Box::pin(self.handle_setup_recurring_internal::<DefaultPCIHolder>(
                         &config,
                         payload,
@@ -1662,7 +1756,7 @@ impl PaymentService for Payments {
             .get::<String>()
             .cloned()
             .unwrap_or_else(|| "PaymentService".to_string());
-        let config = get_config_from_request(&request)?;
+        let config = get_config_from_request(&request).into_grpc_status()?;
         grpc_logging_wrapper(
             request,
             &service_name,
@@ -1675,24 +1769,14 @@ impl PaymentService for Payments {
         .await
     }
 
+    // Converts the tokenized payload and delegates; `authorize` owns the logging wrapper.
     #[tracing::instrument(
         name = "token_authorize",
         fields(
             name = common_utils::consts::NAME,
             service_name = common_utils::consts::PAYMENT_SERVICE_NAME,
             service_method = "token_authorize",
-            request_body = tracing::field::Empty,
-            response_body = tracing::field::Empty,
-            error_message = tracing::field::Empty,
-            merchant_id = tracing::field::Empty,
-            gateway = tracing::field::Empty,
-            request_id = tracing::field::Empty,
-            status_code = tracing::field::Empty,
-            message_ = "Golden Log Line (incoming)",
-            response_time = tracing::field::Empty,
-            tenant_id = tracing::field::Empty,
             flow = FlowName::Authorize.as_str(),
-            flow_specific_fields.status = tracing::field::Empty,
         ),
         skip(self, request)
     )]
@@ -1701,58 +1785,21 @@ impl PaymentService for Payments {
         request: tonic::Request<PaymentServiceTokenAuthorizeRequest>,
     ) -> Result<tonic::Response<PaymentServiceAuthorizeResponse>, tonic::Status> {
         info!("TOKEN_AUTHORIZE_FLOW: initiated");
-        let service_name = request
-            .extensions()
-            .get::<String>()
-            .cloned()
-            .unwrap_or_else(|| "PaymentService".to_string());
-        let config = get_config_from_request(&request)?;
+        let (metadata, extensions, payload) = request.into_parts();
+        let inner_request =
+            tonic::Request::from_parts(metadata, extensions, tokenized_authorize_to_base(payload));
 
-        let extensions = request.extensions().clone();
-        let metadata = request.metadata().clone();
-
-        grpc_logging_wrapper(
-            request,
-            &service_name,
-            config.clone(),
-            FlowName::Authorize,
-            |request_data| {
-                let service_name = service_name.clone();
-                let extensions = extensions.clone();
-                let metadata = metadata.clone();
-                Box::pin(async move {
-                    let authorize_request = tokenized_authorize_to_base(request_data.payload);
-
-                    let mut inner_request = tonic::Request::new(authorize_request);
-                    *inner_request.extensions_mut() = extensions;
-                    *inner_request.metadata_mut() = metadata;
-                    inner_request.extensions_mut().insert(service_name.clone());
-
-                    <Self as PaymentService>::authorize(self, inner_request).await
-                })
-            },
-        )
-        .await
+        <Self as PaymentService>::authorize(self, inner_request).await
     }
 
+    // Converts the tokenized payload and delegates; `setup_recurring` owns the logging wrapper.
     #[tracing::instrument(
         name = "token_setup_recurring",
         fields(
             name = common_utils::consts::NAME,
             service_name = common_utils::consts::PAYMENT_SERVICE_NAME,
             service_method = "token_setup_recurring",
-            request_body = tracing::field::Empty,
-            response_body = tracing::field::Empty,
-            error_message = tracing::field::Empty,
-            merchant_id = tracing::field::Empty,
-            gateway = tracing::field::Empty,
-            request_id = tracing::field::Empty,
-            status_code = tracing::field::Empty,
-            message_ = "Golden Log Line (incoming)",
-            response_time = tracing::field::Empty,
-            tenant_id = tracing::field::Empty,
             flow = FlowName::SetupMandate.as_str(),
-            flow_specific_fields.status = tracing::field::Empty,
         ),
         skip(self, request)
     )]
@@ -1761,39 +1808,14 @@ impl PaymentService for Payments {
         request: tonic::Request<PaymentServiceTokenSetupRecurringRequest>,
     ) -> Result<tonic::Response<PaymentServiceSetupRecurringResponse>, tonic::Status> {
         info!("TOKEN_SETUP_RECURRING_FLOW: initiated");
-        let service_name = request
-            .extensions()
-            .get::<String>()
-            .cloned()
-            .unwrap_or_else(|| "PaymentService".to_string());
-        let config = get_config_from_request(&request)?;
+        let (metadata, extensions, payload) = request.into_parts();
+        let inner_request = tonic::Request::from_parts(
+            metadata,
+            extensions,
+            tokenized_setup_recurring_to_base(payload),
+        );
 
-        let extensions = request.extensions().clone();
-        let metadata = request.metadata().clone();
-
-        grpc_logging_wrapper(
-            request,
-            &service_name,
-            config.clone(),
-            FlowName::SetupMandate,
-            |request_data| {
-                let service_name = service_name.clone();
-                let extensions = extensions.clone();
-                let metadata = metadata.clone();
-                Box::pin(async move {
-                    let setup_recurring_request =
-                        tokenized_setup_recurring_to_base(request_data.payload);
-
-                    let mut inner_request = tonic::Request::new(setup_recurring_request);
-                    *inner_request.extensions_mut() = extensions;
-                    *inner_request.metadata_mut() = metadata;
-                    inner_request.extensions_mut().insert(service_name.clone());
-
-                    <Self as PaymentService>::setup_recurring(self, inner_request).await
-                })
-            },
-        )
-        .await
+        <Self as PaymentService>::setup_recurring(self, inner_request).await
     }
     #[tracing::instrument(
         name = "proxy_authorize",
@@ -1826,9 +1848,9 @@ impl PaymentService for Payments {
             .get::<String>()
             .cloned()
             .unwrap_or_else(|| "PaymentService".to_string());
-        let config = get_config_from_request(&request)?;
+        let config = get_config_from_request(&request).into_grpc_status()?;
 
-        grpc_logging_wrapper(
+        Box::pin(grpc_logging_wrapper(
             request,
             &service_name,
             config.clone(),
@@ -1842,16 +1864,19 @@ impl PaymentService for Payments {
                     // Convert proto request to intermediate type
                     let payload: AuthorizationRequest = proto_payload.clone().into();
                     // Extract ProxyCardDetails from the payment_method
-                    let proxy_card_details = proto_payload.card_proxy
-                        .ok_or_else(|| tonic::Status::invalid_argument("Missing proxy_card_details in payment_method"))?;
+                    let proxy_card_details = proto_payload.card_proxy.ok_or_else(|| {
+                        ucs_env::error::GrpcError::from(IntegrationError::MissingRequiredField {
+                            field_name: "proxy_card_details",
+                            context: domain_types::errors::IntegrationErrorContext::default(),
+                        })
+                    })?;
                     // Convert ProxyCardDetails to PaymentMethodData
                     let token_data = proxy_card_details.to_token_data();
                     let payment_method_data = payment_method_data::PaymentMethodData::Card(
-                        payment_method_data::Card::<VaultTokenHolder>::foreign_try_from(proxy_card_details)
-                            .map_err(|err| {
-                                tracing::error!("PROXY_AUTHORIZE_FLOW: failed to convert payment method data - error: {:?}", err);
-                                tonic::Status::invalid_argument("Invalid proxy card data")
-                            })?
+                        payment_method_data::Card::<VaultTokenHolder>::foreign_try_from(
+                            proxy_card_details,
+                        )
+                        .to_grpc_error()?,
                     );
 
                     // Call process_authorization_internal directly with intermediate type
@@ -1870,17 +1895,22 @@ impl PaymentService for Payments {
                     .await
                     {
                         Ok(response) => {
-                            tracing::info!("PROXY_AUTHORIZE_FLOW: Authorization completed successfully");
+                            tracing::info!(
+                                "PROXY_AUTHORIZE_FLOW: Authorization completed successfully"
+                            );
                             Ok(tonic::Response::new(response))
-                        },
+                        }
                         Err(error_response) => {
-                            tracing::error!("PROXY_AUTHORIZE_FLOW: Authorization failed - error: {:?}", error_response);
+                            tracing::error!(
+                                "PROXY_AUTHORIZE_FLOW: Authorization failed - error: {:?}",
+                                error_response
+                            );
                             Err(error_response)
-                        },
+                        }
                     }
                 })
             },
-        )
+        ))
         .await
     }
 
@@ -1915,7 +1945,7 @@ impl PaymentService for Payments {
             .get::<String>()
             .cloned()
             .unwrap_or_else(|| "PaymentService".to_string());
-        let config = get_config_from_request(&request)?;
+        let config = get_config_from_request(&request).into_grpc_status()?;
 
         grpc_logging_wrapper(
             request,
@@ -1930,35 +1960,37 @@ impl PaymentService for Payments {
                     let metadata_payload = request_data.extracted_metadata;
                     // Convert proto request to intermediate type
                     let payload: SetupRecurringRequest = proto_payload.clone().into();
-                    let (request_id, _lineage_ids) = (
-                        &metadata_payload.request_id,
-                        &metadata_payload.lineage_ids,
-                    );
+                    let (request_id, _lineage_ids) =
+                        (&metadata_payload.request_id, &metadata_payload.lineage_ids);
                     // Extract proxy card details from the payment_method
-                    let proxy_card_details = proto_payload.card_proxy
-                        .ok_or_else(|| tonic::Status::invalid_argument("Missing card_proxy in request"))?;
+                    let proxy_card_details = proto_payload.card_proxy.ok_or_else(|| {
+                        ucs_env::error::GrpcError::from(IntegrationError::MissingRequiredField {
+                            field_name: "card_proxy",
+                            context: domain_types::errors::IntegrationErrorContext::default(),
+                        })
+                    })?;
                     let token_data = proxy_card_details.to_token_data();
                     let payment_method_data = payment_method_data::PaymentMethodData::Card(
-                        payment_method_data::Card::<VaultTokenHolder>::foreign_try_from(proxy_card_details)
-                            .map_err(|err| {
-                                tracing::error!("PROXY_SETUP_RECURRING_FLOW: failed to convert payment method data - error: {:?}", err);
-                                tonic::Status::invalid_argument("Invalid proxy card data")
-                            })?
+                        payment_method_data::Card::<VaultTokenHolder>::foreign_try_from(
+                            proxy_card_details,
+                        )
+                        .to_grpc_error()?,
                     );
                     // Call handle_setup_recurring_internal directly with intermediate type
-                    let setup_mandate_response = Box::pin(self.handle_setup_recurring_internal::<VaultTokenHolder>(
-                        &config,
-                        payload,
-                        metadata_payload.connector.clone(),
-                        metadata_payload.connector_config.clone(),
-                        &request_data.masked_metadata,
-                        &metadata_payload,
-                        &service_name,
-                        request_id,
-                        Some(token_data),
-                        payment_method_data,
-                    ))
-                    .await?;
+                    let setup_mandate_response =
+                        Box::pin(self.handle_setup_recurring_internal::<VaultTokenHolder>(
+                            &config,
+                            payload,
+                            metadata_payload.connector.clone(),
+                            metadata_payload.connector_config.clone(),
+                            &request_data.masked_metadata,
+                            &metadata_payload,
+                            &service_name,
+                            request_id,
+                            Some(token_data),
+                            payment_method_data,
+                        ))
+                        .await?;
                     Ok(tonic::Response::new(setup_mandate_response))
                 })
             },
@@ -1969,6 +2001,49 @@ impl PaymentService for Payments {
 
 #[tonic::async_trait]
 impl PaymentMethodService for PaymentMethod {
+    #[tracing::instrument(
+        name = "refresh",
+        fields(
+            name = common_utils::consts::NAME,
+            service_name = common_utils::consts::PAYMENT_METHOD_SERVICE_NAME,
+            service_method = "Refresh",
+            request_body = tracing::field::Empty,
+            response_body = tracing::field::Empty,
+            error_message = tracing::field::Empty,
+            merchant_id = tracing::field::Empty,
+            gateway = tracing::field::Empty,
+            request_id = tracing::field::Empty,
+            status_code = tracing::field::Empty,
+            message_ = "Golden Log Line (incoming)",
+            response_time = tracing::field::Empty,
+            tenant_id = tracing::field::Empty,
+            flow = FlowName::RefreshPaymentMethod.as_str(),
+            flow_specific_fields.status = tracing::field::Empty,
+        ),
+        skip(self, request)
+    )]
+    async fn refresh(
+        &self,
+        request: tonic::Request<PaymentMethodServiceRefreshRequest>,
+    ) -> Result<tonic::Response<PaymentMethodServiceRefreshResponse>, tonic::Status> {
+        info!("REFRESH_PAYMENT_METHOD_FLOW: initiated");
+        let service_name = request
+            .extensions()
+            .get::<String>()
+            .cloned()
+            .unwrap_or_else(|| "PaymentMethodService".to_string());
+        let config = get_config_from_request(&request).into_grpc_status()?;
+
+        grpc_logging_wrapper(
+            request,
+            &service_name,
+            config.clone(),
+            FlowName::RefreshPaymentMethod,
+            |request_data| Box::pin(self.internal_refresh_payment_method(request_data)),
+        )
+        .await
+    }
+
     #[tracing::instrument(
         name = "tokenize",
         fields(
@@ -2000,7 +2075,7 @@ impl PaymentMethodService for PaymentMethod {
             .get::<String>()
             .cloned()
             .unwrap_or_else(|| "PaymentMethodService".to_string());
-        let config = get_config_from_request(&request)?;
+        let config = get_config_from_request(&request).into_grpc_status()?;
 
         grpc_logging_wrapper(
             request,
@@ -2018,75 +2093,125 @@ impl PaymentMethodService for PaymentMethod {
                         &metadata_payload.lineage_ids,
                     );
 
-                    let payment_method_data_action = PaymentMethodDataAction::get_payment_method_data_action(payload.payment_method.clone().ok_or(tonic::Status::invalid_argument("missing request_details in the payload"))?)
-                    .map_err(|err| {
-                        tracing::error!("PAYMENT_AUTHORIZE_FLOW: failed to get payment method data action - error: {:?}", err);
-                        tonic::Status::invalid_argument("Invalid payment method data")
-                    })?;
-
-                    let payment_method_tokenize_response = match payment_method_data_action {
-                    PaymentMethodDataAction::CardProxy(proxy_card_details) => {
-                        let token_data = proxy_card_details.to_token_data();
-                        let payment_method_data = payment_method_data::PaymentMethodData::Card(payment_method_data::Card::<VaultTokenHolder>::foreign_try_from(proxy_card_details).map_err(|err| {
-                            tracing::error!("PAYMENT_AUTHORIZE_FLOW: failed to get payment method data action - error: {:?}", err);
-                            tonic::Status::invalid_argument("Invalid payment method data")
-                        })?);
-
-                    Box::pin(self.handle_tokenize_internal::<VaultTokenHolder>(
-                        &config,
-                        payload,
-                        metadata_payload.connector.clone(),
-                        metadata_payload.connector_config.clone(),
-                        &request_data.masked_metadata,
-                        &metadata_payload,
-                        &service_name,
-                        request_id,
-                        Some(token_data),
-                        payment_method_data,
-                        ))
-                        .await?
-
-                    },
-                    PaymentMethodDataAction::Card(card_details) => {
-                        tracing::info!("REGULAR: Processing regular payment authorization (no injector)");
-                        let payment_method_data = payment_method_data::PaymentMethodData::Card(payment_method_data::Card::<DefaultPCIHolder>::foreign_try_from(card_details).map_err(|err| {
-                            tracing::error!("PAYMENT_AUTHORIZE_FLOW: failed to get payment method data action - error: {:?}", err);
-                            tonic::Status::invalid_argument("Invalid payment method data")
-                        })?);
-                        Box::pin(self.handle_tokenize_internal::<DefaultPCIHolder>(
-                        &config,
-                        payload,
-                        metadata_payload.connector.clone(),
-                        metadata_payload.connector_config.clone(),
-                        &request_data.masked_metadata,
-                        &metadata_payload,
-                        &service_name,
-                        request_id,
-                        None,
-                        payment_method_data,
-                        )).await?
-                    },
-                    PaymentMethodDataAction::Default => {
-                        let payment_method_data = payment_method_data::PaymentMethodData::convert_to_domain_model_for_non_card_payment_methods(payload.payment_method.clone().ok_or(tonic::Status::invalid_argument("missing request_details in the payload"))?)
+                    let response = match &metadata_payload.connector {
+                        ConnectorVariant::Authenticator(_) => {
+                            let result = Box::pin(self.handle_tokenize_authenticator_flow(
+                                &config,
+                                payload,
+                                &metadata_payload,
+                                &request_data.masked_metadata,
+                                &service_name,
+                                request_id,
+                            )).await?;
+                            tonic::Response::new(result)
+                        }
+                        ConnectorVariant::Payment(_) => {
+                            let payment_method_data_action = PaymentMethodDataAction::get_payment_method_data_action(payload.payment_method.clone().ok_or(ucs_env::error::GrpcError::from(IntegrationError::MissingRequiredField { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() }))?)
                             .map_err(|err| {
-                                tracing::error!("Failed to convert payment method data: {:?}", err);
-                                tonic::Status::invalid_argument("Invalid payment method data")
+                                tracing::error!("PAYMENT_AUTHORIZE_FLOW: failed to get payment method data action - error: {:?}", err);
+                                ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() })
                             })?;
-                        Box::pin(self.handle_tokenize_internal::<DefaultPCIHolder>(
-                        &config,
-                        payload,
-                        metadata_payload.connector.clone(),
-                        metadata_payload.connector_config.clone(),
-                        &request_data.masked_metadata,
-                        &metadata_payload,
-                        &service_name,
-                        request_id,
-                        None,
-                        payment_method_data,
-                        )).await?
-                    }
-                };
-                Ok(tonic::Response::new(payment_method_tokenize_response))
+
+                            let payment_method_tokenize_response = match payment_method_data_action {
+                                PaymentMethodDataAction::CardProxy(proxy_card_details) => {
+                                    let token_data = proxy_card_details.to_token_data();
+                                    let payment_method_data = payment_method_data::PaymentMethodData::Card(payment_method_data::Card::<VaultTokenHolder>::foreign_try_from(proxy_card_details).map_err(|err| {
+                                        tracing::error!("PAYMENT_AUTHORIZE_FLOW: failed to get payment method data action - error: {:?}", err);
+                                        ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() })
+                                    })?);
+                                    Box::pin(self.handle_tokenize_internal::<VaultTokenHolder>(
+                                        &config,
+                                        payload,
+                                        metadata_payload.connector.clone(),
+                                        metadata_payload.connector_config.clone(),
+                                        &request_data.masked_metadata,
+                                        &metadata_payload,
+                                        &service_name,
+                                        request_id,
+                                        Some(token_data),
+                                        payment_method_data,
+                                    )).await?
+                                }
+                                PaymentMethodDataAction::Card(card_details) => {
+                                    tracing::info!("REGULAR: Processing regular payment authorization (no injector)");
+                                    let payment_method_data = payment_method_data::PaymentMethodData::Card(payment_method_data::Card::<DefaultPCIHolder>::foreign_try_from(card_details).map_err(|err| {
+                                        tracing::error!("PAYMENT_AUTHORIZE_FLOW: failed to get payment method data action - error: {:?}", err);
+                                        ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() })
+                                    })?);
+                                    Box::pin(self.handle_tokenize_internal::<DefaultPCIHolder>(
+                                        &config,
+                                        payload,
+                                        metadata_payload.connector.clone(),
+                                        metadata_payload.connector_config.clone(),
+                                        &request_data.masked_metadata,
+                                        &metadata_payload,
+                                        &service_name,
+                                        request_id,
+                                        None,
+                                        payment_method_data,
+                                    )).await?
+                                }
+                                PaymentMethodDataAction::Default => {
+                                    let payment_method_data = payment_method_data::PaymentMethodData::convert_to_domain_model_for_non_card_payment_methods(payload.payment_method.clone().ok_or(ucs_env::error::GrpcError::from(IntegrationError::MissingRequiredField { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() }))?)
+                                        .map_err(|err| {
+                                            tracing::error!("Failed to convert payment method data: {:?}", err);
+                                            ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() })
+                                        })?;
+                                    Box::pin(self.handle_tokenize_internal::<DefaultPCIHolder>(
+                                        &config,
+                                        payload,
+                                        metadata_payload.connector.clone(),
+                                        metadata_payload.connector_config.clone(),
+                                        &request_data.masked_metadata,
+                                        &metadata_payload,
+                                        &service_name,
+                                        request_id,
+                                        None,
+                                        payment_method_data,
+                                    )).await?
+                                }
+                                PaymentMethodDataAction::CardWithNoCvc(card_details) => {
+                                    tracing::info!("PAYMENT_METHOD_TOKEN_FLOW: Processing tokenize with CardWithNoCvc");
+                                    let payment_method_data = payment_method_data::PaymentMethodData::CardWithNoCvc(payment_method_data::CardWithNoCvc::foreign_try_from(card_details).map_err(|err| {
+                                        tracing::error!("PAYMENT_METHOD_TOKEN_FLOW: failed to convert CardWithNoCvc - error: {:?}", err);
+                                        ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() })
+                                    })?);
+                                    Box::pin(self.handle_tokenize_internal::<DefaultPCIHolder>(
+                                        &config,
+                                        payload,
+                                        metadata_payload.connector.clone(),
+                                        metadata_payload.connector_config.clone(),
+                                        &request_data.masked_metadata,
+                                        &metadata_payload,
+                                        &service_name,
+                                        request_id,
+                                        None,
+                                        payment_method_data,
+                                    )).await?
+                                }
+                            };
+                            tonic::Response::new(payment_method_tokenize_response)
+                        }
+                        ConnectorVariant::Payout(_)
+                        | ConnectorVariant::Frm(_)
+                        | ConnectorVariant::Surcharge(_) => {
+                            return Err(error_stack::Report::new(ucs_env::error::GrpcError::from(
+                                IntegrationError::NotSupported {
+                                    message: "Only Payment and Authenticator connectors support tokenization"
+                                        .to_string(),
+                                    connector: "N/A",
+                                    context: domain_types::errors::IntegrationErrorContext {
+                                        suggested_action: Some(
+                                            "Check connector rollout/configuration and call only flows implemented for this connector"
+                                                .to_string(),
+                                        ),
+                                        ..Default::default()
+                                    },
+                                },
+                            )));
+                        }
+                    };
+                    Ok(response)
                 })
             },
         )
@@ -2124,7 +2249,7 @@ impl PaymentMethodService for PaymentMethod {
             .get::<String>()
             .cloned()
             .unwrap_or_else(|| "PaymentMethodService".to_string());
-        let config = get_config_from_request(&request)?;
+        let config = get_config_from_request(&request).into_grpc_status()?;
 
         grpc_logging_wrapper(
             request,
@@ -2167,7 +2292,7 @@ impl PaymentMethodService for PaymentMethod {
             .get::<String>()
             .cloned()
             .unwrap_or_else(|| "PaymentMethodService".to_string());
-        let config = get_config_from_request(&request)?;
+        let config = get_config_from_request(&request).into_grpc_status()?;
 
         grpc_logging_wrapper(
             request,
@@ -2210,7 +2335,7 @@ impl PaymentMethodService for PaymentMethod {
             .get::<String>()
             .cloned()
             .unwrap_or_else(|| "PaymentMethodService".to_string());
-        let config = get_config_from_request(&request)?;
+        let config = get_config_from_request(&request).into_grpc_status()?;
 
         grpc_logging_wrapper(
             request,
@@ -2253,7 +2378,7 @@ impl PaymentMethodService for PaymentMethod {
             .get::<String>()
             .cloned()
             .unwrap_or_else(|| "PaymentMethodService".to_string());
-        let config = get_config_from_request(&request)?;
+        let config = get_config_from_request(&request).into_grpc_status()?;
 
         grpc_logging_wrapper(
             request,
@@ -2308,7 +2433,7 @@ impl PaymentMethod {
     );
 
     implement_connector_operation!(
-        fn_name: internal_get_payment_method,
+        fn_name: internal_get_payment_method_payment,
         log_prefix: "GET_PAYMENT_METHOD",
         request_type: PaymentMethodServiceGetRequest,
         response_type: PaymentMethodServiceGetResponse,
@@ -2321,6 +2446,57 @@ impl PaymentMethod {
         generate_response_fn: generate_get_payment_method_response,
         connector_data_type: ConnectorData<DefaultPCIHolder>,
         all_keys_required: None
+    );
+
+    implement_connector_operation!(
+        fn_name: internal_get_payment_method_authenticator,
+        log_prefix: "GET_PAYMENT_METHOD",
+        request_type: PaymentMethodServiceGetRequest,
+        response_type: PaymentMethodServiceGetResponse,
+        flow_marker: GetPaymentMethod,
+        resource_common_data_type: PaymentFlowData,
+        request_data_type: GetPaymentMethodData,
+        response_data_type: GetPaymentMethodResponseData,
+        request_data_constructor: GetPaymentMethodData::foreign_try_from,
+        common_flow_data_constructor: PaymentFlowData::foreign_try_from,
+        generate_response_fn: generate_get_payment_method_response,
+        connector_data_type: AuthenticatorConnectorData,
+        all_keys_required: None
+    );
+
+    async fn internal_get_payment_method(
+        &self,
+        request: RequestData<PaymentMethodServiceGetRequest>,
+    ) -> Result<
+        tonic::Response<PaymentMethodServiceGetResponse>,
+        error_stack::Report<ucs_env::error::GrpcError>,
+    > {
+        if matches!(
+            request.extracted_metadata.connector,
+            ConnectorVariant::Authenticator(_)
+        ) {
+            self.internal_get_payment_method_authenticator(request)
+                .await
+        } else {
+            self.internal_get_payment_method_payment(request).await
+        }
+    }
+
+    implement_connector_operation!(
+        fn_name: internal_refresh_payment_method,
+        log_prefix: "REFRESH_PAYMENT_METHOD",
+        request_type: PaymentMethodServiceRefreshRequest,
+        response_type: PaymentMethodServiceRefreshResponse,
+        flow_marker: RefreshPaymentMethod,
+        resource_common_data_type: RefreshPaymentMethodFlowData,
+        request_data_type: RefreshPaymentMethodData,
+        response_data_type: RefreshPaymentMethodResponseData,
+        request_data_constructor: RefreshPaymentMethodData::foreign_try_from,
+        common_flow_data_constructor: RefreshPaymentMethodFlowData::foreign_try_from,
+        generate_response_fn: generate_refresh_payment_method_response,
+        connector_data: ConnectorData,
+        all_keys_required: None,
+        has_payment_method_data: option
     );
 
     implement_connector_operation!(
@@ -2363,10 +2539,16 @@ impl PaymentMethod {
         request_id: &str,
         token_data: Option<TokenData>,
         payment_method_data: payment_method_data::PaymentMethodData<T>,
-    ) -> Result<PaymentMethodServiceTokenizeResponse, tonic::Status> {
+    ) -> Result<PaymentMethodServiceTokenizeResponse, error_stack::Report<ucs_env::error::GrpcError>>
+    {
         // Get connector data
         let connector_data: ConnectorData<T> = ConnectorData::from_connector_variant(&connector)
-            .ok_or_else(|| tonic::Status::invalid_argument("Invalid Connector Received"))?;
+            .ok_or_else(|| {
+                ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat {
+                    field_name: "connector",
+                    context: domain_types::errors::IntegrationErrorContext::default(),
+                })
+            })?;
 
         // Get connector integration
         let connector_integration: BoxedConnectorIntegrationV2<
@@ -2377,20 +2559,24 @@ impl PaymentMethod {
             PaymentMethodTokenResponse,
         > = connector_data.connector.get_connector_integration_v2();
 
-        let connectors =
-            utils::connectors_with_connector_config_overrides(&connector_config, config)
-                .into_grpc_status()?;
+        let connectors = utils::apply_url_overrides(
+            config,
+            &metadata_payload.connector,
+            &connector_config,
+            metadata_payload.environment.as_deref(),
+        )
+        .to_grpc_error()?;
 
         // Create payment flow data
         let payment_flow_data =
             PaymentFlowData::foreign_try_from((request.clone(), connectors, metadata))
-                .map_err(|e| e.into_grpc_status())?;
+                .map_err(|e| e.to_grpc_error())?;
 
         // Get payment method token request data
 
         let payment_method_token_request_data =
             PaymentMethodTokenizationData::foreign_try_from((request.clone(), payment_method_data))
-                .map_err(|e| e.into_grpc_status())?;
+                .map_err(|e| e.to_grpc_error())?;
 
         // Create router data for payment method token flow
         let payment_method_token_router_data = RouterDataV2::<
@@ -2410,18 +2596,23 @@ impl PaymentMethod {
         let api_tag = config.api_tags.get_tag(FlowName::PaymentMethodToken, None);
 
         // Create test context if test mode is enabled
-        let test_context = config
-            .test
-            .create_test_context(request_id)
-            .map_err(|e| tonic::Status::internal(format!("Test mode configuration error: {e}")))?;
+        let test_context = config.test.create_test_context(request_id).map_err(|e| {
+            error_stack::Report::new(ucs_env::error::GrpcError::from(
+                InternalError::TestContextCreationFailed {
+                    reason: e.to_string(),
+                },
+            ))
+        })?;
 
         // Execute connector processing
+
         let event_params = EventProcessingParams {
             connector_name: &connector.get_connector_name(),
             service_name,
             service_type: utils::service_type_str(&config.server.type_),
             flow_name: FlowName::PaymentMethodToken,
             event_config: &config.events,
+            runtime_metadata: &config.runtime_metadata,
             request_id,
             lineage_ids: &metadata_payload.lineage_ids,
             reference_id: &metadata_payload.reference_id,
@@ -2430,7 +2621,11 @@ impl PaymentMethod {
             proxy_name: metadata_payload.proxy_name.as_deref(),
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
+            org_id: metadata_payload.org_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
+            connector_latency: metadata_payload.connector_latency.clone(),
+            log_fields_enabled: config.log_fields.enabled,
+            log_fields: &config.log_fields.outgoing,
         };
 
         let response = Box::pin(
@@ -2449,13 +2644,148 @@ impl PaymentMethod {
         .await;
 
         // Generate response - connector flow errors propagate as Err(tonic::Status)
-        let success_response = response.into_grpc_status()?;
+        let success_response = response.to_grpc_error()?;
 
         let payment_method_token_response =
             domain_types::types::generate_create_payment_method_token_response(success_response)
-                .into_grpc_status()?;
+                .to_grpc_error()?;
 
         Ok(payment_method_token_response)
+    }
+
+    async fn handle_tokenize_authenticator_flow(
+        &self,
+        config: &Arc<Config>,
+        request: PaymentMethodServiceTokenizeRequest,
+        metadata_payload: &utils::MetadataPayload,
+        masked_metadata: &MaskedMetadata,
+        service_name: &str,
+        request_id: &str,
+    ) -> Result<PaymentMethodServiceTokenizeResponse, error_stack::Report<ucs_env::error::GrpcError>>
+    {
+        use connector_integration::types::ConnectorDataProvider as _;
+
+        let connector_data: AuthenticatorConnectorData =
+            AuthenticatorConnectorData::from_connector_variant(&metadata_payload.connector)
+                .ok_or_else(|| {
+                    error_stack::Report::new(ucs_env::error::GrpcError::from(
+                        IntegrationError::NotSupported {
+                            message: "Invalid connector type for authenticator tokenize flow"
+                                .to_string(),
+                            connector: "N/A",
+                            context: domain_types::errors::IntegrationErrorContext::default(),
+                        },
+                    ))
+                })?;
+
+        let connector_integration: BoxedConnectorIntegrationV2<
+            '_,
+            PaymentMethodToken,
+            PaymentFlowData,
+            PaymentMethodTokenizationData<DefaultPCIHolder>,
+            PaymentMethodTokenResponse,
+        > = connector_data.connector.get_connector_integration_v2();
+
+        let connectors = utils::connectors_with_connector_config_overrides(
+            &metadata_payload.connector_config,
+            config,
+        )
+        .to_grpc_error()?;
+
+        let payment_flow_data =
+            PaymentFlowData::foreign_try_from((request.clone(), connectors, masked_metadata))
+                .map_err(|e| e.to_grpc_error())?;
+
+        // Authenticator connectors use PaymentMethodType instead of PMData
+        let dummy_pm_data = payment_method_data::PaymentMethodData::PaymentMethodToken(
+            payment_method_data::PaymentMethodToken {
+                token: Secret::new(String::new()),
+            },
+        );
+        let connector_feature_data = request
+            .connector_feature_data
+            .clone()
+            .map(|m| ForeignTryFrom::foreign_try_from((m, "feature_data")))
+            .transpose()
+            .map_err(|e| e.to_grpc_error())?;
+        let tokenization_data = PaymentMethodTokenizationData::<DefaultPCIHolder> {
+            payment_method_data: dummy_pm_data, // unused by authenticator path
+            metadata: request.metadata.clone(),
+            connector_feature_data,
+            amount: common_utils::types::MinorUnit::new(0), // unused by authenticator path
+            currency: common_enums::Currency::USD,          // unused by authenticator path
+            browser_info: None,
+            capture_method: None,
+            customer_acceptance: None,
+            setup_future_usage: None,
+            setup_mandate_details: None,
+            mandate_id: None,
+            integrity_object: None,
+            split_payments: None,
+        };
+
+        let router_data = RouterDataV2::<
+            PaymentMethodToken,
+            PaymentFlowData,
+            PaymentMethodTokenizationData<DefaultPCIHolder>,
+            PaymentMethodTokenResponse,
+        > {
+            flow: std::marker::PhantomData,
+            resource_common_data: payment_flow_data,
+            connector_config: metadata_payload.connector_config.clone(),
+            request: tokenization_data,
+            response: Err(ErrorResponse::default()),
+        };
+
+        let api_tag = config.api_tags.get_tag(FlowName::PaymentMethodToken, None);
+        let test_context = config.test.create_test_context(request_id).map_err(|e| {
+            error_stack::Report::new(ucs_env::error::GrpcError::from(
+                InternalError::TestContextCreationFailed {
+                    reason: e.to_string(),
+                },
+            ))
+        })?;
+
+        let event_params = EventProcessingParams {
+            connector_name: &metadata_payload.connector.get_connector_name(),
+            service_name,
+            service_type: utils::service_type_str(&config.server.type_),
+            flow_name: FlowName::PaymentMethodToken,
+            event_config: &config.events,
+            request_id,
+            lineage_ids: &metadata_payload.lineage_ids,
+            reference_id: &metadata_payload.reference_id,
+            resource_id: &metadata_payload.resource_id,
+            shadow_mode: metadata_payload.shadow_mode,
+            proxy_name: metadata_payload.proxy_name.as_deref(),
+            tenant_id: &metadata_payload.tenant_id,
+            merchant_id: metadata_payload.merchant_id.as_str(),
+            org_id: metadata_payload.org_id.as_str(),
+            return_raw_connector_data: config.common.return_raw_connector_data,
+            connector_latency: metadata_payload.connector_latency.clone(),
+            runtime_metadata: &config.runtime_metadata,
+            log_fields_enabled: config.log_fields.enabled,
+            log_fields: &config.log_fields.outgoing,
+        };
+
+        let response = Box::pin(
+            external_services::service::execute_connector_processing_step(
+                &config.proxy,
+                connector_integration,
+                router_data,
+                None,
+                event_params,
+                None,
+                common_enums::CallConnectorAction::Trigger,
+                test_context,
+                api_tag,
+            ),
+        )
+        .await;
+
+        let success_response = response.to_grpc_error()?;
+        domain_types::types::generate_create_payment_method_token_response(success_response)
+            .to_grpc_error()
     }
 }
 
@@ -2483,7 +2813,10 @@ impl MerchantAuthentication {
         connector_name: &str,
         service_name: &str,
         event_params: EventParams<'_>,
-    ) -> Result<ServerSessionAuthenticationTokenResponseData, tonic::Status>
+    ) -> Result<
+        ServerSessionAuthenticationTokenResponseData,
+        error_stack::Report<ucs_env::error::GrpcError>,
+    >
     where
         ServerSessionAuthenticationTokenRequestData: ForeignTryFrom<P, Error = IntegrationError>,
     {
@@ -2499,7 +2832,7 @@ impl MerchantAuthentication {
         // Create session token request data using try_from_foreign
         let session_token_request_data =
             ServerSessionAuthenticationTokenRequestData::foreign_try_from(payload.clone())
-                .into_grpc_status()?;
+                .to_grpc_error()?;
 
         let session_token_router_data = RouterDataV2::<
             ServerSessionAuthenticationToken,
@@ -2523,15 +2856,23 @@ impl MerchantAuthentication {
         let test_context = config
             .test
             .create_test_context(event_params.request_id)
-            .map_err(|e| tonic::Status::internal(format!("Test mode configuration error: {e}")))?;
+            .map_err(|e| {
+                error_stack::Report::new(ucs_env::error::GrpcError::from(
+                    InternalError::TestContextCreationFailed {
+                        reason: e.to_string(),
+                    },
+                ))
+            })?;
 
         // Create event processing parameters
+
         let external_event_params = EventProcessingParams {
             connector_name,
             service_name,
             service_type: event_params.service_type,
             flow_name: FlowName::ServerSessionAuthenticationToken,
             event_config: &config.events,
+            runtime_metadata: &config.runtime_metadata,
             request_id: event_params.request_id,
             lineage_ids: event_params.lineage_ids,
             reference_id: event_params.reference_id,
@@ -2540,7 +2881,11 @@ impl MerchantAuthentication {
             proxy_name: event_params.proxy_name,
             tenant_id: event_params.tenant_id,
             merchant_id: event_params.merchant_id,
+            org_id: event_params.org_id,
             return_raw_connector_data: config.common.return_raw_connector_data,
+            connector_latency: event_params.connector_latency.clone(),
+            log_fields_enabled: config.log_fields.enabled,
+            log_fields: &config.log_fields.outgoing,
         };
 
         // Execute connector processing
@@ -2558,7 +2903,7 @@ impl MerchantAuthentication {
             ),
         )
         .await
-        .into_grpc_status()?;
+        .to_grpc_error()?;
 
         match response.response {
             Ok(session_response) => {
@@ -2569,52 +2914,69 @@ impl MerchantAuthentication {
                 Ok(session_response)
             }
             Err(error_response) => Err(error_stack::report!(
-                ConnectorError::ConnectorErrorResponse(error_response)
+                ConnectorError::ConnectorErrorResponse(Box::new(error_response))
             )
-            .into_grpc_status()),
+            .to_grpc_error()),
         }
     }
 
     #[allow(clippy::too_many_arguments)]
-    async fn handle_access_token<
-        T: PaymentMethodDataTypes
-            + Default
-            + Eq
-            + Debug
-            + Send
-            + serde::Serialize
-            + serde::de::DeserializeOwned
-            + Clone
-            + Sync
-            + 'static,
-    >(
+    async fn handle_access_token(
         &self,
         config: &Arc<Config>,
-        connector_data: ConnectorData<T>,
+        connector_variant: &ConnectorVariant,
         merchant_auth_flow_data: &MerchantAuthenticationFlowData,
         connector_config: ConnectorSpecificConfig,
         connector_name: &str,
         service_name: &str,
         event_params: EventParams<'_>,
-    ) -> Result<MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse, tonic::Status>
+    ) -> Result<
+        MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
+        error_stack::Report<ucs_env::error::GrpcError>,
+    >
     where
         ServerAuthenticationTokenRequestData:
             for<'a> ForeignTryFrom<&'a ConnectorSpecificConfig, Error = IntegrationError>,
     {
-        // Get connector integration for ServerAuthenticationToken flow
+        // Resolve connector integration for ServerAuthenticationToken flow
         let connector_integration: BoxedConnectorIntegrationV2<
             '_,
             ServerAuthenticationToken,
             MerchantAuthenticationFlowData,
             ServerAuthenticationTokenRequestData,
             ServerAuthenticationTokenResponseData,
-        > = connector_data.connector.get_connector_integration_v2();
+        > = match connector_variant {
+            ConnectorVariant::Payment(conn) => {
+                ConnectorData::<DefaultPCIHolder>::get_connector_by_name(conn)
+                    .connector
+                    .get_connector_integration_v2()
+            }
+            ConnectorVariant::Frm(conn) => FrmConnectorData::get_connector_by_name(conn)
+                .connector
+                .get_connector_integration_v2(),
+            ConnectorVariant::Payout(conn) => PayoutConnectorData::get_connector_by_name(conn)
+                .connector
+                .get_connector_integration_v2(),
+            ConnectorVariant::Surcharge(_) | ConnectorVariant::Authenticator(_) => {
+                return Err(error_stack::Report::new(ucs_env::error::GrpcError::from(
+                    IntegrationError::NotSupported {
+                        message: "Surcharge/Authenticator connectors do not support server authentication tokens"
+                            .to_string(),
+                        connector: "N/A",
+                        context: domain_types::errors::IntegrationErrorContext {
+                            suggested_action: Some("Check connector rollout/configuration and call only flows implemented for this connector".to_string()),
+                            ..Default::default()
+                        },
+                    },
+                )));
+            }
+        };
 
         // Create access token request data - grant type determined by connector
         let access_token_request_data = ServerAuthenticationTokenRequestData::foreign_try_from(
             &connector_config, // Contains typed connector config
         )
-        .into_grpc_status()?;
+        .to_grpc_error()?;
 
         // Create router data for access token flow
         let access_token_router_data = RouterDataV2::<
@@ -2639,15 +3001,23 @@ impl MerchantAuthentication {
         let test_context = config
             .test
             .create_test_context(event_params.request_id)
-            .map_err(|e| tonic::Status::internal(format!("Test mode configuration error: {e}")))?;
+            .map_err(|e| {
+                error_stack::Report::new(ucs_env::error::GrpcError::from(
+                    InternalError::TestContextCreationFailed {
+                        reason: e.to_string(),
+                    },
+                ))
+            })?;
 
         // Execute connector processing
+
         let external_event_params = EventProcessingParams {
             connector_name,
             service_name,
             service_type: event_params.service_type,
             flow_name: FlowName::ServerAuthenticationToken,
             event_config: &config.events,
+            runtime_metadata: &config.runtime_metadata,
             request_id: event_params.request_id,
             lineage_ids: event_params.lineage_ids,
             reference_id: event_params.reference_id,
@@ -2656,7 +3026,11 @@ impl MerchantAuthentication {
             proxy_name: event_params.proxy_name,
             tenant_id: event_params.tenant_id,
             merchant_id: event_params.merchant_id,
+            org_id: event_params.org_id,
             return_raw_connector_data: config.common.return_raw_connector_data,
+            connector_latency: event_params.connector_latency.clone(),
+            log_fields_enabled: config.log_fields.enabled,
+            log_fields: &config.log_fields.outgoing,
         };
 
         let response = Box::pin(
@@ -2673,16 +3047,14 @@ impl MerchantAuthentication {
             ),
         )
         .await
-        .into_grpc_status()?;
+        .to_grpc_error()?;
 
         // Use generate_access_token_response for consistency
-        domain_types::types::generate_access_token_response(response).into_grpc_status()
+        domain_types::types::generate_access_token_response(response).to_grpc_error()
     }
-}
 
-impl MerchantAuthenticationOperational for MerchantAuthentication {
     implement_connector_operation!(
-        fn_name: internal_sdk_session_token,
+        fn_name: internal_sdk_session_token_payment,
         log_prefix: "SDK_SESSION",
         request_type: MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
         response_type: MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
@@ -2696,6 +3068,57 @@ impl MerchantAuthenticationOperational for MerchantAuthentication {
         connector_data_type: ConnectorData<DefaultPCIHolder>,
         all_keys_required: None
     );
+
+    implement_connector_operation!(
+        fn_name: internal_sdk_session_token_authenticator,
+        log_prefix: "SDK_SESSION_AUTHENTICATOR",
+        request_type: MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
+        response_type: MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
+        flow_marker: ClientAuthenticationToken,
+        resource_common_data_type: MerchantAuthenticationFlowData,
+        request_data_type: ClientAuthenticationTokenRequestData,
+        response_data_type: PaymentsResponseData,
+        request_data_constructor: ClientAuthenticationTokenRequestData::foreign_try_from,
+        common_flow_data_constructor: MerchantAuthenticationFlowData::foreign_try_from,
+        generate_response_fn: generate_payment_sdk_session_token_response,
+        connector_data_type: AuthenticatorConnectorData,
+        all_keys_required: None
+    );
+}
+
+impl MerchantAuthenticationOperational for MerchantAuthentication {
+    async fn internal_sdk_session_token(
+        &self,
+        request: RequestData<MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest>,
+    ) -> Result<
+        tonic::Response<MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse>,
+        error_stack::Report<ucs_env::error::GrpcError>,
+    > {
+        match &request.extracted_metadata.connector {
+            ConnectorVariant::Authenticator(_) => {
+                self.internal_sdk_session_token_authenticator(request).await
+            }
+            ConnectorVariant::Payment(_) => {
+                self.internal_sdk_session_token_payment(request).await
+            }
+            ConnectorVariant::Payout(_)
+            | ConnectorVariant::Frm(_)
+            | ConnectorVariant::Surcharge(_) => Err(error_stack::Report::new(
+                ucs_env::error::GrpcError::from(IntegrationError::NotSupported {
+                    message: "Payout/FRM/Surcharge connectors do not support SDK session tokens"
+                        .to_string(),
+                    connector: "N/A",
+                    context: domain_types::errors::IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Check connector rollout/configuration and call only flows implemented for this connector"
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                }),
+            )),
+        }
+    }
 }
 
 #[tonic::async_trait]
@@ -2735,13 +3158,13 @@ impl MerchantAuthenticationService for MerchantAuthentication {
             .get::<String>()
             .cloned()
             .unwrap_or_else(|| "PaymentService".to_string());
-        let config = get_config_from_request(&request)?;
+        let config = get_config_from_request(&request).into_grpc_status()?;
         grpc_logging_wrapper(
             request,
             &service_name,
             config,
             FlowName::ClientAuthenticationToken,
-            |request_data| async move { self.internal_sdk_session_token(request_data).await },
+            |request_data| Box::pin(self.internal_sdk_session_token(request_data)),
         )
         .await
     }
@@ -2784,7 +3207,7 @@ impl MerchantAuthenticationService for MerchantAuthentication {
             .get::<String>()
             .cloned()
             .unwrap_or_else(|| "PaymentService".to_string());
-        let config = get_config_from_request(&request)?;
+        let config = get_config_from_request(&request).into_grpc_status()?;
         grpc_logging_wrapper(
             request,
             &service_name,
@@ -2803,13 +3226,15 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                     let connector_config = &metadata_payload.connector_config;
 
                     let connector_data: ConnectorData<DefaultPCIHolder> = ConnectorData::from_connector_variant(&connector)
-            .ok_or_else(|| tonic::Status::invalid_argument("Invalid Connector Received"))?;
+            .ok_or_else(|| ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "connector", context: domain_types::errors::IntegrationErrorContext { suggested_action: Some("Check connector rollout/configuration and call only flows implemented for this connector".to_string()), ..Default::default() } }))?;
 
-                    let connectors = utils::connectors_with_connector_config_overrides(
-                        connector_config,
+                    let connectors = utils::apply_url_overrides(
                         &config,
+                        &connector,
+                        connector_config,
+                        metadata_payload.environment.as_deref(),
                     )
-                    .into_grpc_status()?;
+                    .to_grpc_error()?;
 
                     // Create merchant authentication flow data
                     let merchant_auth_flow_data = MerchantAuthenticationFlowData::foreign_try_from((
@@ -2817,7 +3242,7 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                         connectors,
                         &request_data.masked_metadata,
                     ))
-                    .map_err(|e| e.into_grpc_status())?;
+                    .map_err(|e| e.to_grpc_error())?;
 
                     // Use the existing handle_session_token function
                     let event_params = EventParams {
@@ -2832,6 +3257,8 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                         proxy_name: metadata_payload.proxy_name.as_deref(),
                         tenant_id: &metadata_payload.tenant_id,
                         merchant_id: metadata_payload.merchant_id.as_str(),
+                        org_id: metadata_payload.org_id.as_str(),
+                        connector_latency: metadata_payload.connector_latency.clone(),
                     };
 
                     let session_response = Box::pin(self.handle_session_token(
@@ -2902,7 +3329,7 @@ impl MerchantAuthenticationService for MerchantAuthentication {
             .get::<String>()
             .cloned()
             .unwrap_or_else(|| "PaymentService".to_string());
-        let config = get_config_from_request(&request)?;
+        let config = get_config_from_request(&request).into_grpc_status()?;
         grpc_logging_wrapper(
             request,
             &service_name,
@@ -2916,17 +3343,14 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                         (metadata_payload.request_id, metadata_payload.lineage_ids);
                     let connector_config = &metadata_payload.connector_config;
 
-                    let connector_data: ConnectorData<DefaultPCIHolder> =
-                        ConnectorData::from_connector_variant(&metadata_payload.connector)
-                            .ok_or_else(|| {
-                                tonic::Status::invalid_argument("Invalid Connector Received")
-                            })?;
                     let access_token_create_request = request_data.payload;
-                    let connectors = utils::connectors_with_connector_config_overrides(
-                        connector_config,
+                    let connectors = utils::apply_url_overrides(
                         &config,
+                        &metadata_payload.connector,
+                        connector_config,
+                        metadata_payload.environment.as_deref(),
                     )
-                    .into_grpc_status()?;
+                    .to_grpc_error()?;
 
                     // Create minimal merchant auth flow data for access token generation
                     let merchant_auth_flow_data =
@@ -2935,7 +3359,7 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                             connectors,
                             &request_data.masked_metadata,
                         ))
-                        .map_err(|e| e.into_grpc_status())?;
+                        .map_err(|e| e.to_grpc_error())?;
 
                     // Create event params for the handle_access_token function
                     let event_params = EventParams {
@@ -2950,13 +3374,13 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                         proxy_name: metadata_payload.proxy_name.as_deref(),
                         tenant_id: &metadata_payload.tenant_id,
                         merchant_id: metadata_payload.merchant_id.as_str(),
+                        org_id: metadata_payload.org_id.as_str(),
+                        connector_latency: metadata_payload.connector_latency.clone(),
                     };
 
-                    // Reuse the existing handle_access_token function which now uses
-                    // generate_access_token_response for consistent error handling
                     let server_auth_token_response = Box::pin(self.handle_access_token(
                         &config,
-                        connector_data,
+                        &metadata_payload.connector,
                         &merchant_auth_flow_data,
                         connector_config.clone(),
                         &metadata_payload.connector.get_connector_name(),
@@ -3022,7 +3446,7 @@ impl RecurringPaymentService for RecurringPayments {
             .get::<String>()
             .cloned()
             .unwrap_or_else(|| "PaymentService".to_string());
-        let config = get_config_from_request(&request)?;
+        let config = get_config_from_request(&request).into_grpc_status()?;
         grpc_logging_wrapper(
             request,
             &service_name,
@@ -3040,7 +3464,7 @@ impl RecurringPaymentService for RecurringPayments {
                     let connector_config = &metadata_payload.connector_config;
 
                         let connector_data: ConnectorData<DefaultPCIHolder> = ConnectorData::from_connector_variant(&metadata_payload.connector)
-            .ok_or_else(|| tonic::Status::invalid_argument("Invalid Connector Received"))?;
+            .ok_or_else(|| ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "connector", context: domain_types::errors::IntegrationErrorContext { suggested_action: Some("Check connector rollout/configuration and call only flows implemented for this connector".to_string()), ..Default::default() } }))?;
                     // Get connector integration
                     let connector_integration: BoxedConnectorIntegrationV2<
                         '_,
@@ -3050,11 +3474,13 @@ impl RecurringPaymentService for RecurringPayments {
                         PaymentsResponseData,
                     > = connector_data.connector.get_connector_integration_v2();
 
-                    let connectors = utils::connectors_with_connector_config_overrides(
-                        &metadata_payload.connector_config,
+                    let connectors = utils::apply_url_overrides(
                         &config,
+                        &metadata_payload.connector,
+                        &metadata_payload.connector_config,
+                        metadata_payload.environment.as_deref(),
                     )
-                    .into_grpc_status()?;
+                    .to_grpc_error()?;
 
                     // Create payment flow data
                     let payment_flow_data = PaymentFlowData::foreign_try_from((
@@ -3062,7 +3488,7 @@ impl RecurringPaymentService for RecurringPayments {
                         connectors,
                         &request_data.masked_metadata,
                     ))
-                    .map_err(|e| e.into_grpc_status())?;
+                    .map_err(|e| e.to_grpc_error())?;
 
                     let payment_method_data = if let Some(payment_method) = payload.payment_method.clone() {
                         let payment_method_data_action =
@@ -3073,7 +3499,7 @@ impl RecurringPaymentService for RecurringPayments {
                                         err
                                     );
 
-                                    tonic::Status::invalid_argument("Invalid payment method data")
+                                    ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() })
                                 })?;
 
                         tracing::info!("REGULAR: Processing regular payment authorization (no injector)");
@@ -3090,7 +3516,7 @@ impl RecurringPaymentService for RecurringPayments {
                                             err
                                         );
 
-                                        tonic::Status::invalid_argument("Invalid payment method data")
+                                        ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() })
                                     })?),
                                 )
                             }
@@ -3105,14 +3531,33 @@ impl RecurringPaymentService for RecurringPayments {
                                         err
                                     );
 
-                                    tonic::Status::invalid_argument("Invalid payment method data")
+                                    ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() })
                                 })?)
                             }
 
+                            PaymentMethodDataAction::CardWithNoCvc(card_details) => {
+                                Some(payment_method_data::PaymentMethodData::CardWithNoCvc(
+                                    payment_method_data::CardWithNoCvc::foreign_try_from(
+                                        card_details,
+                                    )
+                                    .map_err(|err| {
+                                        tracing::error!(
+                                            "PAYMENT_CHARGE_FLOW: failed to convert CardWithNoCvc - error: {:?}",
+                                            err
+                                        );
+
+                                        ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() })
+                                    })?,
+                                ))
+                            }
+
                             PaymentMethodDataAction::CardProxy(_) => {
-                                return Err(tonic::Status::invalid_argument(
-                                    "Invalid payment method data",
-                                ));
+                                return Err(error_stack::Report::new(ucs_env::error::GrpcError::from(
+                                    IntegrationError::InvalidDataFormat {
+                                        field_name: "payment_method",
+                                        context: domain_types::errors::IntegrationErrorContext::default(),
+                                    },
+                                )));
                             }
                         }
                     } else {
@@ -3121,7 +3566,7 @@ impl RecurringPaymentService for RecurringPayments {
 
                     // Create repeat payment data
                     let repeat_payment_data = RepeatPaymentData::foreign_try_from((payload.clone(), payment_method_data))
-                        .map_err(|e| e.into_grpc_status())?;
+                        .map_err(|e| e.to_grpc_error())?;
 
                     // Create router data
                     let router_data: RouterDataV2<
@@ -3145,8 +3590,11 @@ impl RecurringPaymentService for RecurringPayments {
                     // Create test context if test mode is enabled
                     let test_context =
                         config.test.create_test_context(&request_id).map_err(|e| {
-                            tonic::Status::internal(format!("Test mode configuration error: {e}"))
+                            error_stack::Report::new(ucs_env::error::GrpcError::from(InternalError::TestContextCreationFailed {
+                                reason: e.to_string(),
+                            }))
                         })?;
+
 
                     let event_params = EventProcessingParams {
                         connector_name: &metadata_payload.connector.get_connector_name(),
@@ -3154,6 +3602,7 @@ impl RecurringPaymentService for RecurringPayments {
                         service_type: utils::service_type_str(&config.server.type_),
                         flow_name: FlowName::RepeatPayment,
                         event_config: &config.events,
+                        runtime_metadata: &config.runtime_metadata,
                         request_id: &request_id,
                         lineage_ids: &lineage_ids,
                         reference_id: &metadata_payload.reference_id,
@@ -3162,7 +3611,11 @@ impl RecurringPaymentService for RecurringPayments {
                         proxy_name: metadata_payload.proxy_name.as_deref(),
                         tenant_id: &metadata_payload.tenant_id,
                         merchant_id: metadata_payload.merchant_id.as_str(),
+                        org_id: metadata_payload.org_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
+                connector_latency: metadata_payload.connector_latency.clone(),
+                        log_fields_enabled: config.log_fields.enabled,
+            log_fields: &config.log_fields.outgoing,
                     };
 
                     let response = Box::pin(
@@ -3179,11 +3632,11 @@ impl RecurringPaymentService for RecurringPayments {
                         ),
                     )
                     .await
-                    .map_err(|e| e.into_grpc_status())?;
+                    .map_err(|e| e.to_grpc_error())?;
 
                     // Generate response
                     let repeat_payment_response = generate_repeat_payment_response(response)
-                        .map_err(|e| e.into_grpc_status())?;
+                        .map_err(|e| e.to_grpc_error())?;
 
                     Ok(tonic::Response::new(repeat_payment_response))
                 })
@@ -3222,7 +3675,7 @@ impl RecurringPaymentService for RecurringPayments {
             .get::<String>()
             .cloned()
             .unwrap_or_else(|| "PaymentService".to_string());
-        let config = get_config_from_request(&request)?;
+        let config = get_config_from_request(&request).into_grpc_status()?;
         grpc_logging_wrapper(
             request,
             &service_name,
@@ -3242,12 +3695,12 @@ impl PaymentMethodAuthOperational for PaymentMethodAuthentication {
         response_type: PaymentMethodAuthenticationServicePreAuthenticateResponse,
         flow_marker: PreAuthenticate,
         resource_common_data_type: PaymentFlowData,
-        request_data_type: PaymentsPreAuthenticateData<DefaultPCIHolder>,
+        request_data_type: PaymentsPreAuthenticateData,
         response_data_type: PaymentsResponseData,
         request_data_constructor: PaymentsPreAuthenticateData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_pre_authenticate_response,
-        connector_data_type: ConnectorData<DefaultPCIHolder>,
+        connector_data: ConnectorData,
         all_keys_required: None,
         has_payment_method_data: option
     );
@@ -3259,12 +3712,12 @@ impl PaymentMethodAuthOperational for PaymentMethodAuthentication {
         response_type: PaymentMethodAuthenticationServiceAuthenticateResponse,
         flow_marker: Authenticate,
         resource_common_data_type: PaymentFlowData,
-        request_data_type: PaymentsAuthenticateData<DefaultPCIHolder>,
+        request_data_type: PaymentsAuthenticateData,
         response_data_type: PaymentsResponseData,
         request_data_constructor: PaymentsAuthenticateData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_authenticate_response,
-        connector_data_type: ConnectorData<DefaultPCIHolder>,
+        connector_data: ConnectorData,
         all_keys_required: None,
         has_payment_method_data: option
     );
@@ -3276,12 +3729,12 @@ impl PaymentMethodAuthOperational for PaymentMethodAuthentication {
         response_type: PaymentMethodAuthenticationServicePostAuthenticateResponse,
         flow_marker: PostAuthenticate,
         resource_common_data_type: PaymentFlowData,
-        request_data_type: PaymentsPostAuthenticateData<DefaultPCIHolder>,
+        request_data_type: PaymentsPostAuthenticateData,
         response_data_type: PaymentsResponseData,
         request_data_constructor: PaymentsPostAuthenticateData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_post_authenticate_response,
-        connector_data_type: ConnectorData<DefaultPCIHolder>,
+        connector_data: ConnectorData,
         all_keys_required: None,
         has_payment_method_data: option
     );
@@ -3322,7 +3775,7 @@ impl PaymentMethodAuthenticationService for PaymentMethodAuthentication {
             .get::<String>()
             .cloned()
             .unwrap_or_else(|| "PaymentService".to_string());
-        let config = get_config_from_request(&request)?;
+        let config = get_config_from_request(&request).into_grpc_status()?;
         Box::pin(grpc_logging_wrapper(
             request,
             &service_name,
@@ -3366,7 +3819,7 @@ impl PaymentMethodAuthenticationService for PaymentMethodAuthentication {
             .get::<String>()
             .cloned()
             .unwrap_or_else(|| "PaymentService".to_string());
-        let config = get_config_from_request(&request)?;
+        let config = get_config_from_request(&request).into_grpc_status()?;
         Box::pin(grpc_logging_wrapper(
             request,
             &service_name,
@@ -3410,7 +3863,7 @@ impl PaymentMethodAuthenticationService for PaymentMethodAuthentication {
             .get::<String>()
             .cloned()
             .unwrap_or_else(|| "PaymentService".to_string());
-        let config = get_config_from_request(&request)?;
+        let config = get_config_from_request(&request).into_grpc_status()?;
         Box::pin(grpc_logging_wrapper(
             request,
             &service_name,
@@ -3434,9 +3887,17 @@ pub fn generate_mandate_revoke_response(
     let raw_connector_response = router_data_v2
         .resource_common_data
         .get_raw_connector_response();
+    let typed_connector_response = router_data_v2
+        .resource_common_data
+        .get_typed_connector_response()
+        .map(Secret::new);
     let raw_connector_request = router_data_v2
         .resource_common_data
         .get_raw_connector_request();
+    let typed_connector_request = router_data_v2
+        .resource_common_data
+        .get_typed_connector_request()
+        .map(Secret::new);
     let response_headers = router_data_v2
         .resource_common_data
         .get_connector_response_headers_as_map();
@@ -3463,7 +3924,9 @@ pub fn generate_mandate_revoke_response(
             network_transaction_id: None,
             merchant_revoke_id: None,
             raw_connector_response,
+            typed_connector_response,
             raw_connector_request,
+            typed_connector_request,
         }),
         Err(e) => Ok(RecurringPaymentServiceRevokeResponse {
             status: grpc_api_types::payments::MandateStatus::MandateRevokeFailed.into(),
@@ -3483,7 +3946,9 @@ pub fn generate_mandate_revoke_response(
             network_transaction_id: None,
             merchant_revoke_id: e.connector_transaction_id,
             raw_connector_response,
+            typed_connector_response,
             raw_connector_request,
+            typed_connector_request,
         }),
     }
 }

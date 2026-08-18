@@ -32,7 +32,6 @@ use interfaces::{
     decode::BodyDecoding, verification::SourceVerification,
 };
 use serde::Serialize;
-use transformers::ForeignTryFrom;
 use transformers::{
     self as easebuzz, EasebuzzCaptureRequest, EasebuzzCaptureResponse, EasebuzzInitiateLinkRequest,
     EasebuzzInitiateLinkResponse, EasebuzzPaymentsRequest, EasebuzzPaymentsResponse,
@@ -41,7 +40,7 @@ use transformers::{
 };
 
 use super::macros;
-use crate::{types::ResponseRouterData, with_error_response_body, with_response_body};
+use crate::{finalize_connector_response, types::ResponseRouterData, with_error_response_body};
 
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
@@ -333,6 +332,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         with_error_response_body!(event_builder, response);
 
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.code,
@@ -343,6 +344,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     }
 }
@@ -423,6 +428,7 @@ macros::macro_connector_implementation!(
                     },
                 })?;
 
+            let typed = macros::serialize_typed_connector_payload(&response, "typed_connector_response");
             Ok(ErrorResponse {
                 status_code: res.status_code,
                 code: response.code,
@@ -433,6 +439,10 @@ macros::macro_connector_implementation!(
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
             })
         }
     }
@@ -490,11 +500,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentCreateOrderData,
             PaymentCreateOrderResponse,
         >,
-    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let connector_req = EasebuzzInitiateLinkRequest::try_from(req)?;
-        Ok(Some(RequestContent::FormUrlEncoded(Box::new(
-            connector_req,
-        ))))
+        let typed = events::MaskedSerdeValue::from_masked_optional(
+            &connector_req,
+            "typed_connector_request",
+        );
+        Ok(Some(common_utils::request::ConnectorRequestData::new(
+            RequestContent::FormUrlEncoded(Box::new(connector_req)),
+            typed,
+        )))
     }
 
     fn handle_response_v2(
@@ -526,18 +541,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 },
             })?;
 
-        with_response_body!(event_builder, response);
-
-        RouterDataV2::foreign_try_from((response, data.clone(), res.status_code, false))
-            .change_context(ConnectorError::ResponseHandlingFailed {
-            context: errors::ResponseTransformationErrorContext {
-                http_status_code: Some(res.status_code),
-                additional_context: Some(
-                    "Failed to map Easebuzz initiateLink response to PaymentCreateOrderResponse"
-                        .to_string(),
-                ),
-            },
-        })
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -556,6 +560,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 },
             })?;
 
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.code,
@@ -566,6 +572,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     }
 }
@@ -625,6 +635,7 @@ macros::macro_connector_implementation!(
                     },
                 })?;
 
+            let typed = macros::serialize_typed_connector_payload(&response, "typed_connector_response");
             Ok(ErrorResponse {
                 status_code: res.status_code,
                 code: response.code,
@@ -635,6 +646,10 @@ macros::macro_connector_implementation!(
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
             })
         }
     }
@@ -695,6 +710,7 @@ macros::macro_connector_implementation!(
                     },
                 })?;
 
+            let typed = macros::serialize_typed_connector_payload(&response, "typed_connector_response");
             Ok(ErrorResponse {
                 status_code: res.status_code,
                 code: response.code,
@@ -705,6 +721,10 @@ macros::macro_connector_implementation!(
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
             })
         }
     }
@@ -783,6 +803,7 @@ macros::macro_connector_implementation!(
                     },
                 })?;
 
+            let typed = macros::serialize_typed_connector_payload(&response, "typed_connector_response");
             Ok(ErrorResponse {
                 status_code: res.status_code,
                 code: response.code,
@@ -793,6 +814,10 @@ macros::macro_connector_implementation!(
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
             })
         }
     }
@@ -871,6 +896,7 @@ macros::macro_connector_implementation!(
                     },
                 })?;
 
+            let typed = macros::serialize_typed_connector_payload(&response, "typed_connector_response");
             Ok(ErrorResponse {
                 status_code: res.status_code,
                 code: response.code,
@@ -881,6 +907,10 @@ macros::macro_connector_implementation!(
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
             })
         }
     }
@@ -905,6 +935,7 @@ macros::macro_connector_flow_status_impls!(
         ServerAuthenticationToken,
         Accept,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         DefendDispute,
         MandateRevoke,
         Authenticate,

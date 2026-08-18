@@ -337,6 +337,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::ApplePayRedirect(_)
                 | WalletData::ApplePayThirdPartySdk(_)
                 | WalletData::DanaRedirect {}
+                | WalletData::GrabpayRedirect {}
                 | WalletData::GooglePayRedirect(_)
                 | WalletData::GooglePayThirdPartySdk(_)
                 | WalletData::MbWayRedirect(_)
@@ -363,7 +364,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::CashfreeRedirect(_)
                 | WalletData::PayURedirect(_)
                 | WalletData::EaseBuzzRedirect(_)
-                | WalletData::QwikcilverWalletDirect(_) => {
+                | WalletData::PaymayaRedirect(_)
+                | WalletData::QwikcilverWalletDirect(_)
+                | WalletData::Skrill(_) => {
                     Err(error_stack::report!(IntegrationError::NotSupported {
                         message: utils::get_unimplemented_payment_method_error_message("Noon"),
                         connector: "Noon",
@@ -380,6 +383,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
@@ -472,7 +476,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     mandate_amount_data.map(|amount_data| {
                         data.connector
                             .amount_converter
-                            .convert(amount_data.amount, amount_data.currency)
+                            .convert(amount_data.amount.amount, amount_data.amount.currency)
                             .map(|max_amount| NoonSubscriptionData {
                                 subscription_type: NoonSubscriptionType::Unscheduled,
                                 name: name.clone(),
@@ -638,6 +642,7 @@ impl<F, T> TryFrom<ResponseRouterData<NoonPaymentsResponse, Self>>
                 connector_mandate_id: Some(subscription_data.identifier.expose()),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: None,
+                mandate_metadata: None,
             })
         });
         Ok(Self {
@@ -656,6 +661,10 @@ impl<F, T> TryFrom<ResponseRouterData<NoonPaymentsResponse, Self>>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 _ => {
                     let connector_response_reference_id =
@@ -959,12 +968,17 @@ impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             Ok(RefundsResponseData {
                 connector_refund_id: item.response.result.transaction.id,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             })
         };
         Ok(Self {
@@ -1027,12 +1041,17 @@ impl<F> TryFrom<ResponseRouterData<RefundSyncResponse, Self>>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             Ok(RefundsResponseData {
                 connector_refund_id: noon_transaction.id.to_owned(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             })
         };
         Ok(Self {
@@ -1237,6 +1256,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         | WalletData::ApplePayRedirect(_)
                         | WalletData::ApplePayThirdPartySdk(_)
                         | WalletData::DanaRedirect {}
+                        | WalletData::GrabpayRedirect {}
                         | WalletData::GooglePayRedirect(_)
                         | WalletData::GooglePayThirdPartySdk(_)
                         | WalletData::MbWayRedirect(_)
@@ -1263,7 +1283,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         | WalletData::CashfreeRedirect(_)
                         | WalletData::PayURedirect(_)
                         | WalletData::EaseBuzzRedirect(_)
-                        | WalletData::QwikcilverWalletDirect(_) => {
+                        | WalletData::PaymayaRedirect(_)
+                        | WalletData::QwikcilverWalletDirect(_)
+                        | WalletData::Skrill(_) => {
                             Err(error_stack::report!(IntegrationError::NotSupported {
                                 message: utils::get_unimplemented_payment_method_error_message(
                                     "Noon"
@@ -1282,6 +1304,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     | PaymentMethodData::MandatePayment
                     | PaymentMethodData::Reward
                     | PaymentMethodData::RealTimePayment(_)
+                    | PaymentMethodData::CardWithNoCvc(_)
                     | PaymentMethodData::MobilePayment(_)
                     | PaymentMethodData::Upi(_)
                     | PaymentMethodData::Voucher(_)
@@ -1359,7 +1382,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     mandate_amount_data.map(|amount_data| {
                         data.connector
                             .amount_converter
-                            .convert(amount_data.amount, amount_data.currency)
+                            .convert(amount_data.amount.amount, amount_data.amount.currency)
                             .map(|max_amount| NoonSubscriptionData {
                                 subscription_type: NoonSubscriptionType::Unscheduled,
                                 name: name.clone(),
@@ -1448,6 +1471,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                 connector_mandate_id: Some(subscription_data.identifier.expose()),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: None,
+                mandate_metadata: None,
             })
         });
         Ok(Self {
@@ -1466,6 +1490,10 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 _ => {
                     let connector_response_reference_id =
@@ -1671,6 +1699,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     connector_mandate_id: Some(subscription_data.identifier.expose()),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
                 })
             });
         Ok(Self {
@@ -1689,6 +1718,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 _ => {
                     let connector_response_reference_id =

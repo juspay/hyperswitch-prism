@@ -8,7 +8,10 @@ use domain_types::{
         RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
     },
     errors,
-    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
+    payment_method_data::{
+        ApplePayPaymentData, GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes,
+        RawCardNumber, WalletData,
+    },
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_request_types::SyncRequestType,
@@ -96,6 +99,8 @@ pub struct ImerchantsolutionsPaymentsRequestData<T: PaymentMethodDataTypes> {
     #[serde(skip_serializing_if = "Option::is_none")]
     card: Option<CardDetails<T>>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    wallet_token: Option<WalletToken>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     shopper_email: Option<pii::Email>,
     #[serde(skip_serializing_if = "Option::is_none")]
     shopper_name: Option<ShopperName>,
@@ -119,6 +124,27 @@ pub struct ImerchantsolutionsPaymentsRequestData<T: PaymentMethodDataTypes> {
     recurring_processing_model: Option<RecurringProcessingModel>,
     #[serde(skip_serializing_if = "Option::is_none")]
     scheme_transaction_id: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct WalletToken {
+    #[serde(rename = "type")]
+    wallet_type: WalletType,
+    number: cards::CardNumber,
+    expiry_month: Secret<String>,
+    expiry_year: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    nonce: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    eci: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum WalletType {
+    Applepay,
+    Googlepay,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -261,6 +287,106 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
+        let shopper_email = item
+            .router_data
+            .resource_common_data
+            .get_optional_billing_email()
+            .or_else(|| item.router_data.request.get_optional_email());
+
+        let shopper_name = Some(ShopperName {
+            first_name: item
+                .router_data
+                .resource_common_data
+                .get_optional_billing_first_name(),
+            last_name: item
+                .router_data
+                .resource_common_data
+                .get_optional_billing_last_name(),
+        });
+
+        let billing = Some(AddressDetails {
+            address: item
+                .router_data
+                .resource_common_data
+                .get_optional_billing_line1(),
+            city: item
+                .router_data
+                .resource_common_data
+                .get_optional_billing_city(),
+            state: item
+                .router_data
+                .resource_common_data
+                .get_optional_billing_state(),
+            postal_code: item
+                .router_data
+                .resource_common_data
+                .get_optional_billing_zip(),
+            country: item
+                .router_data
+                .resource_common_data
+                .get_optional_billing_country(),
+        });
+
+        let delivery_address = Some(AddressDetails {
+            address: item
+                .router_data
+                .resource_common_data
+                .get_optional_shipping_line1(),
+            city: item
+                .router_data
+                .resource_common_data
+                .get_optional_shipping_city(),
+            state: item
+                .router_data
+                .resource_common_data
+                .get_optional_shipping_state(),
+            postal_code: item
+                .router_data
+                .resource_common_data
+                .get_optional_shipping_zip(),
+            country: item
+                .router_data
+                .resource_common_data
+                .get_optional_shipping_country(),
+        });
+
+        let imerchantsolutions_metadata = get_imerchantsolutions_metadata(
+            item.router_data.request.metadata.clone().expose_option(),
+        )?;
+
+        let capture_delay_hours = get_imerchantsolutions_capture_delay_hours(
+            imerchantsolutions_metadata,
+            item.router_data.request.is_auto_capture(),
+        )?;
+
+        let shopper_reference = match item.router_data.request.get_customer_id() {
+            Ok(customer_id) => Some(customer_id.get_string_repr().to_string()),
+            Err(err) => {
+                if item
+                    .router_data
+                    .request
+                    .is_customer_initiated_mandate_payment()
+                {
+                    return Err(err);
+                } else {
+                    None
+                }
+            }
+        };
+
+        let store_payment_method = item
+            .router_data
+            .request
+            .is_customer_initiated_mandate_payment();
+
+        let recurring_processing_model = if item.router_data.request.setup_future_usage
+            == Some(common_enums::FutureUsage::OffSession)
+        {
+            Some(RecurringProcessingModel::CardOnFile)
+        } else {
+            None
+        };
+
         match &item.router_data.request.payment_method_data {
             PaymentMethodData::Card(ref card_data) => {
                 let card = Some(CardDetails {
@@ -270,97 +396,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     expiry_year: card_data.get_expiry_year_4_digit(),
                     holder: card_data.get_optional_cardholder_name(),
                 });
-                let shopper_email = item
-                    .router_data
-                    .resource_common_data
-                    .get_optional_billing_email()
-                    .or_else(|| item.router_data.request.get_optional_email());
-                let shopper_name = Some(ShopperName {
-                    first_name: item
-                        .router_data
-                        .resource_common_data
-                        .get_optional_billing_first_name(),
-                    last_name: item
-                        .router_data
-                        .resource_common_data
-                        .get_optional_billing_last_name(),
-                });
-                let billing = Some(AddressDetails {
-                    address: item
-                        .router_data
-                        .resource_common_data
-                        .get_optional_billing_line1(),
-                    city: item
-                        .router_data
-                        .resource_common_data
-                        .get_optional_billing_city(),
-                    state: item
-                        .router_data
-                        .resource_common_data
-                        .get_optional_billing_state(),
-                    postal_code: item
-                        .router_data
-                        .resource_common_data
-                        .get_optional_billing_zip(),
-                    country: item
-                        .router_data
-                        .resource_common_data
-                        .get_optional_billing_country(),
-                });
-                let delivery_address = Some(AddressDetails {
-                    address: item
-                        .router_data
-                        .resource_common_data
-                        .get_optional_shipping_line1(),
-                    city: item
-                        .router_data
-                        .resource_common_data
-                        .get_optional_shipping_city(),
-                    state: item
-                        .router_data
-                        .resource_common_data
-                        .get_optional_shipping_state(),
-                    postal_code: item
-                        .router_data
-                        .resource_common_data
-                        .get_optional_shipping_zip(),
-                    country: item
-                        .router_data
-                        .resource_common_data
-                        .get_optional_shipping_country(),
-                });
-                let imerchantsolutions_metadata = get_imerchantsolutions_metadata(
-                    item.router_data.request.metadata.clone().expose_option(),
-                )?;
-                let capture_delay_hours = get_imerchantsolutions_capture_delay_hours(
-                    imerchantsolutions_metadata,
-                    item.router_data.request.is_auto_capture(),
-                )?;
-                let shopper_reference = match item.router_data.request.get_customer_id() {
-                    Ok(customer_id) => Some(customer_id.get_string_repr().to_string()),
-                    Err(err) => {
-                        if item
-                            .router_data
-                            .request
-                            .is_customer_initiated_mandate_payment()
-                        {
-                            return Err(err);
-                        } else {
-                            None
-                        }
-                    }
-                };
-                let store_payment_method = item
-                    .router_data
-                    .request
-                    .is_customer_initiated_mandate_payment();
-                let recurring_processing_model = if item.router_data.request.setup_future_usage
-                    == Some(common_enums::FutureUsage::OffSession)
-                {
-                    Some(RecurringProcessingModel::CardOnFile)
-                } else {
-                    None
-                };
                 Ok(Self {
                     amount: item.router_data.request.amount,
                     currency: item.router_data.request.currency,
@@ -386,10 +421,200 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     stored_payment_method_id: None,
                     recurring_processing_model,
                     scheme_transaction_id: None,
+                    wallet_token: None,
                 })
             }
+            PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                WalletData::GooglePay(google_pay_wallet_data) => {
+                    let wallet_token = match &google_pay_wallet_data.tokenization_data {
+                        GpayTokenizationData::Decrypted(google_pay_decrypt_data) => {
+                            let expiry_month = google_pay_decrypt_data
+                                .get_expiry_month()
+                                .change_context(errors::IntegrationError::InvalidDataFormat {
+                                    field_name: "expiry_month",
+                                    context: errors::IntegrationErrorContext {
+                                        suggested_action: Some("Verify that the Google Pay token contains a valid card expiry month before processing the payment.".to_string()),
+                                        doc_url: Some("https://imerchantsolutions.com/docs/partners#wallet-tokens".to_string()),
+                                        additional_context: Some("Failed while extracting expiry_month from Google Pay decrypted payment data.".to_string()),
+                                    },
+                                })?;
+
+                            let expiry_year = google_pay_decrypt_data
+                                .get_four_digit_expiry_year()
+                                .change_context(errors::IntegrationError::InvalidDataFormat {
+                                    field_name: "expiry_year",
+                                    context: errors::IntegrationErrorContext {
+                                        suggested_action: Some("Ensure the expiry year is provided in YY or YYYY format.".to_string()),
+                                        doc_url: Some("https://imerchantsolutions.com/docs/partners#wallet-tokens".to_string()),
+                                        additional_context: Some("Google Pay decrypted card data contained an invalid expiry_year value.".to_string()),
+                                    },
+                                })?;
+
+                            let (nonce, eci) = match (
+                                google_pay_decrypt_data.cryptogram.clone(),
+                                google_pay_decrypt_data.eci_indicator.clone(),
+                            ) {
+                                (Some(cryptogram), Some(eci)) => (Some(cryptogram), Some(eci)),
+                                _ => (None, None),
+                            };
+
+                            Ok(Some(WalletToken {
+                                wallet_type: WalletType::Googlepay,
+                                number: google_pay_decrypt_data
+                                    .application_primary_account_number
+                                    .clone(),
+                                expiry_month,
+                                expiry_year,
+                                nonce,
+                                eci,
+                            }))
+                        }
+                        GpayTokenizationData::Encrypted(_) => {
+                            Err(errors::IntegrationError::MissingRequiredField {
+                                field_name: "google_pay_decrypted_data",
+                                context: errors::IntegrationErrorContext {
+                                    suggested_action: Some("Ensure that the decrypted Google Pay payment data is provided in the payment request.".to_string()),
+                                    doc_url: Some("https://imerchantsolutions.com/docs/partners#wallet-tokens".to_string()),
+                                    additional_context: Some("Missing 'google_pay_decrypted_data' in the request. Decrypted Google Pay card and authentication details are required for payment processing.".to_string()),
+                                },
+                            })
+                        }
+                    }?;
+                    Ok(Self {
+                        amount: item.router_data.request.amount,
+                        currency: item.router_data.request.currency,
+                        reference: item
+                            .router_data
+                            .resource_common_data
+                            .connector_request_reference_id
+                            .clone(),
+                        card: None,
+                        shopper_email,
+                        shopper_name,
+                        telephone_number: item
+                            .router_data
+                            .resource_common_data
+                            .get_optional_billing_phone_number(),
+                        billing,
+                        delivery_address,
+                        manual_capture: is_manual_capture(item.router_data.request.capture_method),
+                        capture_delay_hours,
+                        shopper_reference,
+                        store_payment_method,
+                        shopper_interaction: None,
+                        stored_payment_method_id: None,
+                        recurring_processing_model,
+                        scheme_transaction_id: None,
+                        wallet_token,
+                    })
+                }
+                WalletData::ApplePay(apple_pay_wallet_data) => {
+                    let wallet_token = match &apple_pay_wallet_data.payment_data {
+                        ApplePayPaymentData::Decrypted(decrypt_data) => {
+                            let expiry_month = decrypt_data.get_expiry_month();
+                            let expiry_year = decrypt_data.get_four_digit_expiry_year();
+
+                            Ok(Some(WalletToken {
+                                wallet_type: WalletType::Applepay,
+                                number: decrypt_data.application_primary_account_number.clone(),
+                                expiry_month,
+                                expiry_year,
+                                nonce: Some(decrypt_data.payment_data.online_payment_cryptogram.clone()),
+                                eci: decrypt_data.payment_data.eci_indicator.clone(),
+                            }))
+                        }
+                        ApplePayPaymentData::Encrypted(_) => {
+                            Err(errors::IntegrationError::MissingRequiredField {
+                                field_name: "apple_pay_decrypted_data",
+                                context: errors::IntegrationErrorContext {
+                                    suggested_action: Some("Ensure that the decrypted Apple Pay payment data is provided in the payment request.".to_string()),
+                                    doc_url: Some("https://imerchantsolutions.com/docs/partners#wallet-tokens".to_string()),
+                                    additional_context: Some("Missing 'apple_pay_decrypted_data' in the request. Decrypted Apple Pay card and authentication details are required for payment processing.".to_string()),
+                                },
+                            })
+                        }
+                    }?;
+                    Ok(Self {
+                        amount: item.router_data.request.amount,
+                        currency: item.router_data.request.currency,
+                        reference: item
+                            .router_data
+                            .resource_common_data
+                            .connector_request_reference_id
+                            .clone(),
+                        card: None,
+                        shopper_email,
+                        shopper_name,
+                        telephone_number: item
+                            .router_data
+                            .resource_common_data
+                            .get_optional_billing_phone_number(),
+                        billing,
+                        delivery_address,
+                        manual_capture: is_manual_capture(item.router_data.request.capture_method),
+                        capture_delay_hours,
+                        shopper_reference,
+                        store_payment_method,
+                        shopper_interaction: None,
+                        stored_payment_method_id: None,
+                        recurring_processing_model,
+                        scheme_transaction_id: None,
+                        wallet_token,
+                    })
+                }
+                WalletData::AliPayRedirect(_)
+                | WalletData::AliPayHkRedirect(_)
+                | WalletData::DanaRedirect {} | WalletData::GrabpayRedirect {}
+                | WalletData::GcashRedirect(_)
+                | WalletData::GoPayRedirect(_)
+                | WalletData::KakaoPayRedirect(_)
+                | WalletData::MbWayRedirect(_)
+                | WalletData::MobilePayRedirect(_)
+                | WalletData::MomoRedirect(_)
+                | WalletData::TouchNGoRedirect(_)
+                | WalletData::WeChatPayRedirect(_)
+                | WalletData::TwintRedirect {}
+                | WalletData::VippsRedirect {}
+                | WalletData::SwishQr(_)
+                | WalletData::PaypalRedirect(_)
+                | WalletData::AmazonPayRedirect(_)
+                | WalletData::Paze(_)
+                | WalletData::RevolutPay(_)
+                | WalletData::SamsungPay(_)
+                | WalletData::AliPayQr(_)
+                | WalletData::ApplePayRedirect(_)
+                | WalletData::ApplePayThirdPartySdk(_)
+                | WalletData::GooglePayRedirect(_)
+                | WalletData::GooglePayThirdPartySdk(_)
+                | WalletData::PaypalSdk(_)
+                | WalletData::WeChatPayQr(_)
+                | WalletData::CashappQr(_)
+                | WalletData::Mifinity(_)
+                | WalletData::BluecodeRedirect {}
+                | WalletData::MbWay(_)
+                | WalletData::Satispay(_)
+                | WalletData::Wero(_)
+                | WalletData::LazyPayRedirect(_)
+                | WalletData::PhonePeRedirect(_)
+                | WalletData::BillDeskRedirect(_)
+                | WalletData::CashfreeRedirect(_)
+                | WalletData::PayURedirect(_)
+                | WalletData::EaseBuzzRedirect(_)
+                | WalletData::QwikcilverWalletDirect(_)
+                | WalletData::Skrill(_)
+                | WalletData::PaymayaRedirect(_) => {
+                    Err(errors::IntegrationError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("Imerchantsolutions"),
+                        errors::IntegrationErrorContext {
+                            suggested_action: Some("Use a payment method supported by the Imerchantsolutions connector or choose a different connector that supports the requested wallet.".to_string()),
+                            doc_url: None,
+                            additional_context: Some("The requested wallet payment method is not currently supported by the Imerchantsolutions connector implementation.".to_string()),
+                        }
+                    )
+                    .into())
+                }
+            },
             PaymentMethodData::CardRedirect(_)
-            | PaymentMethodData::Wallet(_)
             | PaymentMethodData::BankRedirect(_)
             | PaymentMethodData::BankTransfer(_)
             | PaymentMethodData::BankDebit(_)
@@ -404,12 +629,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Imerchantsolutions"),
-                    Default::default(),
+                    errors::IntegrationErrorContext {
+                        suggested_action: Some("Use a payment method supported by the Imerchantsolutions connector or choose a different connector that supports the requested payment method.".to_string()),
+                        doc_url: None,
+                        additional_context: Some("The requested payment method is not currently supported by the Imerchantsolutions connector implementation.".to_string()),
+                    }
                 ))?
             }
         }
@@ -511,6 +741,10 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             };
 
             Ok(Self {
@@ -539,11 +773,13 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                     connector_mandate_id: Some(mandate_id.expose()),
                     payment_method_id: None,
                     connector_mandate_request_reference_id,
+                    mandate_metadata: None,
                 })
                 .unwrap_or(MandateReference {
                     connector_mandate_id: None,
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
                 });
             Ok(Self {
                 resource_common_data: PaymentFlowData {
@@ -672,9 +908,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             imerchantsolutions_metadata,
             item.router_data.request.is_auto_capture(),
         )?;
-        let shopper_reference = match item.router_data.resource_common_data.get_customer_id() {
-            Ok(customer_id) => Some(customer_id.get_string_repr().to_string()),
-            Err(err) => return Err(err),
+        let shopper_reference = {
+            let customer_id = item.router_data.resource_common_data.get_customer_id()?;
+            Some(customer_id.get_string_repr().to_string())
         };
         let stored_payment_method_id =
             item.router_data
@@ -716,6 +952,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             stored_payment_method_id: Some(Secret::new(stored_payment_method_id)),
             recurring_processing_model: Some(RecurringProcessingModel::UnscheduledCardOnFile),
             scheme_transaction_id: None,
+            wallet_token: None,
         })
     }
 }
@@ -741,6 +978,10 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             };
 
             Ok(Self {
@@ -942,6 +1183,10 @@ impl<F> TryFrom<ResponseRouterData<ImerchantsolutionsPaymentSyncResponse, Self>>
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     };
 
                     Ok(Self {
@@ -1027,6 +1272,10 @@ impl<F> TryFrom<ResponseRouterData<ImerchantsolutionsPaymentSyncResponse, Self>>
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     };
 
                     Ok(Self {
@@ -1365,6 +1614,7 @@ impl TryFrom<ResponseRouterData<ImerchantsolutionsRefundResponseData, Self>>
                 connector_refund_id: item.response.psp_reference.to_string(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -1428,6 +1678,7 @@ impl TryFrom<ResponseRouterData<ImerchantsolutionsRefundSyncResponse, Self>>
                         connector_refund_id,
                         refund_status,
                         status_code: http_code,
+                        acquirer_reference_number: None,
                     }),
                     ..router_data
                 })
@@ -1456,6 +1707,10 @@ impl TryFrom<ResponseRouterData<ImerchantsolutionsRefundSyncResponse, Self>>
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     });
 
                     Ok(Self {
@@ -1468,6 +1723,7 @@ impl TryFrom<ResponseRouterData<ImerchantsolutionsRefundSyncResponse, Self>>
                             connector_refund_id,
                             refund_status,
                             status_code: http_code,
+                            acquirer_reference_number: None,
                         }),
                         ..router_data
                     })

@@ -231,6 +231,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
@@ -363,6 +364,8 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<BillwerkTokenResponse
         Ok(Self {
             response: Ok(PaymentMethodTokenResponse {
                 token: item.response.id.expose(),
+                connector_payment_method_id: None,
+                status_code: item.http_code,
             }),
             ..item.router_data
         })
@@ -398,6 +401,10 @@ impl<F, T> TryFrom<ResponseRouterData<BillwerkPaymentsResponse, Self>>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             None
@@ -407,6 +414,7 @@ impl<F, T> TryFrom<ResponseRouterData<BillwerkPaymentsResponse, Self>>
                 connector_mandate_id: Some(rpm.clone()),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: None,
+                mandate_metadata: None,
             })
         });
         let payments_response = PaymentsResponseData::TransactionResponse {
@@ -526,6 +534,7 @@ impl<F> TryFrom<RefundsResponseRouterData<F, RefundResponse>>
                 connector_refund_id: item.response.id.to_string(),
                 refund_status: common_enums::RefundStatus::from(item.response.state),
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -543,6 +552,7 @@ impl TryFrom<ResponseRouterData<RefundResponse, Self>>
                 connector_refund_id: item.response.id.to_string(),
                 refund_status: common_enums::RefundStatus::from(item.response.state),
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -775,42 +785,39 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .clone()
             .unwrap_or_else(|| "https://hyperswitch.io".to_string());
 
-        let customer_handle = router_data
-            .request
-            .customer_id
-            .as_ref()
-            .map(|id| id.get_string_repr().to_owned())
-            .ok_or_else(|| {
-                error_stack::report!(IntegrationError::MissingRequiredField {
-                    field_name: "customer_id",
-                    context: IntegrationErrorContext {
-                        suggested_action: Some(
-                            "Provide a `customer_id` when creating the client authentication \
+        let customer_info = router_data.request.customer.as_ref().ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "customer",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Provide a `customer` when creating the client authentication \
                              token. Billwerk uses it as the customer handle for the checkout \
                              session."
-                                .to_owned(),
-                        ),
-                        doc_url: Some(
-                            "https://optimize.billwerk.com/reference/create-session".to_owned(),
-                        ),
-                        additional_context: Some(
-                            "Billwerk checkout sessions require a customer handle to associate \
+                            .to_owned(),
+                    ),
+                    doc_url: Some(
+                        "https://optimize.billwerk.com/reference/create-session".to_owned(),
+                    ),
+                    additional_context: Some(
+                        "Billwerk checkout sessions require a customer handle to associate \
                              the session with a customer record."
-                                .to_owned(),
-                        ),
-                    },
-                })
-            })?;
+                            .to_owned(),
+                    ),
+                },
+            })
+        })?;
+
+        let customer_handle = customer_info
+            .get_customer_id()
+            .map(|id| id.get_string_repr().to_owned())?;
 
         let customer = BillwerkSessionCustomer {
             handle: customer_handle,
-            email: router_data
-                .request
-                .email
+            email: customer_info
+                .customer_email
                 .as_ref()
                 .map(|e| e.peek().to_string()),
-            first_name: router_data
-                .request
+            first_name: customer_info
                 .customer_name
                 .as_ref()
                 .map(|n| n.peek().to_string()),
