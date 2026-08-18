@@ -31,10 +31,9 @@ use interfaces::{
 use serde::Serialize;
 use transformers::{
     self as moneris, MonerisAuthRequest, MonerisAuthResponse, MonerisAuthorizeResponse,
-    MonerisCancelRequest, MonerisPaymentsCaptureRequest, MonerisPaymentsRequest,
-    MonerisPaymentsResponse as MonerisRepeatPaymentResponse,
+    MonerisCancelRequest, MonerisCaptureResponse, MonerisPaymentsCaptureRequest,
+    MonerisPaymentsRequest, MonerisPaymentsResponse as MonerisRepeatPaymentResponse,
     MonerisPaymentsResponse as MonerisPaymentSyncResponse,
-    MonerisPaymentsResponse as MonerisPaymentsCaptureResponse,
     MonerisPaymentsResponse as MonerisPaymentVoidResponse, MonerisRefundRequest,
     MonerisRefundResponse, MonerisRefundResponse as MonerisRefundSyncResponse,
     MonerisRepeatPaymentRequest,
@@ -200,7 +199,7 @@ macros::create_all_prerequisites!(
         (
             flow: Capture,
             request_body: MonerisPaymentsCaptureRequest,
-            response_body: MonerisPaymentsCaptureResponse,
+            response_body: MonerisCaptureResponse,
             router_data: RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
         ),
         (
@@ -496,7 +495,7 @@ macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Moneris,
     curl_request: Json(MonerisPaymentsCaptureRequest),
-    curl_response: MonerisPaymentsCaptureResponse,
+    curl_response: MonerisCaptureResponse,
     flow_name: Capture,
     resource_common_data: PaymentFlowData,
     flow_request: PaymentsCaptureData,

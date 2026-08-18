@@ -493,6 +493,63 @@ impl<F, T> TryFrom<ResponseRouterData<MonerisPaymentsResponse, Self>>
     }
 }
 
+// Moneris does not return a distinct status for partial capture — a successful completion
+// always comes back as SUCCEEDED regardless of whether the captured amount is less than
+// the authorized amount. This dedicated response type carries out the amount comparison
+// that the generic MonerisPaymentsResponse impl cannot perform.
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct MonerisCaptureResponse {
+    payment_status: MonerisPaymentStatus,
+    payment_id: String,
+    payment_method: MonerisPaymentMethodData,
+}
+
+impl TryFrom<ResponseRouterData<MonerisCaptureResponse, Self>>
+    for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
+{
+    type Error = Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<MonerisCaptureResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let status = match item.response.payment_status {
+            MonerisPaymentStatus::Succeeded => {
+                let captured = item.router_data.request.minor_amount_to_capture;
+                match item
+                    .router_data
+                    .resource_common_data
+                    .minor_amount_capturable
+                {
+                    Some(authorized) if captured < authorized => {
+                        common_enums::AttemptStatus::PartialCharged
+                    }
+                    _ => common_enums::AttemptStatus::Charged,
+                }
+            }
+            other => common_enums::AttemptStatus::from(other),
+        };
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(item.response.payment_id.clone()),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                network_txn_link_id: None,
+                connector_response_reference_id: Some(item.response.payment_id),
+                incremental_authorization_allowed: None,
+                splits: None,
+                status_code: item.http_code,
+            }),
+            ..item.router_data
+        })
+    }
+}
+
 #[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct MonerisRepeatPaymentRequest<
