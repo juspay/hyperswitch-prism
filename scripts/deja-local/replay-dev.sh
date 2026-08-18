@@ -40,7 +40,7 @@ ASSUME_GRPC_STATUS="${DEJA_DEV_ASSUME_GRPC_STATUS:-13}"
 
 echo "==> [1/6] build the MODIFIED deja-kernel + dev bridge (against $DEJA_DEV_REPO)"
 (cd "$DEJA_DEV_REPO" && cargo build --release -p deja-kernel 2>&1 | tail -1 | sed 's/^/    /')
-if [[ ! -x "$BRIDGE" || "$BRIDGE_DIR/src/main.rs" -nt "$BRIDGE" ]]; then
+if [[ ! -x "$BRIDGE" || "$BRIDGE_DIR/src/main.rs" -nt "$BRIDGE" || "$0" -nt "$BRIDGE" ]]; then
   mkdir -p "$BRIDGE_DIR/src"
   cat > "$BRIDGE_DIR/Cargo.toml" <<EOF
 [package]
@@ -87,6 +87,9 @@ fn main() {
                     s3_source: None,
                     correlation_filter: None,
                     workload: serde_json::Value::Null,
+                    // Prism's instrumentation contract: every recorded ucs::*/
+                    // connector::* span must replay, with equal field values.
+                    scored_span_namespaces: vec!["ucs::".to_owned(), "connector::".to_owned()],
                 },
                 status: RunStatus::Completed,
                 recording_id: Some(rec_id.clone()),
@@ -98,6 +101,14 @@ fn main() {
                 stage_updated_ms: 0,
             };
             write_json(&root.run_path(run_id), &run).expect("write run record");
+            // Lay down record_graph.jsonl the way the in-pod runner does —
+            // without it every dev run scores flat (missing_forest) and the
+            // graph tier + span-shape check never engage.
+            match deja_orchestrator::lifecycle::extract_record_graph(&root, &run, rec_id) {
+                Ok(Some(n)) => eprintln!("record graph: {n} node(s)"),
+                Ok(None) => eprintln!("record graph: unavailable (reason left beside the run)"),
+                Err(e) => eprintln!("record graph: FAILED — {e}"),
+            }
             println!("{}", root.lookup_table_path(run_id).display());
         }
         Some("score") => {
@@ -147,6 +158,15 @@ for line in open('/tmp/tape-dev.jsonl'):
     line = line.strip()
     if not line: continue
     env = json.loads(line)
+    # Graph nodes ride the tape too: without them the record side has no
+    # execution graph, every run scores flat (missing_forest), and the
+    # span-shape check skips itself.
+    if env.get('artifact_type') == 'deja_graph_node':
+        node = env.get('node') or {}
+        if node.get('correlation_id') != corr: continue
+        out.write(json.dumps({'record_kind': 'graph_node', **node}) + '\n')
+        n['graph_node'] = n.get('graph_node', 0) + 1
+        continue
     if env.get('artifact_type') != 'deja_artifact_record': continue
     if env.get('correlation_id') != corr: continue
     e = dict(env['event'])
