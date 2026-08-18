@@ -323,7 +323,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   GlomopayConfig: ["apiKey"],
   GrabpayConfig: ["partnerId", "partnerSecret", "clientId", "clientSecret", "merchantId"],
   TesouroConfig: ["apiKey", "key1", "apiSecret"],
-  BoostConfig: ["clientId", "merchantSecret"],
+  BoostConfig: ["clientId", "merchantSecret", "publicKey"],
   PaymentServiceTokenAuthorizeRequest: ["connectorToken", "metadata", "connectorFeatureData"],
   PaymentServiceTokenSetupRecurringRequest: ["connectorToken", "metadata", "connectorFeatureData"],
   PaymentServiceProxyAuthorizeRequest: ["metadata", "connectorFeatureData"],
