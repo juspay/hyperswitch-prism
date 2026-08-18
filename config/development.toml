@@ -58,6 +58,7 @@ psync = "GW_TXN_SYNC"
 connectors_with_webhook_source_verification_call = "paypal, truelayer"
 
 [connectors]
+citigate.base_url = "https://gw-test.cgate.tech"
 grabpay.base_url = "https://partner-api.grab.com/grabpay/partner/v2"
 maya.base_url = "https://pg-sandbox.paymaya.com"
 boost.base_url = "https://stage-api.boostconnect.biz/gateway"

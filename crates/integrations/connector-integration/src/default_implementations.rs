@@ -291,6 +291,7 @@ default_impl_verify_webhook_source_v2!(
         Grabpay,
         Tesouro,
         Boost,
+        Citigate,
     ],
 );
 // PayPal has its own implementation in paypal.rs
@@ -367,6 +368,7 @@ macro_rules! default_impl_recharge_v2 {
 }
 
 default_impl_recharge_v2!(
+    Citigate,
     Boost,
     Tesouro,
     AbsaSanlam,
@@ -592,6 +594,7 @@ macro_rules! default_impl_get_payment_method_v2 {
 
 // Same connector universe as default_impl_recharge_v2! above.
 default_impl_create_payment_method_v2!(
+    Citigate,
     Boost,
     Tesouro,
     AbsaSanlam,
@@ -695,6 +698,7 @@ default_impl_create_payment_method_v2!(
 );
 
 default_impl_get_payment_method_v2!(
+    Citigate,
     Boost,
     Tesouro,
     AbsaSanlam,
@@ -799,6 +803,7 @@ default_impl_get_payment_method_v2!(
 
 default_impl_payment_method_eligibility_v2!(
     not_supported: [
+        Citigate,
         Boost,
         Tesouro,
         Adyen,
@@ -870,7 +875,6 @@ default_impl_payment_method_eligibility_v2!(
         PinelabsOnline,
         Placetopay,
         Powertranz,
-        Qwikcilver,
         Rapyd,
         Razorpay,
         RazorpayV2,
@@ -964,6 +968,7 @@ macro_rules! default_impl_refresh_payment_method_v2 {
 }
 
 default_impl_refresh_payment_method_v2!(
+    Citigate,
     Boost,
     AbsaSanlam,
     Aci,

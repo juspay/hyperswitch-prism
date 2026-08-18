@@ -41,6 +41,9 @@ pub fn record_fields_from_header<B: hyper::body::Body>(request: &Request<B>) -> 
         "request",
         uri = %url_path,
         version = ?request.version(),
+        // `action` = the real HTTP verb (GET/POST/…). gRPC-over-HTTP2 is always POST;
+        // the HTTP gateway carries the true verb.
+        action = %request.method(),
         tenant_id = tracing::field::Empty,
         request_id = tracing::field::Empty,
         execution_mode = tracing::field::Empty,
@@ -276,14 +279,16 @@ where
         ..
     } = metadata_payload;
     let current_span = tracing::Span::current();
+    let masked_body = hyperswitch_masking::masked_serialize(&request_data.payload)
+        .map_err(|e| tracing::error!("Masked serialization error: {:?}", e))
+        .ok();
     let connector_name = connector.get_connector_name();
     current_span.record("service_name", service_name);
-    match hyperswitch_masking::masked_serialize(&request_data.payload) {
-        Ok(masked_value) => {
-            record_json_fields_on_span(vec![("request_body", masked_value)]);
+    match masked_body.as_ref() {
+        Some(masked_value) => {
+            record_json_fields_on_span(vec![("request_body", masked_value.clone())]);
         }
-        Err(e) => {
-            tracing::error!("Masked serialization error: {:?}", e);
+        None => {
             current_span.record("request_body", "<masked serialization error>");
         }
     };
@@ -306,6 +311,10 @@ pub fn log_after_initialization<T>(
 
     match &result {
         Ok(response) => {
+            // Additive numeric `res_code` (success). `status_code` is left untouched so
+            // existing consumers of the gRPC-code field don't break.
+            record_json_fields_on_span(vec![("res_code", Value::from(200_i64))]);
+
             let res_ref = response.get_ref();
 
             // Record response_body as structured JSON with masking
@@ -340,8 +349,13 @@ pub fn log_after_initialization<T>(
         }
         Err(status) => {
             current_span.record("error_message", status.message());
+            // Backward-compatible: keep main's gRPC code-name string on `status_code`.
             current_span.record("status_code", status.code().to_string());
             current_span.record("error_response_details", tracing::field::debug(status));
+            // Additive numeric `res_code`: connector-aware HTTP status (e.g. 422) — matches the
+            // HTTP response the caller receives, not the coarse gRPC code.
+            let http_status = crate::http::error::http_status_for_status(status).as_u16();
+            record_json_fields_on_span(vec![("res_code", Value::from(i64::from(http_status)))]);
         }
     }
     // Apply unified log fields (transformations + static values) before emitting the golden log line
@@ -355,6 +369,15 @@ pub fn log_after_initialization<T>(
         let _ = log_fields_enabled;
     }
     tracing::info!("Golden Log Line (incoming - response)");
+}
+
+/// Record the additive numeric `latency_ms` on the current span. Shared by the streaming and
+/// non-streaming logging wrappers to avoid drift.
+fn record_latency_ms(duration: u128) {
+    record_json_fields_on_span(vec![(
+        "latency_ms",
+        Value::from(u64::try_from(duration).unwrap_or_default()),
+    )]);
 }
 
 /// Generic gRPC logging wrapper that accepts a custom parser function.
@@ -399,6 +422,8 @@ where
 
         let duration = start_time.elapsed().as_millis();
         current_span.record("response_time", duration);
+        // Additive numeric latency alongside the existing `response_time`.
+        record_latency_ms(duration);
         result
     }
     .await;
@@ -467,6 +492,8 @@ where
 
         let duration = start_time.elapsed().as_millis();
         current_span.record("response_time", duration);
+        // Additive numeric latency alongside the existing `response_time`.
+        record_latency_ms(duration);
         result
     }
     .await;

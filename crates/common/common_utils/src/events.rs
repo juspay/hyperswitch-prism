@@ -698,16 +698,20 @@ pub fn maskable_headers_to_json<'a>(
 /// All reserved-key filtering happens **outside** the span lock to avoid
 /// deadlocks (the storage layer logs a warning for reserved keys, which would
 /// re-enter the subscriber).
+#[cfg(feature = "logging")]
 pub fn record_json_fields_on_span(fields: Vec<(&'static str, serde_json::Value)>) {
+    // Filter reserved keys and log fields outside the span lock to avoid deadlocks
+    // (tracing::info!/warn! re-enters the subscriber).
     let fields: Vec<_> = fields
         .into_iter()
-        .filter(|(key, _)| {
+        .filter(|(key, value)| {
             if log_utils::Storage::is_reserved(key) {
                 tracing::warn!(
                     "Span field `{key}` is reserved by the logging infrastructure, skipping"
                 );
                 false
             } else {
+                tracing::info!(%value, "{key}");
                 true
             }
         })
