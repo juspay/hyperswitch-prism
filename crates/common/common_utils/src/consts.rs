@@ -47,6 +47,8 @@ pub const X_FRM_CONNECTOR_NAME: &str = "x-frm-connector";
 pub const X_AUTHENTICATOR_CONNECTOR_NAME: &str = "x-auth-connector";
 /// Header key for merchant identification
 pub const X_MERCHANT_ID: &str = "x-merchant-id";
+/// Header key for organization identification
+pub const X_ORG_ID: &str = "x-org-id";
 /// Header key for payment method identification
 pub const X_PAYMENT_METHOD: &str = "x-payment-method";
 /// Header key for payment method type identification
