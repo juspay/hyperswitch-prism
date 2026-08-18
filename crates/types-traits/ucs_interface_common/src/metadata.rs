@@ -47,6 +47,11 @@ pub struct MetadataPayload {
     pub connector_latency: ConnectorLatencyTracker,
 }
 
+// Déjà call-graph skeleton span; inert unless the `deja` feature is on.
+#[cfg_attr(
+    feature = "deja",
+    tracing::instrument(name = "ucs::metadata_extract", skip_all)
+)]
 pub fn get_metadata_payload(
     metadata: &metadata::MetadataMap,
     server_config: Arc<configs::Config>,

@@ -392,6 +392,11 @@ fn flow_status_label(flow_status: &domain_types::router_data::FlowStatus) -> Str
 }
 
 /// Handles the connector response, processing both successful and error responses
+// Déjà call-graph skeleton span; inert unless the `deja` feature is on.
+#[cfg_attr(
+    feature = "deja",
+    tracing::instrument(name = "ucs::handle_response", skip_all, fields(method = %method))
+)]
 #[allow(clippy::too_many_arguments)]
 pub fn handle_connector_response<F, ResourceCommonData, Req, Resp>(
     response: CustomResult<Result<Response, Response>, ConnectorError>,

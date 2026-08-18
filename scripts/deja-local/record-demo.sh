@@ -51,9 +51,13 @@ sleep 1
   nohup "$BIN" > /tmp/deja-server.log 2>&1 < /dev/null &
   disown
 )
-sleep 4
-grep -q "deja runtime hook installed" /tmp/deja-server.log \
-  && echo "    hook installed (mode=record)" \
+# Poll (not a fixed sleep) — the tracing pipeline can flush the boot line late.
+BOOT_OK=""
+for _ in $(seq 1 30); do
+  grep -q "deja runtime hook installed" /tmp/deja-server.log 2>/dev/null && { BOOT_OK=1; break; }
+  sleep 1
+done
+[[ -n "$BOOT_OK" ]] && echo "    hook installed (mode=record)" \
   || { echo "    BOOT FAILED — see /tmp/deja-server.log"; exit 1; }
 
 # Baseline BEFORE firing: step 6 polls for the object count to grow past this, so the
