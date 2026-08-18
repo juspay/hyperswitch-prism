@@ -37,6 +37,10 @@ fn creds_file_path() -> PathBuf {
 /// never having issued a request. A panic cannot be turned into a silent pass.
 /// Without a credentials file at all — a local checkout — the `Err` is
 /// preserved, so tests can still skip off-CI.
+// The panic is the point: returning Err here is what let a missing entry become
+// a silent pass. Result is kept so a local checkout with no credentials file
+// still skips.
+#[allow(clippy::panic_in_result_fn)]
 pub fn connector_config_header(connector_name: &str) -> Result<String, CredentialError> {
     let path = creds_file_path();
     let result = connector_creds::connector_config_header(&path, connector_name);
