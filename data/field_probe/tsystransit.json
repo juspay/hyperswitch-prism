@@ -554,7 +554,7 @@
             "content-type": "text/xml",
             "via": "HyperSwitch"
           },
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<TransactionInquiry><deviceID>probe_id</deviceID><transactionKey>probe_key</transactionKey><transactionID>probe_connector_txn_001</transactionID><developerID>probe_secret</developerID></TransactionInquiry>"
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<SearchTransaction><deviceID>probe_id</deviceID><transactionKey>probe_key</transactionKey><transactionID>probe_connector_txn_001</transactionID><developerID>probe_secret</developerID></SearchTransaction>"
         }
       }
     },
@@ -659,7 +659,7 @@
             "content-type": "text/xml",
             "via": "HyperSwitch"
           },
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<TransactionInquiry><deviceID>probe_id</deviceID><transactionKey>probe_key</transactionKey><transactionID>probe_refund_id_001</transactionID><developerID>probe_secret</developerID></TransactionInquiry>"
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<SearchTransaction><deviceID>probe_id</deviceID><transactionKey>probe_key</transactionKey><transactionID>probe_refund_id_001</transactionID><developerID>probe_secret</developerID></SearchTransaction>"
         }
       }
     },

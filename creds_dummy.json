@@ -147,6 +147,14 @@
     "api_key": { "value": "<REPLACE_WITH_YOUR_VALUE>" },
     "_comment": "Configuration for globalpay connector"
   },
+  "grabpay": {
+    "partner_id": { "value": "<REPLACE_WITH_YOUR_VALUE>" },
+    "partner_secret": { "value": "<REPLACE_WITH_YOUR_VALUE>" },
+    "client_id": { "value": "<REPLACE_WITH_YOUR_VALUE>" },
+    "client_secret": { "value": "<REPLACE_WITH_YOUR_VALUE>" },
+    "merchant_id": { "value": "<REPLACE_WITH_YOUR_VALUE>" },
+    "_comment": "Configuration for grabpay connector"
+  },
   "helcim": {
     "api_key": { "value": "<REPLACE_WITH_YOUR_VALUE>" },
     "_comment": "Configuration for helcim connector"

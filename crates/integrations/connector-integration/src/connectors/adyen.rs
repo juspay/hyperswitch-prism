@@ -373,6 +373,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             });
         }
 
@@ -384,6 +388,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         match response {
             Ok(response) => {
                 with_error_response_body!(event_builder, response);
+                let typed = macros::serialize_typed_connector_payload(
+                    &response,
+                    "typed_connector_response",
+                );
                 Ok(ErrorResponse {
                     status_code: res.status_code,
                     code: response.error_code,
@@ -394,6 +402,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 })
             }
             Err(error_msg) => {
@@ -492,7 +504,14 @@ macros::macro_connector_implementation!(
                 // Build the request normally if encoded_data is present
                 let url = self.get_url(req)?;
                 let headers = self.get_headers(req)?;
-                let body = ConnectorIntegrationV2::<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>::get_request_body(self, req)?;
+                let request_data = ConnectorIntegrationV2::<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>::get_request_body(self, req)?;
+                let (body, typed_request_value) = match request_data {
+                    Some(data) => (
+                        Some(data.content),
+                        data.typed_request.map(|msv| msv.inner().clone()),
+                    ),
+                    None => (None, None),
+                };
 
                 Ok(Some(
                     common_utils::request::RequestBuilder::new()
@@ -501,6 +520,7 @@ macros::macro_connector_implementation!(
                         .attach_default_headers()
                         .headers(headers)
                         .set_optional_body(body)
+                        .set_typed_connector_request(typed_request_value)
                         .build(),
                 ))
             } else {

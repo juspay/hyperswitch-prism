@@ -462,6 +462,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletDataPaymentMethod::ApplePayRedirect(_)
                 | WalletDataPaymentMethod::ApplePayThirdPartySdk(_)
                 | WalletDataPaymentMethod::DanaRedirect {}
+                | WalletDataPaymentMethod::GrabpayRedirect {}
                 | WalletDataPaymentMethod::GooglePayRedirect(_)
                 | WalletDataPaymentMethod::GooglePayThirdPartySdk(_)
                 | WalletDataPaymentMethod::MbWayRedirect(_)
@@ -715,6 +716,10 @@ pub fn get_error_response(
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
+        typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
     }
 }
 
@@ -2168,6 +2173,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletDataPaymentMethod::ApplePayRedirect(_)
                 | WalletDataPaymentMethod::ApplePayThirdPartySdk(_)
                 | WalletDataPaymentMethod::DanaRedirect {}
+                | WalletDataPaymentMethod::GrabpayRedirect {}
                 | WalletDataPaymentMethod::GooglePayRedirect(_)
                 | WalletDataPaymentMethod::GooglePayThirdPartySdk(_)
                 | WalletDataPaymentMethod::MbWayRedirect(_)
