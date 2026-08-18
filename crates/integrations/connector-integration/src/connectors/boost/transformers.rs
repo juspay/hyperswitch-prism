@@ -10,8 +10,9 @@ use domain_types::{
     connector_flow::{Authorize, PSync, RSync, Refund},
     connector_types::{
         EventType, PaymentFlowData, PaymentWebhookReference, PaymentsAuthorizeData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId, WebhookDetailsResponse, WebhookResourceReference,
+        PaymentsResponseData, PaymentsSyncData, RawConnectorStatus, RefundFlowData, RefundSyncData,
+        RefundsData, RefundsResponseData, ResponseId, WebhookDetailsResponse,
+        WebhookResourceReference,
     },
     errors,
     payment_method_data::{CardRedirectData, PaymentMethodData, PaymentMethodDataTypes},
@@ -196,8 +197,9 @@ pub struct BoostCustomer {
 }
 
 /// Payment status enum (doc section 3.3.1 — Retrieve Payment Details).
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, strum::Display)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum BoostPaymentStatus {
     PendingPaymentMethod,
     PendingConfirmation,
@@ -239,8 +241,9 @@ impl From<BoostPaymentStatus> for AttemptStatus {
 /// Reversal status enum (doc sections 3.2.2/3.2.3/3.3.3 — PaymentReversal). The
 /// last three values are FPX-only per the doc but are still accepted here since
 /// they're part of BCPG's single shared reversal status vocabulary.
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, strum::Display)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum BoostReversalStatus {
     Pending,
     Succeeded,
@@ -286,7 +289,10 @@ pub struct BoostPaymentInitRequest {
     pub return_url: Option<String>,
     #[serde(rename = "callbackUrl", skip_serializing_if = "Option::is_none")]
     pub callback_url: Option<String>,
-    #[serde(rename = "encryptedCardDetails", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "encryptedCardDetails",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub encrypted_card_details: Option<BoostEncryptedCardDetails>,
 }
 
@@ -511,6 +517,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct BoostPaymentInitResponse {
     pub uuid: String,
+    #[serde(rename = "referenceId")]
+    pub reference_id: Option<String>,
     #[serde(rename = "paymentUrl")]
     pub payment_url: String,
 }
@@ -560,6 +568,14 @@ impl<T: PaymentMethodDataTypes>
 pub struct BoostPaymentSyncResponse {
     pub uuid: String,
     pub status: BoostPaymentStatus,
+    #[serde(rename = "referenceId")]
+    pub reference_id: Option<String>,
+    pub amount: Option<FloatMajorUnit>,
+    pub currency: Option<Currency>,
+    pub created: Option<String>,
+    pub description: Option<String>,
+    #[serde(rename = "paymentMethod")]
+    pub payment_method: Option<String>,
 }
 
 impl TryFrom<crate::types::ResponseRouterData<BoostPaymentSyncResponse, Self>>
@@ -570,7 +586,15 @@ impl TryFrom<crate::types::ResponseRouterData<BoostPaymentSyncResponse, Self>>
     fn try_from(
         item: crate::types::ResponseRouterData<BoostPaymentSyncResponse, Self>,
     ) -> Result<Self, Self::Error> {
+        let raw_status = item.response.status.to_string();
         let status = AttemptStatus::from(item.response.status);
+
+        let connector_response_reference_id = Some(
+            item.router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+        );
 
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -580,13 +604,18 @@ impl TryFrom<crate::types::ResponseRouterData<BoostPaymentSyncResponse, Self>>
                 connector_metadata: None,
                 network_txn_id: None,
                 network_txn_link_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id,
                 incremental_authorization_allowed: None,
                 splits: None,
                 status_code: item.http_code,
             }),
             resource_common_data: PaymentFlowData {
                 status,
+                raw_connector_status: Some(RawConnectorStatus {
+                    code: Some(raw_status.clone()),
+                    message: Some(raw_status),
+                    reason: None,
+                }),
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
@@ -646,8 +675,35 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
         let created = stable_created_timestamp()
             .attach_printable("Failed to format created timestamp for Boost reversal")?;
 
+        // BCPG's `uuid` (doc section 3.2.2) must be a merchant-generated UUID —
+        // it's bound as the reversal's idempotency key and is rejected if it isn't a valid UUID.
+        let uuid = item
+            .router_data
+            .resource_common_data
+            .merchant_request_id
+            .clone()
+            .ok_or_else(|| {
+                error_stack::report!(errors::IntegrationError::MissingRequiredField {
+                    field_name: "merchant_request_id",
+                    context: errors::IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Supply a merchant_request_id (UUID format) on the refund request \
+                             — Boost's reversal `uuid` must be a valid UUID per BCPG's \
+                             integration guideline (section 3.2.2)."
+                                .to_string(),
+                        ),
+                        doc_url: None,
+                        additional_context: Some(
+                            "merchant_request_id was not set on resource_common_data for this \
+                             Boost reversal (refund/void) request."
+                                .to_string(),
+                        ),
+                    },
+                })
+            })?;
+
         Ok(Self {
-            uuid: item.router_data.request.refund_id.clone(),
+            uuid,
             payment_uuid: item.router_data.request.connector_transaction_id.clone(),
             amount,
             currency: item.router_data.request.currency,
@@ -662,6 +718,11 @@ pub struct BoostReversalResponse {
     pub status: BoostReversalStatus,
     #[serde(rename = "type")]
     pub reversal_type: Option<String>,
+    #[serde(rename = "paymentUuid")]
+    pub payment_uuid: Option<String>,
+    pub amount: Option<FloatMajorUnit>,
+    pub currency: Option<Currency>,
+    pub created: Option<String>,
 }
 
 impl TryFrom<crate::types::ResponseRouterData<BoostReversalResponse, Self>>
@@ -672,6 +733,7 @@ impl TryFrom<crate::types::ResponseRouterData<BoostReversalResponse, Self>>
     fn try_from(
         item: crate::types::ResponseRouterData<BoostReversalResponse, Self>,
     ) -> Result<Self, Self::Error> {
+        let raw_status = item.response.status.to_string();
         let refund_status = RefundStatus::from(item.response.status);
 
         Ok(Self {
@@ -683,6 +745,11 @@ impl TryFrom<crate::types::ResponseRouterData<BoostReversalResponse, Self>>
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,
+                raw_connector_status: Some(RawConnectorStatus {
+                    code: Some(raw_status.clone()),
+                    message: Some(raw_status),
+                    reason: None,
+                }),
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
@@ -702,6 +769,7 @@ impl TryFrom<crate::types::ResponseRouterData<BoostReversalResponse, Self>>
     fn try_from(
         item: crate::types::ResponseRouterData<BoostReversalResponse, Self>,
     ) -> Result<Self, Self::Error> {
+        let raw_status = item.response.status.to_string();
         let refund_status = RefundStatus::from(item.response.status);
 
         Ok(Self {
@@ -713,6 +781,11 @@ impl TryFrom<crate::types::ResponseRouterData<BoostReversalResponse, Self>>
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,
+                raw_connector_status: Some(RawConnectorStatus {
+                    code: Some(raw_status.clone()),
+                    message: Some(raw_status),
+                    reason: None,
+                }),
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
