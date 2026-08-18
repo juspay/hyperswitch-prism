@@ -41,7 +41,9 @@ pub fn process_is_record_mode() -> bool {
 }
 
 /// Build the `grpc_incoming` event args: rpc path, authority, sorted metadata, and the
-/// request message (decoded to proto3-JSON when the schema is known, else raw base64).
+/// request message. The raw wire bytes (`raw_b64`, gRPC-framed exactly as read off the
+/// transport) are ALWAYS recorded — they are what a replay driver re-sends, descriptors
+/// or not — with the proto3-JSON `decoded` alongside when the schema is known.
 /// Metadata is sorted by (name, value) because `HeaderMap` iteration order is not stable
 /// and the args are used for identity.
 pub fn grpc_incoming_args(
@@ -62,12 +64,10 @@ pub fn grpc_incoming_args(
         .collect();
     metadata.sort();
 
+    let raw_b64 = base64::engine::general_purpose::STANDARD.encode(request_bytes);
     let request = match decoded {
-        Some(json) => serde_json::json!({ "decoded": json }),
-        None => serde_json::json!({
-            "raw_b64": base64::engine::general_purpose::STANDARD.encode(request_bytes),
-            "undecoded": true,
-        }),
+        Some(json) => serde_json::json!({ "raw_b64": raw_b64, "decoded": json }),
+        None => serde_json::json!({ "raw_b64": raw_b64, "undecoded": true }),
     };
 
     serde_json::json!({
@@ -107,5 +107,22 @@ mod tests {
         assert_eq!(args["metadata"][0][0], "x-connector");
         assert_eq!(args["metadata"][1][0], "x-request-id");
         assert_eq!(args["request"]["undecoded"], true);
+        // The raw wire bytes ride EVERY recording (decoded or not) — they are
+        // what the replay driver re-sends.
+        assert_eq!(args["request"]["raw_b64"], "AQID"); // b64 of [1, 2, 3]
+    }
+
+    #[test]
+    fn grpc_incoming_args_keeps_raw_bytes_alongside_decoded() {
+        let args = super::grpc_incoming_args(
+            "/ucs.v2.PaymentService/Authorize",
+            None,
+            &http::HeaderMap::new(),
+            &[1, 2, 3],
+            Some(serde_json::json!({"amount": 1})),
+        );
+        assert_eq!(args["request"]["raw_b64"], "AQID");
+        assert_eq!(args["request"]["decoded"]["amount"], 1);
+        assert!(args["request"].get("undecoded").is_none());
     }
 }

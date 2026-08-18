@@ -138,7 +138,11 @@ where
             // 3. Open the record-only event (explicit correlation id — no ambient dependency).
             //    `should_record` is only true in record mode, where a hook is installed;
             //    if there is somehow no hook we simply record nothing (never panic).
-            let finalizer = if should_record {
+            //    Only the BUILDER is created here (correct start timing); the finalizer
+            //    waits for the response so the recorded partial can carry the rpc
+            //    OUTCOME (`grpc_status`) — a tape that records failures as successes
+            //    gives every replay driver a false 200 baseline.
+            let opened = if should_record {
                 super::hook().map(|hook| {
                     let decoded = super::descriptors::decode_unary_request(&rpc, &request_bytes);
                     let args = super::grpc_incoming_args(
@@ -164,9 +168,12 @@ where
                             deja::BoundaryDeclaration::default()
                                 .operation(deja::OperationKind::ExternalCall),
                         ),
-                    });
+                    })
+                    // Self-describe the correlation root so replay tooling never
+                    // needs to know this boundary's name (deja is_ingress()).
+                    .with_role(deja::ROLE_INGRESS);
                     let hook_dyn: Arc<dyn deja::DejaHook> = hook.clone();
-                    deja::LazyEventFinalizer::new(builder, hook_dyn, serde_json::json!({}), false)
+                    (hook_dyn, builder)
                 })
             } else {
                 None
@@ -177,17 +184,44 @@ where
             let span = tracing::info_span!("deja::grpc_incoming", request_id = %request_id, rpc = %rpc);
             let result = inner.call(rebuilt).instrument(span).await;
 
-            // 5. Wrap the response so the event finalizes at body end-of-stream.
+            // 5. Build the finalizer from the OUTCOME, then wrap the response so the
+            //    event finalizes at body end-of-stream. `grpc-status` sits in the
+            //    response HEADERS only on trailers-only (immediate error) responses —
+            //    tonic's shape for a handler Err(Status). A streaming success carries
+            //    it in trailers; there its absence plus `is_error: false` already
+            //    means "the rpc completed", which is what replay drivers assume.
             match result {
-                Ok(response) => Ok(match finalizer {
-                    Some(finalizer) => {
-                        response.map(|body| Body::new(RecordingBody::new(body, Some(finalizer))))
-                    }
-                    None => response,
-                }),
+                Ok(response) => {
+                    let finalizer = opened.map(|(hook_dyn, builder)| {
+                        let grpc_status = response
+                            .headers()
+                            .get("grpc-status")
+                            .and_then(|value| value.to_str().ok())
+                            .and_then(|value| value.parse::<i64>().ok());
+                        let partial = match grpc_status {
+                            Some(code) => serde_json::json!({ "grpc_status": code }),
+                            None => serde_json::json!({}),
+                        };
+                        let is_error = grpc_status.is_some_and(|code| code != 0);
+                        deja::LazyEventFinalizer::new(builder, hook_dyn, partial, is_error)
+                    });
+                    Ok(match finalizer {
+                        Some(finalizer) => response
+                            .map(|body| Body::new(RecordingBody::new(body, Some(finalizer)))),
+                        None => response,
+                    })
+                }
                 Err(status) => {
-                    if let Some(finalizer) = finalizer {
-                        // Error path: finalize immediately (no response body to stream).
+                    if let Some((hook_dyn, builder)) = opened {
+                        // Error path: the outcome is the Status itself; finalize
+                        // immediately (no response body to stream).
+                        let code = i64::from(i32::from(status.code()));
+                        let finalizer = deja::LazyEventFinalizer::new(
+                            builder,
+                            hook_dyn,
+                            serde_json::json!({ "grpc_status": code }),
+                            code != 0,
+                        );
                         let _ = finalizer.finalize();
                     }
                     Err(status)

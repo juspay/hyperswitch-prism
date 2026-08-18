@@ -177,7 +177,10 @@ where
                         declaration: Some(deja::BoundaryDeclaration::default().reply_canon(
                             deja::CanonRef::new("project:!created_at,!last_synced,!modified_at"),
                         )),
-                    });
+                    })
+                    // Self-describe the correlation root so replay tooling never
+                    // needs to know this boundary's name (deja is_ingress()).
+                    .with_role(deja::ROLE_INGRESS);
                     (hook.clone(), builder)
                 })
             };
