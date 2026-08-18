@@ -1222,34 +1222,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceTransferRequest>
 
         let customer = value
             .customer
-            .map(
-                |customer| -> Result<_, error_stack::Report<IntegrationError>> {
-                    let email = customer
-                        .email
-                        .map(|email_str| {
-                            common_utils::pii::Email::try_from(email_str.expose()).map_err(|e| {
-                                error_stack::Report::new(IntegrationError::InvalidDataFormat {
-                                    field_name: "email",
-                                    context: IntegrationErrorContext {
-                                        additional_context: Some("Invalid email".to_owned()),
-                                        ..Default::default()
-                                    },
-                                })
-                                .attach_printable(format!("{e:?}"))
-                            })
-                        })
-                        .transpose()?;
-
-                    Ok(payouts::payouts_types::PayoutCustomer {
-                        name: customer.name,
-                        email,
-                        merchant_customer_id: customer.id,
-                        connector_customer_id: customer.connector_customer_id,
-                        phone_number: customer.phone_number,
-                        phone_country_code: customer.phone_country_code,
-                    })
-                },
-            )
+            .map(convert_payouts_customer_to_domain)
             .transpose()?;
 
         let address = value
@@ -1307,6 +1280,35 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutAddress>
                 .transpose()?,
         })
     }
+}
+
+fn convert_payouts_customer_to_domain(
+    customer: grpc_api_types::payments::Customer,
+) -> Result<payouts::payouts_types::PayoutCustomer, error_stack::Report<IntegrationError>> {
+    let email = customer
+        .email
+        .map(|email_str| {
+            common_utils::pii::Email::try_from(email_str.expose()).map_err(|e| {
+                error_stack::Report::new(IntegrationError::InvalidDataFormat {
+                    field_name: "customer.email",
+                    context: IntegrationErrorContext {
+                        additional_context: Some("Invalid email".to_owned()),
+                        ..Default::default()
+                    },
+                })
+                .attach_printable(format!("{e:?}"))
+            })
+        })
+        .transpose()?;
+
+    Ok(payouts::payouts_types::PayoutCustomer {
+        name: customer.name,
+        email,
+        merchant_customer_id: customer.id,
+        connector_customer_id: customer.connector_customer_id,
+        phone_number: customer.phone_number,
+        phone_country_code: customer.phone_country_code,
+    })
 }
 
 fn convert_payouts_address_to_domain(
@@ -1556,34 +1558,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateRecipientRequest
 
         let customer = value
             .customer
-            .map(
-                |customer| -> Result<_, error_stack::Report<IntegrationError>> {
-                    let email = customer
-                        .email
-                        .map(|email_str| {
-                            common_utils::pii::Email::try_from(email_str.expose()).map_err(|e| {
-                                error_stack::Report::new(IntegrationError::InvalidDataFormat {
-                                    field_name: "email",
-                                    context: IntegrationErrorContext {
-                                        additional_context: Some("Invalid email".to_owned()),
-                                        ..Default::default()
-                                    },
-                                })
-                                .attach_printable(format!("{e:?}"))
-                            })
-                        })
-                        .transpose()?;
-
-                    Ok(payouts::payouts_types::PayoutCustomer {
-                        name: customer.name,
-                        email,
-                        merchant_customer_id: customer.id,
-                        connector_customer_id: customer.connector_customer_id,
-                        phone_number: customer.phone_number,
-                        phone_country_code: customer.phone_country_code,
-                    })
-                },
-            )
+            .map(convert_payouts_customer_to_domain)
             .transpose()?;
 
         let address = value
@@ -2342,34 +2317,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutMethodEligibilityRequest>
 
         let customer = value
             .customer
-            .map(
-                |customer| -> Result<_, error_stack::Report<IntegrationError>> {
-                    let email = customer
-                        .email
-                        .map(|email_str| {
-                            common_utils::pii::Email::try_from(email_str.expose()).map_err(|e| {
-                                error_stack::Report::new(IntegrationError::InvalidDataFormat {
-                                    field_name: "email",
-                                    context: IntegrationErrorContext {
-                                        additional_context: Some("Invalid email".to_owned()),
-                                        ..Default::default()
-                                    },
-                                })
-                                .attach_printable(format!("{e:?}"))
-                            })
-                        })
-                        .transpose()?;
-
-                    Ok(payouts::payouts_types::PayoutCustomer {
-                        name: customer.name,
-                        email,
-                        merchant_customer_id: customer.id,
-                        connector_customer_id: customer.connector_customer_id,
-                        phone_number: customer.phone_number,
-                        phone_country_code: customer.phone_country_code,
-                    })
-                },
-            )
+            .map(convert_payouts_customer_to_domain)
             .transpose()?;
 
         let address = value

@@ -1,5 +1,6 @@
 use super::TrustlyPayoutsRouterData;
 use crate::types::ResponseRouterData;
+use base64::{engine::general_purpose, Engine};
 use common_utils::types::{StringMajorUnit, StringMajorUnitForConnector};
 use domain_types::{
     connector_flow::{PayoutCreateRecipient, PayoutGet, PayoutTransfer},
@@ -21,14 +22,14 @@ use domain_types::{
 };
 use error_stack::Report;
 use hyperswitch_masking::{ExposeInterface, Secret};
+use openssl::{hash::MessageDigest, pkey::PKey, rsa::Rsa, sign::Signer};
 use serde::{Deserialize, Serialize};
-use std::fmt::Debug;
+use std::{collections::BTreeMap, fmt::Debug};
 
-// The Trustly signature and error-response types are shared with the payment
-// connector implementation; reuse them here so the RSA signing logic lives in a
-// single place.
+// The Trustly error-response and webhook payload types are shared with the payment
+// connector implementation.
 use crate::connectors::trustly::transformers::{
-    generate_trustly_signature, TrustlyErrorResponse, TrustlyWebhookBody, TrustlyWebhookMethod,
+    TrustlyErrorResponse, TrustlyWebhookBody, TrustlyWebhookMethod,
 };
 
 const TRUSTLY_VERSION: &str = "1.1";
@@ -81,6 +82,72 @@ impl TrustlyMethod {
             Self::GetWithdrawals => "GetWithdrawals",
         }
     }
+}
+
+// ===== REQUEST SIGNING =====
+//
+// Trustly signs every JSON-RPC method with RSA-SHA256 over `method + uuid` followed
+// by a canonical serialization of the payload. The payment connector implements the
+// same scheme for its own methods; it is duplicated here so the payout connector does
+// not depend on the payment connector's internals.
+
+/// Signature prefix Trustly expects for RSA-SHA256. The payout methods are always
+/// signed with SHA256, so it is fixed rather than negotiated.
+const TRUSTLY_SIGNATURE_PREFIX: &str = "alg=RS256;";
+
+/// Canonical serialization used as the signature plaintext: object keys sorted,
+/// null values dropped, and every scalar concatenated without separators.
+fn serialize_value(value: &serde_json::Value) -> String {
+    match value {
+        serde_json::Value::Object(map) => {
+            let sorted: BTreeMap<_, _> = map.iter().collect();
+            sorted
+                .iter()
+                .filter(|(_, v)| !v.is_null())
+                .map(|(k, v)| format!("{}{}", k, serialize_value(v)))
+                .collect()
+        }
+        serde_json::Value::Array(arr) => arr.iter().map(serialize_value).collect(),
+        serde_json::Value::String(s) => s.clone(),
+        serde_json::Value::Number(n) => n.to_string(),
+        serde_json::Value::Bool(b) => b.to_string(),
+        serde_json::Value::Null => String::new(),
+    }
+}
+
+fn trustly_serialize<T: Serialize>(data: &T) -> String {
+    let value = serde_json::to_value(data).unwrap_or_default();
+    serialize_value(&value)
+}
+
+fn generate_trustly_signature<T: Serialize>(
+    method: &str,
+    uuid: &str,
+    data: &T,
+    private_key: &str,
+) -> Result<String, IntegrationError> {
+    let encoding_failed = || IntegrationError::RequestEncodingFailed {
+        context: Default::default(),
+    };
+
+    let pem =
+        domain_utils::base64_decode(private_key.to_string()).map_err(|_| encoding_failed())?;
+    let rsa = Rsa::private_key_from_pem(&pem).map_err(|_| encoding_failed())?;
+    let private_key = PKey::from_rsa(rsa).map_err(|_| encoding_failed())?;
+
+    let plaintext = format!("{}{}{}", method, uuid, trustly_serialize(data));
+
+    let mut signer =
+        Signer::new(MessageDigest::sha256(), &private_key).map_err(|_| encoding_failed())?;
+    signer
+        .update(plaintext.as_bytes())
+        .map_err(|_| encoding_failed())?;
+    let signature = signer.sign_to_vec().map_err(|_| encoding_failed())?;
+
+    Ok(format!(
+        "{TRUSTLY_SIGNATURE_PREFIX}{}",
+        general_purpose::STANDARD.encode(&signature)
+    ))
 }
 
 fn unsupported_payout_method_error(flow: &str) -> Report<IntegrationError> {
@@ -179,7 +246,7 @@ pub struct RegisterAccountAttributes {
     #[serde(skip_serializing_if = "Option::is_none")]
     address_line2: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    address_city: Option<String>,
+    address_city: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     address_postal_code: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -188,23 +255,27 @@ pub struct RegisterAccountAttributes {
     email: Option<common_utils::pii::Email>,
 }
 
-/// Derive the payee's first and last name from the customer name (split on the
-/// first space) or, failing that, from the billing address.
+/// Derive the payee's first and last name from the customer name or, failing that,
+/// from the billing address.
 fn get_recipient_names(
     req: &PayoutCreateRecipientRequest,
-) -> Result<(String, String), Report<IntegrationError>> {
-    if let Some(name) = req.customer.as_ref().and_then(|c| c.name.as_ref()) {
-        let parts: Vec<&str> = name.splitn(2, ' ').collect();
-        if let [first, second] = parts.as_slice() {
-            return Ok((first.to_string(), second.to_string()));
-        }
+) -> Result<(Secret<String>, Secret<String>), Report<IntegrationError>> {
+    let customer_name = req
+        .customer
+        .as_ref()
+        .and_then(|c| c.name.clone())
+        .map(Secret::new);
+
+    if let (Some(first), Some(last)) = domain_utils::split_full_name(customer_name) {
+        return Ok((first, last));
     }
 
+    let billing_address = req.get_optional_billing_address();
     match (
-        req.get_optional_billing_first_name(),
-        req.get_optional_billing_last_name(),
+        billing_address.and_then(|addr| addr.get_optional_first_name()),
+        billing_address.and_then(|addr| addr.get_optional_last_name()),
     ) {
-        (Some(first), Some(last)) => Ok((first.expose(), last.expose())),
+        (Some(first), Some(last)) => Ok((first, last)),
         _ => Err(missing_field(
             "customer.name / billing first_name and last_name",
             "Payout Create Recipient",
@@ -277,13 +348,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let customer_email = item.request.customer.as_ref().and_then(|c| c.email.clone());
 
         let attributes = if billing.is_some() || customer_email.is_some() {
+            let billing_address = item.request.get_optional_billing_address();
             Some(RegisterAccountAttributes {
-                address_city: item.request.get_optional_billing_city(),
-                address_country: item.request.get_optional_billing_country(),
-                address_line1: item.request.get_optional_billing_line1(),
-                address_line2: item.request.get_optional_billing_line2(),
-                address_postal_code: item.request.get_optional_billing_zip(),
-                email: item.request.get_optional_billing_email(),
+                address_city: billing_address.and_then(|addr| addr.get_optional_city()),
+                address_country: billing_address.and_then(|addr| addr.get_optional_country()),
+                address_line1: billing_address.and_then(|addr| addr.get_optional_line1()),
+                address_line2: billing_address.and_then(|addr| addr.get_optional_line2()),
+                address_postal_code: billing_address.and_then(|addr| addr.get_optional_zip()),
+                email: billing.and_then(|b| b.get_email().ok()),
                 mobile_phone: billing.and_then(|b| b.get_phone_with_country_code().ok()),
             })
         } else {
@@ -299,8 +371,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .to_string()
                 .to_uppercase(),
             end_user_i_d: end_user_id,
-            firstname: Secret::new(first_name),
-            lastname: Secret::new(last_name),
+            firstname: first_name,
+            lastname: last_name,
             username: auth.username.clone(),
             password: auth.password.clone(),
             attributes,
