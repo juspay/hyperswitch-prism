@@ -797,5 +797,10 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             key1: k(),
             base_url: None,
         },
+        ConnectorEnum::Klarna => ConnectorSpecificConfig::Klarna {
+            api_key: p(),
+            key1: u(),
+            base_url: None,
+        },
     }
 }

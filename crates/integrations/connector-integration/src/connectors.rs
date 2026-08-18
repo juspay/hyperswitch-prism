@@ -305,3 +305,6 @@ pub use self::boost::Boost;
 
 pub mod citigate;
 pub use self::citigate::Citigate;
+
+pub mod klarna;
+pub use self::klarna::Klarna;
