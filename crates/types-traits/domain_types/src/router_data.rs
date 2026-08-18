@@ -508,6 +508,12 @@ pub enum ConnectorSpecificConfig {
         base_url: Option<String>,
         secondary_base_url: Option<String>,
     },
+    Moneris {
+        client_secret: Secret<String>,
+        merchant_id: Secret<String>,
+        client_id: Secret<String>,
+        base_url: Option<String>,
+    },
     Nmi {
         api_key: Secret<String>,
         public_key: Option<Secret<String>>,
@@ -1147,6 +1153,11 @@ impl ConnectorSpecificConfig {
                 merchant_id,
                 client_secret
             },
+            Moneris {
+                client_secret,
+                merchant_id,
+                client_id
+            },
             Noon {
                 api_key,
                 business_identifier,
@@ -1616,6 +1627,11 @@ impl ConnectorSpecificConfig {
                     merchant_id,
                     client_secret
                 },
+                Moneris {
+                    client_secret,
+                    merchant_id,
+                    client_id
+                },
                 Noon {
                     api_key,
                     business_identifier,
@@ -2022,6 +2038,12 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             AuthType::Multisafepay(multisafepay) => Ok(Self::Multisafepay {
                 api_key: multisafepay.api_key.ok_or_else(err)?,
                 base_url: multisafepay.base_url,
+            }),
+            AuthType::Moneris(moneris) => Ok(Self::Moneris {
+                client_secret: moneris.client_secret.ok_or_else(err)?,
+                merchant_id: moneris.merchant_id.ok_or_else(err)?,
+                client_id: moneris.client_id.ok_or_else(err)?,
+                base_url: moneris.base_url,
             }),
             AuthType::Nexinets(nexinets) => Ok(Self::Nexinets {
                 merchant_id: nexinets.merchant_id.ok_or_else(err)?,
@@ -3153,6 +3175,19 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         client_id: api_key.clone(),
                         merchant_id: key1.clone(),
                         client_secret: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Moneris => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Moneris {
+                        client_secret: api_key.clone(),
+                        merchant_id: api_secret.clone(),
+                        client_id: key1.clone(),
                         base_url: None,
                     }),
                     _ => Err(err().into()),
