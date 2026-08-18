@@ -48,8 +48,19 @@ grpc_server_start() {
 
 grpc_server_stop() {
   [[ -n "${GRPC_SERVER_PID}" ]] || return 0
+  local i
+
   kill "${GRPC_SERVER_PID}" 2>/dev/null || true
-  wait "${GRPC_SERVER_PID}" 2>/dev/null || true
+
+  # Bounded, then forced. An unbounded `wait` here held a CI job open for two
+  # hours after the scenario had already passed: the server does not exit on
+  # SIGTERM promptly, and nothing else was going to release the shell.
+  for i in $(seq 1 40); do
+    kill -0 "${GRPC_SERVER_PID}" 2>/dev/null || break
+    sleep 0.25
+  done
+  kill -9 "${GRPC_SERVER_PID}" 2>/dev/null || true
+
   GRPC_SERVER_PID=""
 }
 
