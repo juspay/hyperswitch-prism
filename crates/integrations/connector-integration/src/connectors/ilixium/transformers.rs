@@ -627,26 +627,37 @@ pub(super) fn build_ilixium_payments_request<T: PaymentMethodDataTypes + std::fm
         .and_then(|info| info.ip_address)
         .map(|ip| Secret::new(ip.to_string()));
 
-    let emvco3ds = if inputs.is_three_ds {
-        let browser_info = inputs.browser_info.ok_or_else(|| {
-            error_stack::report!(errors::IntegrationError::MissingRequiredField {
-                field_name: "browser_info",
-                context: errors::IntegrationErrorContext {
-                    suggested_action: Some(
-                        "A 3-D Secure card authorisation must carry the browser profile \
-                         that populates emvco3ds.browserDetails."
-                            .to_string(),
-                    ),
-                    doc_url: Some("https://docs.ilixium.com/docs/direct/3dsecure".to_string()),
-                    additional_context: None,
-                },
-            })
-        })?;
-        Some(IlixiumEmvco3ds {
-            browser_details: build_browser_details(browser_info)?,
+    // Ilixium keys emvco3ds off the *account*, not the transaction: an account configured for 3-D
+    // Secure rejects every auth that omits a full browserDetails block (VA80-VA89, one code per
+    // missing field), while an account not so configured ignores the element when it is present.
+    // So send it whenever the browser profile is complete; only a 3DS authorisation treats an
+    // absent or partial profile as an error.
+    let missing_browser_info = || {
+        error_stack::report!(errors::IntegrationError::MissingRequiredField {
+            field_name: "browser_info",
+            context: errors::IntegrationErrorContext {
+                suggested_action: Some(
+                    "A 3-D Secure card authorisation must carry the browser profile \
+                     that populates emvco3ds.browserDetails."
+                        .to_string(),
+                ),
+                doc_url: Some("https://docs.ilixium.com/docs/direct/3dsecure".to_string()),
+                additional_context: None,
+            },
         })
-    } else {
-        None
+    };
+
+    let emvco3ds = match inputs.browser_info {
+        Some(browser_info) if inputs.is_three_ds => Some(IlixiumEmvco3ds {
+            browser_details: build_browser_details(browser_info)?,
+        }),
+        // Best-effort outside 3DS: a partial profile is omitted rather than fatal, so merchants on
+        // accounts that do not require 3-D Secure behave exactly as they did before.
+        Some(browser_info) => build_browser_details(browser_info)
+            .ok()
+            .map(|browser_details| IlixiumEmvco3ds { browser_details }),
+        None if inputs.is_three_ds => return Err(missing_browser_info()),
+        None => None,
     };
 
     let payment_info = ip_address.map(|ip_address| IlixiumPaymentInfo { ip_address });
