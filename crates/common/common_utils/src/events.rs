@@ -550,7 +550,12 @@ impl CompiledLogFields {
                 let segments: Vec<String> = target_path.split('.').map(String::from).collect();
                 let root_key = segments.first()?.clone();
                 let entry = match field_entry {
-                    LogFieldEntry::Source { source } => CompiledFieldEntry::Source(source.clone()),
+                    LogFieldEntry::Source { source } => {
+                        // In prod infra, `.` cannot be used in config keys, so
+                        // fields are specified as `request_DOT_body`. Decode
+                        // `_DOT_` back to `.` at compile time for correct lookups.
+                        CompiledFieldEntry::Source(crate::consts::decode_dot(source))
+                    }
                     LogFieldEntry::Value { value } => {
                         CompiledFieldEntry::Value(serde_json::Value::String(value.clone()))
                     }

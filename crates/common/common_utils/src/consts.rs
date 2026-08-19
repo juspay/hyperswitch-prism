@@ -28,6 +28,18 @@ pub const MAX_GLOBAL_ID_LENGTH: u8 = 64;
 pub const MIN_GLOBAL_ID_LENGTH: u8 = 32;
 
 // =============================================================================
+// Tracing Field Name Encoding
+// =============================================================================
+
+/// Encoded dot separator used in prod infra config keys (e.g. `request_DOT_body`).
+pub const DOT_ENCODED: &str = "_DOT_";
+
+/// Decode `_DOT_` back to `.` in field names from prod config.
+pub fn decode_dot(s: &str) -> String {
+    s.replace(DOT_ENCODED, ".")
+}
+
+// =============================================================================
 // HTTP Headers
 // =============================================================================
 
