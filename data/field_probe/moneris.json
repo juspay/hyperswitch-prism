@@ -10,91 +10,143 @@
     "authorize": {
       "Ach": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: BankDebit(AchBankDebit { account_number: *** alloc::string::String ***, routing_number: *** alloc::string::String ***, card_holder_name: None, bank_account_holder_name: Some(*** alloc::string::String ***), bank_name: None, bank_type: None, bank_holder_type: None })."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankDebit(AchBankDebit { account_number: *** alloc::string::String ***, routing_number: *** alloc::string::String ***, card_holder_name: None, bank_account_holder_name: Some(*** alloc::string::String ***), bank_name: None, bank_type: None, bank_holder_type: None })."
       },
       "AchBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: BankTransfer(AchBankTransfer)."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankTransfer(AchBankTransfer)."
       },
       "Affirm": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: PayLater(AffirmRedirect)."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: PayLater(AffirmRedirect)."
       },
       "Afterpay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: PayLater(AfterpayClearpayRedirect)."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: PayLater(AfterpayClearpayRedirect)."
       },
       "Alfamart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Voucher(Alfamart(AlfamartVoucherData))."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: Voucher(Alfamart(AlfamartVoucherData))."
       },
       "AliPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Wallet(AliPayRedirect(AliPayRedirection))."
+        "error": "This feature is not implemented: Selected payment method through Moneris. Moneris wallet authorize received an unsupported wallet variant: AliPayRedirect(AliPayRedirection)."
       },
       "AmazonPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Wallet(AmazonPayRedirect(AmazonPayRedirectData))."
+        "error": "This feature is not implemented: Selected payment method through Moneris. Moneris wallet authorize received an unsupported wallet variant: AmazonPayRedirect(AmazonPayRedirectData)."
       },
       "ApplePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Wallet(ApplePay(ApplePayWalletData { payment_data: Encrypted(\"eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9\"), payment_method: ApplepayPaymentMethod { display_name: \"Visa 1111\", network: \"Visa\", pm_type: \"debit\" }, transaction_identifier: \"probe_txn_id\" }))."
+        "status": "error",
+        "error": "Failed to encode connector request. Failed to parse Apple Pay encrypted token JSON"
       },
       "ApplePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Wallet(ApplePay(ApplePayWalletData { payment_data: Decrypted(ApplePayDecryptedData { application_primary_account_number: CardNumber(411111**********), application_expiration_month: *** alloc::string::String ***, application_expiration_year: *** alloc::string::String ***, payment_data: ApplePayCryptogramData { online_payment_cryptogram: *** alloc::string::String ***, eci_indicator: Some(\"05\") } }), payment_method: ApplepayPaymentMethod { display_name: \"Visa 1111\", network: \"Visa\", pm_type: \"debit\" }, transaction_identifier: \"probe_txn_id\" }))."
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay_sdk": {
+              "payment_data": {
+                "decrypted_data": {
+                  "application_primary_account_number": "4111111111111111",
+                  "application_expiration_month": "03",
+                  "application_expiration_year": "2030",
+                  "payment_data": {
+                    "online_payment_cryptogram": "AAAAAA==",
+                    "eci_indicator": "05"
+                  }
+                }
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type": "debit"
+              },
+              "transaction_identifier": "probe_txn_id"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.sb.moneris.io/payments",
+          "method": "Post",
+          "headers": {
+            "api-version": "2026-08-14",
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-merchant-id": "probe_merchant"
+          },
+          "body": "{\"idempotencyKey\":\"auth_probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"amount\":1000},\"paymentMethod\":{\"paymentMethodSource\":\"APPLE_PAY_DECRYPTED\",\"applicationPrimaryAccountNumber\":\"4111111111111111\",\"expiryMonth\":3,\"expiryYear\":2030,\"dataType\":\"THREE_D_SECURE\",\"cryptogram\":\"AAAAAA==\",\"cardBrand\":\"VISA\",\"walletEcommerceIndicator\":\"05\",\"walletIndicator\":\"IN_APPLICATION\"},\"automaticCapture\":true}"
+        }
       },
       "ApplePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Wallet(ApplePayThirdPartySdk(ApplePayThirdPartySdkData { token: Some(*** alloc::string::String ***) }))."
+        "error": "This feature is not implemented: Selected payment method through Moneris. Moneris wallet authorize received an unsupported wallet variant: ApplePayThirdPartySdk(ApplePayThirdPartySdkData { token: Some(*** alloc::string::String ***) })."
       },
       "Bacs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: BankDebit(BacsBankDebit { account_number: *** alloc::string::String ***, sort_code: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) })."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankDebit(BacsBankDebit { account_number: *** alloc::string::String ***, sort_code: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) })."
       },
       "BacsBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: BankTransfer(BacsBankTransfer)."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankTransfer(BacsBankTransfer)."
       },
       "BancontactCard": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: BankRedirect(BancontactCard { card_number: Some(CardNumber(411111**********)), card_exp_month: Some(*** alloc::string::String ***), card_exp_year: Some(*** alloc::string::String ***), card_holder_name: Some(*** alloc::string::String ***) })."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankRedirect(BancontactCard { card_number: Some(CardNumber(411111**********)), card_exp_month: Some(*** alloc::string::String ***), card_exp_year: Some(*** alloc::string::String ***), card_holder_name: Some(*** alloc::string::String ***) })."
       },
       "BcaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: BankTransfer(BcaBankTransfer)."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankTransfer(BcaBankTransfer)."
       },
       "Becs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: BankDebit(BecsBankDebit { account_number: *** alloc::string::String ***, bsb_number: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) })."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankDebit(BecsBankDebit { account_number: *** alloc::string::String ***, bsb_number: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) })."
       },
       "BillDeskRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Wallet(BillDeskRedirect(BillDeskRedirection))."
+        "error": "This feature is not implemented: Selected payment method through Moneris. Moneris wallet authorize received an unsupported wallet variant: BillDeskRedirect(BillDeskRedirection)."
       },
       "Bizum": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: BankRedirect(Bizum)."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankRedirect(Bizum)."
       },
       "Blik": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: BankRedirect(Blik { blik_code: Some(\"777124\") })."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankRedirect(Blik { blik_code: Some(\"777124\") })."
       },
       "Bluecode": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Wallet(BluecodeRedirect)."
+        "error": "This feature is not implemented: Selected payment method through Moneris. Moneris wallet authorize received an unsupported wallet variant: BluecodeRedirect."
       },
       "BniVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: BankTransfer(BniVaBankTransfer)."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankTransfer(BniVaBankTransfer)."
       },
       "Boleto": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Voucher(Boleto(BoletoVoucherData { social_security_number: None, expiration_date: None }))."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: Voucher(Boleto(BoletoVoucherData { social_security_number: None, expiration_date: None }))."
       },
       "BriVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: BankTransfer(BriVaBankTransfer)."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankTransfer(BriVaBankTransfer)."
       },
       "Card": {
         "status": "supported",
@@ -142,19 +194,19 @@
       },
       "CashappQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Wallet(CashappQr(CashappQr))."
+        "error": "This feature is not implemented: Selected payment method through Moneris. Moneris wallet authorize received an unsupported wallet variant: CashappQr(CashappQr)."
       },
       "CashfreeRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Wallet(CashfreeRedirect(CashfreeRedirection))."
+        "error": "This feature is not implemented: Selected payment method through Moneris. Moneris wallet authorize received an unsupported wallet variant: CashfreeRedirect(CashfreeRedirection)."
       },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: BankTransfer(CimbVaBankTransfer)."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankTransfer(CimbVaBankTransfer)."
       },
       "ClassicReward": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Reward."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: Reward."
       },
       "Crypto": {
         "status": "not_supported",
@@ -162,11 +214,11 @@
       },
       "Dana": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Wallet(DanaRedirect)."
+        "error": "This feature is not implemented: Selected payment method through Moneris. Moneris wallet authorize received an unsupported wallet variant: DanaRedirect."
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: BankTransfer(DanamonVaBankTransfer)."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankTransfer(DanamonVaBankTransfer)."
       },
       "DuitNow": {
         "status": "not_supported",
@@ -174,35 +226,35 @@
       },
       "EVoucher": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Reward."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: Reward."
       },
       "EaseBuzzRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Wallet(EaseBuzzRedirect(EaseBuzzRedirection))."
+        "error": "This feature is not implemented: Selected payment method through Moneris. Moneris wallet authorize received an unsupported wallet variant: EaseBuzzRedirect(EaseBuzzRedirection)."
       },
       "Efecty": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Voucher(Efecty)."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: Voucher(Efecty)."
       },
       "Eft": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: BankRedirect(Eft { provider: \"ozow\" })."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankRedirect(Eft { provider: \"ozow\" })."
       },
       "Eps": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: BankRedirect(Eps { bank_name: None, country: None })."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankRedirect(Eps { bank_name: None, country: None })."
       },
       "FamilyMart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Voucher(FamilyMart(JCSVoucherData))."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: Voucher(FamilyMart(JCSVoucherData))."
       },
       "GCash": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Wallet(GcashRedirect(GcashRedirection))."
+        "error": "This feature is not implemented: Selected payment method through Moneris. Moneris wallet authorize received an unsupported wallet variant: GcashRedirect(GcashRedirection)."
       },
       "Giropay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: BankRedirect(Giropay { bank_account_bic: None, bank_account_iban: None, country: None })."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankRedirect(Giropay { bank_account_bic: None, bank_account_iban: None, country: None })."
       },
       "Givex": {
         "status": "not_supported",
@@ -210,87 +262,137 @@
       },
       "GoPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Wallet(GoPayRedirect(GoPayRedirection))."
+        "error": "This feature is not implemented: Selected payment method through Moneris. Moneris wallet authorize received an unsupported wallet variant: GoPayRedirect(GoPayRedirection)."
       },
       "GooglePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Wallet(GooglePay(GooglePayWalletData { pm_type: \"CARD\", description: \"Visa 1111\", info: GooglePayPaymentMethodInfo { card_network: \"VISA\", card_details: \"1111\", assurance_details: None }, tokenization_data: Encrypted(GpayEncryptedTokenizationData { token_type: \"PAYMENT_GATEWAY\", token: \"{\\\"id\\\":\\\"tok_probe_gpay\\\",\\\"object\\\":\\\"token\\\",\\\"type\\\":\\\"card\\\"}\" }) }))."
+        "status": "error",
+        "error": "Failed to encode connector request. Failed to parse Google Pay encrypted token JSON"
       },
       "GooglePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Wallet(GooglePay(GooglePayWalletData { pm_type: \"CARD\", description: \"Visa 1111\", info: GooglePayPaymentMethodInfo { card_network: \"VISA\", card_details: \"1111\", assurance_details: None }, tokenization_data: Decrypted(GooglePayDecryptedData { card_exp_month: *** alloc::string::String ***, card_exp_year: *** alloc::string::String ***, application_primary_account_number: CardNumber(411111**********), cryptogram: Some(*** alloc::string::String ***), eci_indicator: Some(\"05\") }) }))."
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay_sdk": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "decrypted_data": {
+                  "card_exp_month": "03",
+                  "card_exp_year": "2030",
+                  "application_primary_account_number": "4111111111111111",
+                  "cryptogram": "AAAAAA==",
+                  "eci_indicator": "05"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.sb.moneris.io/payments",
+          "method": "Post",
+          "headers": {
+            "api-version": "2026-08-14",
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-merchant-id": "probe_merchant"
+          },
+          "body": "{\"idempotencyKey\":\"auth_probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"amount\":1000},\"paymentMethod\":{\"paymentMethodSource\":\"GOOGLE_PAY_DECRYPTED\",\"walletSource\":\"TOKENIZED_CARD\",\"cardBrand\":\"VISA\",\"walletIndicator\":\"IN_BROWSER\",\"cardDetails\":{\"personalAccountNumber\":\"4111111111111111\",\"expiryMonth\":3,\"expiryYear\":2030,\"cryptogram\":\"AAAAAA==\",\"walletEcommerceIndicator\":\"05\"}},\"automaticCapture\":true}"
+        }
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Wallet(GooglePayThirdPartySdk(GooglePayThirdPartySdkData { token: Some(*** alloc::string::String ***) }))."
+        "error": "This feature is not implemented: Selected payment method through Moneris. Moneris wallet authorize received an unsupported wallet variant: GooglePayThirdPartySdk(GooglePayThirdPartySdkData { token: Some(*** alloc::string::String ***) })."
       },
       "Ideal": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: BankRedirect(Ideal { bank_name: None })."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankRedirect(Ideal { bank_name: None })."
       },
       "Indomaret": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Voucher(Indomaret(IndomaretVoucherData))."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: Voucher(Indomaret(IndomaretVoucherData))."
       },
       "IndonesianBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: BankTransfer(IndonesianBankTransfer { bank_name: None })."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankTransfer(IndonesianBankTransfer { bank_name: None })."
       },
       "InstantBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: BankTransfer(InstantBankTransfer)."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankTransfer(InstantBankTransfer)."
       },
       "InstantBankTransferFinland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: BankTransfer(InstantBankTransferFinland)."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankTransfer(InstantBankTransferFinland)."
       },
       "InstantBankTransferPoland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: BankTransfer(InstantBankTransferPoland)."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankTransfer(InstantBankTransferPoland)."
       },
       "Interac": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: BankRedirect(Interac { country: None, email: None })."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankRedirect(Interac { country: None, email: None })."
       },
       "KakaoPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Wallet(KakaoPayRedirect(KakaoPayRedirection))."
+        "error": "This feature is not implemented: Selected payment method through Moneris. Moneris wallet authorize received an unsupported wallet variant: KakaoPayRedirect(KakaoPayRedirection)."
       },
       "Klarna": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: PayLater(KlarnaRedirect)."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: PayLater(KlarnaRedirect)."
       },
       "Lawson": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Voucher(Lawson(JCSVoucherData))."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: Voucher(Lawson(JCSVoucherData))."
       },
       "LazyPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Wallet(LazyPayRedirect(LazyPayRedirection))."
+        "error": "This feature is not implemented: Selected payment method through Moneris. Moneris wallet authorize received an unsupported wallet variant: LazyPayRedirect(LazyPayRedirection)."
       },
       "LocalBankRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: BankRedirect(LocalBankRedirect)."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankRedirect(LocalBankRedirect)."
       },
       "LocalBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: BankTransfer(LocalBankTransfer { bank_code: None })."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankTransfer(LocalBankTransfer { bank_code: None })."
       },
       "MandiriVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: BankTransfer(MandiriVaBankTransfer)."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankTransfer(MandiriVaBankTransfer)."
       },
       "MbWay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Wallet(MbWay(MbWayData))."
+        "error": "This feature is not implemented: Selected payment method through Moneris. Moneris wallet authorize received an unsupported wallet variant: MbWay(MbWayData)."
       },
       "Mifinity": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Wallet(Mifinity(MifinityData { date_of_birth: *** time::date::Date ***, language_preference: Some(\"en\") }))."
+        "error": "This feature is not implemented: Selected payment method through Moneris. Moneris wallet authorize received an unsupported wallet variant: Mifinity(MifinityData { date_of_birth: *** time::date::Date ***, language_preference: Some(\"en\") })."
       },
       "MiniStop": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Voucher(MiniStop(JCSVoucherData))."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: Voucher(MiniStop(JCSVoucherData))."
       },
       "MobilePayRedirect": {
         "status": "not_supported",
@@ -298,43 +400,43 @@
       },
       "Momo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Wallet(MomoRedirect(MomoRedirection))."
+        "error": "This feature is not implemented: Selected payment method through Moneris. Moneris wallet authorize received an unsupported wallet variant: MomoRedirect(MomoRedirection)."
       },
       "MultibancoBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: BankTransfer(MultibancoBankTransfer)."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankTransfer(MultibancoBankTransfer)."
       },
       "Netbanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: BankRedirect(Netbanking { issuer: HdfcBank })."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankRedirect(Netbanking { issuer: HdfcBank })."
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: BankRedirect(OnlineBankingCzechRepublic { issuer: CeskaSporitelna })."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankRedirect(OnlineBankingCzechRepublic { issuer: CeskaSporitelna })."
       },
       "OnlineBankingFinland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: BankRedirect(OnlineBankingFinland { email: Some(Email(****@example.com)) })."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankRedirect(OnlineBankingFinland { email: Some(Email(****@example.com)) })."
       },
       "OnlineBankingFpx": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: BankRedirect(OnlineBankingFpx { issuer: Maybank })."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankRedirect(OnlineBankingFpx { issuer: Maybank })."
       },
       "OnlineBankingPoland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: BankRedirect(OnlineBankingPoland { issuer: BankPekaoSa })."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankRedirect(OnlineBankingPoland { issuer: BankPekaoSa })."
       },
       "OnlineBankingSlovakia": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: BankRedirect(OnlineBankingSlovakia { issuer: TatraPay })."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankRedirect(OnlineBankingSlovakia { issuer: TatraPay })."
       },
       "OnlineBankingThailand": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: BankRedirect(OnlineBankingThailand { issuer: BangkokBank })."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankRedirect(OnlineBankingThailand { issuer: BangkokBank })."
       },
       "OpenBanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: BankRedirect(OpenBanking { account_number: None, sort_code: None, iban: None, account_holder_name: None, additional_details: None })."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankRedirect(OpenBanking { account_number: None, sort_code: None, iban: None, account_holder_name: None, additional_details: None })."
       },
       "OpenBankingPis": {
         "status": "not_supported",
@@ -342,35 +444,35 @@
       },
       "OpenBankingUk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: BankRedirect(OpenBankingUk { issuer: None, country: None })."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankRedirect(OpenBankingUk { issuer: None, country: None })."
       },
       "Oxxo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Voucher(Oxxo)."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: Voucher(Oxxo)."
       },
       "PagoEfectivo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Voucher(PagoEfectivo)."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: Voucher(PagoEfectivo)."
       },
       "PayEasy": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Voucher(PayEasy(JCSVoucherData))."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: Voucher(PayEasy(JCSVoucherData))."
       },
       "PaySafeCard": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: GiftCard(PaySafeCard)."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: GiftCard(PaySafeCard)."
       },
       "PayURedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Wallet(PayURedirect(PayURedirection))."
+        "error": "This feature is not implemented: Selected payment method through Moneris. Moneris wallet authorize received an unsupported wallet variant: PayURedirect(PayURedirection)."
       },
       "PaypalRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Wallet(PaypalRedirect(PaypalRedirection { email: Some(Email(****@example.com)) }))."
+        "error": "This feature is not implemented: Selected payment method through Moneris. Moneris wallet authorize received an unsupported wallet variant: PaypalRedirect(PaypalRedirection { email: Some(Email(****@example.com)) })."
       },
       "PaypalSdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Wallet(PaypalSdk(PayPalWalletData { token: \"probe_paypal_sdk_token\" }))."
+        "error": "This feature is not implemented: Selected payment method through Moneris. Moneris wallet authorize received an unsupported wallet variant: PaypalSdk(PayPalWalletData { token: \"probe_paypal_sdk_token\" })."
       },
       "Paysera": {
         "status": "not_supported",
@@ -382,111 +484,111 @@
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: BankTransfer(PermataBankTransfer)."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankTransfer(PermataBankTransfer)."
       },
       "PhonePeRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Wallet(PhonePeRedirect(PhonePeRedirection))."
+        "error": "This feature is not implemented: Selected payment method through Moneris. Moneris wallet authorize received an unsupported wallet variant: PhonePeRedirect(PhonePeRedirection)."
       },
       "Pix": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: BankTransfer(Pix { pix_key: None, cpf: None, cnpj: None, source_bank_account_id: None, destination_bank_account_id: None, expiry_date: None })."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankTransfer(Pix { pix_key: None, cpf: None, cnpj: None, source_bank_account_id: None, destination_bank_account_id: None, expiry_date: None })."
       },
       "Przelewy24": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: BankRedirect(Przelewy24 { bank_name: None })."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankRedirect(Przelewy24 { bank_name: None })."
       },
       "Pse": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: BankTransfer(Pse)."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankTransfer(Pse)."
       },
       "RedCompra": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Voucher(RedCompra)."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: Voucher(RedCompra)."
       },
       "RedPagos": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Voucher(RedPagos)."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: Voucher(RedPagos)."
       },
       "RevolutPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Wallet(RevolutPay(RevolutPayData))."
+        "error": "This feature is not implemented: Selected payment method through Moneris. Moneris wallet authorize received an unsupported wallet variant: RevolutPay(RevolutPayData)."
       },
       "SamsungPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Wallet(SamsungPay(SamsungPayWalletData { payment_credential: SamsungPayWalletCredentials { method: Some(\"3DS\"), recurring_payment: Some(false), card_brand: Visa, dpan_last_four_digits: None, card_last_four_digits: \"1234\", token_data: SamsungPayTokenData { three_ds_type: Some(\"S\"), version: \"100\", data: *** alloc::string::String *** } } }))."
+        "error": "This feature is not implemented: Selected payment method through Moneris. Moneris wallet authorize received an unsupported wallet variant: SamsungPay(SamsungPayWalletData { payment_credential: SamsungPayWalletCredentials { method: Some(\"3DS\"), recurring_payment: Some(false), card_brand: Visa, dpan_last_four_digits: None, card_last_four_digits: \"1234\", token_data: SamsungPayTokenData { three_ds_type: Some(\"S\"), version: \"100\", data: *** alloc::string::String *** } } })."
       },
       "Satispay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Wallet(Satispay(SatispayData))."
+        "error": "This feature is not implemented: Selected payment method through Moneris. Moneris wallet authorize received an unsupported wallet variant: Satispay(SatispayData)."
       },
       "Seicomart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Voucher(Seicomart(JCSVoucherData))."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: Voucher(Seicomart(JCSVoucherData))."
       },
       "Sepa": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: BankDebit(SepaBankDebit { iban: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) })."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankDebit(SepaBankDebit { iban: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) })."
       },
       "SepaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: BankTransfer(SepaBankTransfer)."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankTransfer(SepaBankTransfer)."
       },
       "SepaGuaranteedDebit": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: BankDebit(SepaGuaranteedBankDebit { iban: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) })."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankDebit(SepaGuaranteedBankDebit { iban: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) })."
       },
       "SevenEleven": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Voucher(SevenEleven(JCSVoucherData))."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: Voucher(SevenEleven(JCSVoucherData))."
       },
       "Skrill": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Wallet(Skrill(SkrillData))."
+        "error": "This feature is not implemented: Selected payment method through Moneris. Moneris wallet authorize received an unsupported wallet variant: Skrill(SkrillData)."
       },
       "Sofort": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: BankRedirect(Sofort { country: None, preferred_language: None })."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankRedirect(Sofort { country: None, preferred_language: None })."
       },
       "Swish": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Wallet(SwishQr(SwishQrData))."
+        "error": "This feature is not implemented: Selected payment method through Moneris. Moneris wallet authorize received an unsupported wallet variant: SwishQr(SwishQrData)."
       },
       "TouchNGo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Wallet(TouchNGoRedirect(TouchNGoRedirection))."
+        "error": "This feature is not implemented: Selected payment method through Moneris. Moneris wallet authorize received an unsupported wallet variant: TouchNGoRedirect(TouchNGoRedirection)."
       },
       "Trustly": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: BankRedirect(Trustly { country: None })."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankRedirect(Trustly { country: None })."
       },
       "Twint": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Wallet(TwintRedirect)."
+        "error": "This feature is not implemented: Selected payment method through Moneris. Moneris wallet authorize received an unsupported wallet variant: TwintRedirect."
       },
       "UpiCollect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Upi(UpiCollect(UpiCollectData { vpa_id: Some(****@upi), upi_source: None }))."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: Upi(UpiCollect(UpiCollectData { vpa_id: Some(****@upi), upi_source: None }))."
       },
       "UpiIntent": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Upi(UpiIntent(UpiIntentData { upi_source: None, app_name: None }))."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: Upi(UpiIntent(UpiIntentData { upi_source: None, app_name: None }))."
       },
       "UpiQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Upi(UpiQr(UpiQrData { upi_source: None }))."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: Upi(UpiQr(UpiQrData { upi_source: None }))."
       },
       "Vipps": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Wallet(VippsRedirect)."
+        "error": "This feature is not implemented: Selected payment method through Moneris. Moneris wallet authorize received an unsupported wallet variant: VippsRedirect."
       },
       "WeChatPayQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Wallet(WeChatPayQr(WeChatPayQr))."
+        "error": "This feature is not implemented: Selected payment method through Moneris. Moneris wallet authorize received an unsupported wallet variant: WeChatPayQr(WeChatPayQr)."
       },
       "Wero": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: Wallet(Wero(WeroData))."
+        "error": "This feature is not implemented: Selected payment method through Moneris. Moneris wallet authorize received an unsupported wallet variant: Wero(WeroData)."
       }
     },
     "capture": {
@@ -806,7 +908,7 @@
     "token_authorize": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: PaymentMethodToken(PaymentMethodToken { token: *** alloc::string::String *** })."
+        "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: PaymentMethodToken(PaymentMethodToken { token: *** alloc::string::String *** })."
       }
     },
     "token_setup_recurring": {
