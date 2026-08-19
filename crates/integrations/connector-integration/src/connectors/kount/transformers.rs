@@ -927,8 +927,6 @@ pub struct KountAccount {
     pub id: Option<String>,
     #[serde(rename = "type")]
     pub account_type: KountAccountType,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub username: Option<String>,
     /// Whether the account is active. Omitted when unknown (the FRM request
     /// carries no account-status signal).
     #[serde(rename = "accountIsActive", skip_serializing_if = "Option::is_none")]
@@ -1192,6 +1190,19 @@ pub struct KountPerson {
     pub address: Option<KountAddress>,
 }
 
+impl KountPerson {
+    /// Fill missing contact fields from a fallback person, leaving name and
+    /// postal address untouched. The receiver's own values always win, so an
+    /// address-supplied email or phone is never overwritten.
+    fn fill_contact_from(mut self, fallback: &Self) -> Self {
+        self.email_address = self
+            .email_address
+            .or_else(|| fallback.email_address.clone());
+        self.phone_number = self.phone_number.or_else(|| fallback.phone_number.clone());
+        self
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct KountName {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1269,12 +1280,10 @@ fn kount_person_from_address(addr: &Address) -> Option<KountPerson> {
         .email
         .as_ref()
         .map(|email| Secret::new(email.peek().to_string()));
-    let phone_number = addr.phone.as_ref().and_then(|phone| {
-        phone
-            .number
-            .as_ref()
-            .map(|num| Secret::new(num.peek().to_string()))
-    });
+    let phone_number = addr
+        .phone
+        .as_ref()
+        .and_then(|phone| e123_phone(phone.country_code.as_deref(), phone.number.as_ref()?.peek()));
     if name.is_none()
         && kount_address.is_none()
         && email_address.is_none()
@@ -1290,8 +1299,11 @@ fn kount_person_from_address(addr: &Address) -> Option<KountPerson> {
     })
 }
 
-/// Fallback person block from customer info (name / email / phone, no address).
-/// `None` when the customer carries no usable fields.
+/// Person block from customer info (name / email / phone, no address). Serves
+/// the billed person two ways: wholesale when there is no billing address at
+/// all, and via [`KountPerson::fill_contact_from`] to supply an email or phone
+/// the billing address left out. `None` when the customer carries no usable
+/// fields.
 fn kount_person_from_customer(customer: &CustomerInfo) -> Option<KountPerson> {
     let first = customer
         .first_name
@@ -1305,10 +1317,12 @@ fn kount_person_from_customer(customer: &CustomerInfo) -> Option<KountPerson> {
         .customer_email
         .as_ref()
         .map(|email| Secret::new(email.peek().to_string()));
-    let phone_number = customer
-        .customer_phone_number
-        .as_ref()
-        .map(|phone| Secret::new(phone.peek().to_string()));
+    let phone_number = customer.customer_phone_number.as_ref().and_then(|phone| {
+        e123_phone(
+            customer.customer_phone_country_code.as_deref(),
+            phone.peek(),
+        )
+    });
     if first.is_none() && last.is_none() && email_address.is_none() && phone_number.is_none() {
         return None;
     }
@@ -1562,6 +1576,43 @@ pub(super) fn non_empty_secret(value: Option<Secret<String>>) -> Option<Secret<S
     })
 }
 
+/// Format a phone number in E.123 international notation (`+<country><number>`),
+/// which is the format Kount documents for its `phoneNumber` fields. Fail-soft
+/// like the rest of this module: an unusable part yields the best string we can
+/// build rather than dropping the number or failing the order.
+///
+/// The number is emitted *compact* (`+447700900123`), without E.123's optional
+/// visual separators — grouping digits correctly is country-specific and we have
+/// no phone-number library here. The `+` and country code are the parts that
+/// carry meaning for Kount's cross-order matching.
+///
+/// A national trunk `0` is deliberately **not** stripped, so a caller sending
+/// country code `44` with number `07700900123` yields `+4407700900123`. Dropping
+/// the zero is wrong for the countries that keep it (Italy, notably), and the
+/// separate `phone_country_code` field implies callers send the national
+/// significant number rather than the dialling form.
+pub(super) fn e123_phone(country_code: Option<&str>, number: &str) -> Option<Secret<String>> {
+    let number = number.trim();
+    if number.is_empty() {
+        return None;
+    }
+    // Already international — the caller did the work, don't double-prefix.
+    if number.starts_with('+') {
+        return Some(Secret::new(number.to_owned()));
+    }
+    // `+44`, `44` and `0044` all mean the same country; normalise to bare digits.
+    let country_code = country_code
+        .map(str::trim)
+        .map(|code| code.trim_start_matches('+'))
+        .map(|code| code.strip_prefix("00").unwrap_or(code))
+        .filter(|code| !code.is_empty());
+    Some(Secret::new(match country_code {
+        Some(code) => format!("+{code}{number}"),
+        // No country to prefix — send the bare number rather than nothing.
+        None => number.to_owned(),
+    }))
+}
+
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         KountRouterData<
@@ -1635,11 +1686,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .customer_id
                 .as_ref()
                 .map(|id| id.get_string_repr().to_string()),
-            username: customer
-                .customer_email
-                .as_ref()
-                .map(|email| email.peek().to_string())
-                .or_else(|| customer.get_full_name().map(|name| name.peek().to_string())),
             // No account-status signal in the FRM request, so leave it unset.
             account_is_active: None,
             creation_date_time: account_created_at,
@@ -1697,14 +1743,25 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // carries a real PaymentAddress with independently-set billing and
         // shipping addresses (see FrmServicePreRiskCheckRequest.address).
         let address = req.address.as_ref();
-        let billed_person = address
+        let customer_person = req
+            .customer_info
+            .as_ref()
+            .and_then(kount_person_from_customer);
+        let billed_person = match address
             .and_then(|addr| addr.get_payment_billing())
             .and_then(kount_person_from_address)
-            .or_else(|| {
-                req.customer_info
-                    .as_ref()
-                    .and_then(kount_person_from_customer)
-            });
+        {
+            // The billing address wins per field; customer info fills only the
+            // gaps, so an address carrying just a name still sends Kount the
+            // customer's email and phone. Name and postal address stay as the
+            // address supplied them.
+            Some(person) => Some(match customer_person.as_ref() {
+                Some(customer) => person.fill_contact_from(customer),
+                None => person,
+            }),
+            // No usable billing address — fall back to the customer wholesale.
+            None => customer_person,
+        };
         // Fulfillment recipient: built entirely from the shipping address (name,
         // email, phone, and postal address) — no fallback to customer_info or to
         // billing. If no shipping address was supplied, no fulfillment recipient
