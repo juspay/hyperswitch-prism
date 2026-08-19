@@ -304,6 +304,7 @@ impl
             .or_else(|| item.connector_order_id.clone());
 
         Self {
+            split_settlement: None, // TODO: thread split settlement through composite
             merchant_transaction_id: item.merchant_transaction_id.clone(),
             amount: item.amount,
             order_tax_amount: item.order_tax_amount,
@@ -470,6 +471,7 @@ impl
         });
 
         Self {
+            split_settlement_refund: None, // TODO: thread split settlement through composite
             merchant_refund_id: item.merchant_refund_id.clone(),
             connector_transaction_id: item.connector_transaction_id.clone(),
             payment_amount: item.payment_amount,
@@ -801,6 +803,7 @@ impl
         });
 
         Self {
+            split_settlement: None, // TODO: thread split settlement through composite
             merchant_capture_id: item.merchant_capture_id.clone(),
             connector_transaction_id: item.connector_transaction_id.clone(),
             amount_to_capture: item.amount_to_capture,
@@ -1162,6 +1165,7 @@ impl
         });
 
         Self {
+            split_settlement: None, // TODO: thread split settlement through composite
             merchant_transaction_id: request.merchant_transaction_id.clone(),
             merchant_order_id: request.merchant_order_id.clone(),
             amount: request.amount,
