@@ -49,41 +49,40 @@ impl TryFrom<&ConnectorSpecificConfig> for WorldpayxmlAuthType {
     }
 }
 
+/// Maps the `lastEvent` of a FastAccess disbursement onto a payout status.
+///
+/// Only the push (and merchant settlement) events belong to a disbursement lifecycle. Anything
+/// else — a refund-family event in particular — means the order we inquired about is not the
+/// payout we believe it is, so it is surfaced as a protocol violation rather than being coerced
+/// into a plausible-looking status.
 fn map_worldpayxml_payout_status(
     last_event: &responses::WorldpayxmlLastEvent,
-) -> common_enums::PayoutStatus {
+    http_code: u16,
+) -> Result<common_enums::PayoutStatus, ConnectorError> {
     use responses::WorldpayxmlLastEvent;
     match last_event {
-        WorldpayxmlLastEvent::Authorised
-        | WorldpayxmlLastEvent::Captured
-        | WorldpayxmlLastEvent::Settled
-        | WorldpayxmlLastEvent::PushApproved
-        | WorldpayxmlLastEvent::SettledByMerchant => common_enums::PayoutStatus::Success,
-        WorldpayxmlLastEvent::PushRequested
-        | WorldpayxmlLastEvent::PushPending
-        | WorldpayxmlLastEvent::SentForAuthorisation
-        | WorldpayxmlLastEvent::QueryRequired
-        | WorldpayxmlLastEvent::CancelReceived
-        | WorldpayxmlLastEvent::RefundReceived
-        | WorldpayxmlLastEvent::RefundRequested => common_enums::PayoutStatus::Pending,
-        WorldpayxmlLastEvent::Cancelled => common_enums::PayoutStatus::Cancelled,
-        WorldpayxmlLastEvent::SentForRefund
-        | WorldpayxmlLastEvent::SentForFastRefund
-        | WorldpayxmlLastEvent::Refunded
-        | WorldpayxmlLastEvent::RefundedByMerchant => common_enums::PayoutStatus::Reversed,
-        WorldpayxmlLastEvent::Refused
-        | WorldpayxmlLastEvent::RefundFailed
-        | WorldpayxmlLastEvent::PushRefused
-        | WorldpayxmlLastEvent::Expired
-        | WorldpayxmlLastEvent::Error => common_enums::PayoutStatus::Failure,
+        WorldpayxmlLastEvent::PushRequested => Ok(common_enums::PayoutStatus::Initiated),
+        WorldpayxmlLastEvent::PushPending => Ok(common_enums::PayoutStatus::Pending),
+        WorldpayxmlLastEvent::Error | WorldpayxmlLastEvent::PushRefused => {
+            Ok(common_enums::PayoutStatus::Failure)
+        }
+        WorldpayxmlLastEvent::PushApproved | WorldpayxmlLastEvent::SettledByMerchant => {
+            Ok(common_enums::PayoutStatus::Success)
+        }
+        WorldpayxmlLastEvent::CancelReceived => Ok(common_enums::PayoutStatus::Cancelled),
         // An unrecognised event says nothing about the payout, so stay non-terminal instead of
-        // guessing at success or failure.
+        // guessing at success or failure. Unlike the payment flows there is no previous status to
+        // retain here, so `Pending` stands in for "unchanged".
         WorldpayxmlLastEvent::Unknown => {
             tracing::warn!(
                 "worldpayxml: unknown lastEvent received for payout; reporting status as pending"
             );
-            common_enums::PayoutStatus::Pending
+            Ok(common_enums::PayoutStatus::Pending)
         }
+        _ => Err(crate::utils::unexpected_response_fail(
+            http_code,
+            "worldpayxml: lastEvent is not part of a FastAccess payout lifecycle.",
+        )),
     }
 }
 
@@ -266,7 +265,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlPayoutTransferResponse, Se
         Ok(Self {
             response: Ok(PayoutTransferResponse {
                 merchant_payout_id: router_data.request.merchant_payout_id.clone(),
-                payout_status: map_worldpayxml_payout_status(&payment.last_event),
+                payout_status: map_worldpayxml_payout_status(&payment.last_event, item.http_code)?,
                 connector_payout_id: Some(order_status.order_code.clone()),
                 status_code: item.http_code,
             }),
@@ -358,7 +357,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlPayoutGetResponse, Self>>
         Ok(Self {
             response: Ok(PayoutGetResponse {
                 merchant_payout_id: router_data.request.merchant_payout_id.clone(),
-                payout_status: map_worldpayxml_payout_status(&payment.last_event),
+                payout_status: map_worldpayxml_payout_status(&payment.last_event, item.http_code)?,
                 connector_payout_id: Some(order_status.order_code.clone()),
                 status_code: item.http_code,
             }),

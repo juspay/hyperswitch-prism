@@ -1025,82 +1025,70 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
-// Helper function to map lastEvent to AttemptStatus
+/// Maps the `lastEvent` of a payment order onto an attempt status.
+///
+/// Only the events that belong to an authorisation/capture journey are mapped. A refund- or
+/// payout-family event on a payment order means the response does not describe the order we asked
+/// about, so it is reported as a protocol violation instead of being flattened into `Failure`,
+/// which would be indistinguishable from a genuine decline.
 fn map_worldpayxml_authorize_status(
     last_event: &WorldpayxmlLastEvent,
     is_auto_capture: bool,
     previous_status: Option<&AttemptStatus>,
-) -> AttemptStatus {
+    http_code: u16,
+) -> Result<AttemptStatus, ConnectorError> {
     match last_event {
         WorldpayxmlLastEvent::Authorised => {
             if is_auto_capture {
-                AttemptStatus::Pending
+                // The order was submitted for automatic capture, so an authorisation already
+                // settles the attempt — there is no separate capture to wait for.
+                Ok(AttemptStatus::Charged)
             } else {
                 // Check if we're in CaptureInitiated or VoidInitiated state
-                match previous_status {
+                Ok(match previous_status {
                     Some(AttemptStatus::CaptureInitiated) => AttemptStatus::CaptureInitiated,
                     Some(AttemptStatus::VoidInitiated) => AttemptStatus::VoidInitiated,
                     _ => AttemptStatus::Authorized,
-                }
+                })
             }
         }
-        WorldpayxmlLastEvent::Refused => AttemptStatus::Failure,
-        WorldpayxmlLastEvent::Cancelled => AttemptStatus::Voided,
+        WorldpayxmlLastEvent::Refused => Ok(AttemptStatus::Failure),
+        WorldpayxmlLastEvent::Cancelled => Ok(AttemptStatus::Voided),
         WorldpayxmlLastEvent::Captured
         | WorldpayxmlLastEvent::Settled
-        | WorldpayxmlLastEvent::SettledByMerchant => AttemptStatus::Charged,
-        WorldpayxmlLastEvent::SentForAuthorisation => AttemptStatus::Authorizing,
-        WorldpayxmlLastEvent::SentForRefund
-        | WorldpayxmlLastEvent::SentForFastRefund
-        | WorldpayxmlLastEvent::RefundRequested
-        | WorldpayxmlLastEvent::RefundReceived
-        | WorldpayxmlLastEvent::QueryRequired => AttemptStatus::Pending,
-        WorldpayxmlLastEvent::Refunded | WorldpayxmlLastEvent::RefundedByMerchant => {
-            AttemptStatus::Charged
-        }
-        WorldpayxmlLastEvent::CancelReceived => AttemptStatus::VoidInitiated,
-        WorldpayxmlLastEvent::RefundFailed => AttemptStatus::Failure,
-        WorldpayxmlLastEvent::Expired => AttemptStatus::Failure,
-        WorldpayxmlLastEvent::Error => AttemptStatus::Failure,
-
-        WorldpayxmlLastEvent::PushRequested
-        | WorldpayxmlLastEvent::PushPending
-        | WorldpayxmlLastEvent::PushApproved
-        | WorldpayxmlLastEvent::PushRefused => AttemptStatus::Failure,
-        WorldpayxmlLastEvent::Unknown => retain_previous_attempt_status(previous_status),
+        | WorldpayxmlLastEvent::SettledByMerchant => Ok(AttemptStatus::Charged),
+        WorldpayxmlLastEvent::SentForAuthorisation => Ok(AttemptStatus::Authorizing),
+        WorldpayxmlLastEvent::Unknown => Ok(retain_previous_attempt_status(previous_status)),
+        _ => Err(crate::utils::unexpected_response_fail(
+            http_code,
+            "worldpayxml: lastEvent is not part of a payment authorisation lifecycle.",
+        )),
     }
 }
 
 /// Maps `lastEvent` for a mandate setup, where an authorisation already completes the flow —
 /// there is no capture to wait for on a (usually zero-amount) verification order.
+///
+/// Events outside that journey are rejected for the same reason as
+/// [`map_worldpayxml_authorize_status`].
 fn map_worldpayxml_setup_mandate_status(
     last_event: &WorldpayxmlLastEvent,
     previous_status: Option<&AttemptStatus>,
-) -> AttemptStatus {
+    http_code: u16,
+) -> Result<AttemptStatus, ConnectorError> {
     match last_event {
+        WorldpayxmlLastEvent::Refused => Ok(AttemptStatus::Failure),
+        WorldpayxmlLastEvent::Cancelled => Ok(AttemptStatus::Voided),
         WorldpayxmlLastEvent::Authorised
         | WorldpayxmlLastEvent::Captured
         | WorldpayxmlLastEvent::Settled
-        | WorldpayxmlLastEvent::SettledByMerchant => AttemptStatus::Charged,
-        WorldpayxmlLastEvent::SentForAuthorisation => AttemptStatus::Authorizing,
-        WorldpayxmlLastEvent::Cancelled => AttemptStatus::Voided,
-        WorldpayxmlLastEvent::Refused
-        | WorldpayxmlLastEvent::SentForRefund
-        | WorldpayxmlLastEvent::SentForFastRefund
-        | WorldpayxmlLastEvent::Refunded
-        | WorldpayxmlLastEvent::RefundRequested
-        | WorldpayxmlLastEvent::RefundedByMerchant
-        | WorldpayxmlLastEvent::RefundReceived
-        | WorldpayxmlLastEvent::RefundFailed
-        | WorldpayxmlLastEvent::CancelReceived
-        | WorldpayxmlLastEvent::QueryRequired
-        | WorldpayxmlLastEvent::Expired
-        | WorldpayxmlLastEvent::Error
-        | WorldpayxmlLastEvent::PushRequested
-        | WorldpayxmlLastEvent::PushPending
-        | WorldpayxmlLastEvent::PushApproved
-        | WorldpayxmlLastEvent::PushRefused => AttemptStatus::Failure,
-        WorldpayxmlLastEvent::Unknown => retain_previous_attempt_status(previous_status),
+        | WorldpayxmlLastEvent::SettledByMerchant => Ok(AttemptStatus::Charged),
+        WorldpayxmlLastEvent::SentForAuthorisation => Ok(AttemptStatus::Authorizing),
+        WorldpayxmlLastEvent::Unknown => Ok(retain_previous_attempt_status(previous_status)),
+        _ => Err(crate::utils::unexpected_response_fail(
+            http_code,
+            "worldpayxml: lastEvent is not part of a mandate setup lifecycle.",
+        )),
     }
 }
 
@@ -1262,7 +1250,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             &payment.last_event,
             is_auto_capture,
             Some(&router_data.resource_common_data.status),
-        );
+            item.http_code,
+        )?;
 
         // Build success response
         let payments_response_data = PaymentsResponseData::TransactionResponse {
@@ -1371,7 +1360,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let status = map_worldpayxml_setup_mandate_status(
             &payment.last_event,
             Some(&router_data.resource_common_data.status),
-        );
+            item.http_code,
+        )?;
 
         if status == AttemptStatus::Failure {
             let return_code = payment.iso8583_return_code.as_ref();
@@ -1511,7 +1501,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             &payment.last_event,
             router_data.request.is_auto_capture(),
             Some(&router_data.resource_common_data.status),
-        );
+            item.http_code,
+        )?;
 
         // A refused merchant-initiated payment is the case that most needs its decline detail
         // (retry and dunning logic key off it), so surface the ISO 8583 return code the same
@@ -1842,7 +1833,8 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>
                     &payment.last_event,
                     is_auto_capture,
                     Some(&router_data.resource_common_data.status),
-                );
+                    item.http_code,
+                )?;
 
                 // Build success response
                 let payments_response_data = PaymentsResponseData::TransactionResponse {
@@ -1886,7 +1878,8 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>
                     &webhook_response.payment_status,
                     is_auto_capture,
                     Some(&router_data.resource_common_data.status),
-                );
+                    item.http_code,
+                )?;
 
                 // Build success response
                 let payments_response_data = PaymentsResponseData::TransactionResponse {

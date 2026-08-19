@@ -344,27 +344,26 @@ pub enum WorldpayxmlTransactionResponse {
 
 /// Concrete (never `deserialize_any`) shape covering both bodies a sync call can return, so the
 /// right [`WorldpayxmlTransactionResponse`] variant can be picked without buffering the payload.
+///
+/// The notification half is PascalCase on the wire, so `rename_all` carries it. The
+/// `<paymentService>` half is not — those three keep an explicit rename, and must keep it.
 #[derive(Debug, Deserialize)]
-#[serde(rename = "paymentService")]
+#[serde(rename = "paymentService", rename_all = "PascalCase")]
 struct WorldpayxmlSyncResponseBody {
-    // `<paymentService>` order-inquiry reply.
+    // `<paymentService>` order-inquiry reply: XML attributes and a lowercase element, none of
+    // which follow the notification body's PascalCase convention.
     #[serde(rename = "@version")]
     version: Option<String>,
     #[serde(rename = "@merchantCode")]
     merchant_code: Option<String>,
+    #[serde(rename = "reply")]
     reply: Option<WorldpayxmlReply>,
     // Order-notification body.
-    #[serde(rename = "PaymentAmount")]
     payment_amount: Option<StringMinorUnit>,
-    #[serde(rename = "PaymentId")]
     payment_id: Option<String>,
-    #[serde(rename = "OrderCode")]
     order_code: Option<String>,
-    #[serde(rename = "PaymentStatus")]
     payment_status: Option<WorldpayxmlLastEvent>,
-    #[serde(rename = "ReturnCode")]
     return_code: Option<String>,
-    #[serde(rename = "ReturnMessage")]
     return_message: Option<String>,
 }
 
@@ -408,18 +407,13 @@ impl<'de> Deserialize<'de> for WorldpayxmlTransactionResponse {
 /// `order_code` and `payment_status` are mandatory: making them optional is what let this shape
 /// match every payload and mask genuine parse failures.
 #[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct WorldpayxmlWebhookResponse {
-    #[serde(rename = "PaymentAmount")]
     pub payment_amount: Option<StringMinorUnit>,
-    #[serde(rename = "PaymentId")]
     pub payment_id: Option<String>,
-    #[serde(rename = "OrderCode")]
     pub order_code: String,
-    #[serde(rename = "PaymentStatus")]
     pub payment_status: WorldpayxmlLastEvent,
-    #[serde(rename = "ReturnCode")]
     pub return_code: Option<String>,
-    #[serde(rename = "ReturnMessage")]
     pub return_message: Option<String>,
 }
 
