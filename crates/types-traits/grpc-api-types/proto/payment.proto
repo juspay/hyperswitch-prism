@@ -901,6 +901,7 @@ enum Connector {
   GRABPAY = 135;
   BOOST = 136;
   CITIGATE = 137;
+  ILIXIUM = 138;
 }
 
 // Payment method types
@@ -5657,6 +5658,16 @@ message CitigateConfig {
   optional string base_url = 50;
 }
 
+message IlixiumConfig {
+  // Digest Calculation Password (never transmitted; input to X-MERCHANT-DIGEST)
+  SecretString api_key = 1;
+  // MerchantId - sent in the request body as merchant.merchantId
+  SecretString key1 = 2;
+  // AccountId - sent in the request body as merchant.accountId
+  SecretString api_secret = 3;
+  optional string base_url = 50;
+}
+
 message MonerisConfig {
   SecretString client_secret = 1;
   SecretString merchant_id = 2;
@@ -5984,6 +5995,8 @@ message ConnectorSpecificConfig {
     CitigateConfig citigate = 146;
     // MONERIS = 48
     MonerisConfig moneris = 147;
+    // ILIXIUM = 138
+    IlixiumConfig ilixium = 148;
   }
 }
 
