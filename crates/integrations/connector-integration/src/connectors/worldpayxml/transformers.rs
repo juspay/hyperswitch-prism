@@ -378,8 +378,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let auth = WorldpayxmlAuthType::try_from(&router_data.connector_config)?;
 
         // Determine if manual capture
-        let is_manual_capture = router_data.request.capture_method == Some(CaptureMethod::Manual)
-            || router_data.request.capture_method == Some(CaptureMethod::ManualMultiple);
+        let is_manual_capture = !router_data.request.is_auto_capture();
 
         // Extract billing address first (needed for payment method)
         let billing_address = get_worldpayxml_billing_address(&router_data.resource_common_data);
@@ -541,9 +540,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let router_data = &item.router_data;
         let auth = WorldpayxmlAuthType::try_from(&router_data.connector_config)?;
 
+        // `SetupMandateRequestData` exposes no `is_auto_capture()` helper, so the domain helper's
+        // set of non-automatic capture methods is spelled out here instead.
         let is_manual_capture = matches!(
             router_data.request.capture_method,
-            Some(CaptureMethod::Manual) | Some(CaptureMethod::ManualMultiple)
+            Some(CaptureMethod::Manual)
+                | Some(CaptureMethod::ManualMultiple)
+                | Some(CaptureMethod::Scheduled)
         );
 
         let billing_address = get_worldpayxml_billing_address(&router_data.resource_common_data);
@@ -1053,6 +1056,10 @@ fn map_worldpayxml_authorize_status(
             }
         }
         WorldpayxmlLastEvent::Refused => Ok(AttemptStatus::Failure),
+        // Worldpay expires an authorisation that outlives its auth window (a manual-capture order
+        // left uncaptured, say). The money can never be taken, so this is terminal — not a
+        // protocol violation to error on.
+        WorldpayxmlLastEvent::Expired => Ok(AttemptStatus::Failure),
         WorldpayxmlLastEvent::Cancelled => Ok(AttemptStatus::Voided),
         WorldpayxmlLastEvent::Captured
         | WorldpayxmlLastEvent::Settled
@@ -1078,6 +1085,8 @@ fn map_worldpayxml_setup_mandate_status(
 ) -> Result<AttemptStatus, ConnectorError> {
     match last_event {
         WorldpayxmlLastEvent::Refused => Ok(AttemptStatus::Failure),
+        // See [`map_worldpayxml_authorize_status`]: an expired authorisation is terminal.
+        WorldpayxmlLastEvent::Expired => Ok(AttemptStatus::Failure),
         WorldpayxmlLastEvent::Cancelled => Ok(AttemptStatus::Voided),
         WorldpayxmlLastEvent::Authorised
         | WorldpayxmlLastEvent::Captured
@@ -1143,16 +1152,30 @@ fn get_worldpayxml_mandate_reference(
     })
 }
 
-// Helper function to map lastEvent to RefundStatus
+/// Maps the `lastEvent` of a refund order onto a refund status.
+///
+/// Only the events that belong to a refund journey are mapped. `CAPTURED`/`SETTLED` are included
+/// because Worldpay keeps reporting the underlying capture until the refund itself moves, so they
+/// mean "the refund has not progressed yet" rather than "the refund succeeded". Anything outside
+/// that journey means the response does not describe the order we asked about, so it is reported as
+/// a protocol violation instead of being flattened into `Pending`, which would leave the refund
+/// polling forever.
 fn map_worldpayxml_refund_status(
     last_event: &WorldpayxmlLastEvent,
     previous_status: RefundStatus,
-) -> RefundStatus {
+    http_code: u16,
+) -> Result<RefundStatus, ConnectorError> {
     match last_event {
         WorldpayxmlLastEvent::Refunded | WorldpayxmlLastEvent::RefundedByMerchant => {
-            RefundStatus::Success
+            Ok(RefundStatus::Success)
         }
-        WorldpayxmlLastEvent::RefundFailed => RefundStatus::Failure,
+        WorldpayxmlLastEvent::SentForRefund
+        | WorldpayxmlLastEvent::RefundRequested
+        | WorldpayxmlLastEvent::SentForFastRefund => Ok(RefundStatus::Pending),
+        WorldpayxmlLastEvent::RefundFailed => Ok(RefundStatus::Failure),
+        // An expired order can no longer be refunded, so the refund will never complete.
+        WorldpayxmlLastEvent::Expired => Ok(RefundStatus::Failure),
+        WorldpayxmlLastEvent::Captured | WorldpayxmlLastEvent::Settled => Ok(RefundStatus::Pending),
         WorldpayxmlLastEvent::Unknown => {
             // An unrecognised event says nothing about the refund, so hold the status we already
             // had rather than reporting a terminal one.
@@ -1160,9 +1183,12 @@ fn map_worldpayxml_refund_status(
                 retained_status = ?previous_status,
                 "worldpayxml: unknown lastEvent received; retaining previous refund status"
             );
-            previous_status
+            Ok(previous_status)
         }
-        _ => RefundStatus::Pending, // Refund is still in flight
+        _ => Err(crate::utils::unexpected_response_fail(
+            http_code,
+            "worldpayxml: lastEvent is not part of a refund lifecycle.",
+        )),
     }
 }
 
@@ -1241,14 +1267,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             crate::utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
         )?;
 
-        // Determine if auto-capture
-        let is_auto_capture = router_data.request.capture_method != Some(CaptureMethod::Manual)
-            && router_data.request.capture_method != Some(CaptureMethod::ManualMultiple);
-
         // Map status from lastEvent
         let status = map_worldpayxml_authorize_status(
             &payment.last_event,
-            is_auto_capture,
+            router_data.request.is_auto_capture(),
             Some(&router_data.resource_common_data.status),
             item.http_code,
         )?;
@@ -1765,7 +1787,9 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>
                 // Special handling: If error exists but payment is None, return current status (don't fail)
                 if let Some(error) = &order_status.error {
                     if order_status.payment.is_none() {
-                        // Error exists but no payment data - return current status as Pending
+                        // An inquiry-level error with no payment element says nothing about the
+                        // order itself, so hold the status we already had. Overwriting it would
+                        // walk a terminal attempt (a Charged one, say) back to Pending.
                         let payments_response_data = PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::ConnectorTransactionId(
                                 order_status.order_code.clone(),
@@ -1782,10 +1806,6 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>
                         };
 
                         return Ok(Self {
-                            resource_common_data: PaymentFlowData {
-                                status: AttemptStatus::Pending,
-                                ..router_data.resource_common_data.clone()
-                            },
                             response: Ok(payments_response_data),
                             ..router_data.clone()
                         });
@@ -1823,15 +1843,10 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>
                     "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
                 )?;
 
-                // Determine if auto-capture from request data
-                let is_auto_capture = router_data.request.capture_method
-                    != Some(CaptureMethod::Manual)
-                    && router_data.request.capture_method != Some(CaptureMethod::ManualMultiple);
-
                 // Map status from lastEvent - reuse the helper function
                 let status = map_worldpayxml_authorize_status(
                     &payment.last_event,
-                    is_auto_capture,
+                    router_data.request.is_auto_capture(),
                     Some(&router_data.resource_common_data.status),
                     item.http_code,
                 )?;
@@ -1868,15 +1883,10 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>
                 // Process order-notification body
                 let order_code = webhook_response.order_code.clone();
 
-                // Determine if auto-capture from request data
-                let is_auto_capture = router_data.request.capture_method
-                    != Some(CaptureMethod::Manual)
-                    && router_data.request.capture_method != Some(CaptureMethod::ManualMultiple);
-
                 // Map status from PaymentStatus
                 let status = map_worldpayxml_authorize_status(
                     &webhook_response.payment_status,
-                    is_auto_capture,
+                    router_data.request.is_auto_capture(),
                     Some(&router_data.resource_common_data.status),
                     item.http_code,
                 )?;
@@ -2033,7 +2043,8 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlRsyncResponse, Self>>
                 let refund_status = map_worldpayxml_refund_status(
                     &payment.last_event,
                     router_data.request.refund_status,
-                );
+                    item.http_code,
+                )?;
 
                 // Check if refund failed and extract error details from ISO8583ReturnCode
                 if refund_status == RefundStatus::Failure {
@@ -2080,7 +2091,8 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlRsyncResponse, Self>>
                 let refund_status = map_worldpayxml_refund_status(
                     &webhook_response.payment_status,
                     router_data.request.refund_status,
-                );
+                    item.http_code,
+                )?;
 
                 // Build success response
                 let refunds_response_data = RefundsResponseData {
