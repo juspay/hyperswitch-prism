@@ -2299,12 +2299,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let adyen_metadata =
             get_adyen_metadata(item.router_data.request.metadata.clone().expose_option());
-        let (store, splits) = match item.router_data.request.split_payments.as_ref() {
-            Some(SplitPaymentsDetails::AdyenSplitPayment(adyen_split_payment)) => {
-                get_adyen_split_request(adyen_split_payment, item.router_data.request.currency)
-            }
-            _ => (adyen_metadata.store.clone(), None),
-        };
+        let (store, splits) = resolve_adyen_split(
+            item.router_data.request.split_settlement.as_ref(),
+            item.router_data.request.split_payments.as_ref(),
+            item.router_data.request.currency,
+        )
+        .unwrap_or_else(|| (adyen_metadata.store.clone(), None));
         let device_fingerprint = adyen_metadata.device_fingerprint.clone();
         let platform_chargeback_logic = adyen_metadata.platform_chargeback_logic.clone();
         let country_code =
@@ -3069,12 +3069,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let adyen_metadata =
             get_adyen_metadata(item.router_data.request.metadata.clone().expose_option());
 
-        let (store, splits) = match item.router_data.request.split_payments.as_ref() {
-            Some(SplitPaymentsDetails::AdyenSplitPayment(adyen_split_payment)) => {
-                get_adyen_split_request(adyen_split_payment, item.router_data.request.currency)
-            }
-            _ => (adyen_metadata.store.clone(), None),
-        };
+        let (store, splits) = resolve_adyen_split(
+            item.router_data.request.split_settlement.as_ref(),
+            item.router_data.request.split_payments.as_ref(),
+            item.router_data.request.currency,
+        )
+        .unwrap_or_else(|| (adyen_metadata.store.clone(), None));
         let device_fingerprint = adyen_metadata.device_fingerprint.clone();
         let platform_chargeback_logic = adyen_metadata.platform_chargeback_logic.clone();
 
@@ -3465,12 +3465,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let (recurring_processing_model, store_payment_method, shopper_reference) =
             get_recurring_processing_model(&item.router_data)?;
 
-        let (store, splits) = match item.router_data.request.split_payments.as_ref() {
-            Some(SplitPaymentsDetails::AdyenSplitPayment(adyen_split_payment)) => {
-                get_adyen_split_request(adyen_split_payment, item.router_data.request.currency)
-            }
-            _ => (adyen_metadata.store.clone(), None),
-        };
+        let (store, splits) = resolve_adyen_split(
+            item.router_data.request.split_settlement.as_ref(),
+            item.router_data.request.split_payments.as_ref(),
+            item.router_data.request.currency,
+        )
+        .unwrap_or_else(|| (adyen_metadata.store.clone(), None));
 
         Ok(Self {
             amount,
@@ -3602,12 +3602,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .get_optional_billing_phone_number();
         let (recurring_processing_model, store_payment_method, shopper_reference) =
             get_recurring_processing_model(&item.router_data)?;
-        let (store, splits) = match item.router_data.request.split_payments.as_ref() {
-            Some(SplitPaymentsDetails::AdyenSplitPayment(adyen_split_payment)) => {
-                get_adyen_split_request(adyen_split_payment, item.router_data.request.currency)
-            }
-            _ => (adyen_metadata.store.clone(), None),
-        };
+        let (store, splits) = resolve_adyen_split(
+            item.router_data.request.split_settlement.as_ref(),
+            item.router_data.request.split_payments.as_ref(),
+            item.router_data.request.currency,
+        )
+        .unwrap_or_else(|| (adyen_metadata.store.clone(), None));
 
         Ok(Self {
             amount,
@@ -6922,12 +6922,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .map(|m| m.expose()),
         );
 
-        let (store, splits) = match item.router_data.request.split_payments.as_ref() {
-            Some(SplitPaymentsDetails::AdyenSplitPayment(adyen_split_payment)) => {
-                get_adyen_split_request(adyen_split_payment, item.router_data.request.currency)
-            }
-            _ => (adyen_metadata.store.clone(), None),
-        };
+        let (store, splits) = resolve_adyen_split(
+            item.router_data.request.split_settlement.as_ref(),
+            item.router_data.request.split_payments.as_ref(),
+            item.router_data.request.currency,
+        )
+        .unwrap_or_else(|| (adyen_metadata.store.clone(), None));
         let device_fingerprint = adyen_metadata.device_fingerprint.clone();
         let platform_chargeback_logic = adyen_metadata.platform_chargeback_logic.clone();
 
@@ -7849,6 +7849,83 @@ fn get_adyen_split_request(
         })
         .collect();
     (split_request.store.clone(), Some(splits))
+}
+
+/// Resolve Adyen's per-item split type from the unified contract's per-split
+/// `split_metadata` (e.g. `{"adyen_split_type":"Commission"}`). Defaults to
+/// BalanceAccount when absent/unrecognized.
+fn adyen_split_type_from_metadata(meta: &Option<String>) -> common_enums::AdyenSplitType {
+    use common_enums::AdyenSplitType::*;
+    let ty = meta
+        .as_ref()
+        .and_then(|m| serde_json::from_str::<serde_json::Value>(m).ok())
+        .and_then(|v| {
+            v.get("adyen_split_type")
+                .and_then(|x| x.as_str())
+                .map(str::to_string)
+        });
+    match ty.as_deref() {
+        Some("Commission") => Commission,
+        Some("PaymentFee") => PaymentFee,
+        Some("AcquiringFees") => AcquiringFees,
+        Some("AdyenFees") => AdyenFees,
+        Some("AdyenCommission") => AdyenCommission,
+        Some("AdyenMarkup") => AdyenMarkup,
+        Some("Interchange") => Interchange,
+        Some("SchemeFee") => SchemeFee,
+        _ => BalanceAccount,
+    }
+}
+
+/// Convert the unified split settlement request into Adyen's domain split shape.
+/// Each vendor line becomes a split item (type from split_metadata, default
+/// BalanceAccount); a non-zero merchant_commission becomes a Commission item.
+fn adyen_split_from_settlement(
+    ss: &connector_types::SplitSettlement,
+) -> connector_types::AdyenSplitData {
+    let mut split_items = Vec::new();
+    for v in &ss.vendor_split_details {
+        let amount = match &v.split_value {
+            connector_types::SplitValue::Amount(a) => Some(*a),
+            connector_types::SplitValue::Percentage(_) => None,
+        };
+        split_items.push(connector_types::AdyenSplitItem {
+            amount,
+            split_type: adyen_split_type_from_metadata(&v.split_metadata),
+            account: v.connector_sub_account_id.clone(),
+            reference: v.merchant_reference_id.clone().unwrap_or_default(),
+            description: v.description.clone(),
+        });
+        if let Some(commission) = v.merchant_commission {
+            split_items.push(connector_types::AdyenSplitItem {
+                amount: Some(commission),
+                split_type: common_enums::AdyenSplitType::Commission,
+                account: None,
+                reference: v.merchant_reference_id.clone().unwrap_or_default(),
+                description: v.description.clone(),
+            });
+        }
+    }
+    connector_types::AdyenSplitData {
+        store: None,
+        split_items,
+    }
+}
+
+/// Dual-read: prefer the unified `split_settlement`; else fall back to the
+/// deprecated `split_payments` (Adyen variant). Returns None when neither is set.
+fn resolve_adyen_split(
+    split_settlement: Option<&connector_types::SplitSettlement>,
+    split_payments: Option<&connector_types::SplitPaymentsDetails>,
+    currency: common_enums::enums::Currency,
+) -> Option<(Option<String>, Option<Vec<AdyenSplitData>>)> {
+    if let Some(ss) = split_settlement {
+        return Some(get_adyen_split_request(&adyen_split_from_settlement(ss), currency));
+    }
+    if let Some(connector_types::SplitPaymentsDetails::AdyenSplitPayment(a)) = split_payments {
+        return Some(get_adyen_split_request(a, currency));
+    }
+    None
 }
 
 fn get_store_id(metadata: serde_json::Value) -> Option<String> {
