@@ -428,8 +428,10 @@ pub struct Connectors {
     pub grabpay: ConnectorParams,
     pub tesouro: ConnectorParams,
     pub boost: ConnectorParams,
+    pub ilixium: ConnectorParams,
     pub santander: ConnectorParams,
     pub citigate: ConnectorParams,
+    pub moneris: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -698,6 +700,9 @@ impl Connectors {
             ConnectorEnum::Mollie => {
                 patched.mollie.apply(params_patch);
             }
+            ConnectorEnum::Moneris => {
+                patched.moneris.apply(params_patch);
+            }
             ConnectorEnum::Multisafepay => {
                 patched.multisafepay.apply(params_patch);
             }
@@ -709,6 +714,9 @@ impl Connectors {
             }
             ConnectorEnum::Payme => {
                 patched.payme.apply(params_patch);
+            }
+            ConnectorEnum::Tamara => {
+                patched.tamara.apply(params_patch);
             }
             ConnectorEnum::Placetopay => {
                 patched.placetopay.apply(params_patch);
@@ -787,6 +795,9 @@ impl Connectors {
             ConnectorEnum::Boost => {
                 patched.boost.apply(params_patch);
             }
+            ConnectorEnum::Ilixium => {
+                patched.ilixium.apply(params_patch);
+            }
             ConnectorEnum::Maya => {
                 patched.maya.apply(params_patch);
             }
@@ -800,7 +811,7 @@ impl Connectors {
                     context: IntegrationErrorContext {
                         additional_context: Some(format!(
                             "Connector '{}' is not supported for dynamic URL patching from superposition. \
-                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, multisafepay, nexixpay, payload, payme, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat, givepayments, boost",
+                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, moneris, multisafepay, nexixpay, payload, payme, tamara, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat, givepayments, boost, ilixium",
                             connector
                         )),
                         ..Default::default()
@@ -831,6 +842,7 @@ impl Connectors {
             PayoutConnectorEnum::Worldpayxml => patched.worldpayxml.apply(params_patch),
             PayoutConnectorEnum::Cybersource => patched.cybersource.apply(params_patch),
             PayoutConnectorEnum::Santander => patched.santander.apply(params_patch),
+            PayoutConnectorEnum::Trustly => patched.trustly.apply(params_patch),
             PayoutConnectorEnum::GotymeSanlam => patched.gotyme_sanlam.apply(params_patch),
             // Deutschebank uses `ConnectorParamsWithCaBundle`, so patch the resolved
             // URLs while leaving its `server_ca_bundle` untouched.
@@ -16301,6 +16313,10 @@ impl<
                 .transpose()?,
             mandate_reference: None,
             merchant_transaction_id: value.merchant_transaction_id,
+            metadata: value
+                .metadata
+                .map(|m| SecretSerdeValue::foreign_try_from((m, "metadata")))
+                .transpose()?,
         })
     }
 }
@@ -16622,8 +16638,24 @@ impl
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_order_id.clone(),
             ),
-            customer_id: None,
-            connector_customer: None,
+            customer_id: value
+                .customer
+                .clone()
+                .and_then(|customer| customer.connector_customer_id)
+                .map(|customer_id| CustomerId::try_from(Cow::from(customer_id)))
+                .transpose()
+                .change_context(IntegrationError::InvalidDataFormat {
+                    field_name: "customer.connector_customer_id",
+                    context: IntegrationErrorContext {
+                        additional_context: Some("Failed to parse Customer Id".to_string()),
+                        suggested_action: Some("Provide a valid connector customer ID".to_string()),
+                        doc_url: None,
+                    },
+                })?,
+            connector_customer: value
+                .customer
+                .clone()
+                .and_then(|customer| customer.connector_customer_id),
             description: value.description,
             return_url: value.return_url.clone(),
             connector_feature_data: value

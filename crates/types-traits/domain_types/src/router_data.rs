@@ -508,6 +508,12 @@ pub enum ConnectorSpecificConfig {
         base_url: Option<String>,
         secondary_base_url: Option<String>,
     },
+    Moneris {
+        client_secret: Secret<String>,
+        merchant_id: Secret<String>,
+        client_id: Secret<String>,
+        base_url: Option<String>,
+    },
     Nmi {
         api_key: Secret<String>,
         public_key: Option<Secret<String>>,
@@ -976,6 +982,16 @@ pub enum ConnectorSpecificConfig {
         key1: Secret<String>,
         base_url: Option<String>,
     },
+    /// Ilixium Direct API.
+    /// `api_key`    = Digest Calculation Password (input to X-MERCHANT-DIGEST, never sent)
+    /// `key1`       = MerchantId (request body `merchant.merchantId`)
+    /// `api_secret` = AccountId  (request body `merchant.accountId`)
+    Ilixium {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        api_secret: Secret<String>,
+        base_url: Option<String>,
+    },
 }
 
 impl ConnectorSpecificConfig {
@@ -1156,6 +1172,11 @@ impl ConnectorSpecificConfig {
                 merchant_id,
                 client_secret
             },
+            Moneris {
+                client_secret,
+                merchant_id,
+                client_id
+            },
             Noon {
                 api_key,
                 business_identifier,
@@ -1328,6 +1349,11 @@ impl ConnectorSpecificConfig {
             },
             Boost { api_key },
             Citigate { api_key, key1 },
+            Ilixium {
+                api_key,
+                key1,
+                api_secret
+            },
             Imerchantsolutions { api_key },
             Interpayments { api_key },
             TwocTwopPaco {
@@ -1625,6 +1651,11 @@ impl ConnectorSpecificConfig {
                     merchant_id,
                     client_secret
                 },
+                Moneris {
+                    client_secret,
+                    merchant_id,
+                    client_id
+                },
                 Noon {
                     api_key,
                     business_identifier,
@@ -1803,6 +1834,11 @@ impl ConnectorSpecificConfig {
                 },
                 Boost { api_key },
                 Citigate { api_key, key1 },
+                Ilixium {
+                    api_key,
+                    key1,
+                    api_secret
+                },
                 Imerchantsolutions { api_key },
                 Interpayments { api_key },
                 TwocTwopPaco {
@@ -2035,6 +2071,12 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             AuthType::Multisafepay(multisafepay) => Ok(Self::Multisafepay {
                 api_key: multisafepay.api_key.ok_or_else(err)?,
                 base_url: multisafepay.base_url,
+            }),
+            AuthType::Moneris(moneris) => Ok(Self::Moneris {
+                client_secret: moneris.client_secret.ok_or_else(err)?,
+                merchant_id: moneris.merchant_id.ok_or_else(err)?,
+                client_id: moneris.client_id.ok_or_else(err)?,
+                base_url: moneris.base_url,
             }),
             AuthType::Nexinets(nexinets) => Ok(Self::Nexinets {
                 merchant_id: nexinets.merchant_id.ok_or_else(err)?,
@@ -2434,6 +2476,12 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 api_key: citigate.api_key.ok_or_else(err)?,
                 key1: citigate.key1.ok_or_else(err)?,
                 base_url: citigate.base_url,
+            }),
+            AuthType::Ilixium(ilixium) => Ok(Self::Ilixium {
+                api_key: ilixium.api_key.ok_or_else(err)?,
+                key1: ilixium.key1.ok_or_else(err)?,
+                api_secret: ilixium.api_secret.ok_or_else(err)?,
+                base_url: ilixium.base_url,
             }),
             AuthType::Imerchantsolutions(imerchantsolutions) => Ok(Self::Imerchantsolutions {
                 api_key: imerchantsolutions.api_key.ok_or_else(err)?,
@@ -3175,6 +3223,19 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
+                ConnectorEnum::Moneris => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Moneris {
+                        client_secret: api_key.clone(),
+                        merchant_id: api_secret.clone(),
+                        client_id: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
                 ConnectorEnum::Noon => match auth {
                     ConnectorAuthType::SignatureKey {
                         api_key,
@@ -3635,6 +3696,19 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
+                ConnectorEnum::Ilixium => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Ilixium {
+                        api_key: api_key.clone(),
+                        key1: key1.clone(),
+                        api_secret: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
                 ConnectorEnum::Boost => match auth {
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Boost {
                         client_id: api_key.clone(),
@@ -3877,11 +3951,20 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
-                // TrueLayer payouts need client_id, client_secret, merchant_account_id,
-                // private_key and kid. The legacy `x-auth` header cannot carry more than
-                // three values, so it can never supply a usable config here — reject it
-                // outright rather than build one that fails later on a missing field.
                 PayoutConnectorEnum::Truelayer => Err(err().into()),
+                PayoutConnectorEnum::Trustly => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Trustly {
+                        username: api_key.clone(),
+                        password: key1.clone(),
+                        private_key: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
             },
         }
     }

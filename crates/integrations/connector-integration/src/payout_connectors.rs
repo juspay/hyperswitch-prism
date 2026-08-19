@@ -22,5 +22,8 @@ pub use self::cybersource::CybersourcePayouts;
 pub mod santander;
 pub use self::santander::SantanderPayouts;
 
+pub mod trustly;
+pub use self::trustly::TrustlyPayouts;
+
 pub mod gotyme_sanlam;
 pub use self::gotyme_sanlam::GotymeSanlamPayouts;

@@ -19,6 +19,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.08.19.0
+
+### Features
+
+- **connector:** Moneris Connector Integration ([#2127](https://github.com/juspay/connector-service/pull/2127)) ([`7aa0b8b`](https://github.com/juspay/connector-service/commit/7aa0b8b69cf23ffa5d721707b839e7a80add590d))
+- **shadow:** Add x-org-id header to outgoing shadow mode requests ([#2148](https://github.com/juspay/connector-service/pull/2148)) ([`d452e76`](https://github.com/juspay/connector-service/commit/d452e769c5acce8fca48ca1a45124d7b03fb0c4d))
+
+**Full Changelog:** [`2026.08.18.1...2026.08.19.0`](https://github.com/juspay/connector-service/compare/2026.08.18.1...2026.08.19.0)
+
+- - -
+
+## 2026.08.18.1
+
+### Features
+
+- **connector:** Implement Authorize (Card, non-3DS + 3DS redirect), PSync, Capture, Void, Refund and RSync for citigate ([#2124](https://github.com/juspay/connector-service/pull/2124)) ([`6afccff`](https://github.com/juspay/connector-service/commit/6afccff73895a7fdc752c180d665148bfe46a8b3))
+- **qwikcilver:** Add payment method eligibility check ([#2135](https://github.com/juspay/connector-service/pull/2135)) ([`91d0a3d`](https://github.com/juspay/connector-service/commit/91d0a3d9c11adf95b6c9ea4d7eff743632043203))
+- **tamara:** Override prod with sbx url ([#2147](https://github.com/juspay/connector-service/pull/2147)) ([`f88c0a3`](https://github.com/juspay/connector-service/commit/f88c0a3f07b76c426ed5dd7e6a10a35e5245f8fc))
+
+### Documentation
+
+- **sdk/payout-service:** Add per-operation docs for java, node, pyth… ([#2102](https://github.com/juspay/connector-service/pull/2102)) ([`b18837d`](https://github.com/juspay/connector-service/commit/b18837da41957ab7d0d5f3d3147367f4f1859d0e))
+
+**Full Changelog:** [`2026.08.18.0...2026.08.18.1`](https://github.com/juspay/connector-service/compare/2026.08.18.0...2026.08.18.1)
+
+- - -
+
 ## 2026.08.18.0
 
 ### Features
