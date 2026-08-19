@@ -19,6 +19,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.08.19.0
+
+### Features
+
+- **connector:** Moneris Connector Integration ([#2127](https://github.com/juspay/connector-service/pull/2127)) ([`7aa0b8b`](https://github.com/juspay/connector-service/commit/7aa0b8b69cf23ffa5d721707b839e7a80add590d))
+- **shadow:** Add x-org-id header to outgoing shadow mode requests ([#2148](https://github.com/juspay/connector-service/pull/2148)) ([`d452e76`](https://github.com/juspay/connector-service/commit/d452e769c5acce8fca48ca1a45124d7b03fb0c4d))
+
+**Full Changelog:** [`2026.08.18.1...2026.08.19.0`](https://github.com/juspay/connector-service/compare/2026.08.18.1...2026.08.19.0)
+
+- - -
+
 ## 2026.08.18.1
 
 ### Features

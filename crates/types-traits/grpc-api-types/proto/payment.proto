@@ -5658,6 +5658,13 @@ message CitigateConfig {
   optional string base_url = 50;
 }
 
+message MonerisConfig {
+  SecretString client_secret = 1;
+  SecretString merchant_id = 2;
+  SecretString client_id = 3;
+  optional string base_url = 50;
+}
+
 message WorldpayraftConfig {
   SecretString license = 1;
   SecretString merchant_id = 2;
@@ -5982,8 +5989,10 @@ message ConnectorSpecificConfig {
     BoostConfig boost = 145;
     // CITIGATE = 137
     CitigateConfig citigate = 146;
+    // MONERIS = 48
+    MonerisConfig moneris = 147;
     // WORLDPAYRAFT = 138
-    WorldpayraftConfig worldpayraft = 147;
+    WorldpayraftConfig worldpayraft = 148;
   }
 }
 
