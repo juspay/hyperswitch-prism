@@ -116,5 +116,16 @@
     "https://docs.tamara.co/docs/postman-collection",
     "https://docs.tamara.co/docs/testing-checklist",
     "https://docs.tamara.co/docs/online-go-live-testing-checklist"
+  ],
+  "Ilixium": [
+    "https://docs.ilixium.com/docs/api/authorisation",
+    "https://docs.ilixium.com/docs/api/threedcomplete",
+    "https://docs.ilixium.com/docs/direct/3dsecure",
+    "https://docs.ilixium.com/docs/direct/digest",
+    "https://docs.ilixium.com/docs/direct/introduction",
+    "https://docs.ilixium.com/docs/direct/optional-address",
+    "https://docs.ilixium.com/docs/api/api",
+    "https://docs.ilixium.com/docs/response-codes/",
+    "https://docs.ilixium.com/docs/sandbox/"
   ]
 }
