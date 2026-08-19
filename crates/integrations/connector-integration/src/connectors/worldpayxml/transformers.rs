@@ -378,7 +378,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let auth = WorldpayxmlAuthType::try_from(&router_data.connector_config)?;
 
         // Determine if manual capture
-        let is_manual_capture = !router_data.request.is_auto_capture();
+        let is_manual_capture = router_data.request.capture_method == Some(CaptureMethod::Manual)
+            || router_data.request.capture_method == Some(CaptureMethod::ManualMultiple);
 
         // Extract billing address first (needed for payment method)
         let billing_address = get_worldpayxml_billing_address(&router_data.resource_common_data);
@@ -540,13 +541,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let router_data = &item.router_data;
         let auth = WorldpayxmlAuthType::try_from(&router_data.connector_config)?;
 
-        // `SetupMandateRequestData` exposes no `is_auto_capture()` helper, so the domain helper's
-        // set of non-automatic capture methods is spelled out here instead.
         let is_manual_capture = matches!(
             router_data.request.capture_method,
-            Some(CaptureMethod::Manual)
-                | Some(CaptureMethod::ManualMultiple)
-                | Some(CaptureMethod::Scheduled)
+            Some(CaptureMethod::Manual) | Some(CaptureMethod::ManualMultiple)
         );
 
         let billing_address = get_worldpayxml_billing_address(&router_data.resource_common_data);
@@ -743,7 +740,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             },
         )?;
 
-        let is_manual_capture = !router_data.request.is_auto_capture();
+        let is_manual_capture = router_data.request.capture_method == Some(CaptureMethod::Manual)
+            || router_data.request.capture_method == Some(CaptureMethod::ManualMultiple);
 
         let authenticated_shopper_id =
             get_worldpayxml_authenticated_shopper_id(&router_data.resource_common_data, true)?;
@@ -1270,7 +1268,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // Map status from lastEvent
         let status = map_worldpayxml_authorize_status(
             &payment.last_event,
-            router_data.request.is_auto_capture(),
+            router_data.request.capture_method != Some(CaptureMethod::Manual)
+                && router_data.request.capture_method != Some(CaptureMethod::ManualMultiple),
             Some(&router_data.resource_common_data.status),
             item.http_code,
         )?;
@@ -1556,7 +1555,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let status = map_worldpayxml_authorize_status(
             &payment.last_event,
-            router_data.request.is_auto_capture(),
+            router_data.request.capture_method != Some(CaptureMethod::Manual)
+                && router_data.request.capture_method != Some(CaptureMethod::ManualMultiple),
             Some(&router_data.resource_common_data.status),
             item.http_code,
         )?;
@@ -1881,7 +1881,9 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>
                 // Map status from lastEvent - reuse the helper function
                 let status = map_worldpayxml_authorize_status(
                     &payment.last_event,
-                    router_data.request.is_auto_capture(),
+                    router_data.request.capture_method != Some(CaptureMethod::Manual)
+                        && router_data.request.capture_method
+                            != Some(CaptureMethod::ManualMultiple),
                     Some(&router_data.resource_common_data.status),
                     item.http_code,
                 )?;
@@ -1955,7 +1957,9 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>
                 // Map status from PaymentStatus
                 let status = map_worldpayxml_authorize_status(
                     &webhook_response.payment_status,
-                    router_data.request.is_auto_capture(),
+                    router_data.request.capture_method != Some(CaptureMethod::Manual)
+                        && router_data.request.capture_method
+                            != Some(CaptureMethod::ManualMultiple),
                     Some(&router_data.resource_common_data.status),
                     item.http_code,
                 )?;
