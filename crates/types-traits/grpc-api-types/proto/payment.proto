@@ -2604,6 +2604,8 @@ message PaymentServiceAuthorizeRequest {
 
   // Split payment configuration (platform fees, transfers, etc.)
   optional SplitPaymentsDetails split_payments = 47;
+  // Split settlement across a marketplace + N vendors (supersedes split_payments).
+  optional SplitSettlement split_settlement = 52;
 
   // MIT Category — for CIT (this request) it signals the future intended MIT
   // type; for Authorize-as-MIT (with mandate_id set) it signals the actual
@@ -2686,6 +2688,8 @@ message PaymentServiceAuthorizeResponse {
 
   // Split payment response data from connector
   optional ConnectorSplitResponseData splits = 21;
+  // Applied split settlement (supersedes splits).
+  optional SplitSettlementResponse split_settlement = 27;
 
   // Mandate reference details returned by the connector for future recurring payments.
   optional MandateReferenceDetails mandate_reference_details = 22;
@@ -2821,6 +2825,8 @@ message PaymentServiceGetResponse {
 
   // Split payment response data from connector
   optional ConnectorSplitResponseData splits = 32;
+  // Applied split settlement (supersedes splits).
+  optional SplitSettlementResponse split_settlement = 41;
 
   optional SecretString connector_feature_data = 33;
 
@@ -3133,6 +3139,8 @@ message PaymentServiceCaptureRequest {
 
   // Split payment configuration (platform fees, transfers, etc.)
   optional SplitPaymentsDetails split_payments = 14;
+  // Split settlement (supersedes split_payments).
+  optional SplitSettlement split_settlement = 15;
 }
 
 // Response message for a payment capture operation
@@ -3173,6 +3181,8 @@ message PaymentServiceCaptureResponse {
 
   // Split payment response data from connector
   optional ConnectorSplitResponseData splits = 14;
+  // Applied split settlement (supersedes splits).
+  optional SplitSettlementResponse split_settlement = 21;
 
   // Mandate reference details returned by the connector for future recurring payments.
   optional MandateReferenceDetails mandate_reference_details = 15;
@@ -3298,6 +3308,8 @@ message PaymentServiceRefundRequest {
 
   // Split refund data for platform fee reversals and transfers
   optional SplitRefundsDetails split_refunds = 20;
+  // Split settlement refund (supersedes split_refunds).
+  optional SplitSettlementRefund split_settlement_refund = 21;
 }
 
 // Response message for a refund operation (unified for both Create and Get)
@@ -3360,6 +3372,8 @@ message RefundResponse {
   // Another reference for the connector's transaction, returned in the connector's response.
   // Distinct from connector_refund_id — e.g. secondary refund references, invoice numbers.
   optional string connector_reference_id = 26;
+  // Applied split settlement for the refund.
+  optional SplitSettlementResponse split_settlement = 29;
 }
 
 // Request message for voiding/reversing a refund before settlement.
@@ -3687,6 +3701,8 @@ message RecurringPaymentServiceChargeRequest {
 
   // Split payment configuration (platform fees, transfers, etc.)
   optional SplitPaymentsDetails split_payments = 34;
+  // Split settlement (supersedes split_payments).
+  optional SplitSettlement split_settlement = 39;
 
   optional PartnerMerchantIdentifierDetails partner_merchant_identifier_details = 35;
 
@@ -3735,6 +3751,8 @@ message RecurringPaymentServiceChargeResponse {
 
   // Split payment response data from connector
   optional ConnectorSplitResponseData splits = 16;
+  // Applied split settlement (supersedes splits).
+  optional SplitSettlementResponse split_settlement = 23;
 
   // Mandate reference details returned by the connector for future recurring payments.
   optional MandateReferenceDetails mandate_reference_details = 17;
@@ -6126,6 +6144,7 @@ message PaymentServiceProxySetupRecurringRequest {
 // ============================================================================
 
 // Request for split refunds (platform fee reversals, transfers, etc.)
+// DEPRECATED: use SplitSettlementRefund instead. Retained during the migration window.
 message SplitRefundsDetails {
   oneof split_refund_type {
     StripeSplitRefundData stripe_split_refund = 1;
@@ -6203,6 +6222,7 @@ enum AdyenSplitType {
 // ============================================================================
 
 // Request for split payments (platform fees, transfers, etc.)
+// DEPRECATED: use SplitSettlement instead. Retained during the migration window.
 message SplitPaymentsDetails {
   oneof split_payment_type {
     StripeSplitPaymentData stripe_split_payment = 1;
@@ -6319,9 +6339,142 @@ message StripeSplitResponseData {
 }
 
 // Response data for connector split payments
+// DEPRECATED: use SplitSettlementResponse instead. Retained during the migration window.
 message ConnectorSplitResponseData {
   oneof split_response_type {
     StripeSplitResponseData stripe_split_response = 1;
     AdyenSplitData adyen_split_response = 2;
   }
+}
+
+// ============================================================================
+// SPLIT SETTLEMENT — Unified, connector-agnostic split contract.
+// Supersedes SplitPaymentsDetails / SplitRefundsDetails / ConnectorSplitResponseData.
+// A payment settled across a marketplace (the platform's own cut) + N vendor
+// sub-accounts. Applied synchronously by the connector (inline "destinations"
+// model). Any settlement/UTR fields on the response are populated only when the
+// connector returns them; euler-internal correlation lives above UCS.
+// ============================================================================
+
+// Whether the connector applied the split.
+enum SplitAppliedStatus {
+  SPLIT_APPLIED_STATUS_UNSPECIFIED = 0;
+  SPLIT_APPLIED = 1;
+  SPLIT_NOT_APPLIED = 2;
+}
+
+// Per-split settlement lifecycle status (only for connectors that report it).
+enum SplitSettlementStatus {
+  SPLIT_SETTLEMENT_STATUS_UNSPECIFIED = 0;
+  SPLIT_SETTLEMENT_STATUS_PENDING = 1;
+  SPLIT_SETTLEMENT_STATUS_SETTLED = 2;
+  SPLIT_SETTLEMENT_STATUS_FAILED = 3;
+}
+
+// ---- Payment split (request) ----
+
+// Wrapper carried by every payment request that supports split.
+message SplitSettlement {
+  // Marketplace / platform share of the settlement, when applicable.
+  optional SplitSettlementMarketplace marketplace_split_details = 1;
+  // Per-vendor splits (a payment can split across many vendors).
+  repeated SplitSettlementVendor vendor_split_details = 2;
+}
+
+// Marketplace / platform share (the merchant's own cut) — leaner than a vendor line.
+message SplitSettlementMarketplace {
+  // Marketplace share as an amount or a percent — exactly one.
+  oneof split_value {
+    Money amount = 1;
+    double percentage = 2;
+  }
+  // WHERE it settles: the connector's own id for the marketplace/platform account.
+  optional string connector_sub_account_id = 3;
+}
+
+// Per-vendor split line.
+message SplitSettlementVendor {
+  // Vendor share as an amount or a percent — exactly one.
+  oneof split_value {
+    Money amount = 1;
+    double percentage = 2;
+  }
+  // WHERE it settles: the connector's own id for the payee (vendor) account.
+  optional string connector_sub_account_id = 3;
+  // Commission retained by the merchant from this vendor's share.
+  optional Money merchant_commission = 4;
+  // Per-split description forwarded to the connector.
+  optional string description = 5;
+  // The merchant's OWN per-split reference; forwarded to the connector as its per-split
+  // reference (e.g. Adyen split item `reference`) and echoed on the response for matching.
+  optional string merchant_reference_id = 6;
+  // Connector-specific per-split attributes (opaque here; typed inside the connector),
+  // e.g. Adyen split_type. Explicit — never inferred from structure.
+  optional string split_metadata = 7;
+}
+
+// ---- Refund split (request) ----
+
+// Wrapper carried by every refund request that supports split.
+message SplitSettlementRefund {
+  optional SplitSettlementRefundMarketplace marketplace_split_details = 1;
+  repeated SplitSettlementRefundVendor vendor_split_details = 2;
+}
+
+message SplitSettlementRefundMarketplace {
+  oneof split_value {
+    Money refund_amount = 1;
+    double percentage = 2;
+  }
+  optional string connector_sub_account_id = 3;
+}
+
+message SplitSettlementRefundVendor {
+  oneof split_value {
+    Money refund_amount = 1;
+    double percentage = 2;
+  }
+  optional string connector_sub_account_id = 3;
+  optional Money merchant_commission = 4;
+  // The merchant's OWN reference for this refund split; forwarded to the connector.
+  optional string merchant_reference_id = 5;
+  optional string split_metadata = 6;
+}
+
+// ---- Response split (payment responses only) ----
+
+// Wrapper on the response — also holds split_applied (a property of the split as a whole).
+message SplitSettlementResponse {
+  optional SplitAppliedStatus split_applied = 1;
+  optional SplitSettlementResponseMarketplace marketplace_split_details = 2;
+  repeated SplitSettlementResponseVendor vendor_split_details = 3;
+}
+
+message SplitSettlementResponseMarketplace {
+  optional Money amount = 1;
+  optional string connector_sub_account_id = 2;
+  optional Money refunded_amount = 3;
+  optional Money total_settlement_amount = 4;
+  // WHEN it paid out: the connector's id for the payout/settlement event (T+n).
+  optional string connector_settlement_id = 5;
+  optional SplitSettlementStatus settlement_status = 6;
+  optional string settlement_date = 7;
+  // Bank UTR, once the money has moved.
+  optional string utr = 8;
+}
+
+message SplitSettlementResponseVendor {
+  optional Money amount = 1;
+  optional string connector_sub_account_id = 2;
+  optional Money merchant_commission = 3;
+  // Echoed from the request so the caller matches this response line to its request line.
+  optional string merchant_reference_id = 4;
+  optional Money refunded_amount = 5;
+  optional Money total_settlement_amount = 6;
+  optional string connector_settlement_id = 7;
+  optional SplitSettlementStatus settlement_status = 8;
+  optional string settlement_date = 9;
+  optional string utr = 10;
+  // The connector's id for the TRANSFER of this slice to the vendor (e.g. Stripe tr_…).
+  optional string connector_transaction_id = 11;
 }
