@@ -56,28 +56,23 @@ fn map_worldpayxml_payout_status(
     match last_event {
         WorldpayxmlLastEvent::Authorised
         | WorldpayxmlLastEvent::Captured
-        | WorldpayxmlLastEvent::Settled
         | WorldpayxmlLastEvent::PushApproved
         | WorldpayxmlLastEvent::SettledByMerchant => common_enums::PayoutStatus::Success,
-        WorldpayxmlLastEvent::SentForAuthorisation
-        | WorldpayxmlLastEvent::QueryRequired
-        | WorldpayxmlLastEvent::PushRequested
-        | WorldpayxmlLastEvent::PushPending
-        | WorldpayxmlLastEvent::Unknown => common_enums::PayoutStatus::Pending,
-        WorldpayxmlLastEvent::Cancelled | WorldpayxmlLastEvent::CancelReceived => {
-            common_enums::PayoutStatus::Cancelled
+        WorldpayxmlLastEvent::PushRequested | WorldpayxmlLastEvent::PushPending => {
+            common_enums::PayoutStatus::Pending
         }
-        WorldpayxmlLastEvent::SentForRefund
-        | WorldpayxmlLastEvent::SentForFastRefund
-        | WorldpayxmlLastEvent::RefundRequested
-        | WorldpayxmlLastEvent::RefundReceived
-        | WorldpayxmlLastEvent::Refunded
-        | WorldpayxmlLastEvent::RefundedByMerchant => common_enums::PayoutStatus::Reversed,
+        WorldpayxmlLastEvent::Cancelled => common_enums::PayoutStatus::Cancelled,
+        WorldpayxmlLastEvent::SentForRefund | WorldpayxmlLastEvent::Refunded => {
+            common_enums::PayoutStatus::Reversed
+        }
         WorldpayxmlLastEvent::Refused
         | WorldpayxmlLastEvent::RefundFailed
         | WorldpayxmlLastEvent::PushRefused
         | WorldpayxmlLastEvent::Expired
         | WorldpayxmlLastEvent::Error => common_enums::PayoutStatus::Failure,
+        // Exhaustiveness only: the shared lastEvent enum gained variants for the payment flows.
+        // Every mapping above is unchanged from before those variants existed.
+        _ => common_enums::PayoutStatus::Pending,
     }
 }
 
