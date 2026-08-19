@@ -293,6 +293,7 @@ default_impl_verify_webhook_source_v2!(
         Boost,
         Citigate,
         Moneris,
+        Ilixium,
         Worldpayraft,
     ],
 );
@@ -372,6 +373,7 @@ macro_rules! default_impl_recharge_v2 {
 default_impl_recharge_v2!(
     Citigate,
     Boost,
+    Ilixium,
     Tesouro,
     AbsaSanlam,
     Aci,
@@ -600,6 +602,7 @@ macro_rules! default_impl_get_payment_method_v2 {
 default_impl_create_payment_method_v2!(
     Citigate,
     Boost,
+    Ilixium,
     Tesouro,
     AbsaSanlam,
     Aci,
@@ -706,6 +709,7 @@ default_impl_create_payment_method_v2!(
 default_impl_get_payment_method_v2!(
     Citigate,
     Boost,
+    Ilixium,
     Tesouro,
     AbsaSanlam,
     Aci,
@@ -813,6 +817,7 @@ default_impl_payment_method_eligibility_v2!(
     not_supported: [
         Citigate,
         Boost,
+        Ilixium,
         Tesouro,
         Adyen,
         Authorizedotnet,
@@ -980,6 +985,7 @@ macro_rules! default_impl_refresh_payment_method_v2 {
 default_impl_refresh_payment_method_v2!(
     Citigate,
     Boost,
+    Ilixium,
     AbsaSanlam,
     Aci,
     Adyen,

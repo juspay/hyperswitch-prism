@@ -144,6 +144,7 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
             ConnectorEnum::Tesouro => Box::new(connectors::Tesouro::<T>::new()),
             ConnectorEnum::Boost => Box::new(connectors::Boost::<T>::new()),
             ConnectorEnum::Citigate => Box::new(connectors::Citigate::<T>::new()),
+            ConnectorEnum::Ilixium => Box::new(connectors::Ilixium::<T>::new()),
             ConnectorEnum::Worldpayraft => Box::new(connectors::Worldpayraft::<T>::new()),
         }
     }
