@@ -121,7 +121,7 @@
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "https://ws.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/credit/authorization",
+          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/credit/authorization",
           "method": "Post",
           "headers": {
             "authorization": "VANTIV license=\"probe_key\"",
@@ -492,7 +492,7 @@
           }
         },
         "sample": {
-          "url": "https://ws.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/credit/completion",
+          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/credit/completion",
           "method": "Post",
           "headers": {
             "authorization": "VANTIV license=\"probe_key\"",
@@ -632,7 +632,7 @@
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "https://ws.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/credit/authorization",
+          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/credit/authorization",
           "method": "Post",
           "headers": {
             "authorization": "VANTIV license=\"probe_key\"",
@@ -671,7 +671,7 @@
           "setup_future_usage": "OFF_SESSION"
         },
         "sample": {
-          "url": "https://ws.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/tokenization/token",
+          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/tokenization/token",
           "method": "Post",
           "headers": {
             "authorization": "VANTIV license=\"probe_key\"",
@@ -708,7 +708,7 @@
           "off_session": true
         },
         "sample": {
-          "url": "https://ws.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/credit/authorization",
+          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/credit/authorization",
           "method": "Post",
           "headers": {
             "authorization": "VANTIV license=\"probe_key\"",
@@ -744,7 +744,7 @@
           "reason": "customer_request"
         },
         "sample": {
-          "url": "https://ws.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/credit/refund",
+          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/credit/refund",
           "method": "Post",
           "headers": {
             "authorization": "VANTIV license=\"probe_key\"",
@@ -799,7 +799,7 @@
           }
         },
         "sample": {
-          "url": "https://ws.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/tokenization/token",
+          "url": "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1/tokenization/token",
           "method": "Post",
           "headers": {
             "authorization": "VANTIV license=\"probe_key\"",
