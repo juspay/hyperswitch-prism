@@ -289,6 +289,9 @@ pub use self::flywire::Flywire;
 pub mod affirm;
 pub use self::affirm::Affirm;
 
+pub mod moneris;
+pub use self::moneris::Moneris;
+
 pub mod kount;
 pub use self::kount::Kount;
 
@@ -302,3 +305,6 @@ pub use self::tesouro::Tesouro;
 
 pub mod boost;
 pub use self::boost::Boost;
+
+pub mod citigate;
+pub use self::citigate::Citigate;

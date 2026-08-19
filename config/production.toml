@@ -23,6 +23,7 @@ connector_request_timeout = 30
 bypass_urls = ["localhost", "local"]
 
 [connectors]
+citigate.base_url = "https://gw.cgate.tech"
 grabpay.base_url = "https://partner-api.grab.com/grabpay/partner/v2"
 maya.base_url = "https://pg.maya.ph"
 boost.base_url = "https://api.boostconnect.biz/gateway"
@@ -100,6 +101,7 @@ novalnet.base_url = "https://payport.novalnet.de/v2"
 nexinets.base_url = "https://api.payengine.de/v1"
 noon.base_url = "https://api.noonpayments.com/"
 mifinity.base_url = "https://secure.mifinity.com/"
+moneris.base_url = "https://api.moneris.io"
 braintree.base_url = "https://payments.braintree-api.com/graphql"
 volt.base_url = "https://gateway.volt.io"
 volt.secondary_base_url = "https://api.volt.io"

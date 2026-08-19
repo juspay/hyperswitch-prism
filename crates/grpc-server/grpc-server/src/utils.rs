@@ -770,6 +770,7 @@ macro_rules! implement_connector_operation {
                 proxy_name: metadata_payload.proxy_name.as_deref(),
                 tenant_id: &metadata_payload.tenant_id,
                 merchant_id: metadata_payload.merchant_id.as_str(),
+                org_id: metadata_payload.org_id.as_str(),
                 return_raw_connector_data: config.common.return_raw_connector_data,
                 connector_latency: metadata_payload.connector_latency.clone(),
                 log_fields_enabled: config.log_fields.enabled,
@@ -842,16 +843,18 @@ macro_rules! implement_connector_operation {
                 };
 
                 let call_connector_action = connector_integration.get_call_connector_action();
-                let response_result = external_services::service::execute_connector_processing_step(
-                    proxy,
-                    connector_integration,
-                    router_data,
-                    all_keys_required,
-                    event_params,
-                    token_data,
-                    call_connector_action,
-                    test_context,
-                    api_tag,
+                let response_result = Box::pin(
+                    external_services::service::execute_connector_processing_step(
+                        proxy,
+                        connector_integration,
+                        router_data,
+                        all_keys_required,
+                        event_params,
+                        token_data,
+                        call_connector_action,
+                        test_context,
+                        api_tag,
+                    ),
                 )
                 .await
                 .to_grpc_error()?;
@@ -1133,22 +1136,25 @@ macro_rules! implement_connector_operation {
                 proxy_name: metadata_payload.proxy_name.as_deref(),
                 tenant_id: &metadata_payload.tenant_id,
                 merchant_id: metadata_payload.merchant_id.as_str(),
+                org_id: metadata_payload.org_id.as_str(),
                 return_raw_connector_data: config.common.return_raw_connector_data,
                 connector_latency: metadata_payload.connector_latency.clone(),
                 log_fields_enabled: config.log_fields.enabled,
                 log_fields: &config.log_fields.outgoing,
             };
             let call_connector_action = connector_integration.get_call_connector_action();
-            let response_result = external_services::service::execute_connector_processing_step(
-                &config.proxy,
-                connector_integration,
-                router_data,
-                $all_keys_required,
-                event_params,
-                None,
-                call_connector_action,
-                test_context,
-                api_tag,
+            let response_result = Box::pin(
+                external_services::service::execute_connector_processing_step(
+                    &config.proxy,
+                    connector_integration,
+                    router_data,
+                    $all_keys_required,
+                    event_params,
+                    None,
+                    call_connector_action,
+                    test_context,
+                    api_tag,
+                ),
             )
             .await
             .to_grpc_error()?;

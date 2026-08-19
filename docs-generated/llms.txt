@@ -1,5 +1,5 @@
 # Connector Service — LLM Navigation Index
-# Connectors: 105
+# Connectors: 107
 #
 # This file helps AI coding assistants navigate connector-service documentation.
 # Each connector block lists: doc path, scenarios, supported payment methods,
@@ -8,7 +8,7 @@
 # Usage: fetch this file first, then fetch the specific connector doc or example.
 
 overview:
-  total_connectors: 105
+  total_connectors: 107
   docs_root: docs-generated/connectors/
   examples_root: examples/
   all_connectors_matrix: docs-generated/all_connector.md
@@ -189,6 +189,14 @@ scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_paymen
 payment_methods: Ach, ApplePayDecrypted, Card, GooglePayDecrypted
 flows: authorize, capture, get, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, void
 examples_python: examples/checkout/checkout.py
+
+## Citigate
+connector_id: citigate
+doc: docs/connectors/citigate.md
+scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
+payment_methods: Card
+flows: authorize, capture, get, proxy_authorize, refund, refund_get, void
+examples_python: examples/citigate/citigate.py
 
 ## CryptoPay
 connector_id: cryptopay
@@ -461,6 +469,14 @@ scenarios: checkout_autocapture, refund, void_payment, get_payment
 payment_methods: Card, Klarna
 flows: authorize, create_client_authentication_token, get, proxy_authorize, refund, refund_get, token_authorize, void
 examples_python: examples/mollie/mollie.py
+
+## Moneris
+connector_id: moneris
+doc: docs/connectors/moneris.md
+scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
+payment_methods: Card
+flows: authorize, capture, create_server_authentication_token, get, proxy_authorize, refund, refund_get, void
+examples_python: examples/moneris/moneris.py
 
 ## Multisafepay
 connector_id: multisafepay
