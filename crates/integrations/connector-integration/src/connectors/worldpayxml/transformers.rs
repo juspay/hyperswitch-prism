@@ -35,10 +35,6 @@ use domain_types::payment_address::AddressDetails;
 
 const API_VERSION: &str = "1.4";
 
-/// Worldpay scopes the tokens it issues to a single shopper, which is the scope stored as the
-/// connector mandate id.
-const TOKEN_SCOPE_SHOPPER: &str = "shopper";
-
 /// `captureDelay` value that leaves the order uncaptured, for manual capture.
 const CAPTURE_DELAY_MANUAL: &str = "OFF";
 /// `captureDelay` value that captures the order immediately, for automatic capture.
@@ -392,11 +388,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 billing_address.as_ref(),
             )?,
             PaymentMethodData::Wallet(wallet_data) => {
+                // Fall back to the billing name when the request carries no customer name, so a
+                // wallet payment still sends a cardholder name to Worldpay.
                 let customer_name = router_data
                     .request
                     .customer_name
                     .clone()
-                    .map(|name| crate::utils::normalize_cardholder_name(Secret::new(name)));
+                    .map(Secret::new)
+                    .or_else(|| {
+                        router_data
+                            .resource_common_data
+                            .get_optional_billing_full_name()
+                    })
+                    .map(crate::utils::normalize_cardholder_name);
 
                 get_worldpayxml_wallet_payment_method(wallet_data, customer_name)?
             }
@@ -428,7 +432,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // Ask Worldpay to issue a payment token on the customer-initiated transaction; without it
         // there is nothing for a later merchant-initiated payment to be charged against.
         let create_token = is_cit_mandate_payment.then(|| requests::WorldpayxmlCreateToken {
-            token_scope: TOKEN_SCOPE_SHOPPER.to_string(),
+            token_scope: requests::WorldpayxmlTokenScope::Shopper,
             token_event_reference: router_data
                 .resource_common_data
                 .connector_request_reference_id
@@ -555,11 +559,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 billing_address.as_ref(),
             )?,
             PaymentMethodData::Wallet(wallet_data) => {
+                // Fall back to the billing name when the request carries no customer name, so a
+                // wallet payment still sends a cardholder name to Worldpay.
                 let customer_name = router_data
                     .request
                     .customer_name
                     .clone()
-                    .map(|name| crate::utils::normalize_cardholder_name(Secret::new(name)));
+                    .map(Secret::new)
+                    .or_else(|| {
+                        router_data
+                            .resource_common_data
+                            .get_optional_billing_full_name()
+                    })
+                    .map(crate::utils::normalize_cardholder_name);
 
                 get_worldpayxml_wallet_payment_method(wallet_data, customer_name)?
             }
@@ -648,7 +660,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     },
                     billing_address,
                     create_token: Some(requests::WorldpayxmlCreateToken {
-                        token_scope: TOKEN_SCOPE_SHOPPER.to_string(),
+                        token_scope: requests::WorldpayxmlTokenScope::Shopper,
                         token_event_reference: router_data
                             .resource_common_data
                             .connector_request_reference_id
@@ -779,7 +791,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         action: None,
                         payment_method: requests::WorldpayxmlPaymentMethod::TokenSsl(
                             requests::WorldpayxmlTokenData {
-                                token_scope: Secret::new(TOKEN_SCOPE_SHOPPER.to_string()),
+                                token_scope: requests::WorldpayxmlTokenScope::Shopper,
                                 payment_token_id: Secret::new(payment_token_id),
                             },
                         ),
@@ -1830,7 +1842,18 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>
                                 order_status.order_code.clone(),
                             ),
                             redirection_data: None,
-                            mandate_reference: None,
+                            // A token can be present even when the inquiry itself errored, and it
+                            // is the only place the mandate becomes observable, so surface it.
+                            mandate_reference: order_status.token.as_ref().map(|token| {
+                                Box::new(MandateReference {
+                                    connector_mandate_id: Some(
+                                        token.token_details.payment_token_id.peek().to_string(),
+                                    ),
+                                    payment_method_id: None,
+                                    mandate_metadata: None,
+                                    connector_mandate_request_reference_id: None,
+                                })
+                            }),
                             connector_metadata: None,
                             network_txn_id: None,
                             network_txn_link_id: None,

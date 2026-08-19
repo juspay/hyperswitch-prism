@@ -72,7 +72,7 @@ pub struct WorldpayxmlOrder {
 #[derive(Debug, Serialize)]
 pub struct WorldpayxmlCreateToken {
     #[serde(rename = "@tokenScope")]
-    pub token_scope: String,
+    pub token_scope: WorldpayxmlTokenScope,
     #[serde(rename = "tokenEventReference")]
     pub token_event_reference: String,
 }
@@ -122,6 +122,13 @@ pub struct WorldpayxmlStoredCredentials {
     pub scheme_transaction_identifier: Option<Secret<String>>,
 }
 
+/// Scope Worldpay issues a payment token under. Only shopper scope is used.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum WorldpayxmlTokenScope {
+    Shopper,
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum WorldpayxmlUsageType {
@@ -164,7 +171,7 @@ pub enum WorldpayxmlPaymentMethod {
 #[derive(Debug, Serialize)]
 pub struct WorldpayxmlTokenData {
     #[serde(rename = "@tokenScope")]
-    pub token_scope: Secret<String>,
+    pub token_scope: WorldpayxmlTokenScope,
     #[serde(rename = "paymentTokenID")]
     pub payment_token_id: Secret<String>,
 }
