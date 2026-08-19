@@ -234,6 +234,9 @@ impl PayoutConnectorData {
             }
             PayoutConnectorEnum::Santander => Box::new(payout_connectors::SantanderPayouts::new()),
             PayoutConnectorEnum::Truelayer => Box::new(payout_connectors::TruelayerPayouts::new()),
+            PayoutConnectorEnum::Trustly => Box::new(payout_connectors::TrustlyPayouts::<
+                domain_types::payment_method_data::DefaultPCIHolder,
+            >::new()),
         }
     }
 }

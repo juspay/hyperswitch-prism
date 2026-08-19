@@ -3925,11 +3925,20 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     _ => Err(err().into()),
                 },
                 PayoutConnectorEnum::Santander => Err(err().into()),
-                // TrueLayer payouts need client_id, client_secret, merchant_account_id,
-                // private_key and kid. The legacy `x-auth` header cannot carry more than
-                // three values, so it can never supply a usable config here — reject it
-                // outright rather than build one that fails later on a missing field.
                 PayoutConnectorEnum::Truelayer => Err(err().into()),
+                PayoutConnectorEnum::Trustly => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Trustly {
+                        username: api_key.clone(),
+                        password: key1.clone(),
+                        private_key: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
             },
         }
     }
