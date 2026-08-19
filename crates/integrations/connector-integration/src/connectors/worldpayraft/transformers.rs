@@ -174,18 +174,18 @@ fn map_payment_status(return_code: &str, response_code: &str) -> bool {
 // =============================================================================
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct WorldpayraftAmounts {
-    #[serde(rename = "TransactionAmount")]
     pub transaction_amount: common_utils::types::StringMajorUnit,
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct WorldpayraftCardInfo<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 > {
     #[serde(rename = "PAN")]
     pub pan: RawCardNumber<T>,
-    #[serde(rename = "ExpirationDate")]
     pub expiration_date: Secret<String>,
 }
 
@@ -206,12 +206,11 @@ pub struct WorldpayraftAddressVerificationData {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct WorldpayraftTerminalData {
-    #[serde(rename = "EntryMode")]
     pub entry_mode: String,
     #[serde(rename = "POSConditionCode")]
     pub pos_condition_code: String,
-    #[serde(rename = "TerminalEntryCap")]
     pub terminal_entry_cap: String,
 }
 
@@ -222,8 +221,8 @@ pub struct WorldpayraftEcommerceData {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct WorldpayraftRequestTraceNumbers {
-    #[serde(rename = "SystemTraceNumber")]
     pub system_trace_number: String,
 }
 
@@ -233,34 +232,24 @@ pub struct WorldpayraftRequestTraceNumbers {
 
 /// Inner fields shared by both creditauth and debitpreauth requests.
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct WorldpayraftCardAuthInner<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 > {
-    #[serde(rename = "MiscAmountsBalances")]
     pub misc_amounts_balances: WorldpayraftAmounts,
-    #[serde(rename = "CardInfo")]
     pub card_info: WorldpayraftCardInfo<T>,
-    #[serde(
-        rename = "CardVerificationData",
-        skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub card_verification_data: Option<WorldpayraftCardVerificationData>,
-    #[serde(
-        rename = "AddressVerificationData",
-        skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub address_verification_data: Option<WorldpayraftAddressVerificationData>,
-    #[serde(rename = "TerminalData")]
     pub terminal_data: WorldpayraftTerminalData,
     #[serde(rename = "E-commerceData")]
     pub ecommerce_data: WorldpayraftEcommerceData,
-    #[serde(rename = "ReferenceTraceNumbers")]
     pub reference_trace_numbers: WorldpayraftRequestTraceNumbers,
     #[serde(rename = "WorldPayMerchantID")]
     pub world_pay_merchant_id: Secret<String>,
     #[serde(rename = "APITransactionID")]
     pub api_transaction_id: String,
-    #[serde(rename = "LocalDateTime")]
     pub local_date_time: String,
 }
 
@@ -286,14 +275,12 @@ pub enum WorldpayraftAuthorizeRequest<
 // =============================================================================
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct WorldpayraftResponseTraceNumbers {
-    #[serde(rename = "AuthorizationNumber")]
     pub authorization_number: Option<String>,
     #[serde(rename = "RetrievalREFNumber")]
     pub retrieval_ref_number: Option<String>,
-    #[serde(rename = "SystemTraceNumber")]
     pub system_trace_number: Option<String>,
-    #[serde(rename = "NetworkRefNumber")]
     pub network_ref_number: Option<String>,
 }
 
@@ -307,18 +294,14 @@ pub struct WorldpayraftEncryptionTokenData {
 
 /// Inner fields shared by creditauthresponse and debitpreauthresponse.
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct WorldpayraftCardAuthResponseInner {
-    #[serde(rename = "ReturnCode")]
     pub return_code: String,
-    #[serde(rename = "ReasonCode")]
     pub reason_code: Option<String>,
-    #[serde(rename = "ResponseCode")]
     pub response_code: String,
-    #[serde(rename = "ReferenceTraceNumbers")]
     pub reference_trace_numbers: Option<WorldpayraftResponseTraceNumbers>,
     #[serde(rename = "APITransactionID")]
     pub api_transaction_id: Option<String>,
-    #[serde(rename = "EncryptionTokenData")]
     pub encryption_token_data: Option<WorldpayraftEncryptionTokenData>,
 }
 
@@ -563,27 +546,24 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
 /// Trace numbers carried in the Capture request body.
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct WorldpayraftCaptureTraceNumbers {
-    #[serde(rename = "AuthorizationNumber")]
     pub authorization_number: String,
     #[serde(rename = "RetrievalREFNumber")]
     pub retrieval_ref_number: String,
-    #[serde(rename = "SystemTraceNumber")]
     pub system_trace_number: String,
 }
 
 /// Inner fields shared by creditcompletion and debitcompletion requests.
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct WorldpayraftCompletionInner {
-    #[serde(rename = "MiscAmountsBalances")]
     pub misc_amounts_balances: WorldpayraftAmounts,
-    #[serde(rename = "ReferenceTraceNumbers")]
     pub reference_trace_numbers: WorldpayraftCaptureTraceNumbers,
     #[serde(rename = "WorldPayMerchantID")]
     pub world_pay_merchant_id: Secret<String>,
     #[serde(rename = "APITransactionID")]
     pub api_transaction_id: String,
-    #[serde(rename = "LocalDateTime")]
     pub local_date_time: String,
 }
 
@@ -608,14 +588,11 @@ pub enum WorldpayraftCaptureRequest {
 
 /// Inner fields shared by creditcompletionresponse and debitcompletionresponse.
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct WorldpayraftCompletionResponseInner {
-    #[serde(rename = "ReturnCode")]
     pub return_code: String,
-    #[serde(rename = "ReasonCode")]
     pub reason_code: Option<String>,
-    #[serde(rename = "ResponseCode")]
     pub response_code: String,
-    #[serde(rename = "ReferenceTraceNumbers")]
     pub reference_trace_numbers: Option<WorldpayraftCaptureTraceNumbers>,
     #[serde(rename = "APITransactionID")]
     pub api_transaction_id: Option<String>,
@@ -785,27 +762,24 @@ impl TryFrom<ResponseRouterData<WorldpayraftCaptureResponse, Self>>
 
 /// Trace numbers carried in the Refund request body.
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct WorldpayraftRefundTraceNumbers {
-    #[serde(rename = "AuthorizationNumber")]
     pub authorization_number: String,
     #[serde(rename = "RetrievalREFNumber")]
     pub retrieval_ref_number: String,
-    #[serde(rename = "SystemTraceNumber")]
     pub system_trace_number: String,
 }
 
 /// Inner fields shared by creditrefund and debitrefund requests.
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct WorldpayraftRefundInner {
-    #[serde(rename = "MiscAmountsBalances")]
     pub misc_amounts_balances: WorldpayraftAmounts,
-    #[serde(rename = "ReferenceTraceNumbers")]
     pub reference_trace_numbers: WorldpayraftRefundTraceNumbers,
     #[serde(rename = "WorldPayMerchantID")]
     pub world_pay_merchant_id: Secret<String>,
     #[serde(rename = "APITransactionID")]
     pub api_transaction_id: String,
-    #[serde(rename = "LocalDateTime")]
     pub local_date_time: String,
 }
 
@@ -829,8 +803,8 @@ pub enum WorldpayraftRefundRequest {
 // =============================================================================
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct WorldpayraftRefundResponseTraceNumbers {
-    #[serde(rename = "AuthorizationNumber")]
     pub authorization_number: Option<String>,
     #[serde(rename = "RetrievalREFNumber")]
     pub retrieval_ref_number: Option<String>,
@@ -838,16 +812,13 @@ pub struct WorldpayraftRefundResponseTraceNumbers {
 
 /// Inner fields shared by creditrefundresponse and debitrefundresponse.
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct WorldpayraftRefundResponseInner {
-    #[serde(rename = "ReturnCode")]
     pub return_code: String,
-    #[serde(rename = "ReasonCode")]
     pub reason_code: Option<String>,
-    #[serde(rename = "ResponseCode")]
     pub response_code: String,
     #[serde(rename = "APITransactionID")]
     pub api_transaction_id: Option<String>,
-    #[serde(rename = "ReferenceTraceNumbers")]
     pub reference_trace_numbers: Option<WorldpayraftRefundResponseTraceNumbers>,
 }
 
@@ -1008,22 +979,21 @@ impl TryFrom<ResponseRouterData<WorldpayraftRefundResponse, Self>>
 // Stores a card PAN as a TokenizedPAN which is returned as the mandate reference.
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct WorldpayraftSetupMandateCardInfo {
     #[serde(rename = "PAN")]
     pub pan: Secret<String>,
-    #[serde(rename = "ExpirationDate")]
     pub expiration_date: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct WorldpayraftSetupMandateInner {
-    #[serde(rename = "CardInfo")]
     pub card_info: WorldpayraftSetupMandateCardInfo,
     #[serde(rename = "WorldPayMerchantID")]
     pub world_pay_merchant_id: Secret<String>,
     #[serde(rename = "APITransactionID")]
     pub api_transaction_id: String,
-    #[serde(rename = "LocalDateTime")]
     pub local_date_time: String,
 }
 
@@ -1044,26 +1014,21 @@ pub struct WorldpayraftSetupMandateTokenData {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct WorldpayraftSetupMandateTraceNumbers {
-    #[serde(rename = "AuthorizationNumber")]
     pub authorization_number: Option<String>,
     #[serde(rename = "RetrievalREFNumber")]
     pub retrieval_ref_number: Option<String>,
-    #[serde(rename = "SystemTraceNumber")]
     pub system_trace_number: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct WorldpayraftSetupMandateResponseInner {
-    #[serde(rename = "ReturnCode")]
     pub return_code: String,
-    #[serde(rename = "ReasonCode")]
     pub reason_code: Option<String>,
-    #[serde(rename = "ResponseCode")]
     pub response_code: String,
-    #[serde(rename = "EncryptionTokenData")]
     pub encryption_token_data: Option<WorldpayraftSetupMandateTokenData>,
-    #[serde(rename = "ReferenceTraceNumbers")]
     pub reference_trace_numbers: Option<WorldpayraftSetupMandateTraceNumbers>,
     #[serde(rename = "APITransactionID")]
     pub api_transaction_id: Option<String>,
@@ -1238,42 +1203,36 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 // with MIT flags.
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct WorldpayraftRepeatProcFlags {
-    #[serde(rename = "MerchantInitiatedTransaction")]
     pub merchant_initiated_transaction: String,
-    #[serde(rename = "RecurringBillPay")]
     pub recurring_bill_pay: Option<String>,
 }
 
 /// CardInfo for RepeatPayment — uses a plain Secret<String> PAN (the stored TokenizedPAN),
 /// not a generic RawCardNumber<T>.
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct WorldpayraftRepeatCardInfo {
     #[serde(rename = "PAN")]
     pub pan: Secret<String>,
-    #[serde(rename = "ExpirationDate")]
     pub expiration_date: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct WorldpayraftRepeatCreditAuth {
-    #[serde(rename = "MiscAmountsBalances")]
     pub misc_amounts_balances: WorldpayraftAmounts,
-    #[serde(rename = "CardInfo")]
     pub card_info: WorldpayraftRepeatCardInfo,
-    #[serde(rename = "TerminalData")]
     pub terminal_data: WorldpayraftTerminalData,
     #[serde(rename = "E-commerceData")]
     pub ecommerce_data: WorldpayraftEcommerceData,
-    #[serde(rename = "ProcFlagsIndicators")]
     pub proc_flags_indicators: WorldpayraftRepeatProcFlags,
-    #[serde(rename = "ReferenceTraceNumbers")]
     pub reference_trace_numbers: WorldpayraftRequestTraceNumbers,
     #[serde(rename = "WorldPayMerchantID")]
     pub world_pay_merchant_id: Secret<String>,
     #[serde(rename = "APITransactionID")]
     pub api_transaction_id: String,
-    #[serde(rename = "LocalDateTime")]
     pub local_date_time: String,
 }
 
@@ -1285,14 +1244,11 @@ pub struct WorldpayraftRepeatPaymentRequest {
 
 /// RepeatPayment response — same outer shape as credit authorize.
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct WorldpayraftRepeatPaymentResponseInner {
-    #[serde(rename = "ReturnCode")]
     pub return_code: String,
-    #[serde(rename = "ReasonCode")]
     pub reason_code: Option<String>,
-    #[serde(rename = "ResponseCode")]
     pub response_code: String,
-    #[serde(rename = "ReferenceTraceNumbers")]
     pub reference_trace_numbers: Option<WorldpayraftResponseTraceNumbers>,
     #[serde(rename = "APITransactionID")]
     pub api_transaction_id: Option<String>,
