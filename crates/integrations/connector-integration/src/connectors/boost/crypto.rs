@@ -15,6 +15,7 @@
 use std::{
     collections::HashMap,
     sync::{Mutex, OnceLock},
+    time::{Duration, Instant},
 };
 
 use base64::Engine;
@@ -36,16 +37,22 @@ const GCM_TAG_LEN: usize = 16;
 /// The `Card` object (integration guideline section 3.7.10), serialized
 /// compactly (no whitespace) before encryption — BCPG's own debugging
 /// checklist calls this out explicitly as a requirement, not just a nicety.
+///
+/// Fields are `Secret<String>` (not plain `String`) so an accidental
+/// `{:?}`/`attach_printable` on this value — a panic message, a stray debug
+/// log — can't leak the raw PAN/CVV; `Secret`'s `Debug` impl masks the
+/// inner value while its `Serialize` impl still emits it, which is what
+/// `serde_json::to_vec` below actually needs.
 #[derive(Debug, Serialize)]
 struct BoostCardPlaintext {
-    number: String,
+    number: Secret<String>,
     #[serde(rename = "expMonth")]
-    exp_month: String,
+    exp_month: Secret<String>,
     #[serde(rename = "expYear")]
-    exp_year: String,
-    cvv: String,
+    exp_year: Secret<String>,
+    cvv: Secret<String>,
     #[serde(rename = "cardHolderName")]
-    card_holder_name: String,
+    card_holder_name: Secret<String>,
 }
 
 /// The `EncryptedCardDetails` object (integration guideline section 3.7.9).
@@ -56,8 +63,20 @@ pub struct BoostEncryptedCard {
     pub ciphertext: String,
 }
 
-/// Caches one encrypted card per `referenceId`, consumed exactly twice and
-/// then evicted.
+/// How long a cache entry may sit unconsumed before it's swept as
+/// abandoned. Authorize requests complete in low single-digit seconds
+/// end-to-end; anything still cached past this was left behind by a
+/// request that errored between the two calls (see below) and never
+/// reached the second, consuming call.
+const CACHE_ENTRY_TTL: Duration = Duration::from_secs(60);
+
+struct CachedEncryptedCard {
+    card: BoostEncryptedCard,
+    inserted_at: Instant,
+}
+
+/// Caches one encrypted card per `(merchant_id, referenceId)`, consumed
+/// exactly twice and then evicted.
 ///
 /// The framework calls this connector's request-building transform
 /// independently twice per logical Authorize: once inside `build_headers`
@@ -73,10 +92,19 @@ pub struct BoostEncryptedCard {
 /// body (call #2) would never match — every Direct Card Payment request
 /// would 401, deterministically, not occasionally.
 ///
-/// Entries are removed on the second read, so the cache only ever holds
-/// requests currently mid-flight, never grows unboundedly.
-fn encrypted_card_cache() -> &'static Mutex<HashMap<String, BoostEncryptedCard>> {
-    static CACHE: OnceLock<Mutex<HashMap<String, BoostEncryptedCard>>> = OnceLock::new();
+/// Keyed by `(merchant_id, referenceId)` rather than `referenceId` alone —
+/// this is a single process-wide static shared by every merchant this UCS
+/// instance serves, so keying by referenceId alone would let one merchant's
+/// cached ciphertext be handed back to a different merchant if their
+/// referenceIds ever collided.
+///
+/// Entries are normally removed on the second read. `CACHE_ENTRY_TTL` bounds
+/// the ones that aren't: if a request errors between the two calls (HMAC
+/// signing fails, some other step aborts), its entry would otherwise never
+/// be removed and the map would grow unboundedly over the life of the
+/// process.
+fn encrypted_card_cache() -> &'static Mutex<HashMap<String, CachedEncryptedCard>> {
+    static CACHE: OnceLock<Mutex<HashMap<String, CachedEncryptedCard>>> = OnceLock::new();
     CACHE.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
@@ -136,20 +164,26 @@ pub fn encrypt_card(
     reference_id: &str,
     created_epoch_seconds: i64,
 ) -> Result<BoostEncryptedCard, error_stack::Report<errors::IntegrationError>> {
+    let cache_key = format!("{merchant_id}:{reference_id}");
+
     // See `encrypted_card_cache`: the second of the two calls the framework
     // makes per logical Authorize hits this and returns immediately, without
     // re-running any crypto.
-    if let Some(cached) = encrypted_card_cache()
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner())
-        .remove(reference_id)
     {
-        return Ok(cached);
+        let mut cache = encrypted_card_cache()
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        // Sweep anything abandoned by a prior request that errored between
+        // its two calls, so the cache can't grow unboundedly.
+        cache.retain(|_, entry| entry.inserted_at.elapsed() < CACHE_ENTRY_TTL);
+        if let Some(cached) = cache.remove(&cache_key) {
+            return Ok(cached.card);
+        }
     }
 
     let card = BoostCardPlaintext {
-        number: card_number.to_string(),
-        exp_month: normalize_exp_month(card_exp_month),
+        number: Secret::new(card_number.to_string()),
+        exp_month: Secret::new(normalize_exp_month(card_exp_month)),
         // Sent as-is (UCS always supplies a 4-digit year). BCPG's own doc
         // sample and a written debugging checklist both say to use a
         // 2-digit year, but live testing against BCPG's staging Direct Card
@@ -160,9 +194,9 @@ pub fn encrypt_card(
         // cardExpiryDate`) with no MAC — the "Unable to do MAC
         // Verification" failure. Confirmed empirical behavior over the
         // documented sample/checklist: keep the 4-digit year.
-        exp_year: card_exp_year.to_string(),
-        cvv: card_cvc.to_string(),
-        card_holder_name: card_holder_name.to_string(),
+        exp_year: Secret::new(card_exp_year.to_string()),
+        cvv: Secret::new(card_cvc.to_string()),
+        card_holder_name: Secret::new(card_holder_name.to_string()),
     };
 
     // serde_json::to_vec produces compact JSON (no whitespace) by construction.
@@ -272,7 +306,13 @@ pub fn encrypt_card(
     encrypted_card_cache()
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner())
-        .insert(reference_id.to_string(), result.clone());
+        .insert(
+            cache_key,
+            CachedEncryptedCard {
+                card: result.clone(),
+                inserted_at: Instant::now(),
+            },
+        );
 
     Ok(result)
 }
