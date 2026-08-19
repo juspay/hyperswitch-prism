@@ -260,14 +260,32 @@ fn get_worldpayxml_wallet_payment_method(
 }
 
 /// Number of decimal places Worldpay expects for the order currency.
-fn get_worldpayxml_exponent(currency: common_enums::Currency) -> String {
-    if currency.is_three_decimal_currency() {
-        "3".to_string()
-    } else if currency.is_zero_decimal_currency() {
-        "0".to_string()
-    } else {
-        "2".to_string()
-    }
+///
+/// Defers to the shared currency helper rather than re-deriving the exponent, so four-decimal
+/// currencies are handled and an unrecognised currency is rejected instead of silently being
+/// treated as two-decimal.
+fn get_worldpayxml_exponent(
+    currency: common_enums::Currency,
+) -> Result<String, Report<IntegrationError>> {
+    currency
+        .number_of_digits_after_decimal_point()
+        .map(|digits| digits.to_string())
+        .map_err(|_| {
+            IntegrationError::InvalidDataFormat {
+                field_name: "currency",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Use an ISO 4217 currency Worldpay accepts (e.g. GBP, USD, EUR)."
+                            .to_string(),
+                    ),
+                    doc_url: None,
+                    additional_context: Some(format!(
+                        "Currency {currency:?} has no known minor-unit exponent"
+                    )),
+                },
+            }
+            .into()
+        })
 }
 
 /// The telephone number is carried on the billing contact rather than the address itself, so it is
@@ -472,7 +490,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     amount: requests::WorldpayxmlAmount {
                         value: converted_amount,
                         currency_code: router_data.request.currency,
-                        exponent: get_worldpayxml_exponent(router_data.request.currency),
+                        exponent: get_worldpayxml_exponent(router_data.request.currency)?,
                     },
                     payment_details: requests::WorldpayxmlPaymentDetails {
                         action: Some(if is_manual_capture {
@@ -618,7 +636,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     amount: requests::WorldpayxmlAmount {
                         value: converted_amount,
                         currency_code: router_data.request.currency,
-                        exponent: get_worldpayxml_exponent(router_data.request.currency),
+                        exponent: get_worldpayxml_exponent(router_data.request.currency)?,
                     },
                     payment_details: requests::WorldpayxmlPaymentDetails {
                         action: Some(if is_manual_capture {
@@ -785,7 +803,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     amount: requests::WorldpayxmlAmount {
                         value: converted_amount,
                         currency_code: router_data.request.currency,
-                        exponent: get_worldpayxml_exponent(router_data.request.currency),
+                        exponent: get_worldpayxml_exponent(router_data.request.currency)?,
                     },
                     payment_details: requests::WorldpayxmlPaymentDetails {
                         action: None,
@@ -870,7 +888,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         amount: requests::WorldpayxmlAmount {
                             value: converted_amount,
                             currency_code: router_data.request.currency,
-                            exponent: get_worldpayxml_exponent(router_data.request.currency),
+                            exponent: get_worldpayxml_exponent(router_data.request.currency)?,
                         },
                     },
                 },
@@ -954,7 +972,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         amount: requests::WorldpayxmlAmount {
                             value: converted_amount,
                             currency_code: router_data.request.currency,
-                            exponent: get_worldpayxml_exponent(router_data.request.currency),
+                            exponent: get_worldpayxml_exponent(router_data.request.currency)?,
                         },
                     },
                 },
@@ -1289,7 +1307,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // A refused authorization is the most common decline path, so surface the ISO 8583 return
         // code the same way the SetupMandate and RepeatPayment transformers do instead of handing
         // the merchant a bare Failure with no code or reason.
-        if status == AttemptStatus::Failure {
+        if domain_types::utils::is_payment_failure(status) {
             let return_code = payment.iso8583_return_code.as_ref();
             return Ok(Self {
                 resource_common_data: PaymentFlowData {
@@ -1431,7 +1449,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             item.http_code,
         )?;
 
-        if status == AttemptStatus::Failure {
+        if domain_types::utils::is_payment_failure(status) {
             let return_code = payment.iso8583_return_code.as_ref();
             return Ok(Self {
                 resource_common_data: PaymentFlowData {
@@ -1576,7 +1594,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // A refused merchant-initiated payment is the case that most needs its decline detail
         // (retry and dunning logic key off it), so surface the ISO 8583 return code the same
         // way the SetupMandate transformer does instead of a bare Failure status.
-        if status == AttemptStatus::Failure {
+        if domain_types::utils::is_payment_failure(status) {
             let return_code = payment.iso8583_return_code.as_ref();
             return Ok(Self {
                 resource_common_data: PaymentFlowData {
@@ -1913,7 +1931,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>
 
                 // A sync that observes a refused order carries the same decline detail an
                 // Authorize reply does, so report it identically rather than as a bare Failure.
-                if status == AttemptStatus::Failure {
+                if domain_types::utils::is_payment_failure(status) {
                     let return_code = payment.iso8583_return_code.as_ref();
                     return Ok(Self {
                         resource_common_data: PaymentFlowData {

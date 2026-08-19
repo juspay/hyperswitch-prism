@@ -1,6 +1,6 @@
 use domain_types::{
     connector_flow::{PayoutGet, PayoutTransfer, PayoutVoid},
-    errors::{ConnectorError, IntegrationError},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payouts::payouts_types::{
         PayoutFlowData, PayoutGetRequest, PayoutGetResponse, PayoutTransferRequest,
         PayoutTransferResponse, PayoutVoidRequest, PayoutVoidResponse,
@@ -76,14 +76,28 @@ fn map_worldpayxml_payout_status(
     }
 }
 
-fn worldpayxml_amount_exponent(currency: common_enums::Currency) -> String {
-    if currency.is_three_decimal_currency() {
-        "3".to_string()
-    } else if currency.is_zero_decimal_currency() {
-        "0".to_string()
-    } else {
-        "2".to_string()
-    }
+fn worldpayxml_amount_exponent(
+    currency: common_enums::Currency,
+) -> Result<String, Report<IntegrationError>> {
+    currency
+        .number_of_digits_after_decimal_point()
+        .map(|digits| digits.to_string())
+        .map_err(|_| {
+            IntegrationError::InvalidDataFormat {
+                field_name: "currency",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Use an ISO 4217 currency Worldpay accepts (e.g. GBP, USD, EUR)."
+                            .to_string(),
+                    ),
+                    doc_url: None,
+                    additional_context: Some(format!(
+                        "Currency {currency:?} has no known minor-unit exponent"
+                    )),
+                },
+            }
+            .into()
+        })
 }
 
 // ----- PayoutTransfer (PoFulfill) request -----
@@ -191,7 +205,7 @@ impl
                     amount: requests::WorldpayxmlAmount {
                         value: converted_amount,
                         currency_code: request.destination_currency,
-                        exponent: worldpayxml_amount_exponent(request.destination_currency),
+                        exponent: worldpayxml_amount_exponent(request.destination_currency)?,
                     },
                     payment_details: requests::WorldpayxmlPayoutPaymentDetails { payment_method },
                 },
