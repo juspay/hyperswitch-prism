@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 use common_enums::CurrencyUnit;
 use common_utils::{
-    errors::CustomResult, events, ext_traits::ByteSliceExt, types::StringMajorUnit,
+    consts, errors::CustomResult, events, ext_traits::ByteSliceExt, types::StringMajorUnit,
 };
 use domain_types::{
     connector_flow::{Authorize, Capture, Refund, RepeatPayment, SetupMandate},
@@ -35,7 +35,7 @@ use transformers::{
     WorldpayraftSetupMandateRequest, WorldpayraftSetupMandateResponse,
 };
 
-use crate::{connectors::macros, types::ResponseRouterData};
+use crate::{connectors::macros, types::ResponseRouterData, utils, with_error_response_body};
 
 pub(crate) mod headers {
     pub(crate) const AUTHORIZATION: &str = "Authorization";
@@ -139,7 +139,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
         let auth = worldpayraft::WorldpayraftAuthType::try_from(auth_type).change_context(
             errors::IntegrationError::FailedToObtainAuthType {
-                context: Default::default(),
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Worldpay RAFT auth requires license and merchant_id from ConnectorSpecificConfig::Worldpayraft".to_string(),
+                    ),
+                    ..Default::default()
+                },
             },
         )?;
         Ok(vec![(
@@ -154,27 +159,26 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         event_builder: Option<&mut events::Event>,
         _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        // Worldpay RAFT returns HTTP 200 even for errors.
-        // Parse body for ReturnCode/ReasonCode/ResponseCode.
         let response: worldpayraft::WorldpayraftErrorResponse = res
             .response
             .parse_struct("WorldpayraftErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed {
-                context: Default::default(),
-            })?;
+            .change_context(utils::response_handling_fail_for_connector(
+                res.status_code,
+                "worldpayraft",
+            ))?;
 
-        if let Some(body) = event_builder {
-            body.set_connector_response(&response);
-        }
+        with_error_response_body!(event_builder, response);
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response
-                .return_code
-                .unwrap_or_else(|| response.response_code.unwrap_or_default()),
+            code: response.return_code.unwrap_or_else(|| {
+                response
+                    .response_code
+                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string())
+            }),
             message: response
                 .reason_code
-                .unwrap_or_else(|| "Unknown error from Worldpay RAFT".to_string()),
+                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
             reason: None,
             attempt_status: None,
             connector_transaction_id: None,
@@ -268,7 +272,9 @@ macros::macro_connector_implementation!(
             let base_url = self.connector_base_url_payments(req);
             let is_debit = matches!(
                 &req.request.payment_method_data,
-                PaymentMethodData::Card(c) if matches!(c.card_type.as_deref(), Some("debit") | Some("Debit"))
+                PaymentMethodData::Card(c) if c.card_type.as_deref()
+                    .map(|t| t.eq_ignore_ascii_case(worldpayraft::CARD_TYPE_DEBIT))
+                    .unwrap_or(false)
             );
             let path = if is_debit { "debit/preauth" } else { "credit/authorization" };
             Ok(format!("{base_url}/{path}"))
@@ -312,9 +318,15 @@ macros::macro_connector_implementation!(
             let connector_txn_id = req.request.get_connector_transaction_id()
                 .change_context(errors::IntegrationError::MissingRequiredField {
                     field_name: "connector_transaction_id",
-                    context: Default::default(),
+                    context: errors::IntegrationErrorContext {
+                        additional_context: Some(
+                            "connector_transaction_id is required to route Capture to the correct debit/credit endpoint".to_string(),
+                        ),
+                        ..Default::default()
+                    },
                 })?;
-            let path = if connector_txn_id.starts_with("D|") { "debit/completion" } else { "credit/completion" };
+            let (is_debit, _, _, _) = worldpayraft::parse_connector_transaction_id(&connector_txn_id);
+            let path = if is_debit { "debit/completion" } else { "credit/completion" };
             Ok(format!("{base_url}/{path}"))
         }
     }
@@ -353,11 +365,8 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
         ) -> CustomResult<String, errors::IntegrationError> {
             let base_url = self.connector_base_url_refunds(req);
-            let path = if req.request.connector_transaction_id.starts_with("D|") {
-                "debit/refund"
-            } else {
-                "credit/refund"
-            };
+            let (is_debit, _, _, _) = worldpayraft::parse_connector_transaction_id(&req.request.connector_transaction_id);
+            let path = if is_debit { "debit/refund" } else { "credit/refund" };
             Ok(format!("{base_url}/{path}"))
         }
     }

@@ -19,6 +19,36 @@ use serde::{Deserialize, Serialize};
 use crate::connectors::worldpayraft::WorldpayraftRouterData;
 
 // =============================================================================
+// CONSTANTS
+// =============================================================================
+
+/// Card type identifier as received in PaymentMethodData (case-insensitive comparison via eq_ignore_ascii_case).
+pub(super) const CARD_TYPE_DEBIT: &str = "debit";
+
+/// Prefix embedded in connector_transaction_id to identify debit transactions.
+pub(super) const TXN_TYPE_DEBIT: &str = "D";
+/// Prefix embedded in connector_transaction_id to identify credit transactions.
+pub(super) const TXN_TYPE_CREDIT: &str = "C";
+
+/// Worldpay RAFT operation-level success code (ReturnCode).
+const RETURN_CODE_SUCCESS: &str = "0000";
+/// Worldpay RAFT issuer-level success code (ResponseCode).
+const RESPONSE_CODE_SUCCESS: &str = "000";
+
+/// E-commerce channel entry mode.
+const ENTRY_MODE_ECOMM: &str = "E-COMM";
+/// POS condition code for e-commerce.
+const POS_CONDITION_CODE_ECOMM: &str = "59";
+/// Terminal entry capability (not applicable for e-commerce).
+const TERMINAL_ENTRY_CAP_DEFAULT: &str = "0";
+/// E-commerce indicator: 3DS authenticated.
+const ECOMMERCE_INDICATOR_SECURE: &str = "07";
+/// CVV2/CVC2 indicator: value provided.
+const CVV_INDICATOR_PRESENT: &str = "0";
+/// Flag value indicating yes/enabled for proc flag fields.
+const MIT_YES: &str = "Y";
+
+// =============================================================================
 // AUTH TYPE
 // =============================================================================
 
@@ -77,11 +107,16 @@ pub struct WorldpayraftErrorResponse {
 
 /// Returns the current UTC datetime formatted as "YYYY-MM-DDTHH:MM:SS".
 fn get_local_datetime() -> String {
-    time::OffsetDateTime::now_utc()
-        .format(time::macros::format_description!(
-            "[year]-[month]-[day]T[hour]:[minute]:[second]"
-        ))
-        .unwrap_or_else(|_| "1970-01-01T00:00:00".to_string())
+    let now = time::OffsetDateTime::now_utc();
+    format!(
+        "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}",
+        now.year(),
+        u8::from(now.month()),
+        now.day(),
+        now.hour(),
+        now.minute(),
+        now.second(),
+    )
 }
 
 /// Truncates a string to at most 16 characters (APITransactionID max length).
@@ -106,17 +141,17 @@ fn derive_system_trace_number(id: &str) -> String {
 /// Parse a connector_transaction_id that encodes card type + auth trace numbers.
 ///
 /// New format: `"{prefix}|{AuthorizationNumber}|{RetrievalREFNumber}|{SystemTraceNumber}"`
-/// where prefix is "C" (credit) or "D" (debit).
+/// where prefix is `TXN_TYPE_CREDIT` ("C") or `TXN_TYPE_DEBIT` ("D").
 ///
 /// Legacy format (backwards compat, treated as credit):
 /// `"{AuthorizationNumber}|{RetrievalREFNumber}|{SystemTraceNumber}"`
 ///
 /// Returns `(is_debit, authorization_number, retrieval_ref_number, system_trace_number)`.
-fn parse_connector_transaction_id(id: &str) -> (bool, &str, &str, &str) {
+pub(super) fn parse_connector_transaction_id(id: &str) -> (bool, &str, &str, &str) {
     let mut iter = id.splitn(4, '|');
     match (iter.next(), iter.next(), iter.next(), iter.next()) {
         (Some(prefix), Some(auth_num), Some(retrieval_ref), Some(sys_trace)) => {
-            (prefix == "D", auth_num, retrieval_ref, sys_trace)
+            (prefix == TXN_TYPE_DEBIT, auth_num, retrieval_ref, sys_trace)
         }
         (Some(auth_num), Some(retrieval_ref), Some(sys_trace), None) => {
             // Legacy format without prefix — treat as credit
@@ -128,10 +163,10 @@ fn parse_connector_transaction_id(id: &str) -> (bool, &str, &str, &str) {
 
 /// Derive AttemptStatus for Authorize and Capture flows.
 ///
-/// - `ReturnCode == "0000"` AND `ResponseCode == "000"` → success status
+/// - `ReturnCode == RETURN_CODE_SUCCESS` AND `ResponseCode == RESPONSE_CODE_SUCCESS` → success
 /// - Anything else → Failure
 fn map_payment_status(return_code: &str, response_code: &str) -> bool {
-    return_code == "0000" && response_code == "000"
+    return_code == RETURN_CODE_SUCCESS && response_code == RESPONSE_CODE_SUCCESS
 }
 
 // =============================================================================
@@ -341,7 +376,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 router_data.request.currency,
             )
             .change_context(errors::IntegrationError::AmountConversionFailed {
-                context: Default::default(),
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Worldpay RAFT requires the payment amount in major currency units (e.g. USD dollars)".to_string(),
+                    ),
+                    ..Default::default()
+                },
             })?;
 
         let card: &Card<T> = match &router_data.request.payment_method_data {
@@ -351,19 +391,27 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     errors::IntegrationError::NotImplemented(
                         "Only Card payment method is supported for Worldpay RAFT Authorize"
                             .to_string(),
-                        Default::default(),
+                        errors::IntegrationErrorContext::default(),
                     )
                 ))
             }
         };
 
-        // Detect debit by card_type field
-        let is_debit = matches!(card.card_type.as_deref(), Some("debit") | Some("Debit"));
+        let is_debit = card
+            .card_type
+            .as_deref()
+            .map(|t| t.eq_ignore_ascii_case(CARD_TYPE_DEBIT))
+            .unwrap_or(false);
 
         let expiration_date = card.get_expiry_date_as_yymm().change_context(
             errors::IntegrationError::InvalidDataFormat {
                 field_name: "card.card_exp_year / card.card_exp_month",
-                context: Default::default(),
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Worldpay RAFT expects card expiry in YYMM format".to_string(),
+                    ),
+                    ..Default::default()
+                },
             },
         )?;
 
@@ -371,7 +419,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             let cvv_str = card.card_cvc.peek();
             if !cvv_str.is_empty() {
                 Some(WorldpayraftCardVerificationData {
-                    cvv_indicator: "0".to_string(),
+                    cvv_indicator: CVV_INDICATOR_PRESENT.to_string(),
                     cvv2_cvc2: card.card_cvc.clone(),
                 })
             } else {
@@ -416,12 +464,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             card_verification_data,
             address_verification_data,
             terminal_data: WorldpayraftTerminalData {
-                entry_mode: "E-COMM".to_string(),
-                pos_condition_code: "59".to_string(),
-                terminal_entry_cap: "0".to_string(),
+                entry_mode: ENTRY_MODE_ECOMM.to_string(),
+                pos_condition_code: POS_CONDITION_CODE_ECOMM.to_string(),
+                terminal_entry_cap: TERMINAL_ENTRY_CAP_DEFAULT.to_string(),
             },
             ecommerce_data: WorldpayraftEcommerceData {
-                ecommerce_indicator: "07".to_string(),
+                ecommerce_indicator: ECOMMERCE_INDICATOR_SECURE.to_string(),
             },
             reference_trace_numbers: WorldpayraftRequestTraceNumbers {
                 system_trace_number,
@@ -471,7 +519,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // Encode card type prefix so downstream flows can route correctly
         // Format: "{C|D}|{AuthorizationNumber}|{RetrievalREFNumber}|{SystemTraceNumber}"
-        let prefix = if is_debit { "D" } else { "C" };
+        let prefix = if is_debit {
+            TXN_TYPE_DEBIT
+        } else {
+            TXN_TYPE_CREDIT
+        };
         let connector_transaction_id = inner
             .reference_trace_numbers
             .as_ref()
@@ -613,7 +665,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 router_data.request.currency,
             )
             .change_context(errors::IntegrationError::AmountConversionFailed {
-                context: Default::default(),
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Worldpay RAFT requires the capture amount in major currency units"
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
             })?;
 
         let connector_txn_id = router_data.request.get_connector_transaction_id()?;
@@ -624,13 +682,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             return Err(error_stack::report!(
                 errors::IntegrationError::InvalidDataFormat {
                     field_name: "connector_transaction_id",
-                    context: Default::default(),
+                    context: errors::IntegrationErrorContext {
+                        additional_context: Some(format!(
+                            "Expected format: [C|D]|AuthorizationNumber|RetrievalREFNumber|SystemTraceNumber, got: {connector_txn_id}"
+                        )),
+                        ..Default::default()
+                    },
                 }
-            )
-            .attach_printable(format!(
-                "worldpayraft Capture: expected connector_transaction_id in format \
-                 '[C|D]|AuthorizationNumber|RetrievalREFNumber|SystemTraceNumber', got: {connector_txn_id}"
-            )));
+            ));
         }
 
         let api_transaction_id = truncate_api_transaction_id(
@@ -805,19 +864,6 @@ pub enum WorldpayraftRefundResponse {
 }
 
 // =============================================================================
-// STATUS MAPPING FOR REFUND
-// =============================================================================
-
-/// Map ReturnCode + ResponseCode to RefundStatus.
-fn map_refund_status(return_code: &str, response_code: &str) -> RefundStatus {
-    if return_code == "0000" && response_code == "000" {
-        RefundStatus::Success
-    } else {
-        RefundStatus::Failure
-    }
-}
-
-// =============================================================================
 // TryFrom: RouterDataV2 → WorldpayraftRefundRequest
 // =============================================================================
 
@@ -849,7 +895,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 router_data.request.currency,
             )
             .change_context(errors::IntegrationError::AmountConversionFailed {
-                context: Default::default(),
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Worldpay RAFT requires the refund amount in major currency units"
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
             })?;
 
         let connector_txn_id = &router_data.request.connector_transaction_id;
@@ -860,13 +912,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             return Err(error_stack::report!(
                 errors::IntegrationError::InvalidDataFormat {
                     field_name: "connector_transaction_id",
-                    context: Default::default(),
+                    context: errors::IntegrationErrorContext {
+                        additional_context: Some(format!(
+                            "Expected format: [C|D]|AuthorizationNumber|RetrievalREFNumber|SystemTraceNumber, got: {connector_txn_id}"
+                        )),
+                        ..Default::default()
+                    },
                 }
-            )
-            .attach_printable(format!(
-                "worldpayraft Refund: expected connector_transaction_id in format \
-                 '[C|D]|AuthorizationNumber|RetrievalREFNumber|SystemTraceNumber', got: {connector_txn_id}"
-            )));
+            ));
         }
 
         let api_transaction_id = truncate_api_transaction_id(&router_data.request.refund_id);
@@ -915,7 +968,13 @@ impl TryFrom<ResponseRouterData<WorldpayraftRefundResponse, Self>>
             } => debitrefundresponse,
         };
 
-        let refund_status = map_refund_status(&inner.return_code, &inner.response_code);
+        let refund_status = if inner.return_code == RETURN_CODE_SUCCESS
+            && inner.response_code == RESPONSE_CODE_SUCCESS
+        {
+            RefundStatus::Success
+        } else {
+            RefundStatus::Failure
+        };
 
         // connector_refund_id: prefer AuthorizationNumber from response trace numbers,
         // fall back to APITransactionID
@@ -1057,7 +1116,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     errors::IntegrationError::NotImplemented(
                         "Only Card payment method is supported for Worldpay RAFT SetupMandate"
                             .to_string(),
-                        Default::default(),
+                        errors::IntegrationErrorContext::default(),
                     )
                 ))
             }
@@ -1066,7 +1125,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let expiration_date = card.get_expiry_date_as_yymm().change_context(
             errors::IntegrationError::InvalidDataFormat {
                 field_name: "card.card_exp_year / card.card_exp_month",
-                context: Default::default(),
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Worldpay RAFT expects card expiry in YYMM format".to_string(),
+                    ),
+                    ..Default::default()
+                },
             },
         )?;
 
@@ -1112,7 +1176,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let response = &item.response.tokenizeresponse;
 
-        let status = if response.return_code == "0000" && response.response_code == "000" {
+        let status = if map_payment_status(&response.return_code, &response.response_code) {
             AttemptStatus::Charged
         } else {
             AttemptStatus::Failure
@@ -1141,7 +1205,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 let auth_num = trace.authorization_number.as_deref().unwrap_or("");
                 let retrieval_ref = trace.retrieval_ref_number.as_deref().unwrap_or("");
                 let sys_trace = trace.system_trace_number.as_deref().unwrap_or("");
-                format!("C|{auth_num}|{retrieval_ref}|{sys_trace}")
+                format!("{TXN_TYPE_CREDIT}|{auth_num}|{retrieval_ref}|{sys_trace}")
             })
             .unwrap_or_default();
 
@@ -1281,7 +1345,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 router_data.request.currency,
             )
             .change_context(errors::IntegrationError::AmountConversionFailed {
-                context: Default::default(),
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Worldpay RAFT requires the repeat payment amount in major currency units"
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
             })?;
 
         let tokenized_pan = match &router_data.request.mandate_reference {
@@ -1290,7 +1360,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .ok_or_else(|| {
                     error_stack::report!(errors::IntegrationError::MissingRequiredField {
                         field_name: "connector_mandate_id",
-                        context: Default::default(),
+                        context: errors::IntegrationErrorContext {
+                            additional_context: Some(
+                                "Worldpay RAFT RepeatPayment requires a stored TokenizedPAN as the connector mandate ID".to_string(),
+                            ),
+                            ..Default::default()
+                        },
                     })
                 })?,
             MandateReferenceId::NetworkMandateId(_)
@@ -1299,7 +1374,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     errors::IntegrationError::NotImplemented(
                         "Only ConnectorMandateId is supported for Worldpay RAFT RepeatPayment"
                             .to_string(),
-                        Default::default(),
+                        errors::IntegrationErrorContext::default(),
                     )
                 ))
             }
@@ -1322,16 +1397,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     expiration_date: Secret::new(String::new()),
                 },
                 terminal_data: WorldpayraftTerminalData {
-                    entry_mode: "E-COMM".to_string(),
-                    pos_condition_code: "59".to_string(),
-                    terminal_entry_cap: "0".to_string(),
+                    entry_mode: ENTRY_MODE_ECOMM.to_string(),
+                    pos_condition_code: POS_CONDITION_CODE_ECOMM.to_string(),
+                    terminal_entry_cap: TERMINAL_ENTRY_CAP_DEFAULT.to_string(),
                 },
                 ecommerce_data: WorldpayraftEcommerceData {
-                    ecommerce_indicator: "07".to_string(),
+                    ecommerce_indicator: ECOMMERCE_INDICATOR_SECURE.to_string(),
                 },
                 proc_flags_indicators: WorldpayraftRepeatProcFlags {
-                    merchant_initiated_transaction: "Y".to_string(),
-                    recurring_bill_pay: Some("Y".to_string()),
+                    merchant_initiated_transaction: MIT_YES.to_string(),
+                    recurring_bill_pay: Some(MIT_YES.to_string()),
                 },
                 reference_trace_numbers: WorldpayraftRequestTraceNumbers {
                     system_trace_number,
@@ -1365,7 +1440,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             AttemptStatus::Failure
         };
 
-        // RepeatPayment is always credit; encode with "C" prefix
+        // RepeatPayment is always credit; encode with TXN_TYPE_CREDIT prefix
         let connector_transaction_id = response
             .reference_trace_numbers
             .as_ref()
@@ -1373,7 +1448,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 let auth_num = trace.authorization_number.as_deref().unwrap_or("");
                 let retrieval_ref = trace.retrieval_ref_number.as_deref().unwrap_or("");
                 let sys_trace = trace.system_trace_number.as_deref().unwrap_or("");
-                format!("C|{auth_num}|{retrieval_ref}|{sys_trace}")
+                format!("{TXN_TYPE_CREDIT}|{auth_num}|{retrieval_ref}|{sys_trace}")
             })
             .unwrap_or_default();
 

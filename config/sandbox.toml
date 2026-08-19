@@ -25,7 +25,7 @@ bypass_urls = ["localhost", "local"]
 [connectors]
 citigate.base_url = "https://gw-test.cgate.tech"
 ilixium.base_url = "https://prprocessing.ilixium.com/platform/ili"
-worldpayraft.base_url = "https://ws.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1"
+worldpayraft.base_url = "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1"
 grabpay.base_url = "https://partner-api.stg-myteksi.com/grabpay/partner/v2"
 maya.base_url = "https://pg-sandbox.paymaya.com"
 boost.base_url = "https://stage-api.boostconnect.biz/gateway"
