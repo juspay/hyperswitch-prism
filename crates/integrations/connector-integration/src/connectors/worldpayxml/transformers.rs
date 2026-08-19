@@ -1275,6 +1275,41 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             item.http_code,
         )?;
 
+        // A refused authorization is the most common decline path, so surface the ISO 8583 return
+        // code the same way the SetupMandate and RepeatPayment transformers do instead of handing
+        // the merchant a bare Failure with no code or reason.
+        if status == AttemptStatus::Failure {
+            let return_code = payment.iso8583_return_code.as_ref();
+            return Ok(Self {
+                resource_common_data: PaymentFlowData {
+                    status,
+                    ..router_data.resource_common_data.clone()
+                },
+                response: Err(ErrorResponse {
+                    code: return_code.map_or_else(
+                        || common_utils::consts::NO_ERROR_CODE.to_string(),
+                        |code| code.code.clone(),
+                    ),
+                    message: return_code.map_or_else(
+                        || common_utils::consts::NO_ERROR_MESSAGE.to_string(),
+                        |code| code.description.clone(),
+                    ),
+                    reason: return_code.map(|code| code.description.clone()),
+                    status_code: item.http_code,
+                    attempt_status: Some(FlowStatus::Payment(status)),
+                    connector_transaction_id: Some(order_status.order_code.clone()),
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
+                }),
+                ..router_data.clone()
+            });
+        }
+
         // Build success response
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(order_status.order_code.clone()),
@@ -1850,6 +1885,40 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>
                     Some(&router_data.resource_common_data.status),
                     item.http_code,
                 )?;
+
+                // A sync that observes a refused order carries the same decline detail an
+                // Authorize reply does, so report it identically rather than as a bare Failure.
+                if status == AttemptStatus::Failure {
+                    let return_code = payment.iso8583_return_code.as_ref();
+                    return Ok(Self {
+                        resource_common_data: PaymentFlowData {
+                            status,
+                            ..router_data.resource_common_data.clone()
+                        },
+                        response: Err(ErrorResponse {
+                            code: return_code.map_or_else(
+                                || common_utils::consts::NO_ERROR_CODE.to_string(),
+                                |code| code.code.clone(),
+                            ),
+                            message: return_code.map_or_else(
+                                || common_utils::consts::NO_ERROR_MESSAGE.to_string(),
+                                |code| code.description.clone(),
+                            ),
+                            reason: return_code.map(|code| code.description.clone()),
+                            status_code: item.http_code,
+                            attempt_status: Some(FlowStatus::Payment(status)),
+                            connector_transaction_id: Some(order_status.order_code.clone()),
+                            network_decline_code: None,
+                            network_advice_code: None,
+                            network_error_message: None,
+                            typed_connector_response: None,
+                            raw_connector_response: None,
+                            raw_connector_request: None,
+                            typed_connector_request: None,
+                        }),
+                        ..router_data.clone()
+                    });
+                }
 
                 // Build success response
                 let payments_response_data = PaymentsResponseData::TransactionResponse {
