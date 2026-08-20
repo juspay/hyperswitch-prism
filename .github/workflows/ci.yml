@@ -58,6 +58,7 @@ jobs:
       any-rs: ${{ steps.filter.outputs.any-rs }}
       ci: ${{ steps.filter.outputs.ci }}
       connector-names: ${{ steps.connector-names.outputs.list }}
+      new-connectors: ${{ steps.new-connectors.outputs.list }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -123,6 +124,39 @@ jobs:
             sort -u | paste -sd ',' -)
           echo "list=$names" >> $GITHUB_OUTPUT
           echo "Changed connectors: $names"
+
+      - name: Detect newly added connectors
+        id: new-connectors
+        if: steps.connector-names.outputs.list != ''
+        shell: bash
+        env:
+          # Read through the environment, never interpolated into the script:
+          # these derive from paths in the diff, which a fork PR controls.
+          BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
+          CHANGED_CONNECTORS: ${{ steps.connector-names.outputs.list }}
+        run: |
+          new_list=""
+          # No usable base to compare against: merge_group carries neither
+          # field, and the first push of a branch reports all zeros. Treating
+          # that as "everything is new" would fail the run for connectors the
+          # change never added, so report nothing instead.
+          if [[ -z "${BASE_REF}" || "${BASE_REF}" =~ ^0+$ ]] \
+            || ! git cat-file -e "${BASE_REF}^{commit}" 2>/dev/null; then
+            echo "No base commit available (BASE_REF='${BASE_REF}') — skipping detection"
+          else
+            IFS=',' read -ra CONNECTORS <<< "${CHANGED_CONNECTORS}"
+            for c in "${CONNECTORS[@]}"; do
+              spec_dir="crates/internal/integration-tests/src/connector_specs/$c"
+              # New if its spec directory does not exist on the base branch as
+              # of this event, so a connector someone else added is not
+              # attributed to this change.
+              if ! git cat-file -e "${BASE_REF}:${spec_dir}" 2>/dev/null; then
+                new_list="${new_list}${new_list:+,}${c}"
+              fi
+            done
+          fi
+          echo "list=$new_list" >> $GITHUB_OUTPUT
+          echo "Newly added connectors: $new_list"
 
   # ── Fast Checks ───────────────────────────────────────────────────────────
 
@@ -418,6 +452,13 @@ jobs:
 
       - name: Run Connector Specs Coverage Check
         run: cargo run --all-features --bin check_connector_specs
+
+      - name: Check new connectors declare flows through the macro
+        if: needs.changes.outputs.new-connectors != ''
+        shell: bash
+        env:
+          NEW_CONNECTORS: ${{ needs.changes.outputs.new-connectors }}
+        run: .github/scripts/check-new-connector-flow-declaration.sh
 
       - name: Run Superposition Config Validation
         run: cargo test -p grpc-server --all-features --test test_superposition_config
