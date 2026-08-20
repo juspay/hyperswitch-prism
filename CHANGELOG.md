@@ -19,6 +19,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.08.20.0
+
+### Features
+
+- **connector:**
+  - [ilixium] add Ilixium connector with all six core flows ([#2125](https://github.com/juspay/connector-service/pull/2125)) ([`3d5ed5c`](https://github.com/juspay/connector-service/commit/3d5ed5c804ef31e988d048dd87e3e32964854e59))
+  - [Trustly] Implementation ([#2068](https://github.com/juspay/connector-service/pull/2068)) ([`5d67244`](https://github.com/juspay/connector-service/commit/5d67244a0b7baefd990aefeb9145b93a839cb947))
+
+### Bug Fixes
+
+- **events:** Serialize connector payloads as JSON text ([#2077](https://github.com/juspay/connector-service/pull/2077)) ([`b19b733`](https://github.com/juspay/connector-service/commit/b19b73334f4066de9b6b5b287904b096966dea34))
+- **log:** Normalize dotted source fields in log transformations ([#2154](https://github.com/juspay/connector-service/pull/2154)) ([`49d73fb`](https://github.com/juspay/connector-service/commit/49d73fb3d26bc6739af7535ed66b758c1980df0d))
+
+**Full Changelog:** [`2026.08.19.0...2026.08.20.0`](https://github.com/juspay/connector-service/compare/2026.08.19.0...2026.08.20.0)
+
+- - -
+
 ## 2026.08.19.0
 
 ### Features
