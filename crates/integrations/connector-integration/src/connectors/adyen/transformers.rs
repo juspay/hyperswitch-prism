@@ -7920,7 +7920,10 @@ fn resolve_adyen_split(
     currency: common_enums::enums::Currency,
 ) -> Option<(Option<String>, Option<Vec<AdyenSplitData>>)> {
     if let Some(ss) = split_settlement {
-        return Some(get_adyen_split_request(&adyen_split_from_settlement(ss), currency));
+        return Some(get_adyen_split_request(
+            &adyen_split_from_settlement(ss),
+            currency,
+        ));
     }
     if let Some(connector_types::SplitPaymentsDetails::AdyenSplitPayment(a)) = split_payments {
         return Some(get_adyen_split_request(a, currency));

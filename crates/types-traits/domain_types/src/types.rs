@@ -4584,7 +4584,11 @@ impl<
         };
 
         Ok(Self {
-            split_settlement: value.split_settlement.clone().map(connector_types::SplitSettlement::foreign_try_from).transpose()?,
+            split_settlement: value
+                .split_settlement
+                .clone()
+                .map(connector_types::SplitSettlement::foreign_try_from)
+                .transpose()?,
             authentication_data,
             capture_method: Some(CaptureMethod::foreign_try_from(value.capture_method)?),
             payment_method_data,
@@ -10538,7 +10542,9 @@ impl ForeignTryFrom<grpc_api_types::payments::SplitRefundsDetails>
 
 // ---- Unified split settlement (proto -> domain) ----
 
-impl ForeignTryFrom<grpc_api_types::payments::SplitSettlement> for connector_types::SplitSettlement {
+impl ForeignTryFrom<grpc_api_types::payments::SplitSettlement>
+    for connector_types::SplitSettlement
+{
     type Error = IntegrationError;
     fn foreign_try_from(
         value: grpc_api_types::payments::SplitSettlement,
@@ -10566,11 +10572,13 @@ impl ForeignTryFrom<grpc_api_types::payments::SplitSettlementMarketplace>
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let split_value = match value.split_value {
             Some(grpc_api_types::payments::split_settlement_marketplace::SplitValue::Amount(m)) => {
-                connector_types::SplitValue::Amount(common_utils::types::MinorUnit::new(m.minor_amount))
+                connector_types::SplitValue::Amount(common_utils::types::MinorUnit::new(
+                    m.minor_amount,
+                ))
             }
-            Some(grpc_api_types::payments::split_settlement_marketplace::SplitValue::Percentage(p)) => {
-                connector_types::SplitValue::Percentage(p)
-            }
+            Some(
+                grpc_api_types::payments::split_settlement_marketplace::SplitValue::Percentage(p),
+            ) => connector_types::SplitValue::Percentage(p),
             None => {
                 return Err(IntegrationError::MissingRequiredField {
                     field_name: "marketplace_split_value",
@@ -10595,7 +10603,9 @@ impl ForeignTryFrom<grpc_api_types::payments::SplitSettlementVendor>
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let split_value = match value.split_value {
             Some(grpc_api_types::payments::split_settlement_vendor::SplitValue::Amount(m)) => {
-                connector_types::SplitValue::Amount(common_utils::types::MinorUnit::new(m.minor_amount))
+                connector_types::SplitValue::Amount(common_utils::types::MinorUnit::new(
+                    m.minor_amount,
+                ))
             }
             Some(grpc_api_types::payments::split_settlement_vendor::SplitValue::Percentage(p)) => {
                 connector_types::SplitValue::Percentage(p)
@@ -10679,12 +10689,16 @@ impl ForeignTryFrom<grpc_api_types::payments::SplitSettlementRefundVendor>
         value: grpc_api_types::payments::SplitSettlementRefundVendor,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let split_value = match value.split_value {
-            Some(grpc_api_types::payments::split_settlement_refund_vendor::SplitValue::RefundAmount(m)) => {
-                connector_types::SplitValue::Amount(common_utils::types::MinorUnit::new(m.minor_amount))
-            }
-            Some(grpc_api_types::payments::split_settlement_refund_vendor::SplitValue::Percentage(p)) => {
-                connector_types::SplitValue::Percentage(p)
-            }
+            Some(
+                grpc_api_types::payments::split_settlement_refund_vendor::SplitValue::RefundAmount(
+                    m,
+                ),
+            ) => connector_types::SplitValue::Amount(common_utils::types::MinorUnit::new(
+                m.minor_amount,
+            )),
+            Some(
+                grpc_api_types::payments::split_settlement_refund_vendor::SplitValue::Percentage(p),
+            ) => connector_types::SplitValue::Percentage(p),
             None => {
                 return Err(IntegrationError::MissingRequiredField {
                     field_name: "refund_vendor_split_value",
@@ -10821,7 +10835,11 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceRefundRequest> for R
         let connector_transaction_id = value.connector_transaction_id;
 
         Ok(Self {
-            split_settlement_refund: value.split_settlement_refund.clone().map(connector_types::SplitSettlementRefund::foreign_try_from).transpose()?,
+            split_settlement_refund: value
+                .split_settlement_refund
+                .clone()
+                .map(connector_types::SplitSettlementRefund::foreign_try_from)
+                .transpose()?,
             refund_id: extract_connector_request_reference_id(&value.merchant_refund_id.clone()),
             connector_transaction_id,
             connector_refund_id: None, // refund_id field is used as refund_id, not connector_refund_id
@@ -11297,7 +11315,11 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceCaptureRequest>
         }?;
 
         Ok(Self {
-            split_settlement: value.split_settlement.clone().map(connector_types::SplitSettlement::foreign_try_from).transpose()?,
+            split_settlement: value
+                .split_settlement
+                .clone()
+                .map(connector_types::SplitSettlement::foreign_try_from)
+                .transpose()?,
             amount_to_capture: amount.amount.get_amount_as_i64(),
             minor_amount_to_capture: amount.amount,
             currency: amount.currency,
@@ -15041,7 +15063,11 @@ impl<
         }?;
 
         Ok(Self {
-            split_settlement: value.split_settlement.clone().map(connector_types::SplitSettlement::foreign_try_from).transpose()?,
+            split_settlement: value
+                .split_settlement
+                .clone()
+                .map(connector_types::SplitSettlement::foreign_try_from)
+                .transpose()?,
             mandate_reference: mandate_ref,
             amount: amount.amount.get_amount_as_i64(),
             minor_amount: amount.amount,
