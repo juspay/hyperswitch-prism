@@ -12,9 +12,8 @@ use domain_types::{
     },
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
-        ConnectorSpecificClientAuthenticationResponse,
+        ConnectorSpecificClientAuthenticationResponse, DatatransAdditionalInformation,
         DatatransClientAuthenticationResponse as DatatransClientAuthenticationResponseDomain,
-        DatatransAdditionalInformation,
         MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
         PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,

@@ -4294,9 +4294,17 @@ impl ForeignTryFrom<grpc_payment_types::DatatransAdditionalInformation>
     fn foreign_try_from(
         value: grpc_payment_types::DatatransAdditionalInformation,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let money = value.amount.ok_or(IntegrationError::MissingRequiredField {
+            field_name: "datatrans_additional_information.amount",
+            context: IntegrationErrorContext {
+                additional_context: Some("Missing amount details".to_string()),
+                ..Default::default()
+            },
+        })?;
+
         Ok(Self {
-            currency: common_enums::Currency::foreign_try_from(value.amount.currency())?,
-            amount: common_utils::types::MinorUnit::new(value.amount.minor_amount),
+            currency: common_enums::Currency::foreign_try_from(money.currency())?,
+            amount: common_utils::types::MinorUnit::new(money.minor_amount),
             conversion_rate: value.conversion_rate,
             transaction_date: value
                 .transaction_date

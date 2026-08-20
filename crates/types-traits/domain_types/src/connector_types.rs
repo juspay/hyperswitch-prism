@@ -13,7 +13,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
-use serde::{ser::Error as _, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter, EnumString};
 use time::PrimitiveDateTime;
 
@@ -4578,7 +4578,7 @@ pub struct DatatransAdditionalInformation {
     #[serde(
         skip_serializing_if = "Option::is_none",
         deserialize_with = "common_utils::custom_serde::iso8601::option::deserialize",
-        serialize_with = "serialize_date_as_rfc3339",
+        serialize_with = "serialize_date_as_rfc3339"
     )]
     pub transaction_date: Option<PrimitiveDateTime>,
     /// RetrievalReferenceNumber received from the currency rates endpoint.
@@ -4606,7 +4606,7 @@ where
                 .format(&time::format_description::well_known::Rfc3339)
         })
         .transpose()
-        .map_err(S::Error::custom)?
+        .map_err(<S::Error as serde::ser::Error>::custom)?
         .serialize(serializer)
 }
 
