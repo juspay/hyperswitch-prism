@@ -10,8 +10,9 @@ use domain_types::{
     connector_flow::{Authorize, PSync, RSync, Refund},
     connector_types::{
         EventType, PaymentFlowData, PaymentWebhookReference, PaymentsAuthorizeData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId, WebhookDetailsResponse, WebhookResourceReference,
+        PaymentsResponseData, PaymentsSyncData, RawConnectorStatus, RefundFlowData, RefundSyncData,
+        RefundsData, RefundsResponseData, ResponseId, WebhookDetailsResponse,
+        WebhookResourceReference,
     },
     errors,
     payment_method_data::{CardRedirectData, PaymentMethodData, PaymentMethodDataTypes},
@@ -22,8 +23,9 @@ use domain_types::{
 use error_stack::ResultExt;
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
+use time::{format_description::well_known::Iso8601, OffsetDateTime};
 
-use super::BoostRouterData;
+use super::{crypto as card_crypto, BoostRouterData};
 
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 
@@ -57,6 +59,32 @@ fn stable_created_timestamp() -> Result<String, error_stack::Report<errors::Inte
     })
 }
 
+/// Parse `created` (as returned by [`stable_created_timestamp`]) back into
+/// epoch seconds, for BCPG's AES-GCM AAD (integration guideline section
+/// 4.2.5: `merchantId|referenceId|createdEpochSeconds`). Derived by parsing
+/// the already-generated `created` string rather than taking a second,
+/// independent `now()` call — the doc requires `created` and the AAD's
+/// epoch-seconds value to be from the exact same instant, and two
+/// independent clock reads risk differing by a fraction of a second (the
+/// same class of bug `stable_created_timestamp` above already guards
+/// against for header/body signature consistency).
+fn parse_epoch_seconds(
+    iso_timestamp: &str,
+) -> Result<i64, error_stack::Report<errors::IntegrationError>> {
+    OffsetDateTime::parse(iso_timestamp, &Iso8601::DEFAULT)
+        .change_context(errors::IntegrationError::RequestEncodingFailed {
+            context: errors::IntegrationErrorContext {
+                suggested_action: None,
+                doc_url: None,
+                additional_context: Some(format!(
+                    "Failed to parse Boost's `created` timestamp ({iso_timestamp}) back into \
+                     epoch seconds for the AES-GCM AAD used in the Direct Card Payment flow."
+                )),
+            },
+        })
+        .map(|dt| dt.unix_timestamp())
+}
+
 // =============================================================================
 // AUTH
 // =============================================================================
@@ -65,6 +93,9 @@ fn stable_created_timestamp() -> Result<String, error_stack::Report<errors::Inte
 pub struct BoostAuthType {
     pub client_id: Secret<String>,
     pub merchant_secret: Secret<String>,
+    /// Only required for Authorize's Direct Card Payment path; PSync/Refund/
+    /// RSync never read this.
+    pub public_key: Option<Secret<String>>,
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for BoostAuthType {
@@ -75,10 +106,12 @@ impl TryFrom<&ConnectorSpecificConfig> for BoostAuthType {
             ConnectorSpecificConfig::Boost {
                 client_id,
                 merchant_secret,
+                public_key,
                 ..
             } => Ok(Self {
                 client_id: client_id.to_owned(),
                 merchant_secret: merchant_secret.to_owned(),
+                public_key: public_key.to_owned(),
             }),
             _ => Err(error_stack::report!(
                 errors::IntegrationError::FailedToObtainAuthType {
@@ -164,8 +197,9 @@ pub struct BoostCustomer {
 }
 
 /// Payment status enum (doc section 3.3.1 — Retrieve Payment Details).
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, strum::Display)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum BoostPaymentStatus {
     PendingPaymentMethod,
     PendingConfirmation,
@@ -207,8 +241,9 @@ impl From<BoostPaymentStatus> for AttemptStatus {
 /// Reversal status enum (doc sections 3.2.2/3.2.3/3.3.3 — PaymentReversal). The
 /// last three values are FPX-only per the doc but are still accepted here since
 /// they're part of BCPG's single shared reversal status vocabulary.
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, strum::Display)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum BoostReversalStatus {
     Pending,
     Succeeded,
@@ -254,6 +289,21 @@ pub struct BoostPaymentInitRequest {
     pub return_url: Option<String>,
     #[serde(rename = "callbackUrl", skip_serializing_if = "Option::is_none")]
     pub callback_url: Option<String>,
+    #[serde(
+        rename = "encryptedCardDetails",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub encrypted_card_details: Option<BoostEncryptedCardDetails>,
+}
+
+/// `EncryptedCardDetails` (integration guideline section 3.7.9) — built by
+/// [`crate::connectors::boost::crypto::encrypt_card`].
+#[derive(Debug, Clone, Serialize)]
+pub struct BoostEncryptedCardDetails {
+    #[serde(rename = "encryptedKey")]
+    pub encrypted_key: String,
+    pub iv: String,
+    pub ciphertext: String,
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -282,25 +332,35 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        // BCPG's card-redirect flow (paymentMethod="card", no encryptedCardDetails)
-        // takes zero card data from the merchant — the customer enters card details
-        // on BCPG's own hosted authorization page after redirect. This is modeled as
-        // PaymentMethodData::CardRedirect, an empty-payload variant.
-        match &item.router_data.request.payment_method_data {
-            PaymentMethodData::CardRedirect(CardRedirectData::CardRedirect {}) => {}
+        // BCPG supports two ways to get card data (integration guideline section
+        // 2.3.1 / 4.2): the hosted/3DS redirect flow, where the customer enters
+        // card details on BCPG's own page (PaymentMethodData::CardRedirect, no
+        // `encryptedCardDetails` in the body) — and the Direct Card Payment flow,
+        // where the merchant collects raw card data and must client-side encrypt
+        // it (RSA-OAEP + AES-256-GCM) into `encryptedCardDetails` before sending
+        // it (PaymentMethodData::Card). Both send paymentMethod="card"; only the
+        // presence of `encryptedCardDetails` differs.
+        let card_data = match &item.router_data.request.payment_method_data {
+            PaymentMethodData::CardRedirect(CardRedirectData::CardRedirect {}) => None,
+            PaymentMethodData::Card(card) => Some(card),
             _ => {
                 return Err(error_stack::report!(
                     errors::IntegrationError::NotImplemented(
-                        "Boost only supports CardRedirect payment_method_data for Authorize \
-                         (card-3DS-redirect flow); other payment method data types are out of \
-                         scope for this connector implementation"
+                        "Boost only supports Card and CardRedirect payment_method_data for \
+                         Authorize — Card for the Direct Card Payment flow (client-side \
+                         encrypted, integration guideline section 4.2), CardRedirect for the \
+                         hosted/3DS redirect flow where BCPG collects card details on its own \
+                         page; other payment method data types are out of scope for this \
+                         connector implementation"
                             .to_string(),
                         errors::IntegrationErrorContext {
                             suggested_action: Some(
-                                "Route this payment with PaymentMethodData::CardRedirect \
-                                 (CardRedirectData::CardRedirect{}); Boost never receives raw \
-                                 card data — the customer enters it on BCPG's own hosted page \
-                                 after redirect."
+                                "Route this payment with either PaymentMethodData::Card (raw \
+                                 card data — encrypted client-side and sent as \
+                                 encryptedCardDetails) or \
+                                 PaymentMethodData::CardRedirect(CardRedirectData::CardRedirect{}) \
+                                 (BCPG collects card details on its own hosted page after \
+                                 redirect)."
                                     .to_string(),
                             ),
                             doc_url: None,
@@ -312,7 +372,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     )
                 ));
             }
-        }
+        };
 
         let amount = item
             .connector
@@ -349,7 +409,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let full_name = item.router_data.request.customer_name.clone();
         let customer = if email.is_some() || full_name.is_some() {
             Some(BoostCustomer {
-                full_name,
+                full_name: full_name.clone(),
                 email,
                 phone: None,
             })
@@ -357,12 +417,90 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             None
         };
 
+        let reference_id = item
+            .router_data
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
+
+        // Only the Direct Card Payment flow (PaymentMethodData::Card) needs
+        // encryption; CardRedirect never touches the public_key or crypto at all.
+        let encrypted_card_details = match card_data {
+            None => None,
+            Some(card) => {
+                let created_epoch_seconds = parse_epoch_seconds(&created).attach_printable(
+                    "Failed to derive epoch seconds from `created` for Boost's AAD",
+                )?;
+
+                let auth = BoostAuthType::try_from(&item.router_data.connector_config)
+                    .attach_printable(
+                        "Failed to obtain Boost auth config while encrypting card data",
+                    )?;
+                let public_key = auth.public_key.as_ref().ok_or_else(|| {
+                    error_stack::report!(errors::IntegrationError::InvalidConnectorConfig {
+                        config: "boost.public_key",
+                        context: errors::IntegrationErrorContext {
+                            suggested_action: Some(
+                                "Configure this merchant account's Boost connector with a \
+                                 public_key (base64-encoded DER SPKI RSA public key, from \
+                                 GET /v1/payments/card-encryption-key) to accept Direct Card \
+                                 Payment (raw card) payments. This is only required for the \
+                                 Card path of Authorize; CardRedirect, PSync, Refund, and \
+                                 RSync all work without it."
+                                    .to_string(),
+                            ),
+                            doc_url: None,
+                            additional_context: Some(
+                                "Boost's public_key is not configured for this merchant \
+                                 account — required for the Direct Card Payment flow's \
+                                 client-side encryption."
+                                    .to_string(),
+                            ),
+                        },
+                    })
+                })?;
+
+                // BCPG's AAD `merchantId` (integration guideline section 4.2.5). Using
+                // client_id here, consistent with how this has been tested against
+                // BCPG's staging so far. NOTE: BCPG has never explicitly confirmed
+                // this is the correct value for the AAD — it's an open question from
+                // the Boost/redBus integration email thread that was never answered.
+                // If BCPG starts rejecting these requests with a decryption/signature
+                // failure, this is the first thing to re-verify with BCPG.
+                let merchant_id = auth.client_id.peek();
+
+                let card_holder_name = card
+                    .card_holder_name
+                    .as_ref()
+                    .map(|name| name.peek().to_owned())
+                    .or_else(|| full_name.clone())
+                    .unwrap_or_default();
+
+                let encrypted = card_crypto::encrypt_card(
+                    card.card_number.peek(),
+                    card.card_exp_month.peek(),
+                    card.card_exp_year.peek(),
+                    card.card_cvc.peek(),
+                    &card_holder_name,
+                    public_key,
+                    merchant_id,
+                    &reference_id,
+                    created_epoch_seconds,
+                )
+                .attach_printable(
+                    "Failed to encrypt card data for Boost's Direct Card Payment flow",
+                )?;
+
+                Some(BoostEncryptedCardDetails {
+                    encrypted_key: encrypted.encrypted_key,
+                    iv: encrypted.iv,
+                    ciphertext: encrypted.ciphertext,
+                })
+            }
+        };
+
         Ok(Self {
-            reference_id: item
-                .router_data
-                .resource_common_data
-                .connector_request_reference_id
-                .clone(),
+            reference_id,
             amount,
             currency: item.router_data.request.currency,
             created,
@@ -371,6 +509,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             customer,
             return_url: item.router_data.request.router_return_url.clone(),
             callback_url: item.router_data.request.webhook_url.clone(),
+            encrypted_card_details,
         })
     }
 }
@@ -378,6 +517,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct BoostPaymentInitResponse {
     pub uuid: String,
+    #[serde(rename = "referenceId")]
+    pub reference_id: Option<String>,
     #[serde(rename = "paymentUrl")]
     pub payment_url: String,
 }
@@ -427,6 +568,14 @@ impl<T: PaymentMethodDataTypes>
 pub struct BoostPaymentSyncResponse {
     pub uuid: String,
     pub status: BoostPaymentStatus,
+    #[serde(rename = "referenceId")]
+    pub reference_id: Option<String>,
+    pub amount: Option<FloatMajorUnit>,
+    pub currency: Option<Currency>,
+    pub created: Option<String>,
+    pub description: Option<String>,
+    #[serde(rename = "paymentMethod")]
+    pub payment_method: Option<String>,
 }
 
 impl TryFrom<crate::types::ResponseRouterData<BoostPaymentSyncResponse, Self>>
@@ -437,7 +586,15 @@ impl TryFrom<crate::types::ResponseRouterData<BoostPaymentSyncResponse, Self>>
     fn try_from(
         item: crate::types::ResponseRouterData<BoostPaymentSyncResponse, Self>,
     ) -> Result<Self, Self::Error> {
+        let raw_status = item.response.status.to_string();
         let status = AttemptStatus::from(item.response.status);
+
+        let connector_response_reference_id = Some(
+            item.router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+        );
 
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -447,13 +604,18 @@ impl TryFrom<crate::types::ResponseRouterData<BoostPaymentSyncResponse, Self>>
                 connector_metadata: None,
                 network_txn_id: None,
                 network_txn_link_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id,
                 incremental_authorization_allowed: None,
                 splits: None,
                 status_code: item.http_code,
             }),
             resource_common_data: PaymentFlowData {
                 status,
+                raw_connector_status: Some(RawConnectorStatus {
+                    code: Some(raw_status.clone()),
+                    message: Some(raw_status),
+                    reason: None,
+                }),
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
@@ -513,8 +675,35 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
         let created = stable_created_timestamp()
             .attach_printable("Failed to format created timestamp for Boost reversal")?;
 
+        // BCPG's `uuid` (doc section 3.2.2) must be a merchant-generated UUID —
+        // it's bound as the reversal's idempotency key and is rejected if it isn't a valid UUID.
+        let uuid = item
+            .router_data
+            .resource_common_data
+            .merchant_request_id
+            .clone()
+            .ok_or_else(|| {
+                error_stack::report!(errors::IntegrationError::MissingRequiredField {
+                    field_name: "merchant_request_id",
+                    context: errors::IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Supply a merchant_request_id (UUID format) on the refund request \
+                             — Boost's reversal `uuid` must be a valid UUID per BCPG's \
+                             integration guideline (section 3.2.2)."
+                                .to_string(),
+                        ),
+                        doc_url: None,
+                        additional_context: Some(
+                            "merchant_request_id was not set on resource_common_data for this \
+                             Boost reversal (refund/void) request."
+                                .to_string(),
+                        ),
+                    },
+                })
+            })?;
+
         Ok(Self {
-            uuid: item.router_data.request.refund_id.clone(),
+            uuid,
             payment_uuid: item.router_data.request.connector_transaction_id.clone(),
             amount,
             currency: item.router_data.request.currency,
@@ -529,6 +718,11 @@ pub struct BoostReversalResponse {
     pub status: BoostReversalStatus,
     #[serde(rename = "type")]
     pub reversal_type: Option<String>,
+    #[serde(rename = "paymentUuid")]
+    pub payment_uuid: Option<String>,
+    pub amount: Option<FloatMajorUnit>,
+    pub currency: Option<Currency>,
+    pub created: Option<String>,
 }
 
 impl TryFrom<crate::types::ResponseRouterData<BoostReversalResponse, Self>>
@@ -539,6 +733,7 @@ impl TryFrom<crate::types::ResponseRouterData<BoostReversalResponse, Self>>
     fn try_from(
         item: crate::types::ResponseRouterData<BoostReversalResponse, Self>,
     ) -> Result<Self, Self::Error> {
+        let raw_status = item.response.status.to_string();
         let refund_status = RefundStatus::from(item.response.status);
 
         Ok(Self {
@@ -550,6 +745,11 @@ impl TryFrom<crate::types::ResponseRouterData<BoostReversalResponse, Self>>
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,
+                raw_connector_status: Some(RawConnectorStatus {
+                    code: Some(raw_status.clone()),
+                    message: Some(raw_status),
+                    reason: None,
+                }),
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
@@ -569,6 +769,7 @@ impl TryFrom<crate::types::ResponseRouterData<BoostReversalResponse, Self>>
     fn try_from(
         item: crate::types::ResponseRouterData<BoostReversalResponse, Self>,
     ) -> Result<Self, Self::Error> {
+        let raw_status = item.response.status.to_string();
         let refund_status = RefundStatus::from(item.response.status);
 
         Ok(Self {
@@ -580,6 +781,11 @@ impl TryFrom<crate::types::ResponseRouterData<BoostReversalResponse, Self>>
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,
+                raw_connector_status: Some(RawConnectorStatus {
+                    code: Some(raw_status.clone()),
+                    message: Some(raw_status),
+                    reason: None,
+                }),
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
