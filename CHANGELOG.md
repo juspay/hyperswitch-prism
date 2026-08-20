@@ -19,6 +19,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.08.20.0
+
+### Features
+
+- **connector:**
+  - [ilixium] add Ilixium connector with all six core flows ([#2125](https://github.com/juspay/connector-service/pull/2125)) ([`3d5ed5c`](https://github.com/juspay/connector-service/commit/3d5ed5c804ef31e988d048dd87e3e32964854e59))
+  - [Trustly] Implementation ([#2068](https://github.com/juspay/connector-service/pull/2068)) ([`5d67244`](https://github.com/juspay/connector-service/commit/5d67244a0b7baefd990aefeb9145b93a839cb947))
+
+### Bug Fixes
+
+- **events:** Serialize connector payloads as JSON text ([#2077](https://github.com/juspay/connector-service/pull/2077)) ([`b19b733`](https://github.com/juspay/connector-service/commit/b19b73334f4066de9b6b5b287904b096966dea34))
+- **log:** Normalize dotted source fields in log transformations ([#2154](https://github.com/juspay/connector-service/pull/2154)) ([`49d73fb`](https://github.com/juspay/connector-service/commit/49d73fb3d26bc6739af7535ed66b758c1980df0d))
+
+**Full Changelog:** [`2026.08.19.0...2026.08.20.0`](https://github.com/juspay/connector-service/compare/2026.08.19.0...2026.08.20.0)
+
+- - -
+
+## 2026.08.19.0
+
+### Features
+
+- **connector:** Moneris Connector Integration ([#2127](https://github.com/juspay/connector-service/pull/2127)) ([`7aa0b8b`](https://github.com/juspay/connector-service/commit/7aa0b8b69cf23ffa5d721707b839e7a80add590d))
+- **shadow:** Add x-org-id header to outgoing shadow mode requests ([#2148](https://github.com/juspay/connector-service/pull/2148)) ([`d452e76`](https://github.com/juspay/connector-service/commit/d452e769c5acce8fca48ca1a45124d7b03fb0c4d))
+
+**Full Changelog:** [`2026.08.18.1...2026.08.19.0`](https://github.com/juspay/connector-service/compare/2026.08.18.1...2026.08.19.0)
+
+- - -
+
+## 2026.08.18.1
+
+### Features
+
+- **connector:** Implement Authorize (Card, non-3DS + 3DS redirect), PSync, Capture, Void, Refund and RSync for citigate ([#2124](https://github.com/juspay/connector-service/pull/2124)) ([`6afccff`](https://github.com/juspay/connector-service/commit/6afccff73895a7fdc752c180d665148bfe46a8b3))
+- **qwikcilver:** Add payment method eligibility check ([#2135](https://github.com/juspay/connector-service/pull/2135)) ([`91d0a3d`](https://github.com/juspay/connector-service/commit/91d0a3d9c11adf95b6c9ea4d7eff743632043203))
+- **tamara:** Override prod with sbx url ([#2147](https://github.com/juspay/connector-service/pull/2147)) ([`f88c0a3`](https://github.com/juspay/connector-service/commit/f88c0a3f07b76c426ed5dd7e6a10a35e5245f8fc))
+
+### Documentation
+
+- **sdk/payout-service:** Add per-operation docs for java, node, pyth… ([#2102](https://github.com/juspay/connector-service/pull/2102)) ([`b18837d`](https://github.com/juspay/connector-service/commit/b18837da41957ab7d0d5f3d3147367f4f1859d0e))
+
+**Full Changelog:** [`2026.08.18.0...2026.08.18.1`](https://github.com/juspay/connector-service/compare/2026.08.18.0...2026.08.18.1)
+
+- - -
+
+## 2026.08.18.0
+
+### Features
+
+- **connector:** [Truelayer] Implementation ([#2047](https://github.com/juspay/connector-service/pull/2047)) ([`c108428`](https://github.com/juspay/connector-service/commit/c10842866847364522aa838db0f9fecc6ea01e0e))
+- **logs:** Euler-parity golden-line sources + mapping config (on #2075) ([#2076](https://github.com/juspay/connector-service/pull/2076)) ([`4d43c1f`](https://github.com/juspay/connector-service/commit/4d43c1f9f668e4802194e9678552e19f5ddd5337))
+
+### Bug Fixes
+
+- **maya:** Capture missing response fields + surface raw connector response ([#2134](https://github.com/juspay/connector-service/pull/2134)) ([`317e347`](https://github.com/juspay/connector-service/commit/317e34743d61a5c87b59f32893194e8f7f93e51c))
+- **sync:** Return merchant_transaction_id on failed payment sync response ([#2141](https://github.com/juspay/connector-service/pull/2141)) ([`a5a726d`](https://github.com/juspay/connector-service/commit/a5a726d59c1f15082fc6ac56096944ad4bd5ac55))
+
+### Refactors
+
+- **deps:** Make log_utils optional and fix default log format visibility ([#2137](https://github.com/juspay/connector-service/pull/2137)) ([`c470753`](https://github.com/juspay/connector-service/commit/c470753df1cd561d6c21eb3e5d3bebf973a300e0))
+
+**Full Changelog:** [`2026.08.17.0...2026.08.18.0`](https://github.com/juspay/connector-service/compare/2026.08.17.0...2026.08.18.0)
+
+- - -
+
 ## 2026.08.17.0
 
 ### Features

@@ -974,6 +974,7 @@ impl TryFrom<ResponseRouterData<TamaraEligibilityResponse, Self>>
         Ok(Self {
             response: Ok(PaymentMethodEligibilityResponse {
                 eligibility,
+                payment_method_details: None,
                 status_code: u32::from(item.http_code),
             }),
             ..item.router_data.clone()
