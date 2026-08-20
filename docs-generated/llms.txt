@@ -482,7 +482,7 @@ examples_python: examples/mollie/mollie.py
 connector_id: moneris
 doc: docs/connectors/moneris.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
-payment_methods: Card
+payment_methods: ApplePayDecrypted, Card, GooglePayDecrypted
 flows: authorize, capture, create_server_authentication_token, get, proxy_authorize, refund, refund_get, void
 examples_python: examples/moneris/moneris.py
 
