@@ -12,7 +12,7 @@ from payments import EventClient
 from payments import RefundClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
-SUPPORTED_FLOWS = ["get", "parse_event", "refund", "refund_get"]
+SUPPORTED_FLOWS = ["get", "parse_event", "refund_get"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -20,6 +20,7 @@ _default_config = sdk_config_pb2.ConnectorConfig(
         boost=payment_pb2.BoostConfig(
             client_id=payment_methods_pb2.SecretString(value="YOUR_CLIENT_ID"),
             merchant_secret=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_SECRET"),
+            public_key=payment_methods_pb2.SecretString(value="YOUR_PUBLIC_KEY"),
             base_url="YOUR_BASE_URL",
         ),
     ),
@@ -48,18 +49,6 @@ def _build_parse_event_request():
         ),
     )
 
-def _build_refund_request(connector_transaction_id: str):
-    return payment_pb2.PaymentServiceRefundRequest(
-        merchant_refund_id="probe_refund_001",  # Identification.
-        connector_transaction_id=connector_transaction_id,
-        payment_amount=1000,  # Amount Information.
-        refund_amount=payment_pb2.Money(
-            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
-            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
-        ),
-        reason="customer_request",  # Reason for the refund.
-    )
-
 def _build_refund_get_request():
     return payment_pb2.RefundServiceGetRequest(
         merchant_refund_id="probe_refund_001",  # Identification.
@@ -82,15 +71,6 @@ async def process_parse_event(merchant_transaction_id: str, config: sdk_config_p
     parse_response = event_client.parse_event(_build_parse_event_request())
 
     return {"event_type": parse_response.event_type}
-
-
-async def process_refund(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: PaymentService.Refund"""
-    payment_client = PaymentClient(config)
-
-    refund_response = await payment_client.refund(_build_refund_request("probe_connector_txn_001"))
-
-    return {"status": refund_response.status}
 
 
 async def process_refund_get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

@@ -606,6 +606,7 @@ pub struct EventProcessingParams<'a> {
     pub proxy_name: Option<&'a str>,
     pub tenant_id: &'a str,
     pub merchant_id: &'a str,
+    pub org_id: &'a str,
     pub return_raw_connector_data: bool,
     /// Pre-parsed per-connector unmask lists for `response.masked_body`. Ungated, like
     /// `log_fields` below, so the ~16 construction sites stay free of `#[cfg]`; only the code that
@@ -633,7 +634,10 @@ pub struct EventProcessingParams<'a> {
         response.error_message = Empty,
         response.status_code = Empty,
         message_ = "Golden Log Line (outgoing)",
+        // `latency` is the pre-existing human-readable string; `latency_ms` is the same
+        // duration as a plain number of milliseconds, for numeric downstream consumers.
         latency = Empty,
+        latency_ms = Empty,
     )
 )]
 #[allow(clippy::too_many_arguments)]
@@ -694,7 +698,7 @@ where
         }
         (common_enums::CallConnectorAction::Trigger, TransportType::Http) => {
             let mut connector_request = connector
-                .build_request_v2(&router_data.clone())
+                .build_request_v2(&router_data)
                 .map_err(report_connector_request_to_flow)?;
 
             let mut updated_router_data = router_data.clone();
@@ -751,6 +755,12 @@ where
                         consts::X_MERCHANT_ID,
                         Maskable::Masked(Secret::new(event_params.merchant_id.to_string())),
                     );
+                    if !event_params.org_id.is_empty() {
+                        req.add_header(
+                            consts::X_ORG_ID,
+                            Maskable::Masked(Secret::new(event_params.org_id.to_string())),
+                        );
+                    }
                     if let Some(payment_method) =
                         router_data.resource_common_data.get_payment_method_header()
                     {
@@ -1032,7 +1042,7 @@ where
         }
         (common_enums::CallConnectorAction::Trigger, TransportType::Kafka) => {
             let kafka_record = connector
-                .build_kafka_record(&router_data.clone())
+                .build_kafka_record(&router_data)
                 .map_err(report_connector_request_to_flow)?;
 
             match kafka_record {
@@ -1198,6 +1208,8 @@ where
 
     let elapsed = start.elapsed().as_millis();
     tracing::Span::current().record("latency", elapsed);
+    // Additive numeric latency alongside the existing string `latency`.
+    tracing::Span::current().record("latency_ms", u64::try_from(elapsed).unwrap_or_default());
     // Apply outgoing log fields (transformations, static values, and the masked connector reply)
     // before emitting the golden log line. The masking switch is checked alongside
     // `log_fields_enabled`: no shipped config defines `[log.fields]`, so gating on that alone

@@ -900,6 +900,9 @@ enum Connector {
   MAYA = 134;
   GRABPAY = 135;
   BOOST = 136;
+  CITIGATE = 137;
+  ILIXIUM = 138;
+  WORLDPAYRAFT = 139;
 }
 
 // Payment method types
@@ -5647,6 +5650,36 @@ message TesouroConfig {
 message BoostConfig {
   SecretString client_id = 1;
   SecretString merchant_secret = 2;
+  optional SecretString public_key = 3;
+  optional string base_url = 50;
+}
+
+message CitigateConfig {
+  SecretString api_key = 1;
+  SecretString key1 = 2;
+  optional string base_url = 50;
+}
+
+message IlixiumConfig {
+  // Digest Calculation Password (never transmitted; input to X-MERCHANT-DIGEST)
+  SecretString api_key = 1;
+  // MerchantId - sent in the request body as merchant.merchantId
+  SecretString key1 = 2;
+  // AccountId - sent in the request body as merchant.accountId
+  SecretString api_secret = 3;
+  optional string base_url = 50;
+}
+
+message MonerisConfig {
+  SecretString client_secret = 1;
+  SecretString merchant_id = 2;
+  SecretString client_id = 3;
+  optional string base_url = 50;
+}
+
+message WorldpayraftConfig {
+  SecretString license = 1;
+  SecretString merchant_id = 2;
   optional string base_url = 50;
 }
 
@@ -5966,6 +5999,14 @@ message ConnectorSpecificConfig {
     GrabpayConfig grabpay = 144;
     // BOOST = 136
     BoostConfig boost = 145;
+    // CITIGATE = 137
+    CitigateConfig citigate = 146;
+    // MONERIS = 48
+    MonerisConfig moneris = 147;
+    // ILIXIUM = 138
+    IlixiumConfig ilixium = 148;
+    // WORLDPAYRAFT = 139
+    WorldpayraftConfig worldpayraft = 149;
   }
 }
 
@@ -6236,6 +6277,15 @@ message PaymentMethodServiceEligibilityRequest {
 
   // Sandbox/test mode flag (true for test environment).
   optional bool test_mode = 10;
+
+  // Connector-issued payment method ID (e.g. wallet number) being checked,
+  // when known. Mirrors PaymentMethodServiceGetRequest's identifier so
+  // connectors can reuse the same lookup as PaymentMethodService.Get.
+  optional string connector_payment_method_id = 11;
+
+  // State Information (for access token), set by CompositePaymentMethodService.Eligibility
+  // after bootstrapping the connector's session token.
+  optional ConnectorState state = 12;
 }
 
 // Response from a pre-checkout eligibility check.
@@ -6258,6 +6308,11 @@ message PaymentMethodServiceEligibilityResponse {
 
   // Response headers from the connector.
   map<string, string> response_headers = 6;
+
+  // Payment method details resolved as part of the eligibility check (e.g.
+  // wallet/gift-card balance and items), when the connector call that
+  // determines eligibility also returns them.
+  optional PaymentMethodDetails payment_method_details = 9;
 }
 
 // ============================================================================

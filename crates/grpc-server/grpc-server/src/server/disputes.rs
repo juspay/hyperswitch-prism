@@ -116,6 +116,7 @@ impl DisputeService for Disputes {
                         proxy_name,
                         tenant_id,
                         merchant_id,
+                        org_id,
                         connector_latency,
                         environment,
                         ..
@@ -183,6 +184,7 @@ impl DisputeService for Disputes {
                         proxy_name: proxy_name.as_deref(),
                         tenant_id: &tenant_id,
                         merchant_id: merchant_id.as_str(),
+                        org_id: org_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
                         masking_keys: &config.masking_keys,
                         connector_latency,
@@ -358,6 +360,7 @@ impl DisputeService for Disputes {
                         proxy_name,
                         tenant_id,
                         merchant_id,
+                        org_id,
                         connector_latency,
                         environment,
                         ..
@@ -426,6 +429,7 @@ impl DisputeService for Disputes {
                         proxy_name: proxy_name.as_deref(),
                         tenant_id: &tenant_id,
                         merchant_id: merchant_id.as_str(),
+                        org_id: org_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
                         masking_keys: &config.masking_keys,
                         connector_latency,

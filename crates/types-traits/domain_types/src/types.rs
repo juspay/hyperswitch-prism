@@ -427,7 +427,11 @@ pub struct Connectors {
     pub grabpay: ConnectorParams,
     pub tesouro: ConnectorParams,
     pub boost: ConnectorParams,
+    pub ilixium: ConnectorParams,
     pub santander: ConnectorParams,
+    pub citigate: ConnectorParams,
+    pub moneris: ConnectorParams,
+    pub worldpayraft: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -696,6 +700,9 @@ impl Connectors {
             ConnectorEnum::Mollie => {
                 patched.mollie.apply(params_patch);
             }
+            ConnectorEnum::Moneris => {
+                patched.moneris.apply(params_patch);
+            }
             ConnectorEnum::Multisafepay => {
                 patched.multisafepay.apply(params_patch);
             }
@@ -707,6 +714,9 @@ impl Connectors {
             }
             ConnectorEnum::Payme => {
                 patched.payme.apply(params_patch);
+            }
+            ConnectorEnum::Tamara => {
+                patched.tamara.apply(params_patch);
             }
             ConnectorEnum::Placetopay => {
                 patched.placetopay.apply(params_patch);
@@ -785,6 +795,9 @@ impl Connectors {
             ConnectorEnum::Boost => {
                 patched.boost.apply(params_patch);
             }
+            ConnectorEnum::Ilixium => {
+                patched.ilixium.apply(params_patch);
+            }
             ConnectorEnum::Maya => {
                 patched.maya.apply(params_patch);
             }
@@ -798,7 +811,7 @@ impl Connectors {
                     context: IntegrationErrorContext {
                         additional_context: Some(format!(
                             "Connector '{}' is not supported for dynamic URL patching from superposition. \
-                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, multisafepay, nexixpay, payload, payme, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat, givepayments, boost",
+                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, moneris, multisafepay, nexixpay, payload, payme, tamara, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat, givepayments, boost, ilixium",
                             connector
                         )),
                         ..Default::default()
@@ -829,6 +842,7 @@ impl Connectors {
             PayoutConnectorEnum::Worldpayxml => patched.worldpayxml.apply(params_patch),
             PayoutConnectorEnum::Cybersource => patched.cybersource.apply(params_patch),
             PayoutConnectorEnum::Santander => patched.santander.apply(params_patch),
+            PayoutConnectorEnum::Trustly => patched.trustly.apply(params_patch),
             // Deutschebank uses `ConnectorParamsWithCaBundle`, so patch the resolved
             // URLs while leaving its `server_ca_bundle` untouched.
             PayoutConnectorEnum::Deutschebank => {
@@ -842,6 +856,7 @@ impl Connectors {
                         server_ca_bundle: None,
                     })
             }
+            PayoutConnectorEnum::Truelayer => patched.truelayer.apply(params_patch),
         }
         Ok(patched)
     }
@@ -6004,6 +6019,13 @@ impl
 
         let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
 
+        let access_token = value
+            .state
+            .as_ref()
+            .and_then(|state| state.access_token.as_ref())
+            .map(ServerAuthenticationTokenResponseData::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
             raw_connector_status: None,
             merchant_id: merchant_id_from_header,
@@ -6030,7 +6052,7 @@ impl
             minor_amount_captured: None,
             minor_amount_capturable: None,
             amount: None,
-            access_token: None,
+            access_token,
             session_token: None,
             reference_id: None,
             connector_order_id: None,
@@ -6504,6 +6526,9 @@ pub fn generate_payment_method_eligibility_response(
             .into(),
             status_code: response.status_code,
             error_info: None,
+            payment_method_details: response
+                .payment_method_details
+                .map(grpc_api_types::payments::PaymentMethodDetails::foreign_from),
             raw_connector_request,
             typed_connector_request,
             raw_connector_response,
@@ -6527,6 +6552,7 @@ pub fn generate_payment_method_eligibility_response(
                 }),
                 issuer_details: None,
             }),
+            payment_method_details: None,
             raw_connector_request,
             typed_connector_request,
             raw_connector_response,
@@ -8533,7 +8559,12 @@ pub fn generate_payment_sync_response(
                     &e.connector_transaction_id,
                 ),
                 connector_reference_id: None,
-                merchant_transaction_id: None,
+                merchant_transaction_id: Some(
+                    router_data_v2
+                        .resource_common_data
+                        .connector_request_reference_id
+                        .clone(),
+                ),
                 mandate_reference: None,
                 mandate_reference_details: None,
                 status: status as i32,
@@ -9609,6 +9640,7 @@ impl ForeignTryFrom<PaymentMethodServiceEligibilityRequest> for PaymentMethodEli
         Ok(Self {
             amount,
             customer,
+            connector_payment_method_id: value.connector_payment_method_id,
             country_code: country,
             payment_method_type,
             description: value.description,
@@ -16262,6 +16294,10 @@ impl<
                 .transpose()?,
             mandate_reference: None,
             merchant_transaction_id: value.merchant_transaction_id,
+            metadata: value
+                .metadata
+                .map(|m| SecretSerdeValue::foreign_try_from((m, "metadata")))
+                .transpose()?,
         })
     }
 }
@@ -16583,8 +16619,24 @@ impl
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_order_id.clone(),
             ),
-            customer_id: None,
-            connector_customer: None,
+            customer_id: value
+                .customer
+                .clone()
+                .and_then(|customer| customer.connector_customer_id)
+                .map(|customer_id| CustomerId::try_from(Cow::from(customer_id)))
+                .transpose()
+                .change_context(IntegrationError::InvalidDataFormat {
+                    field_name: "customer.connector_customer_id",
+                    context: IntegrationErrorContext {
+                        additional_context: Some("Failed to parse Customer Id".to_string()),
+                        suggested_action: Some("Provide a valid connector customer ID".to_string()),
+                        doc_url: None,
+                    },
+                })?,
+            connector_customer: value
+                .customer
+                .clone()
+                .and_then(|customer| customer.connector_customer_id),
             description: value.description,
             return_url: value.return_url.clone(),
             connector_feature_data: value
