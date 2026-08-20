@@ -583,6 +583,24 @@ impl CompiledLogFieldsConfig {
     }
 }
 
+/// Span storage key for the masked connector reply. A single flat dotted key, matching how
+/// `response.body` and `response.headers` are already recorded.
+#[cfg(feature = "log-transformations")]
+const MASKED_BODY_KEY: &str = "response.masked_body";
+
+/// The connector's raw reply, handed to [`apply_log_fields`] so it can build the masked view.
+///
+/// These inputs cannot be read back out of span storage: the log formatter serialises every stored
+/// key on every event, so an unmasked body parked on the span would leak through any intervening
+/// log line. It is passed in directly and never recorded.
+#[cfg(feature = "log-transformations")]
+pub struct ConnectorResponseForLogging<'a> {
+    pub body: &'a [u8],
+    pub content_type: Option<&'a str>,
+    pub connector_name: &'a str,
+    pub masking_keys: &'a crate::connector_response_masking::CompiledMaskingKeys,
+}
+
 /// Apply compiled log field rules to the current span's storage.
 ///
 /// For each rule:
@@ -591,18 +609,58 @@ impl CompiledLogFieldsConfig {
 ///
 /// Dotted target paths build nested JSON objects. When writing a nested object,
 /// it is deep-merged with any existing value for the same root key in the span.
+///
+/// When `connector_response` is supplied, the masked view of the connector's reply is recorded as
+/// `response.masked_body`. That value goes to our own logs and nowhere else — it is deliberately
+/// never returned to the caller, so a careless allowlist entry cannot put connector response
+/// content on the wire.
 #[cfg(feature = "log-transformations")]
-pub fn apply_log_fields(compiled: &CompiledLogFields) {
-    if compiled.is_empty() {
+pub fn apply_log_fields(
+    compiled: &CompiledLogFields,
+    connector_response: Option<ConnectorResponseForLogging<'_>>,
+) {
+    // Two independent jobs behind two independent switches: `[log.fields]` drives the rules,
+    // `[connector_response_masking]` drives the masked body. Bail only when neither has work —
+    // gating on `compiled` alone would kill masking, since no shipped config defines `[log.fields]`.
+    if compiled.is_empty() && connector_response.is_none() {
         return;
     }
 
-    // Snapshot span storage (needed for Source entries to read current values).
-    let snapshot: Option<HashMap<Cow<'static, str>, serde_json::Value>> =
-        log_utils::Storage::with_current_span(|storage| storage.values().clone());
-
     // Build writes: for each rule, resolve the value and group by root key.
     let mut writes: HashMap<String, serde_json::Value> = HashMap::new();
+
+    // Masked first, and outside every span lock: the `tracing::debug!` below re-enters the
+    // subscriber, which deadlocks if called from inside `with_current_span*`.
+    if let Some(masked) = connector_response.and_then(|response| {
+        let masked = crate::connector_response_masking::mask_connector_response(
+            response.body,
+            response.content_type,
+            response.connector_name,
+            response.masking_keys,
+        )?;
+        // Metadata only, and cheap: content type and size are what explain an unexpected
+        // `_format: unparsable` stub in the field below.
+        tracing::debug!(
+            connector = response.connector_name,
+            content_type = response.content_type.unwrap_or("<none>"),
+            response_bytes = response.body.len(),
+            "built masked connector response"
+        );
+        Some(masked)
+    }) {
+        writes.insert(MASKED_BODY_KEY.to_string(), masked);
+    }
+
+    // Snapshot span storage for `Source` entries. Skipped when no rule reads one: this function
+    // now runs on every connector call whenever masking is on, and cloning the whole span map
+    // per request to serve zero `Source` rules is pure waste.
+    let snapshot: Option<HashMap<Cow<'static, str>, serde_json::Value>> = compiled
+        .rules
+        .iter()
+        .any(|rule| matches!(rule.entry, CompiledFieldEntry::Source(_)))
+        .then(|| log_utils::Storage::with_current_span(|storage| storage.values().clone()))
+        .flatten();
+
     for rule in &compiled.rules {
         let resolved_value = match &rule.entry {
             CompiledFieldEntry::Value(v) => v.clone(),

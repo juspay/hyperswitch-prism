@@ -346,7 +346,8 @@ pub fn log_after_initialization<T>(
     // Apply unified log fields (transformations + static values) before emitting the golden log line
     #[cfg(feature = "log-transformations")]
     if log_fields_enabled {
-        apply_log_fields(log_fields);
+        // No connector reply on the inbound span — there is nothing to mask here.
+        apply_log_fields(log_fields, None);
     }
     #[cfg(not(feature = "log-transformations"))]
     {

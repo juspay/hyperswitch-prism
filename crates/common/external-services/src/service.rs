@@ -3,7 +3,7 @@ use std::{collections::HashMap, str::FromStr, sync::RwLock, time::Duration};
 use base64::Engine;
 use common_enums::ApiClientError;
 #[cfg(all(feature = "injector-client", feature = "log-transformations"))]
-use common_utils::events::apply_log_fields;
+use common_utils::events::{apply_log_fields, ConnectorResponseForLogging};
 #[cfg(feature = "injector-client")]
 use common_utils::{
     consts::{X_API_TAG, X_API_URL, X_SESSION_ID},
@@ -347,38 +347,30 @@ fn flow_status_label(flow_status: &domain_types::router_data::FlowStatus) -> Str
     }
 }
 
-/// Build the masked view of a connector response and record it on the outgoing Golden Log Line,
-/// alongside `response.body` and `response.headers`.
+/// Capture the connector's reply before `response` is moved into `handle_connector_response`.
 ///
-/// This value goes to our own logs and nowhere else — it is deliberately not returned to the
-/// caller, so a careless allowlist entry cannot put connector response content on the wire.
+/// The masked view is built at the very end of `execute_connector_processing_step`, by which point
+/// the body is gone — so it is held here instead. Cloning `Bytes` is a refcount bump, not a copy,
+/// and nothing is cloned at all when masking is switched off.
 #[cfg(feature = "log-transformations")]
-fn record_masked_connector_response(body: &Response, params: &EventProcessingParams<'_>) {
-    let content_type = body
-        .headers
-        .as_ref()
-        .and_then(|headers| headers.get("content-type"))
-        .and_then(|value| value.to_str().ok());
+fn capture_connector_reply<E>(
+    response: &Result<Result<Response, Response>, E>,
+    masking_keys: &common_utils::connector_response_masking::CompiledMaskingKeys,
+) -> Option<(bytes::Bytes, Option<String>)> {
+    if !masking_keys.enabled {
+        return None;
+    }
 
-    let Some(masked) = common_utils::connector_response_masking::mask_connector_response(
-        &body.response,
-        content_type,
-        params.connector_name,
-        params.masking_keys,
-    ) else {
-        return;
-    };
-
-    // Metadata only, and cheap: content type and size are what explain an unexpected
-    // `_format: unparsable` stub in the field below.
-    tracing::debug!(
-        connector = params.connector_name,
-        content_type = content_type.unwrap_or("<none>"),
-        response_bytes = body.response.len(),
-        "built masked connector response"
-    );
-
-    record_json_fields_on_span(vec![("response.masked_body", masked)]);
+    response.as_ref().ok().map(|result| match result {
+        Ok(body) | Err(body) => (
+            body.response.clone(),
+            body.headers
+                .as_ref()
+                .and_then(|headers| headers.get("content-type"))
+                .and_then(|value| value.to_str().ok())
+                .map(str::to_owned),
+        ),
+    })
 }
 
 /// Handles the connector response, processing both successful and error responses
@@ -419,11 +411,6 @@ where
                         updated_router_data
                             .resource_common_data
                             .set_connector_response_headers(body.headers.clone());
-                    }
-
-                    #[cfg(feature = "log-transformations")]
-                    if let Some(params) = event_params.filter(|p| p.masking_keys.enabled) {
-                        record_masked_connector_response(&body, params);
                     }
 
                     // typed_connector_response is now set inside handle_response_v2
@@ -487,11 +474,6 @@ where
                         updated_router_data
                             .resource_common_data
                             .set_connector_response_headers(body.headers.clone());
-                    }
-
-                    #[cfg(feature = "log-transformations")]
-                    if let Some(params) = event_params.filter(|p| p.masking_keys.enabled) {
-                        record_masked_connector_response(&body, params);
                     }
 
                     let mut error_response = match body.status_code {
@@ -682,6 +664,10 @@ where
     let start = tokio::time::Instant::now();
     let proxy_name = event_params.proxy_name.unwrap_or("primary");
     let transport_type = connector.get_transport_type();
+    // Set by whichever transport arm below owns a `Response`, consumed once at the end when the
+    // golden log line is built.
+    #[cfg(feature = "log-transformations")]
+    let mut connector_reply: Option<(bytes::Bytes, Option<String>)> = None;
     let result = match (call_connector_action, transport_type) {
         (common_enums::CallConnectorAction::HandleResponseWithoutBuildRequest, _) => {
             let response = Response {
@@ -1003,6 +989,12 @@ where
                         Ok(body) | Err(body) => i32::from(body.status_code),
                     });
 
+                    #[cfg(feature = "log-transformations")]
+                    {
+                        connector_reply =
+                            capture_connector_reply(&response, event_params.masking_keys);
+                    }
+
                     let latency =
                         u64::try_from(external_service_elapsed.as_millis()).unwrap_or(u64::MAX);
 
@@ -1122,6 +1114,12 @@ where
                         Ok(body) | Err(body) => i32::from(body.status_code),
                     });
 
+                    #[cfg(feature = "log-transformations")]
+                    {
+                        connector_reply =
+                            capture_connector_reply(&response, event_params.masking_keys);
+                    }
+
                     let latency =
                         u64::try_from(external_service_elapsed.as_millis()).unwrap_or(u64::MAX);
 
@@ -1176,6 +1174,9 @@ where
                     "typed_connector_response is missing on success path — connector's handle_response_v2 did not produce a typed response value"
                 );
             }
+            // Bound into the result rather than `?`-returned: an early return here would skip
+            // the latency record, the log fields and the golden log line below, which is exactly
+            // when the connector's reply is worth having in the logs.
             data.request
                 .check_integrity(&data.request.clone(), None)
                 .map_err(|err| {
@@ -1189,18 +1190,31 @@ where
                             connector_transaction_id: err.connector_transaction_id,
                         }
                     ))
-                })?;
-            Ok(data)
+                })
+                .map(|()| data)
         }
         Err(err) => Err(err),
     };
 
     let elapsed = start.elapsed().as_millis();
     tracing::Span::current().record("latency", elapsed);
-    // Apply outgoing log fields (transformations + static values) before emitting the golden log line
+    // Apply outgoing log fields (transformations, static values, and the masked connector reply)
+    // before emitting the golden log line. The masking switch is checked alongside
+    // `log_fields_enabled`: no shipped config defines `[log.fields]`, so gating on that alone
+    // would mean nothing is ever masked.
     #[cfg(feature = "log-transformations")]
-    if event_params.log_fields_enabled {
-        apply_log_fields(event_params.log_fields);
+    if event_params.log_fields_enabled || event_params.masking_keys.enabled {
+        apply_log_fields(
+            event_params.log_fields,
+            connector_reply
+                .as_ref()
+                .map(|(body, content_type)| ConnectorResponseForLogging {
+                    body,
+                    content_type: content_type.as_deref(),
+                    connector_name: event_params.connector_name,
+                    masking_keys: event_params.masking_keys,
+                }),
+        );
     }
     tracing::info!(tag = ?Tag::OutgoingApi, log_type = "api", "Outgoing Request completed");
     result_with_integrity_check
