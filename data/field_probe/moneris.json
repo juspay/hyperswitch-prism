@@ -319,7 +319,7 @@
             "via": "HyperSwitch",
             "x-merchant-id": "probe_merchant"
           },
-          "body": "{\"idempotencyKey\":\"auth_probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"amount\":1000},\"paymentMethod\":{\"paymentMethodSource\":\"GOOGLE_PAY_DECRYPTED\",\"walletSource\":\"TOKENIZED_CARD\",\"cardBrand\":\"VISA\",\"walletIndicator\":\"IN_BROWSER\",\"cardDetails\":{\"personalAccountNumber\":\"4111111111111111\",\"expiryMonth\":3,\"expiryYear\":2030,\"cryptogram\":\"AAAAAA==\",\"walletEcommerceIndicator\":\"05\"}},\"automaticCapture\":true}"
+          "body": "{\"idempotencyKey\":\"auth_probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"amount\":1000},\"paymentMethod\":{\"paymentMethodSource\":\"GOOGLE_PAY_DECRYPTED\",\"walletSource\":\"TOKENIZED_CARD\",\"cardBrand\":\"VISA\",\"walletIndicator\":\"IN_APPLICATION\",\"cardDetails\":{\"personalAccountNumber\":\"4111111111111111\",\"expiryMonth\":3,\"expiryYear\":2030,\"cryptogram\":\"AAAAAA==\",\"walletEcommerceIndicator\":\"05\"}},\"automaticCapture\":true}"
         }
       },
       "GooglePayThirdPartySdk": {
