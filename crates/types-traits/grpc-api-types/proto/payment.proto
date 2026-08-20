@@ -5649,6 +5649,7 @@ message TesouroConfig {
 message BoostConfig {
   SecretString client_id = 1;
   SecretString merchant_secret = 2;
+  optional SecretString public_key = 3;
   optional string base_url = 50;
 }
 

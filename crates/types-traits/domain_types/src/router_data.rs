@@ -970,6 +970,9 @@ pub enum ConnectorSpecificConfig {
     Boost {
         client_id: Secret<String>,
         merchant_secret: Secret<String>,
+        /// BCPG RSA public key (base64-encoded DER SPKI), used to encrypt
+        /// card data for Authorize. Optional — not needed by other flows.
+        public_key: Option<Secret<String>>,
         base_url: Option<String>,
     },
     Citigate {
@@ -2452,6 +2455,7 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             AuthType::Boost(boost) => Ok(Self::Boost {
                 client_id: boost.client_id.ok_or_else(err)?,
                 merchant_secret: boost.merchant_secret.ok_or_else(err)?,
+                public_key: boost.public_key,
                 base_url: boost.base_url,
             }),
             AuthType::Citigate(citigate) => Ok(Self::Citigate {
@@ -3695,6 +3699,17 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Boost {
                         client_id: api_key.clone(),
                         merchant_secret: key1.clone(),
+                        public_key: None,
+                        base_url: None,
+                    }),
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Boost {
+                        client_id: api_key.clone(),
+                        merchant_secret: key1.clone(),
+                        public_key: Some(api_secret.clone()),
                         base_url: None,
                     }),
                     _ => Err(err().into()),
