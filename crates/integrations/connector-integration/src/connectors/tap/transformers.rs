@@ -5,6 +5,7 @@
 //! string response codes (`000` → Charged, `001` → Authorized, `100`/`200` → Pending, `601` →
 //! Voided) with a redirect (`transaction.url`) forcing `AuthenticationPending`.
 
+use base64::Engine;
 use common_enums::{AttemptStatus, Currency, RefundStatus};
 use common_utils::types::{FloatMajorUnit, MinorUnit};
 use domain_types::{
@@ -20,7 +21,6 @@ use domain_types::{
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
 };
-use base64::Engine;
 use error_stack::ResultExt;
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -230,9 +230,7 @@ fn encrypt_tap_card<T: PaymentMethodDataTypes + std::fmt::Debug>(
             .as_ref()
             .map(|name| name.peek().to_string()),
     };
-    let plaintext = serde_json::to_string(&payload).change_context(
-        tap_encryption_error(),
-    )?;
+    let plaintext = serde_json::to_string(&payload).change_context(tap_encryption_error())?;
 
     let key_text: String = public_key
         .peek()
@@ -245,12 +243,15 @@ fn encrypt_tap_card<T: PaymentMethodDataTypes + std::fmt::Debug>(
         format!("-----BEGIN PUBLIC KEY-----\n{key_text}\n-----END PUBLIC KEY-----")
     };
 
-    let rsa = openssl::rsa::Rsa::public_key_from_pem(pem.as_bytes()).change_context(
-        tap_encryption_error(),
-    )?;
+    let rsa = openssl::rsa::Rsa::public_key_from_pem(pem.as_bytes())
+        .change_context(tap_encryption_error())?;
     let mut buffer = vec![0u8; rsa.size() as usize];
     let len = rsa
-        .public_encrypt(plaintext.as_bytes(), &mut buffer, openssl::rsa::Padding::PKCS1)
+        .public_encrypt(
+            plaintext.as_bytes(),
+            &mut buffer,
+            openssl::rsa::Padding::PKCS1,
+        )
         .change_context(tap_encryption_error())?;
     buffer.truncate(len);
     Ok(common_utils::consts::BASE64_ENGINE.encode(&buffer))
@@ -337,8 +338,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let source = build_tap_source(&request.payment_method_data, &auth.public_key)?;
 
         // three_ds off for NoThreeDs; PaymentFlowData carries the resolved auth_type.
-        let three_d_secure =
-            common.auth_type == common_enums::AuthenticationType::ThreeDs;
+        let three_d_secure = common.auth_type == common_enums::AuthenticationType::ThreeDs;
 
         let first_name = request
             .customer_name
@@ -587,8 +587,7 @@ fn build_payments_response(
     })
 }
 
-impl<T: PaymentMethodDataTypes>
-    TryFrom<crate::types::ResponseRouterData<TapChargeResponse, Self>>
+impl<T: PaymentMethodDataTypes> TryFrom<crate::types::ResponseRouterData<TapChargeResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -662,8 +661,8 @@ pub struct TapDestinations {
 /// The `AmountConvertor` handle carried on the connector, specialised to Tap's decimal major
 /// unit. Both split builders take it so the destination amounts are converted exactly as the
 /// top-level `amount` is.
-type TapAmountConverter = &'static (dyn common_utils::types::AmountConvertor<Output = FloatMajorUnit>
-             + Sync);
+type TapAmountConverter =
+    &'static (dyn common_utils::types::AmountConvertor<Output = FloatMajorUnit> + Sync);
 
 /// Converts a domain `SplitValue::Amount` into Tap's decimal major-unit `f64`. `Percentage` is
 /// rejected: Tap accepts absolute amounts only.
@@ -1082,10 +1081,7 @@ const TAP_REFUND_REASON: &str = "MERCHANT_INITIATED_REFUND";
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
-        TapRouterData<
-            RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-            T,
-        >,
+        TapRouterData<RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>, T>,
     > for TapRefundRequest
 {
     type Error = error_stack::Report<errors::IntegrationError>;
