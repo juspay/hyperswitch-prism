@@ -309,6 +309,12 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             base_url: None,
             secondary_base_url: None,
         },
+        ConnectorEnum::Moneris => ConnectorSpecificConfig::Moneris {
+            client_secret: s(),
+            merchant_id: m(),
+            client_id: id(),
+            base_url: None,
+        },
         ConnectorEnum::Nmi => ConnectorSpecificConfig::Nmi {
             api_key: k(),
             public_key: None,
@@ -790,6 +796,17 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
         ConnectorEnum::Boost => ConnectorSpecificConfig::Boost {
             client_id: k(),
             merchant_secret: k(),
+            base_url: None,
+        },
+        ConnectorEnum::Citigate => ConnectorSpecificConfig::Citigate {
+            api_key: k(),
+            key1: k(),
+            base_url: None,
+        },
+        ConnectorEnum::Ilixium => ConnectorSpecificConfig::Ilixium {
+            api_key: k(),
+            key1: k(),
+            api_secret: k(),
             base_url: None,
         },
     }

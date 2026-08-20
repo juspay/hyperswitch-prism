@@ -2,12 +2,13 @@ use common_enums::{AttemptStatus, RechargeStatus, RefundStatus};
 use common_utils::types::FloatMajorUnit;
 use domain_types::{
     connector_flow::{
-        Authorize, CreatePaymentMethod, GetPaymentMethod, Recharge, Refund,
-        ServerAuthenticationToken,
+        Authorize, CreatePaymentMethod, GetPaymentMethod, PaymentMethodEligibility, Recharge,
+        Refund, ServerAuthenticationToken,
     },
     connector_types::{
         CreatePaymentMethodData, CreatePaymentMethodResponseData, CustomerInfo,
-        GetPaymentMethodData, GetPaymentMethodResponseData, PaymentFlowData, PaymentsAuthorizeData,
+        GetPaymentMethodData, GetPaymentMethodResponseData, PaymentFlowData,
+        PaymentMethodEligibilityData, PaymentMethodEligibilityResponse, PaymentsAuthorizeData,
         PaymentsResponseData, RechargeRequestData, RechargeResponseData, RefundFlowData,
         RefundsData, RefundsResponseData, ResponseId, ServerAuthenticationTokenRequestData,
         ServerAuthenticationTokenResponseData,
@@ -948,6 +949,14 @@ where
 #[serde(transparent)]
 pub struct QwikcilverGetWalletResponse(pub QwikcilverWalletEnvelope);
 
+/// Distinct response newtype for `PaymentMethodEligibility`. Wraps the identical
+/// `QwikcilverWalletEnvelope` payload `GetPaymentMethod` parses — macro-generated templating
+/// types are keyed by response type name, so this flow needs its own type to avoid colliding
+/// with `GetPaymentMethod`'s templating impl, even though it's the same connector call.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(transparent)]
+pub struct QwikcilverEligibilityResponse(pub QwikcilverWalletEnvelope);
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct QwikcilverWalletDetails {
@@ -1188,6 +1197,73 @@ impl TryFrom<ResponseRouterData<QwikcilverGetWalletResponse, Self>>
                     payment_method_details,
                     customer,
                     status_code: item.http_code,
+                })
+            }
+            _ => {
+                let txn_id = body.transaction_id.map(|t| t.to_string());
+                Err(error_response_from_qc(
+                    (&body).into(),
+                    txn_id,
+                    item.http_code,
+                    None,
+                ))
+            }
+        };
+        Ok(data)
+    }
+}
+
+/// Performs the exact same wallet lookup as `GetPaymentMethod` and derives eligibility from
+/// the wallet's status: ACTIVE → Eligible, INACTIVE → Ineligible. The resolved wallet's
+/// payment method details (balance, items, etc.) are returned alongside the eligibility
+/// verdict in the same response.
+impl TryFrom<ResponseRouterData<QwikcilverEligibilityResponse, Self>>
+    for RouterDataV2<
+        PaymentMethodEligibility,
+        PaymentFlowData,
+        PaymentMethodEligibilityData,
+        PaymentMethodEligibilityResponse,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<QwikcilverEligibilityResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let mut data = item.router_data;
+        let body = item.response.0;
+        data.resource_common_data.raw_connector_response =
+            serde_json::to_string(&body).ok().map(Secret::new);
+        data.response = match body.response_code {
+            QWIKCILVER_SUCCESS_CODE => {
+                let currency = data.request.amount.currency;
+                let (eligibility, payment_method_details) =
+                    if let Some(wallet) = body.wallet.as_ref() {
+                        let eligibility = match map_wallet_status(wallet.status.as_ref()) {
+                            Some(common_enums::WalletStatus::Active) => {
+                                common_enums::EligibilityStatus::Eligible
+                            }
+                            Some(common_enums::WalletStatus::Inactive) => {
+                                common_enums::EligibilityStatus::Ineligible
+                            }
+                            Some(common_enums::WalletStatus::Unspecified) | None => {
+                                common_enums::EligibilityStatus::Unknown
+                            }
+                        };
+                        (
+                            eligibility,
+                            Some(wallet_details_to_payment_method_details(
+                                wallet,
+                                Some(currency),
+                            )),
+                        )
+                    } else {
+                        (common_enums::EligibilityStatus::Unknown, None)
+                    };
+                Ok(PaymentMethodEligibilityResponse {
+                    eligibility,
+                    payment_method_details,
+                    status_code: u32::from(item.http_code),
                 })
             }
             _ => {
