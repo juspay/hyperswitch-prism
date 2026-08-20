@@ -35,9 +35,7 @@ use domain_types::payment_address::AddressDetails;
 
 const API_VERSION: &str = "1.4";
 
-/// `captureDelay` value that leaves the order uncaptured, for manual capture.
 const CAPTURE_DELAY_MANUAL: &str = "OFF";
-/// `captureDelay` value that captures the order immediately, for automatic capture.
 const CAPTURE_DELAY_AUTOMATIC: &str = "0";
 
 #[derive(Debug, Clone)]
@@ -219,8 +217,7 @@ fn get_worldpayxml_wallet_payment_method(
                             eci_indicator: decrypt_data.eci_indicator.clone(),
                         },
                     )),
-                    // Without a cryptogram there is nothing token-specific left to send, so the
-                    // decrypted PAN goes over as a plain card.
+                    // No cryptogram: nothing token-specific left, so send the PAN as a card.
                     None => Ok(requests::WorldpayxmlPaymentMethod::Card(
                         requests::WorldpayxmlCard {
                             card_number: Secret::new(
@@ -260,10 +257,6 @@ fn get_worldpayxml_wallet_payment_method(
 }
 
 /// Number of decimal places Worldpay expects for the order currency.
-///
-/// Defers to the shared currency helper rather than re-deriving the exponent, so four-decimal
-/// currencies are handled and an unrecognised currency is rejected instead of silently being
-/// treated as two-decimal.
 fn get_worldpayxml_exponent(
     currency: common_enums::Currency,
 ) -> Result<String, Report<IntegrationError>> {
@@ -307,7 +300,6 @@ impl From<(&AddressDetails, Option<Secret<String>>)> for requests::WorldpayxmlAd
     }
 }
 
-/// Builds the `<billingAddress>` element from the flow's billing address, when one was supplied.
 fn get_worldpayxml_billing_address(
     resource_common_data: &PaymentFlowData,
 ) -> Option<requests::WorldpayxmlBillingAddress> {
@@ -406,8 +398,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 billing_address.as_ref(),
             )?,
             PaymentMethodData::Wallet(wallet_data) => {
-                // Fall back to the billing name when the request carries no customer name, so a
-                // wallet payment still sends a cardholder name to Worldpay.
+                // Falls back to the billing name so a wallet payment still sends a holder name.
                 let customer_name = router_data
                     .request
                     .customer_name
@@ -434,9 +425,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let is_cit_mandate_payment = router_data.request.is_customer_initiated_mandate_payment();
 
-        // A customer-initiated mandate setup must be flagged to Worldpay as the first transaction
-        // of a stored-credential agreement, otherwise later merchant-initiated payments against it
-        // are declined by the scheme.
+        // Flagged as the agreement's first transaction, or later MITs are declined by the scheme.
         let stored_credentials =
             is_cit_mandate_payment.then(|| requests::WorldpayxmlStoredCredentials {
                 usage: requests::WorldpayxmlUsageType::First,
@@ -447,8 +436,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 scheme_transaction_identifier: None,
             });
 
-        // Ask Worldpay to issue a payment token on the customer-initiated transaction; without it
-        // there is nothing for a later merchant-initiated payment to be charged against.
+        // Issues the token a later merchant-initiated payment is charged against.
         let create_token = is_cit_mandate_payment.then(|| requests::WorldpayxmlCreateToken {
             token_scope: requests::WorldpayxmlTokenScope::Shopper,
             token_event_reference: router_data
@@ -529,11 +517,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
-// SetupMandate flow transformers
-//
-// A mandate setup is submitted as an ordinary order that additionally asks Worldpay to create a
-// payment token, and flags the transaction to the scheme as the first of a stored-credential
-// agreement. The order amount is whatever the caller asked for, which is normally zero.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         WorldpayxmlRouterData<
@@ -577,8 +560,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 billing_address.as_ref(),
             )?,
             PaymentMethodData::Wallet(wallet_data) => {
-                // Fall back to the billing name when the request carries no customer name, so a
-                // wallet payment still sends a cardholder name to Worldpay.
+                // Falls back to the billing name so a wallet payment still sends a holder name.
                 let customer_name = router_data
                     .request
                     .customer_name
@@ -690,12 +672,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
-// RepeatPayment flow transformers
-//
-// A merchant-initiated payment replays the stored-credential agreement: the Worldpay token
-// issued on the customer-initiated transaction is submitted over `TOKEN-SSL`, and the scheme
-// transaction identifier from that original transaction chains the two together. No `action`
-// is sent — Worldpay derives it from the order's capture delay, matching hyperswitch.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         WorldpayxmlRouterData<

@@ -26,8 +26,7 @@ pub struct WorldpayxmlOrderStatus {
     #[serde(rename = "@orderCode")]
     pub order_code: String,
     pub payment: Option<WorldpayxmlPayment>,
-    /// Present when the order asked Worldpay to create a payment token; carries the token
-    /// that subsequent merchant-initiated payments are submitted against.
+    /// Present when the order asked Worldpay to create a payment token.
     pub token: Option<WorldpayxmlToken>,
     pub error: Option<WorldpayxmlError>,
 }
@@ -81,10 +80,8 @@ pub struct WorldpayxmlPayment {
     pub scheme_response: Option<WorldpayxmlSchemeResponse>,
 }
 
-/// `lastEvent`/`PaymentStatus` values Worldpay reports for an order.
-///
-/// Worldpay keeps adding journey events, so any value that is not modelled here deserializes to
-/// [`WorldpayxmlLastEvent::Unknown`] instead of failing the whole response.
+/// `lastEvent`/`PaymentStatus` values Worldpay reports for an order. Unmodelled values
+/// deserialize to [`WorldpayxmlLastEvent::Unknown`] rather than failing the response.
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum WorldpayxmlLastEvent {
@@ -325,16 +322,12 @@ pub struct WorldpayxmlCancelOrRefundReceived {
     pub order_code: String,
 }
 
-/// Carrier for a PSync/RSync body, which is normally the XML `<paymentService>` order-inquiry
-/// envelope but can also be the form/JSON order-notification body.
+/// Carrier for a PSync/RSync body: the XML `<paymentService>` order-inquiry envelope, or the
+/// order-notification body.
 ///
-/// It deliberately does **not** derive `Deserialize` as an `untagged` enum. `untagged` forces
-/// serde's `deserialize_any`, and the buffered value it produces loses XML sequence and text
-/// semantics — `balance` buffers as a map instead of a sequence and `<lastEvent>X</lastEvent>`
-/// buffers as `{"$text": "X"}`, which a unit-variant enum cannot be built from. The `Payment`
-/// variant therefore never matched, and the all-optional webhook variant silently absorbed every
-/// payload. Instead the concrete `<paymentService>` type is tried first and the success is wrapped
-/// manually, falling back to the notification body — mirroring hyperswitch's handling.
+/// Deliberately does not derive `Deserialize` as an `untagged` enum: `untagged` forces
+/// `deserialize_any`, whose buffer loses XML sequence and text semantics, so the `Payment`
+/// variant never matched and the notification variant absorbed every payload.
 #[derive(Clone, Debug, Serialize)]
 #[serde(untagged)]
 pub enum WorldpayxmlTransactionResponse {
@@ -342,16 +335,12 @@ pub enum WorldpayxmlTransactionResponse {
     Webhook(WorldpayxmlWebhookResponse),
 }
 
-/// Concrete (never `deserialize_any`) shape covering both bodies a sync call can return, so the
-/// right [`WorldpayxmlTransactionResponse`] variant can be picked without buffering the payload.
-///
-/// The notification half is PascalCase on the wire, so `rename_all` carries it. The
-/// `<paymentService>` half is not — those three keep an explicit rename, and must keep it.
+/// Concrete shape covering both bodies a sync call can return, so the variant can be picked
+/// without buffering. The notification half is PascalCase; the `<paymentService>` half is not,
+/// so those three keep an explicit rename.
 #[derive(Debug, Deserialize)]
 #[serde(rename = "paymentService", rename_all = "PascalCase")]
 struct WorldpayxmlSyncResponseBody {
-    // `<paymentService>` order-inquiry reply: XML attributes and a lowercase element, none of
-    // which follow the notification body's PascalCase convention.
     #[serde(rename = "@version")]
     version: Option<String>,
     #[serde(rename = "@merchantCode")]
@@ -374,7 +363,6 @@ impl<'de> Deserialize<'de> for WorldpayxmlTransactionResponse {
     {
         let body = WorldpayxmlSyncResponseBody::deserialize(deserializer)?;
 
-        // Try the concrete `<paymentService>` envelope first, exactly as the payment flows do.
         if let Some(reply) = body.reply {
             return Ok(Self::Payment(Box::new(WorldpayxmlAuthorizeResponse {
                 version: body.version.unwrap_or_default(),
@@ -383,7 +371,6 @@ impl<'de> Deserialize<'de> for WorldpayxmlTransactionResponse {
             })));
         }
 
-        // Otherwise fall back to the order-notification body.
         match (body.order_code, body.payment_status) {
             (Some(order_code), Some(payment_status)) => {
                 Ok(Self::Webhook(WorldpayxmlWebhookResponse {

@@ -67,8 +67,6 @@ pub struct WorldpayxmlOrder {
     pub create_token: Option<WorldpayxmlCreateToken>,
 }
 
-/// Asks Worldpay to issue a payment token against this order, so that later merchant-initiated
-/// payments can be submitted with the token instead of the original payment credentials.
 #[derive(Debug, Serialize)]
 pub struct WorldpayxmlCreateToken {
     #[serde(rename = "@tokenScope")]
@@ -99,8 +97,7 @@ pub struct WorldpayxmlPaymentDetails {
     pub stored_credentials: Option<WorldpayxmlStoredCredentials>,
 }
 
-/// Tells Worldpay that this authorisation is part of a stored-credential agreement, so the scheme
-/// records it as such and later merchant-initiated transactions are accepted against it.
+/// Flags the authorisation as part of a stored-credential agreement.
 #[derive(Debug, Serialize)]
 pub struct WorldpayxmlStoredCredentials {
     #[serde(rename = "@usage")]
@@ -122,7 +119,6 @@ pub struct WorldpayxmlStoredCredentials {
     pub scheme_transaction_identifier: Option<Secret<String>>,
 }
 
-/// Scope Worldpay issues a payment token under. Only shopper scope is used.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum WorldpayxmlTokenScope {
@@ -132,9 +128,7 @@ pub enum WorldpayxmlTokenScope {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum WorldpayxmlUsageType {
-    /// The customer-initiated transaction that establishes the agreement.
     First,
-    /// A subsequent transaction against an already-established agreement.
     Used,
 }
 
@@ -159,11 +153,9 @@ pub enum WorldpayxmlPaymentMethod {
     PayWithGoogle(WorldpayxmlGooglePayData),
     #[serde(rename = "APPLEPAY-SSL")]
     ApplePay(WorldpayxmlApplePayData),
-    /// Carries a wallet token that Hyperswitch has already decrypted into a network token.
+    /// Carries an already-decrypted wallet token as a network token.
     #[serde(rename = "EMVCO_TOKEN-SSL")]
     EmvcoToken(WorldpayxmlEmvcoTokenData),
-    /// Carries a Worldpay-issued payment token, used by merchant-initiated payments against an
-    /// already-established stored-credential agreement.
     #[serde(rename = "TOKEN-SSL")]
     TokenSsl(WorldpayxmlTokenData),
 }
