@@ -1,21 +1,19 @@
 pub mod transformers;
 
+use std::fmt::Debug;
+
 use common_enums::CurrencyUnit;
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors::CustomResult,
     events,
     ext_traits::ByteSliceExt,
-    request::{ConnectorRequestData, RequestContent},
-    AmountConvertor, StringMajorUnit, StringMajorUnitForConnector,
+    types::StringMajorUnit,
 };
 use domain_types::{
-    connector_flow::{PayoutGet, PayoutTransfer, ServerAuthenticationToken},
-    connector_types::{
-        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
-    },
-    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
-    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
+    connector_flow::{PayoutGet, PayoutTransfer},
+    errors::{ConnectorError, IntegrationError},
+    payment_method_data::PaymentMethodDataTypes,
     payouts::payouts_types::{
         PayoutFlowData, PayoutGetRequest, PayoutGetResponse, PayoutTransferRequest,
         PayoutTransferResponse,
@@ -24,20 +22,21 @@ use domain_types::{
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::Connectors,
-    utils::convert_amount,
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::{Mask, Maskable, PeekInterface};
 use interfaces::{
     api::ConnectorCommon,
     connector_integration_v2::ConnectorIntegrationV2,
-    connector_types::{PayoutGetV2, PayoutServiceTrait, PayoutTransferV2, ServerAuthentication},
+    connector_types::{PayoutGetV2, PayoutServiceTrait, PayoutTransferV2},
 };
+use serde::Serialize;
 
 use crate::{connectors::macros, types::ResponseRouterData, utils::response_deserialization_fail};
 use transformers::{
     GotymeSanlamAuthType, GotymeSanlamErrorResponse, GotymeSanlamPayoutGetRequest,
-    GotymeSanlamPayoutResponse, GotymeSanlamPayoutRouterData, GotymeSanlamPayoutTransferRequest,
+    GotymeSanlamPayoutResponse as GotymeSanlamPayoutGetResponse, GotymeSanlamPayoutResponse,
+    GotymeSanlamPayoutTransferRequest,
 };
 
 pub(crate) mod headers {
@@ -46,35 +45,50 @@ pub(crate) mod headers {
     pub(crate) const PROFILE_ID: &str = "Profile-Id";
 }
 
-#[derive(Clone)]
-pub struct GotymeSanlamPayouts {
-    amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
-}
+macros::create_all_prerequisites!(
+    connector_name: GotymeSanlamPayouts,
+    generic_type: T,
+    api: [
+        (
+            flow: PayoutTransfer,
+            request_body: GotymeSanlamPayoutTransferRequest,
+            response_body: GotymeSanlamPayoutResponse,
+            router_data: RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>,
+        ),
+        (
+            flow: PayoutGet,
+            request_body: GotymeSanlamPayoutGetRequest,
+            response_body: GotymeSanlamPayoutGetResponse,
+            router_data: RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
+        )
+    ],
+    amount_converters: [
+        amount_converter: StringMajorUnit
+    ],
+    member_functions: {
+        pub fn build_headers<F, FCD, Req, Res>(
+            &self,
+            req: &RouterDataV2<F, FCD, Req, Res>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError>
+        where
+            Self: ConnectorIntegrationV2<F, FCD, Req, Res>,
+        {
+            let mut header = vec![(
+                headers::CONTENT_TYPE.to_string(),
+                Self::common_get_content_type(self).to_string().into(),
+            )];
 
-impl GotymeSanlamPayouts {
-    pub fn new() -> &'static Self {
-        &Self {
-            amount_converter: &StringMajorUnitForConnector,
+            let mut api_key = self.get_auth_header(&req.connector_config)?;
+            header.append(&mut api_key);
+
+            Ok(header)
         }
     }
+);
 
-    fn build_payout_headers(
-        &self,
-        connector_config: &ConnectorSpecificConfig,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            Self::common_get_content_type(self).to_string().into(),
-        )];
-
-        let mut api_key = self.get_auth_header(connector_config)?;
-        header.append(&mut api_key);
-
-        Ok(header)
-    }
-}
-
-impl ConnectorCommon for GotymeSanlamPayouts {
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorCommon
+    for GotymeSanlamPayouts<T>
+{
     fn id(&self) -> &'static str {
         "gotyme_sanlam"
     }
@@ -151,238 +165,87 @@ impl ConnectorCommon for GotymeSanlamPayouts {
     }
 }
 
-impl PayoutServiceTrait for GotymeSanlamPayouts {}
-
-impl ServerAuthentication for GotymeSanlamPayouts {}
-
-impl
-    ConnectorIntegrationV2<
-        ServerAuthenticationToken,
-        MerchantAuthenticationFlowData,
-        ServerAuthenticationTokenRequestData,
-        ServerAuthenticationTokenResponseData,
-    > for GotymeSanlamPayouts
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> PayoutServiceTrait
+    for GotymeSanlamPayouts<T>
 {
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            ServerAuthenticationToken,
-            MerchantAuthenticationFlowData,
-            ServerAuthenticationTokenRequestData,
-            ServerAuthenticationTokenResponseData,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(IntegrationError::connector_flow_not_implemented(
-            self.id(),
-            "server_authentication_token",
-            IntegrationErrorContext::default(),
-        )
-        .into())
-    }
 }
 
-impl PayoutTransferV2 for GotymeSanlamPayouts {}
-
-impl
-    ConnectorIntegrationV2<
-        PayoutTransfer,
-        PayoutFlowData,
-        PayoutTransferRequest,
-        PayoutTransferResponse,
-    > for GotymeSanlamPayouts
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> PayoutTransferV2
+    for GotymeSanlamPayouts<T>
 {
-    fn get_http_method(&self) -> common_utils::request::Method {
-        common_utils::request::Method::Post
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        req: &RouterDataV2<
-            PayoutTransfer,
-            PayoutFlowData,
-            PayoutTransferRequest,
-            PayoutTransferResponse,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        Ok(format!(
-            "{}/invoke",
-            self.base_url(&req.resource_common_data.connectors)
-        ))
-    }
-
-    fn get_headers(
-        &self,
-        req: &RouterDataV2<
-            PayoutTransfer,
-            PayoutFlowData,
-            PayoutTransferRequest,
-            PayoutTransferResponse,
-        >,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-        self.build_payout_headers(&req.connector_config)
-    }
-
-    fn get_request_body(
-        &self,
-        req: &RouterDataV2<
-            PayoutTransfer,
-            PayoutFlowData,
-            PayoutTransferRequest,
-            PayoutTransferResponse,
-        >,
-    ) -> CustomResult<Option<ConnectorRequestData>, IntegrationError> {
-        let amount = convert_amount(
-            self.amount_converter,
-            req.request.amount,
-            req.request.source_currency,
-        )?;
-
-        let connector_router_data = GotymeSanlamPayoutRouterData::from((amount, req));
-        let connector_req = GotymeSanlamPayoutTransferRequest::try_from(&connector_router_data)?;
-        let typed = events::MaskedSerdeValue::from_masked_optional(
-            &connector_req,
-            "typed_connector_request",
-        );
-        Ok(Some(ConnectorRequestData::new(
-            RequestContent::Json(Box::new(connector_req)),
-            typed,
-        )))
-    }
-
-    fn handle_response_v2(
-        &self,
-        data: &RouterDataV2<
-            PayoutTransfer,
-            PayoutFlowData,
-            PayoutTransferRequest,
-            PayoutTransferResponse,
-        >,
-        event_builder: Option<&mut events::Event>,
-        res: Response,
-    ) -> CustomResult<
-        RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>,
-        ConnectorError,
-    > {
-        let response: GotymeSanlamPayoutResponse = res
-            .response
-            .parse_struct("GotymeSanlamPayoutResponse")
-            .change_context(
-                response_deserialization_fail(
-                    res.status_code,
-                    "Response body did not match the expected format; confirm API version and connector documentation."
-                )
-            )?;
-
-        event_builder.map(|i| i.set_connector_response(&response));
-        tracing::info!(response=?response, "response from connector");
-
-        RouterDataV2::try_from(ResponseRouterData {
-            response,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response_v2(
-        &self,
-        res: Response,
-        event_builder: Option<&mut events::Event>,
-        connector_config: &ConnectorSpecificConfig,
-    ) -> CustomResult<ErrorResponse, ConnectorError> {
-        self.build_error_response(res, event_builder, connector_config)
-    }
 }
 
-impl PayoutGetV2 for GotymeSanlamPayouts {}
-
-impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>
-    for GotymeSanlamPayouts
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> PayoutGetV2
+    for GotymeSanlamPayouts<T>
 {
-    fn get_http_method(&self) -> common_utils::request::Method {
-        common_utils::request::Method::Post
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        req: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
-    ) -> CustomResult<String, IntegrationError> {
-        Ok(format!(
-            "{}/invoke",
-            self.base_url(&req.resource_common_data.connectors)
-        ))
-    }
-
-    fn get_headers(
-        &self,
-        req: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-        self.build_payout_headers(&req.connector_config)
-    }
-
-    fn get_request_body(
-        &self,
-        req: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
-    ) -> CustomResult<Option<ConnectorRequestData>, IntegrationError> {
-        let connector_req = GotymeSanlamPayoutGetRequest::try_from(req)?;
-        let typed = events::MaskedSerdeValue::from_masked_optional(
-            &connector_req,
-            "typed_connector_request",
-        );
-        Ok(Some(ConnectorRequestData::new(
-            RequestContent::Json(Box::new(connector_req)),
-            typed,
-        )))
-    }
-
-    fn handle_response_v2(
-        &self,
-        data: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
-        event_builder: Option<&mut events::Event>,
-        res: Response,
-    ) -> CustomResult<
-        RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
-        ConnectorError,
-    > {
-        let response: GotymeSanlamPayoutResponse = res
-            .response
-            .parse_struct("GotymeSanlamPayoutResponse")
-            .change_context(
-                response_deserialization_fail(
-                    res.status_code,
-                    "Response body did not match the expected format; confirm API version and connector documentation."
-                )
-            )?;
-
-        event_builder.map(|i| i.set_connector_response(&response));
-        tracing::info!(response=?response, "response from connector");
-
-        RouterDataV2::try_from(ResponseRouterData {
-            response,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response_v2(
-        &self,
-        res: Response,
-        event_builder: Option<&mut events::Event>,
-        connector_config: &ConnectorSpecificConfig,
-    ) -> CustomResult<ErrorResponse, ConnectorError> {
-        self.build_error_response(res, event_builder, connector_config)
-    }
 }
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: GotymeSanlamPayouts,
+    curl_request: Json(GotymeSanlamPayoutTransferRequest),
+    curl_response: GotymeSanlamPayoutResponse,
+    flow_name: PayoutTransfer,
+    resource_common_data: PayoutFlowData,
+    flow_request: PayoutTransferRequest,
+    flow_response: PayoutTransferResponse,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!(
+                "{}/invoke",
+                self.base_url(&req.resource_common_data.connectors)
+            ))
+        }
+    }
+);
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: GotymeSanlamPayouts,
+    curl_request: Json(GotymeSanlamPayoutGetRequest),
+    curl_response: GotymeSanlamPayoutGetResponse,
+    flow_name: PayoutGet,
+    resource_common_data: PayoutFlowData,
+    flow_request: PayoutGetRequest,
+    flow_response: PayoutGetResponse,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!(
+                "{}/invoke",
+                self.base_url(&req.resource_common_data.connectors)
+            ))
+        }
+    }
+);
 
 macros::macro_connector_payout_implementation!(
     connector: GotymeSanlamPayouts,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     payout_flows: [
         PayoutCreate,
         PayoutVoid,
@@ -390,6 +253,13 @@ macros::macro_connector_payout_implementation!(
         PayoutCreateLink,
         PayoutCreateRecipient,
         PayoutEnrollDisburseAccount,
-        PayoutEligibility,
-    ],
+        PayoutEligibility
+    ]
+);
+
+macros::macro_connector_flow_status_impls!(
+    connector: GotymeSanlamPayouts,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    not_implemented: [ServerAuthenticationToken],
 );

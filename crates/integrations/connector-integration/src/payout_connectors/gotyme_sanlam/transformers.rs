@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use crate::{
     connectors::sanlam_common::transformers::AbsaSanlamBankNames, types::ResponseRouterData,
 };
@@ -6,6 +8,7 @@ use common_utils::types::StringMajorUnit;
 use domain_types::{
     connector_flow::{PayoutGet, PayoutTransfer},
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
+    payment_method_data::PaymentMethodDataTypes,
     payouts::{
         payout_method_data::{Bank, PayoutMethodData},
         payouts_types::{
@@ -15,10 +18,12 @@ use domain_types::{
     },
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
-    utils::get_unimplemented_payment_method_error_message,
+    utils::{convert_amount, get_unimplemented_payment_method_error_message},
 };
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
+
+use super::GotymeSanlamPayoutsRouterData;
 
 #[derive(Debug, Clone)]
 pub struct GotymeSanlamAuthType {
@@ -51,20 +56,6 @@ impl TryFrom<&ConnectorSpecificConfig> for GotymeSanlamAuthType {
                 },
             }
             .into()),
-        }
-    }
-}
-
-pub struct GotymeSanlamPayoutRouterData<T> {
-    pub amount: StringMajorUnit,
-    pub router_data: T,
-}
-
-impl<T> From<(StringMajorUnit, T)> for GotymeSanlamPayoutRouterData<T> {
-    fn from((amount, item): (StringMajorUnit, T)) -> Self {
-        Self {
-            amount,
-            router_data: item,
         }
     }
 }
@@ -122,31 +113,38 @@ pub enum GotymeSanlamPayoutFlow {
     PayoutSync,
 }
 
-impl
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<
-        &GotymeSanlamPayoutRouterData<
-            &RouterDataV2<
+        GotymeSanlamPayoutsRouterData<
+            RouterDataV2<
                 PayoutTransfer,
                 PayoutFlowData,
                 PayoutTransferRequest,
                 PayoutTransferResponse,
             >,
+            T,
         >,
     > for GotymeSanlamPayoutTransferRequest
 {
     type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
-        req: &GotymeSanlamPayoutRouterData<
-            &RouterDataV2<
+        item: GotymeSanlamPayoutsRouterData<
+            RouterDataV2<
                 PayoutTransfer,
                 PayoutFlowData,
                 PayoutTransferRequest,
                 PayoutTransferResponse,
             >,
+            T,
         >,
     ) -> Result<Self, Self::Error> {
-        let payload = GotymeSanlamPayoutTransferPayload::try_from(req)?;
+        let amount = convert_amount(
+            item.connector.amount_converter,
+            item.router_data.request.amount,
+            item.router_data.request.source_currency,
+        )?;
+        let payload = GotymeSanlamPayoutTransferPayload::try_from((&item.router_data, amount))?;
 
         Ok(Self {
             flow: GotymeSanlamPayoutFlow::PayoutCreate,
@@ -156,31 +154,30 @@ impl
 }
 
 impl
-    TryFrom<
-        &GotymeSanlamPayoutRouterData<
-            &RouterDataV2<
-                PayoutTransfer,
-                PayoutFlowData,
-                PayoutTransferRequest,
-                PayoutTransferResponse,
-            >,
+    TryFrom<(
+        &RouterDataV2<
+            PayoutTransfer,
+            PayoutFlowData,
+            PayoutTransferRequest,
+            PayoutTransferResponse,
         >,
-    > for GotymeSanlamPayoutTransferPayload
+        StringMajorUnit,
+    )> for GotymeSanlamPayoutTransferPayload
 {
     type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
-        req: &GotymeSanlamPayoutRouterData<
+        (req, amount): (
             &RouterDataV2<
                 PayoutTransfer,
                 PayoutFlowData,
                 PayoutTransferRequest,
                 PayoutTransferResponse,
             >,
-        >,
+            StringMajorUnit,
+        ),
     ) -> Result<Self, Self::Error> {
         let idempotency_key = req
-            .router_data
             .request
             .merchant_payout_id
             .clone()
@@ -198,7 +195,7 @@ impl
             },
         })?;
 
-        match req.router_data.request.payout_method_data.as_ref() {
+        match req.request.payout_method_data.as_ref() {
             Some(PayoutMethodData::Bank(Bank::Payshap(payshap))) => {
                 let bank_name = payshap
                     .bank_name
@@ -210,9 +207,9 @@ impl
                     sa_id: None,
                     account_number: Some(payshap.bank_account_number.clone()),
                     bank_name,
-                    amount: req.amount.clone(),
+                    amount,
                     idempotency_key: idempotency_key.clone(),
-                    description: req.router_data.resource_common_data.description.clone(),
+                    description: req.resource_common_data.description.clone(),
                 })
             }
             Some(PayoutMethodData::Bank(Bank::PayshapProxy(payshap_proxy))) => {
@@ -240,9 +237,9 @@ impl
                     sa_id: Some(sa_id),
                     account_number: None,
                     bank_name: None,
-                    amount: req.amount.clone(),
+                    amount,
                     idempotency_key,
-                    description: req.router_data.resource_common_data.description.clone(),
+                    description: req.resource_common_data.description.clone(),
                 })
             }
             Some(
@@ -284,14 +281,23 @@ impl
     }
 }
 
-impl TryFrom<&RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>>
-    for GotymeSanlamPayoutGetRequest
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        GotymeSanlamPayoutsRouterData<
+            RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
+            T,
+        >,
+    > for GotymeSanlamPayoutGetRequest
 {
     type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
-        req: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
+        item: GotymeSanlamPayoutsRouterData<
+            RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
+            T,
+        >,
     ) -> Result<Self, Self::Error> {
+        let req = &item.router_data;
         let idempotency_key = req
             .request
             .merchant_payout_id
