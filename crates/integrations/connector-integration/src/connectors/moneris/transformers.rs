@@ -567,6 +567,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     amount: item.router_data.request.amount,
                 };
                 let automatic_capture = item.router_data.request.is_auto_capture();
+                let wallet_indicator = if item.router_data.request.browser_info.is_some() {
+                    WalletIndicator::InBrowser
+                } else {
+                    WalletIndicator::InApplication
+                };
 
                 let payment_method = match wallet_data {
                     WalletData::ApplePay(apple_pay_data) => match &apple_pay_data.payment_data {
@@ -608,7 +613,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 public_key_hash: token.header.public_key_hash,
                                 ephemeral_public_key: token.header.ephemeral_public_key,
                                 apple_pay_transaction_id,
-                                wallet_indicator: WalletIndicator::InBrowser,
+                                wallet_indicator,
                             })
                         }
                         ApplePayPaymentData::Decrypted(decrypt_data) => {
@@ -665,7 +670,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                     .payment_data
                                     .eci_indicator
                                     .clone(),
-                                wallet_indicator: WalletIndicator::InApplication,
+                                wallet_indicator,
                             })
                         }
                     },
@@ -699,7 +704,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                     signature: token.signature,
                                     google_pay_protocol_version: token.protocol_version,
                                     signed_message: token.signed_message,
-                                    wallet_indicator: WalletIndicator::InBrowser,
+                                    wallet_indicator,
                                 })
                             }
                             GpayTokenizationData::Decrypted(decrypt_data) => {
@@ -736,9 +741,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                     })?;
                                 PaymentMethod::GooglePayDecrypted(PaymentMethodGooglePayDecrypted {
                                     payment_method_source: PaymentMethodSource::GooglePayDecrypted,
-                                    wallet_source: GooglePayWalletSource::TokenizedCard,
+                                    wallet_source: if decrypt_data.cryptogram.is_some() {
+                                        GooglePayWalletSource::TokenizedCard
+                                    } else {
+                                        GooglePayWalletSource::Card
+                                    },
                                     card_brand,
-                                    wallet_indicator: WalletIndicator::InBrowser,
+                                    wallet_indicator,
                                     card_details: GooglePayDecryptedCardDetails {
                                         personal_account_number: Secret::new(
                                             decrypt_data
