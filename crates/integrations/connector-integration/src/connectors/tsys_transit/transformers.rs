@@ -3804,7 +3804,7 @@ fn repeat_payment_data_to_authorize<T: PaymentMethodDataTypes>(
         enable_overcapture: None,
         setup_mandate_details: None,
         connector_feature_data: req.connector_feature_data.clone(),
-        connector_intent_metadata: req.connector_intent_metadata.clone(),
+        additional_connector_details: req.additional_connector_details.clone(),
         connector_testing_data: req.connector_testing_data.clone(),
         // Precedence: the request's own `payment_channel` (now carried on the
         // charge), then the metadata override, then the MOTO/PHONE default

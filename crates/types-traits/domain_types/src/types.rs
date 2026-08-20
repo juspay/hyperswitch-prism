@@ -3397,7 +3397,7 @@ pub struct AuthorizationRequest {
     // Metadata
     pub metadata: Option<Secret<String>>,
     pub connector_feature_data: Option<Secret<String>>,
-    pub connector_intent_metadata: Option<Secret<String>>,
+    pub additional_connector_details: Option<grpc_payment_types::AdditionalConnectorDetails>,
     // URLs
     pub return_url: Option<String>,
     pub webhook_url: Option<String>,
@@ -3516,7 +3516,7 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
             authentication_data: req.authentication_data.clone(),
             metadata: req.metadata.clone(),
             connector_feature_data: req.connector_feature_data.clone(),
-            connector_intent_metadata: req.connector_intent_metadata.clone(),
+            additional_connector_details: req.additional_connector_details.clone(),
             return_url: req.return_url.clone(),
             webhook_url: req.webhook_url.clone(),
             complete_authorize_url: req.complete_authorize_url.clone(),
@@ -3587,7 +3587,7 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             authentication_data: req.authentication_data.clone(),
             metadata: req.metadata.clone(),
             connector_feature_data: req.connector_feature_data.clone(),
-            connector_intent_metadata: None,
+            additional_connector_details: None,
             return_url: req.return_url.clone(),
             webhook_url: req.webhook_url.clone(),
             complete_authorize_url: None,
@@ -4286,6 +4286,47 @@ impl ForeignTryFrom<grpc_payment_types::CurrencyConversionData>
     }
 }
 
+impl ForeignTryFrom<grpc_payment_types::DatatransConnectorMetadataData>
+    for connector_types::DatatransConnectorMetadataData
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: grpc_payment_types::DatatransConnectorMetadataData,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        Ok(Self {
+            currency: common_enums::Currency::foreign_try_from(value.currency())?,
+            amount: common_utils::types::MinorUnit::new(value.amount),
+            conversion_rate: value.conversion_rate,
+            transaction_date: value
+                .transaction_date
+                .and_then(|secs| time::OffsetDateTime::from_unix_timestamp(secs).ok())
+                .map(|odt| time::PrimitiveDateTime::new(odt.date(), odt.time())),
+            retrieval_reference_number: value.retrieval_reference_number,
+            user_id: value.user_id,
+            provider: value.provider,
+            reason_indicator: value.reason_indicator,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_payment_types::AdditionalConnectorDetails>
+    for connector_types::AdditionalConnectorDetails
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: grpc_payment_types::AdditionalConnectorDetails,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        Ok(Self {
+            datatrans: value
+                .datatrans
+                .map(connector_types::DatatransConnectorMetadataData::foreign_try_from)
+                .transpose()?,
+        })
+    }
+}
+
 impl ForeignTryFrom<grpc_payment_types::AirlineData> for connector_types::AirlineData {
     type Error = IntegrationError;
 
@@ -4512,10 +4553,10 @@ impl<
             .clone()
             .map(|m| ForeignTryFrom::foreign_try_from((m, "feature_data")))
             .transpose()?;
-        let connector_intent_metadata = value
-            .connector_intent_metadata
+        let additional_connector_details = value
+            .additional_connector_details
             .clone()
-            .map(|m| ForeignTryFrom::foreign_try_from((m, "connector_intent_metadata")))
+            .map(connector_types::AdditionalConnectorDetails::foreign_try_from)
             .transpose()?;
         let merchant_account_id = connector_feature_data
             .as_ref()
@@ -4669,7 +4710,7 @@ impl<
                 .transpose()?,
             request_extended_authorization: value.request_extended_authorization,
             connector_feature_data,
-            connector_intent_metadata,
+            additional_connector_details,
             connector_testing_data,
             payment_channel,
             enable_partial_authorization: value.enable_partial_authorization,
@@ -11138,9 +11179,9 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceCaptureRequest>
                 .connector_feature_data
                 .map(|m| ForeignTryFrom::foreign_try_from((m, "connector metadata")))
                 .transpose()?,
-            connector_intent_metadata: value
-                .connector_intent_metadata
-                .map(|m| ForeignTryFrom::foreign_try_from((m, "connector_intent_metadata")))
+            additional_connector_details: value
+                .additional_connector_details
+                .map(connector_types::AdditionalConnectorDetails::foreign_try_from)
                 .transpose()?,
             merchant_order_id: value.merchant_order_id,
             order_tax_amount: value
@@ -14921,9 +14962,9 @@ impl<
             }),
             merchant_account_id: value.merchant_account_id,
             merchant_configured_currency,
-            connector_intent_metadata: value
-                .connector_intent_metadata
-                .map(|m| ForeignTryFrom::foreign_try_from((m, "connector_intent_metadata")))
+            additional_connector_details: value
+                .additional_connector_details
+                .map(connector_types::AdditionalConnectorDetails::foreign_try_from)
                 .transpose()?,
             additional_payment_data: value
                 .additional_payment_data
@@ -17661,7 +17702,7 @@ pub fn tokenized_authorize_to_base(
         webhook_url: v.webhook_url,
         metadata: v.metadata,
         connector_feature_data: v.connector_feature_data,
-        connector_intent_metadata: None,
+        additional_connector_details: None,
         setup_future_usage: v.setup_future_usage,
         browser_info: v.browser_info,
         state: v.state,
@@ -17842,7 +17883,7 @@ pub fn proxied_authorize_to_base(
         webhook_url: v.webhook_url,
         metadata: v.metadata,
         connector_feature_data: v.connector_feature_data,
-        connector_intent_metadata: None,
+        additional_connector_details: None,
         setup_future_usage: v.setup_future_usage,
         browser_info: v.browser_info,
         state: v.state,
