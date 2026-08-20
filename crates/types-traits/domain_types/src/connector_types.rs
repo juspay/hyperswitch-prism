@@ -4558,7 +4558,7 @@ pub struct CurrencyConversionData {
 #[serde(rename_all = "snake_case")]
 pub struct AdditionalConnectorDetails {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub datatrans: Option<DatatransConnectorMetadataData>,
+    pub datatrans: Option<DatatransAdditionalInformation>,
 }
 
 /// Datatrans-specific connector metadata for multi-currency processing (MCP).
@@ -4566,7 +4566,7 @@ pub struct AdditionalConnectorDetails {
 /// serialised to the Datatrans MCP request body.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct DatatransConnectorMetadataData {
+pub struct DatatransAdditionalInformation {
     /// The targeted currency.
     pub currency: Currency,
     /// The amount in the targeted currency.

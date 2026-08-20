@@ -4286,17 +4286,17 @@ impl ForeignTryFrom<grpc_payment_types::CurrencyConversionData>
     }
 }
 
-impl ForeignTryFrom<grpc_payment_types::DatatransConnectorMetadataData>
-    for connector_types::DatatransConnectorMetadataData
+impl ForeignTryFrom<grpc_payment_types::DatatransAdditionalInformation>
+    for connector_types::DatatransAdditionalInformation
 {
     type Error = IntegrationError;
 
     fn foreign_try_from(
-        value: grpc_payment_types::DatatransConnectorMetadataData,
+        value: grpc_payment_types::DatatransAdditionalInformation,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         Ok(Self {
-            currency: common_enums::Currency::foreign_try_from(value.currency())?,
-            amount: common_utils::types::MinorUnit::new(value.amount),
+            currency: common_enums::Currency::foreign_try_from(value.amount.currency())?,
+            amount: common_utils::types::MinorUnit::new(value.amount.minor_amount),
             conversion_rate: value.conversion_rate,
             transaction_date: value
                 .transaction_date
@@ -4321,7 +4321,7 @@ impl ForeignTryFrom<grpc_payment_types::AdditionalConnectorDetails>
         Ok(Self {
             datatrans: value
                 .datatrans
-                .map(connector_types::DatatransConnectorMetadataData::foreign_try_from)
+                .map(connector_types::DatatransAdditionalInformation::foreign_try_from)
                 .transpose()?,
         })
     }

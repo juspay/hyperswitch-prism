@@ -14,7 +14,7 @@ use domain_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
         ConnectorSpecificClientAuthenticationResponse,
         DatatransClientAuthenticationResponse as DatatransClientAuthenticationResponseDomain,
-        DatatransConnectorMetadataData,
+        DatatransAdditionalInformation,
         MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
         PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
@@ -265,7 +265,7 @@ pub struct DatatransPaymentsRequest<
     #[serde(rename = "APL", skip_serializing_if = "Option::is_none")]
     pub apl: Option<DatatransApplePayRequest>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub mcp: Option<DatatransConnectorMetadataData>,
+    pub mcp: Option<DatatransAdditionalInformation>,
 }
 
 #[derive(Debug, Serialize)]

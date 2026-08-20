@@ -135,27 +135,25 @@ message CurrencyConversionData {
 // connector for the transaction. Currently only the Datatrans variant is defined.
 message AdditionalConnectorDetails {
   // Datatrans-specific metadata for multi-currency processing (MCP).
-  optional DatatransConnectorMetadataData datatrans = 1;
+  optional DatatransAdditionalInformation datatrans = 1;
 }
 
 // Datatrans-specific details for multi-currency processing.
-message DatatransConnectorMetadataData {
-  // The targeted currency.
-  Currency currency = 1;
-  // The amount in the targeted currency, in minor units (e.g., 1000 = $10.00).
-  int64 amount = 2;
+message DatatransAdditionalInformation {
+  // The targeted currency and amount
+  Money amount = 1;
   // Conversion rate received from the currency rates endpoint. Required for dynamic MCP.
-  optional double conversion_rate = 3;
+  optional double conversion_rate = 2;
   // Transaction datetime received from the currency rates endpoint, in Unix epoch seconds (UTC).
-  optional int64 transaction_date = 4;
+  optional int64 transaction_date = 3;
   // Retrieval reference number received from the currency rates endpoint.
-  optional string retrieval_reference_number = 5;
+  optional string retrieval_reference_number = 4;
   // The user identifier.
-  string user_id = 6;
+  string user_id = 5;
   // The provider for multi currency processing.
-  string provider = 7;
+  string provider = 6;
   // Reason indicator received from the acquirer.
-  string reason_indicator = 8;
+  string reason_indicator = 7;
 }
 
 // Permissions wraps a repeated string field to allow optional presence
@@ -2648,7 +2646,7 @@ message PaymentServiceAuthorizeRequest {
   // authorization flow for future connector-specific processing.
   optional CurrencyConversionData currency_conversion_data = 51;
 
-  // Additional xonnector-specific information received from the merchant for the transaction
+  // Additional connector-specific information received from the merchant for the transaction
   optional AdditionalConnectorDetails additional_connector_details = 52;
 }
 
@@ -3164,7 +3162,7 @@ message PaymentServiceCaptureRequest {
   // Split payment configuration (platform fees, transfers, etc.)
   optional SplitPaymentsDetails split_payments = 14;
 
-  // Additional xonnector-specific information received from the merchant for the transaction
+  // Additional connector-specific information received from the merchant for the transaction
   optional AdditionalConnectorDetails additional_connector_details = 15;
 }
 
@@ -3730,7 +3728,7 @@ message RecurringPaymentServiceChargeRequest {
   // Channel through which the repeat payment was initiated.
   optional PaymentChannel payment_channel = 38;
 
-  // Additional xonnector-specific information received from the merchant for the transaction
+  // Additional connector-specific information received from the merchant for the transaction
   optional AdditionalConnectorDetails additional_connector_details = 39;
 }
 
