@@ -987,6 +987,16 @@ pub enum ConnectorSpecificConfig {
         api_secret: Secret<String>,
         base_url: Option<String>,
     },
+    /// Tap Payments.
+    /// `api_key`    = Secret key (sent as `Authorization: Bearer <api_key>`)
+    /// `key1`       = MerchantId (request body `merchant.id`)
+    /// `api_secret` = Public key (RSA card encryption; follow-up)
+    Tap {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        api_secret: Secret<String>,
+        base_url: Option<String>,
+    },
 }
 
 impl ConnectorSpecificConfig {
@@ -1341,6 +1351,11 @@ impl ConnectorSpecificConfig {
             Boost { api_key },
             Citigate { api_key, key1 },
             Ilixium {
+                api_key,
+                key1,
+                api_secret
+            },
+            Tap {
                 api_key,
                 key1,
                 api_secret
@@ -1822,6 +1837,11 @@ impl ConnectorSpecificConfig {
                 Boost { api_key },
                 Citigate { api_key, key1 },
                 Ilixium {
+                    api_key,
+                    key1,
+                    api_secret
+                },
+                Tap {
                     api_key,
                     key1,
                     api_secret
@@ -2464,6 +2484,12 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 key1: ilixium.key1.ok_or_else(err)?,
                 api_secret: ilixium.api_secret.ok_or_else(err)?,
                 base_url: ilixium.base_url,
+            }),
+            AuthType::Tap(tap) => Ok(Self::Tap {
+                api_key: tap.api_key.ok_or_else(err)?,
+                key1: tap.key1.ok_or_else(err)?,
+                api_secret: tap.api_secret.ok_or_else(err)?,
+                base_url: tap.base_url,
             }),
             AuthType::Imerchantsolutions(imerchantsolutions) => Ok(Self::Imerchantsolutions {
                 api_key: imerchantsolutions.api_key.ok_or_else(err)?,
@@ -3684,6 +3710,19 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         key1,
                         api_secret,
                     } => Ok(Self::Ilixium {
+                        api_key: api_key.clone(),
+                        key1: key1.clone(),
+                        api_secret: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Tap => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Tap {
                         api_key: api_key.clone(),
                         key1: key1.clone(),
                         api_secret: api_secret.clone(),
