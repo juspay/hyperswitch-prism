@@ -1,6 +1,9 @@
 use domain_types::{
     connector_flow::{PayoutGet, PayoutTransfer, PayoutVoid},
-    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
+    errors::{
+        ConnectorError, IntegrationError, IntegrationErrorContext,
+        ResponseTransformationErrorContext,
+    },
     payouts::payouts_types::{
         PayoutFlowData, PayoutGetRequest, PayoutGetResponse, PayoutTransferRequest,
         PayoutTransferResponse, PayoutVoidRequest, PayoutVoidResponse,
@@ -49,30 +52,37 @@ impl TryFrom<&ConnectorSpecificConfig> for WorldpayxmlAuthType {
     }
 }
 
-fn map_worldpayxml_payout_status(
-    last_event: &responses::WorldpayxmlLastEvent,
-) -> common_enums::PayoutStatus {
-    use responses::WorldpayxmlLastEvent;
-    match last_event {
-        WorldpayxmlLastEvent::Authorised
-        | WorldpayxmlLastEvent::Captured
-        | WorldpayxmlLastEvent::PushApproved
-        | WorldpayxmlLastEvent::SettledByMerchant => common_enums::PayoutStatus::Success,
-        WorldpayxmlLastEvent::PushRequested | WorldpayxmlLastEvent::PushPending => {
-            common_enums::PayoutStatus::Pending
+impl TryFrom<&responses::WorldpayxmlLastEvent> for common_enums::PayoutStatus {
+    type Error = ConnectorError;
+
+    fn try_from(last_event: &responses::WorldpayxmlLastEvent) -> Result<Self, Self::Error> {
+        use responses::WorldpayxmlLastEvent;
+        match last_event {
+            WorldpayxmlLastEvent::Authorised
+            | WorldpayxmlLastEvent::Captured
+            | WorldpayxmlLastEvent::PushApproved
+            | WorldpayxmlLastEvent::SettledByMerchant => Ok(Self::Success),
+            WorldpayxmlLastEvent::PushRequested | WorldpayxmlLastEvent::PushPending => {
+                Ok(Self::Pending)
+            }
+            WorldpayxmlLastEvent::Cancelled => Ok(Self::Cancelled),
+            WorldpayxmlLastEvent::SentForRefund | WorldpayxmlLastEvent::Refunded => {
+                Ok(Self::Reversed)
+            }
+            WorldpayxmlLastEvent::Refused
+            | WorldpayxmlLastEvent::RefundFailed
+            | WorldpayxmlLastEvent::PushRefused
+            | WorldpayxmlLastEvent::Expired
+            | WorldpayxmlLastEvent::Error => Ok(Self::Failure),
+            _ => Err(ConnectorError::UnexpectedResponseError {
+                context: ResponseTransformationErrorContext {
+                    http_status_code: None,
+                    additional_context: Some(
+                        "worldpayxml: lastEvent is not part of a payout lifecycle.".to_string(),
+                    ),
+                },
+            }),
         }
-        WorldpayxmlLastEvent::Cancelled => common_enums::PayoutStatus::Cancelled,
-        WorldpayxmlLastEvent::SentForRefund | WorldpayxmlLastEvent::Refunded => {
-            common_enums::PayoutStatus::Reversed
-        }
-        WorldpayxmlLastEvent::Refused
-        | WorldpayxmlLastEvent::RefundFailed
-        | WorldpayxmlLastEvent::PushRefused
-        | WorldpayxmlLastEvent::Expired
-        | WorldpayxmlLastEvent::Error => common_enums::PayoutStatus::Failure,
-        // Exhaustiveness only: the shared lastEvent enum gained variants for the payment flows.
-        // Every mapping above is unchanged from before those variants existed.
-        _ => common_enums::PayoutStatus::Pending,
     }
 }
 
@@ -269,7 +279,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlPayoutTransferResponse, Se
         Ok(Self {
             response: Ok(PayoutTransferResponse {
                 merchant_payout_id: router_data.request.merchant_payout_id.clone(),
-                payout_status: map_worldpayxml_payout_status(&payment.last_event),
+                payout_status: common_enums::PayoutStatus::try_from(&payment.last_event)?,
                 connector_payout_id: Some(order_status.order_code.clone()),
                 status_code: item.http_code,
             }),
@@ -361,7 +371,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlPayoutGetResponse, Self>>
         Ok(Self {
             response: Ok(PayoutGetResponse {
                 merchant_payout_id: router_data.request.merchant_payout_id.clone(),
-                payout_status: map_worldpayxml_payout_status(&payment.last_event),
+                payout_status: common_enums::PayoutStatus::try_from(&payment.last_event)?,
                 connector_payout_id: Some(order_status.order_code.clone()),
                 status_code: item.http_code,
             }),

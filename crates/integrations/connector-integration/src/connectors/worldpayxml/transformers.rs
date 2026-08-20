@@ -398,7 +398,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 billing_address.as_ref(),
             )?,
             PaymentMethodData::Wallet(wallet_data) => {
-                // Falls back to the billing name so a wallet payment still sends a holder name.
                 let customer_name = router_data
                     .request
                     .customer_name
@@ -425,7 +424,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let is_cit_mandate_payment = router_data.request.is_customer_initiated_mandate_payment();
 
-        // Flagged as the agreement's first transaction, or later MITs are declined by the scheme.
         let stored_credentials =
             is_cit_mandate_payment.then(|| requests::WorldpayxmlStoredCredentials {
                 usage: requests::WorldpayxmlUsageType::First,
@@ -436,7 +434,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 scheme_transaction_identifier: None,
             });
 
-        // Issues the token a later merchant-initiated payment is charged against.
         let create_token = is_cit_mandate_payment.then(|| requests::WorldpayxmlCreateToken {
             token_scope: requests::WorldpayxmlTokenScope::Shopper,
             token_event_reference: router_data
@@ -560,7 +557,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 billing_address.as_ref(),
             )?,
             PaymentMethodData::Wallet(wallet_data) => {
-                // Falls back to the billing name so a wallet payment still sends a holder name.
                 let customer_name = router_data
                     .request
                     .customer_name
@@ -839,7 +835,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let router_data = &item.router_data;
         let auth = WorldpayxmlAuthType::try_from(&router_data.connector_config)?;
 
-        // Extract connector_transaction_id from request
         let connector_transaction_id = router_data
             .request
             .connector_transaction_id
@@ -893,7 +888,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let router_data = &item.router_data;
         let auth = WorldpayxmlAuthType::try_from(&router_data.connector_config)?;
 
-        // Extract connector_transaction_id from request
         let connector_transaction_id = router_data.request.connector_transaction_id.clone();
 
         Ok(Self {
@@ -929,7 +923,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let router_data = &item.router_data;
         let auth = WorldpayxmlAuthType::try_from(&router_data.connector_config)?;
 
-        // Extract connector_transaction_id from request
         let connector_transaction_id = router_data.request.connector_transaction_id.clone();
 
         // Convert refund amount using the connector's amount converter
@@ -977,7 +970,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let router_data = &item.router_data;
         let auth = WorldpayxmlAuthType::try_from(&router_data.connector_config)?;
 
-        // Extract connector_transaction_id from request
         let connector_transaction_id = router_data
             .request
             .connector_transaction_id
@@ -1018,7 +1010,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let router_data = &item.router_data;
         let auth = WorldpayxmlAuthType::try_from(&router_data.connector_config)?;
 
-        // Extract connector_refund_id from request
         // This could be either the connector_refund_id OR the original connector_transaction_id
         let order_code = router_data.request.connector_refund_id.clone();
 
@@ -1051,7 +1042,6 @@ fn map_worldpayxml_authorize_status(
                 // settles the attempt — there is no separate capture to wait for.
                 Ok(AttemptStatus::Charged)
             } else {
-                // Check if we're in CaptureInitiated or VoidInitiated state
                 Ok(match previous_status {
                     Some(AttemptStatus::CaptureInitiated) => AttemptStatus::CaptureInitiated,
                     Some(AttemptStatus::VoidInitiated) => AttemptStatus::VoidInitiated,
