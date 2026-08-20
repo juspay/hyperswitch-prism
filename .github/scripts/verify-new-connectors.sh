@@ -36,20 +36,6 @@ if [[ -z "${CONNECTOR_AUTH_FILE_PATH:-}" || ! -s "${CONNECTOR_AUTH_FILE_PATH}" ]
   exit 1
 fi
 
-# Style requirement, applied only to connectors that did not exist at the base
-# commit. Flow coverage is enforced separately and reads hand-written impls too,
-# so this is about keeping new code on one pattern, not about correctness.
-# Scoping it to new connectors is what makes it enforceable with no exception
-# list for a future author to add themselves to.
-require_prerequisites_macro() {
-  local name="$1" src="${SRC_ROOT}/$1.rs"
-  [[ -f "${src}" ]] || return 0
-  if ! grep -q 'macros::create_all_prerequisites!(' "${src}"; then
-    echo "::error::New connector '${name}' does not use create_all_prerequisites! in ${src}. New connectors must declare their flows through the macro; hand-written ConnectorIntegrationV2 impls are read by the coverage check but are not accepted as the primary flow declaration for new code."
-    return 1
-  fi
-}
-
 # Runs one declared scenario and confirms it actually executed. run-tests exits
 # non-zero on failure; a scenario that was skipped rather than run is caught by
 # test_ucs itself, which treats a named scenario that never ran as an error.
@@ -71,11 +57,20 @@ IFS=',' read -ra CONNECTORS <<< "${NEW_CONNECTORS}"
 for name in "${CONNECTORS[@]}"; do
   [[ -n "${name}" ]] || continue
 
-  require_prerequisites_macro "${name}" || failures=$((failures + 1))
-
   specs="${SPECS_ROOT}/${name}/specs.json"
   if [[ ! -f "${specs}" ]]; then
     echo "::error::New connector '${name}' has no specs.json at ${specs}"
+    failures=$((failures + 1))
+    continue
+  fi
+
+  # supported_suites is where the author states, by hand, what the connector
+  # supports. It is what check_connector_specs verifies the code against and
+  # what certification runs from, so an empty list means nothing is covered.
+  # Reading it needs no inference about the source, so it cannot misfire.
+  suite_count=$(jq '.supported_suites // [] | length' "${specs}")
+  if [[ "${suite_count}" -eq 0 ]]; then
+    echo "::error::New connector '${name}' declares no \"supported_suites\" in ${specs}. List every suite the connector supports; nothing is certified without it."
     failures=$((failures + 1))
     continue
   fi

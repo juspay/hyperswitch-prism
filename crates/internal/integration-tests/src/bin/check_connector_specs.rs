@@ -75,8 +75,9 @@ fn flow_to_suites(flow: &str) -> Option<&'static [&'static str]> {
         "MandateRevoke" => Some(&["RecurringPaymentService/Revoke"]),
         // Customer/token flows
         "CreateConnectorCustomer" => Some(&["CustomerService/Create"]),
-        "GetConnectorCustomer" => Some(&["CustomerService/Create"]),
+        "GetConnectorCustomer" => Some(&["CustomerService/Get"]),
         "PaymentMethodToken" => Some(&["PaymentMethodService/Tokenize"]),
+        "PaymentMethodEligibility" => Some(&["PaymentMethodService/Eligibility"]),
         // Authentication flows (now have test suites!)
         "ServerAuthenticationToken" => {
             Some(&["MerchantAuthenticationService/CreateServerAuthenticationToken"])
@@ -106,10 +107,48 @@ fn flow_to_suites(flow: &str) -> Option<&'static [&'static str]> {
         "PayoutEnrollDisburseAccount" => None,
         "PayoutCreateRecipient" => None,
         "PayoutCreateLink" => None,
-        // Unknown / macro-internal tokens — skip.
+        // Anything not listed above is unknown: OUT_OF_SCOPE_FLOWS is the only
+        // way to opt a flow out, and main() fails on a flow that is in neither.
         _ => None,
     }
 }
+
+/// Flows that deliberately have no integration-test suite.
+///
+/// A flow reaches this list only by decision. Everything not in `flow_to_suites`
+/// and not here fails the check, so a newly added flow cannot slip through
+/// uncovered simply because nobody updated the mapping — which is how `VoidPC`
+/// came to be implemented by 14 connectors and certified by none.
+const OUT_OF_SCOPE_FLOWS: &[&str] = &[
+    // Disputes — no suites yet.
+    "Accept",
+    "DefendDispute",
+    "SubmitEvidence",
+    // Payouts — out of scope for the payment suites.
+    "PayoutCreate",
+    "PayoutGet",
+    "PayoutStage",
+    "PayoutTransfer",
+    "PayoutVoid",
+    "PayoutEnrollDisburseAccount",
+    "PayoutCreateRecipient",
+    "PayoutCreateLink",
+    // Implemented today with no suite to map to. Each is a coverage gap, not a
+    // decision that it should never be covered: add a suite, then move the flow
+    // into flow_to_suites above.
+    "VoidPC",              // 14 connectors
+    "VerifyWebhookSource", // 2 connectors
+    "VoidPostRefund",
+    "Recharge",
+    "CreatePaymentMethod",
+    "GetPaymentMethod",
+    "RefreshPaymentMethod",
+    "PreRiskCheck",
+    "PostRiskCheck",
+    "FrmPaymentOutcome",
+    "FrmRefundProcessed",
+    "FrmChargebackReceived",
+];
 
 // ---------------------------------------------------------------------------
 // Specs.json schema
@@ -351,6 +390,9 @@ fn main() {
     let mut unverifiable: Vec<String> = Vec::new();
     // Connectors that declare no flows in either supported form.
     let mut no_flows_declared: Vec<String> = Vec::new();
+    // connector_name → flows that are in neither flow_to_suites nor
+    // OUT_OF_SCOPE_FLOWS. Unknown means untriaged, so it fails the check.
+    let mut unknown_flows: BTreeMap<String, Vec<String>> = BTreeMap::new();
 
     for connector in &connectors {
         let src_path = connectors_src.join(format!("{connector}.rs"));
@@ -382,7 +424,13 @@ fn main() {
 
         for flow in &flows {
             let Some(suites) = flow_to_suites(flow) else {
-                continue; // flow has no suite mapping — skip
+                if !OUT_OF_SCOPE_FLOWS.contains(&flow.as_str()) {
+                    unknown_flows
+                        .entry(connector.clone())
+                        .or_default()
+                        .push(flow.clone());
+                }
+                continue;
             };
 
             for &suite in suites {
@@ -644,6 +692,7 @@ fn main() {
     // -----------------------------------------------------------------------
     let has_phase2_errors = !errors.is_empty();
     let has_unverifiable = !unverifiable.is_empty();
+    let has_unknown_flows = !unknown_flows.is_empty();
 
     if has_phase2_errors {
         println!();
@@ -656,6 +705,22 @@ fn main() {
             }
         }
         println!();
+    }
+
+    if !unknown_flows.is_empty() {
+        println!();
+        println!("{}", "=".repeat(80));
+        println!("ERRORS — flows with no suite mapping and no out-of-scope entry");
+        println!("{}", "=".repeat(80));
+        for (connector, flows) in &unknown_flows {
+            for flow in flows {
+                println!("  {connector:<30}  {flow}");
+            }
+        }
+        println!();
+        println!(
+            "Add each flow to flow_to_suites with the suite it exercises, or to OUT_OF_SCOPE_FLOWS if no suite should cover it."
+        );
     }
 
     if has_unverifiable {
@@ -686,7 +751,12 @@ fn main() {
         println!();
     }
 
-    if !phase1_ok || has_phase2_errors || has_unverifiable || has_webhook_errors {
+    if !phase1_ok
+        || has_phase2_errors
+        || has_unverifiable
+        || has_webhook_errors
+        || has_unknown_flows
+    {
         let mut reasons = Vec::new();
         if !phase1_ok {
             reasons.push(format!(
@@ -705,6 +775,12 @@ fn main() {
             reasons.push(format!(
                 "{} connector source file(s) could not be read",
                 unverifiable.len()
+            ));
+        }
+        if has_unknown_flows {
+            reasons.push(format!(
+                "{} connector(s) implement a flow with no suite mapping",
+                unknown_flows.len()
             ));
         }
         if has_webhook_errors {
