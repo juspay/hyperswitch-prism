@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.08.20.3
+
+### Bug Fixes
+
+- **connectors:** [tsys_transit] send NTID in merchant initiated nitd transactions ([#2163](https://github.com/juspay/connector-service/pull/2163)) ([`377bc4e`](https://github.com/juspay/connector-service/commit/377bc4e0ba4ab1d6488521a8752f6bfb1890f982))
+
+**Full Changelog:** [`2026.08.20.2...2026.08.20.3`](https://github.com/juspay/connector-service/compare/2026.08.20.2...2026.08.20.3)
+
+- - -
+
 ## 2026.08.20.2
 
 ### Features
