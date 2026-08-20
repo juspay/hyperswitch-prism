@@ -12,12 +12,6 @@
 //!      OAEP padding, with SHA-256 as both the OAEP digest and the MGF1
 //!      digest (BCPG: `RSA/ECB/OAEPWithSHA-256AndMGF1Padding`).
 //!   4. Base64-encode all three outputs.
-use std::{
-    collections::HashMap,
-    sync::{Mutex, OnceLock},
-    time::{Duration, Instant},
-};
-
 use base64::Engine;
 use domain_types::errors;
 use error_stack::ResultExt;
@@ -61,51 +55,6 @@ pub struct BoostEncryptedCard {
     pub encrypted_key: String,
     pub iv: String,
     pub ciphertext: String,
-}
-
-/// How long a cache entry may sit unconsumed before it's swept as
-/// abandoned. Authorize requests complete in low single-digit seconds
-/// end-to-end; anything still cached past this was left behind by a
-/// request that errored between the two calls (see below) and never
-/// reached the second, consuming call.
-const CACHE_ENTRY_TTL: Duration = Duration::from_secs(60);
-
-struct CachedEncryptedCard {
-    card: BoostEncryptedCard,
-    inserted_at: Instant,
-}
-
-/// Caches one encrypted card per `(merchant_id, referenceId)`, consumed
-/// exactly twice and then evicted.
-///
-/// The framework calls this connector's request-building transform
-/// independently twice per logical Authorize: once inside `build_headers`
-/// (to compute the body it signs) and again for the actual body it sends
-/// (see `stable_created_timestamp` in transformers.rs for the same
-/// double-invocation issue with the `created` field). A timestamp can get
-/// away with "close enough" — truncated to the second, the two calls
-/// normally land within the same second. RSA-OAEP + AES-256-GCM cannot:
-/// OAEP's padding is randomized by design (a core part of its security
-/// proof, not a flaw to work around), so calling `encrypt_card` twice with
-/// byte-identical inputs still yields a completely different ciphertext
-/// each time. Without this cache, the signed body (call #1) and the sent
-/// body (call #2) would never match — every Direct Card Payment request
-/// would 401, deterministically, not occasionally.
-///
-/// Keyed by `(merchant_id, referenceId)` rather than `referenceId` alone —
-/// this is a single process-wide static shared by every merchant this UCS
-/// instance serves, so keying by referenceId alone would let one merchant's
-/// cached ciphertext be handed back to a different merchant if their
-/// referenceIds ever collided.
-///
-/// Entries are normally removed on the second read. `CACHE_ENTRY_TTL` bounds
-/// the ones that aren't: if a request errors between the two calls (HMAC
-/// signing fails, some other step aborts), its entry would otherwise never
-/// be removed and the map would grow unboundedly over the life of the
-/// process.
-fn encrypted_card_cache() -> &'static Mutex<HashMap<String, CachedEncryptedCard>> {
-    static CACHE: OnceLock<Mutex<HashMap<String, CachedEncryptedCard>>> = OnceLock::new();
-    CACHE.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
 fn encryption_failed(context: String) -> errors::IntegrationError {
@@ -164,23 +113,6 @@ pub fn encrypt_card(
     reference_id: &str,
     created_epoch_seconds: i64,
 ) -> Result<BoostEncryptedCard, error_stack::Report<errors::IntegrationError>> {
-    let cache_key = format!("{merchant_id}:{reference_id}");
-
-    // See `encrypted_card_cache`: the second of the two calls the framework
-    // makes per logical Authorize hits this and returns immediately, without
-    // re-running any crypto.
-    {
-        let mut cache = encrypted_card_cache()
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        // Sweep anything abandoned by a prior request that errored between
-        // its two calls, so the cache can't grow unboundedly.
-        cache.retain(|_, entry| entry.inserted_at.elapsed() < CACHE_ENTRY_TTL);
-        if let Some(cached) = cache.remove(&cache_key) {
-            return Ok(cached.card);
-        }
-    }
-
     let card = BoostCardPlaintext {
         number: Secret::new(card_number.to_string()),
         exp_month: Secret::new(normalize_exp_month(card_exp_month)),
@@ -294,25 +226,9 @@ pub fn encrypt_card(
         ))
         .attach_printable("RSA-OAEP encryption failed")?;
 
-    let result = BoostEncryptedCard {
+    Ok(BoostEncryptedCard {
         encrypted_key: BASE64_ENGINE.encode(encrypted_key),
         iv: BASE64_ENGINE.encode(iv),
         ciphertext: BASE64_ENGINE.encode(ciphertext_with_tag),
-    };
-
-    // Stash for the second call (see `encrypted_card_cache`) so it gets the
-    // byte-identical ciphertext this call is about to return, instead of
-    // re-running OAEP/GCM and producing a different one.
-    encrypted_card_cache()
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner())
-        .insert(
-            cache_key,
-            CachedEncryptedCard {
-                card: result.clone(),
-                inserted_at: Instant::now(),
-            },
-        );
-
-    Ok(result)
+    })
 }

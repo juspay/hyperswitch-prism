@@ -232,6 +232,24 @@ macros::create_all_prerequisites!(
                     .map(|content| content.content.get_inner_value().peek().to_owned())
                     .unwrap_or_default(),
             };
+            self.build_headers_with_body(req, &body)
+        }
+
+        /// Same as `build_headers`, but signs a body the caller already built
+        /// instead of calling `get_request_body` again. Authorize's
+        /// `build_request_v2` uses this so `get_request_body` — which runs
+        /// Boost's card encryption — is invoked exactly once per request; see
+        /// `crypto.rs` for why a second, independent encryption call would
+        /// produce a body that doesn't match what was signed.
+        pub fn build_headers_with_body<F, Req, Res>(
+            &self,
+            req: &RouterDataV2<F, PaymentFlowData, Req, Res>,
+            body: &str,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError>
+        where
+            Self: ConnectorIntegrationV2<F, PaymentFlowData, Req, Res>,
+        {
+            let method = self.get_http_method();
             let path = (self.get_url(req)?).replace(self.connector_base_url_payments(req), "");
             let auth = boost::BoostAuthType::try_from(&req.connector_config).change_context(
                 errors::IntegrationError::FailedToObtainAuthType {
@@ -250,7 +268,7 @@ macros::create_all_prerequisites!(
                 },
             )?;
             let authorization = auth
-                .build_signed_auth_header(&method.to_string(), &path, &body)
+                .build_signed_auth_header(&method.to_string(), &path, body)
                 .change_context(errors::IntegrationError::FailedToObtainAuthType {
                     context: errors::IntegrationErrorContext {
                         suggested_action: None,
@@ -370,6 +388,46 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, errors::IntegrationError> {
             Ok(format!("{}/v1/payments/init", self.connector_base_url_payments(req)))
+        }
+
+        // Overridden so `get_request_body` — which runs Boost's RSA-OAEP/
+        // AES-GCM card encryption for the Direct Card Payment path — is
+        // called exactly once. The default `build_request_v2` calls it once
+        // directly and a second time indirectly (via `get_headers` ->
+        // `build_headers`, to sign the body), and OAEP's randomized padding
+        // means those two calls never produce the same ciphertext, so the
+        // signed body and the sent body would silently diverge. Building the
+        // body once here and threading it into signing keeps both in sync.
+        fn build_request_v2(
+            &self,
+            req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Option<common_utils::request::Request>, errors::IntegrationError> {
+            let request_data = self.get_request_body(req)?;
+            let body_str = request_data
+                .as_ref()
+                .map(|content| content.content.get_inner_value().peek().to_owned())
+                .unwrap_or_default();
+            let headers = self.build_headers_with_body(req, &body_str)?;
+            let (body, typed_request_value) = match request_data {
+                Some(data) => (
+                    Some(data.content),
+                    data.typed_request.map(|msv| msv.inner().clone()),
+                ),
+                None => (None, None),
+            };
+            Ok(Some(
+                common_utils::request::RequestBuilder::new()
+                    .method(Method::Post)
+                    .url(self.get_url(req)?.as_str())
+                    .attach_default_headers()
+                    .headers(headers)
+                    .set_optional_body(body)
+                    .set_typed_connector_request(typed_request_value)
+                    .add_certificate(self.get_certificate(req)?)
+                    .add_certificate_key(self.get_certificate_key(req)?)
+                    .add_ca_certificate_pem(self.get_ca_certificate(req)?)
+                    .build(),
+            ))
         }
     }
 );
