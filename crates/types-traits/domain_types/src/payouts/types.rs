@@ -2140,11 +2140,19 @@ pub fn generate_payout_get_response(
         Err(err) => Ok(grpc_api_types::payouts::PayoutServiceGetResponse {
             merchant_payout_id: Some(router_data_v2.resource_common_data.payout_id),
             payout_status: Some(
-                grpc_api_types::payouts::payout_enums::PayoutStatus::Pending as i32,
+                err.attempt_status
+                    .clone()
+                    .map(grpc_api_types::payouts::payout_enums::PayoutStatus::foreign_from)
+                    .unwrap_or_default() as i32,
             ),
             connector_payout_id: err.connector_transaction_id.clone(),
             error: Some(grpc_api_types::payouts::ErrorInfo {
-                unified_details: None,
+                unified_details: Some(grpc_api_types::payouts::UnifiedErrorDetails {
+                    code: Some(err.code.clone()),
+                    message: Some(err.message.clone()),
+                    description: err.reason.clone(),
+                    user_guidance_message: None,
+                }),
                 connector_details: Some(grpc_api_types::payouts::ConnectorErrorDetails {
                     code: Some(err.code.clone()),
                     message: Some(err.message.clone()),
@@ -2152,7 +2160,15 @@ pub fn generate_payout_get_response(
                     connector_transaction_id: err.connector_transaction_id.clone(),
                     status: None,
                 }),
-                issuer_details: None,
+                issuer_details: Some(grpc_api_types::payouts::IssuerErrorDetails {
+                    code: None,
+                    message: err.network_error_message.clone(),
+                    network_details: Some(grpc_api_types::payouts::NetworkErrorDetails {
+                        advice_code: err.network_advice_code.clone(),
+                        decline_code: err.network_decline_code.clone(),
+                        error_message: err.network_error_message.clone(),
+                    }),
+                }),
             }),
             status_code: u32::from(err.status_code),
         }),
@@ -2186,11 +2202,19 @@ pub fn generate_payout_void_response(
         Err(err) => Ok(grpc_api_types::payouts::PayoutServiceVoidResponse {
             merchant_payout_id: Some(router_data_v2.resource_common_data.payout_id),
             payout_status: Some(
-                grpc_api_types::payouts::payout_enums::PayoutStatus::Pending as i32,
+                err.attempt_status
+                    .clone()
+                    .map(grpc_api_types::payouts::payout_enums::PayoutStatus::foreign_from)
+                    .unwrap_or_default() as i32,
             ),
             connector_payout_id: err.connector_transaction_id.clone(),
             error: Some(grpc_api_types::payouts::ErrorInfo {
-                unified_details: None,
+                unified_details: Some(grpc_api_types::payouts::UnifiedErrorDetails {
+                    code: Some(err.code.clone()),
+                    message: Some(err.message.clone()),
+                    description: err.reason.clone(),
+                    user_guidance_message: None,
+                }),
                 connector_details: Some(grpc_api_types::payouts::ConnectorErrorDetails {
                     code: Some(err.code.clone()),
                     message: Some(err.message.clone()),
@@ -2198,7 +2222,15 @@ pub fn generate_payout_void_response(
                     connector_transaction_id: err.connector_transaction_id.clone(),
                     status: None,
                 }),
-                issuer_details: None,
+                issuer_details: Some(grpc_api_types::payouts::IssuerErrorDetails {
+                    code: None,
+                    message: err.network_error_message.clone(),
+                    network_details: Some(grpc_api_types::payouts::NetworkErrorDetails {
+                        advice_code: err.network_advice_code.clone(),
+                        decline_code: err.network_decline_code.clone(),
+                        error_message: err.network_error_message.clone(),
+                    }),
+                }),
             }),
             status_code: u32::from(err.status_code),
         }),
@@ -2232,11 +2264,19 @@ pub fn generate_payout_stage_response(
         Err(err) => Ok(grpc_api_types::payouts::PayoutServiceStageResponse {
             merchant_payout_id: Some(router_data_v2.resource_common_data.payout_id),
             payout_status: Some(
-                grpc_api_types::payouts::payout_enums::PayoutStatus::Pending as i32,
+                err.attempt_status
+                    .clone()
+                    .map(grpc_api_types::payouts::payout_enums::PayoutStatus::foreign_from)
+                    .unwrap_or_default() as i32,
             ),
             connector_payout_id: err.connector_transaction_id.clone(),
             error: Some(grpc_api_types::payouts::ErrorInfo {
-                unified_details: None,
+                unified_details: Some(grpc_api_types::payouts::UnifiedErrorDetails {
+                    code: Some(err.code.clone()),
+                    message: Some(err.message.clone()),
+                    description: err.reason.clone(),
+                    user_guidance_message: None,
+                }),
                 connector_details: Some(grpc_api_types::payouts::ConnectorErrorDetails {
                     code: Some(err.code.clone()),
                     message: Some(err.message.clone()),
@@ -2244,7 +2284,15 @@ pub fn generate_payout_stage_response(
                     connector_transaction_id: err.connector_transaction_id.clone(),
                     status: None,
                 }),
-                issuer_details: None,
+                issuer_details: Some(grpc_api_types::payouts::IssuerErrorDetails {
+                    code: None,
+                    message: err.network_error_message.clone(),
+                    network_details: Some(grpc_api_types::payouts::NetworkErrorDetails {
+                        advice_code: err.network_advice_code.clone(),
+                        decline_code: err.network_decline_code.clone(),
+                        error_message: err.network_error_message.clone(),
+                    }),
+                }),
             }),
             status_code: u32::from(err.status_code),
         }),
@@ -2278,11 +2326,19 @@ pub fn generate_payout_create_link_response(
         Err(err) => Ok(grpc_api_types::payouts::PayoutServiceCreateLinkResponse {
             merchant_payout_id: Some(router_data_v2.resource_common_data.payout_id),
             payout_status: Some(
-                grpc_api_types::payouts::payout_enums::PayoutStatus::Pending as i32,
+                err.attempt_status
+                    .clone()
+                    .map(grpc_api_types::payouts::payout_enums::PayoutStatus::foreign_from)
+                    .unwrap_or_default() as i32,
             ),
             connector_payout_id: err.connector_transaction_id.clone(),
             error: Some(grpc_api_types::payouts::ErrorInfo {
-                unified_details: None,
+                unified_details: Some(grpc_api_types::payouts::UnifiedErrorDetails {
+                    code: Some(err.code.clone()),
+                    message: Some(err.message.clone()),
+                    description: err.reason.clone(),
+                    user_guidance_message: None,
+                }),
                 connector_details: Some(grpc_api_types::payouts::ConnectorErrorDetails {
                     code: Some(err.code.clone()),
                     message: Some(err.message.clone()),
@@ -2290,7 +2346,15 @@ pub fn generate_payout_create_link_response(
                     connector_transaction_id: err.connector_transaction_id.clone(),
                     status: None,
                 }),
-                issuer_details: None,
+                issuer_details: Some(grpc_api_types::payouts::IssuerErrorDetails {
+                    code: None,
+                    message: err.network_error_message.clone(),
+                    network_details: Some(grpc_api_types::payouts::NetworkErrorDetails {
+                        advice_code: err.network_advice_code.clone(),
+                        decline_code: err.network_decline_code.clone(),
+                        error_message: err.network_error_message.clone(),
+                    }),
+                }),
             }),
             status_code: u32::from(err.status_code),
         }),
@@ -2342,11 +2406,19 @@ pub fn generate_payout_create_recipient_response(
             grpc_api_types::payouts::PayoutServiceCreateRecipientResponse {
                 merchant_payout_id: Some(router_data_v2.resource_common_data.payout_id),
                 payout_status: Some(
-                    grpc_api_types::payouts::payout_enums::PayoutStatus::Pending as i32,
+                    err.attempt_status
+                        .clone()
+                        .map(grpc_api_types::payouts::payout_enums::PayoutStatus::foreign_from)
+                        .unwrap_or_default() as i32,
                 ),
                 connector_payout_id: err.connector_transaction_id.clone(),
                 error: Some(grpc_api_types::payouts::ErrorInfo {
-                    unified_details: None,
+                    unified_details: Some(grpc_api_types::payouts::UnifiedErrorDetails {
+                        code: Some(err.code.clone()),
+                        message: Some(err.message.clone()),
+                        description: err.reason.clone(),
+                        user_guidance_message: None,
+                    }),
                     connector_details: Some(grpc_api_types::payouts::ConnectorErrorDetails {
                         code: Some(err.code.clone()),
                         message: Some(err.message.clone()),
@@ -2354,7 +2426,15 @@ pub fn generate_payout_create_recipient_response(
                         connector_transaction_id: err.connector_transaction_id.clone(),
                         status: None,
                     }),
-                    issuer_details: None,
+                    issuer_details: Some(grpc_api_types::payouts::IssuerErrorDetails {
+                        code: None,
+                        message: err.network_error_message.clone(),
+                        network_details: Some(grpc_api_types::payouts::NetworkErrorDetails {
+                            advice_code: err.network_advice_code.clone(),
+                            decline_code: err.network_decline_code.clone(),
+                            error_message: err.network_error_message.clone(),
+                        }),
+                    }),
                 }),
                 status_code: u32::from(err.status_code),
                 connector_metadata: None,

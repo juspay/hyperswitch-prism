@@ -179,6 +179,25 @@ impl
             >,
         >,
     ) -> Result<Self, Self::Error> {
+        let idempotency_key = req
+            .router_data
+            .request
+            .merchant_payout_id
+            .clone()
+            .ok_or(IntegrationError::MissingRequiredField {
+            field_name: "merchant_payout_id",
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "GotymeSanlam payout transfer requires a valid idempotency key to be sent in payout transfer call"
+                        .to_string(),
+                ),
+                suggested_action: Some(
+                    "Pass a valid idempotency key as merchant_payout_id".to_string(),
+                ),
+                doc_url: None,
+            },
+        })?;
+
         match req.router_data.request.payout_method_data.as_ref() {
             Some(PayoutMethodData::Bank(Bank::Payshap(payshap))) => {
                 let bank_name = payshap
@@ -192,27 +211,40 @@ impl
                     account_number: Some(payshap.bank_account_number.clone()),
                     bank_name,
                     amount: req.amount.clone(),
-                    idempotency_key: req
-                        .router_data
-                        .resource_common_data
-                        .connector_request_reference_id
-                        .clone(),
+                    idempotency_key: idempotency_key.clone(),
                     description: req.router_data.resource_common_data.description.clone(),
                 })
             }
-            Some(PayoutMethodData::Bank(Bank::PayshapProxy(payshap_proxy))) => Ok(Self {
-                account_name: None,
-                sa_id: payshap_proxy.shap_id.clone(),
-                account_number: None,
-                bank_name: None,
-                amount: req.amount.clone(),
-                idempotency_key: req
-                    .router_data
-                    .resource_common_data
-                    .connector_request_reference_id
-                    .clone(),
-                description: req.router_data.resource_common_data.description.clone(),
-            }),
+            Some(PayoutMethodData::Bank(Bank::PayshapProxy(payshap_proxy))) => {
+                let sa_id = payshap_proxy
+                    .shap_id
+                    .as_ref()
+                    .ok_or(IntegrationError::MissingRequiredField {
+                        field_name: "shap_id",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "GotymeSanlam payout transfer with payshap_proxy requires a valid shap_id to be sent in payout transfer call"
+                                    .to_string(),
+                            ),
+                            suggested_action: Some(
+                                "Pass a valid shap_id as part of the payshap_proxy payout method data"
+                                    .to_string(),
+                            ),
+                            doc_url: None,
+                        },
+                    })?
+                    .to_owned();
+
+                Ok(Self {
+                    account_name: None,
+                    sa_id: Some(sa_id),
+                    account_number: None,
+                    bank_name: None,
+                    amount: req.amount.clone(),
+                    idempotency_key,
+                    description: req.router_data.resource_common_data.description.clone(),
+                })
+            }
             Some(
                 PayoutMethodData::Card(_)
                 | PayoutMethodData::Bank(_)
