@@ -1,10 +1,7 @@
 use std::collections::HashMap;
 
 use common_enums::{AttemptStatus, CaptureMethod, Currency, FutureUsage};
-use common_utils::{
-    consts::NO_ERROR_CODE,
-    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
-};
+use common_utils::{consts::NO_ERROR_CODE, types::StringMajorUnit};
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, RepeatPayment},
     connector_types::{
@@ -240,7 +237,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         });
                 let token_source = add_token.as_ref().map(|_| "ECOMMERCE".to_string());
 
-                let amount = StringMajorUnitForConnector
+                let amount = item
+                    .connector
+                    .amount_converter
                     .convert(request_data.minor_amount, request_data.currency)
                     .change_context(IntegrationError::AmountConversionFailed {
                         context: IntegrationErrorContext {
@@ -850,7 +849,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         };
 
-        let amount = StringMajorUnitForConnector
+        let amount = item
+            .connector
+            .amount_converter
             .convert(
                 router_data.request.minor_amount_to_capture,
                 router_data.request.currency,
@@ -1045,7 +1046,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let request_data = &router_data.request;
         let auth_type = ElavonAuthType::try_from(&router_data.connector_config)?;
 
-        let amount = StringMajorUnitForConnector
+        let amount = item
+            .connector
+            .amount_converter
             .convert(request_data.minor_refund_amount, request_data.currency)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: IntegrationErrorContext {
@@ -1559,7 +1562,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         };
 
-        let amount = StringMajorUnitForConnector
+        let amount = item
+            .connector
+            .amount_converter
             .convert(request.minor_amount, request.currency)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: IntegrationErrorContext {

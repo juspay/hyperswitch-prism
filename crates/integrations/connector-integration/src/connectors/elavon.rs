@@ -3,7 +3,9 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use bytes::Bytes;
-use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
+use common_utils::{
+    errors::CustomResult, events, ext_traits::ByteSliceExt, types::StringMajorUnit,
+};
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, RepeatPayment},
     connector_types::{
@@ -244,7 +246,9 @@ macros::create_all_prerequisites!(
             router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         )
     ],
-    amount_converters: [],
+    amount_converters: [
+        amount_converter: StringMajorUnit
+    ],
     member_functions: {
         pub fn preprocess_response_bytes<F, FCD, Req, Res>(
             &self,
