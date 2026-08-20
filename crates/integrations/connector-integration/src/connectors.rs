@@ -310,3 +310,6 @@ pub mod citigate;
 pub use self::citigate::Citigate;
 pub mod ilixium;
 pub use self::ilixium::Ilixium;
+
+pub mod worldpayraft;
+pub use self::worldpayraft::Worldpayraft;
