@@ -26,6 +26,7 @@ config = sdk_config_pb2.ConnectorConfig(
         boost=payment_pb2.BoostConfig(
             client_id=payment_methods_pb2.SecretString(value="YOUR_CLIENT_ID"),
             merchant_secret=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_SECRET"),
+            public_key=payment_methods_pb2.SecretString(value="YOUR_PUBLIC_KEY"),
             base_url="YOUR_BASE_URL",
         ),
     ),
@@ -51,6 +52,7 @@ const config = ConnectorConfig.create({
         boost: {
             clientId: { value: 'YOUR_CLIENT_ID' },
             merchantSecret: { value: 'YOUR_MERCHANT_SECRET' },
+            publicKey: { value: 'YOUR_PUBLIC_KEY' },
             baseUrl: 'YOUR_BASE_URL',
         }
     },
@@ -72,6 +74,7 @@ val config = ConnectorConfig.newBuilder()
             .setBoost(BoostConfig.newBuilder()
                 .setClientId(SecretString.newBuilder().setValue("YOUR_CLIENT_ID").build())
                 .setMerchantSecret(SecretString.newBuilder().setValue("YOUR_MERCHANT_SECRET").build())
+                .setPublicKey(SecretString.newBuilder().setValue("YOUR_PUBLIC_KEY").build())
                 .setBaseUrl("YOUR_BASE_URL")
                 .build())
             .build()
@@ -95,6 +98,7 @@ let config = ConnectorConfig {
             config: Some(connector_specific_config::Config::Boost(BoostConfig {
                 client_id: Some(hyperswitch_masking::Secret::new("YOUR_CLIENT_ID".to_string())),  // Authentication credential
                 merchant_secret: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_SECRET".to_string())),  // Authentication credential
+                public_key: Some(hyperswitch_masking::Secret::new("YOUR_PUBLIC_KEY".to_string())),  // Authentication credential
                 base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
                 ..Default::default()
             })),
@@ -118,7 +122,6 @@ let config = ConnectorConfig {
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
 | [EventService.HandleEvent](#eventservicehandleevent) | Events | `EventServiceHandleRequest` |
 | [EventService.ParseEvent](#eventserviceparseevent) | Events | `EventServiceParseRequest` |
-| [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
 | [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
 
 ### Payments
@@ -132,18 +135,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/boost/boost.py) · [TypeScript](../../examples/boost/boost.ts#L86) · [Kotlin](../../examples/boost/boost.kt#L66) · [Rust](../../examples/boost/boost.rs)
-
-#### PaymentService.Refund
-
-Process a partial or full refund for a captured payment. Returns funds to the customer when goods are returned or services are cancelled.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceRefundRequest` |
-| **Response** | `RefundResponse` |
-
-**Examples:** [Python](../../examples/boost/boost.py) · [TypeScript](../../examples/boost/boost.ts#L113) · [Kotlin](../../examples/boost/boost.kt#L105) · [Rust](../../examples/boost/boost.rs)
+**Examples:** [Python](../../examples/boost/boost.py) · [TypeScript](../../examples/boost/boost.ts#L74) · [Kotlin](../../examples/boost/boost.kt#L54) · [Rust](../../examples/boost/boost.rs)
 
 ### Refunds
 
@@ -156,4 +148,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/boost/boost.py) · [TypeScript](../../examples/boost/boost.ts#L122) · [Kotlin](../../examples/boost/boost.kt#L115) · [Rust](../../examples/boost/boost.rs)
+**Examples:** [Python](../../examples/boost/boost.py) · [TypeScript](../../examples/boost/boost.ts#L101) · [Kotlin](../../examples/boost/boost.kt#L93) · [Rust](../../examples/boost/boost.rs)

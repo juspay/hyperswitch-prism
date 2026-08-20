@@ -902,6 +902,7 @@ enum Connector {
   BOOST = 136;
   CITIGATE = 137;
   ILIXIUM = 138;
+  WORLDPAYRAFT = 139;
 }
 
 // Payment method types
@@ -5655,6 +5656,7 @@ message TesouroConfig {
 message BoostConfig {
   SecretString client_id = 1;
   SecretString merchant_secret = 2;
+  optional SecretString public_key = 3;
   optional string base_url = 50;
 }
 
@@ -5678,6 +5680,12 @@ message MonerisConfig {
   SecretString client_secret = 1;
   SecretString merchant_id = 2;
   SecretString client_id = 3;
+  optional string base_url = 50;
+}
+
+message WorldpayraftConfig {
+  SecretString license = 1;
+  SecretString merchant_id = 2;
   optional string base_url = 50;
 }
 
@@ -6003,8 +6011,10 @@ message ConnectorSpecificConfig {
     MonerisConfig moneris = 147;
     // ILIXIUM = 138
     IlixiumConfig ilixium = 148;
-    // GOTYME_SANLAM = 139
-    GotymeSanlamConfig gotyme_sanlam = 149;
+    // WORLDPAYRAFT = 139
+    WorldpayraftConfig worldpayraft = 149;
+    // GOTYME_SANLAM = 140
+    GotymeSanlamConfig gotyme_sanlam = 150;
   }
 }
 
