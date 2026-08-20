@@ -12,12 +12,13 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Authorize, CreatePaymentMethod, GetPaymentMethod, Recharge, Refund,
-        ServerAuthenticationToken,
+        Authorize, CreatePaymentMethod, GetPaymentMethod, PaymentMethodEligibility, Recharge,
+        Refund, ServerAuthenticationToken,
     },
     connector_types::{
         CreatePaymentMethodData, CreatePaymentMethodResponseData, GetPaymentMethodData,
-        GetPaymentMethodResponseData, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData,
+        GetPaymentMethodResponseData, PaymentFlowData, PaymentMethodEligibilityData,
+        PaymentMethodEligibilityResponse, PaymentsAuthorizeData, PaymentsResponseData,
         RechargeRequestData, RechargeResponseData, RefundFlowData, RefundsData,
         RefundsResponseData, ServerAuthenticationTokenRequestData,
         ServerAuthenticationTokenResponseData,
@@ -40,9 +41,10 @@ use serde::Serialize;
 use transformers::{
     self as qwikcilver, QwikcilverAuthType, QwikcilverAuthorizeRequest,
     QwikcilverAuthorizeResponse, QwikcilverCancelRedeemBody, QwikcilverCancelRedeemResponse,
-    QwikcilverCreateWalletRequest, QwikcilverEmptyBody, QwikcilverErrorResponse,
-    QwikcilverGetWalletResponse, QwikcilverRechargeRequest, QwikcilverRechargeResponse,
-    QwikcilverRedeemRequest, QwikcilverRedeemResponse, QwikcilverWalletEnvelope,
+    QwikcilverCreateWalletRequest, QwikcilverEligibilityResponse, QwikcilverEmptyBody,
+    QwikcilverErrorResponse, QwikcilverGetWalletResponse, QwikcilverRechargeRequest,
+    QwikcilverRechargeResponse, QwikcilverRedeemRequest, QwikcilverRedeemResponse,
+    QwikcilverWalletEnvelope,
 };
 
 use super::macros;
@@ -77,6 +79,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::GetPaymentMethodV2 for Qwikcilver<T>
+{
+}
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentMethodEligibilityV2 for Qwikcilver<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -155,6 +161,11 @@ macros::create_all_prerequisites!(
             request_body: QwikcilverEmptyBody,
             response_body: QwikcilverGetWalletResponse,
             router_data: RouterDataV2<GetPaymentMethod, PaymentFlowData, GetPaymentMethodData, GetPaymentMethodResponseData>,
+        ),
+        (
+            flow: PaymentMethodEligibility,
+            response_body: QwikcilverEligibilityResponse,
+            router_data: RouterDataV2<PaymentMethodEligibility, PaymentFlowData, PaymentMethodEligibilityData, PaymentMethodEligibilityResponse>,
         )
     ],
     amount_converters: [
@@ -232,6 +243,44 @@ macros::create_all_prerequisites!(
             req: &'a RouterDataV2<F, MerchantAuthenticationFlowData, Req, Res>,
         ) -> &'a str {
             &req.resource_common_data.connectors.qwikcilver.base_url
+        }
+
+        /// Shared wallet lookup used by both `GetPaymentMethod` and
+        /// `PaymentMethodEligibility`, which make the identical connector call.
+        /// Primary: wallet number → `/wallet/{wn}`.
+        /// Fallback: customer phone → `/wallet/customer?phonenumber={phone}` (Pine Labs's
+        /// documented by-external-id lookup; response envelope is identical to the
+        /// by-wallet-number variant).
+        pub fn wallet_lookup_url(
+            &self,
+            base: &str,
+            wallet_number: Option<&str>,
+            phone: Option<&hyperswitch_masking::Secret<String>>,
+        ) -> CustomResult<String, IntegrationError> {
+            if let Some(wallet_number) = wallet_number {
+                return Ok(format!(
+                    "{base}Qwikcilver/eGMS.RestApi/api/v2/wallet/{}",
+                    urlencoding::encode(wallet_number),
+                ));
+            }
+            if let Some(phone) = phone {
+                return Ok(format!(
+                    "{base}Qwikcilver/eGMS.RestApi/api/v2/wallet/customer?phonenumber={}",
+                    urlencoding::encode(phone.peek()),
+                ));
+            }
+            Err(IntegrationError::MissingRequiredField {
+                field_name: "connector_payment_method_id | customer.phone_number",
+                context: qwikcilver::qc_err_ctx(
+                    "Qwikcilver's wallet lookup accepts either the wallet number (preferred) or \
+                     the customer's phone number as a fallback. Neither was supplied, so \
+                     there's no way to identify which wallet to fetch.",
+                    "Set `connector_payment_method_id` to the wallet number returned by a \
+                     prior Create, OR set `customer.phone_number` to look up by Pine Labs's \
+                     external wallet id (the customer's mobile).",
+                ),
+            }
+            .into())
         }
     }
 );
@@ -545,44 +594,61 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<GetPaymentMethod, PaymentFlowData, GetPaymentMethodData, GetPaymentMethodResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            // Primary: wallet number → `/wallet/{wn}`.
-            // Fallback: customer phone → `/wallet/customer?phonenumber={phone}` (Pine Labs's documented
-            // by-external-id lookup; response envelope is identical to the by-wallet-number variant).
-            let base = self.connector_base_url_payments(req);
-            if let Some(wallet_number) = req.request.connector_payment_method_id.as_deref() {
-                return Ok(format!(
-                    "{base}Qwikcilver/eGMS.RestApi/api/v2/wallet/{}",
-                    urlencoding::encode(wallet_number),
-                ));
-            }
-            if let Some(phone) = req
-                .request
-                .customer
-                .as_ref()
-                .and_then(|c| c.customer_phone_number.as_ref())
-            {
-                return Ok(format!(
-                    "{base}Qwikcilver/eGMS.RestApi/api/v2/wallet/customer?phonenumber={}",
-                    urlencoding::encode(phone.peek()),
-                ));
-            }
-            Err(IntegrationError::MissingRequiredField {
-                field_name: "connector_payment_method_id | customer.phone_number",
-                context: qwikcilver::qc_err_ctx(
-                    "Qwikcilver Get accepts either the wallet number (preferred) or the \
-                     customer's phone number as a fallback. Neither was supplied, so there's \
-                     no way to identify which wallet to fetch.",
-                    "Set `connector_payment_method_id` to the wallet number returned by a \
-                     prior Create, OR set `customer.phone_number` to look up by Pine Labs's \
-                     external wallet id (the customer's mobile).",
-                ),
-            }
-            .into())
+            self.wallet_lookup_url(
+                self.connector_base_url_payments(req),
+                req.request.connector_payment_method_id.as_deref(),
+                req.request
+                    .customer
+                    .as_ref()
+                    .and_then(|c| c.customer_phone_number.as_ref()),
+            )
         }
 
         fn get_headers(
             &self,
             req: &RouterDataV2<GetPaymentMethod, PaymentFlowData, GetPaymentMethodData, GetPaymentMethodResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            let token = self.extract_access_token(req.resource_common_data.access_token.as_ref())?;
+            let date = qwikcilver::current_datetime_qwikcilver();
+            let txn_id = qwikcilver::derive_transaction_id_from_reference(
+                &req.resource_common_data.connector_request_reference_id,
+            );
+            self.build_authenticated_headers(req, &token, &date, txn_id)
+        }
+    }
+);
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Qwikcilver,
+    curl_response: QwikcilverEligibilityResponse,
+    flow_name: PaymentMethodEligibility,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentMethodEligibilityData,
+    flow_response: PaymentMethodEligibilityResponse,
+    http_method: Get,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_url(
+            &self,
+            req: &RouterDataV2<PaymentMethodEligibility, PaymentFlowData, PaymentMethodEligibilityData, PaymentMethodEligibilityResponse>,
+        ) -> CustomResult<String, IntegrationError> {
+            // Performs the exact same connector call as `GetPaymentMethod` — eligibility for
+            // a Qwikcilver wallet is determined from the same wallet lookup response.
+            self.wallet_lookup_url(
+                self.connector_base_url_payments(req),
+                req.request.connector_payment_method_id.as_deref(),
+                req.request
+                    .customer
+                    .as_ref()
+                    .and_then(|c| c.customer_phone_number.as_ref()),
+            )
+        }
+
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<PaymentMethodEligibility, PaymentFlowData, PaymentMethodEligibilityData, PaymentMethodEligibilityResponse>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let token = self.extract_access_token(req.resource_common_data.access_token.as_ref())?;
             let date = qwikcilver::current_datetime_qwikcilver();

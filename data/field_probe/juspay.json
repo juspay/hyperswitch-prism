@@ -735,7 +735,7 @@
       },
       "OpenBanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Juspay does not support bank redirect variant: OpenBanking"
+        "error": "This feature is not implemented: Juspay does not support bank redirect variant: OpenBanking { account_number: None, sort_code: None, iban: None, account_holder_name: None, additional_details: None }"
       },
       "OpenBankingPis": {
         "status": "not_supported",

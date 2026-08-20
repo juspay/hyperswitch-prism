@@ -310,8 +310,14 @@ impl AddressDetails {
         )))
     }
 
+    pub fn get_optional_line1(&self) -> Option<Secret<String>> {
+        self.line1.clone()
+    }
     pub fn get_optional_line2(&self) -> Option<Secret<String>> {
         self.line2.clone()
+    }
+    pub fn get_optional_city(&self) -> Option<Secret<String>> {
+        self.city.clone()
     }
     pub fn get_optional_country(&self) -> Option<common_enums::CountryAlpha2> {
         self.country

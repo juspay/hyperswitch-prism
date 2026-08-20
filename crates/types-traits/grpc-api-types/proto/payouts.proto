@@ -155,6 +155,18 @@ message PixEmvBankTransferPayout {
   SecretString emv = 1;
 }
 
+message TrustlyBankTransferPayout {
+  // The International Bank Account Number (IBAN). Provide either the IBAN or the
+  // bank_account_number/bank_number pair.
+  optional SecretString iban = 1;
+  // The bank account number (used when an IBAN is not available)
+  optional SecretString bank_account_number = 2;
+  // The bank/clearing number that identifies the destination bank
+  optional SecretString bank_number = 3;
+  // The ISO Alpha-2 country code of the bank (maps to Trustly's ClearingHouse)
+  CountryAlpha2 bank_country_code = 4;
+}
+
 message ApplePayDecrypt {
   // The device primary account number (DPAN)
   CardNumberType dpan = 1;
@@ -194,15 +206,24 @@ message OpenBankingUkPayout {
   SecretString iban = 2;
 }
 
+message OpenBankingPayout {
+  // The name of the account holder
+  SecretString account_holder_name = 1;
+  // The International Bank Account Number (IBAN)
+  SecretString iban = 2;
+}
+
 message Passthrough {
   // The token provided by the payment service provider
   string psp_token = 1;
   // The type of the tokenized payment method
   PaymentMethodType token_type = 2;
+  // The customer identifier held by the payment service provider for this token
+  optional SecretString psp_customer_id = 3;
 }
 
 // PayoutMethod represents a payout instrument used to process a payout
-// It contains a oneof field with all possible payout method 
+// It contains a oneof field with all possible payout method
 message PayoutMethod {
   oneof payout_method_data {
     // CARD METHODS
@@ -229,6 +250,8 @@ message PayoutMethod {
     // BANK TRANSFER METHODS
     PixKeyBankTransferPayout pix_key = 12;
     PixEmvBankTransferPayout pix_emv = 13;
+    OpenBankingPayout open_banking = 14;
+    TrustlyBankTransferPayout trustly = 15;
   }
 }
 
@@ -331,6 +354,9 @@ message PayoutServiceTransferRequest {
   // Connector's reference for a prior eligibility check, when the processor
   // requires it to authorise the transfer.
   optional string connector_eligibility_reference_id = 16;
+  // Connector metadata carried over from a preceding flow (e.g. the recipient
+  // account id returned by create_recipient).
+  optional SecretString payout_connector_metadata = 17;
 }
 
 // Response message for transferring a payout
@@ -515,6 +541,9 @@ message PayoutServiceCreateRecipientResponse {
   optional ErrorInfo error = 4;
   // HTTP status code from the connector
   uint32 status_code = 5;
+  // Connector metadata produced while creating the recipient (e.g. the
+  // registered account id), to be echoed back on the subsequent transfer.
+  optional SecretString connector_metadata = 6;
 }
 
 // Request message for enrolling disburse account

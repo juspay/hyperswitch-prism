@@ -247,6 +247,7 @@ mod tests {
                     sender_payment_instrument_id: None,
                     settlement_status: None,
                     raw_connector_status: None,
+                    connector_returned_payment_method_details: None,
                     typed_connector_response: None,
                 },
                 connector_config: ConnectorSpecificConfig::Plaid {
@@ -408,6 +409,7 @@ mod tests {
                     sender_payment_instrument_id: None,
                     settlement_status: None,
                     raw_connector_status: None,
+                    connector_returned_payment_method_details: None,
                     typed_connector_response: None,
                 },
                 connector_config: ConnectorSpecificConfig::Plaid {

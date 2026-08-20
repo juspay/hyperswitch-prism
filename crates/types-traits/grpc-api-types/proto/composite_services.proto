@@ -57,6 +57,9 @@ service CompositePaymentMethodService {
   
   // Runs composite payment method recharge flow.
   rpc Recharge(CompositePaymentMethodRechargeRequest) returns (CompositePaymentMethodRechargeResponse);
+
+  // Runs composite payment method eligibility flow with access token bootstrapping.
+  rpc Eligibility(CompositePaymentMethodEligibilityRequest) returns (CompositePaymentMethodEligibilityResponse);
 }
 
 // Service for composite fraud and risk management operations.

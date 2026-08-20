@@ -40,6 +40,7 @@ The service supports various payout flows including synchronous transfers, stage
 | [`CreateLink`](./create-link.md) | Generate a secure URL for the recipient to provide their own payout method details to claim funds. | Sending funds via email without knowing bank details |
 | [`CreateRecipient`](./create-recipient.md) | Register a new recipient entity (individual or business) with the payment processor. | Onboarding a new seller or contractor |
 | [`EnrollDisburseAccount`](./enroll-disburse-account.md) | Register and verify a destination account (like a bank account) to receive disbursements. | Linking a vendor's bank account for future payouts |
+| [`Eligibility`](./eligibility.md) | Check whether a payout is eligible before initiating it (e.g. SEPA Verification of Payee). | Pre-validating a payee or bank account before transfer |
 
 ## Common Patterns
 
