@@ -19,6 +19,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.08.20.2
+
+### Features
+
+- **connector:** Worldpay Raft Connector Integration ([#2138](https://github.com/juspay/connector-service/pull/2138)) ([`ce5dbe0`](https://github.com/juspay/connector-service/commit/ce5dbe003bdca61fec02b0265c3dd64264ad9c12))
+
+### Refactors
+
+- **connector:** Add card payment method support (with RSA/AES encryption) ([#2151](https://github.com/juspay/connector-service/pull/2151)) ([`0a9d576`](https://github.com/juspay/connector-service/commit/0a9d576501d8dd75e9422ae4eb8b154aa62c9cfd))
+
+**Full Changelog:** [`2026.08.20.1...2026.08.20.2`](https://github.com/juspay/connector-service/compare/2026.08.20.1...2026.08.20.2)
+
+- - -
+
 ## 2026.08.20.1
 
 ### Features
