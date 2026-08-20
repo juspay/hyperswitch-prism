@@ -7709,7 +7709,7 @@ impl ForeignFrom<router_data::FlowStatus> for grpc_api_types::payments::DisputeS
     }
 }
 
-// Map FlowStatus to DisputeStatus (for dispute flow errors)
+// Map FlowStatus to PayoutStatus (for payout flow errors)
 impl ForeignFrom<router_data::FlowStatus> for grpc_api_types::payouts::payout_enums::PayoutStatus {
     fn foreign_from(status: router_data::FlowStatus) -> Self {
         match status {
