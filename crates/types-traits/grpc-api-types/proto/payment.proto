@@ -902,6 +902,7 @@ enum Connector {
   BOOST = 136;
   CITIGATE = 137;
   ILIXIUM = 138;
+  WORLDPAYRAFT = 139;
 }
 
 // Payment method types
@@ -5676,6 +5677,12 @@ message MonerisConfig {
   optional string base_url = 50;
 }
 
+message WorldpayraftConfig {
+  SecretString license = 1;
+  SecretString merchant_id = 2;
+  optional string base_url = 50;
+}
+
 // ConnectorSpecificConfig message with oneof containing all connector
 // configurations. Comment above each field (e.g. "// PAYPAL = 62") is the
 // Connector enum value from this file;
@@ -5998,6 +6005,8 @@ message ConnectorSpecificConfig {
     MonerisConfig moneris = 147;
     // ILIXIUM = 138
     IlixiumConfig ilixium = 148;
+    // WORLDPAYRAFT = 139
+    WorldpayraftConfig worldpayraft = 149;
   }
 }
 
