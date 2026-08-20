@@ -20,8 +20,9 @@ use domain_types::{
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
 };
+use base64::Engine;
 use error_stack::ResultExt;
-use hyperswitch_masking::Secret;
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use super::TapRouterData;
@@ -142,7 +143,12 @@ pub struct TapMerchant {
 /// [`build_tap_source`]).
 #[derive(Debug, Clone, Serialize)]
 pub struct TapSource {
-    pub id: String,
+    /// Token source (`tok_…`) or, for capture, the authorized charge id.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    /// RSA-encrypted card blob (base64) built with the merchant `tapPublicKey`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -179,33 +185,89 @@ pub struct TapPaymentRequest {
 
 /// Resolves the Tap `source` from the payment method.
 ///
-/// **Card handling (stubbed for this cut).** A raw card cannot be sent to Tap `/charges`; it needs
-/// a token (`tok_…`) or an RSA-encrypted blob built with `tapPublicKey`. RSA encryption is a
-/// follow-up, so a raw card is refused here with a clear `NotImplemented` error. Everything else is
-/// out of scope for this connector.
+/// **Card handling.** Tap does not accept a raw PAN on `/charges`; the card is RSA-encrypted
+/// (PKCS#1 v1.5) with the merchant `tapPublicKey` and sent as `source.card` (see
+/// [`encrypt_tap_card`]). Non-card payment methods are out of scope for this connector.
+/// The card JSON Tap RSA-encrypts into `source.card` (mirrors euler's `TapCardForEncryption`).
+#[derive(Debug, Serialize)]
+struct TapCardForEncryption {
+    number: String,
+    exp_month: String,
+    exp_year: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    cvc: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    name: Option<String>,
+}
+
+/// Error for any failure while RSA-encrypting the Tap card.
+fn tap_encryption_error() -> errors::IntegrationError {
+    errors::IntegrationError::RequestEncodingFailed {
+        context: errors::IntegrationErrorContext {
+            suggested_action: Some(
+                "Verify the merchant tapPublicKey is a valid base64 DER / PEM public key."
+                    .to_string(),
+            ),
+            doc_url: None,
+            additional_context: Some("tap card RSA encryption failed".to_string()),
+        },
+    }
+}
+
+/// RSA (PKCS#1 v1.5) encrypt the card JSON with the merchant `tapPublicKey`, base64-encoded.
+/// The `tapPublicKey` is a base64 DER SubjectPublicKeyInfo; wrap it in PEM headers before loading.
+fn encrypt_tap_card<T: PaymentMethodDataTypes + std::fmt::Debug>(
+    card: &domain_types::payment_method_data::Card<T>,
+    public_key: &Secret<String>,
+) -> Result<String, error_stack::Report<errors::IntegrationError>> {
+    let payload = TapCardForEncryption {
+        number: card.card_number.peek().to_string(),
+        exp_month: card.card_exp_month.peek().to_string(),
+        exp_year: card.card_exp_year.peek().to_string(),
+        cvc: Some(card.card_cvc.peek().to_string()),
+        name: card
+            .card_holder_name
+            .as_ref()
+            .map(|name| name.peek().to_string()),
+    };
+    let plaintext = serde_json::to_string(&payload).change_context(
+        tap_encryption_error(),
+    )?;
+
+    let key_text: String = public_key
+        .peek()
+        .chars()
+        .filter(|character| !character.is_whitespace())
+        .collect();
+    let pem = if key_text.starts_with("-----BEGIN PUBLIC KEY-----") {
+        key_text
+    } else {
+        format!("-----BEGIN PUBLIC KEY-----\n{key_text}\n-----END PUBLIC KEY-----")
+    };
+
+    let rsa = openssl::rsa::Rsa::public_key_from_pem(pem.as_bytes()).change_context(
+        tap_encryption_error(),
+    )?;
+    let mut buffer = vec![0u8; rsa.size() as usize];
+    let len = rsa
+        .public_encrypt(plaintext.as_bytes(), &mut buffer, openssl::rsa::Padding::PKCS1)
+        .change_context(tap_encryption_error())?;
+    buffer.truncate(len);
+    Ok(common_utils::consts::BASE64_ENGINE.encode(&buffer))
+}
+
 fn build_tap_source<T: PaymentMethodDataTypes + std::fmt::Debug>(
     payment_method_data: &PaymentMethodData<T>,
+    public_key: &Secret<String>,
 ) -> Result<TapSource, error_stack::Report<errors::IntegrationError>> {
     match payment_method_data {
-        PaymentMethodData::Card(_) => Err(error_stack::report!(
-            errors::IntegrationError::NotImplemented(
-                "tap requires a tokenised or RSA-encrypted card on POST /charges; raw-card \
-                 encryption with the merchant public key is a follow-up, so raw card payments are \
-                 not yet supported for tap"
-                    .to_string(),
-                errors::IntegrationErrorContext {
-                    suggested_action: Some(
-                        "Supply a Tap card token (source.id = tok_…) via tokenization, or wait \
-                         for the RSA encrypted-card path to be implemented."
-                            .to_string(),
-                    ),
-                    doc_url: Some(
-                        "https://developers.tap.company/reference/create-a-charge".to_string()
-                    ),
-                    additional_context: None,
-                },
-            )
-        )),
+        PaymentMethodData::Card(card) => {
+            let encrypted_card = encrypt_tap_card(card, public_key)?;
+            Ok(TapSource {
+                id: None,
+                card: Some(encrypted_card),
+            })
+        }
         other => Err(error_stack::report!(
             errors::IntegrationError::NotImplemented(
                 "tap supports only card payments in this connector; wallets, APMs and bank \
@@ -272,7 +334,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 },
             })?;
 
-        let source = build_tap_source(&request.payment_method_data)?;
+        let source = build_tap_source(&request.payment_method_data, &auth.public_key)?;
 
         // three_ds off for NoThreeDs; PaymentFlowData carries the resolved auth_type.
         let three_d_secure =
@@ -850,7 +912,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             currency: request.currency,
             customer_initiated: true,
             save_card: false,
-            source: TapSource { id: authorized_id },
+            source: TapSource {
+                id: Some(authorized_id),
+                card: None,
+            },
             merchant: TapMerchant {
                 id: auth.merchant_id,
             },
