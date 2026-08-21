@@ -719,10 +719,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 /// Spends a `tok_…` (the object `/v1/tokens` mints) on a PaymentIntent.
 ///
-/// A Token is not a PaymentMethod: `payment_method=tok_…` is rejected, the id has to ride on
-/// `payment_method_data[card][token]` instead. This is the same shape `GooglePayToken` and
-/// `ApplepayPayment` already use — one neutral type because Stripe consumes card, Apple Pay
-/// and Google Pay tokens through exactly the same two parameters.
+/// A Token is not a PaymentMethod: `payment_method=tok_…` is rejected, so the id rides on
+/// `payment_method_data[card][token]` — the same shape `GooglePayToken` and `ApplepayPayment` use.
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeCardTokenPayment {
     #[serde(rename = "payment_method_data[type]")]
@@ -2121,12 +2119,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             _ => None,
         };
 
-        // Stripe hands out two unrelated id families and each rides on its own parameter:
-        // a PaymentMethod (`pm_…`, minted by `/v1/payment_methods`) goes in `payment_method`,
-        // a Token (`tok_…`, minted by `/v1/tokens`) goes in `payment_method_data[card][token]`.
-        // Putting either on the other's parameter is a hard 400, so the id prefix — which is
-        // what actually determines the object type — decides. Wallet credentials can only be
-        // tokenized on `/v1/tokens`, so every Apple Pay / Google Pay token lands here.
+        // The id prefix decides the parameter: `pm_…` on `payment_method`, `tok_…` on
+        // `payment_method_data[card][token]`. See the endpoint split in `stripe.rs`.
         let (card_token, payment_method_id) = match payment_method_token.clone() {
             Some(token) if token.peek().starts_with(STRIPE_CARD_TOKEN_PREFIX) => {
                 (Some(token), None)
@@ -6106,15 +6100,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .get_optional_billing_state(),
         };
 
-        // Card flow for tokenization is handled separately because of API contract difference.
-        // A raw card goes to /v1/payment_methods, which requires `type` and accepts
-        // `billing_details[*]`, and yields a `pm_…`.
-        //
-        // Everything else — in practice a decrypted Apple Pay / Google Pay credential — goes to
-        // /v1/tokens and yields a `tok_…`. `create_stripe_payment_method` already emits the
-        // `card[number]` / `card[cryptogram]` / `card[eci]` / `card[tokenization_method]` block
-        // for those, and that block is only legal on /v1/tokens. See the endpoint split in
-        // `stripe.rs`'s `PaymentMethodToken` `get_url`.
+        // Raw cards go to /v1/payment_methods (`pm_…`); decrypted wallet credentials go to
+        // /v1/tokens (`tok_…`). See the endpoint split in `stripe.rs`'s `PaymentMethodToken`.
         let request_payment_data = match &item.router_data.request.payment_method_data {
             PaymentMethodData::Card(card_details) => {
                 StripePaymentMethodData::CardToken(StripeCardToken {
