@@ -1790,6 +1790,10 @@ message NotifyConnectorRequest {
 
   // Connector state for access token management (optional)
   optional ConnectorState state = 5;
+
+  // Connector-specific feature data (e.g. AVS/CVV verification results) for the notify call.
+  // Callers may send it here or nested in `content.frm_notification`; the nested value wins.
+  optional SecretString connector_feature_data = 6;
 }
 
 

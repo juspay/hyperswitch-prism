@@ -1454,29 +1454,13 @@ impl
             connector_customer_id,
         });
 
-        // `NotifyConnectorRequest` carries no top-level `connector_feature_data` or
-        // `merchant_details`; the connector reads both from
-        // `content.frm_notification`. Callers may send them either way, so fold
-        // top-level values down into the FRM notification content. Values already
-        // nested there win, being the more specific of the two.
-        let mut content = item.content.clone();
-        if let Some(grpc_api_types::payments::notify_connector_content::Content::FrmNotification(
-            frm,
-        )) = content
-            .as_mut()
-            .and_then(|content| content.content.as_mut())
-        {
-            if let Some(feature_data) = item.connector_feature_data.clone() {
-                frm.connector_feature_data.get_or_insert(feature_data);
-            }
-        }
-
         Self {
             event_id: item.event_id.clone(),
             event_type: item.event_type,
-            content,
+            content: item.content.clone(),
             timestamp: item.timestamp,
             state: resolved_state,
+            connector_feature_data: item.connector_feature_data.clone(),
         }
     }
 }
