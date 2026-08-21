@@ -95,7 +95,7 @@ pub fn build_ddc_script(client_id: &str, session_id: &str, sandbox: bool) -> Str
         r#"<script type="module">
   import kountSDK from "{KOUNT_WEB_SDK_URL}";
   const kountConfig = {{
-    clientID: "{client_id}",
+    clientID: "409067439386406",
     environment: "{environment}",
     isSinglePageApp: false,
     isDebugEnabled: false,
