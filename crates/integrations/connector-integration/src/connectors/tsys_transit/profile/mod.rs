@@ -9,7 +9,7 @@
 //! Axes:
 //!   • `acceptance`       — channel + recurring classification
 //!   • `card_family`      — Visa / MC / AMEX / Discover-like
-//!   • `cof_phase`        — NoCof / CitSetup / CitUsingStored / Mit(kind)
+//!   • `cof_phase`        — NoCof / CitSetup / Mit(kind)
 //!   • `commercial_level` — None / L2 / L3
 //!   • `three_ds`         — None / Present
 //!   • `capture`          — Auto / Manual

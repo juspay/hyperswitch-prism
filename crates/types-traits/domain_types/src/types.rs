@@ -431,6 +431,7 @@ pub struct Connectors {
     pub santander: ConnectorParams,
     pub citigate: ConnectorParams,
     pub moneris: ConnectorParams,
+    pub worldpayraft: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]

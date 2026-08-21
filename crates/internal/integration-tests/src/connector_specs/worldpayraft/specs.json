@@ -1,11 +1,10 @@
 {
-  "connector": "elavon",
+  "connector": "worldpayraft",
   "supported_suites": [
     "PaymentService/Authorize",
     "PaymentService/Capture",
     "PaymentService/Refund",
-    "RefundService/Get",
-    "PaymentService/Get",
+    "PaymentService/SetupRecurring",
     "RecurringPaymentService/Charge"
   ]
 }
