@@ -471,7 +471,7 @@ pub enum BankNames {
     BankRakyatIndonesia,
     CimbNiaga,
     PermataBank,
-    // Eurpoean Banks
+    // European Banks
     AibBusiness,
     Aktia,
     Alandsbanken,
