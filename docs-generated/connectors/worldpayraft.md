@@ -1,9 +1,9 @@
-# Elavon
+# Worldpayraft
 
 <!--
 This file is auto-generated. Do not edit by hand.
-Source: data/field_probe/elavon.json
-Regenerate: python3 scripts/generators/docs/generate.py elavon
+Source: data/field_probe/worldpayraft.json
+Regenerate: python3 scripts/generators/docs/generate.py worldpayraft
 -->
 
 ## SDK Configuration
@@ -23,10 +23,9 @@ from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
     connector_config=payment_pb2.ConnectorSpecificConfig(
-        elavon=payment_pb2.ElavonConfig(
-            ssl_merchant_id=payment_methods_pb2.SecretString(value="YOUR_SSL_MERCHANT_ID"),
-            ssl_user_id=payment_methods_pb2.SecretString(value="YOUR_SSL_USER_ID"),
-            ssl_pin=payment_methods_pb2.SecretString(value="YOUR_SSL_PIN"),
+        worldpayraft=payment_pb2.WorldpayraftConfig(
+            license=payment_methods_pb2.SecretString(value="YOUR_LICENSE"),
+            merchant_id=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_ID"),
             base_url="YOUR_BASE_URL",
         ),
     ),
@@ -46,13 +45,12 @@ const { PaymentClient } = require('hyperswitch-prism');
 const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism').types;
 
 const config = ConnectorConfig.create({
-    connector: Connector.ELAVON,
+    connector: Connector.WORLDPAYRAFT,
     environment: Environment.SANDBOX,
     auth: {
-        elavon: {
-            sslMerchantId: { value: 'YOUR_SSL_MERCHANT_ID' },
-            sslUserId: { value: 'YOUR_SSL_USER_ID' },
-            sslPin: { value: 'YOUR_SSL_PIN' },
+        worldpayraft: {
+            license: { value: 'YOUR_LICENSE' },
+            merchantId: { value: 'YOUR_MERCHANT_ID' },
             baseUrl: 'YOUR_BASE_URL',
         }
     },
@@ -71,10 +69,9 @@ val config = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
     .setConnectorConfig(
         ConnectorSpecificConfig.newBuilder()
-            .setElavon(ElavonConfig.newBuilder()
-                .setSslMerchantId(SecretString.newBuilder().setValue("YOUR_SSL_MERCHANT_ID").build())
-                .setSslUserId(SecretString.newBuilder().setValue("YOUR_SSL_USER_ID").build())
-                .setSslPin(SecretString.newBuilder().setValue("YOUR_SSL_PIN").build())
+            .setWorldpayraft(WorldpayraftConfig.newBuilder()
+                .setLicense(SecretString.newBuilder().setValue("YOUR_LICENSE").build())
+                .setMerchantId(SecretString.newBuilder().setValue("YOUR_MERCHANT_ID").build())
                 .setBaseUrl("YOUR_BASE_URL")
                 .build())
             .build()
@@ -95,10 +92,9 @@ use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
     connector_config: Some(ConnectorSpecificConfig {
-            config: Some(connector_specific_config::Config::Elavon(ElavonConfig {
-                ssl_merchant_id: Some(hyperswitch_masking::Secret::new("YOUR_SSL_MERCHANT_ID".to_string())),  // Authentication credential
-                ssl_user_id: Some(hyperswitch_masking::Secret::new("YOUR_SSL_USER_ID".to_string())),  // Authentication credential
-                ssl_pin: Some(hyperswitch_masking::Secret::new("YOUR_SSL_PIN".to_string())),  // Authentication credential
+            config: Some(connector_specific_config::Config::Worldpayraft(WorldpayraftConfig {
+                license: Some(hyperswitch_masking::Secret::new("YOUR_LICENSE".to_string())),  // Authentication credential
+                merchant_id: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_ID".to_string())),  // Authentication credential
                 base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
                 ..Default::default()
             })),
@@ -131,7 +127,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/elavon/elavon.py#L139) · [JavaScript](../../examples/elavon/elavon.js) · [Kotlin](../../examples/elavon/elavon.kt#L108) · [Rust](../../examples/elavon/elavon.rs#L174)
+**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py#L176) · [JavaScript](../../examples/worldpayraft/worldpayraft.js) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L97) · [Rust](../../examples/worldpayraft/worldpayraft.rs#L223)
 
 ### Card Payment (Authorize + Capture)
 
@@ -145,19 +141,13 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/elavon/elavon.py#L158) · [JavaScript](../../examples/elavon/elavon.js) · [Kotlin](../../examples/elavon/elavon.kt#L124) · [Rust](../../examples/elavon/elavon.rs#L190)
+**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py#L195) · [JavaScript](../../examples/worldpayraft/worldpayraft.js) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L113) · [Rust](../../examples/worldpayraft/worldpayraft.rs#L239)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/elavon/elavon.py#L183) · [JavaScript](../../examples/elavon/elavon.js) · [Kotlin](../../examples/elavon/elavon.kt#L146) · [Rust](../../examples/elavon/elavon.rs#L213)
-
-### Get Payment Status
-
-Retrieve current payment status from the connector.
-
-**Examples:** [Python](../../examples/elavon/elavon.py#L208) · [JavaScript](../../examples/elavon/elavon.js) · [Kotlin](../../examples/elavon/elavon.kt#L168) · [Rust](../../examples/elavon/elavon.rs#L236)
+**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py#L220) · [JavaScript](../../examples/worldpayraft/worldpayraft.js) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L135) · [Rust](../../examples/worldpayraft/worldpayraft.rs#L262)
 
 ## API Reference
 
@@ -165,11 +155,11 @@ Retrieve current payment status from the connector.
 |--------------------|----------|----------------------|
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
 | [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
-| [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
 | [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
+| [PaymentService.ProxySetupRecurring](#paymentserviceproxysetuprecurring) | Payments | `PaymentServiceProxySetupRecurringRequest` |
 | [RecurringPaymentService.Charge](#recurringpaymentservicecharge) | Mandates | `RecurringPaymentServiceChargeRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
-| [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
+| [PaymentService.SetupRecurring](#paymentservicesetuprecurring) | Payments | `PaymentServiceSetupRecurringRequest` |
 
 ### Payments
 
@@ -303,7 +293,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/elavon/elavon.py) · [TypeScript](../../examples/elavon/elavon.ts#L237) · [Kotlin](../../examples/elavon/elavon.kt#L186) · [Rust](../../examples/elavon/elavon.rs)
+**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py) · [TypeScript](../../examples/worldpayraft/worldpayraft.ts#L255) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L156) · [Rust](../../examples/worldpayraft/worldpayraft.rs)
 
 #### PaymentService.Capture
 
@@ -314,18 +304,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/elavon/elavon.py) · [TypeScript](../../examples/elavon/elavon.ts#L246) · [Kotlin](../../examples/elavon/elavon.kt#L198) · [Rust](../../examples/elavon/elavon.rs)
-
-#### PaymentService.Get
-
-Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentServiceGetRequest` |
-| **Response** | `PaymentServiceGetResponse` |
-
-**Examples:** [Python](../../examples/elavon/elavon.py) · [TypeScript](../../examples/elavon/elavon.ts#L255) · [Kotlin](../../examples/elavon/elavon.kt#L208) · [Rust](../../examples/elavon/elavon.rs)
+**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py) · [TypeScript](../../examples/worldpayraft/worldpayraft.ts#L264) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L168) · [Rust](../../examples/worldpayraft/worldpayraft.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -336,7 +315,18 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/elavon/elavon.py) · [TypeScript](../../examples/elavon/elavon.ts#L264) · [Kotlin](../../examples/elavon/elavon.kt#L216) · [Rust](../../examples/elavon/elavon.rs)
+**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py) · [TypeScript](../../examples/worldpayraft/worldpayraft.ts#L273) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L178) · [Rust](../../examples/worldpayraft/worldpayraft.rs)
+
+#### PaymentService.ProxySetupRecurring
+
+Setup recurring mandate using vault-aliased card data.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceProxySetupRecurringRequest` |
+| **Response** | `PaymentServiceSetupRecurringResponse` |
+
+**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py) · [TypeScript](../../examples/worldpayraft/worldpayraft.ts#L282) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L207) · [Rust](../../examples/worldpayraft/worldpayraft.rs)
 
 #### PaymentService.Refund
 
@@ -347,20 +337,18 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/elavon/elavon.py) · [TypeScript](../../examples/elavon/elavon.ts#L282) · [Kotlin](../../examples/elavon/elavon.kt#L276) · [Rust](../../examples/elavon/elavon.rs)
+**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py) · [TypeScript](../../examples/worldpayraft/worldpayraft.ts#L300) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L270) · [Rust](../../examples/worldpayraft/worldpayraft.rs)
 
-### Refunds
+#### PaymentService.SetupRecurring
 
-#### RefundService.Get
-
-Retrieve refund status from the payment processor. Tracks refund progress through processor settlement for accurate customer communication.
+Configure a payment method for recurring billing. Sets up the mandate and payment details needed for future automated charges.
 
 | | Message |
 |---|---------|
-| **Request** | `RefundServiceGetRequest` |
-| **Response** | `RefundResponse` |
+| **Request** | `PaymentServiceSetupRecurringRequest` |
+| **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/elavon/elavon.py) · [TypeScript](../../examples/elavon/elavon.ts#L291) · [Kotlin](../../examples/elavon/elavon.kt#L286) · [Rust](../../examples/elavon/elavon.rs)
+**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py) · [TypeScript](../../examples/worldpayraft/worldpayraft.ts#L309) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L280) · [Rust](../../examples/worldpayraft/worldpayraft.rs)
 
 ### Mandates
 
@@ -373,4 +361,4 @@ Charge using an existing stored recurring payment instruction. Processes repeat 
 | **Request** | `RecurringPaymentServiceChargeRequest` |
 | **Response** | `RecurringPaymentServiceChargeResponse` |
 
-**Examples:** [Python](../../examples/elavon/elavon.py) · [TypeScript](../../examples/elavon/elavon.ts#L273) · [Kotlin](../../examples/elavon/elavon.kt#L245) · [Rust](../../examples/elavon/elavon.rs)
+**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py) · [TypeScript](../../examples/worldpayraft/worldpayraft.ts#L291) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L239) · [Rust](../../examples/worldpayraft/worldpayraft.rs)
