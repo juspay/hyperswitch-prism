@@ -288,11 +288,11 @@ pub struct PaymentMethodApplePayEncrypted {
     display_name: String,
     card_brand: MonerisCardBrand,
     apple_pay_version: ApplePayVersion,
-    data: String,
-    signature: String,
-    public_key_hash: String,
-    ephemeral_public_key: String,
-    apple_pay_transaction_id: String,
+    data: Secret<String>,
+    signature: Secret<String>,
+    public_key_hash: Secret<String>,
+    ephemeral_public_key: Secret<String>,
+    apple_pay_transaction_id: Secret<String>,
     wallet_indicator: WalletIndicator,
 }
 
@@ -301,8 +301,8 @@ pub struct PaymentMethodApplePayEncrypted {
 pub struct PaymentMethodApplePayDecrypted {
     payment_method_source: PaymentMethodSource,
     application_primary_account_number: Secret<String>,
-    expiry_month: i64,
-    expiry_year: i64,
+    expiry_month: Secret<i64>,
+    expiry_year: Secret<i64>,
     data_type: ApplePayDataType,
     cryptogram: Secret<String>,
     card_brand: MonerisCardBrand,
@@ -316,9 +316,9 @@ pub struct PaymentMethodApplePayDecrypted {
 pub struct PaymentMethodGooglePayEncrypted {
     payment_method_source: PaymentMethodSource,
     card_brand: MonerisCardBrand,
-    signature: String,
+    signature: Secret<String>,
     google_pay_protocol_version: String,
-    signed_message: String,
+    signed_message: Secret<String>,
     wallet_indicator: WalletIndicator,
 }
 
@@ -326,8 +326,8 @@ pub struct PaymentMethodGooglePayEncrypted {
 #[serde(rename_all = "camelCase")]
 pub struct GooglePayDecryptedCardDetails {
     personal_account_number: Secret<String>,
-    expiry_month: i64,
-    expiry_year: i64,
+    expiry_month: Secret<i64>,
+    expiry_year: Secret<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     authentication_method: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -608,11 +608,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 display_name: apple_pay_data.payment_method.display_name.clone(),
                                 card_brand,
                                 apple_pay_version,
-                                data: token.data,
-                                signature: token.signature,
-                                public_key_hash: token.header.public_key_hash,
-                                ephemeral_public_key: token.header.ephemeral_public_key,
-                                apple_pay_transaction_id,
+                                data: Secret::new(token.data),
+                                signature: Secret::new(token.signature),
+                                public_key_hash: Secret::new(token.header.public_key_hash),
+                                ephemeral_public_key: Secret::new(
+                                    token.header.ephemeral_public_key,
+                                ),
+                                apple_pay_transaction_id: Secret::new(apple_pay_transaction_id),
                                 wallet_indicator,
                             })
                         }
@@ -658,8 +660,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                         .application_primary_account_number
                                         .get_card_no(),
                                 ),
-                                expiry_month,
-                                expiry_year,
+                                expiry_month: Secret::new(expiry_month),
+                                expiry_year: Secret::new(expiry_year),
                                 data_type: ApplePayDataType::ThreeDSecure,
                                 cryptogram: decrypt_data
                                     .payment_data
@@ -701,9 +703,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 PaymentMethod::GooglePayEncrypted(PaymentMethodGooglePayEncrypted {
                                     payment_method_source: PaymentMethodSource::GooglePayEncrypted,
                                     card_brand,
-                                    signature: token.signature,
+                                    signature: Secret::new(token.signature),
                                     google_pay_protocol_version: token.protocol_version,
-                                    signed_message: token.signed_message,
+                                    signed_message: Secret::new(token.signed_message),
                                     wallet_indicator,
                                 })
                             }
@@ -754,8 +756,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                                 .application_primary_account_number
                                                 .get_card_no(),
                                         ),
-                                        expiry_month,
-                                        expiry_year,
+                                        expiry_month: Secret::new(expiry_month),
+                                        expiry_year: Secret::new(expiry_year),
                                         authentication_method: None,
                                         cryptogram: decrypt_data.cryptogram.clone(),
                                         wallet_ecommerce_indicator: decrypt_data
