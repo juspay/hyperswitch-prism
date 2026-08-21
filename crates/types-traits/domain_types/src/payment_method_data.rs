@@ -783,6 +783,7 @@ pub enum BankRedirectData {
         provider: String,
     },
     OpenBanking {
+        bank_name: Option<common_enums::BankNames>,
         account_number: Option<Secret<String>>,
         sort_code: Option<Secret<String>>,
         iban: Option<Secret<String>>,
