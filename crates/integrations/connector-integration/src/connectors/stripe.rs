@@ -276,27 +276,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn should_create_connector_customer(&self) -> bool {
         true
     }
-    /// Wallets are charged through a `tok_…` minted on `/v1/tokens`, with two exceptions, both
-    /// Google Pay:
-    ///
-    /// * An *encrypted* Google Pay payload is Google's own token and Stripe takes it inline on
-    ///   `/v1/payment_intents` as `payment_method_data[card][token]`, so it must not detour
-    ///   through Tokenize.
-    /// * A *decrypted* `PAN_ONLY` Google Pay payload is a bare PAN — no cryptogram, no ECI, so
-    ///   nothing wallet-specific survives decryption. It is charged inline as an ordinary card
-    ///   on `/v1/payment_intents`. Sending it to `/v1/tokens` would be actively wrong: the only
-    ///   shape the Tokenize builder can produce for it is the PaymentIntent card block
-    ///   (`payment_method_data[card][…]`), and `/v1/tokens` rejects those parameters outright —
-    ///   it accepts only `card[number]` / `card[exp_month]` / `card[exp_year]` / `card[cvc]`.
-    ///
-    /// A decrypted Google Pay payload that *does* carry a cryptogram is a network token, which
-    /// only `/v1/tokens` accepts, so it does need Tokenize —
-    /// `is_wallet_decrypted_network_token` is exactly that "cryptogram is present" signal, not a
-    /// plain "was decrypted" signal.
-    ///
-    /// This follows Stripe's entry in `connector_request_reference_id_config`:
-    /// `payment_method = "wallet"` with `payment_method_type = { list = "google_pay", type =
-    /// "disable_only" }` plus `google_pay_pre_decrypt_flow = "connector_tokenization"`.
+    /// Wallets are charged through a `tok_…` from `/v1/tokens`, except two Google Pay cases that
+    /// go inline on `/v1/payment_intents`: an *encrypted* payload (Google's own token), and a
+    /// decrypted `PAN_ONLY` one (a bare PAN — `/v1/tokens` rejects the card block it would emit).
+    /// A decrypted payload carrying a cryptogram is a network token and does need `/v1/tokens`;
+    /// `is_wallet_decrypted_network_token` is that "cryptogram present" signal.
     fn should_do_payment_method_token(
         &self,
         payment_method: common_enums::PaymentMethod,
@@ -710,21 +694,11 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
         ) -> CustomResult<String, IntegrationError> {
-            // Stripe exposes two tokenization endpoints and they are NOT interchangeable —
-            // they mint different object families that Authorize consumes through different
-            // request parameters:
-            //
-            // * `/v1/payment_methods` mints `pm_…` from raw card details. Authorize replays it
-            //   as `payment_method=pm_…`.
-            // * `/v1/tokens` mints `tok_…`. It is the only endpoint that accepts a wallet
-            //   credential: the `card[cryptogram]` / `card[eci]` / `card[tokenization_method]`
-            //   trio a decrypted Apple Pay or Google Pay token carries is rejected as
-            //   `parameter_unknown` by `/v1/payment_methods` and `/v1/payment_intents` alike.
-            //   Authorize replays it as `payment_method_data[card][token]=tok_…`.
-            //
-            // The upstream integration splits the same way, so
-            // cards keep the `pm_` contract UCS already ships and wallets get the one endpoint
-            // that can actually take them.
+            // The two tokenization endpoints are not interchangeable:
+            // `/v1/payment_methods` mints `pm_…` from raw cards, replayed as `payment_method`.
+            // `/v1/tokens` mints `tok_…` and is the only one accepting a wallet credential's
+            // `card[cryptogram]`/`card[eci]`/`card[tokenization_method]` trio, replayed as
+            // `payment_method_data[card][token]`.
             let endpoint = match req.request.payment_method_data {
                 PaymentMethodData::Wallet(_) => "v1/tokens",
                 _ => "v1/payment_methods",

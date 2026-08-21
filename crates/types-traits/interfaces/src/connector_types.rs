@@ -245,13 +245,10 @@ pub trait ValidationTrait: ConnectorCommon {
         false
     }
 
-    /// Whether the composite flow must mint a connector token (Tokenize) before Authorize.
-    ///
-    /// `is_wallet_decrypted_network_token` reports that the wallet payload on the request carries
-    /// a decrypted *network token* — a PAN plus a network cryptogram (ECI optional) — rather than
-    /// the wallet provider's own encrypted token. It is deliberately narrower than "the payload is
-    /// decrypted": a Google Pay `PAN_ONLY` credential decrypts to a bare PAN with no cryptogram,
-    /// which is just a card, so it reports `false` and stays on the ordinary inline path.
+    /// Whether the wallet payload carries a decrypted *network token* (PAN + cryptogram, ECI
+    /// optional) rather than the provider's encrypted token, so the composite flow must mint a
+    /// connector token before Authorize. Narrower than "decrypted": a Google Pay `PAN_ONLY`
+    /// credential is a bare PAN and reports `false`.
     ///
     /// `payment_method` / `payment_method_type` cannot express that distinction on their own, yet
     /// it flips the answer for some connectors: Stripe accepts an encrypted Google Pay token

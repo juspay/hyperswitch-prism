@@ -673,13 +673,7 @@ pub struct StripeCardToken<T: PaymentMethodDataTypes + Debug + Sync + Send + 'st
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     StripePaymentMethodData<T>
 {
-    /// `true` when this shape is only legal on `/v1/tokens`.
-    ///
-    /// A decrypted Apple Pay / Google Pay credential serializes to a top-level
-    /// `card[number]` + `card[cryptogram]` + `card[eci]` + `card[tokenization_method]` block.
-    /// `/v1/tokens` accepts it and hands back a `tok_…`; `/v1/payment_intents` and
-    /// `/v1/payment_methods` both reject it outright. Payment flows use this to bail out
-    /// early rather than post a request the API is guaranteed to refuse.
+    /// `true` when this shape is only legal on `/v1/tokens` (decrypted wallet credential).
     fn is_tokens_endpoint_only(&self) -> bool {
         matches!(
             self,
@@ -690,12 +684,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         )
     }
 
-    /// Refuses, before any HTTP is emitted, to post a `/v1/tokens`-only shape to `endpoint`.
-    ///
-    /// Every flow that flattens a `StripePaymentMethodData` into a request body other than the
-    /// `/v1/tokens` one has to call this. Without it the request goes out and Stripe answers
-    /// `parameter_unknown` on `card`, which tells the caller nothing about what to do instead;
-    /// the error raised here names the tokenize step that fixes it.
+    /// Rejects a `/v1/tokens`-only shape before it is posted to `endpoint`.
     fn reject_if_tokens_endpoint_only(
         &self,
         endpoint: &'static str,
@@ -823,11 +812,7 @@ pub struct StripeGooglePayPredecrypt {
     exp_month: Secret<String>,
     #[serde(rename = "card[cryptogram]")]
     cryptogram: Secret<String>,
-    /// Optional, exactly as on [`StripeApplePayPredecrypt`]. The cryptogram is what makes the
-    /// credential a network token; the ECI only reports the authentication outcome that came
-    /// with it and some Google Pay tokens omit it. Requiring it here would force a
-    /// cryptogram-bearing token without an ECI down the plain-card path, throwing away both the
-    /// cryptogram and the liability shift it carries.
+    /// Optional: Google Pay may omit it. The cryptogram, not the ECI, makes this a network token.
     #[serde(rename = "card[eci]")]
     eci: Option<String>,
     #[serde(rename = "card[tokenization_method]")]
@@ -1993,9 +1978,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         (gpay_data, auth_type): (&GooglePayWalletData, common_enums::AuthenticationType),
     ) -> Result<Self, Self::Error> {
         match &gpay_data.tokenization_data {
-            // The Google Pay token arrives already decrypted, so send the network token
-            // (PAN + cryptogram) to Stripe instead of the opaque wallet token. This is the only
-            // shape Stripe accepts for storing a Google Pay credential for later MITs.
+            // Already decrypted: send the network token (PAN + cryptogram), not the wallet token.
             payment_method_data::GpayTokenizationData::Decrypted(google_pay_decrypted_data) => {
                 let exp_year = google_pay_decrypted_data
                     .get_four_digit_expiry_year()
@@ -2004,12 +1987,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         context: Default::default(),
                     })?;
 
-                // The cryptogram alone decides the shape. The ECI is carried along when present
-                // but never gates the decision: it only reports the authentication outcome, so a
-                // token that has a cryptogram and no ECI is still a network token. Gating on both
-                // (which OSS does — it matches `(Some(cryptogram), Some(eci))` and falls through
-                // to a plain card otherwise) silently drops the cryptogram and with it the
-                // liability shift, charging a network token as an unauthenticated card.
+                // The cryptogram alone decides the shape; the ECI is carried when present.
+                // Verified: Stripe records cryptogram-without-ECI as wallet=google_pay.
                 match google_pay_decrypted_data.cryptogram.clone() {
                     Some(cryptogram) => Ok(Self::Wallet(StripeWallet::GooglePayPredecryptToken(
                         Box::new(StripeGooglePayPredecrypt {
@@ -2023,15 +2002,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             tokenization_method: GOOGLE_PAY_TOKENIZATION_METHOD.to_string(),
                         }),
                     ))),
-                    // A PAN_ONLY Google Pay token carries no cryptogram/ECI, so there is nothing
-                    // wallet-specific left to send and the decrypted PAN goes over as a plain card.
-                    //
-                    // OSS builds `StripeCardData` here. That type is generic over the PAN holder
-                    // (`RawCardNumber<T>`), which cannot be built from the concrete `CardNumber` a
-                    // decrypted token yields, so we reuse the non-generic card variant instead. The
-                    // two serialize identically: the only fields `StripeCardData` adds are
-                    // `request_{incremental,extended}_authorization`, both `None` here and both
-                    // skipped on serialization.
+                    // PAN_ONLY carries no cryptogram, so the decrypted PAN goes over as a plain
+                    // card. Non-generic card variant: serializes identically to `StripeCardData`.
                     None => Ok(Self::CardNetworkTransactionId(
                         StripeCardNetworkTransactionIdData {
                             payment_method_data_type: StripePaymentMethodType::Card,
@@ -2382,8 +2354,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             charges
         };
 
-        // A `tok_…` already rides on `payment_data` as `payment_method_data[card][token]`, so
-        // only a `pm_…` may be echoed on the `payment_method` parameter.
+        // A `tok_…` already rides on `payment_data`, so only a `pm_…` goes on `payment_method`.
         let pm = match (payment_method, payment_method_id) {
             (Some(method), _) => Some(Secret::new(method)),
             (None, Some(token)) => Some(token),
@@ -5228,8 +5199,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             pm_type,
         ))?;
 
-        // `payment_data` is flattened straight into the `/v1/setup_intents` body, which rejects
-        // the `/v1/tokens`-only wallet block exactly as `/v1/payment_intents` does.
+        // Flattened into `/v1/setup_intents`, which rejects the `/v1/tokens`-only wallet block.
         payment_data.reject_if_tokens_endpoint_only("/v1/setup_intents")?;
 
         let meta_data = Some(get_transaction_metadata(
@@ -5864,8 +5834,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             },
                         )?;
 
-                    // Same flatten, same rejection: this one lands in the `/v1/payment_intents`
-                    // body, so a decrypted wallet credential has to be tokenized first here too.
+                    // Same rejection on `/v1/payment_intents`: tokenize first.
                     payment_method_data.reject_if_tokens_endpoint_only("/v1/payment_intents")?;
 
                     validate_shipping_address_against_payment_method(
