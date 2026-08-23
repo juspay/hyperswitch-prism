@@ -43,11 +43,15 @@ pub const KOUNT_DOC_URL: &str = "https://developer.kount.com/";
 
 /// Kount auth. `api_key` is the base64 of `CLIENT_ID:CLIENT_SECRET` (Kount's
 /// "API Key"); it is used directly as the `Authorization: Basic {api_key}`
-/// value on the token request. `auth_server_id` is the account/environment
-/// specific OAuth authorization-server id (sandbox vs production differ).
+/// value on the token request. `client_id` is the Kount-assigned merchant CID
+/// rendered into the Device Data Collection script as the Web SDK `clientID`;
+/// it is required and only ever read from the connector config.
+/// `auth_server_id` is the account/environment specific OAuth
+/// authorization-server id (sandbox vs production differ).
 #[derive(Debug, Clone)]
 pub struct KountAuthType {
     pub api_key: Secret<String>,
+    pub client_id: String,
     pub auth_server_id: Option<String>,
 }
 
@@ -58,10 +62,12 @@ impl TryFrom<&ConnectorSpecificConfig> for KountAuthType {
         match auth_type {
             ConnectorSpecificConfig::Kount {
                 api_key,
+                client_id,
                 auth_server_id,
                 ..
             } => Ok(Self {
                 api_key: api_key.to_owned(),
+                client_id: client_id.to_owned(),
                 auth_server_id: auth_server_id.to_owned(),
             }),
             _ => Err(error_stack::report!(
@@ -74,8 +80,8 @@ impl TryFrom<&ConnectorSpecificConfig> for KountAuthType {
                                 .to_owned(),
                         ),
                         suggested_action: Some(
-                            "Send the Kount connector config (api_key, optional auth_server_id) \
-                             for Kount FRM flows"
+                            "Send the Kount connector config (api_key, client_id, optional \
+                             auth_server_id) for Kount FRM flows"
                                 .to_owned(),
                         ),
                         doc_url: Some(KOUNT_DOC_URL.to_owned()),

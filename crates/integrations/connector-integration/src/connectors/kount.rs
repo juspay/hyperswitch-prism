@@ -4,8 +4,7 @@ use std::fmt::Debug;
 
 use common_enums::CurrencyUnit;
 use common_utils::{
-    consts::BASE64_ENGINE_URL_SAFE_NO_PAD, errors::CustomResult, events, ext_traits::ByteSliceExt,
-    types::StringMinorUnit,
+    errors::CustomResult, events, ext_traits::ByteSliceExt, types::StringMinorUnit,
 };
 use domain_types::{
     connector_flow::{
@@ -86,16 +85,16 @@ const KOUNT_WEB_SDK_URL: &str =
 /// it; DDC correlates purely by `sessionID`.
 pub fn build_ddc_script(client_id: &str, session_id: &str, sandbox: bool) -> String {
     let environment = if sandbox { "TEST" } else { "PROD" };
-    // Contextual output-encoding: `client_id` (from the access-token JWT) and
-    // `session_id` are interpolated into a JS string literal — encode for that
-    // context so no value can break out of the string.
+    // Contextual output-encoding: `client_id` (from the Kount connector config)
+    // and `session_id` are interpolated into a JS string literal — encode for
+    // that context so no value can break out of the string.
     let client_id = js_string_escape(client_id);
     let session_id = js_string_escape(session_id);
     format!(
         r#"<script type="module">
   import kountSDK from "{KOUNT_WEB_SDK_URL}";
   const kountConfig = {{
-    clientID: "409067439386406",
+    clientID: "{client_id}",
     environment: "{environment}",
     isSinglePageApp: false,
     isDebugEnabled: false,
@@ -125,24 +124,6 @@ fn js_string_escape(input: &str) -> String {
         }
     }
     out
-}
-
-/// Decode the (unverified) OAuth access-token JWT claims. Reads the payload
-/// segment only — no signature verification.
-fn access_token_claims(access_token: &str) -> Option<serde_json::Value> {
-    use base64::Engine;
-    let payload_segment = access_token.split('.').nth(1)?;
-    let decoded = BASE64_ENGINE_URL_SAFE_NO_PAD.decode(payload_segment).ok()?;
-    serde_json::from_slice(&decoded).ok()
-}
-
-/// Extract the Kount-assigned client/merchant id from the OAuth access token
-/// (the JWT `client_id` claim) for use as the DDC SDK `clientID`.
-pub fn client_id_from_access_token(access_token: &str) -> Option<String> {
-    access_token_claims(access_token)?
-        .get("client_id")
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string())
 }
 
 /// Resolve the Kount order id for an Update Order (`PATCH .../orders/{id}`) call.
@@ -465,16 +446,26 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     .clone()
             });
         let session_id = kount::hash_session_id(&session_ref);
-        // Access token threaded via state.access_token → PaymentFlowData.access_token.
-        let token = data
-            .resource_common_data
-            .access_token
-            .as_ref()
-            .map(|t| t.access_token.peek().to_owned());
-        let client_id = token
-            .as_deref()
-            .and_then(client_id_from_access_token)
-            .unwrap_or_default();
+        // DDC `clientID` is the Kount-assigned merchant CID, read only from the
+        // connector config (`x-connector-config`). There is deliberately no
+        // fallback: an absent CID renders a script that silently collects
+        // nothing, so a missing value is rejected when the config is parsed
+        // (`ConnectorSpecificConfig::Kount.client_id` is a non-optional `String`)
+        // rather than defaulted to an empty string here.
+        //
+        // The only way this conversion fails is a non-Kount config reaching the
+        // Kount flow, which would be a routing bug rather than bad merchant data.
+        let client_id = kount::KountAuthType::try_from(&data.connector_config)
+            .change_context(ConnectorError::ResponseHandlingFailed {
+                context: domain_types::errors::ResponseTransformationErrorContext {
+                    http_status_code: None,
+                    additional_context: Some(
+                        "expected a Kount connector config while rendering the DDC script"
+                            .to_owned(),
+                    ),
+                },
+            })?
+            .client_id;
         // DDC `environment` follows the deployment environment: only a production
         // deployment gets PROD, everything else (development/sandbox) gets TEST.
         // Deliberately `!matches!(.., Production)` rather than listing the non-prod

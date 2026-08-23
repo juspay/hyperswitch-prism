@@ -5620,6 +5620,10 @@ message KountConfig {
   // (`login.kount.com/oauth2/{auth_server_id}/v1/token`). Account/environment
   // specific; falls back to the sandbox auth server when unset.
   optional string auth_server_id = 2;
+  // Kount-assigned merchant CID, rendered into the Device Data Collection
+  // script as the Kount Web SDK `clientID`. Required: DDC cannot run without
+  // it, and it is only ever accepted from this connector config.
+  optional string client_id = 3;
   optional string base_url = 50;
 }
 

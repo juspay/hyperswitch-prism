@@ -20,6 +20,7 @@ fn build_client() -> ConnectorClient {
             config: Some(connector_specific_config::Config::Kount(KountConfig {
                 api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())), // Authentication credential
                 auth_server_id: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
+                client_id: Some("YOUR_CLIENT_ID".to_string()), // Kount-assigned merchant CID (required, used as the DDC clientID)
                 base_url: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
                 ..Default::default()
             })),

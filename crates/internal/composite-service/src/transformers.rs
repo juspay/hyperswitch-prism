@@ -640,7 +640,6 @@ impl
         // connectors (should_do_access_token) need this both to avoid
         // FAILED_TO_OBTAIN_AUTH_TYPE and because the resolved token is the source
         // of connector-side values derived from it during PreAuthenticate (e.g. the
-        // Kount DDC clientID, read from the token's JWT claims).
         let access_token_from_req = item
             .state
             .as_ref()
