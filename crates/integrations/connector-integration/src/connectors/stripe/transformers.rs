@@ -187,6 +187,26 @@ impl From<common_enums::AuthenticationType> for Auth3ds {
     }
 }
 
+/// Mirrors OSS `stripe.rs` tokenize `get_url`: a split-payment card is tokenized on
+/// `/v1/payment_methods`, minting a reusable `pm_…`; everything else on `/v1/tokens`,
+/// minting a single-use `tok_…`. Also decides the `token_kind` the response reports,
+/// so the endpoint and the kind cannot disagree.
+pub fn tokenize_mints_payment_method<T>(request: &PaymentMethodTokenizationData<T>) -> bool
+where
+    T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
+{
+    matches!(
+        (
+            request.split_payments.as_ref(),
+            &request.payment_method_data
+        ),
+        (
+            Some(SplitPaymentsDetails::StripeSplitPayment(_)),
+            PaymentMethodData::Card(_) | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+        )
+    )
+}
+
 #[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum StripeCardNetwork {
@@ -6014,7 +6034,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .get_optional_billing_state(),
         };
 
-        // Raw cards go to /v1/payment_methods; decrypted wallet credentials to /v1/tokens.
+        // Card flow for tokenization is handled separately because of API contract difference
         let request_payment_data = match &item.router_data.request.payment_method_data {
             PaymentMethodData::Card(card_details) => {
                 StripePaymentMethodData::CardToken(StripeCardToken {
@@ -6060,12 +6080,17 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<StripeTokenResponse, Self>) -> Result<Self, Self::Error> {
         let token = item.response.id.clone().expose();
+        let token_kind = if tokenize_mints_payment_method(&item.router_data.request) {
+            common_enums::TokenKind::MultiUse
+        } else {
+            common_enums::TokenKind::SingleUse
+        };
         Ok(Self {
             response: Ok(PaymentMethodTokenResponse {
                 token,
                 connector_payment_method_id: None,
                 status_code: item.http_code,
-                token_kind: Some(common_enums::TokenKind::SingleUse),
+                token_kind: Some(token_kind),
             }),
             ..item.router_data
         })

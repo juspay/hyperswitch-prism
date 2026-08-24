@@ -691,10 +691,16 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
         ) -> CustomResult<String, IntegrationError> {
+            // Split-payment cards mint a reusable PaymentMethod; everything else a Token.
+            let endpoint = if transformers::tokenize_mints_payment_method(&req.request) {
+                "v1/payment_methods"
+            } else {
+                "v1/tokens"
+            };
             Ok(format!(
                 "{}{}",
                 self.connector_base_url_payments(req),
-                "v1/tokens"
+                endpoint
             ))
         }
     }
