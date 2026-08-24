@@ -276,11 +276,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn should_create_connector_customer(&self) -> bool {
         true
     }
-    /// Wallets are charged through a `tok_…` from `/v1/tokens`, except two Google Pay cases that
-    /// go inline on `/v1/payment_intents`: an *encrypted* payload (Google's own token), and a
-    /// decrypted `PAN_ONLY` one (a bare PAN — `/v1/tokens` rejects the card block it would emit).
-    /// A decrypted payload carrying a cryptogram is a network token and does need `/v1/tokens`;
-    /// `is_wallet_decrypted_network_token` is that "cryptogram present" signal.
+    /// Only a cryptogram-bearing wallet credential needs `/v1/tokens`. An encrypted Google Pay
+    /// payload and a decrypted `PAN_ONLY` one both go inline on `/v1/payment_intents`.
     fn should_do_payment_method_token(
         &self,
         payment_method: common_enums::PaymentMethod,

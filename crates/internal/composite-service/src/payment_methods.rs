@@ -23,24 +23,13 @@ use crate::utils::{
 /// Reports whether a wallet payload carries a decrypted *network token* — a PAN accompanied by
 /// a network cryptogram — instead of the wallet provider's own encrypted token.
 ///
+/// The cryptogram is what matters, not decryption: a Google Pay `PAN_ONLY` credential decrypts to
+/// a bare PAN and is charged as an ordinary card, so it reports `false`. Apple Pay's decrypted
+/// payload always carries one.
+///
 /// Must stay in lockstep with `stripe::transformers::is_decrypted_network_token`, which asks the
 /// same question of the converted domain type — the composite has not chosen the PCI-holder
-/// generic yet, so the two cannot share one function. This decides whether Tokenize runs at all;
-/// the connector-side one decides which endpoint it runs against. Change both.
-///
-/// The rule is deliberately narrower than "the payload is decrypted": **the cryptogram has to be
-/// there**. A Google Pay `PAN_ONLY` credential decrypts to a bare PAN with no cryptogram and no
-/// ECI; once decrypted there is nothing wallet-specific left about it, so connectors charge it as
-/// an ordinary card on their ordinary payment endpoint and it must not be reported here. Only the
-/// cryptogram-bearing shape needs the separate handling this flag exists to trigger. Apple Pay's
-/// decrypted payload always carries a cryptogram (`ApplePayCryptogramData.online_payment_cryptogram`
-/// is a required field, and the domain conversion rejects the payload without it), so a decrypted
-/// Apple Pay payload always reports `true`.
-///
-/// `common_enums::PaymentMethod` / `PaymentMethodType` collapse every wallet shape onto the same
-/// `Wallet` + `GooglePay` pair, but connectors can need opposite routing for them — see
-/// [`interfaces::connector_types::ValidationTrait::should_do_payment_method_token`]. Anything that
-/// is not a cryptogram-bearing decrypted Apple Pay / Google Pay payload reports `false`.
+/// generic yet, so the two cannot share one function.
 fn is_wallet_payload_decrypted_network_token(
     payment_method: Option<&grpc_api_types::payments::PaymentMethod>,
 ) -> bool {

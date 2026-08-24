@@ -985,7 +985,6 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<MollieCardTokenRespon
                 token: item.response.card_token.expose(), // Return tkn_ token
                 connector_payment_method_id: None,
                 status_code: item.http_code,
-                // This connector mints a single kind of token, so the kind carries no information.
                 token_kind: None,
             }),
             resource_common_data: PaymentFlowData {

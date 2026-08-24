@@ -188,15 +188,10 @@ impl From<common_enums::AuthenticationType> for Auth3ds {
 }
 
 /// Whether `payment_method_data` is a decrypted *network token* — a PAN carrying a network
-/// cryptogram — as opposed to an encrypted wallet token or a bare PAN.
+/// cryptogram. Google Pay `PAN_ONLY` decrypts to a bare PAN and is therefore not one.
 ///
-/// Decides the tokenization endpoint in [`super::Stripe`]'s `PaymentMethodToken` `get_url`, and is
-/// the shape [`StripePaymentMethodData::is_tokens_endpoint_only`] reports on after construction.
-/// Google Pay `PAN_ONLY` decrypts to a bare PAN with no cryptogram and is therefore not one.
-///
-/// Must stay in lockstep with `composite_service::payment_methods`'
-/// `is_wallet_payload_decrypted_network_token`, which asks the same question of the proto payload
-/// to decide whether Tokenize runs at all.
+/// Picks the tokenization endpoint in `get_url`, and must stay in lockstep with
+/// `composite_service::payment_methods`' `is_wallet_payload_decrypted_network_token`.
 pub fn is_decrypted_network_token<T>(payment_method_data: &PaymentMethodData<T>) -> bool
 where
     T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
@@ -729,10 +724,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
-/// Spends a `tok_…` (the object `/v1/tokens` mints) on a PaymentIntent.
-///
-/// A Token is not a PaymentMethod: `payment_method=tok_…` is rejected, so the id rides on
-/// `payment_method_data[card][token]` — the same shape `GooglePayToken` and `ApplepayPayment` use.
+/// Spends a Token on a PaymentIntent. `payment_method=tok_…` is rejected, so the id rides on
+/// `payment_method_data[card][token]`.
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeCardTokenPayment {
     #[serde(rename = "payment_method_data[type]")]
@@ -2011,7 +2004,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     })?;
 
                 // The cryptogram alone decides the shape; the ECI is carried when present.
-                // Verified: Stripe records cryptogram-without-ECI as wallet=google_pay.
                 match google_pay_decrypted_data.cryptogram.clone() {
                     Some(cryptogram) => Ok(Self::Wallet(StripeWallet::GooglePayPredecryptToken(
                         Box::new(StripeGooglePayPredecrypt {
@@ -2026,7 +2018,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         }),
                     ))),
                     // PAN_ONLY carries no cryptogram, so the decrypted PAN goes over as a plain
-                    // card. Non-generic card variant: serializes identically to `StripeCardData`.
+                    // card.
                     None => Ok(Self::CardNetworkTransactionId(
                         StripeCardNetworkTransactionIdData {
                             payment_method_data_type: StripePaymentMethodType::Card,
@@ -2114,9 +2106,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             _ => None,
         };
 
-        // Which parameter spends the token follows from the endpoint that minted it: a Token from
-        // `/v1/tokens` goes on `payment_method_data[card][token]`, a PaymentMethod from
-        // `/v1/payment_methods` on `payment_method`. See the endpoint split in `stripe.rs`.
+        // A Token from `/v1/tokens` goes on `payment_method_data[card][token]`, a PaymentMethod
+        // from `/v1/payment_methods` on `payment_method`.
         let (card_token, payment_method_id) = match payment_method_token.as_ref() {
             Some(pm_token) if pm_token.kind == Some(common_enums::TokenKind::SingleUse) => {
                 (Some(pm_token.token.clone()), None)
@@ -6093,8 +6084,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .get_optional_billing_state(),
         };
 
-        // Raw cards go to /v1/payment_methods (`pm_…`); decrypted wallet credentials go to
-        // /v1/tokens (`tok_…`). See the endpoint split in `stripe.rs`'s `PaymentMethodToken`.
+        // Raw cards go to /v1/payment_methods; decrypted wallet credentials to /v1/tokens.
         let request_payment_data = match &item.router_data.request.payment_method_data {
             PaymentMethodData::Card(card_details) => {
                 StripePaymentMethodData::CardToken(StripeCardToken {
@@ -6140,8 +6130,7 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<StripeTokenResponse, Self>) -> Result<Self, Self::Error> {
         let token = item.response.id.clone().expose();
-        // Same predicate that picked the endpoint in `get_url`, so the kind reported here is the
-        // kind of object Stripe actually minted.
+        // Same predicate that picked the endpoint, so this is the object Stripe actually minted.
         let token_kind =
             if is_decrypted_network_token(&item.router_data.request.payment_method_data) {
                 common_enums::TokenKind::SingleUse
