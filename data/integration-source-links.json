@@ -127,5 +127,25 @@
     "https://docs.ilixium.com/docs/api/api",
     "https://docs.ilixium.com/docs/response-codes/",
     "https://docs.ilixium.com/docs/sandbox/"
+  ],
+  "Payhound": [
+    "https://docs.payhound.com/v1/index",
+    "https://docs.payhound.com/v1/authentication",
+    "https://docs.payhound.com/v1/request_response",
+    "https://docs.payhound.com/v1/invoices/index",
+    "https://docs.payhound.com/v1/invoices/create",
+    "https://docs.payhound.com/v1/invoices/show",
+    "https://docs.payhound.com/v1/invoices/callbacks",
+    "https://docs.payhound.com/v1/callbacks",
+    "https://docs.payhound.com/v1/channels/channels",
+    "https://docs.payhound.com/v1/channels/create",
+    "https://docs.payhound.com/v1/channels/show",
+    "https://docs.payhound.com/v1/channels/show_tx",
+    "https://docs.payhound.com/v1/channels/callbacks",
+    "https://docs.payhound.com/v1/transactions",
+    "https://docs.payhound.com/v1/supported_currencies",
+    "https://docs.payhound.com/v1/quotes",
+    "https://docs.payhound.com/v1/prices",
+    "https://docs.payhound.com/v1/test"
   ]
 }
