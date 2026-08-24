@@ -1092,7 +1092,9 @@ def generate_connector_doc(
                 a("|----------------|:---------:|")
                 for pm_key, pm_label in _PROBE_PM_DISPLAY.items():
                     if pm_key in pm_support:
-                        pm_status = probe_connector.get("flows", {}).get("authorize", {}).get(pm_key, {}).get("status", "unknown")
+                        # Read the status of the flow being rendered. Authorize used to be the only
+                        # payment-method-iterated flow, so this was hardcoded to it.
+                        pm_status = probe_connector.get("flows", {}).get(f, {}).get(pm_key, {}).get("status", "unknown")
                         mark = _status_to_mark(pm_status)
                         a(f"| {pm_label} | {mark} |")
                 a("")
