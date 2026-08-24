@@ -6,12 +6,14 @@ use common_enums::CurrencyUnit;
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, types::MinorUnit};
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, PSync, RSync, Refund, RepeatPayment, ServerAuthenticationToken, Void,
+        Authorize, Capture, PSync, PostAuthenticate, PreAuthenticate, RSync, Refund, RepeatPayment,
+        ServerAuthenticationToken, Void,
     },
     connector_types::{
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, RepeatPaymentData, ServerAuthenticationTokenRequestData,
+        PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsResponseData,
+        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        RepeatPaymentData, ServerAuthenticationTokenRequestData,
         ServerAuthenticationTokenResponseData,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
@@ -34,9 +36,10 @@ use transformers::{
     MonerisCancelRequest, MonerisCaptureResponse, MonerisPaymentsCaptureRequest,
     MonerisPaymentsRequest, MonerisPaymentsResponse as MonerisRepeatPaymentResponse,
     MonerisPaymentsResponse as MonerisPaymentSyncResponse,
-    MonerisPaymentsResponse as MonerisPaymentVoidResponse, MonerisRefundRequest,
-    MonerisRefundResponse, MonerisRefundResponse as MonerisRefundSyncResponse,
-    MonerisRepeatPaymentRequest,
+    MonerisPaymentsResponse as MonerisPaymentVoidResponse, MonerisPostAuthenticateRequest,
+    MonerisPostAuthenticateResponse, MonerisPreAuthenticateRequest, MonerisPreAuthenticateResponse,
+    MonerisRefundRequest, MonerisRefundResponse,
+    MonerisRefundResponse as MonerisRefundSyncResponse, MonerisRepeatPaymentRequest,
 };
 
 use super::macros;
@@ -84,10 +87,41 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentPreAuthenticateV2<T> for Moneris<T>
+{
+}
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentPostAuthenticateV2<T> for Moneris<T>
+{
+}
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Moneris<T>
 {
     fn should_do_access_token(&self, _payment_method: Option<common_enums::PaymentMethod>) -> bool {
         true
+    }
+
+    fn next_authentication_step(
+        &self,
+        auth_type: common_enums::AuthenticationType,
+        payment_method: common_enums::PaymentMethod,
+        _redirect_state: connector_types::RedirectState,
+        completed_step: Option<connector_types::AuthenticationStep>,
+    ) -> connector_types::AuthenticationStep {
+        use connector_types::AuthenticationStep;
+
+        if auth_type == common_enums::AuthenticationType::ThreeDs
+            && matches!(payment_method, common_enums::PaymentMethod::Card)
+        {
+            match completed_step {
+                None => AuthenticationStep::PreAuthenticate,
+                Some(AuthenticationStep::PreAuthenticate) => AuthenticationStep::Authorize,
+                Some(AuthenticationStep::PostAuthenticate) => AuthenticationStep::Authorize,
+                _ => AuthenticationStep::Authorize,
+            }
+        } else {
+            AuthenticationStep::Authorize
+        }
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -184,6 +218,18 @@ macros::create_all_prerequisites!(
             request_body: MonerisPaymentsRequest<T>,
             response_body: MonerisAuthorizeResponse,
             router_data: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: PreAuthenticate,
+            request_body: MonerisPreAuthenticateRequest<T>,
+            response_body: MonerisPreAuthenticateResponse,
+            router_data: RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: PostAuthenticate,
+            request_body: MonerisPostAuthenticateRequest,
+            response_body: MonerisPostAuthenticateResponse,
+            router_data: RouterDataV2<PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>,
         ),
         (
             flow: RepeatPayment,
@@ -699,6 +745,110 @@ macros::macro_connector_implementation!(
     }
 );
 
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Moneris,
+    curl_request: Json(MonerisPreAuthenticateRequest<T>),
+    curl_response: MonerisPreAuthenticateResponse,
+    flow_name: PreAuthenticate,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsPreAuthenticateData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            let access_token = req.resource_common_data
+                .access_token
+                .clone()
+                .ok_or(IntegrationError::FailedToObtainAuthType {
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Ensure the OAuth access token is obtained via the \
+                             ServerAuthenticationToken flow before triggering PreAuthenticate."
+                                .to_string(),
+                        ),
+                        doc_url: None,
+                        additional_context: Some(
+                            "Moneris PreAuthenticate requires an OAuth access token on \
+                             `resource_common_data.access_token`, but it was None."
+                                .to_string(),
+                        ),
+                    },
+                })?;
+            self.build_headers(
+                &access_token.access_token.expose(),
+                &req.connector_config,
+            )
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!(
+                "{}/three-d-secure/authentications",
+                self.connector_base_url_payments(req)
+            ))
+        }
+    }
+);
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Moneris,
+    curl_request: Json(MonerisPostAuthenticateRequest),
+    curl_response: MonerisPostAuthenticateResponse,
+    flow_name: PostAuthenticate,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsPostAuthenticateData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            let access_token = req.resource_common_data
+                .access_token
+                .clone()
+                .ok_or(IntegrationError::FailedToObtainAuthType {
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Ensure the OAuth access token is obtained via the \
+                             ServerAuthenticationToken flow before triggering PostAuthenticate."
+                                .to_string(),
+                        ),
+                        doc_url: None,
+                        additional_context: Some(
+                            "Moneris PostAuthenticate requires an OAuth access token on \
+                             `resource_common_data.access_token`, but it was None."
+                                .to_string(),
+                        ),
+                    },
+                })?;
+            self.build_headers(
+                &access_token.access_token.expose(),
+                &req.connector_config,
+            )
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!(
+                "{}/three-d-secure/authentication-value-lookups",
+                self.connector_base_url_payments(req)
+            ))
+        }
+    }
+);
+
 macros::macro_connector_flow_status_impls!(
     connector: Moneris,
     generic_type: T,
@@ -717,9 +867,7 @@ macros::macro_connector_flow_status_impls!(
         CreateConnectorCustomer,
         GetConnectorCustomer,
         PaymentMethodToken,
-        PreAuthenticate,
         Authenticate,
-        PostAuthenticate,
         ClientAuthenticationToken,
         MandateRevoke,
         VoidPC,
