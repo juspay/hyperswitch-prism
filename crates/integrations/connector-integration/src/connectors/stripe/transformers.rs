@@ -187,20 +187,18 @@ impl From<common_enums::AuthenticationType> for Auth3ds {
     }
 }
 
-/// Whether `payment_method_data` is a decrypted *network token* — a PAN carrying a network
-/// cryptogram. Google Pay `PAN_ONLY` decrypts to a bare PAN and is therefore not one.
+/// Whether the credential can only be tokenized on `/v1/tokens`.
 ///
-/// Picks the tokenization endpoint in `get_url`, and must stay in lockstep with
-/// `composite_service::payment_methods`' `is_wallet_payload_decrypted_network_token`.
-pub fn is_decrypted_network_token<T>(payment_method_data: &PaymentMethodData<T>) -> bool
+/// Apple Pay always can: decrypted it rides on `card[cryptogram]`, encrypted it rides on
+/// `pk_token`, and neither parameter exists on `/v1/payment_methods`. Google Pay only once it has
+/// decrypted to a network token — an encrypted payload is charged inline and never reaches
+/// Tokenize, and a `PAN_ONLY` one decrypts to a bare PAN charged as an ordinary card.
+pub fn needs_tokens_endpoint<T>(payment_method_data: &PaymentMethodData<T>) -> bool
 where
     T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
 {
     match payment_method_data {
-        PaymentMethodData::Wallet(WalletData::ApplePay(apple_pay)) => apple_pay
-            .payment_data
-            .get_decrypted_apple_pay_payment_data_optional()
-            .is_some(),
+        PaymentMethodData::Wallet(WalletData::ApplePay(_)) => true,
         PaymentMethodData::Wallet(WalletData::GooglePay(google_pay)) => matches!(
             &google_pay.tokenization_data,
             payment_method_data::GpayTokenizationData::Decrypted(decrypted)
@@ -698,6 +696,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             Self::Wallet(
                 StripeWallet::ApplePayPredecryptToken(_)
                     | StripeWallet::GooglePayPredecryptToken(_)
+                    | StripeWallet::ApplepayToken(_)
             )
         )
     }
@@ -6131,12 +6130,11 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn try_from(item: ResponseRouterData<StripeTokenResponse, Self>) -> Result<Self, Self::Error> {
         let token = item.response.id.clone().expose();
         // Same predicate that picked the endpoint, so this is the object Stripe actually minted.
-        let token_kind =
-            if is_decrypted_network_token(&item.router_data.request.payment_method_data) {
-                common_enums::TokenKind::SingleUse
-            } else {
-                common_enums::TokenKind::MultiUse
-            };
+        let token_kind = if needs_tokens_endpoint(&item.router_data.request.payment_method_data) {
+            common_enums::TokenKind::SingleUse
+        } else {
+            common_enums::TokenKind::MultiUse
+        };
         Ok(Self {
             response: Ok(PaymentMethodTokenResponse {
                 token,
