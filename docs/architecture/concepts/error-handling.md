@@ -82,27 +82,6 @@ try {
     // Fix the request or configuration — do not retry as-is
 }
 ```
-
-{% endtab %}
-
-{% tab title="PHP" %}
-
-```php
-use HyperswitchPrism\PaymentClient;
-use HyperswitchPrism\Errors\IntegrationError;
-
-try {
-    $response = $client->authorize($request);
-} catch (IntegrationError $e) {
-    echo $e->getErrorCode() . "\n";
-    echo $e->getMessage() . "\n";
-    if ($e->getSuggestedAction()) {
-        echo $e->getSuggestedAction() . "\n";
-    }
-    // Fix the request or configuration — do not retry as-is
-}
-```
-
 {% endtab %}
 
 {% endtabs %}
@@ -190,26 +169,6 @@ try {
 
 {% endtab %}
 
-{% tab title="PHP" %}
-
-```php
-use HyperswitchPrism\Errors\ConnectorError;
-
-try {
-    $response = $client->authorize($request);
-} catch (ConnectorError $e) {
-    echo $e->getErrorCode() . "\n";
-    echo $e->getMessage() . "\n";
-    if ($e->getHttpStatusCode()) {
-        echo $e->getHttpStatusCode() . "\n";
-    }
-    // Payment may have been processed — investigate before retrying
-    throw $e;
-}
-```
-
-{% endtab %}
-
 {% endtabs %}
 
 ---
@@ -290,26 +249,6 @@ try {
     }
     // Do not retry blindly — verify payment status first
     throw e;
-}
-```
-
-{% endtab %}
-
-{% tab title="PHP" %}
-
-```php
-use HyperswitchPrism\Errors\NetworkError;
-
-try {
-    $response = $client->authorize($request);
-} catch (NetworkError $e) {
-    echo $e->getErrorCode() . "\n";
-    echo $e->getMessage() . "\n";
-    if ($e->getStatusCode()) {
-        echo $e->getStatusCode() . "\n";
-    }
-    // Do not retry blindly — verify payment status first
-    throw $e;
 }
 ```
 
@@ -471,43 +410,6 @@ if (response.hasError()) {
 
 {% endtab %}
 
-{% tab title="PHP" %}
-
-```php
-use HyperswitchPrism\PaymentClient;
-
-$response = $client->authorize($request);
-
-if ($response->getError()) {
-    $unified = $response->getError()->getUnifiedDetails();
-    $connector = $response->getError()->getConnectorDetails();
-    $issuer = $response->getError()->getIssuerDetails();
-
-    if ($unified) {
-        echo $unified->getCode() . "\n";
-        echo $unified->getMessage() . "\n";
-
-        if ($unified->getUserGuidanceMessage()) {
-            showErrorToUser($unified->getUserGuidanceMessage());
-        }
-    }
-
-    if ($connector) {
-        echo $connector->getCode() . "\n";
-        echo $connector->getReason() . "\n";
-    }
-
-    if ($issuer && $issuer->getNetworkDetails()) {
-        echo $issuer->getNetworkDetails()->getDeclineCode() . "\n";
-        echo $issuer->getNetworkDetails()->getAdviceCode() . "\n";
-    }
-} else {
-    echo "Authorized: " . $response->getConnectorTransactionId() . "\n";
-}
-```
-
-{% endtab %}
-
 {% endtabs %}
 
 ---
@@ -645,44 +547,6 @@ public PaymentServiceAuthorizeResponse authorizePayment(PaymentClient client, Pa
         // Request may have been sent — do not retry without verifying
         System.err.println("Network error: " + e.getErrorCode() + " " + e.getMessage());
         throw e;
-    }
-}
-```
-
-{% endtab %}
-
-{% tab title="PHP" %}
-
-```php
-use HyperswitchPrism\PaymentClient;
-use HyperswitchPrism\Errors\{IntegrationError, ConnectorError, NetworkError};
-
-function authorizePayment(PaymentClient $client, $request) {
-    try {
-        $response = $client->authorize($request);
-
-        if ($response->getError()) {
-            $unified = $response->getError()->getUnifiedDetails();
-            echo "Payment error: " . $unified->getCode() . " " . $unified->getMessage() . "\n";
-            if ($unified->getUserGuidanceMessage()) {
-                showErrorToUser($unified->getUserGuidanceMessage());
-            }
-            return null;
-        }
-
-        return $response;
-    } catch (IntegrationError $e) {
-        // Request never sent — fix the input or config
-        echo "Integration error: " . $e->getErrorCode() . " " . $e->getErrorMessage() . "\n";
-        throw $e;
-    } catch (ConnectorError $e) {
-        // Payment may have been processed — investigate before retrying
-        echo "Connector error: " . $e->getErrorCode() . " " . $e->getErrorMessage() . "\n";
-        throw $e;
-    } catch (NetworkError $e) {
-        // Request may have been sent — do not retry without verifying
-        echo "Network error: " . $e->getErrorCode() . " " . $e->getMessage() . "\n";
-        throw $e;
     }
 }
 ```
