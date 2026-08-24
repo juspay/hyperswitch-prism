@@ -201,6 +201,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     connector_refund_id: Some(webhook_body.psp_reference.clone()),
                     merchant_refund_id: Some(webhook_body.psp_reference),
                     connector_transaction_id: webhook_body.original_reference,
+                    merchant_transaction_id: None,
                 })
             }
         };
@@ -239,7 +240,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 webhook_body.psp_reference,
             )),
             status,
-            connector_response_reference_id: Some(webhook_body.payment_id),
+            connector_response_reference_id: Some(webhook_body.payment_id.clone()),
+            connector_request_reference_id: Some(webhook_body.payment_id),
             mandate_reference: None,
             error_code,
             error_message,
@@ -455,6 +457,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         with_error_response_body!(event_builder, response);
 
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.code.unwrap_or(NO_ERROR_CODE.to_string()),
@@ -468,6 +472,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     }
 }

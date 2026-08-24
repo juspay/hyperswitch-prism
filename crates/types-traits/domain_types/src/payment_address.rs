@@ -310,8 +310,14 @@ impl AddressDetails {
         )))
     }
 
+    pub fn get_optional_line1(&self) -> Option<Secret<String>> {
+        self.line1.clone()
+    }
     pub fn get_optional_line2(&self) -> Option<Secret<String>> {
         self.line2.clone()
+    }
+    pub fn get_optional_city(&self) -> Option<Secret<String>> {
+        self.city.clone()
     }
     pub fn get_optional_country(&self) -> Option<common_enums::CountryAlpha2> {
         self.country
@@ -435,6 +441,14 @@ pub struct OrderDetailsWithAmount {
     pub total_amount: Option<MinorUnit>,
     /// discount amount on the unit
     pub unit_discount_amount: Option<MinorUnit>,
+    // discount name applied to this item
+    pub discount_name: Option<String>,
+    // discount percentage applied to this item
+    pub discount_percentage: Option<f64>,
+    // Discount type applied to this item
+    pub discount_type: Option<String>,
+    /// The image URL of the product
+    pub product_link: Option<String>,
 }
 
 impl SerializableSecret for OrderDetailsWithAmount {}

@@ -686,7 +686,7 @@
             "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":10.0,\"currency\":\"USD\",\"ipAddress\":\"1.2.3.4\",\"cardData\":{\"cardNumber\":\"{{$card_number}}\",\"cardExpiry\":\"{{$card_exp_month}}{{$card_exp_year}}\",\"cardCVV\":\"{{$card_cvc}}\"},\"invoice\":{\"invoiceNumber\":\"probe_proxy_txn_001\",\"lineItems\":[{\"description\":\"No Description\",\"quantity\":1,\"price\":10.0,\"total\":10.0}]},\"billingAddress\":{\"name\":\"John\",\"street1\":\"123 Main St\",\"postalCode\":\"98101\"}}"
+          "body": "{\"amount\":10.0,\"currency\":\"USD\",\"ipAddress\":\"1.2.3.4\",\"cardData\":{\"cardNumber\":\"{{$card_number}}\",\"cardExpiry\":\"0330\",\"cardCVV\":\"{{$card_cvc}}\"},\"invoice\":{\"invoiceNumber\":\"probe_proxy_txn_001\",\"lineItems\":[{\"description\":\"No Description\",\"quantity\":1,\"price\":10.0,\"total\":10.0}]},\"billingAddress\":{\"name\":\"John\",\"street1\":\"123 Main St\",\"postalCode\":\"98101\"}}"
         }
       }
     },
@@ -706,6 +706,11 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: mandate_revoke flow for helcim"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "refund": {

@@ -78,7 +78,8 @@ where
                 &card.card_holder_name,
                 billing_address.and_then(|b| b.address.first_name.clone()),
                 billing_address.and_then(|b| b.address.last_name.clone()),
-            );
+            )
+            .map(crate::utils::normalize_cardholder_name);
 
             let card_data = requests::WorldpayxmlCard {
                 card_number: Secret::new(card.card_number.peek().to_string()),
@@ -154,6 +155,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .address
             .get_payment_billing()
             .and_then(|billing| {
+                let telephone_number = billing.phone.as_ref().and_then(|phone| {
+                    phone
+                        .get_number_with_country_code()
+                        .or_else(|_| phone.get_number())
+                        .ok()
+                });
                 billing
                     .address
                     .as_ref()
@@ -168,6 +175,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             city: addr.city.clone().map(|c| c.expose()),
                             state: addr.state.clone(),
                             country_code: addr.country,
+                            telephone_number,
                         },
                     })
             });
@@ -576,6 +584,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..router_data.clone()
             });
@@ -603,6 +615,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..router_data.clone()
             });
@@ -681,6 +697,10 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlCaptureResponse, Self>>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..router_data.clone()
             });
@@ -750,6 +770,10 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlVoidResponse, Self>>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..router_data.clone()
             });
@@ -824,6 +848,10 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>
                             network_decline_code: None,
                             network_advice_code: None,
                             network_error_message: None,
+                            typed_connector_response: None,
+                            raw_connector_response: None,
+                            raw_connector_request: None,
+                            typed_connector_request: None,
                         }),
                         ..router_data.clone()
                     });
@@ -881,6 +909,10 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>
                             network_decline_code: None,
                             network_advice_code: None,
                             network_error_message: None,
+                            typed_connector_response: None,
+                            raw_connector_response: None,
+                            raw_connector_request: None,
+                            typed_connector_request: None,
                         }),
                         ..router_data.clone()
                     });
@@ -1017,6 +1049,10 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlRefundResponse, Self>>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..router_data.clone()
             });
@@ -1037,6 +1073,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlRefundResponse, Self>>
             connector_refund_id: refund_received.order_code.clone(),
             refund_status: RefundStatus::Pending,
             status_code: item.http_code,
+            acquirer_reference_number: None,
         };
 
         Ok(Self {
@@ -1091,6 +1128,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlRsyncResponse, Self>>
                             connector_refund_id: order_status.order_code.clone(),
                             refund_status: RefundStatus::Pending,
                             status_code: item.http_code,
+                            acquirer_reference_number: None,
                         };
 
                         return Ok(Self {
@@ -1124,6 +1162,10 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlRsyncResponse, Self>>
                                 network_decline_code: None,
                                 network_advice_code: None,
                                 network_error_message: None,
+                                typed_connector_response: None,
+                                raw_connector_response: None,
+                                raw_connector_request: None,
+                                typed_connector_request: None,
                             }),
                             ..router_data.clone()
                         });
@@ -1135,6 +1177,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlRsyncResponse, Self>>
                     connector_refund_id: order_status.order_code.clone(),
                     refund_status,
                     status_code: item.http_code,
+                    acquirer_reference_number: None,
                 };
 
                 Ok(Self {
@@ -1170,6 +1213,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlRsyncResponse, Self>>
                     connector_refund_id: order_code,
                     refund_status,
                     status_code: item.http_code,
+                    acquirer_reference_number: None,
                 };
 
                 Ok(Self {

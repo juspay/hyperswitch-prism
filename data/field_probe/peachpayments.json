@@ -693,7 +693,7 @@
             "x-exi-auth-ver": "v1",
             "x-tenant-id": "probe_secret"
           },
-          "body": "{\"paymentMethod\":\"ecommerce_card_payment_only\",\"referenceId\":\"probe_proxy_txn_001\",\"ecommerceCardPaymentOnlyTransactionData\":{\"merchantInformation\":{\"clientMerchantReferenceId\":\"probe_merchant_ref_001\"},\"routing\":{\"route\":\"probe_route_001\"},\"card\":{\"pan\":\"{{$card_number}}\",\"cardholderName\":\"John Doe\",\"expiryYear\":\"{{$card_exp_year}}\",\"expiryMonth\":\"{{$card_exp_month}}\",\"cvv\":\"{{$card_cvc}}\"},\"amount\":{\"amount\":1000,\"currencyCode\":\"USD\"}},\"sendDateTime\":\"2020-01-01T00:00:00+00:00\"}"
+          "body": "{\"paymentMethod\":\"ecommerce_card_payment_only\",\"referenceId\":\"probe_proxy_txn_001\",\"ecommerceCardPaymentOnlyTransactionData\":{\"merchantInformation\":{\"clientMerchantReferenceId\":\"probe_merchant_ref_001\"},\"routing\":{\"route\":\"probe_route_001\"},\"card\":{\"pan\":\"{{$card_number}}\",\"cardholderName\":\"John Doe\",\"expiryYear\":\"30\",\"expiryMonth\":\"03\",\"cvv\":\"{{$card_cvc}}\"},\"amount\":{\"amount\":1000,\"currencyCode\":\"USD\"}},\"sendDateTime\":\"2020-01-01T00:00:00+00:00\"}"
         }
       }
     },
@@ -734,7 +734,7 @@
             "x-exi-auth-ver": "v1",
             "x-tenant-id": "probe_secret"
           },
-          "body": "{\"paymentMethod\":\"ecommerce_card_payment_only\",\"referenceId\":\"probe_proxy_mandate_001\",\"ecommerceCardPaymentOnlyTransactionData\":{\"merchantInformation\":{\"clientMerchantReferenceId\":\"probe_merchant_ref_001\"},\"routing\":{\"route\":\"probe_route_001\"},\"card\":{\"pan\":\"{{$card_number}}\",\"cardholderName\":\"John Doe\",\"expiryYear\":\"{{$card_exp_year}}\",\"expiryMonth\":\"{{$card_exp_month}}\",\"cvv\":\"{{$card_cvc}}\"},\"amount\":{\"amount\":0,\"currencyCode\":\"USD\"},\"cofData\":{\"type\":\"recurring\",\"source\":\"cit\",\"mode\":\"initial\"}},\"sendDateTime\":\"2020-01-01T00:00:00+00:00\"}"
+          "body": "{\"paymentMethod\":\"ecommerce_card_payment_only\",\"referenceId\":\"probe_proxy_mandate_001\",\"ecommerceCardPaymentOnlyTransactionData\":{\"merchantInformation\":{\"clientMerchantReferenceId\":\"probe_merchant_ref_001\"},\"routing\":{\"route\":\"probe_route_001\"},\"card\":{\"pan\":\"{{$card_number}}\",\"cardholderName\":\"John Doe\",\"expiryYear\":\"30\",\"expiryMonth\":\"03\",\"cvv\":\"{{$card_cvc}}\"},\"amount\":{\"amount\":0,\"currencyCode\":\"USD\"},\"cofData\":{\"type\":\"recurring\",\"source\":\"cit\",\"mode\":\"initial\"}},\"sendDateTime\":\"2020-01-01T00:00:00+00:00\"}"
         }
       }
     },
@@ -748,6 +748,11 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: mandate_revoke flow for peachpayments"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "refund": {

@@ -466,7 +466,8 @@
           "headers": {
             "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
             "content-type": "application/json",
-            "via": "HyperSwitch"
+            "via": "HyperSwitch",
+            "x-finix-referrer-source": "PLUGIN_HYPERSWITCH"
           },
           "body": "{\"capture_amount\":1000}"
         }
@@ -511,7 +512,8 @@
           "headers": {
             "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
             "content-type": "application/json",
-            "via": "HyperSwitch"
+            "via": "HyperSwitch",
+            "x-finix-referrer-source": "PLUGIN_HYPERSWITCH"
           },
           "body": "{\"entity\":{\"phone\":null,\"first_name\":null,\"last_name\":null,\"email\":null,\"personal_address\":null},\"tags\":null,\"type\":\"PERSONAL\"}"
         }
@@ -569,7 +571,8 @@
           "headers": {
             "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
             "content-type": "application/json",
-            "via": "HyperSwitch"
+            "via": "HyperSwitch",
+            "x-finix-referrer-source": "PLUGIN_HYPERSWITCH"
           },
           "body": null
         }
@@ -645,8 +648,45 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: connector_customer_id. Finix requires an identity — Missing required field: connector_customer_id. Finix requires an identity (connector customer) to create a payment instrument. The identity ID (ID...) must be provided in the 'identity' field."
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_proxy_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "customer": {
+            "connector_customer_id": "probe_customer_001"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
+          "auth_type": "NO_THREE_DS",
+          "setup_future_usage": "OFF_SESSION"
+        },
+        "sample": {
+          "url": "https://finix.sandbox-payments-api.com/payment_instruments",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-finix-referrer-source": "PLUGIN_HYPERSWITCH"
+          },
+          "body": "{\"type\":\"PAYMENT_CARD\",\"name\":\"John Doe\",\"number\":\"{{$card_number}}\",\"security_code\":\"{{$card_cvc}}\",\"expiration_month\":3,\"expiration_year\":2030,\"identity\":\"probe_customer_001\",\"tags\":{\"merchant_reference\":\"probe_proxy_mandate_001\"},\"address\":{\"line1\":null,\"line2\":null,\"city\":null,\"region\":null,\"postal_code\":null,\"country\":null},\"card_brand\":null,\"card_type\":null,\"additional_data\":null,\"merchant_identity\":null,\"third_party_token\":null}"
+        }
       }
     },
     "recurring_charge": {
@@ -680,9 +720,10 @@
           "headers": {
             "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
             "content-type": "application/json",
-            "via": "HyperSwitch"
+            "via": "HyperSwitch",
+            "x-finix-referrer-source": "PLUGIN_HYPERSWITCH"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"source\":\"probe-mandate-123\",\"merchant\":\"probe_merchant\",\"idempotency_id\":\"\",\"tags\":{\"merchant_reference\":\"\"}}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"source\":\"probe-mandate-123\",\"merchant\":\"probe_merchant\",\"tags\":null,\"fraud_session_id\":null,\"3d_secure_authentication\":null,\"idempotency_id\":\"\",\"statement_descriptor\":null}"
         }
       }
     },
@@ -690,6 +731,11 @@
       "default": {
         "status": "not_supported",
         "error": "mandate_revoke flow not supported by finix connector"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "refund": {
@@ -745,8 +791,49 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: connector_customer_id. Finix requires an identity — Missing required field: connector_customer_id. Finix requires an identity (connector customer) to create a payment instrument. The identity ID (ID...) must be provided in the 'identity' field."
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "customer": {
+            "connector_customer_id": "cust_probe_123"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/mandate-return",
+          "setup_future_usage": "OFF_SESSION",
+          "request_incremental_authorization": false,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          }
+        },
+        "sample": {
+          "url": "https://finix.sandbox-payments-api.com/payment_instruments",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-finix-referrer-source": "PLUGIN_HYPERSWITCH"
+          },
+          "body": "{\"type\":\"PAYMENT_CARD\",\"name\":\"John Doe\",\"number\":\"4111111111111111\",\"security_code\":\"737\",\"expiration_month\":3,\"expiration_year\":2030,\"identity\":\"cust_probe_123\",\"tags\":{\"merchant_reference\":\"probe_mandate_001\"},\"address\":{\"line1\":null,\"line2\":null,\"city\":null,\"region\":null,\"postal_code\":null,\"country\":null},\"card_brand\":null,\"card_type\":null,\"additional_data\":null,\"merchant_identity\":null,\"third_party_token\":null}"
+        }
       }
     },
     "token_authorize": {
@@ -771,9 +858,10 @@
           "headers": {
             "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
             "content-type": "application/json",
-            "via": "HyperSwitch"
+            "via": "HyperSwitch",
+            "x-finix-referrer-source": "PLUGIN_HYPERSWITCH"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"source\":\"pm_1AbcXyzStripeTestToken\",\"merchant\":\"probe_merchant\",\"idempotency_id\":\"probe_tokenized_txn_001\"}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"source\":\"pm_1AbcXyzStripeTestToken\",\"merchant\":\"probe_merchant\",\"tags\":null,\"fraud_session_id\":null,\"3d_secure_authentication\":null,\"idempotency_id\":\"probe_tokenized_txn_001\",\"statement_descriptor\":null}"
         }
       }
     },
@@ -807,7 +895,8 @@
           "headers": {
             "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
             "content-type": "application/json",
-            "via": "HyperSwitch"
+            "via": "HyperSwitch",
+            "x-finix-referrer-source": "PLUGIN_HYPERSWITCH"
           },
           "body": "{\"void_me\":true}"
         }

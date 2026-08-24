@@ -175,6 +175,7 @@ fn wallet_data_label(wallet_data: &WalletData) -> &'static str {
         WalletData::ApplePayRedirect(_) => "apple_pay_redirect",
         WalletData::ApplePayThirdPartySdk(_) => "apple_pay_third_party_sdk",
         WalletData::DanaRedirect {} => "dana_redirect",
+        WalletData::GrabpayRedirect {} => "grabpay_redirect",
         WalletData::GooglePay(_) => "google_pay",
         WalletData::GooglePayRedirect(_) => "google_pay_redirect",
         WalletData::GooglePayThirdPartySdk(_) => "google_pay_third_party_sdk",
@@ -204,6 +205,7 @@ fn wallet_data_label(wallet_data: &WalletData) -> &'static str {
         WalletData::EaseBuzzRedirect(_) => "easebuzz_redirect",
         WalletData::QwikcilverWalletDirect(_) => "qwikcilver_wallet_direct",
         WalletData::Skrill(_) => "skrill",
+        WalletData::PaymayaRedirect(_) => "paymaya_redirect",
     }
 }
 
@@ -269,7 +271,10 @@ fn get_barclaycard_card_type(card_network: common_enums::CardNetwork) -> Option<
         | common_enums::CardNetwork::Star
         | common_enums::CardNetwork::Accel
         | common_enums::CardNetwork::Pulse
-        | common_enums::CardNetwork::Nyce => None,
+        | common_enums::CardNetwork::Nyce
+        | common_enums::CardNetwork::Prop
+        | common_enums::CardNetwork::PrivateLabel
+        | common_enums::CardNetwork::Dinacard => None,
     }
 }
 
@@ -547,6 +552,10 @@ fn transform_payment_response<F, Req>(
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 resource_common_data: PaymentFlowData {
                     status: common_enums::AttemptStatus::Failure,
@@ -619,6 +628,10 @@ fn get_error_response(
         network_advice_code,
         network_decline_code,
         network_error_message: None,
+        typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
     }
 }
 
@@ -1228,6 +1241,7 @@ impl TryFrom<ResponseRouterData<responses::BarclaycardRefundResponse, Self>>
                 connector_refund_id: item.response.id,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             })
         };
 
@@ -1289,6 +1303,7 @@ impl TryFrom<ResponseRouterData<responses::BarclaycardRsyncResponse, Self>>
                         connector_refund_id: item.response.id,
                         refund_status,
                         status_code: item.http_code,
+                        acquirer_reference_number: None,
                     })
                 }
             }
@@ -1299,6 +1314,7 @@ impl TryFrom<ResponseRouterData<responses::BarclaycardRsyncResponse, Self>>
                     Err(_) => common_enums::RefundStatus::Pending,
                 },
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
         };
 
@@ -1545,6 +1561,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     }),
                     resource_common_data: PaymentFlowData {
                         status: common_enums::AttemptStatus::Failure,
@@ -1859,6 +1879,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     }),
                     resource_common_data: PaymentFlowData {
                         status: common_enums::AttemptStatus::Failure,
@@ -2077,6 +2101,10 @@ fn build_auth_error_response(
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
+        typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
     }
 }
 

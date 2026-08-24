@@ -28,6 +28,7 @@ pub struct MetadataPayload {
     pub tenant_id: String,
     pub request_id: String,
     pub merchant_id: String,
+    pub org_id: String,
     pub connector: connector_types::ConnectorVariant,
     pub lineage_ids: LineageIds<'static>,
     /// Typed connector integration config extracted from request metadata.
@@ -56,6 +57,7 @@ pub fn get_metadata_payload(
     let (connector, connector_config) = connector_and_config_from_metadata(metadata)?;
 
     let merchant_id = merchant_id_from_metadata(metadata)?;
+    let org_id = org_id_from_metadata(metadata);
     let tenant_id = tenant_id_from_metadata(metadata)?;
     let request_id = request_id_from_metadata(metadata)?;
     let lineage_ids = extract_lineage_fields_from_metadata(metadata, &server_config.lineage);
@@ -69,6 +71,7 @@ pub fn get_metadata_payload(
         tenant_id,
         request_id,
         merchant_id,
+        org_id,
         connector,
         lineage_ids,
         connector_config,
@@ -207,6 +210,28 @@ pub fn connector_variant_from_metadata(
                 })
             })?;
         Ok(connector_types::ConnectorVariant::Frm(connector))
+    } else if let Some(value) = metadata.get(consts::X_AUTHENTICATOR_CONNECTOR_NAME) {
+        // Priority 5: Check x-auth-connector header
+        let connector_str = value.to_str().map_err(|e| {
+            Report::new(IntegrationError::InvalidDataFormat {
+                field_name: "x-auth-connector",
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!("Invalid x-auth-connector header value: {e}")),
+                    ..Default::default()
+                },
+            })
+        })?;
+        let connector = connector_types::AuthenticatorConnectorEnum::from_str(connector_str)
+            .map_err(|e| {
+                Report::new(IntegrationError::InvalidDataFormat {
+                    field_name: "x-auth-connector",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(format!("Invalid authenticator connector: {e}")),
+                        ..Default::default()
+                    },
+                })
+            })?;
+        Ok(connector_types::ConnectorVariant::Authenticator(connector))
     } else {
         // Neither header found
         Err(Report::new(IntegrationError::MissingRequiredField {
@@ -239,6 +264,14 @@ pub fn merchant_id_from_metadata(
             .get(consts::X_MERCHANT_ID)
             .and_then(|value| value.to_str().ok()),
     ))
+}
+
+pub fn org_id_from_metadata(metadata: &metadata::MetadataMap) -> String {
+    metadata
+        .get(consts::X_ORG_ID)
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or_default()
+        .to_string()
 }
 
 pub fn request_id_from_metadata(

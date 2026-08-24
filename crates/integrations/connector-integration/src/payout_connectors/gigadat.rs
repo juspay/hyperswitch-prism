@@ -15,14 +15,8 @@ use common_utils::{
     FloatMajorUnit,
 };
 use domain_types::{
-    connector_flow::{
-        PayoutCreate, PayoutGet, PayoutStage, PayoutTransfer, ServerAuthenticationToken,
-    },
-    connector_types::{
-        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
-    },
+    connector_flow::{PayoutCreate, PayoutGet, PayoutStage, PayoutTransfer},
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
-    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
     payouts::payouts_types::{
         PayoutCreateRequest, PayoutCreateResponse, PayoutFlowData, PayoutGetRequest,
@@ -41,13 +35,12 @@ use interfaces::{
     connector_integration_v2::ConnectorIntegrationV2,
     connector_types::{
         PayoutCreateV2, PayoutGetV2, PayoutServiceTrait, PayoutStageV2, PayoutTransferV2,
-        ServerAuthentication,
     },
 };
 use serde::Serialize;
 use transformers::{
-    self as gigadat, GigadatPayoutCreateResponse, GigadatPayoutMeta, GigadatPayoutStageRequest,
-    GigadatPayoutStageResponse, GigadatPayoutSyncResponse, GigadatPayoutTransferResponse,
+    self as gigadat, GigadatPayoutCreateResponse, GigadatPayoutGetResponse, GigadatPayoutMeta,
+    GigadatPayoutStageRequest, GigadatPayoutStageResponse, GigadatPayoutTransferResponse,
 };
 
 // ===== PAYOUT UTILITY FUNCTIONS =====
@@ -184,7 +177,7 @@ macros::create_all_prerequisites!(
         ),
         (
             flow: PayoutGet,
-            response_body: GigadatPayoutSyncResponse,
+            response_body: GigadatPayoutGetResponse,
             router_data: RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
         ),
         (
@@ -255,36 +248,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Payo
 }
 
 // ===== SERVER AUTHENTICATION (not implemented) =====
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ServerAuthentication
-    for GigadatPayouts<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        ServerAuthenticationToken,
-        MerchantAuthenticationFlowData,
-        ServerAuthenticationTokenRequestData,
-        ServerAuthenticationTokenResponseData,
-    > for GigadatPayouts<T>
-{
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            ServerAuthenticationToken,
-            MerchantAuthenticationFlowData,
-            ServerAuthenticationTokenRequestData,
-            ServerAuthenticationTokenResponseData,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(IntegrationError::connector_flow_not_implemented(
-            ConnectorCommon::id(self),
-            "server_authentication_token",
-            IntegrationErrorContext::default(),
-        )
-        .into())
-    }
-}
+macros::macro_connector_flow_status_impls!(
+    connector: GigadatPayouts,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    not_implemented: [ServerAuthenticationToken]
+);
 
 // ===== PAYOUT STUB FLOWS =====
 macros::macro_connector_payout_implementation!(
@@ -295,7 +264,8 @@ macros::macro_connector_payout_implementation!(
         PayoutVoid,
         PayoutCreateLink,
         PayoutCreateRecipient,
-        PayoutEnrollDisburseAccount
+        PayoutEnrollDisburseAccount,
+        PayoutEligibility
     ]
 );
 
@@ -351,7 +321,7 @@ macros::macro_connector_implementation!(
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: GigadatPayouts,
-    curl_response: GigadatPayoutSyncResponse,
+    curl_response: GigadatPayoutGetResponse,
     flow_name: PayoutGet,
     resource_common_data: PayoutFlowData,
     flow_request: PayoutGetRequest,
@@ -567,6 +537,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: macros::serialize_typed_connector_payload(
+                &response,
+                "typed_connector_response",
+            ),
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     }
 }

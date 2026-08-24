@@ -4,10 +4,15 @@ pub use ucs_interface_common::config::*;
 pub use ucs_interface_common::flow::*;
 pub use ucs_interface_common::metadata::*;
 
+#[cfg(feature = "log-transformations")]
+use common_utils::events::apply_log_fields;
 use common_utils::{
     consts::{self, Env},
     errors::CustomResult,
-    events::{Event, EventStage, FlowName, MaskedSerdeValue},
+    events::{
+        record_json_fields_on_span, CompiledLogFields, Event, EventStage, FlowName,
+        MaskedSerdeValue,
+    },
     lineage::LineageIds,
     superposition_config::{get_connector_urls, ConnectorUrls, SuperpositionConfig},
     types::ExecutionMode,
@@ -36,6 +41,9 @@ pub fn record_fields_from_header<B: hyper::body::Body>(request: &Request<B>) -> 
         "request",
         uri = %url_path,
         version = ?request.version(),
+        // `action` = the real HTTP verb (GET/POST/…). gRPC-over-HTTP2 is always POST;
+        // the HTTP gateway carries the true verb.
+        action = %request.method(),
         tenant_id = tracing::field::Empty,
         request_id = tracing::field::Empty,
         execution_mode = tracing::field::Empty,
@@ -79,20 +87,28 @@ pub fn validate_environment(environment: &str) -> Result<Env, String> {
     })
 }
 
-/// Resolves connector configuration with optional superposition URL patching.
+/// Resolves the effective [`Connectors`] for a request, applying all overrides in priority order:
 ///
-/// This function handles the complete flow for connector configuration:
-/// 1. If environment header is provided, validate and try to resolve URLs from superposition
-/// 2. If URLs are resolved, patch the connector config with them
-/// 3. Apply connector-specific config overrides
-/// 4. Fall back to static config if no environment or superposition resolution fails
-pub fn get_resolved_connectors(
+/// 1. **Superposition** — if `x-environment` is set, resolve URLs from the superposition config
+///    (dynamic, per-environment) for all connector variants (payment, payout, FRM, surcharge).
+/// 2. **Caller config override** — apply any `base_url` / URL fields set in `connector_config`
+///    (e.g. from the `x-connector-config` header) on top of whatever came from step 1.
+/// 3. **Static fallback** — if no environment is provided, superposition is unconfigured, or
+///    resolution fails, use the static TOML config as the base.
+///
+/// This is the **single entry point** for connector URL resolution. All flows must call this
+/// instead of `connectors_with_connector_config_overrides` directly so that both override
+/// sources are always applied consistently.
+pub fn apply_url_overrides(
     config: &configs::Config,
-    connector: &connector_types::ConnectorEnum,
+    connector: &connector_types::ConnectorVariant,
     connector_config: &ConnectorSpecificConfig,
     environment: Option<&str>,
 ) -> CustomResult<domain_types::types::Connectors, IntegrationError> {
     use domain_types::errors::IntegrationErrorContext;
+
+    let connector_name = connector.get_connector_name();
+
     match environment {
         Some(env) => {
             validate_environment(env).map_err(|e| {
@@ -107,21 +123,35 @@ pub fn get_resolved_connectors(
 
             match resolve_connector_urls(
                 config.superposition_config.as_ref().map(|arc| arc.as_ref()),
-                connector,
+                &connector_name,
                 env,
             ) {
                 Some(urls) => {
                     tracing::info!("resolved URLs from superposition for environment: {}", env);
-                    let patched_connectors = config
-                        .connectors
-                        .patch_connector_urls(connector, &urls)
-                        .map_err(|e| {
-                            Report::new(IntegrationError::ConfigurationError {
-                                code: "URL_PATCHING_FAILED".to_string(),
-                                message: format!("URL patching failed: {e}"),
-                                context: IntegrationErrorContext::default(),
-                            })
-                        })?;
+                    let patch_result = match connector {
+                        connector_types::ConnectorVariant::Payment(c) => {
+                            config.connectors.patch_connector_urls(c, &urls)
+                        }
+                        connector_types::ConnectorVariant::Payout(c) => {
+                            config.connectors.patch_payout_connector_urls(c, &urls)
+                        }
+                        connector_types::ConnectorVariant::Frm(c) => {
+                            config.connectors.patch_frm_connector_urls(c, &urls)
+                        }
+                        connector_types::ConnectorVariant::Surcharge(c) => {
+                            config.connectors.patch_surcharge_connector_urls(c, &urls)
+                        }
+                        connector_types::ConnectorVariant::Authenticator(c) => config
+                            .connectors
+                            .patch_authenticator_connector_urls(c, &urls),
+                    };
+                    let patched_connectors = patch_result.map_err(|e| {
+                        Report::new(IntegrationError::ConfigurationError {
+                            code: "URL_PATCHING_FAILED".to_string(),
+                            message: format!("URL patching failed: {e}"),
+                            context: IntegrationErrorContext::default(),
+                        })
+                    })?;
                     connectors_with_connector_config_overrides_on_connectors(
                         connector_config,
                         patched_connectors,
@@ -149,7 +179,7 @@ pub fn get_resolved_connectors(
 ///
 /// # Arguments
 /// * `superposition_config` - Optional reference to the loaded superposition configuration
-/// * `connector` - The connector enum (e.g., "stripe", "adyen")
+/// * `connector_name` - The connector name string (e.g., "stripe", "adyen")
 /// * `environment` - The environment dimension (must be one of: "production", "sandbox", "development")
 ///
 /// # Returns
@@ -173,19 +203,19 @@ pub fn get_resolved_connectors(
 ///
 /// let urls = resolve_connector_urls(
 ///     config.superposition_config.as_ref(),
-///     &metadata_payload.connector,
+///     &connector.get_connector_name(),
 ///     environment,
 /// );
 /// ```
 pub fn resolve_connector_urls(
     superposition_config: Option<&SuperpositionConfig>,
-    connector: &connector_types::ConnectorEnum,
+    connector_name: &str,
     environment: &str,
 ) -> Option<ConnectorUrls> {
     let config = superposition_config?;
 
     let environment_lower = environment.to_lowercase();
-    let connector_str = connector.to_string().to_lowercase();
+    let connector_str = connector_name.to_lowercase();
 
     match config.resolve(&connector_str, &environment_lower) {
         Ok(resolved) => {
@@ -249,16 +279,19 @@ where
         ..
     } = metadata_payload;
     let current_span = tracing::Span::current();
-    let req_body_json = match hyperswitch_masking::masked_serialize(&request_data.payload) {
-        Ok(masked_value) => masked_value.to_string(),
-        Err(e) => {
-            tracing::error!("Masked serialization error: {:?}", e);
-            "<masked serialization error>".to_string()
-        }
-    };
+    let masked_body = hyperswitch_masking::masked_serialize(&request_data.payload)
+        .map_err(|e| tracing::error!("Masked serialization error: {:?}", e))
+        .ok();
     let connector_name = connector.get_connector_name();
     current_span.record("service_name", service_name);
-    current_span.record("request_body", req_body_json);
+    match masked_body.as_ref() {
+        Some(masked_value) => {
+            record_json_fields_on_span(vec![("request_body", masked_value.clone())]);
+        }
+        None => {
+            current_span.record("request_body", "<masked serialization error>");
+        }
+    };
     current_span.record("gateway", connector_name);
     current_span.record("merchant_id", merchant_id);
     current_span.record("tenant_id", tenant_id);
@@ -267,17 +300,32 @@ where
     Ok(())
 }
 
-pub fn log_after_initialization<T>(result: &Result<tonic::Response<T>, tonic::Status>)
-where
+pub fn log_after_initialization<T>(
+    result: &Result<tonic::Response<T>, tonic::Status>,
+    log_fields_enabled: bool,
+    log_fields: &CompiledLogFields,
+) where
     T: serde::Serialize + std::fmt::Debug,
 {
     let current_span = tracing::Span::current();
 
     match &result {
         Ok(response) => {
-            current_span.record("response_body", tracing::field::debug(response.get_ref()));
+            // Additive numeric `res_code` (success). `status_code` is left untouched so
+            // existing consumers of the gRPC-code field don't break.
+            record_json_fields_on_span(vec![("res_code", Value::from(200_i64))]);
 
             let res_ref = response.get_ref();
+
+            // Record response_body as structured JSON with masking
+            match hyperswitch_masking::masked_serialize(res_ref) {
+                Ok(masked_value) => {
+                    record_json_fields_on_span(vec![("response_body", masked_value.clone())]);
+                }
+                Err(_) => {
+                    current_span.record("response_body", tracing::field::debug(res_ref));
+                }
+            }
 
             // Try converting to JSON Value
             if let Ok(Value::Object(map)) = serde_json::to_value(res_ref) {
@@ -301,10 +349,34 @@ where
         }
         Err(status) => {
             current_span.record("error_message", status.message());
+            // Backward-compatible: keep main's gRPC code-name string on `status_code`.
             current_span.record("status_code", status.code().to_string());
+            // Additive numeric `res_code`: connector-aware HTTP status (e.g. 422) — matches the
+            // HTTP response the caller receives, not the coarse gRPC code.
+            let http_status = crate::http::error::http_status_for_status(status).as_u16();
+            record_json_fields_on_span(vec![("res_code", Value::from(i64::from(http_status)))]);
         }
     }
+    // Apply unified log fields (transformations + static values) before emitting the golden log line
+    #[cfg(feature = "log-transformations")]
+    if log_fields_enabled {
+        apply_log_fields(log_fields);
+    }
+    #[cfg(not(feature = "log-transformations"))]
+    {
+        let _ = log_fields;
+        let _ = log_fields_enabled;
+    }
     tracing::info!("Golden Log Line (incoming - response)");
+}
+
+/// Record the additive numeric `latency_ms` on the current span. Shared by the streaming and
+/// non-streaming logging wrappers to avoid drift.
+fn record_latency_ms(duration: u128) {
+    record_json_fields_on_span(vec![(
+        "latency_ms",
+        Value::from(u64::try_from(duration).unwrap_or_default()),
+    )]);
 }
 
 /// Generic gRPC logging wrapper that accepts a custom parser function.
@@ -349,12 +421,18 @@ where
 
         let duration = start_time.elapsed().as_millis();
         current_span.record("response_time", duration);
+        // Additive numeric latency alongside the existing `response_time`.
+        record_latency_ms(duration);
         result
     }
     .await;
 
     let grpc_response = handler_result.into_grpc_status();
-    log_after_initialization(&grpc_response);
+    log_after_initialization(
+        &grpc_response,
+        config.log_fields.enabled,
+        &config.log_fields.incoming,
+    );
 
     #[cfg(feature = "otel")]
     observe_internal_latency(
@@ -413,12 +491,18 @@ where
 
         let duration = start_time.elapsed().as_millis();
         current_span.record("response_time", duration);
+        // Additive numeric latency alongside the existing `response_time`.
+        record_latency_ms(duration);
         result
     }
     .await;
 
     let grpc_response = handler_result.into_grpc_status();
-    log_after_initialization(&grpc_response);
+    log_after_initialization(
+        &grpc_response,
+        config.log_fields.enabled,
+        &config.log_fields.incoming,
+    );
 
     #[cfg(feature = "otel")]
     observe_internal_latency(
@@ -503,6 +587,7 @@ fn create_and_emit_grpc_event<R>(
         additional_fields: HashMap::new(),
         lineage_ids: metadata_payload
             .map_or_else(|| LineageIds::empty(""), |md| md.lineage_ids.clone()),
+        runtime_metadata: config.runtime_metadata.clone(),
     };
 
     grpc_event
@@ -636,16 +721,14 @@ macro_rules! implement_connector_operation {
                 None => None,
             };
 
-            // Apply merchant-supplied per-request connector config overrides
-            // (e.g. base_url) before building common_flow_data. Without this,
-            // the macro would silently drop the override and downstream
-            // connector calls would hit the TOML default host — creating a
-            // split-brain where different flows in the same composite payment
-            // talk to different environments (sandbox vs prod).
+            // Resolve effective connector URLs — applies superposition (x-environment) first,
+            // then any caller-supplied base_url override from x-connector-config on top.
             let overridden_connectors =
-                ucs_interface_common::config::connectors_with_connector_config_overrides(
-                    &connector_config,
+                $crate::utils::apply_url_overrides(
                     &config,
+                    &metadata_payload.connector,
+                    &connector_config,
+                    metadata_payload.environment.as_deref(),
                 )
                 .to_grpc_error()?;
 
@@ -678,6 +761,7 @@ macro_rules! implement_connector_operation {
                 service_type: $crate::utils::service_type_str(&config.server.type_),
                 flow_name,
                 event_config: &config.events,
+                runtime_metadata: &config.runtime_metadata,
                 request_id: &request_id,
                 lineage_ids: &metadata_payload.lineage_ids,
                 reference_id: &metadata_payload.reference_id,
@@ -686,8 +770,11 @@ macro_rules! implement_connector_operation {
                 proxy_name: metadata_payload.proxy_name.as_deref(),
                 tenant_id: &metadata_payload.tenant_id,
                 merchant_id: metadata_payload.merchant_id.as_str(),
+                org_id: metadata_payload.org_id.as_str(),
                 return_raw_connector_data: config.common.return_raw_connector_data,
                 connector_latency: metadata_payload.connector_latency.clone(),
+                log_fields_enabled: config.log_fields.enabled,
+                log_fields: &config.log_fields.outgoing,
             };
 
             // The connector round-trip is identical for both holders → written once,
@@ -756,16 +843,18 @@ macro_rules! implement_connector_operation {
                 };
 
                 let call_connector_action = connector_integration.get_call_connector_action();
-                let response_result = external_services::service::execute_connector_processing_step(
-                    proxy,
-                    connector_integration,
-                    router_data,
-                    all_keys_required,
-                    event_params,
-                    token_data,
-                    call_connector_action,
-                    test_context,
-                    api_tag,
+                let response_result = Box::pin(
+                    external_services::service::execute_connector_processing_step(
+                        proxy,
+                        connector_integration,
+                        router_data,
+                        all_keys_required,
+                        event_params,
+                        token_data,
+                        call_connector_action,
+                        test_context,
+                        api_tag,
+                    ),
                 )
                 .await
                 .to_grpc_error()?;
@@ -986,16 +1075,14 @@ macro_rules! implement_connector_operation {
             let specific_request_data = $request_data_constructor(payload.clone())
                 .to_grpc_error()?;
 
-            // Apply merchant-supplied per-request connector config overrides
-            // (e.g. base_url) before building common_flow_data. Without this,
-            // the macro would silently drop the override and downstream
-            // connector calls would hit the TOML default host — creating a
-            // split-brain where different flows in the same composite payment
-            // talk to different environments (sandbox vs prod).
+            // Resolve effective connector URLs — applies superposition (x-environment) first,
+            // then any caller-supplied base_url override from x-connector-config on top.
             let overridden_connectors =
-                ucs_interface_common::config::connectors_with_connector_config_overrides(
-                    &connector_config,
+                $crate::utils::apply_url_overrides(
                     &config,
+                    &metadata_payload.connector,
+                    &connector_config,
+                    metadata_payload.environment.as_deref(),
                 )
                 .to_grpc_error()?;
 
@@ -1040,6 +1127,7 @@ macro_rules! implement_connector_operation {
                 service_type: $crate::utils::service_type_str(&config.server.type_),
                 flow_name,
                 event_config: &config.events,
+                runtime_metadata: &config.runtime_metadata,
                 request_id: &request_id,
                 lineage_ids: &metadata_payload.lineage_ids,
                 reference_id: &metadata_payload.reference_id,
@@ -1048,20 +1136,25 @@ macro_rules! implement_connector_operation {
                 proxy_name: metadata_payload.proxy_name.as_deref(),
                 tenant_id: &metadata_payload.tenant_id,
                 merchant_id: metadata_payload.merchant_id.as_str(),
+                org_id: metadata_payload.org_id.as_str(),
                 return_raw_connector_data: config.common.return_raw_connector_data,
                 connector_latency: metadata_payload.connector_latency.clone(),
+                log_fields_enabled: config.log_fields.enabled,
+                log_fields: &config.log_fields.outgoing,
             };
             let call_connector_action = connector_integration.get_call_connector_action();
-            let response_result = external_services::service::execute_connector_processing_step(
-                &config.proxy,
-                connector_integration,
-                router_data,
-                $all_keys_required,
-                event_params,
-                None,
-                call_connector_action,
-                test_context,
-                api_tag,
+            let response_result = Box::pin(
+                external_services::service::execute_connector_processing_step(
+                    &config.proxy,
+                    connector_integration,
+                    router_data,
+                    $all_keys_required,
+                    event_params,
+                    None,
+                    call_connector_action,
+                    test_context,
+                    api_tag,
+                ),
             )
             .await
             .to_grpc_error()?;

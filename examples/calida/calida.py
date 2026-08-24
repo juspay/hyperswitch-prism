@@ -18,6 +18,7 @@ _default_config = sdk_config_pb2.ConnectorConfig(
     connector_config=payment_pb2.ConnectorSpecificConfig(
         calida=payment_pb2.CalidaConfig(
             api_key=payment_methods_pb2.SecretString(value="YOUR_API_KEY"),
+            shop_name=payment_methods_pb2.SecretString(value="YOUR_SHOP_NAME"),
             base_url="YOUR_BASE_URL",
         ),
     ),

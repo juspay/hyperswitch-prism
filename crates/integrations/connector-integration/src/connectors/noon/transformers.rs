@@ -337,6 +337,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::ApplePayRedirect(_)
                 | WalletData::ApplePayThirdPartySdk(_)
                 | WalletData::DanaRedirect {}
+                | WalletData::GrabpayRedirect {}
                 | WalletData::GooglePayRedirect(_)
                 | WalletData::GooglePayThirdPartySdk(_)
                 | WalletData::MbWayRedirect(_)
@@ -363,6 +364,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::CashfreeRedirect(_)
                 | WalletData::PayURedirect(_)
                 | WalletData::EaseBuzzRedirect(_)
+                | WalletData::PaymayaRedirect(_)
                 | WalletData::QwikcilverWalletDirect(_)
                 | WalletData::Skrill(_) => {
                     Err(error_stack::report!(IntegrationError::NotSupported {
@@ -659,6 +661,10 @@ impl<F, T> TryFrom<ResponseRouterData<NoonPaymentsResponse, Self>>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 _ => {
                     let connector_response_reference_id =
@@ -962,12 +968,17 @@ impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             Ok(RefundsResponseData {
                 connector_refund_id: item.response.result.transaction.id,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             })
         };
         Ok(Self {
@@ -1030,12 +1041,17 @@ impl<F> TryFrom<ResponseRouterData<RefundSyncResponse, Self>>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             Ok(RefundsResponseData {
                 connector_refund_id: noon_transaction.id.to_owned(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             })
         };
         Ok(Self {
@@ -1240,6 +1256,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         | WalletData::ApplePayRedirect(_)
                         | WalletData::ApplePayThirdPartySdk(_)
                         | WalletData::DanaRedirect {}
+                        | WalletData::GrabpayRedirect {}
                         | WalletData::GooglePayRedirect(_)
                         | WalletData::GooglePayThirdPartySdk(_)
                         | WalletData::MbWayRedirect(_)
@@ -1266,6 +1283,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         | WalletData::CashfreeRedirect(_)
                         | WalletData::PayURedirect(_)
                         | WalletData::EaseBuzzRedirect(_)
+                        | WalletData::PaymayaRedirect(_)
                         | WalletData::QwikcilverWalletDirect(_)
                         | WalletData::Skrill(_) => {
                             Err(error_stack::report!(IntegrationError::NotSupported {
@@ -1472,6 +1490,10 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 _ => {
                     let connector_response_reference_id =
@@ -1696,6 +1718,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 _ => {
                     let connector_response_reference_id =

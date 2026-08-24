@@ -979,6 +979,8 @@ impl TryFrom<common_enums::PaymentMethodType> for StripePaymentMethodType {
             | common_enums::PaymentMethodType::Paysera
             | common_enums::PaymentMethodType::Tamara
             | common_enums::PaymentMethodType::Netbanking
+            | common_enums::PaymentMethodType::Grabpay
+            | common_enums::PaymentMethodType::Paymaya
             | common_enums::PaymentMethodType::QwikcilverWallet => {
                 Err(IntegrationError::NotImplemented(
                     get_unimplemented_payment_method_error_message("stripe"),
@@ -1229,7 +1231,7 @@ impl TryFrom<&BankRedirectData> for StripePaymentMethodType {
             | BankRedirectData::OpenBankingUk { .. }
             | BankRedirectData::Trustly { .. }
             | BankRedirectData::LocalBankRedirect {}
-            | BankRedirectData::OpenBanking {}
+            | BankRedirectData::OpenBanking { .. }
             | BankRedirectData::Netbanking { .. } => Err(IntegrationError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),
                 Default::default(),
@@ -1264,6 +1266,7 @@ fn get_stripe_payment_method_type_from_wallet_data(
         | WalletData::ApplePayRedirect(_)
         | WalletData::ApplePayThirdPartySdk(_)
         | WalletData::DanaRedirect {}
+        | WalletData::GrabpayRedirect {}
         | WalletData::GooglePayRedirect(_)
         | WalletData::GooglePayThirdPartySdk(_)
         | WalletData::MbWayRedirect(_)
@@ -1285,6 +1288,7 @@ fn get_stripe_payment_method_type_from_wallet_data(
         | WalletData::CashfreeRedirect(_)
         | WalletData::PayURedirect(_)
         | WalletData::EaseBuzzRedirect(_)
+        | WalletData::PaymayaRedirect(_)
         | WalletData::QwikcilverWalletDirect(_)
         | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
             get_unimplemented_payment_method_error_message("stripe"),
@@ -1628,7 +1632,10 @@ fn get_stripe_card_network(card_network: common_enums::CardNetwork) -> Option<St
         | common_enums::CardNetwork::Star
         | common_enums::CardNetwork::Accel
         | common_enums::CardNetwork::Pulse
-        | common_enums::CardNetwork::Nyce => None,
+        | common_enums::CardNetwork::Nyce
+        | common_enums::CardNetwork::Prop
+        | common_enums::CardNetwork::PrivateLabel
+        | common_enums::CardNetwork::Dinacard => None,
     }
 }
 
@@ -1754,6 +1761,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> TryF
             | WalletData::ApplePayRedirect(_)
             | WalletData::ApplePayThirdPartySdk(_)
             | WalletData::DanaRedirect {}
+            | WalletData::GrabpayRedirect {}
             | WalletData::GooglePayRedirect(_)
             | WalletData::GooglePayThirdPartySdk(_)
             | WalletData::MbWayRedirect(_)
@@ -1775,6 +1783,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> TryF
             | WalletData::CashfreeRedirect(_)
             | WalletData::PayURedirect(_)
             | WalletData::EaseBuzzRedirect(_)
+            | WalletData::PaymayaRedirect(_)
             | WalletData::QwikcilverWalletDirect(_)
             | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),
@@ -1860,7 +1869,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | BankRedirectData::Sofort { .. }
             | BankRedirectData::Trustly { .. }
             | BankRedirectData::LocalBankRedirect {}
-            | BankRedirectData::OpenBanking {}
+            | BankRedirectData::OpenBanking { .. }
             | BankRedirectData::Netbanking { .. } => Err(IntegrationError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),
                 Default::default(),
@@ -4093,6 +4102,7 @@ pub(crate) fn get_webhook_reference(
                 connector_refund_id,
                 merchant_refund_id,
                 connector_transaction_id: event_object.payment_intent.clone(),
+                merchant_transaction_id: None,
             })
         }
     };
@@ -4193,7 +4203,8 @@ pub(crate) fn build_webhook_payment_response(
     Ok(WebhookDetailsResponse {
         resource_id: connector_transaction_id.map(ResponseId::ConnectorTransactionId),
         status,
-        connector_response_reference_id,
+        connector_response_reference_id: connector_response_reference_id.clone(),
+        connector_request_reference_id: connector_response_reference_id,
         mandate_reference: None,
         error_code,
         error_message,
@@ -4463,6 +4474,10 @@ fn get_stripe_payments_response_data(
         network_error_message: response
             .as_ref()
             .and_then(|res| res.decline_code.clone().or(res.advice_code.clone())),
+        typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
     }))
 }
 
@@ -4891,12 +4906,17 @@ impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             Ok(RefundsResponseData {
                 connector_refund_id: item.response.id,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             })
         };
 
@@ -4952,12 +4972,17 @@ impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             Ok(RefundsResponseData {
                 connector_refund_id: item.response.id,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             })
         };
 
@@ -5341,35 +5366,31 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize + Ser
                 }
             });
 
-        // If the Split Payment Request in MIT mismatches with the metadata from CIT, throw an error
+        // If the Split Payment Request in MIT mismatches with the metadata from CIT, throw an error.
+        // `application_fees` is intentionally NOT compared: it can legitimately vary per
+        // transaction (Stripe allows the platform to set a different application fee on each
+        // charge), while charge_type / transfer_account_id / on_behalf_of must remain consistent
+        // with the ones used at mandate creation.
         if from_metadata.is_some() && item.request.split_payments.is_some() {
             let mut mit_charge_type = None;
-            let mut mit_application_fees = None;
             let mut mit_transfer_account_id = None;
             let mut mit_on_behalf_of = None;
             if let Some(SplitPaymentsDetails::StripeSplitPayment(stripe_split_payment)) =
                 item.request.split_payments.as_ref()
             {
                 mit_charge_type = Some(stripe_split_payment.charge_type.clone());
-                mit_application_fees = stripe_split_payment.application_fees;
                 mit_transfer_account_id = Some(stripe_split_payment.transfer_account_id.clone());
                 mit_on_behalf_of = stripe_split_payment.on_behalf_of.clone();
             }
 
             if mit_charge_type != from_metadata.as_ref().and_then(|m| m.charge_type.clone())
-                || mit_application_fees != from_metadata.as_ref().and_then(|m| m.application_fees)
                 || mit_transfer_account_id
                     != from_metadata
                         .as_ref()
                         .and_then(|m| m.transfer_account_id.clone().map(|s| s.expose()))
                 || mit_on_behalf_of != from_metadata.as_ref().and_then(|m| m.on_behalf_of.clone())
             {
-                let mismatched_fields = [
-                    "transfer_account_id",
-                    "application_fees",
-                    "charge_type",
-                    "on_behalf_of",
-                ];
+                let mismatched_fields = ["transfer_account_id", "charge_type", "on_behalf_of"];
 
                 let field_str = mismatched_fields.join(", ");
                 Err(IntegrationError::MandatePaymentDataMismatch {
@@ -5909,7 +5930,11 @@ impl<F, T> TryFrom<ResponseRouterData<StripeTokenResponse, Self>>
     fn try_from(item: ResponseRouterData<StripeTokenResponse, Self>) -> Result<Self, Self::Error> {
         let token = item.response.id.clone().expose();
         Ok(Self {
-            response: Ok(PaymentMethodTokenResponse { token }),
+            response: Ok(PaymentMethodTokenResponse {
+                token,
+                connector_payment_method_id: None,
+                status_code: item.http_code,
+            }),
             ..item.router_data
         })
     }

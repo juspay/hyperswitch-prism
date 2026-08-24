@@ -296,7 +296,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(domain_types::connector_types::WebhookDetailsResponse {
             resource_id: Some(ResponseId::ConnectorTransactionId(event.order_id.clone())),
             status: AttemptStatus::from(event.event_type),
-            connector_response_reference_id: Some(event.order_id),
+            connector_response_reference_id: Some(event.order_id.clone()),
+            connector_request_reference_id: Some(event.order_id),
             mandate_reference: None,
             error_code: None,
             error_message: None,
@@ -356,6 +357,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn process_redirect_response(
         &self,
         request: &RequestDetails,
+        _connector_feature_data: Option<&hyperswitch_masking::Secret<String>>,
     ) -> CustomResult<RedirectDetailsResponse, IntegrationError> {
         let order_id = get_query_param(request, "orderId");
 
@@ -368,6 +370,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             error_reason: None,
             response_amount: None,
             raw_connector_response: None,
+            connector_feature_data: None,
         })
     }
 }
@@ -687,6 +690,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         with_error_response_body!(event_builder, response);
 
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response
@@ -700,6 +705,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     }
 }

@@ -75,6 +75,38 @@ macro_rules! with_response_body {
     };
 }
 
+/// Serialize the connector response once, build `RouterDataV2` via `TryFrom<ResponseRouterData>`,
+/// set both event response data and `typed_connector_response`, and return `Ok(result)`.
+///
+/// Replaces the 12-line boilerplate block in every manual `handle_response_v2`.
+#[macro_export]
+macro_rules! finalize_connector_response {
+    ($event_builder:expr, $response:expr, $data:expr, $status_code:expr) => {{
+        use domain_types::connector_types::RawConnectorRequestResponse;
+        let masked = common_utils::events::MaskedSerdeValue::from_masked_optional(
+            &$response,
+            "connector_response",
+        );
+        if let Some(ref msv) = masked {
+            if let Some(evt) = $event_builder {
+                evt.response_data = Some(msv.clone());
+            }
+        }
+        let mut result = error_stack::ResultExt::change_context(
+            RouterDataV2::try_from(ResponseRouterData {
+                response: $response,
+                router_data: $data.clone(),
+                http_code: $status_code,
+            }),
+            $crate::ConnectorError::response_handling_failed($status_code),
+        )?;
+        result
+            .resource_common_data
+            .set_typed_connector_response(masked.as_ref().map(|m| m.inner().to_string()));
+        Ok(result)
+    }};
+}
+
 pub trait PaymentsAuthorizeRequestData {
     fn get_router_return_url(&self) -> Result<String, Error>;
 }
@@ -258,6 +290,10 @@ pub(crate) fn handle_json_response_deserialization_failure(
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         }),
     }
 }
@@ -269,7 +305,8 @@ pub fn is_refund_failure(status: enums::RefundStatus) -> bool {
         }
         common_enums::RefundStatus::ManualReview
         | common_enums::RefundStatus::Pending
-        | common_enums::RefundStatus::Success => false,
+        | common_enums::RefundStatus::Success
+        | common_enums::RefundStatus::Unknown => false,
     }
 }
 
@@ -636,6 +673,13 @@ pub fn build_card_holder_name(
     })
 }
 
+/// Card networks (notably Mastercard) require the cardholder name to contain only
+/// English (ASCII) characters; accented characters are transliterated to the
+/// closest ASCII equivalent.
+pub fn normalize_cardholder_name(name: Secret<String>) -> Secret<String> {
+    Secret::new(unidecode::unidecode(&name.expose()))
+}
+
 pub fn pad_expiry_year_to_four_digits(year: &Secret<String>) -> Secret<String> {
     domain_types::utils::expand_expiry_year_to_four_digits(year)
 }
@@ -704,5 +748,9 @@ pub fn build_error_response(
         network_decline_code: None,
         network_advice_code: None,
         network_error_message: None,
+        typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
     }
 }

@@ -176,6 +176,10 @@ pub struct WorldpayxmlAddress {
     pub state: Option<Secret<String>>,
     #[serde(rename = "countryCode", skip_serializing_if = "Option::is_none")]
     pub country_code: Option<common_enums::CountryAlpha2>,
+    // NOTE: must stay the LAST field — quick-xml emits elements in declaration
+    // order and the WPG DTD expects <telephoneNumber> after <countryCode>
+    #[serde(rename = "telephoneNumber", skip_serializing_if = "Option::is_none")]
+    pub telephone_number: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize)]

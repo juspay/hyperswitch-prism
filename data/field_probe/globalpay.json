@@ -791,7 +791,7 @@
             "via": "HyperSwitch",
             "x-gp-version": "2021-03-22"
           },
-          "body": "{\"account_name\":\"transaction_processing\",\"channel\":\"CNP\",\"amount\":\"1000\",\"currency\":\"USD\",\"reference\":\"probe_proxy_txn_001\",\"country\":\"US\",\"capture_mode\":\"AUTO\",\"payment_method\":{\"entry_mode\":\"ECOM\",\"card\":{\"number\":\"{{$card_number}}\",\"expiry_month\":\"{{$card_exp_month}}\",\"expiry_year\":\"{{$card_exp_year}}\",\"cvv\":\"{{$card_cvc}}\",\"cvv_indicator\":\"PRESENT\"}}}"
+          "body": "{\"account_name\":\"transaction_processing\",\"channel\":\"CNP\",\"amount\":\"1000\",\"currency\":\"USD\",\"reference\":\"probe_proxy_txn_001\",\"country\":\"US\",\"capture_mode\":\"AUTO\",\"payment_method\":{\"entry_mode\":\"ECOM\",\"card\":{\"number\":\"{{$card_number}}\",\"expiry_month\":\"03\",\"expiry_year\":\"30\",\"cvv\":\"{{$card_cvc}}\",\"cvv_indicator\":\"PRESENT\"}}}"
         }
       }
     },
@@ -838,7 +838,7 @@
             "via": "HyperSwitch",
             "x-gp-version": "2021-03-22"
           },
-          "body": "{\"reference\":\"probe_proxy_mandate_001\",\"usage_mode\":\"MULTIPLE\",\"card\":{\"number\":\"{{$card_number}}\",\"expiry_month\":\"{{$card_exp_month}}\",\"expiry_year\":\"{{$card_exp_year}}\",\"cvv\":\"{{$card_cvc}}\"}}"
+          "body": "{\"reference\":\"probe_proxy_mandate_001\",\"usage_mode\":\"MULTIPLE\",\"card\":{\"number\":\"{{$card_number}}\",\"expiry_month\":\"03\",\"expiry_year\":\"30\",\"cvv\":\"{{$card_cvc}}\"}}"
         }
       }
     },
@@ -896,6 +896,11 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: mandate_revoke flow for globalpay"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "refund": {

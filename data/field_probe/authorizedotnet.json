@@ -352,7 +352,7 @@
       },
       "OpenBanking": {
         "status": "not_supported",
-        "error": "Payment method BankRedirect(OpenBanking) is not supported by authorizedotnet"
+        "error": "Payment method BankRedirect(OpenBanking { account_number: None, sort_code: None, iban: None, account_holder_name: None, additional_details: None }) is not supported by authorizedotnet"
       },
       "OpenBankingPis": {
         "status": "not_supported",
@@ -741,7 +741,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"createTransactionRequest\":{\"merchantAuthentication\":{\"name\":\"probe_user\",\"transactionKey\":\"probe_key\"},\"refId\":\"probe_proxy_txn_001\",\"transactionRequest\":{\"transactionType\":\"authCaptureTransaction\",\"amount\":10.0,\"currencyCode\":\"USD\",\"payment\":{\"creditCard\":{\"cardNumber\":\"{{$card_number}}\",\"expirationDate\":\"{{$card_exp_year}}-{{$card_exp_month}}\",\"cardCode\":\"{{$card_cvc}}\"}},\"order\":{\"invoiceNumber\":\"ProbeInvoiceRef1\",\"description\":\"probe_proxy_txn_001\"},\"billTo\":{}}}}"
+          "body": "{\"createTransactionRequest\":{\"merchantAuthentication\":{\"name\":\"probe_user\",\"transactionKey\":\"probe_key\"},\"refId\":\"probe_proxy_txn_001\",\"transactionRequest\":{\"transactionType\":\"authCaptureTransaction\",\"amount\":10.0,\"currencyCode\":\"USD\",\"payment\":{\"creditCard\":{\"cardNumber\":\"{{$card_number}}\",\"expirationDate\":\"2030-03\",\"cardCode\":\"{{$card_cvc}}\"}},\"order\":{\"invoiceNumber\":\"ProbeInvoiceRef1\",\"description\":\"probe_proxy_txn_001\"},\"billTo\":{}}}}"
         }
       }
     },
@@ -782,7 +782,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"createCustomerPaymentProfileRequest\":{\"merchantAuthentication\":{\"name\":\"probe_user\",\"transactionKey\":\"probe_key\"},\"customerProfileId\":\"probe_customer_001\",\"paymentProfile\":{\"billTo\":{},\"payment\":{\"creditCard\":{\"cardNumber\":\"{{$card_number}}\",\"expirationDate\":\"{{$card_exp_year}}-{{$card_exp_month}}\",\"cardCode\":\"{{$card_cvc}}\"}}},\"validationMode\":\"testMode\"}}"
+          "body": "{\"createCustomerPaymentProfileRequest\":{\"merchantAuthentication\":{\"name\":\"probe_user\",\"transactionKey\":\"probe_key\"},\"customerProfileId\":\"probe_customer_001\",\"paymentProfile\":{\"billTo\":{},\"payment\":{\"creditCard\":{\"cardNumber\":\"{{$card_number}}\",\"expirationDate\":\"2030-03\",\"cardCode\":\"{{$card_cvc}}\"}}},\"validationMode\":\"testMode\"}}"
         }
       }
     },
@@ -826,6 +826,11 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: mandate_revoke flow for authorizedotnet"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "refund": {

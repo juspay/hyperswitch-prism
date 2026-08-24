@@ -6,6 +6,8 @@ use common_utils::{ext_traits::ByteSliceExt, pii::Email, request::Method, types:
 use domain_types::errors::{
     ConnectorError, IntegrationError, IntegrationErrorContext, WebhookError,
 };
+
+use crate::types::ResponseRouterData;
 use domain_types::{
     connector_flow::{
         Authorize, Capture, CreateOrder, RSync, Refund, ServerSessionAuthenticationToken,
@@ -320,6 +322,7 @@ impl TryFrom<&WalletData> for RazorpayWalletType {
             | WalletData::ApplePayRedirect(_)
             | WalletData::ApplePayThirdPartySdk(_)
             | WalletData::DanaRedirect {}
+            | WalletData::GrabpayRedirect {}
             | WalletData::GooglePay(_)
             | WalletData::GooglePayRedirect(_)
             | WalletData::GooglePayThirdPartySdk(_)
@@ -341,6 +344,7 @@ impl TryFrom<&WalletData> for RazorpayWalletType {
             | WalletData::MbWay(_)
             | WalletData::Satispay(_)
             | WalletData::Wero(_)
+            | WalletData::PaymayaRedirect(_)
             | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
                 format!("Payment Method {wallet_data:?} not supported for Razorpay"),
                 Default::default(),
@@ -832,6 +836,7 @@ impl ForeignTryFrom<(RazorpayRefundResponse, Self, u16)>
             connector_refund_id: response.id,
             refund_status: status,
             status_code: http_code,
+            acquirer_reference_number: None,
         };
 
         Ok(Self {
@@ -859,6 +864,7 @@ impl ForeignTryFrom<(RazorpayRefundResponse, Self, u16)>
             connector_refund_id: response.id,
             refund_status: status,
             status_code: http_code,
+            acquirer_reference_number: None,
         };
 
         Ok(Self {
@@ -2159,5 +2165,128 @@ pub fn json_value_to_string(value: &serde_json::Value) -> String {
     match value {
         serde_json::Value::String(s) => s.clone(),
         _ => value.to_string(), // For Number, Bool, Null, Object, Array - serialize as JSON
+    }
+}
+
+// ================================
+// TryFrom<ResponseRouterData> implementations for finalize_connector_response! macro
+// ================================
+
+// Authorize flow (Card payments) - delegates to existing ForeignTryFrom,
+// reading capture_method and payment_method_type from router_data.request.
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<RazorpayResponse, Self>>
+    for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(value: ResponseRouterData<RazorpayResponse, Self>) -> Result<Self, Self::Error> {
+        let capture_method = value.router_data.request.capture_method;
+        let payment_method_type = value.router_data.request.payment_method_type;
+        Self::foreign_try_from((
+            value.response,
+            value.router_data,
+            value.http_code,
+            capture_method,
+            false,
+            payment_method_type,
+        ))
+        .change_context(ConnectorError::ResponseHandlingFailed {
+            context: Default::default(),
+        })
+    }
+}
+
+// Capture flow - delegates to existing ForeignTryFrom with 3 args.
+impl<F, Req> TryFrom<ResponseRouterData<RazorpayCaptureResponse, Self>>
+    for RouterDataV2<F, PaymentFlowData, Req, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        value: ResponseRouterData<RazorpayCaptureResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        Self::foreign_try_from((value.response, value.router_data, value.http_code)).change_context(
+            ConnectorError::ResponseHandlingFailed {
+                context: Default::default(),
+            },
+        )
+    }
+}
+
+// Refund flow - delegates to existing ForeignTryFrom with 3 args.
+impl TryFrom<ResponseRouterData<RazorpayRefundResponse, Self>>
+    for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        value: ResponseRouterData<RazorpayRefundResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        Self::foreign_try_from((value.response, value.router_data, value.http_code)).change_context(
+            ConnectorError::ResponseHandlingFailed {
+                context: Default::default(),
+            },
+        )
+    }
+}
+
+// RSync flow - delegates to existing ForeignTryFrom with 3 args.
+impl TryFrom<ResponseRouterData<RazorpayRefundResponse, Self>>
+    for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        value: ResponseRouterData<RazorpayRefundResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        Self::foreign_try_from((value.response, value.router_data, value.http_code)).change_context(
+            ConnectorError::ResponseHandlingFailed {
+                context: Default::default(),
+            },
+        )
+    }
+}
+
+// CreateOrder flow - delegates to existing ForeignTryFrom with bool default.
+impl TryFrom<ResponseRouterData<RazorpayOrderResponse, Self>>
+    for RouterDataV2<
+        CreateOrder,
+        PaymentFlowData,
+        PaymentCreateOrderData,
+        PaymentCreateOrderResponse,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        value: ResponseRouterData<RazorpayOrderResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        Self::foreign_try_from((value.response, value.router_data, value.http_code, false))
+            .change_context(ConnectorError::ResponseHandlingFailed {
+                context: Default::default(),
+            })
+    }
+}
+
+// ServerSessionAuthenticationToken flow - delegates to existing ForeignTryFrom with 3 args.
+impl TryFrom<ResponseRouterData<RazorpayOrderResponse, Self>>
+    for RouterDataV2<
+        ServerSessionAuthenticationToken,
+        MerchantAuthenticationFlowData,
+        ServerSessionAuthenticationTokenRequestData,
+        ServerSessionAuthenticationTokenResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        value: ResponseRouterData<RazorpayOrderResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        Self::foreign_try_from((value.response, value.router_data, value.http_code)).change_context(
+            ConnectorError::ResponseHandlingFailed {
+                context: Default::default(),
+            },
+        )
     }
 }

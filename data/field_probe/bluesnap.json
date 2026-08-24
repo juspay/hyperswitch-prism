@@ -924,7 +924,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"cardTransactionType\":\"AUTH_CAPTURE\",\"creditCard\":{\"cardNumber\":\"{{$card_number}}\",\"securityCode\":\"{{$card_cvc}}\",\"expirationMonth\":\"{{$card_exp_month}}\",\"expirationYear\":\"{{$card_exp_year}}\"},\"transactionFraudInfo\":{\"fraudSessionId\":\"probe_proxy_txn_001\"},\"merchantTransactionId\":\"probe_proxy_txn_001\"}"
+          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"cardTransactionType\":\"AUTH_CAPTURE\",\"creditCard\":{\"cardNumber\":\"{{$card_number}}\",\"securityCode\":\"{{$card_cvc}}\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\"},\"transactionFraudInfo\":{\"fraudSessionId\":\"probe_proxy_txn_001\"},\"merchantTransactionId\":\"probe_proxy_txn_001\"}"
         }
       }
     },
@@ -944,6 +944,11 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: mandate_revoke flow for bluesnap"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "refund": {

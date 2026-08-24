@@ -646,6 +646,11 @@
         "error": "This feature is not implemented: mandate_revoke flow for tamara"
       }
     },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "refund": {
       "default": {
         "status": "supported",
@@ -727,8 +732,25 @@
     },
     "void": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: amount. Missing void amount — Missing required field: amount. Missing void amount"
+        "status": "supported",
+        "proto_request": {
+          "merchant_void_id": "probe_void_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://api-sandbox.tamara.co/orders/probe_connector_txn_001/cancel",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"total_amount\":{\"amount\":10.0,\"currency\":\"USD\"}}"
+        }
       }
     }
   }

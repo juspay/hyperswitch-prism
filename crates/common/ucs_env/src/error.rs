@@ -200,8 +200,7 @@ impl ToGrpcStatus for IntegrationError {
             | Self::HeaderMapConstructionFailed { .. }
             | Self::BodySerializationFailed { .. }
             | Self::UrlParsingFailed { .. }
-            | Self::UrlEncodingFailed { .. }
-            | Self::InvariantViolation(_) => Status::with_details(tonic::Code::Internal, msg, buf.into()),
+            | Self::UrlEncodingFailed { .. } => Status::with_details(tonic::Code::Internal, msg, buf.into()),
         }
     }
 }
@@ -223,15 +222,20 @@ impl ToGrpcStatus for ConnectorError {
 
         match self {
             Self::ConnectorErrorResponse(error_response) => match error_response.status_code {
-                400 => Status::with_details(tonic::Code::InvalidArgument, msg, buf.into()),
+                400 | 402 | 405 | 406 | 407 | 410..=428 | 431..=499 => {
+                    Status::with_details(tonic::Code::InvalidArgument, msg, buf.into())
+                }
                 401 => Status::with_details(tonic::Code::Unauthenticated, msg, buf.into()),
                 403 => Status::with_details(tonic::Code::PermissionDenied, msg, buf.into()),
                 404 => Status::with_details(tonic::Code::NotFound, msg, buf.into()),
+                408 | 504 => Status::with_details(tonic::Code::DeadlineExceeded, msg, buf.into()),
+                409 => Status::with_details(tonic::Code::Aborted, msg, buf.into()),
                 429 => Status::with_details(tonic::Code::ResourceExhausted, msg, buf.into()),
-                500 => Status::with_details(tonic::Code::Internal, msg, buf.into()),
+                500 | 502 | 505..=599 => {
+                    Status::with_details(tonic::Code::Internal, msg, buf.into())
+                }
                 501 => Status::with_details(tonic::Code::Unimplemented, msg, buf.into()),
                 503 => Status::with_details(tonic::Code::Unavailable, msg, buf.into()),
-                504 => Status::with_details(tonic::Code::DeadlineExceeded, msg, buf.into()),
                 _ => Status::with_details(tonic::Code::Unknown, msg, buf.into()),
             },
             Self::ResponseDeserializationFailed { .. }

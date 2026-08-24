@@ -162,17 +162,17 @@ impl TryFrom<ResponseRouterData<GigadatPayoutTransferResponse, Self>>
 
 // ===== PAYOUT SYNC RESPONSE =====
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GigadatPayoutSyncResponse {
+pub struct GigadatPayoutGetResponse {
     pub status: GigadatPayoutStatus,
 }
 
-impl TryFrom<ResponseRouterData<GigadatPayoutSyncResponse, Self>>
+impl TryFrom<ResponseRouterData<GigadatPayoutGetResponse, Self>>
     for RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>
 {
     type Error = Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<GigadatPayoutSyncResponse, Self>,
+        item: ResponseRouterData<GigadatPayoutGetResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let ResponseRouterData {
             response,
@@ -356,7 +356,7 @@ impl TryFrom<ResponseRouterData<GigadatPayoutStageResponse, Self>>
 
         router_data.response = Ok(PayoutStageResponse {
             merchant_payout_id: router_data.request.merchant_quote_id.clone(),
-            payout_status: None,
+            payout_status: PayoutStatus::RequiresCreation,
             connector_payout_id: Some(response.data.transaction_id),
             status_code: http_code,
             connector_metadata: Some(Secret::new(connector_metadata)),

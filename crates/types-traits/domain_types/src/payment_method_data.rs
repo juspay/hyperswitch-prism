@@ -782,7 +782,13 @@ pub enum BankRedirectData {
     Eft {
         provider: String,
     },
-    OpenBanking {},
+    OpenBanking {
+        account_number: Option<Secret<String>>,
+        sort_code: Option<Secret<String>>,
+        iban: Option<Secret<String>>,
+        account_holder_name: Option<Secret<String>>,
+        additional_details: Option<Secret<serde_json::Value>>,
+    },
     Netbanking {
         issuer: common_enums::BankNames,
     },
@@ -816,6 +822,7 @@ pub enum WalletData {
     ApplePayRedirect(Box<ApplePayRedirectData>),
     ApplePayThirdPartySdk(Box<ApplePayThirdPartySdkData>),
     DanaRedirect {},
+    GrabpayRedirect {},
     GooglePay(GooglePayWalletData),
     GooglePayRedirect(Box<GooglePayRedirectData>),
     GooglePayThirdPartySdk(Box<GooglePayThirdPartySdkData>),
@@ -843,14 +850,12 @@ pub enum WalletData {
     CashfreeRedirect(CashfreeRedirection),
     PayURedirect(PayURedirection),
     EaseBuzzRedirect(EaseBuzzRedirection),
+    PaymayaRedirect(PaymayaRedirection),
     /// Qwikcilver / Pine Labs stored-value wallet — caller supplies the wallet number directly.
     QwikcilverWalletDirect(Box<QwikcilverWalletDirectData>),
     /// Skrill redirect wallet — consumer email is sourced from billing details.
     Skrill(SkrillData),
 }
-
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
-pub struct SkrillData {}
 
 impl WalletData {
     pub fn get_wallet_token(&self) -> Result<Secret<String>, Error> {
@@ -900,6 +905,9 @@ impl WalletData {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct SkrillData {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct RevolutPayData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -928,6 +936,9 @@ pub struct PayURedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct EaseBuzzRedirection {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct PaymayaRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct MifinityData {
@@ -1926,7 +1937,56 @@ pub struct CustomerInfoDetails {
 pub enum PaymentMethodDetails {
     /// Wallet-specific details (stored value, container, or hybrid wallets)
     Wallet(WalletDetails),
-    // Future expansions: For gift cards, prepaid cards, loyalty rewards, etc.
+    /// Bank account details returned by authenticator connectors (e.g. Plaid /auth/get)
+    BankAccount(BankAccountDetails),
+}
+
+/// ACH routing details (USA)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BankAccountAchDetails {
+    pub account_number: Secret<String>,
+    pub routing_number: Secret<String>,
+}
+
+/// BACS routing details (UK)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BankAccountBacsDetails {
+    pub account_number: Secret<String>,
+    pub sort_code: Secret<String>,
+}
+
+/// SEPA routing details (EU)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BankAccountSepaDetails {
+    pub iban: Secret<String>,
+    pub bic: Option<Secret<String>>,
+}
+
+/// Routing details for a bank account — mirrors proto `oneof account_details`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum BankAccountRoutingDetails {
+    Ach(BankAccountAchDetails),
+    Bacs(BankAccountBacsDetails),
+    Sepa(BankAccountSepaDetails),
+}
+
+/// A single bank account with identity and routing details
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BankAccount {
+    pub account_name: Secret<String>,
+    pub account_id: Secret<String>,
+    pub bank_type: Option<common_enums::BankType>,
+    pub bank_holder_type: Option<common_enums::BankHolderType>,
+    pub balance: Option<common_utils::types::Money>,
+    pub available_balance: Option<common_utils::types::Money>,
+    pub account_details: Option<BankAccountRoutingDetails>,
+    pub bank_name: Option<String>,
+}
+
+/// A collection of bank accounts returned by a bank-linking flow (matches proto `BankAccountDetails`)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BankAccountDetails {
+    pub accounts: Vec<BankAccount>,
 }
 
 /// Represents an item (payment method) stored within a wallet (for container/hybrid wallets)

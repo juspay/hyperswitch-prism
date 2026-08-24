@@ -542,6 +542,10 @@ fn build_error_response(
             .and_then(|info| info.response_code.clone()),
         network_advice_code: None,
         network_error_message: None,
+        typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
     }
 }
 
@@ -1509,6 +1513,7 @@ impl TryFrom<ResponseRouterData<WellsfargoPaymentsResponse, Self>>
                 connector_refund_id: response.id.clone(),
                 refund_status: status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             })
         } else {
             // Build error response using helper function
@@ -1565,6 +1570,10 @@ impl TryFrom<ResponseRouterData<WellsfargoRSyncResponse, Self>>
                             network_decline_code: None,
                             network_advice_code: None,
                             network_error_message: None,
+                            typed_connector_response: None,
+                            raw_connector_response: None,
+                            raw_connector_request: None,
+                            typed_connector_request: None,
                         })
                     } else {
                         // Other failure cases
@@ -1589,6 +1598,10 @@ impl TryFrom<ResponseRouterData<WellsfargoRSyncResponse, Self>>
                             network_decline_code: None,
                             network_advice_code: None,
                             network_error_message: None,
+                            typed_connector_response: None,
+                            raw_connector_response: None,
+                            raw_connector_request: None,
+                            typed_connector_request: None,
                         })
                     }
                 } else {
@@ -1597,6 +1610,7 @@ impl TryFrom<ResponseRouterData<WellsfargoRSyncResponse, Self>>
                         connector_refund_id: response.id.clone(),
                         refund_status: status,
                         status_code: item.http_code,
+                        acquirer_reference_number: None,
                     })
                 }
             }
@@ -1619,6 +1633,10 @@ impl TryFrom<ResponseRouterData<WellsfargoRSyncResponse, Self>>
                         network_decline_code: None,
                         network_advice_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     })
                 } else {
                     // No status and no error - return unknown status error
@@ -1632,6 +1650,10 @@ impl TryFrom<ResponseRouterData<WellsfargoRSyncResponse, Self>>
                         network_decline_code: None,
                         network_advice_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     })
                 }
             }

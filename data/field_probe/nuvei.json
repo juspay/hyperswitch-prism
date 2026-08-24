@@ -511,7 +511,7 @@
       },
       "OpenBanking": {
         "status": "not_supported",
-        "error": "Bank redirect method OpenBanking not supported by Nuvei is not supported by nuvei"
+        "error": "Bank redirect method OpenBanking { account_number: None, sort_code: None, iban: None, account_holder_name: None, additional_details: None } not supported by Nuvei is not supported by nuvei"
       },
       "OpenBankingPis": {
         "status": "not_supported",
@@ -923,6 +923,11 @@
       "default": {
         "status": "not_supported",
         "error": "mandate_revoke flow not supported by nuvei connector"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "refund": {

@@ -13,6 +13,7 @@ use crate::http::{
 use grpc_api_types::payments::{
     composite_payment_method_service_server::CompositePaymentMethodService,
     CompositePaymentMethodCreateRequest, CompositePaymentMethodCreateResponse,
+    CompositePaymentMethodEligibilityRequest, CompositePaymentMethodEligibilityResponse,
     CompositePaymentMethodGetRequest, CompositePaymentMethodGetResponse,
     CompositePaymentMethodRechargeRequest, CompositePaymentMethodRechargeResponse,
 };
@@ -38,5 +39,13 @@ http_handler!(
     CompositePaymentMethodRechargeRequest,
     CompositePaymentMethodRechargeResponse,
     recharge,
+    composite_payment_method_service
+);
+
+http_handler!(
+    eligibility,
+    CompositePaymentMethodEligibilityRequest,
+    CompositePaymentMethodEligibilityResponse,
+    eligibility,
     composite_payment_method_service
 );

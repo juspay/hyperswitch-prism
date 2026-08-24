@@ -12,8 +12,9 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        PayoutCreate, PayoutCreateLink, PayoutCreateRecipient, PayoutEnrollDisburseAccount,
-        PayoutGet, PayoutStage, PayoutTransfer, PayoutVoid, ServerAuthenticationToken,
+        PayoutCreate, PayoutCreateLink, PayoutCreateRecipient, PayoutEligibility,
+        PayoutEnrollDisburseAccount, PayoutGet, PayoutStage, PayoutTransfer, PayoutVoid,
+        ServerAuthenticationToken,
     },
     connector_types::{
         ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
@@ -23,9 +24,10 @@ use domain_types::{
     payouts::payouts_types::{
         PayoutCreateLinkRequest, PayoutCreateLinkResponse, PayoutCreateRecipientRequest,
         PayoutCreateRecipientResponse, PayoutCreateRequest, PayoutCreateResponse,
-        PayoutEnrollDisburseAccountRequest, PayoutEnrollDisburseAccountResponse, PayoutFlowData,
-        PayoutGetRequest, PayoutGetResponse, PayoutStageRequest, PayoutStageResponse,
-        PayoutTransferRequest, PayoutTransferResponse, PayoutVoidRequest, PayoutVoidResponse,
+        PayoutEligibilityRequest, PayoutEligibilityResponse, PayoutEnrollDisburseAccountRequest,
+        PayoutEnrollDisburseAccountResponse, PayoutFlowData, PayoutGetRequest, PayoutGetResponse,
+        PayoutStageRequest, PayoutStageResponse, PayoutTransferRequest, PayoutTransferResponse,
+        PayoutVoidRequest, PayoutVoidResponse,
     },
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -38,17 +40,17 @@ use interfaces::{
     api::ConnectorCommon,
     connector_integration_v2::ConnectorIntegrationV2,
     connector_types::{
-        PayoutCreateLinkV2, PayoutCreateRecipientV2, PayoutCreateV2, PayoutEnrollDisburseAccountV2,
-        PayoutGetV2, PayoutServiceTrait, PayoutStageV2, PayoutTransferV2, PayoutVoidV2,
-        ServerAuthentication,
+        PayoutCreateLinkV2, PayoutCreateRecipientV2, PayoutCreateV2, PayoutEligibilityV2,
+        PayoutEnrollDisburseAccountV2, PayoutGetV2, PayoutServiceTrait, PayoutStageV2,
+        PayoutTransferV2, PayoutVoidV2, ServerAuthentication,
     },
 };
 use ring::{digest, hmac};
 use time::OffsetDateTime;
 
 use crate::{
-    connectors::cybersource::transformers as cs_payments, types::ResponseRouterData,
-    with_error_response_body,
+    connectors::cybersource::transformers as cs_payments, finalize_connector_response,
+    types::ResponseRouterData, with_error_response_body,
 };
 use transformers::{CybersourceAuthType, CybersourceFulfillResponse, CybersourcePayoutContext};
 
@@ -211,6 +213,10 @@ impl ConnectorCommon for CybersourcePayouts {
         match response {
             Ok(cs_payments::CybersourceErrorResponse::StandardError(response)) => {
                 with_error_response_body!(event_builder, response);
+                let typed = crate::connectors::macros::serialize_typed_connector_payload(
+                    &response,
+                    "typed_connector_response",
+                );
                 let (code, message, reason) = match response.error_information {
                     Some(ref error_info) => {
                         let detailed_error_info = error_info.details.as_ref().map(|details| {
@@ -265,6 +271,10 @@ impl ConnectorCommon for CybersourcePayouts {
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: typed,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 })
             }
             Ok(cs_payments::CybersourceErrorResponse::AuthenticationError(response)) => {
@@ -279,6 +289,10 @@ impl ConnectorCommon for CybersourcePayouts {
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 })
             }
             Ok(cs_payments::CybersourceErrorResponse::NotAvailableError(response)) => {
@@ -305,6 +319,10 @@ impl ConnectorCommon for CybersourcePayouts {
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 })
             }
             Err(error_msg) => {
@@ -347,6 +365,10 @@ fn build_5xx_error_response(
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         });
     }
     let error_message = match res.status_code {
@@ -367,6 +389,10 @@ fn build_5xx_error_response(
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
+        typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
     })
 }
 
@@ -445,7 +471,7 @@ impl
             PayoutTransferRequest,
             PayoutTransferResponse,
         >,
-    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
         let converter = StringMajorUnitForConnector;
         let total_amount = converter
             .convert(req.request.amount, req.request.destination_currency)
@@ -456,7 +482,14 @@ impl
             req,
             CybersourcePayoutContext { total_amount },
         ))?;
-        Ok(Some(RequestContent::Json(Box::new(connector_req))))
+        let typed = events::MaskedSerdeValue::from_masked_optional(
+            &connector_req,
+            "typed_connector_request",
+        );
+        Ok(Some(common_utils::request::ConnectorRequestData::new(
+            RequestContent::Json(Box::new(connector_req)),
+            typed,
+        )))
     }
 
     fn get_headers(
@@ -474,18 +507,19 @@ impl
             PayoutTransferRequest,
             PayoutTransferResponse,
         >>::get_url(self, req)?;
-        let body = <Self as ConnectorIntegrationV2<
+        let request_data = <Self as ConnectorIntegrationV2<
             PayoutTransfer,
             PayoutFlowData,
             PayoutTransferRequest,
             PayoutTransferResponse,
         >>::get_request_body(self, req)?;
+        let body = request_data.as_ref().map(|d| &d.content);
         self.build_signed_headers(
             &req.connector_config,
             &req.resource_common_data.connectors,
             &url,
             Method::Post,
-            body.as_ref(),
+            body,
         )
     }
 
@@ -497,7 +531,7 @@ impl
             PayoutTransferRequest,
             PayoutTransferResponse,
         >,
-        _event_builder: Option<&mut events::Event>,
+        event_builder: Option<&mut events::Event>,
         res: Response,
     ) -> CustomResult<
         RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>,
@@ -509,11 +543,7 @@ impl
             .change_context(ConnectorError::ResponseDeserializationFailed {
                 context: Default::default(),
             })?;
-        RouterDataV2::try_from(ResponseRouterData {
-            response,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        })
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
@@ -687,6 +717,34 @@ impl
         Err(IntegrationError::connector_flow_not_implemented(
             self.id(),
             "payout_enroll_disburse_account",
+            Default::default(),
+        )
+        .into())
+    }
+}
+
+impl PayoutEligibilityV2 for CybersourcePayouts {}
+
+impl
+    ConnectorIntegrationV2<
+        PayoutEligibility,
+        PayoutFlowData,
+        PayoutEligibilityRequest,
+        PayoutEligibilityResponse,
+    > for CybersourcePayouts
+{
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            PayoutEligibility,
+            PayoutFlowData,
+            PayoutEligibilityRequest,
+            PayoutEligibilityResponse,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(IntegrationError::connector_flow_not_implemented(
+            self.id(),
+            "payout_eligibility",
             Default::default(),
         )
         .into())

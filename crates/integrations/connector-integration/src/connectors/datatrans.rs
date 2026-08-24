@@ -354,6 +354,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         with_error_response_body!(event_builder, response);
 
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.code(),
@@ -364,6 +366,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     }
 }
@@ -401,7 +407,7 @@ macros::macro_connector_implementation!(
             // (MIT is served by the separate RepeatPayment flow -> `/v1/transactions/authorize`.)
             let native_three_ds =
                 req.resource_common_data.is_three_ds() && req.request.authentication_data.is_none();
-            if native_three_ds || req.request.is_mandate_payment() {
+            if req.request.is_card() && (native_three_ds || req.request.is_mandate_payment()) {
                 Ok(format!("{base_url}/v1/transactions"))
             } else {
                 Ok(format!("{base_url}/v1/transactions/authorize"))

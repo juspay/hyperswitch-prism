@@ -769,7 +769,7 @@
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"reference\":\"probe_proxy_txn_001\",\"card\":{\"number\":\"{{$card_number}}\",\"cvv\":\"{{$card_cvc}}\",\"expiry_month\":\"{{$card_exp_month}}\",\"expiry_year\":\"{{$card_exp_year}}\",\"holder\":\"John Doe\"},\"shopperName\":{\"firstName\":null,\"lastName\":null},\"billing\":{\"address\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"country\":null},\"deliveryAddress\":{\"address\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"country\":null},\"manualCapture\":false,\"storePaymentMethod\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"reference\":\"probe_proxy_txn_001\",\"card\":{\"number\":\"{{$card_number}}\",\"cvv\":\"{{$card_cvc}}\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"holder\":\"John Doe\"},\"shopperName\":{\"firstName\":null,\"lastName\":null},\"billing\":{\"address\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"country\":null},\"deliveryAddress\":{\"address\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"country\":null},\"manualCapture\":false,\"storePaymentMethod\":false}"
         }
       }
     },
@@ -789,6 +789,11 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: mandate_revoke flow for imerchantsolutions"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "refund": {

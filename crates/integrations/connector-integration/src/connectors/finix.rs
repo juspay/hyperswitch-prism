@@ -51,6 +51,8 @@ pub(crate) mod headers {
 }
 
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
+const FINIX_REFERRER_SOURCE_HEADER: &str = "X-Finix-Referrer-Source";
+const FINIX_REFERRER_SOURCE_VALUE: &str = "PLUGIN_HYPERSWITCH";
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorCommon
     for Finix<T>
@@ -102,6 +104,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         with_error_response_body!(event_builder, response);
 
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.get_code(),
@@ -112,6 +116,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     }
 }
@@ -424,7 +432,11 @@ macros::create_all_prerequisites!(
                 (
                     headers::CONTENT_TYPE.to_string(),
                     "application/json".to_string().into(),
-                )
+                ),
+                (
+                FINIX_REFERRER_SOURCE_HEADER.to_string(),
+                FINIX_REFERRER_SOURCE_VALUE.to_string().into(),
+                ),
             ];
             let mut auth_headers = self.get_auth_header(&req.connector_config)?;
             headers.append(&mut auth_headers);

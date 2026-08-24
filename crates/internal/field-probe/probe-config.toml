@@ -58,6 +58,9 @@ name = "trustpay"
 [[oauth_connectors]]
 name = "fiservcommercehub"
 
+[[oauth_connectors]]
+name = "moneris"
+
 # Payment methods to probe for authorize flow
 # Each entry maps a PM name to whether it's enabled
 [payment_methods]

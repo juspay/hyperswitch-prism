@@ -658,6 +658,7 @@ impl TryFrom<ResponseRouterData<BamboraPaymentsResponse, Self>>
                 connector_refund_id: item.response.id.clone(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -689,6 +690,7 @@ impl TryFrom<ResponseRouterData<BamboraPaymentsResponse, Self>>
                 connector_refund_id: item.response.id.clone(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })

@@ -46,6 +46,7 @@ mod tests {
                     attempt_id: "attempt_123456abcdef".to_string(),
                     status: common_enums::AttemptStatus::Pending,
                     payment_method: common_enums::PaymentMethod::Card,
+                    payment_method_type: None,
                     description: Some("Payment for order #12345".to_string()),
                     return_url: Some("www.google.com".to_string()),
                     order_details: None,
@@ -79,6 +80,7 @@ mod tests {
                     raw_connector_response: None,
                     vault_headers: None,
                     raw_connector_request: None,
+                    typed_connector_request: None,
                     minor_amount_capturable: None,
                     amount: None,
                     connector_response: None,
@@ -86,7 +88,9 @@ mod tests {
                     l2_l3_data: None,
                     merchant_request_id: None,
                     sender_payment_instrument_id: None,
+                    connector_returned_payment_method_details: None,
                     settlement_status: None,
+                    typed_connector_response: None,
 },
                 connector_config: ConnectorSpecificConfig::Adyen {
                     api_key: Secret::new(api_key),
@@ -101,6 +105,7 @@ mod tests {
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
+                    currency_conversion_data: None,
                     payment_method_data: PaymentMethodData::Card(
                         domain_types::payment_method_data::Card {
                             card_number: RawCardNumber(cards::CardNumber::from_str(
@@ -252,6 +257,7 @@ mod tests {
                     attempt_id: "".to_string(),
                     status: common_enums::AttemptStatus::Pending,
                     payment_method: common_enums::PaymentMethod::Card,
+                    payment_method_type: None,
                     description: None,
                     return_url: None,
                     order_details: None,
@@ -285,6 +291,7 @@ mod tests {
                     raw_connector_response: None,
                     vault_headers: None,
                     raw_connector_request: None,
+                    typed_connector_request: None,
                     minor_amount_capturable: None,
                     amount: None,
                     connector_response: None,
@@ -292,7 +299,9 @@ mod tests {
                     l2_l3_data: None,
                     merchant_request_id: None,
                     sender_payment_instrument_id: None,
+                    connector_returned_payment_method_details: None,
                     settlement_status: None,
+                    typed_connector_response: None,
 },
                 connector_config: ConnectorSpecificConfig::Adyen {
                     api_key: Secret::new(api_key),
@@ -307,6 +316,7 @@ mod tests {
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
+                    currency_conversion_data: None,
                     payment_method_data: PaymentMethodData::Card(Default::default()),
                     amount: MinorUnit::new(1000),
                     order_tax_amount: None,

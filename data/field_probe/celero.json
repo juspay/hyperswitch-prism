@@ -656,7 +656,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"idempotency_key\":\"probe_proxy_txn_001_idempotency\",\"type\":\"sale\",\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_proxy_txn_001\",\"payment_method\":{\"card\":{\"number\":\"{{$card_number}}\",\"expiration_date\":\"{{$card_exp_month}}/{{$card_exp_year}}\",\"cvc\":\"{{$card_cvc}}\"}}}"
+          "body": "{\"idempotency_key\":\"probe_proxy_txn_001_idempotency\",\"type\":\"sale\",\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"probe_proxy_txn_001\",\"payment_method\":{\"card\":{\"number\":\"{{$card_number}}\",\"expiration_date\":\"03/2030\",\"cvc\":\"{{$card_cvc}}\"}}}"
         }
       }
     },
@@ -676,6 +676,11 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: mandate_revoke flow for celero"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "refund": {

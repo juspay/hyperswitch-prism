@@ -211,6 +211,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     connector_refund_id: None,
                     merchant_refund_id: Some(reference_body.event_body.order_id),
                     connector_transaction_id: None,
+                    merchant_transaction_id: None,
                 },
             ))),
             // HS maps `credit` to `WebhooksNotImplemented`.
@@ -245,6 +246,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             )),
             status,
             connector_response_reference_id: None,
+            connector_request_reference_id: None,
             mandate_reference: None,
             error_code: None,
             error_message: None,
@@ -500,6 +502,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         with_error_response_body!(event_builder, response);
 
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.response_code.clone(),
@@ -510,6 +514,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     }
 }

@@ -1,0 +1,10 @@
+{
+  "connector": "tesouro",
+  "supported_suites": [
+    "PaymentService/Authorize",
+    "PaymentService/Get",
+    "PaymentService/SetupRecurring",
+    "RecurringPaymentService/Charge",
+    "MerchantAuthenticationService/CreateServerAuthenticationToken"
+  ]
+}

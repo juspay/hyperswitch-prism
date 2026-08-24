@@ -771,7 +771,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"query\":\"mutation  tokenizeCreditCard($input: TokenizeCreditCardInput!) { tokenizeCreditCard(input: $input) { clientMutationId paymentMethod { id } } }\",\"variables\":{\"input\":{\"creditCard\":{\"number\":\"{{$card_number}}\",\"expirationYear\":\"{{$card_exp_year}}\",\"expirationMonth\":\"{{$card_exp_month}}\",\"cvv\":\"{{$card_cvc}}\",\"cardholderName\":\"\"}}}}"
+          "body": "{\"query\":\"mutation  tokenizeCreditCard($input: TokenizeCreditCardInput!) { tokenizeCreditCard(input: $input) { clientMutationId paymentMethod { id } } }\",\"variables\":{\"input\":{\"creditCard\":{\"number\":\"{{$card_number}}\",\"expirationYear\":\"2030\",\"expirationMonth\":\"03\",\"cvv\":\"{{$card_cvc}}\",\"cardholderName\":\"\"}}}}"
         }
       }
     },
@@ -785,6 +785,11 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: mandate_revoke flow for braintree"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "refund": {

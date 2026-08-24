@@ -4,7 +4,7 @@ use crate::{
         ConnectorResponseHeaders, RawConnectorRequestResponse,
         ServerAuthenticationTokenResponseData,
     },
-    errors::IntegrationError,
+    errors::{IntegrationError, IntegrationErrorContext},
     payment_address::Address,
     types::Connectors,
     utils::{missing_field_err, Error},
@@ -19,8 +19,10 @@ pub struct PayoutFlowData {
     pub connectors: Connectors,
     pub connector_request_reference_id: String,
     pub raw_connector_response: Option<Secret<String>>,
+    pub typed_connector_response: Option<String>,
     pub connector_response_headers: Option<http::HeaderMap>,
     pub raw_connector_request: Option<Secret<String>>,
+    pub typed_connector_request: Option<String>,
     pub access_token: Option<ServerAuthenticationTokenResponseData>,
     pub test_mode: Option<bool>,
     /// Connector metadata carried over from a preceding flow (e.g. the staged-payout
@@ -45,6 +47,22 @@ impl RawConnectorRequestResponse for PayoutFlowData {
 
     fn set_raw_connector_request(&mut self, request: Option<Secret<String>>) {
         self.raw_connector_request = request;
+    }
+
+    fn set_typed_connector_response(&mut self, response: Option<String>) {
+        self.typed_connector_response = response;
+    }
+
+    fn get_typed_connector_response(&self) -> Option<String> {
+        self.typed_connector_response.clone()
+    }
+
+    fn set_typed_connector_request(&mut self, request: Option<String>) {
+        self.typed_connector_request = request;
+    }
+
+    fn get_typed_connector_request(&self) -> Option<String> {
+        self.typed_connector_request.clone()
     }
 }
 
@@ -125,6 +143,8 @@ pub struct PayoutTransferRequest {
     pub address: Option<PayoutAddress>,
     pub source_bank_data: Option<Bank>,
     pub customer: Option<PayoutCustomer>,
+    pub connector_eligibility_reference_id: Option<String>,
+    pub payout_connector_metadata: Option<common_utils::pii::SecretSerdeValue>,
 }
 
 impl PayoutTransferRequest {
@@ -305,6 +325,9 @@ pub struct PayoutTransferResponse {
 pub struct PayoutGetRequest {
     pub merchant_payout_id: Option<String>,
     pub connector_payout_id: Option<String>,
+    /// Source (debtor) bank data — required by connectors (e.g. Deutsche Bank)
+    /// that need the debtor account to perform a status enquiry.
+    pub source_bank_data: Option<Bank>,
 }
 
 #[derive(Debug, Clone)]
@@ -321,30 +344,67 @@ pub struct PayoutStageRequest {
     pub amount: common_utils::types::MinorUnit,
     pub source_currency: common_enums::Currency,
     pub destination_currency: common_enums::Currency,
-    pub customer_id: Option<common_utils::id_type::CustomerId>,
-    pub email: Option<common_utils::pii::Email>,
-    pub name: Option<hyperswitch_masking::Secret<String>>,
-    pub mobile: Option<hyperswitch_masking::Secret<String>>,
-    pub user_ip: Option<hyperswitch_masking::Secret<String>>,
+    pub customer: Option<PayoutCustomer>,
+    pub user_ip: Option<Secret<String>>,
 }
 
 impl PayoutStageRequest {
+    fn customer(&self) -> Result<&PayoutCustomer, Error> {
+        self.customer
+            .as_ref()
+            .ok_or_else(missing_field_err("customer"))
+    }
+
     pub fn get_customer_id(&self) -> Result<common_utils::id_type::CustomerId, Error> {
-        self.customer_id
+        let id = self
+            .customer()?
+            .merchant_customer_id
             .clone()
-            .ok_or_else(missing_field_err("customer_id"))
+            .ok_or_else(missing_field_err("customer.merchant_customer_id"))?;
+        common_utils::id_type::CustomerId::try_from(std::borrow::Cow::from(id)).change_context(
+            IntegrationError::InvalidDataFormat {
+                field_name: "customer.merchant_customer_id",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to parse customer id as a valid CustomerId".to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Ensure the customer id is a valid non-empty string".to_string(),
+                    ),
+                    doc_url: None,
+                },
+            },
+        )
     }
 
     pub fn get_email(&self) -> Result<common_utils::pii::Email, Error> {
-        self.email.clone().ok_or_else(missing_field_err("email"))
+        self.customer()?
+            .email
+            .clone()
+            .ok_or_else(missing_field_err("customer.email"))
     }
 
     pub fn get_name(&self) -> Result<Secret<String>, Error> {
-        self.name.clone().ok_or_else(missing_field_err("name"))
+        self.customer()?
+            .name
+            .clone()
+            .map(Secret::new)
+            .ok_or_else(missing_field_err("customer.name"))
     }
 
+    /// Gigadat-style national number: country code (without `+`) joined to the number.
     pub fn get_mobile(&self) -> Result<Secret<String>, Error> {
-        self.mobile.clone().ok_or_else(missing_field_err("mobile"))
+        let customer = self.customer()?;
+        let number = customer
+            .phone_number
+            .clone()
+            .ok_or_else(missing_field_err("customer.phone_number"))?;
+        let country_code = customer
+            .phone_country_code
+            .as_deref()
+            .unwrap_or("+1")
+            .trim_start_matches('+');
+        Ok(Secret::new(format!("{country_code}{}", number.expose())))
     }
 
     pub fn get_user_ip(&self) -> Result<Secret<String>, Error> {
@@ -357,7 +417,7 @@ impl PayoutStageRequest {
 #[derive(Debug, Clone)]
 pub struct PayoutStageResponse {
     pub merchant_payout_id: Option<String>,
-    pub payout_status: Option<common_enums::PayoutStatus>,
+    pub payout_status: common_enums::PayoutStatus,
     pub connector_payout_id: Option<String>,
     pub status_code: u16,
     pub connector_metadata: Option<Secret<String>>,
@@ -406,6 +466,19 @@ pub struct PayoutCreateRecipientRequest {
     pub source_currency: common_enums::Currency,
     pub payout_method_data: Option<PayoutMethodData>,
     pub recipient_type: common_enums::PayoutRecipientType,
+    pub customer: Option<PayoutCustomer>,
+    pub address: Option<PayoutAddress>,
+}
+
+impl PayoutCreateRecipientRequest {
+    /// Navigate to the billing `AddressDetails`; per-field accessors live on
+    /// [`crate::payment_address::AddressDetails`] and are reused from there.
+    pub fn get_optional_billing_address(&self) -> Option<&crate::payment_address::AddressDetails> {
+        self.address
+            .as_ref()
+            .and_then(|a| a.billing_address.as_ref())
+            .and_then(|b| b.address.as_ref())
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -414,6 +487,7 @@ pub struct PayoutCreateRecipientResponse {
     pub payout_status: common_enums::PayoutStatus,
     pub connector_payout_id: Option<String>,
     pub status_code: u16,
+    pub payout_connector_metadata: Option<common_utils::pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone)]
@@ -430,4 +504,26 @@ pub struct PayoutEnrollDisburseAccountResponse {
     pub payout_status: common_enums::PayoutStatus,
     pub connector_payout_id: Option<String>,
     pub status_code: u16,
+}
+
+#[derive(Debug, Clone)]
+pub struct PayoutEligibilityRequest {
+    pub merchant_payout_id: Option<String>,
+    pub amount: common_utils::types::Money,
+    pub destination_currency: common_enums::Currency,
+    pub payout_method_data: Option<PayoutMethodData>,
+    pub source_bank_data: Option<Bank>,
+    pub customer: Option<PayoutCustomer>,
+    pub address: Option<PayoutAddress>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PayoutEligibilityResponse {
+    pub merchant_payout_id: Option<String>,
+    pub payout_status: common_enums::PayoutStatus,
+    pub connector_payout_id: Option<String>,
+    pub payout_eligible: Option<bool>,
+    pub status_code: u16,
+    pub connector_metadata: Option<common_utils::pii::SecretSerdeValue>,
+    pub connector_eligibility_reference_id: Option<String>,
 }

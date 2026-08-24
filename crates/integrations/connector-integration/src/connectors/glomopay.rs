@@ -181,6 +181,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             .clone()
             .unwrap_or_else(|| format!("glomopay: HTTP {}", res.status_code));
 
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         Ok(ErrorResponse {
             status_code: res.status_code,
             code,
@@ -191,6 +193,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     }
 }
@@ -577,6 +583,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         connector_refund_id: Some(payload.data.id),
                         merchant_refund_id: None,
                         connector_transaction_id: payload.data.payment_id,
+                        merchant_transaction_id: None,
                     },
                 )))
             }

@@ -639,7 +639,7 @@
             "via": "HyperSwitch",
             "x-revolv3-token": "probe_key"
           },
-          "body": "{\"paymentMethod\":{\"billingAddress\":{\"addressLine1\":null,\"addressLine2\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"phoneNumber\":null,\"email\":null,\"country\":null},\"billingFirstName\":null,\"billingLastName\":null,\"billingFullName\":\"John Doe\",\"creditCard\":{\"paymentAccountNumber\":\"{{$card_number}}\",\"expirationDate\":\"{{$card_exp_month}}{{$card_exp_year}}\",\"securityCode\":\"{{$card_cvc}}\"}},\"invoice\":{\"merchantInvoiceRefId\":null,\"amount\":{\"value\":10.0,\"currency\":\"USD\"},\"orderProcessingChannel\":null},\"threeDs\":null,\"networkProcessing\":null,\"dynamicDescriptor\":null}"
+          "body": "{\"paymentMethod\":{\"billingAddress\":{\"addressLine1\":null,\"addressLine2\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"phoneNumber\":null,\"email\":null,\"country\":null},\"billingFirstName\":null,\"billingLastName\":null,\"billingFullName\":\"John Doe\",\"creditCard\":{\"paymentAccountNumber\":\"{{$card_number}}\",\"expirationDate\":\"0330\",\"securityCode\":\"{{$card_cvc}}\"}},\"invoice\":{\"merchantInvoiceRefId\":null,\"amount\":{\"value\":10.0,\"currency\":\"USD\"},\"orderProcessingChannel\":null},\"threeDs\":null,\"networkProcessing\":null,\"dynamicDescriptor\":null}"
         }
       }
     },
@@ -678,7 +678,7 @@
             "via": "HyperSwitch",
             "x-revolv3-token": "probe_key"
           },
-          "body": "{\"paymentMethod\":{\"billingAddress\":{\"addressLine1\":null,\"addressLine2\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"phoneNumber\":null,\"email\":null,\"country\":null},\"billingFirstName\":null,\"billingLastName\":null,\"billingFullName\":\"John Doe\",\"creditCard\":{\"paymentAccountNumber\":\"{{$card_number}}\",\"expirationDate\":\"{{$card_exp_month}}{{$card_exp_year}}\",\"securityCode\":\"{{$card_cvc}}\"}},\"networkProcessing\":{\"processingType\":\"InitialRecurring\",\"originalNetworkTransactionId\":null},\"amount\":{\"value\":0.0,\"currency\":\"USD\"},\"orderProcessingChannel\":null,\"dynamicDescriptor\":null}"
+          "body": "{\"paymentMethod\":{\"billingAddress\":{\"addressLine1\":null,\"addressLine2\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"phoneNumber\":null,\"email\":null,\"country\":null},\"billingFirstName\":null,\"billingLastName\":null,\"billingFullName\":\"John Doe\",\"creditCard\":{\"paymentAccountNumber\":\"{{$card_number}}\",\"expirationDate\":\"0330\",\"securityCode\":\"{{$card_cvc}}\"}},\"networkProcessing\":{\"processingType\":\"InitialRecurring\",\"originalNetworkTransactionId\":null},\"amount\":{\"value\":0.0,\"currency\":\"USD\"},\"orderProcessingChannel\":null,\"dynamicDescriptor\":null}"
         }
       }
     },
@@ -692,6 +692,11 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: mandate_revoke flow for revolv3"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "refund": {

@@ -24,6 +24,9 @@ caf = "caf" # part of café (URL-encoding / Unicode examples)
 Automatico = "Automatico" # Brazilian Portuguese — Globalgetnet's PIX_AUTOMATICO API method
 AUTOMATICO = "AUTOMATICO" # Brazilian Portuguese — Globalgetnet's PIX_AUTOMATICO API method
 UE = "UE" # Hyperswitch internal error code prefix (e.g. UE_9000)
+Payed = "Payed" # Santander API returns "PAYED" as a status
+Threed = "Threed" # Ilixium spells its 3DS-completion operation type "THREED_SECURE_COMPLETE"
+THREED = "THREED" # Ilixium spells its 3DS-completion operation type "THREED_SECURE_COMPLETE"
 
 [default.extend-identifiers]
 ACI = "ACI" # Name of a connector

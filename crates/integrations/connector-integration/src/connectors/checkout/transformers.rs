@@ -12,7 +12,7 @@ use domain_types::{
         PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
         RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
-    errors::{ConnectorError, IntegrationError},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{
         BankDebitData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
     },
@@ -100,12 +100,44 @@ impl From<common_enums::BankHolderType> for CheckoutAchHolderType {
     }
 }
 
+#[derive(Debug)]
+pub struct CheckoutBankType(common_enums::BankType);
+
+impl Serialize for CheckoutBankType {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        self.0.serialize(serializer)
+    }
+}
+
+impl TryFrom<common_enums::BankType> for CheckoutBankType {
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(bank: common_enums::BankType) -> Result<Self, Self::Error> {
+        match bank {
+            common_enums::BankType::Salary | common_enums::BankType::Payment => {
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: format!("Bank type {bank:?} is not supported by Checkout"),
+                    connector: "checkout",
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Use a supported bank account type such as Checking or Savings"
+                                .to_owned(),
+                        ),
+                        additional_context: None,
+                        doc_url: None,
+                    },
+                }))
+            }
+            other => Ok(Self(other)),
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct AchBankDebitSource {
     #[serde(rename = "type")]
     pub source_type: String,
     #[serde(rename = "account_type")]
-    pub account_type: common_enums::BankType,
+    pub account_type: CheckoutBankType,
     pub country: String,
     pub account_number: Secret<String>,
     #[serde(rename = "bank_code")]
@@ -647,8 +679,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     None => None,
                 };
 
-                // Use bank_type from input or default to Savings
-                let account_type = bank_type.unwrap_or(common_enums::BankType::Savings);
+                let account_type = CheckoutBankType::try_from(
+                    bank_type.unwrap_or(common_enums::BankType::Savings),
+                )?;
 
                 let payment_source = PaymentSource::AchBankDebit(AchBankDebitSource {
                     source_type: ACH_PAYMENT_TYPE.to_string(),
@@ -1278,8 +1311,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     None => None,
                 };
 
-                // Use bank_type from input or default to Savings
-                let account_type = bank_type.unwrap_or(common_enums::BankType::Savings);
+                let account_type = CheckoutBankType::try_from(
+                    bank_type.unwrap_or(common_enums::BankType::Savings),
+                )?;
 
                 let payment_source = PaymentSource::AchBankDebit(AchBankDebitSource {
                     source_type: ACH_PAYMENT_TYPE.to_string(),
@@ -1664,6 +1698,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             };
 
             return Ok(Self {
@@ -1785,6 +1823,10 @@ impl<
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 };
 
                 Ok(Self {
@@ -1927,6 +1969,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 network_advice_code,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             None
@@ -2026,6 +2072,10 @@ impl<F> TryFrom<ResponseRouterData<PaymentsResponse, Self>>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             None
@@ -2342,6 +2392,7 @@ impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
                 connector_refund_id: item.response.action_id.clone(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -2471,6 +2522,7 @@ impl<F> TryFrom<ResponseRouterData<RSyncResponse, Self>>
                 connector_refund_id: action_response.action_id.clone(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })

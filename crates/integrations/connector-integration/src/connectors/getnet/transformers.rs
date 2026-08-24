@@ -1348,6 +1348,7 @@ impl TryFrom<ResponseRouterData<GetnetRefundResponse, Self>>
                 connector_refund_id: item.response.payment_id.clone(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -1372,6 +1373,7 @@ impl TryFrom<ResponseRouterData<GetnetRefundSyncResponse, Self>>
                 connector_refund_id: item.response.payment_id.clone(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -2227,6 +2229,8 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         Ok(Self {
             response: Ok(PaymentMethodTokenResponse {
                 token: item.response.number_token.expose(),
+                connector_payment_method_id: None,
+                status_code: item.http_code,
             }),
             ..item.router_data
         })

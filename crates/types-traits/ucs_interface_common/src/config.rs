@@ -33,6 +33,7 @@ pub fn merge_config_with_override(
 
             let mut merged_config = config;
             merged_config.apply(override_patch);
+            merged_config.post_patch_processing();
 
             tracing::info!("Config override applied successfully");
 
