@@ -123,6 +123,7 @@ struct EventParams<'a> {
     proxy_name: Option<&'a str>,
     tenant_id: &'a str,
     merchant_id: &'a str,
+    org_id: &'a str,
     connector_latency: common_utils::request_metrics::ConnectorLatencyTracker,
 }
 
@@ -577,6 +578,7 @@ impl Payments {
             proxy_name: metadata_payload.proxy_name.as_deref(),
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
+            org_id: metadata_payload.org_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
             connector_latency: metadata_payload.connector_latency.clone(),
             log_fields_enabled: config.log_fields.enabled,
@@ -717,6 +719,7 @@ impl Payments {
             proxy_name: metadata_payload.proxy_name.as_deref(),
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
+            org_id: metadata_payload.org_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
             connector_latency: metadata_payload.connector_latency.clone(),
             log_fields_enabled: config.log_fields.enabled,
@@ -1134,6 +1137,7 @@ impl PaymentService for Payments {
                         proxy_name: metadata_payload.proxy_name.as_deref(),
                         tenant_id: &metadata_payload.tenant_id,
                         merchant_id: metadata_payload.merchant_id.as_str(),
+                        org_id: metadata_payload.org_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
                 connector_latency: metadata_payload.connector_latency.clone(),
                         log_fields_enabled: config.log_fields.enabled,
@@ -2617,6 +2621,7 @@ impl PaymentMethod {
             proxy_name: metadata_payload.proxy_name.as_deref(),
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
+            org_id: metadata_payload.org_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
             connector_latency: metadata_payload.connector_latency.clone(),
             log_fields_enabled: config.log_fields.enabled,
@@ -2756,6 +2761,7 @@ impl PaymentMethod {
             proxy_name: metadata_payload.proxy_name.as_deref(),
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
+            org_id: metadata_payload.org_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
             connector_latency: metadata_payload.connector_latency.clone(),
             runtime_metadata: &config.runtime_metadata,
@@ -2876,6 +2882,7 @@ impl MerchantAuthentication {
             proxy_name: event_params.proxy_name,
             tenant_id: event_params.tenant_id,
             merchant_id: event_params.merchant_id,
+            org_id: event_params.org_id,
             return_raw_connector_data: config.common.return_raw_connector_data,
             connector_latency: event_params.connector_latency.clone(),
             log_fields_enabled: config.log_fields.enabled,
@@ -3020,6 +3027,7 @@ impl MerchantAuthentication {
             proxy_name: event_params.proxy_name,
             tenant_id: event_params.tenant_id,
             merchant_id: event_params.merchant_id,
+            org_id: event_params.org_id,
             return_raw_connector_data: config.common.return_raw_connector_data,
             connector_latency: event_params.connector_latency.clone(),
             log_fields_enabled: config.log_fields.enabled,
@@ -3250,6 +3258,7 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                         proxy_name: metadata_payload.proxy_name.as_deref(),
                         tenant_id: &metadata_payload.tenant_id,
                         merchant_id: metadata_payload.merchant_id.as_str(),
+                        org_id: metadata_payload.org_id.as_str(),
                         connector_latency: metadata_payload.connector_latency.clone(),
                     };
 
@@ -3366,6 +3375,7 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                         proxy_name: metadata_payload.proxy_name.as_deref(),
                         tenant_id: &metadata_payload.tenant_id,
                         merchant_id: metadata_payload.merchant_id.as_str(),
+                        org_id: metadata_payload.org_id.as_str(),
                         connector_latency: metadata_payload.connector_latency.clone(),
                     };
 
@@ -3602,6 +3612,7 @@ impl RecurringPaymentService for RecurringPayments {
                         proxy_name: metadata_payload.proxy_name.as_deref(),
                         tenant_id: &metadata_payload.tenant_id,
                         merchant_id: metadata_payload.merchant_id.as_str(),
+                        org_id: metadata_payload.org_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
                 connector_latency: metadata_payload.connector_latency.clone(),
                         log_fields_enabled: config.log_fields.enabled,

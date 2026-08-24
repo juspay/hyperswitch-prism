@@ -5,12 +5,14 @@ use grpc_api_types::payments::{
     composite_payment_method_service_server::CompositePaymentMethodService,
     merchant_authentication_service_server::MerchantAuthenticationService,
     payment_method_service_server::PaymentMethodService, CompositePaymentMethodCreateRequest,
-    CompositePaymentMethodCreateResponse, CompositePaymentMethodGetRequest,
+    CompositePaymentMethodCreateResponse, CompositePaymentMethodEligibilityRequest,
+    CompositePaymentMethodEligibilityResponse, CompositePaymentMethodGetRequest,
     CompositePaymentMethodGetResponse, CompositePaymentMethodRechargeRequest,
     CompositePaymentMethodRechargeResponse,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
-    PaymentMethodServiceCreateRequest, PaymentMethodServiceGetRequest,
-    PaymentMethodServiceRechargeRequest, PaymentMethodServiceTokenizeRequest,
+    PaymentMethodServiceCreateRequest, PaymentMethodServiceEligibilityRequest,
+    PaymentMethodServiceGetRequest, PaymentMethodServiceRechargeRequest,
+    PaymentMethodServiceTokenizeRequest,
 };
 use ucs_env::error::ResultExtGrpc;
 
@@ -99,6 +101,26 @@ impl CompositeAccessTokenRequest for CompositePaymentMethodCreateRequest {
 }
 
 impl CompositeAccessTokenRequest for CompositePaymentMethodGetRequest {
+    fn payment_method(&self) -> Option<grpc_api_types::payments::PaymentMethod> {
+        None
+    }
+
+    fn state(&self) -> Option<&grpc_api_types::payments::ConnectorState> {
+        self.state.as_ref()
+    }
+
+    fn build_access_token_request(
+        &self,
+        connector: &ConnectorVariant,
+    ) -> grpc_api_types::payments::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest
+    {
+        grpc_api_types::payments::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest::foreign_from((
+            self, connector,
+        ))
+    }
+}
+
+impl CompositeAccessTokenRequest for CompositePaymentMethodEligibilityRequest {
     fn payment_method(&self) -> Option<grpc_api_types::payments::PaymentMethod> {
         None
     }
@@ -380,6 +402,38 @@ where
             tokenize_response,
         }))
     }
+
+    async fn process_eligibility(
+        &self,
+        request: tonic::Request<CompositePaymentMethodEligibilityRequest>,
+    ) -> Result<tonic::Response<CompositePaymentMethodEligibilityResponse>, tonic::Status> {
+        let (metadata, extensions, payload) = request.into_parts();
+        let connector = connector_variant_from_composite_metadata(&metadata).map_err(|err| *err)?;
+        let access_token_response = self
+            .create_server_authentication_token(&connector, &payload, &metadata, &extensions)
+            .await?;
+
+        let inner = PaymentMethodServiceEligibilityRequest::foreign_from((
+            &payload,
+            access_token_response.as_ref(),
+        ));
+        let mut inner_request = tonic::Request::new(inner);
+        *inner_request.metadata_mut() = metadata;
+        *inner_request.extensions_mut() = extensions;
+
+        let eligibility_response = self
+            .payment_method_service
+            .eligibility(inner_request)
+            .await?
+            .into_inner();
+
+        Ok(tonic::Response::new(
+            CompositePaymentMethodEligibilityResponse {
+                access_token_response,
+                eligibility_response: Some(eligibility_response),
+            },
+        ))
+    }
 }
 
 #[tonic::async_trait]
@@ -413,5 +467,14 @@ where
         request: tonic::Request<CompositePaymentMethodRechargeRequest>,
     ) -> Result<tonic::Response<CompositePaymentMethodRechargeResponse>, tonic::Status> {
         self.process_recharge(request).await
+    }
+
+    /// Check payment method eligibility (e.g. gift-card/wallet status, performing the same
+    /// connector call as `get`). Same bootstrap + forward pattern.
+    async fn eligibility(
+        &self,
+        request: tonic::Request<CompositePaymentMethodEligibilityRequest>,
+    ) -> Result<tonic::Response<CompositePaymentMethodEligibilityResponse>, tonic::Status> {
+        self.process_eligibility(request).await
     }
 }
