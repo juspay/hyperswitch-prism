@@ -21,7 +21,6 @@ _default_config = sdk_config_pb2.ConnectorConfig(
             security_token=payment_methods_pb2.SecretString(value="YOUR_SECURITY_TOKEN"),
             base_url="YOUR_BASE_URL",
             site="YOUR_SITE",
-            test_mode=False,
         ),
     ),
 )
