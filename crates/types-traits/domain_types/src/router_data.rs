@@ -643,7 +643,6 @@ pub enum ConnectorSpecificConfig {
         campaign_id: Secret<String>,
         base_url: Option<String>,
         site: Option<String>,
-        test_mode: Option<bool>,
     },
     Hyperpg {
         username: Secret<String>,
@@ -2135,7 +2134,6 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 campaign_id: gigadat.campaign_id.ok_or_else(err)?,
                 base_url: gigadat.base_url,
                 site: gigadat.site,
-                test_mode: gigadat.test_mode,
             }),
             AuthType::Hyperpg(hyperpg) => Ok(Self::Hyperpg {
                 username: hyperpg.username.ok_or_else(err)?,
@@ -2958,7 +2956,6 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         campaign_id: key1.clone(),
                         base_url: None,
                         site: None,
-                        test_mode: None,
                     }),
                     _ => Err(err().into()),
                 },
@@ -3620,7 +3617,6 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         campaign_id: key1.clone(),
                         base_url: None,
                         site: None,
-                        test_mode: None,
                     }),
                     _ => Err(err().into()),
                 },

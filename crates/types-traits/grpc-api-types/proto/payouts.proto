@@ -266,6 +266,9 @@ message PayoutServiceCreateRequest {
   optional SourceBankData source_bank_data = 15;
   // Description of the payout
   optional string description = 16;
+  // Connector metadata carried over from a preceding flow (e.g. the staged-payout
+  // token returned by PayoutStage).
+  optional SecretString payout_connector_metadata = 17;
 }
 
 // Response message for creating a payout
@@ -314,8 +317,9 @@ message PayoutServiceTransferRequest {
   optional SourceBankData source_bank_data = 14;
   // Description of the payout
   optional string description = 15;
-  // Connector-specific feature data (e.g. staged-payout token) echoed back from earlier flows
-  optional SecretString connector_feature_data = 16;
+  // Connector metadata carried over from a preceding flow (e.g. the staged-payout
+  // token returned by PayoutStage).
+  optional SecretString payout_connector_metadata = 17;
 }
 
 // Response message for transferring a payout

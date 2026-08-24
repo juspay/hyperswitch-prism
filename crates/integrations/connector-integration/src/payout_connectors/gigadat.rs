@@ -57,7 +57,16 @@ fn get_connector_payout_id(
     connector_payout_id.as_ref().cloned().ok_or_else(|| {
         IntegrationError::MissingRequiredField {
             field_name: "connector_payout_id",
-            context: Default::default(),
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "Gigadat payout sync needs the transaction id returned by the transfer call"
+                        .to_string(),
+                ),
+                suggested_action: Some(
+                    "Run PayoutTransfer first so the connector payout id is available".to_string(),
+                ),
+                doc_url: None,
+            },
         }
         .into()
     })
@@ -74,7 +83,15 @@ fn get_connector_payout_or_quote_id(
         .ok_or_else(|| {
             IntegrationError::MissingRequiredField {
                 field_name: "connector_payout_id or connector_quote_id",
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                additional_context: Some(
+                    "Gigadat needs either the transaction id or the staged quote id to build the url".to_string(),
+                ),
+                suggested_action: Some(
+                    "Run PayoutStage or PayoutTransfer first".to_string(),
+                ),
+                doc_url: None,
+            },
             }
             .into()
         })
@@ -94,25 +111,49 @@ fn get_psp_token_from_payout_method_data(
         .ok_or_else(|| {
             IntegrationError::MissingRequiredField {
                 field_name: "psp_token (from payout_method_data.passthrough)",
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                additional_context: Some(
+                    "Gigadat payouts are completed with the passthrough psp_token issued at stage time".to_string(),
+                ),
+                suggested_action: Some(
+                    "Send the payout method as passthrough carrying the staged psp_token".to_string(),
+                ),
+                doc_url: None,
+            },
             }
             .into()
         })
 }
 
-fn get_psp_token_from_raw_response(
-    raw_connector_response: &Option<Secret<String>>,
+fn get_psp_token_from_payout_metadata(
+    payout_connector_metadata: &Option<Secret<String>>,
 ) -> CustomResult<Secret<String>, IntegrationError> {
-    match raw_connector_response {
+    match payout_connector_metadata {
         Some(raw) => serde_json::from_str::<GigadatPayoutMeta>(raw.peek())
             .map(|meta| meta.token)
             .change_context(IntegrationError::InvalidDataFormat {
-                field_name: "raw_connector_response (expected staged-payout token json)",
-                context: Default::default(),
+                field_name: "payout_connector_metadata (expected staged-payout token json)",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "The staged payout response body did not contain the expected token json"
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Check that the preceding PayoutStage call succeeded".to_string(),
+                    ),
+                    doc_url: None,
+                },
             }),
         None => Err(IntegrationError::MissingRequiredField {
-            field_name: "psp_token (from raw_connector_response)",
-            context: Default::default(),
+            field_name: "psp_token (from payout_connector_metadata)",
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "No staged payout response was carried over, so the token cannot be recovered"
+                        .to_string(),
+                ),
+                suggested_action: Some("Run PayoutStage before PayoutTransfer".to_string()),
+                doc_url: None,
+            },
         }
         .into()),
     }
@@ -284,7 +325,17 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, IntegrationError> {
             let auth = gigadat::GigadatAuthType::try_from(&req.connector_config).change_context(
                 IntegrationError::FailedToObtainAuthType {
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Gigadat payouts requires a Gigadat connector auth type"
+                                .to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Configure the merchant connector account with Gigadat credentials"
+                                .to_string(),
+                        ),
+                        doc_url: None,
+                    },
                 },
             )?;
             Ok(format!(
@@ -356,8 +407,8 @@ macros::macro_connector_implementation!(
 
             let token = get_psp_token_from_payout_method_data(&req.request.payout_method_data)
                 .or_else(|_| {
-                    get_psp_token_from_raw_response(
-                        &req.resource_common_data.raw_connector_response,
+                    get_psp_token_from_payout_metadata(
+                        &req.resource_common_data.payout_connector_metadata,
                     )
                 })?;
 
@@ -404,8 +455,8 @@ macros::macro_connector_implementation!(
 
             let token = get_psp_token_from_payout_method_data(&req.request.payout_method_data)
                 .or_else(|_| {
-                    get_psp_token_from_raw_response(
-                        &req.resource_common_data.raw_connector_response,
+                    get_psp_token_from_payout_metadata(
+                        &req.resource_common_data.payout_connector_metadata,
                     )
                 })?;
 
@@ -448,7 +499,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
         let auth = gigadat::GigadatAuthType::try_from(auth_type).change_context(
             IntegrationError::FailedToObtainAuthType {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Gigadat payouts requires a Gigadat connector auth type".to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Configure the merchant connector account with Gigadat credentials"
+                            .to_string(),
+                    ),
+                    doc_url: None,
+                },
             },
         )?;
 

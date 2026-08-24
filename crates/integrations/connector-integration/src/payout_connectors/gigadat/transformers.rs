@@ -4,13 +4,17 @@ use common_enums::{Currency, PayoutStatus};
 use common_utils::{id_type, types::FloatMajorUnit};
 use domain_types::{
     connector_flow::{PayoutCreate, PayoutGet, PayoutStage, PayoutTransfer},
-    errors::{ConnectorError, IntegrationError, ResponseTransformationErrorContext},
+    errors::{
+        ConnectorError, IntegrationError, IntegrationErrorContext,
+        ResponseTransformationErrorContext,
+    },
     payment_method_data::PaymentMethodDataTypes,
     payouts::payouts_types::{
         PayoutCreateRequest, PayoutCreateResponse, PayoutFlowData, PayoutGetRequest,
         PayoutGetResponse, PayoutStageRequest, PayoutStageResponse, PayoutTransferRequest,
         PayoutTransferResponse,
     },
+    router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
 };
 use error_stack::{Report, ResultExt};
@@ -20,9 +24,60 @@ use serde::{Deserialize, Serialize};
 use super::GigadatPayoutsRouterData;
 use crate::types::ResponseRouterData;
 
-pub use crate::connectors::gigadat::transformers::{
-    GigadatAuthType, GigadatErrorResponse, GigadatTransactionType,
-};
+/// Auth, error and transaction-type shapes for Gigadat payouts. Payouts are decoupled
+/// from the payin connector, so these are defined here rather than imported from it.
+#[derive(Debug, Clone)]
+pub struct GigadatAuthType {
+    pub campaign_id: Secret<String>,
+    pub access_token: Secret<String>,
+    pub security_token: Secret<String>,
+    pub site: Option<String>,
+}
+
+impl TryFrom<&ConnectorSpecificConfig> for GigadatAuthType {
+    type Error = Report<IntegrationError>;
+
+    fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
+        match auth_type {
+            ConnectorSpecificConfig::Gigadat {
+                campaign_id,
+                access_token,
+                security_token,
+                site,
+                ..
+            } => Ok(Self {
+                security_token: security_token.to_owned(),
+                access_token: access_token.to_owned(),
+                campaign_id: campaign_id.to_owned(),
+                site: site.clone(),
+            }),
+            _ => Err(Report::new(IntegrationError::FailedToObtainAuthType {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Gigadat payouts requires a Gigadat connector auth type".to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Configure the merchant connector account with Gigadat credentials"
+                            .to_string(),
+                    ),
+                    doc_url: None,
+                },
+            })),
+        }
+    }
+}
+
+#[derive(Default, Debug, Serialize, Deserialize)]
+pub struct GigadatErrorResponse {
+    pub err: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum GigadatTransactionType {
+    Cpi,
+    Eto,
+}
 
 // ===== PAYOUT RESPONSE TYPES =====
 #[derive(Debug, Serialize, Deserialize)]
@@ -96,7 +151,7 @@ impl TryFrom<ResponseRouterData<GigadatPayoutTransferResponse, Self>>
         } = item;
 
         router_data.response = Ok(PayoutTransferResponse {
-            merchant_payout_id: None,
+            merchant_payout_id: router_data.request.merchant_payout_id.clone(),
             payout_status: PayoutStatus::from(response.status),
             connector_payout_id: Some(response.data.transaction_id),
             status_code: http_code,
@@ -126,8 +181,10 @@ impl TryFrom<ResponseRouterData<GigadatPayoutSyncResponse, Self>>
         } = item;
 
         router_data.response = Ok(PayoutGetResponse {
-            merchant_payout_id: None,
+            merchant_payout_id: router_data.request.merchant_payout_id.clone(),
             payout_status: PayoutStatus::from(response.status),
+            // Gigadat's sync response body carries only `status`, so echo back the id
+            // the sync was issued against.
             connector_payout_id: router_data.request.connector_payout_id.clone(),
             status_code: http_code,
         });
@@ -151,7 +208,7 @@ impl TryFrom<ResponseRouterData<GigadatPayoutCreateResponse, Self>>
         } = item;
 
         router_data.response = Ok(PayoutCreateResponse {
-            merchant_payout_id: None,
+            merchant_payout_id: router_data.request.merchant_payout_id.clone(),
             payout_status: PayoutStatus::from(response.status),
             connector_payout_id: Some(response.data.transaction_id),
             status_code: http_code,
@@ -208,7 +265,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let site = auth.site.ok_or_else(|| {
             Report::from(IntegrationError::InvalidConnectorConfig {
                 config: "missing 'site' in connector config",
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Gigadat scopes each payout to a configured site".to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Set `site` on the Gigadat connector config".to_string(),
+                    ),
+                    doc_url: None,
+                },
             })
         })?;
 
@@ -217,8 +282,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .amount_converter
             .convert(request.amount, request.destination_currency)
             .change_context(IntegrationError::AmountConversionFailed {
-                context: Default::default(),
-            })?;
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Gigadat expects the payout amount as a major-unit float".to_string(),
+                    ),
+                    suggested_action: None,
+                    doc_url: None,
+                },
+            })
+            .attach_printable(
+                "Failed to convert payout amount to Gigadat's major-unit float representation",
+            )?;
 
         let customer_id = request.get_customer_id()?;
         let email = request.get_email()?;
@@ -230,7 +304,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .router_data
             .resource_common_data
             .test_mode
-            .unwrap_or(false);
+            .unwrap_or(true);
 
         Ok(Self {
             amount,
@@ -280,10 +354,8 @@ impl TryFrom<ResponseRouterData<GigadatPayoutStageResponse, Self>>
             },
         })?;
 
-        router_data.resource_common_data.raw_connector_response =
-            Some(Secret::new(connector_metadata.clone()));
         router_data.response = Ok(PayoutStageResponse {
-            merchant_payout_id: None,
+            merchant_payout_id: router_data.request.merchant_quote_id.clone(),
             payout_status: None,
             connector_payout_id: Some(response.data.transaction_id),
             status_code: http_code,

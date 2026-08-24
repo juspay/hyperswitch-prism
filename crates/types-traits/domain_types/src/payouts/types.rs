@@ -32,7 +32,7 @@ impl
             connector_request_reference_id: crate::utils::extract_connector_request_reference_id(
                 &value.merchant_payout_id,
             ),
-            raw_connector_response: value.connector_feature_data.clone(),
+            raw_connector_response: None,
             connector_response_headers: None,
             raw_connector_request: None,
             access_token: value.access_token.map(|token| {
@@ -43,6 +43,7 @@ impl
                 }
             }),
             test_mode: None,
+            payout_connector_metadata: value.payout_connector_metadata.clone(),
             description: value.description.clone(),
         })
     }
@@ -1568,7 +1569,7 @@ impl
             connector_request_reference_id: crate::utils::extract_connector_request_reference_id(
                 &value.merchant_payout_id,
             ),
-            raw_connector_response: value.connector_feature_data.clone(),
+            raw_connector_response: None,
             connector_response_headers: None,
             raw_connector_request: None,
             access_token: value.access_token.map(|token| {
@@ -1579,6 +1580,7 @@ impl
                 }
             }),
             test_mode: None,
+            payout_connector_metadata: value.payout_connector_metadata.clone(),
             description: value.description.clone(),
         })
     }
@@ -1620,6 +1622,7 @@ impl
                 }
             }),
             test_mode: None,
+            payout_connector_metadata: None,
             description: None,
         })
     }
@@ -1650,7 +1653,7 @@ impl
             connector_request_reference_id: crate::utils::extract_connector_request_reference_id(
                 &value.merchant_payout_id,
             ),
-            raw_connector_response: value.connector_feature_data.clone(),
+            raw_connector_response: None,
             connector_response_headers: None,
             raw_connector_request: None,
             access_token: value.access_token.map(|token| {
@@ -1661,6 +1664,7 @@ impl
                 }
             }),
             test_mode: None,
+            payout_connector_metadata: None,
             description: None,
         })
     }
@@ -1702,6 +1706,7 @@ impl
                 }
             }),
             test_mode: None,
+            payout_connector_metadata: None,
             description: None,
         })
     }
@@ -1743,6 +1748,7 @@ impl
                 }
             }),
             test_mode: None,
+            payout_connector_metadata: None,
             description: None,
         })
     }
@@ -1784,6 +1790,7 @@ impl
                 }
             }),
             test_mode: None,
+            payout_connector_metadata: None,
             description: None,
         })
     }
@@ -1825,6 +1832,7 @@ impl
                 }
             }),
             test_mode: None,
+            payout_connector_metadata: None,
             description: None,
         })
     }

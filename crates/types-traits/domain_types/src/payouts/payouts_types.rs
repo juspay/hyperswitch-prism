@@ -23,6 +23,10 @@ pub struct PayoutFlowData {
     pub raw_connector_request: Option<Secret<String>>,
     pub access_token: Option<ServerAuthenticationTokenResponseData>,
     pub test_mode: Option<bool>,
+    /// Connector metadata carried over from a preceding flow (e.g. the staged-payout
+    /// token returned by PayoutStage). Distinct from `raw_connector_response`, which
+    /// holds the untouched connector body for diagnostics.
+    pub payout_connector_metadata: Option<Secret<String>>,
     pub description: Option<String>,
 }
 

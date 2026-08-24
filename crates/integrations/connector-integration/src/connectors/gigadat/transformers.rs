@@ -18,6 +18,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{connectors::gigadat::GigadatRouterData, types::ResponseRouterData};
 
+pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
+
 // ===== CONNECTOR METADATA =====
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct GigadatConnectorMetadataObject {
@@ -53,7 +55,6 @@ pub struct GigadatAuthType {
     pub access_token: Secret<String>,
     pub security_token: Secret<String>,
     pub site: Option<String>,
-    pub test_mode: Option<bool>,
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for GigadatAuthType {
@@ -66,14 +67,12 @@ impl TryFrom<&ConnectorSpecificConfig> for GigadatAuthType {
                 access_token,
                 security_token,
                 site,
-                test_mode,
                 ..
             } => Ok(Self {
                 security_token: security_token.to_owned(),
                 access_token: access_token.to_owned(),
                 campaign_id: campaign_id.to_owned(),
                 site: site.clone(),
-                test_mode: *test_mode,
             }),
             _ => Err(Report::new(IntegrationError::FailedToObtainAuthType {
                 context: Default::default(),
@@ -269,8 +268,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 })?,
         };
 
+        // Validate payment method is Interac bank redirect
         match &item.router_data.request.payment_method_data {
             PaymentMethodData::BankRedirect(BankRedirectData::Interac { .. }) => {
+                // Get billing details
                 let billing = item
                     .router_data
                     .resource_common_data
@@ -313,6 +314,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     }
                 })?;
 
+                // Get customer ID
                 let customer_id = item
                     .router_data
                     .resource_common_data
@@ -323,6 +325,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         context: Default::default(),
                     })?;
 
+                // Get browser IP
                 let browser_info = item.router_data.request.browser_info.clone().ok_or(
                     IntegrationError::MissingRequiredField {
                         field_name: "browser_info",
@@ -403,6 +406,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<GigadatPaymentsRespon
         let response = &item.response;
         let router_data = &item.router_data;
 
+        // Build redirect URL
         let redirect_url = format!(
             "{}webflow?transaction={}&token={}",
             router_data.resource_common_data.connectors.gigadat.base_url,
@@ -454,6 +458,7 @@ impl TryFrom<ResponseRouterData<GigadatSyncResponse, Self>>
 
         let status = AttemptStatus::from(response.status.clone());
 
+        // Build customer metadata if data is present
         let connector_metadata = response.data.as_ref().map(|data| {
             serde_json::json!({
                             "interac_customer_info": {
@@ -537,6 +542,7 @@ impl TryFrom<ResponseRouterData<GigadatRefundResponse, Self>>
         let response = item.response;
         let mut router_data = item.router_data;
 
+        // Determine refund status based on HTTP code
         let refund_status = match item.http_code {
             200 => RefundStatus::Success,
             400 | 401 | 422 => RefundStatus::Failure,
