@@ -6,7 +6,7 @@
 // Run a scenario:  npx tsx authorizedotnet.ts checkout_autocapture
 
 import { PaymentClient, MerchantAuthenticationClient, CustomerClient, EventClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
-const { Environment, AcceptanceType, AuthenticationType, CaptureMethod, CardNetwork, Currency, FutureUsage, HttpMethod, PaymentMethodType } = types;
+const { Environment, AcceptanceType, AuthenticationType, CaptureMethod, CardNetwork, Currency, FutureUsage, HttpMethod, PaymentMethodType, TokenKind } = types;
 export const SUPPORTED_FLOWS = ["authorize", "capture", "create_server_session_authentication_token", "customer_create", "get", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "reverse", "setup_recurring", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
@@ -182,7 +182,8 @@ function _buildRecurringChargeRequest(): types.IRecurringPaymentServiceChargeReq
         },
         "paymentMethod": {  // Optional payment Method Information (for network transaction flows).
             "token": {  // Payment tokens.
-                "token": {"value": "probe_pm_token"}  // The token string representing a payment method.
+                "token": {"value": "probe_pm_token"},  // The token string representing a payment method.
+                "kind": TokenKind.TOKEN_KIND_MULTI_USE  // Which of the connector's tokenization endpoints minted this token. Connectors that mint more than one kind spend them on different request parameters, so the kind has to travel with the token rather than be inferred from its contents.
             }
         },
         "returnUrl": "https://example.com/recurring-return",

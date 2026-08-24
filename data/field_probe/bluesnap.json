@@ -1043,7 +1043,443 @@
       }
     },
     "tokenize": {
-      "default": {
+      "Ach": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "AchBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "Affirm": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "Afterpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "Alfamart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "AliPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "ApplePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "Bacs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "BacsBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "BancontactCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "BcaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "Becs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "Bizum": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "Blik": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "Bluecode": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "Boleto": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "Card": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "CashappQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "ClassicReward": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Dana": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "Efecty": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "Eft": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "Eps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "FamilyMart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "GCash": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "Giropay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "GoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "GooglePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "Ideal": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "Indomaret": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "InstantBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "Interac": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "KakaoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "Klarna": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "Lawson": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "LocalBankRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "LocalBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "MbWay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "Mifinity": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "MiniStop": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Momo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "Netbanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "OpenBanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "OpenBankingUk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "Oxxo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "PagoEfectivo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "PayEasy": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "PaySafeCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "PaypalRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "PaypalSdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "PhonePeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "Pix": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "Przelewy24": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "Pse": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "RedCompra": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "RedPagos": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "RevolutPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "SamsungPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "Satispay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "Seicomart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "Sepa": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "SepaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "SevenEleven": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "Skrill": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "Sofort": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "Swish": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "TouchNGo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "Trustly": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "Twint": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "UpiCollect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "UpiIntent": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "UpiQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "Vipps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "WeChatPayQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
+      },
+      "Wero": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method_token flow for bluesnap"
       }

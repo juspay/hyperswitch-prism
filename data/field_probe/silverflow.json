@@ -753,7 +753,443 @@
       }
     },
     "tokenize": {
-      "default": {
+      "Ach": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "AchBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "Affirm": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "Afterpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "Alfamart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "AliPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "ApplePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "Bacs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "BacsBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "BancontactCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "BcaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "Becs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "Bizum": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "Blik": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "Bluecode": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "Boleto": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "Card": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "CashappQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "ClassicReward": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Dana": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "Efecty": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "Eft": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "Eps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "FamilyMart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "GCash": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "Giropay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "GoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "GooglePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "Ideal": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "Indomaret": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "InstantBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "Interac": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "KakaoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "Klarna": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "Lawson": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "LocalBankRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "LocalBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "MbWay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "Mifinity": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "MiniStop": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Momo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "Netbanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "OpenBanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "OpenBankingUk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "Oxxo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "PagoEfectivo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "PayEasy": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "PaySafeCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "PaypalRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "PaypalSdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "PhonePeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "Pix": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "Przelewy24": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "Pse": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "RedCompra": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "RedPagos": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "RevolutPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "SamsungPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "Satispay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "Seicomart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "Sepa": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "SepaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "SevenEleven": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "Skrill": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "Sofort": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "Swish": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "TouchNGo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "Trustly": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "Twint": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "UpiCollect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "UpiIntent": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "UpiQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "Vipps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "WeChatPayQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for silverflow"
+      },
+      "Wero": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method_token flow for silverflow"
       }

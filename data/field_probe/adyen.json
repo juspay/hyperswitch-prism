@@ -2541,7 +2541,8 @@
           },
           "payment_method": {
             "token": {
-              "token": "probe_pm_token"
+              "token": "probe_pm_token",
+              "kind": "TOKEN_KIND_MULTI_USE"
             }
           },
           "return_url": "https://example.com/recurring-return",
@@ -2716,7 +2717,443 @@
       }
     },
     "tokenize": {
-      "default": {
+      "Ach": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "AchBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "Affirm": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "Afterpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "Alfamart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "AliPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "ApplePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "Bacs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "BacsBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "BancontactCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "BcaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "Becs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "Bizum": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "Blik": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "Bluecode": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "Boleto": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "Card": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "CashappQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "ClassicReward": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Dana": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "Efecty": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "Eft": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "Eps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "FamilyMart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "GCash": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "Giropay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "GoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "GooglePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "Ideal": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "Indomaret": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "InstantBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "Interac": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "KakaoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "Klarna": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "Lawson": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "LocalBankRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "LocalBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "MbWay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "Mifinity": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "MiniStop": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Momo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "Netbanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "OpenBanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "OpenBankingUk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "Oxxo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "PagoEfectivo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "PayEasy": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "PaySafeCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "PaypalRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "PaypalSdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "PhonePeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "Pix": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "Przelewy24": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "Pse": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "RedCompra": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "RedPagos": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "RevolutPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "SamsungPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "Satispay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "Seicomart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "Sepa": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "SepaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "SevenEleven": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "Skrill": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "Sofort": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "Swish": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "TouchNGo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "Trustly": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "Twint": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "UpiCollect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "UpiIntent": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "UpiQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "Vipps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "WeChatPayQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for adyen"
+      },
+      "Wero": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method_token flow for adyen"
       }

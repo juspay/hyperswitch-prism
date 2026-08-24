@@ -1093,7 +1093,443 @@
       }
     },
     "tokenize": {
-      "default": {
+      "Ach": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "AchBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "Affirm": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "Afterpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "Alfamart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "AliPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "ApplePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "Bacs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "BacsBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "BancontactCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "BcaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "Becs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "Bizum": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "Blik": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "Bluecode": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "Boleto": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "Card": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "CashappQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "ClassicReward": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Dana": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "Efecty": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "Eft": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "Eps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "FamilyMart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "GCash": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "Giropay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "GoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "GooglePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "Ideal": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "Indomaret": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "InstantBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "Interac": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "KakaoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "Klarna": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "Lawson": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "LocalBankRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "LocalBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "MbWay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "Mifinity": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "MiniStop": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Momo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "Netbanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "OpenBanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "OpenBankingUk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "Oxxo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "PagoEfectivo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "PayEasy": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "PaySafeCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "PaypalRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "PaypalSdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "PhonePeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "Pix": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "Przelewy24": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "Pse": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "RedCompra": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "RedPagos": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "RevolutPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "SamsungPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "Satispay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "Seicomart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "Sepa": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "SepaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "SevenEleven": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "Skrill": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "Sofort": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "Swish": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "TouchNGo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "Trustly": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "Twint": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "UpiCollect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "UpiIntent": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "UpiQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "Vipps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "WeChatPayQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      },
+      "Wero": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method_token flow for airwallex"
       }

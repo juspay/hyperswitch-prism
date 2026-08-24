@@ -747,7 +747,443 @@
       }
     },
     "tokenize": {
-      "default": {
+      "Ach": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "AchBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "Affirm": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "Afterpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "Alfamart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "AliPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "ApplePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "Bacs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "BacsBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "BancontactCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "BcaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "Becs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "Bizum": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "Blik": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "Bluecode": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "Boleto": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "Card": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "CashappQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "ClassicReward": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Dana": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "Efecty": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "Eft": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "Eps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "FamilyMart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "GCash": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "Giropay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "GoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "GooglePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "Ideal": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "Indomaret": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "InstantBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "Interac": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "KakaoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "Klarna": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "Lawson": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "LocalBankRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "LocalBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "MbWay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "Mifinity": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "MiniStop": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Momo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "Netbanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "OpenBanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "OpenBankingUk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "Oxxo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "PagoEfectivo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "PayEasy": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "PaySafeCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "PaypalRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "PaypalSdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "PhonePeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "Pix": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "Przelewy24": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "Pse": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "RedCompra": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "RedPagos": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "RevolutPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "SamsungPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "Satispay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "Seicomart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "Sepa": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "SepaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "SevenEleven": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "Skrill": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "Sofort": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "Swish": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "TouchNGo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "Trustly": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "Twint": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "UpiCollect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "UpiIntent": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "UpiQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "Vipps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "WeChatPayQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for elavon"
+      },
+      "Wero": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method_token flow for elavon"
       }

@@ -127,7 +127,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py#L243) · [JavaScript](../../examples/authorizedotnet/authorizedotnet.js) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L127) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs#L312)
+**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py#L244) · [JavaScript](../../examples/authorizedotnet/authorizedotnet.js) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L128) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs#L313)
 
 ### Card Payment (Authorize + Capture)
 
@@ -141,25 +141,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py#L262) · [JavaScript](../../examples/authorizedotnet/authorizedotnet.js) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L143) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs#L328)
+**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py#L263) · [JavaScript](../../examples/authorizedotnet/authorizedotnet.js) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L144) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs#L329)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py#L287) · [JavaScript](../../examples/authorizedotnet/authorizedotnet.js) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L165) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs#L351)
+**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py#L288) · [JavaScript](../../examples/authorizedotnet/authorizedotnet.js) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L166) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs#L352)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py#L312) · [JavaScript](../../examples/authorizedotnet/authorizedotnet.js) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L187) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs#L374)
+**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py#L313) · [JavaScript](../../examples/authorizedotnet/authorizedotnet.js) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L188) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs#L375)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py#L334) · [JavaScript](../../examples/authorizedotnet/authorizedotnet.js) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L206) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs#L393)
+**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py#L335) · [JavaScript](../../examples/authorizedotnet/authorizedotnet.js) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L207) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs#L394)
 
 ## API Reference
 
@@ -325,7 +325,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py) · [TypeScript](../../examples/authorizedotnet/authorizedotnet.ts#L383) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L224) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs)
+**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py) · [TypeScript](../../examples/authorizedotnet/authorizedotnet.ts#L384) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L225) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs)
 
 #### PaymentService.Capture
 
@@ -336,7 +336,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py) · [TypeScript](../../examples/authorizedotnet/authorizedotnet.ts#L392) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L236) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs)
+**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py) · [TypeScript](../../examples/authorizedotnet/authorizedotnet.ts#L393) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L237) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs)
 
 #### PaymentService.Get
 
@@ -347,7 +347,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py) · [TypeScript](../../examples/authorizedotnet/authorizedotnet.ts#L419) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L274) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs)
+**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py) · [TypeScript](../../examples/authorizedotnet/authorizedotnet.ts#L420) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L275) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -358,7 +358,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py) · [TypeScript](../../examples/authorizedotnet/authorizedotnet.ts#L446) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L313) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs)
+**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py) · [TypeScript](../../examples/authorizedotnet/authorizedotnet.ts#L447) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L314) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs)
 
 #### PaymentService.ProxySetupRecurring
 
@@ -369,7 +369,7 @@ Setup recurring mandate using vault-aliased card data.
 | **Request** | `PaymentServiceProxySetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py) · [TypeScript](../../examples/authorizedotnet/authorizedotnet.ts#L455) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L342) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs)
+**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py) · [TypeScript](../../examples/authorizedotnet/authorizedotnet.ts#L456) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L343) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs)
 
 #### PaymentService.Refund
 
@@ -380,7 +380,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py) · [TypeScript](../../examples/authorizedotnet/authorizedotnet.ts#L473) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L408) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs)
+**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py) · [TypeScript](../../examples/authorizedotnet/authorizedotnet.ts#L474) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L410) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs)
 
 #### PaymentService.Reverse
 
@@ -391,7 +391,7 @@ Reverse a captured payment in full. Initiates a complete refund when you need to
 | **Request** | `PaymentServiceReverseRequest` |
 | **Response** | `PaymentServiceReverseResponse` |
 
-**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py) · [TypeScript](../../examples/authorizedotnet/authorizedotnet.ts#L491) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L430) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs)
+**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py) · [TypeScript](../../examples/authorizedotnet/authorizedotnet.ts#L492) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L432) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs)
 
 #### PaymentService.SetupRecurring
 
@@ -402,7 +402,7 @@ Configure a payment method for recurring billing. Sets up the mandate and paymen
 | **Request** | `PaymentServiceSetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py) · [TypeScript](../../examples/authorizedotnet/authorizedotnet.ts#L500) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L438) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs)
+**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py) · [TypeScript](../../examples/authorizedotnet/authorizedotnet.ts#L501) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L440) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs)
 
 #### PaymentService.Void
 
@@ -413,7 +413,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py) · [TypeScript](../../examples/authorizedotnet/authorizedotnet.ts) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L480) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs)
+**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py) · [TypeScript](../../examples/authorizedotnet/authorizedotnet.ts) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L482) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs)
 
 ### Refunds
 
@@ -426,7 +426,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py) · [TypeScript](../../examples/authorizedotnet/authorizedotnet.ts#L482) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L418) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs)
+**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py) · [TypeScript](../../examples/authorizedotnet/authorizedotnet.ts#L483) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L420) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs)
 
 ### Mandates
 
@@ -439,7 +439,7 @@ Charge using an existing stored recurring payment instruction. Processes repeat 
 | **Request** | `RecurringPaymentServiceChargeRequest` |
 | **Response** | `RecurringPaymentServiceChargeResponse` |
 
-**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py) · [TypeScript](../../examples/authorizedotnet/authorizedotnet.ts#L464) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L377) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs)
+**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py) · [TypeScript](../../examples/authorizedotnet/authorizedotnet.ts#L465) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L378) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs)
 
 ### Customers
 
@@ -452,7 +452,7 @@ Create customer record in the payment processor system. Stores customer details 
 | **Request** | `CustomerServiceCreateRequest` |
 | **Response** | `CustomerServiceCreateResponse` |
 
-**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py) · [TypeScript](../../examples/authorizedotnet/authorizedotnet.ts#L410) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L261) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs)
+**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py) · [TypeScript](../../examples/authorizedotnet/authorizedotnet.ts#L411) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L262) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs)
 
 ### Authentication
 
@@ -465,4 +465,4 @@ Create a server-side session with the connector. Establishes session state for m
 | **Request** | `MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py) · [TypeScript](../../examples/authorizedotnet/authorizedotnet.ts#L401) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L246) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs)
+**Examples:** [Python](../../examples/authorizedotnet/authorizedotnet.py) · [TypeScript](../../examples/authorizedotnet/authorizedotnet.ts#L402) · [Kotlin](../../examples/authorizedotnet/authorizedotnet.kt#L247) · [Rust](../../examples/authorizedotnet/authorizedotnet.rs)

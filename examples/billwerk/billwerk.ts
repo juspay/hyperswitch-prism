@@ -5,9 +5,9 @@
 // Billwerk — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx billwerk.ts checkout_autocapture
 
-import { PaymentClient, RecurringPaymentClient, RefundClient, PaymentMethodClient, types } from 'hyperswitch-prism';
-const { Environment, AcceptanceType, CaptureMethod, Currency, FutureUsage, PaymentMethodType } = types;
-export const SUPPORTED_FLOWS = ["capture", "get", "recurring_charge", "refund", "refund_get", "token_authorize", "token_setup_recurring", "tokenize", "void"];
+import { PaymentClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
+const { Environment, AcceptanceType, CaptureMethod, Currency, FutureUsage, PaymentMethodType, TokenKind } = types;
+export const SUPPORTED_FLOWS = ["capture", "get", "recurring_charge", "refund", "refund_get", "token_authorize", "token_setup_recurring", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -57,7 +57,8 @@ function _buildRecurringChargeRequest(): types.IRecurringPaymentServiceChargeReq
         },
         "paymentMethod": {  // Optional payment Method Information (for network transaction flows).
             "token": {  // Payment tokens.
-                "token": {"value": "probe_pm_token"}  // The token string representing a payment method.
+                "token": {"value": "probe_pm_token"},  // The token string representing a payment method.
+                "kind": TokenKind.TOKEN_KIND_MULTI_USE  // Which of the connector's tokenization endpoints minted this token. Connectors that mint more than one kind spend them on different request parameters, so the kind has to travel with the token rather than be inferred from its contents.
             }
         },
         "returnUrl": "https://example.com/recurring-return",
@@ -141,28 +142,6 @@ function _buildTokenSetupRecurringRequest(): types.IPaymentServiceTokenSetupRecu
     };
 }
 
-function _buildTokenizeRequest(): types.IPaymentMethodServiceTokenizeRequest {
-    return {
-        "amount": {  // Payment Information.
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        },
-        "paymentMethod": {
-            "card": {  // Generic card payment.
-                "cardNumber": {"value": "4111111111111111"},  // Card Identification.
-                "cardExpMonth": {"value": "03"},
-                "cardExpYear": {"value": "2030"},
-                "cardCvc": {"value": "737"},
-                "cardHolderName": {"value": "John Doe"}  // Cardholder Information.
-            }
-        },
-        "address": {  // Address Information.
-            "billingAddress": {
-            }
-        }
-    };
-}
-
 function _buildVoidRequest(connectorTransactionId: string): types.IPaymentServiceVoidRequest {
     return {
         "merchantVoidId": "probe_void_001",  // Identification.
@@ -235,15 +214,6 @@ async function tokenSetupRecurring(merchantTransactionId: string, config: types.
     return tokenResponse;
 }
 
-// Flow: PaymentMethodService.Tokenize
-async function tokenize(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const paymentMethodClient = new PaymentMethodClient(config);
-
-    const tokenizeResponse = await paymentMethodClient.tokenize(_buildTokenizeRequest());
-
-    return tokenizeResponse;
-}
-
 // Flow: PaymentService.Void
 async function voidPayment(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -256,7 +226,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    capture, get, recurringCharge, refund, refundGet, tokenAuthorize, tokenSetupRecurring, tokenize, voidPayment, _buildCaptureRequest, _buildGetRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildTokenAuthorizeRequest, _buildTokenSetupRecurringRequest, _buildTokenizeRequest, _buildVoidRequest
+    capture, get, recurringCharge, refund, refundGet, tokenAuthorize, tokenSetupRecurring, voidPayment, _buildCaptureRequest, _buildGetRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildTokenAuthorizeRequest, _buildTokenSetupRecurringRequest, _buildVoidRequest
 };
 
 // CLI runner

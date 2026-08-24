@@ -10,10 +10,9 @@ import sys
 from payments import PaymentClient
 from payments import RecurringPaymentClient
 from payments import RefundClient
-from payments import PaymentMethodClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
-SUPPORTED_FLOWS = ["capture", "get", "recurring_charge", "refund", "refund_get", "token_authorize", "token_setup_recurring", "tokenize", "void"]
+SUPPORTED_FLOWS = ["capture", "get", "recurring_charge", "refund", "refund_get", "token_authorize", "token_setup_recurring", "void"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -65,6 +64,7 @@ def _build_recurring_charge_request():
         payment_method=payment_methods_pb2.PaymentMethod(  # Optional payment Method Information (for network transaction flows).
             token=payment_methods_pb2.TokenPaymentMethodType(
                 token=payment_methods_pb2.SecretString(value="probe_pm_token"),  # The token string representing a payment method.
+                kind=payment_methods_pb2.TokenKind.Value("TOKEN_KIND_MULTI_USE"),  # Which of the connector's tokenization endpoints minted this token. Connectors that mint more than one kind spend them on different request parameters, so the kind has to travel with the token rather than be inferred from its contents.
             ),
         ),
         return_url="https://example.com/recurring-return",
@@ -141,26 +141,6 @@ def _build_token_setup_recurring_request():
         setup_future_usage=payment_pb2.FutureUsage.Value("OFF_SESSION"),
     )
 
-def _build_tokenize_request():
-    return payment_pb2.PaymentMethodServiceTokenizeRequest(
-        amount=payment_pb2.Money(  # Payment Information.
-            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
-            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
-        ),
-        payment_method=payment_methods_pb2.PaymentMethod(
-            card=payment_methods_pb2.CardDetails(
-                card_number=payment_methods_pb2.CardNumberType(value="4111111111111111"),  # Card Identification.
-                card_exp_month=payment_methods_pb2.SecretString(value="03"),
-                card_exp_year=payment_methods_pb2.SecretString(value="2030"),
-                card_cvc=payment_methods_pb2.SecretString(value="737"),
-                card_holder_name=payment_methods_pb2.SecretString(value="John Doe"),  # Cardholder Information.
-            ),
-        ),
-        address=payment_pb2.PaymentAddress(  # Address Information.
-            billing_address=payment_pb2.Address(),
-        ),
-    )
-
 def _build_void_request(connector_transaction_id: str):
     return payment_pb2.PaymentServiceVoidRequest(
         merchant_void_id="probe_void_001",  # Identification.
@@ -227,15 +207,6 @@ async def process_token_setup_recurring(merchant_transaction_id: str, config: sd
     token_response = await payment_client.token_setup_recurring(_build_token_setup_recurring_request())
 
     return {"status": token_response.status}
-
-
-async def process_tokenize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: PaymentMethodService.Tokenize"""
-    paymentmethod_client = PaymentMethodClient(config)
-
-    tokenize_response = await paymentmethod_client.tokenize(_build_tokenize_request())
-
-    return {"token": tokenize_response.payment_method_token}
 
 
 async def process_void(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

@@ -15,7 +15,6 @@ import payments.CustomerClient
 import payments.EventClient
 import payments.RecurringPaymentClient
 import payments.RefundClient
-import payments.PaymentMethodClient
 import payments.AcceptanceType
 import payments.AuthenticationType
 import payments.CaptureMethod
@@ -24,6 +23,7 @@ import payments.Currency
 import payments.FutureUsage
 import payments.HttpMethod
 import payments.PaymentMethodType
+import payments.TokenKind
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
@@ -31,7 +31,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.StripeConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "create_client_authentication_token", "customer_create", "get", "incremental_authorization", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "token_authorize", "tokenize", "void")
+val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "create_client_authentication_token", "customer_create", "get", "incremental_authorization", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "token_authorize", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -398,6 +398,7 @@ fun recurringCharge(txnId: String, config: ConnectorConfig = _defaultConfig) {
         paymentMethodBuilder.apply {  // Optional payment Method Information (for network transaction flows).
             tokenBuilder.apply {  // Payment tokens.
                 tokenBuilder.value = "probe_pm_token"  // The token string representing a payment method.
+                kind = TokenKind.TOKEN_KIND_MULTI_USE  // Which of the connector's tokenization endpoints minted this token. Connectors that mint more than one kind spend them on different request parameters, so the kind has to travel with the token rather than be inferred from its contents.
             }
         }
         returnUrl = "https://example.com/recurring-return"
@@ -493,32 +494,6 @@ fun tokenAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
     println("Status: ${response.status.name}")
 }
 
-// Flow: PaymentMethodService.Tokenize
-fun tokenize(txnId: String, config: ConnectorConfig = _defaultConfig) {
-    val client = PaymentMethodClient(config)
-    val request = PaymentMethodServiceTokenizeRequest.newBuilder().apply {
-        amountBuilder.apply {  // Payment Information.
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        }
-        paymentMethodBuilder.apply {
-            cardBuilder.apply {  // Generic card payment.
-                cardNumberBuilder.value = "4111111111111111"  // Card Identification.
-                cardExpMonthBuilder.value = "03"
-                cardExpYearBuilder.value = "2030"
-                cardCvcBuilder.value = "737"
-                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
-            }
-        }
-        addressBuilder.apply {  // Address Information.
-            billingAddressBuilder.apply {
-            }
-        }
-    }.build()
-    val response = client.tokenize(request)
-    println("Token: ${response.paymentMethodToken}")
-}
-
 // Flow: PaymentService.Void
 fun void(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
@@ -554,8 +529,7 @@ fun main(args: Array<String>) {
         "refundGet" -> refundGet(txnId)
         "setupRecurring" -> setupRecurring(txnId)
         "tokenAuthorize" -> tokenAuthorize(txnId)
-        "tokenize" -> tokenize(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, customerCreate, get, handleEvent, incrementalAuthorization, parseEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, tokenAuthorize, tokenize, void")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, customerCreate, get, handleEvent, incrementalAuthorization, parseEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, tokenAuthorize, void")
     }
 }

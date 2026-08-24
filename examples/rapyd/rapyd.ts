@@ -6,7 +6,7 @@
 // Run a scenario:  npx tsx rapyd.ts checkout_autocapture
 
 import { PaymentClient, MerchantAuthenticationClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
-const { Environment, AuthenticationType, CaptureMethod, CardNetwork, Currency, PaymentMethodType } = types;
+const { Environment, AuthenticationType, CaptureMethod, CardNetwork, Currency, PaymentMethodType, TokenKind } = types;
 export const SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "get", "proxy_authorize", "recurring_charge", "refund", "refund_get", "token_authorize", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
@@ -118,7 +118,8 @@ function _buildRecurringChargeRequest(): types.IRecurringPaymentServiceChargeReq
         },
         "paymentMethod": {  // Optional payment Method Information (for network transaction flows).
             "token": {  // Payment tokens.
-                "token": {"value": "probe_pm_token"}  // The token string representing a payment method.
+                "token": {"value": "probe_pm_token"},  // The token string representing a payment method.
+                "kind": TokenKind.TOKEN_KIND_MULTI_USE  // Which of the connector's tokenization endpoints minted this token. Connectors that mint more than one kind spend them on different request parameters, so the kind has to travel with the token rather than be inferred from its contents.
             }
         },
         "returnUrl": "https://example.com/recurring-return",

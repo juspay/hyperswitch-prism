@@ -777,7 +777,443 @@
       }
     },
     "tokenize": {
-      "default": {
+      "Ach": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "AchBankTransfer": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "Affirm": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "Afterpay": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "Alfamart": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "AliPayRedirect": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "ApplePay": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "Bacs": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "BacsBankTransfer": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "BancontactCard": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "BcaBankTransfer": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "Becs": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "BillDeskRedirect": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "Bizum": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "Blik": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "Bluecode": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "Boleto": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "Card": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "CashappQr": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "CashfreeRedirect": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "ClassicReward": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Dana": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "EVoucher": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "Efecty": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "Eft": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "Eps": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "FamilyMart": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "GCash": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "Giropay": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "GoPay": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "GooglePay": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "Ideal": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "Indomaret": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "InstantBankTransfer": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "Interac": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "KakaoPay": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "Klarna": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "Lawson": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "LazyPayRedirect": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "LocalBankRedirect": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "LocalBankTransfer": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "MbWay": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "Mifinity": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "MiniStop": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Momo": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "Netbanking": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "OpenBanking": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "OpenBankingUk": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "Oxxo": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "PagoEfectivo": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "PayEasy": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "PayURedirect": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "PaypalRedirect": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "PaypalSdk": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "PhonePeRedirect": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "Pix": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "Przelewy24": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "Pse": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "RedCompra": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "RedPagos": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "RevolutPay": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "SamsungPay": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "Satispay": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "Seicomart": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "Sepa": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "SepaBankTransfer": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "SevenEleven": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "Skrill": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "Sofort": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "Swish": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "TouchNGo": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "Trustly": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "Twint": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "UpiCollect": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "UpiIntent": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "UpiQr": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "Vipps": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "WeChatPayQr": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiserv connector"
+      },
+      "Wero": {
         "status": "not_supported",
         "error": "payment_method_token flow not supported by fiserv connector"
       }
