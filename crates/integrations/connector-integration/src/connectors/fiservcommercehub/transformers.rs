@@ -905,8 +905,11 @@ fn build_payment_response(
                 status_code,
                 attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id,
-                network_decline_code: response_code,
-                network_advice_code: host_response_code,
+                // hostResponseCode carries the ISO 8583 host/scheme-level code.
+                // Commerce Hub returns no genuine scheme advice code; Fiserv's
+                // proprietary responseCode remains in the top-level `code`.
+                network_decline_code: host_response_code,
+                network_advice_code: None,
                 network_error_message: host_response_message,
                 typed_connector_response: None,
                 raw_connector_response: None,
