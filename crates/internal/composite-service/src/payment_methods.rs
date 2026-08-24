@@ -28,10 +28,6 @@ use crate::utils::{
 /// The cryptogram is what matters, not decryption: a Google Pay `PAN_ONLY` credential decrypts to
 /// a bare PAN and is charged as an ordinary card, so it reports `false`. Apple Pay's decrypted
 /// payload always carries one.
-///
-/// Must stay in lockstep with `stripe::transformers::is_decrypted_network_token`, which asks the
-/// same question of the converted domain type — the composite has not chosen the PCI-holder
-/// generic yet, so the two cannot share one function.
 fn is_wallet_payload_decrypted_network_token(
     payment_method: Option<&grpc_api_types::payments::PaymentMethod>,
 ) -> bool {

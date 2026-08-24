@@ -691,18 +691,10 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
         ) -> CustomResult<String, IntegrationError> {
-            // Wallet credentials carry parameters that only `/v1/tokens` accepts —
-            // `card[cryptogram]` when decrypted, `pk_token` when not. Raw cards and the
-            // redirect-style wallets mint a `pm_…` on `/v1/payment_methods`.
-            let endpoint = if transformers::needs_tokens_endpoint(&req.request.payment_method_data) {
-                "v1/tokens"
-            } else {
-                "v1/payment_methods"
-            };
             Ok(format!(
                 "{}{}",
                 self.connector_base_url_payments(req),
-                endpoint
+                "v1/tokens"
             ))
         }
     }

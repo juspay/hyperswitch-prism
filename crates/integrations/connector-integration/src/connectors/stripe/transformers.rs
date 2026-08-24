@@ -187,30 +187,6 @@ impl From<common_enums::AuthenticationType> for Auth3ds {
     }
 }
 
-/// Whether the credential can only be tokenized on `/v1/tokens`.
-///
-/// Apple Pay always can: decrypted it rides on `card[cryptogram]`, encrypted it rides on
-/// `pk_token`, and neither parameter exists on `/v1/payment_methods`. Google Pay only once it has
-/// decrypted to a network token — an encrypted payload is charged inline and never reaches
-/// Tokenize, and a `PAN_ONLY` one decrypts to a bare PAN charged as an ordinary card.
-pub fn needs_tokens_endpoint<T>(payment_method_data: &PaymentMethodData<T>) -> bool
-where
-    T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
-{
-    match payment_method_data {
-        PaymentMethodData::Wallet(WalletData::ApplePay(_)) => true,
-        PaymentMethodData::Wallet(WalletData::GooglePay(google_pay)) => matches!(
-            &google_pay.tokenization_data,
-            payment_method_data::GpayTokenizationData::Decrypted(decrypted)
-                if decrypted.cryptogram.is_some()
-        ),
-        _ => false,
-    }
-}
-
-/// Value Stripe expects in `card[tokenization_method]` for a decrypted Google Pay network token.
-const GOOGLE_PAY_TOKENIZATION_METHOD: &str = "android_pay";
-
 #[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum StripeCardNetwork {
@@ -684,43 +660,6 @@ pub struct StripeCardToken<T: PaymentMethodDataTypes + Debug + Sync + Send + 'st
     pub token_card_cvc: Secret<String>,
     #[serde(flatten)]
     pub billing: StripeBillingAddressCardToken,
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    StripePaymentMethodData<T>
-{
-    /// `true` when this shape is only legal on `/v1/tokens` (decrypted wallet credential).
-    fn is_tokens_endpoint_only(&self) -> bool {
-        matches!(
-            self,
-            Self::Wallet(
-                StripeWallet::ApplePayPredecryptToken(_)
-                    | StripeWallet::GooglePayPredecryptToken(_)
-                    | StripeWallet::ApplepayToken(_)
-            )
-        )
-    }
-
-    /// Rejects a `/v1/tokens`-only shape before it is posted to `endpoint`.
-    fn reject_if_tokens_endpoint_only(
-        &self,
-        endpoint: &'static str,
-    ) -> Result<(), error_stack::Report<IntegrationError>> {
-        if self.is_tokens_endpoint_only() {
-            return Err(IntegrationError::NotSupported {
-                message: format!(
-                    "Charging a decrypted wallet credential directly on {endpoint} — its \
-                     card[cryptogram] / card[eci] block is only accepted by /v1/tokens. Mint a \
-                     token with PaymentMethodService/Tokenize and pass it back as \
-                     payment_method.token"
-                ),
-                connector: "stripe",
-                context: Default::default(),
-            }
-            .into());
-        }
-        Ok(())
-    }
 }
 
 /// Spends a Token on a PaymentIntent. `payment_method=tok_…` is rejected, so the id rides on
@@ -2013,7 +1952,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             exp_month: google_pay_decrypted_data.card_exp_month.clone(),
                             cryptogram,
                             eci: google_pay_decrypted_data.eci_indicator.clone(),
-                            tokenization_method: GOOGLE_PAY_TOKENIZATION_METHOD.to_string(),
+                            tokenization_method: "android_pay".to_string(),
                         }),
                     ))),
                     // PAN_ONLY carries no cryptogram, so the decrypted PAN goes over as a plain
@@ -2227,8 +2166,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             .and_then(get_stripe_overcapture_request),
                     },
                 )?;
-
-            payment_method_data.reject_if_tokens_endpoint_only("/v1/payment_intents")?;
 
             validate_shipping_address_against_payment_method(
                 &shipping_address,
@@ -5213,9 +5150,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             pm_type,
         ))?;
 
-        // Flattened into `/v1/setup_intents`, which rejects the `/v1/tokens`-only wallet block.
-        payment_data.reject_if_tokens_endpoint_only("/v1/setup_intents")?;
-
         let meta_data = Some(get_transaction_metadata(
             item.router_data.request.metadata.clone(),
             item.router_data
@@ -5848,9 +5782,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             },
                         )?;
 
-                    // Same rejection on `/v1/payment_intents`: tokenize first.
-                    payment_method_data.reject_if_tokens_endpoint_only("/v1/payment_intents")?;
-
                     validate_shipping_address_against_payment_method(
                         &shipping_address,
                         payment_method_type.as_ref(),
@@ -6129,18 +6060,12 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<StripeTokenResponse, Self>) -> Result<Self, Self::Error> {
         let token = item.response.id.clone().expose();
-        // Same predicate that picked the endpoint, so this is the object Stripe actually minted.
-        let token_kind = if needs_tokens_endpoint(&item.router_data.request.payment_method_data) {
-            common_enums::TokenKind::SingleUse
-        } else {
-            common_enums::TokenKind::MultiUse
-        };
         Ok(Self {
             response: Ok(PaymentMethodTokenResponse {
                 token,
                 connector_payment_method_id: None,
                 status_code: item.http_code,
-                token_kind: Some(token_kind),
+                token_kind: Some(common_enums::TokenKind::SingleUse),
             }),
             ..item.router_data
         })
