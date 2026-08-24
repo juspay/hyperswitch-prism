@@ -160,6 +160,7 @@ pub trait FrmServiceTrait:
     + FrmPaymentOutcomeV2
     + FrmRefundProcessedV2
     + FrmChargebackReceivedV2
+    + PaymentPreAuthenticateV2<domain_types::payment_method_data::DefaultPCIHolder>
 {
 }
 
