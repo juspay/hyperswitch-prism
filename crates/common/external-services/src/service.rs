@@ -1389,7 +1389,7 @@ pub async fn call_connector_api(
             };
             info_log(
                 "REQUEST_FAILURE",
-                &json!(format!("Unable to send request to connector.",)),
+                &json!("Unable to send request to connector."),
             );
             report!(api_error)
         })
