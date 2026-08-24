@@ -199,7 +199,7 @@ pub fn build_recurring_charge_request() -> RecurringPaymentServiceChargeRequest 
             payment_method: Some(payment_method::PaymentMethod::Token(
                 TokenPaymentMethodType {
                     token: Some(Secret::new("probe_pm_token".to_string())), // The token string representing a payment method.
-                    kind: TokenKind::MultiUse.into(), // Which of the connector's tokenization endpoints minted this token. Connectors that mint more than one kind spend them on different request parameters, so the kind has to travel with the token rather than be inferred from its contents.
+                    kind: TokenKind::MultiUse.into(),
                 },
             )),
             ..Default::default()

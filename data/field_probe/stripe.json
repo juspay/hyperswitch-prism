@@ -716,8 +716,50 @@
         }
       },
       "GooglePayDecrypted": {
-        "status": "error",
-        "error": "Stuck on field: gpay wallet_token — Missing required field: gpay wallet_token"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay_sdk": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "decrypted_data": {
+                  "card_exp_month": "03",
+                  "card_exp_year": "2030",
+                  "application_primary_account_number": "4111111111111111",
+                  "cryptogram": "AAAAAA==",
+                  "eci_indicator": "05"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/payment_intents",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "amount=1000&currency=USD&metadata%5Border_id%5D=probe_txn_001&return_url=https%3A%2F%2Fexample.com%2Freturn&confirm=true&card%5Bnumber%5D=4111111111111111&card%5Bexp_year%5D=2030&card%5Bexp_month%5D=03&card%5Bcryptogram%5D=AAAAAA%3D%3D&card%5Beci%5D=05&card%5Btokenization_method%5D=android_pay&capture_method=automatic&payment_method_types%5B0%5D=card&expand%5B0%5D=latest_charge"
+        }
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
@@ -1528,7 +1570,8 @@
           },
           "payment_method": {
             "token": {
-              "token": "probe_pm_token"
+              "token": "probe_pm_token",
+              "kind": "TOKEN_KIND_MULTI_USE"
             }
           },
           "return_url": "https://example.com/recurring-return",
@@ -1693,7 +1736,428 @@
       }
     },
     "tokenize": {
-      "default": {
+      "Ach": {
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "ach": {
+              "account_number": "000123456789",
+              "routing_number": "110000000",
+              "bank_account_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          }
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/tokens",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "payment_method_data%5Btype%5D=us_bank_account&payment_method_data%5Bus_bank_account%5D%5Baccount_holder_type%5D=individual&payment_method_data%5Bus_bank_account%5D%5Baccount_number%5D=000123456789&payment_method_data%5Bus_bank_account%5D%5Brouting_number%5D=110000000"
+        }
+      },
+      "AchBankTransfer": {
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "ach_bank_transfer": {}
+          },
+          "address": {
+            "billing_address": {}
+          }
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/tokens",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "payment_method_data%5Btype%5D=customer_balance&payment_method_options%5Bcustomer_balance%5D%5Bbank_transfer%5D%5Btype%5D=us_bank_transfer&payment_method_types%5B0%5D=customer_balance&payment_method_options%5Bcustomer_balance%5D%5Bfunding_type%5D=bank_transfer"
+        }
+      },
+      "Affirm": {
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "affirm": {}
+          },
+          "address": {
+            "billing_address": {}
+          }
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/tokens",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "payment_method_data%5Btype%5D=affirm"
+        }
+      },
+      "Afterpay": {
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "afterpay_clearpay": {}
+          },
+          "address": {
+            "billing_address": {}
+          }
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/tokens",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "payment_method_data%5Btype%5D=afterpay_clearpay"
+        }
+      },
+      "Alfamart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "AliPayRedirect": {
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "ali_pay_redirect": {}
+          },
+          "address": {
+            "billing_address": {}
+          }
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/tokens",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "payment_method_data%5Btype%5D=alipay"
+        }
+      },
+      "AmazonPayRedirect": {
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "amazon_pay_redirect": {}
+          },
+          "address": {
+            "billing_address": {}
+          }
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/tokens",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "payment_method_data%5Btype%5D=amazon_pay"
+        }
+      },
+      "ApplePay": {
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay_sdk": {
+              "payment_data": {
+                "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9"
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type": "debit"
+              },
+              "transaction_identifier": "probe_txn_id"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          }
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/tokens",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "pk_token=%7B%22version%22%3A%22EC_v1%22%2C%22data%22%3A%22probe%22%2C%22signature%22%3A%22probe%22%7D&pk_token_instrument_name=debit&pk_token_payment_network=Visa&pk_token_transaction_id=probe_txn_id"
+        }
+      },
+      "ApplePayDecrypted": {
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay_sdk": {
+              "payment_data": {
+                "decrypted_data": {
+                  "application_primary_account_number": "4111111111111111",
+                  "application_expiration_month": "03",
+                  "application_expiration_year": "2030",
+                  "payment_data": {
+                    "online_payment_cryptogram": "AAAAAA==",
+                    "eci_indicator": "05"
+                  }
+                }
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type": "debit"
+              },
+              "transaction_identifier": "probe_txn_id"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          }
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/tokens",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "card%5Bnumber%5D=4111111111111111&card%5Bexp_year%5D=2030&card%5Bexp_month%5D=03&card%5Bcryptogram%5D=AAAAAA%3D%3D&card%5Beci%5D=05&card%5Btokenization_method%5D=apple_pay"
+        }
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "Bacs": {
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "bacs": {
+              "account_number": "55779911",
+              "sort_code": "200000",
+              "bank_account_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          }
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/tokens",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "payment_method_data%5Btype%5D=bacs_debit&payment_method_data%5Bbacs_debit%5D%5Baccount_number%5D=55779911&payment_method_data%5Bbacs_debit%5D%5Bsort_code%5D=200000"
+        }
+      },
+      "BacsBankTransfer": {
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "bacs_bank_transfer": {}
+          },
+          "address": {
+            "billing_address": {}
+          }
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/tokens",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "payment_method_data%5Btype%5D=customer_balance&payment_method_options%5Bcustomer_balance%5D%5Bbank_transfer%5D%5Btype%5D=gb_bank_transfer&payment_method_options%5Bcustomer_balance%5D%5Bfunding_type%5D=bank_transfer&payment_method_types%5B0%5D=customer_balance"
+        }
+      },
+      "BancontactCard": {
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "bancontact_card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          }
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/tokens",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "payment_method_data%5Btype%5D=bancontact"
+        }
+      },
+      "BcaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "Becs": {
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "becs": {
+              "account_number": "000123456",
+              "bsb_number": "000000",
+              "bank_account_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          }
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/tokens",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "payment_method_data%5Btype%5D=au_becs_debit&payment_method_data%5Bau_becs_debit%5D%5Baccount_number%5D=000123456&payment_method_data%5Bau_becs_debit%5D%5Bbsb_number%5D=000000"
+        }
+      },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "Bizum": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "Blik": {
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "blik": {
+              "blik_code": "777124"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          }
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/tokens",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "payment_method_data%5Btype%5D=blik&payment_method_options%5Bblik%5D%5Bcode%5D=777124"
+        }
+      },
+      "Bluecode": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "Boleto": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "Card": {
         "status": "supported",
         "proto_request": {
           "amount": {
@@ -1714,7 +2178,7 @@
           }
         },
         "sample": {
-          "url": "https://api.stripe.com/v1/payment_methods",
+          "url": "https://api.stripe.com/v1/tokens",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -1724,6 +2188,628 @@
           },
           "body": "type=card&card%5Bnumber%5D=4111111111111111&card%5Bexp_month%5D=03&card%5Bexp_year%5D=2030&card%5Bcvc%5D=737"
         }
+      },
+      "CashappQr": {
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "cashapp_qr": {}
+          },
+          "address": {
+            "billing_address": {}
+          }
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/tokens",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "payment_method_data%5Btype%5D=cashapp"
+        }
+      },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "ClassicReward": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Dana": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "Efecty": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "Eft": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "Eps": {
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "eps": {}
+          },
+          "address": {
+            "billing_address": {}
+          }
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/tokens",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "payment_method_data%5Btype%5D=eps"
+        }
+      },
+      "FamilyMart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "GCash": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "Giropay": {
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "giropay": {}
+          },
+          "address": {
+            "billing_address": {}
+          }
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/tokens",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "payment_method_data%5Btype%5D=giropay"
+        }
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "GoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "GooglePay": {
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay_sdk": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "encrypted_data": {
+                  "token_type": "PAYMENT_GATEWAY",
+                  "token": "{\"id\":\"tok_probe_gpay\",\"object\":\"token\",\"type\":\"card\"}"
+                }
+              }
+            }
+          },
+          "address": {
+            "billing_address": {}
+          }
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/tokens",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "payment_method_data%5Btype%5D=card&payment_method_data%5Bcard%5D%5Btoken%5D=tok_probe_gpay"
+        }
+      },
+      "GooglePayDecrypted": {
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay_sdk": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "decrypted_data": {
+                  "card_exp_month": "03",
+                  "card_exp_year": "2030",
+                  "application_primary_account_number": "4111111111111111",
+                  "cryptogram": "AAAAAA==",
+                  "eci_indicator": "05"
+                }
+              }
+            }
+          },
+          "address": {
+            "billing_address": {}
+          }
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/tokens",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "card%5Bnumber%5D=4111111111111111&card%5Bexp_year%5D=2030&card%5Bexp_month%5D=03&card%5Bcryptogram%5D=AAAAAA%3D%3D&card%5Beci%5D=05&card%5Btokenization_method%5D=android_pay"
+        }
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "Ideal": {
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "ideal": {}
+          },
+          "address": {
+            "billing_address": {}
+          }
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/tokens",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "payment_method_data%5Btype%5D=ideal"
+        }
+      },
+      "Indomaret": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "InstantBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "Interac": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "KakaoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "Klarna": {
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "klarna": {}
+          },
+          "address": {
+            "billing_address": {}
+          }
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/tokens",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "payment_method_data%5Btype%5D=klarna"
+        }
+      },
+      "Lawson": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "LocalBankRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "LocalBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "MbWay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "Mifinity": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "MiniStop": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Momo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "MultibancoBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: billing_address.email — Missing required field: billing_address.email"
+      },
+      "Netbanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "OpenBanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "OpenBankingUk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "Oxxo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "PagoEfectivo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "PayEasy": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "PaySafeCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "PaypalRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "PaypalSdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "PhonePeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "Pix": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "Przelewy24": {
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "przelewy24": {}
+          },
+          "address": {
+            "billing_address": {}
+          }
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/tokens",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "payment_method_data%5Btype%5D=p24"
+        }
+      },
+      "Pse": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "RedCompra": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "RedPagos": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "RevolutPay": {
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "revolut_pay": {}
+          },
+          "address": {
+            "billing_address": {}
+          }
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/tokens",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "payment_method_data%5Btype%5D=revolut_pay"
+        }
+      },
+      "SamsungPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "Satispay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "Seicomart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "Sepa": {
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "sepa": {
+              "iban": "DE89370400440532013000",
+              "bank_account_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          }
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/tokens",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "payment_method_data%5Btype%5D=sepa_debit&payment_method_data%5Bsepa_debit%5D%5Biban%5D=DE89370400440532013000"
+        }
+      },
+      "SepaBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: billing_address.country — Missing required field: billing_address.country"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "SevenEleven": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "Skrill": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "Sofort": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "Swish": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "TouchNGo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "Trustly": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "Twint": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "UpiCollect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "UpiIntent": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "UpiQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "Vipps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "WeChatPayQr": {
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "we_chat_pay_qr": {}
+          },
+          "address": {
+            "billing_address": {}
+          }
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/tokens",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "payment_method_data%5Btype%5D=wechat_pay&payment_method_options%5Bwechat_pay%5D%5Bclient%5D=web"
+        }
+      },
+      "Wero": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
       }
     },
     "verify_redirect": {

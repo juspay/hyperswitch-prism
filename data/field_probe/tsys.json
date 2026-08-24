@@ -815,7 +815,443 @@
       }
     },
     "tokenize": {
-      "default": {
+      "Ach": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "AchBankTransfer": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "Affirm": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "Afterpay": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "Alfamart": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "AliPayRedirect": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "ApplePay": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "Bacs": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "BacsBankTransfer": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "BancontactCard": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "BcaBankTransfer": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "Becs": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "BillDeskRedirect": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "Bizum": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "Blik": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "Bluecode": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "Boleto": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "Card": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "CashappQr": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "CashfreeRedirect": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "ClassicReward": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Dana": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "EVoucher": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "Efecty": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "Eft": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "Eps": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "FamilyMart": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "GCash": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "Giropay": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "GoPay": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "GooglePay": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "Ideal": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "Indomaret": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "InstantBankTransfer": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "Interac": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "KakaoPay": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "Klarna": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "Lawson": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "LazyPayRedirect": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "LocalBankRedirect": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "LocalBankTransfer": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "MbWay": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "Mifinity": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "MiniStop": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Momo": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "Netbanking": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "OpenBanking": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "OpenBankingUk": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "Oxxo": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "PagoEfectivo": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "PayEasy": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "PayURedirect": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "PaypalRedirect": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "PaypalSdk": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "PhonePeRedirect": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "Pix": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "Przelewy24": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "Pse": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "RedCompra": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "RedPagos": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "RevolutPay": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "SamsungPay": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "Satispay": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "Seicomart": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "Sepa": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "SepaBankTransfer": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "SevenEleven": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "Skrill": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "Sofort": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "Swish": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "TouchNGo": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "Trustly": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "Twint": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "UpiCollect": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "UpiIntent": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "UpiQr": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "Vipps": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "WeChatPayQr": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by tsys connector"
+      },
+      "Wero": {
         "status": "not_supported",
         "error": "payment_method_token flow not supported by tsys connector"
       }

@@ -706,7 +706,8 @@
           },
           "payment_method": {
             "token": {
-              "token": "probe_pm_token"
+              "token": "probe_pm_token",
+              "kind": "TOKEN_KIND_MULTI_USE"
             }
           },
           "return_url": "https://example.com/recurring-return",
@@ -872,7 +873,443 @@
       }
     },
     "tokenize": {
-      "default": {
+      "Ach": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "AchBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "Affirm": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "Afterpay": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "Alfamart": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "AliPayRedirect": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "AmazonPayRedirect": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "ApplePay": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "ApplePayDecrypted": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "Bacs": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "BacsBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "BancontactCard": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "BcaBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "Becs": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "BillDeskRedirect": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "Bizum": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "Blik": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "Bluecode": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "BniVaBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "Boleto": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "BriVaBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "Card": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "CashappQr": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "CashfreeRedirect": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "CimbVaBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "ClassicReward": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Dana": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "EVoucher": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "EaseBuzzRedirect": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "Efecty": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "Eft": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "Eps": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "FamilyMart": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "GCash": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "Giropay": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "GoPay": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "GooglePay": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "GooglePayDecrypted": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "Ideal": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "Indomaret": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "IndonesianBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "InstantBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "InstantBankTransferFinland": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "InstantBankTransferPoland": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "Interac": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "KakaoPay": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "Klarna": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "Lawson": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "LazyPayRedirect": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "LocalBankRedirect": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "LocalBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "MbWay": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "Mifinity": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "MiniStop": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Momo": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "MultibancoBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "Netbanking": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "OnlineBankingFinland": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "OnlineBankingFpx": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "OnlineBankingPoland": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "OnlineBankingThailand": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "OpenBanking": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "OpenBankingUk": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "Oxxo": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "PagoEfectivo": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "PayEasy": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "PaySafeCard": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "PayURedirect": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "PaypalRedirect": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "PaypalSdk": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "PermataBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "PhonePeRedirect": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "Pix": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "Przelewy24": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "Pse": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "RedCompra": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "RedPagos": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "RevolutPay": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "SamsungPay": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "Satispay": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "Seicomart": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "Sepa": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "SepaBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "SevenEleven": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "Skrill": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "Sofort": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "Swish": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "TouchNGo": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "Trustly": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "Twint": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "UpiCollect": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "UpiIntent": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "UpiQr": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "Vipps": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "WeChatPayQr": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "Wero": {
         "status": "error",
         "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
       }

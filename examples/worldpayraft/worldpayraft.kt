@@ -18,6 +18,7 @@ import payments.CardNetwork
 import payments.Currency
 import payments.FutureUsage
 import payments.PaymentMethodType
+import payments.TokenKind
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
@@ -253,6 +254,7 @@ fun recurringCharge(txnId: String, config: ConnectorConfig = _defaultConfig) {
         paymentMethodBuilder.apply {  // Optional payment Method Information (for network transaction flows).
             tokenBuilder.apply {  // Payment tokens.
                 tokenBuilder.value = "probe_pm_token"  // The token string representing a payment method.
+                kind = TokenKind.TOKEN_KIND_MULTI_USE
             }
         }
         returnUrl = "https://example.com/recurring-return"

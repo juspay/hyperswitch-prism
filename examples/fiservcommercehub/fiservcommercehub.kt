@@ -158,7 +158,7 @@ fun recurringCharge(txnId: String, config: ConnectorConfig = _defaultConfig) {
         paymentMethodBuilder.apply {  // Optional payment Method Information (for network transaction flows).
             tokenBuilder.apply {  // Payment tokens.
                 tokenBuilder.value = "probe_pm_token"  // The token string representing a payment method.
-                kind = TokenKind.TOKEN_KIND_MULTI_USE  // Which of the connector's tokenization endpoints minted this token. Connectors that mint more than one kind spend them on different request parameters, so the kind has to travel with the token rather than be inferred from its contents.
+                kind = TokenKind.TOKEN_KIND_MULTI_USE
             }
         }
         returnUrl = "https://example.com/recurring-return"
