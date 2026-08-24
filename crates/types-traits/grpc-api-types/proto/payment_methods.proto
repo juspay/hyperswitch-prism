@@ -253,6 +253,20 @@ message GrabpayRedirectWallet {}
 message TokenPaymentMethodType {
   // The token string representing a payment method.
   SecretString token = 1;
+
+  // Which of the connector's tokenization endpoints minted this token. Connectors that mint more
+  // than one kind spend them on different request parameters, so the kind has to travel with the
+  // token rather than be inferred from its contents.
+  TokenKind kind = 2;
+}
+
+// Lifetime of a token minted by a connector's tokenization flow.
+enum TokenKind {
+  TOKEN_KIND_UNSPECIFIED = 0;
+  // Consumed by the first payment it is spent on.
+  TOKEN_KIND_SINGLE_USE = 1;
+  // A payment method stored at the connector, reusable across payments.
+  TOKEN_KIND_MULTI_USE = 2;
 }
 
 // Details of a payment card where CVC is not required for the selected connector flow.

@@ -493,6 +493,9 @@ pub struct GiftCardDetails {
 #[serde(rename_all = "snake_case")]
 pub struct PaymentMethodToken {
     pub token: Secret<String>,
+    /// Which of the connector's tokenization endpoints minted `token`. `None` when the caller did
+    /// not state it, which is the only shape connectors that mint a single kind of token ever see.
+    pub kind: Option<common_enums::TokenKind>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]

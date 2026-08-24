@@ -2411,6 +2411,19 @@ pub enum PaymentChannel {
     TelephoneOrder,
 }
 
+/// Lifetime of a token minted by a connector's tokenization flow.
+///
+/// Connectors that mint more than one kind of token spend them on different request parameters,
+/// so the kind travels with the token instead of being inferred from the token string.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TokenKind {
+    /// Consumed by the first payment it is spent on.
+    SingleUse,
+    /// A payment method stored at the connector, reusable across payments.
+    MultiUse,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MitCategory {
     /// A fixed purchase amount split into multiple scheduled payments until the total is paid.

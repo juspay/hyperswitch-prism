@@ -1141,6 +1141,8 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StaxTokenResponse, Se
                 token: item.response.id.expose(),
                 connector_payment_method_id: None,
                 status_code: item.http_code,
+                // This connector mints a single kind of token, so the kind carries no information.
+                token_kind: None,
             }),
             ..item.router_data
         })

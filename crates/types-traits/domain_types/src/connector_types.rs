@@ -2103,6 +2103,10 @@ pub struct PaymentMethodTokenResponse {
     pub token: String,
     pub connector_payment_method_id: Option<String>,
     pub status_code: u16,
+    /// Which of the connector's tokenization endpoints minted `token`. Connectors that mint a
+    /// single kind of token leave this `None`; the payment that spends the token echoes it back
+    /// so the connector does not have to infer the kind from the token string.
+    pub token_kind: Option<common_enums::TokenKind>,
 }
 
 #[derive(Debug, Clone)]

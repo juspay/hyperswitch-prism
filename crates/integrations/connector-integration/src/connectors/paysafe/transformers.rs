@@ -1723,6 +1723,8 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaysafePaymentMethodT
                 token: item.response.payment_handle_token.peek().to_string(),
                 connector_payment_method_id: None,
                 status_code: item.http_code,
+                // This connector mints a single kind of token, so the kind carries no information.
+                token_kind: None,
             }),
             ..router_data
         })

@@ -372,6 +372,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static>
                 token: res.access_token.expose(),
                 connector_payment_method_id: Some(res.item_id),
                 status_code: item.http_code,
+                // This connector mints a single kind of token, so the kind carries no information.
+                token_kind: None,
             }),
             ..item.router_data
         })

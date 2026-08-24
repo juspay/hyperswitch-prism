@@ -4418,6 +4418,9 @@ message PaymentMethodServiceTokenizeResponse {
   optional ConnectorState state = 6;
 
   optional string connector_payment_method_id = 7; // Connector-issued payment method ID
+
+  // Kind of token minted, to be echoed back on the payment that spends it.
+  TokenKind payment_method_token_kind = 8;
 }
 
 message PaymentMethodServiceCreateRequest {
@@ -5980,6 +5983,8 @@ message PaymentServiceTokenAuthorizeRequest {
   optional Customer customer = 4;
   PaymentAddress address = 5;
   optional CaptureMethod capture_method = 6;
+  // Kind reported by the Tokenize call that minted connector_token.
+  TokenKind connector_token_kind = 24;
   optional string return_url = 7;
   optional string webhook_url = 8;
   optional SecretString metadata = 9;
@@ -6008,6 +6013,8 @@ message PaymentServiceTokenSetupRecurringRequest {
   string merchant_recurring_payment_id = 1;
   Money amount = 2;
   SecretString connector_token = 3;
+  // Kind reported by the Tokenize call that minted connector_token.
+  TokenKind connector_token_kind = 16;
   optional Customer customer = 4;
   PaymentAddress address = 5;
   optional string return_url = 6;

@@ -218,11 +218,6 @@ where
 /// Value Stripe expects in `card[tokenization_method]` for a decrypted Google Pay network token.
 const GOOGLE_PAY_TOKENIZATION_METHOD: &str = "android_pay";
 
-/// Prefix Stripe puts on every Token object id (the objects `/v1/tokens` mints). PaymentMethod
-/// ids from `/v1/payment_methods` use `pm_` instead, and the two are spent on different
-/// PaymentIntent parameters — see the split in the Authorize request builder.
-const STRIPE_CARD_TOKEN_PREFIX: &str = "tok_";
-
 #[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum StripeCardNetwork {
@@ -2115,17 +2110,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let (transfer_account_id, charge_type, application_fees) = (None, None, None);
 
         let payment_method_token = match &item.request.payment_method_data {
-            PaymentMethodData::PaymentMethodToken(t) => Some(t.token.clone()),
+            PaymentMethodData::PaymentMethodToken(t) => Some(t.clone()),
             _ => None,
         };
 
-        // The id prefix decides the parameter: `pm_…` on `payment_method`, `tok_…` on
-        // `payment_method_data[card][token]`. See the endpoint split in `stripe.rs`.
-        let (card_token, payment_method_id) = match payment_method_token.clone() {
-            Some(token) if token.peek().starts_with(STRIPE_CARD_TOKEN_PREFIX) => {
-                (Some(token), None)
+        // Which parameter spends the token follows from the endpoint that minted it: a Token from
+        // `/v1/tokens` goes on `payment_method_data[card][token]`, a PaymentMethod from
+        // `/v1/payment_methods` on `payment_method`. See the endpoint split in `stripe.rs`.
+        let (card_token, payment_method_id) = match payment_method_token.as_ref() {
+            Some(pm_token) if pm_token.kind == Some(common_enums::TokenKind::SingleUse) => {
+                (Some(pm_token.token.clone()), None)
             }
-            other => (None, other),
+            other => (None, other.map(|pm_token| pm_token.token.clone())),
         };
 
         let amount =
@@ -6132,17 +6128,32 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
-impl<F, T> TryFrom<ResponseRouterData<StripeTokenResponse, Self>>
-    for RouterDataV2<F, PaymentFlowData, T, PaymentMethodTokenResponse>
+impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<StripeTokenResponse, Self>>
+    for RouterDataV2<
+        F,
+        PaymentFlowData,
+        PaymentMethodTokenizationData<T>,
+        PaymentMethodTokenResponse,
+    >
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<StripeTokenResponse, Self>) -> Result<Self, Self::Error> {
         let token = item.response.id.clone().expose();
+        // Same predicate that picked the endpoint in `get_url`, so the kind reported here is the
+        // kind of object Stripe actually minted.
+        let token_kind =
+            if is_decrypted_network_token(&item.router_data.request.payment_method_data) {
+                common_enums::TokenKind::SingleUse
+            } else {
+                common_enums::TokenKind::MultiUse
+            };
         Ok(Self {
             response: Ok(PaymentMethodTokenResponse {
                 token,
                 connector_payment_method_id: None,
                 status_code: item.http_code,
+                token_kind: Some(token_kind),
             }),
             ..item.router_data
         })
