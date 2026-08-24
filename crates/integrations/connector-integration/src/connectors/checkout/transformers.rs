@@ -67,6 +67,7 @@ pub struct CardSource<
     pub number: RawCardNumber<T>,
     pub expiry_month: Secret<String>,
     pub expiry_year: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cvv: Option<Secret<String>>,
     pub billing_address: Option<CheckoutAddress>,
     pub account_holder: Option<CheckoutAccountHolderDetails>,
@@ -91,9 +92,6 @@ const CHECKOUT_TOKENS_DOC_URL: &str =
     "https://api-reference.checkout.com/tag/Tokens/#operation/requestAToken";
 const APPLE_PAY_TOKEN_TYPE: &str = "applepay";
 const GOOGLE_PAY_TOKEN_TYPE: &str = "googlepay";
-/// Google Pay does not surface an ECI of its own, and Checkout requires one on network tokens.
-const GOOGLE_PAY_DEFAULT_ECI: &str = "06";
-
 /// Checkout.com ACH account holder type (mapped from common_enums::BankHolderType)
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -180,6 +178,7 @@ pub struct CheckoutRawCardDetails {
     pub number: cards::CardNumber,
     pub expiry_month: Secret<String>,
     pub expiry_year: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cvv: Option<Secret<String>>,
     pub billing_address: Option<CheckoutAddress>,
     pub account_holder: Option<CheckoutAccountHolderDetails>,
@@ -220,7 +219,7 @@ pub struct GooglePayPredecrypt {
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
     eci: String,
-    cryptogram: Option<Secret<String>>,
+    cryptogram: Secret<String>,
     pub billing_address: Option<CheckoutAddress>,
 }
 
@@ -536,20 +535,39 @@ fn build_predecrypted_wallet_source<
                         context: Default::default(),
                     })?;
 
-                Ok(PaymentSource::GooglePayPredecrypt(Box::new(
-                    GooglePayPredecrypt {
-                        _type: NETWORK_TOKEN_TYPE.to_string(),
-                        token: google_pay_decrypted_data
+                // A PAN_ONLY token decrypts to a plain FPAN with neither(eci and cryptogram), so it has to be
+                // sent as an ordinary card source instead — Checkout rejects a network token
+                // that arrives without its cryptogram.
+                match (
+                    google_pay_decrypted_data.cryptogram.clone(),
+                    google_pay_decrypted_data.eci_indicator.clone(),
+                ) {
+                    (Some(cryptogram), Some(eci)) => Ok(PaymentSource::GooglePayPredecrypt(
+                        Box::new(GooglePayPredecrypt {
+                            _type: NETWORK_TOKEN_TYPE.to_string(),
+                            token: google_pay_decrypted_data
+                                .application_primary_account_number
+                                .clone(),
+                            token_type: GOOGLE_PAY_TOKEN_TYPE.to_string(),
+                            expiry_month,
+                            expiry_year,
+                            eci,
+                            cryptogram,
+                            billing_address,
+                        }),
+                    )),
+                    _ => Ok(PaymentSource::RawCardForNTI(CheckoutRawCardDetails {
+                        source_type: CheckoutSourceTypes::Card,
+                        number: google_pay_decrypted_data
                             .application_primary_account_number
                             .clone(),
-                        token_type: GOOGLE_PAY_TOKEN_TYPE.to_string(),
                         expiry_month,
                         expiry_year,
-                        eci: GOOGLE_PAY_DEFAULT_ECI.to_string(),
-                        cryptogram: google_pay_decrypted_data.cryptogram.clone(),
+                        cvv: None,
                         billing_address,
-                    },
-                )))
+                        account_holder: None,
+                    })),
+                }
             }
             domain_types::payment_method_data::GpayTokenizationData::Encrypted(_) => {
                 Err(encrypted_wallet_needs_token("Google Pay"))

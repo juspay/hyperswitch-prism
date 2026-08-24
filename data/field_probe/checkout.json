@@ -321,7 +321,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"source\":{\"type\":\"network_token\",\"token\":\"4111111111111111\",\"token_type\":\"googlepay\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"eci\":\"06\",\"cryptogram\":\"AAAAAA==\",\"billing_address\":{}},\"amount\":1000,\"currency\":\"USD\",\"processing_channel_id\":\"probe_id\",\"3ds\":{\"enabled\":false,\"force_3ds\":false,\"eci\":null,\"cryptogram\":null,\"xid\":null,\"version\":null,\"challenge_indicator\":\"no_preference\"},\"success_url\":\"https://example.com/return?status=success\",\"failure_url\":\"https://example.com/return?status=failure\",\"capture\":true,\"reference\":\"probe_txn_001\",\"payment_type\":\"Regular\",\"merchant_initiated\":false}"
+          "body": "{\"source\":{\"type\":\"network_token\",\"token\":\"4111111111111111\",\"token_type\":\"googlepay\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"eci\":\"05\",\"cryptogram\":\"AAAAAA==\",\"billing_address\":{}},\"amount\":1000,\"currency\":\"USD\",\"processing_channel_id\":\"probe_id\",\"3ds\":{\"enabled\":false,\"force_3ds\":false,\"eci\":null,\"cryptogram\":null,\"xid\":null,\"version\":null,\"challenge_indicator\":\"no_preference\"},\"success_url\":\"https://example.com/return?status=success\",\"failure_url\":\"https://example.com/return?status=failure\",\"capture\":true,\"reference\":\"probe_txn_001\",\"payment_type\":\"Regular\",\"merchant_initiated\":false}"
         }
       },
       "GooglePayThirdPartySdk": {
