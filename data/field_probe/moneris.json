@@ -37,8 +37,8 @@
         "error": "This feature is not implemented: Selected payment method through Moneris. Moneris wallet authorize received an unsupported wallet variant: AmazonPayRedirect(AmazonPayRedirectData)."
       },
       "ApplePay": {
-        "status": "error",
-        "error": "Failed to encode connector request. Failed to parse Apple Pay encrypted token JSON"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Apple Pay encrypted payment_data is not yet implemented for Moneris. Moneris supports Apple Pay encrypted tokens, but this integration currently only handles ApplePayPaymentData::Decrypted. Support for ApplePayPaymentData::Encrypted is pending implementation."
       },
       "ApplePayDecrypted": {
         "status": "supported",
@@ -265,8 +265,8 @@
         "error": "This feature is not implemented: Selected payment method through Moneris. Moneris wallet authorize received an unsupported wallet variant: GoPayRedirect(GoPayRedirection)."
       },
       "GooglePay": {
-        "status": "error",
-        "error": "Failed to encode connector request. Failed to parse Google Pay encrypted token JSON"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Google Pay encrypted tokenization_data is not yet implemented for Moneris. Moneris supports Google Pay encrypted tokens, but this integration currently only handles GpayTokenizationData::Decrypted. Support for GpayTokenizationData::Encrypted is pending implementation."
       },
       "GooglePayDecrypted": {
         "status": "supported",
