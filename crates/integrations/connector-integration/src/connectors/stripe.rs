@@ -29,7 +29,7 @@ use domain_types::{
     },
     errors::{ConnectorError, IntegrationError, WebhookError},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
-    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
+    payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
@@ -694,14 +694,13 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
         ) -> CustomResult<String, IntegrationError> {
-            // The two tokenization endpoints are not interchangeable:
-            // `/v1/payment_methods` mints `pm_…` from raw cards, replayed as `payment_method`.
-            // `/v1/tokens` mints `tok_…` and is the only one accepting a wallet credential's
-            // `card[cryptogram]`/`card[eci]`/`card[tokenization_method]` trio, replayed as
-            // `payment_method_data[card][token]`.
-            let endpoint = match req.request.payment_method_data {
-                PaymentMethodData::Wallet(_) => "v1/tokens",
-                _ => "v1/payment_methods",
+            // `/v1/tokens` is the only endpoint that accepts a network token's
+            // `card[cryptogram]`/`card[eci]`/`card[tokenization_method]`; everything else — raw
+            // cards and redirect-style wallets alike — mints a `pm_…` on `/v1/payment_methods`.
+            let endpoint = if transformers::is_decrypted_network_token(&req.request.payment_method_data) {
+                "v1/tokens"
+            } else {
+                "v1/payment_methods"
             };
             Ok(format!(
                 "{}{}",

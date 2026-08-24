@@ -187,6 +187,34 @@ impl From<common_enums::AuthenticationType> for Auth3ds {
     }
 }
 
+/// Whether `payment_method_data` is a decrypted *network token* — a PAN carrying a network
+/// cryptogram — as opposed to an encrypted wallet token or a bare PAN.
+///
+/// Decides the tokenization endpoint in [`super::Stripe`]'s `PaymentMethodToken` `get_url`, and is
+/// the shape [`StripePaymentMethodData::is_tokens_endpoint_only`] reports on after construction.
+/// Google Pay `PAN_ONLY` decrypts to a bare PAN with no cryptogram and is therefore not one.
+///
+/// Must stay in lockstep with `composite_service::payment_methods`'
+/// `is_wallet_payload_decrypted_network_token`, which asks the same question of the proto payload
+/// to decide whether Tokenize runs at all.
+pub fn is_decrypted_network_token<T>(payment_method_data: &PaymentMethodData<T>) -> bool
+where
+    T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
+{
+    match payment_method_data {
+        PaymentMethodData::Wallet(WalletData::ApplePay(apple_pay)) => apple_pay
+            .payment_data
+            .get_decrypted_apple_pay_payment_data_optional()
+            .is_some(),
+        PaymentMethodData::Wallet(WalletData::GooglePay(google_pay)) => matches!(
+            &google_pay.tokenization_data,
+            payment_method_data::GpayTokenizationData::Decrypted(decrypted)
+                if decrypted.cryptogram.is_some()
+        ),
+        _ => false,
+    }
+}
+
 /// Value Stripe expects in `card[tokenization_method]` for a decrypted Google Pay network token.
 const GOOGLE_PAY_TOKENIZATION_METHOD: &str = "android_pay";
 

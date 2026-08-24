@@ -23,6 +23,11 @@ use crate::utils::{
 /// Reports whether a wallet payload carries a decrypted *network token* — a PAN accompanied by
 /// a network cryptogram — instead of the wallet provider's own encrypted token.
 ///
+/// Must stay in lockstep with `stripe::transformers::is_decrypted_network_token`, which asks the
+/// same question of the converted domain type — the composite has not chosen the PCI-holder
+/// generic yet, so the two cannot share one function. This decides whether Tokenize runs at all;
+/// the connector-side one decides which endpoint it runs against. Change both.
+///
 /// The rule is deliberately narrower than "the payload is decrypted": **the cryptogram has to be
 /// there**. A Google Pay `PAN_ONLY` credential decrypts to a bare PAN with no cryptogram and no
 /// ECI; once decrypted there is nothing wallet-specific left about it, so connectors charge it as
