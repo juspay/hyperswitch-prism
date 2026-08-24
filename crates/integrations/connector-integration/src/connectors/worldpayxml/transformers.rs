@@ -418,8 +418,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let auth = WorldpayxmlAuthType::try_from(&router_data.connector_config)?;
 
         // Determine if manual capture
-        let is_manual_capture = router_data.request.capture_method == Some(CaptureMethod::Manual)
-            || router_data.request.capture_method == Some(CaptureMethod::ManualMultiple);
+        let is_manual_capture = !router_data.request.is_auto_capture();
 
         // Extract billing address first (needed for payment method)
         let billing_address = get_worldpayxml_billing_address(&router_data.resource_common_data);
@@ -604,10 +603,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let auth = WorldpayxmlAuthType::try_from(&router_data.connector_config)?;
 
-        let is_manual_capture = matches!(
-            router_data.request.capture_method,
-            Some(CaptureMethod::Manual) | Some(CaptureMethod::ManualMultiple)
-        );
+        let is_manual_capture = !router_data.request.is_auto_capture();
 
         let billing_address = get_worldpayxml_billing_address(&router_data.resource_common_data);
 
