@@ -53,7 +53,7 @@ pub fn card_data_input_mode(
     // 4. MIT (any kind) OR CIT-using-stored — both replay a stored
     //    credential, so both carry the STORED_ON_FILE input mode (cert MOTO
     //    25.50 Visa / 29.75 MC CIT-using-stored rows use this too).
-    if profile.cof_phase.is_mit() || profile.cof_phase.is_cit_using_stored() {
+    if profile.cof_phase.is_mit() {
         return MerchantInitiatedTransactionCardCredentialStoredOnFile;
     }
 

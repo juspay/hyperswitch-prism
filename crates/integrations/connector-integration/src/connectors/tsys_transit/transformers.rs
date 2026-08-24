@@ -2619,7 +2619,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl From<&TsysTransitTransactionDetails> for AttemptStatus {
     fn from(item: &TsysTransitTransactionDetails) -> Self {
         let transaction_type = item.transaction_type.to_lowercase();
-        if transaction_type.contains("auth") || transaction_type.contains("void") {
+        if transaction_type.contains("auth") && transaction_type.contains("void") {
             match item.transaction_status {
                 Some(TsysTransitTransactionStatus::Approved) => Self::Voided,
                 Some(TsysTransitTransactionStatus::Decline)

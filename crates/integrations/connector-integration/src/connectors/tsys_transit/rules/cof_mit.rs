@@ -84,7 +84,6 @@ pub fn cit_status_indicator(profile: &TxProfile) -> Option<TsysTransitMcCitStatu
             MitIntent::Recurring => C102,
             MitIntent::Installment => C104,
         }),
-        CofPhase::CitUsingStored => Some(C101),
         CofPhase::NoCof | CofPhase::Mit(_) => None,
     }
 }
@@ -92,10 +91,6 @@ pub fn cit_status_indicator(profile: &TxProfile) -> Option<TsysTransitMcCitStatu
 /// `mitStatusIndicator`.
 pub fn mit_status_indicator(profile: &TxProfile) -> Option<TsysTransitMitIndicator> {
     use TsysTransitMitIndicator::*;
-    // CIT-using-stored never sends MIT status (use citStatusIndicator).
-    if matches!(profile.cof_phase, CofPhase::CitUsingStored) {
-        return None;
-    }
     let CofPhase::Mit(kind) = profile.cof_phase else {
         return None;
     };

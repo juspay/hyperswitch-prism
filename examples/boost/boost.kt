@@ -21,7 +21,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.BoostConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("get", "parse_event", "refund", "refund_get")
+val SUPPORTED_FLOWS = listOf<String>("get", "parse_event", "refund_get")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -30,6 +30,7 @@ val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
             .setBoost(BoostConfig.newBuilder()
                 .setClientId(SecretString.newBuilder().setValue("YOUR_CLIENT_ID").build())
                 .setMerchantSecret(SecretString.newBuilder().setValue("YOUR_MERCHANT_SECRET").build())
+                .setPublicKey(SecretString.newBuilder().setValue("YOUR_PUBLIC_KEY").build())
                 .setBaseUrl("YOUR_BASE_URL")
                 .build())
             .build()
@@ -46,19 +47,6 @@ private fun buildGetRequest(connectorTransactionIdStr: String): PaymentServiceGe
             minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
             currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         }
-    }.build()
-}
-
-private fun buildRefundRequest(connectorTransactionIdStr: String): PaymentServiceRefundRequest {
-    return PaymentServiceRefundRequest.newBuilder().apply {
-        merchantRefundId = "probe_refund_001"  // Identification.
-        connectorTransactionId = connectorTransactionIdStr
-        paymentAmount = 1000L  // Amount Information.
-        refundAmountBuilder.apply {
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        }
-        reason = "customer_request"  // Reason for the refund.
     }.build()
 }
 
@@ -101,16 +89,6 @@ fun parseEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
     println("Webhook parsed: type=${response.eventType.name}")
 }
 
-// Flow: PaymentService.Refund
-fun refund(txnId: String, config: ConnectorConfig = _defaultConfig) {
-    val client = PaymentClient(config)
-    val request = buildRefundRequest("probe_connector_txn_001")
-    val response = client.refund(request)
-    if (response.status.name == "FAILED")
-        throw RuntimeException("Refund failed: ${response.error.unifiedDetails.message}")
-    println("Done: ${response.status.name}")
-}
-
 // Flow: RefundService.Get
 fun refundGet(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = RefundClient(config)
@@ -131,8 +109,7 @@ fun main(args: Array<String>) {
         "get" -> get(txnId)
         "handleEvent" -> handleEvent(txnId)
         "parseEvent" -> parseEvent(txnId)
-        "refund" -> refund(txnId)
         "refundGet" -> refundGet(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: get, handleEvent, parseEvent, refund, refundGet")
+        else -> System.err.println("Unknown flow: $flow. Available: get, handleEvent, parseEvent, refundGet")
     }
 }

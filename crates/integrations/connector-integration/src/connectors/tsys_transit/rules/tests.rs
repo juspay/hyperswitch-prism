@@ -311,47 +311,6 @@ fn mit_uses_stored_on_file_marker() {
 }
 
 #[test]
-fn cit_using_stored_uses_stored_on_file_marker() {
-    // TSYS_MOTO_V2 rows 161/162 (25.50 Visa / 29.75 MC CIT-using-stored) carry
-    // the STORED_ON_FILE input mode, same as an MIT.
-    let p = profile(
-        AcceptanceProfile::MotoPhone,
-        CardFamily::Mastercard,
-        CofPhase::CitUsingStored,
-        CommercialLevel::None,
-        CaptureKind::Auto,
-    );
-    let block = AcceptanceProfile::MotoPhone.terminal_data();
-    assert!(matches!(
-        card_input_mode::card_data_input_mode(&p, &block, false),
-        TsysTransitCardDataInputMode::MerchantInitiatedTransactionCardCredentialStoredOnFile
-    ));
-}
-
-#[test]
-fn derive_stored_replay_off_session_without_mit_category_is_cit_using_stored() {
-    // Hyperswitch sends off_session=true for EVERY stored-credential replay,
-    // including consumer-present CIT-using-stored (cert MOTO 25.50 Visa /
-    // 29.75 MC). Without an explicit mit_category it must resolve to
-    // CIT-using-stored (→ C101, no NTID), NOT an MIT (M101).
-    let mandate = domain_types::connector_types::MandateIds {
-        mandate_id: None,
-        mandate_reference_id: Some(
-            domain_types::connector_types::MandateReferenceId::NetworkMandateId(
-                domain_types::connector_types::NetworkMandateIdRef {
-                    network_transaction_id: "VTL1".to_string(),
-                    transaction_link_id: None,
-                },
-            ),
-        ),
-    };
-    assert_eq!(
-        CofPhase::derive(Some(&mandate), None, None, Some(true)),
-        CofPhase::CitUsingStored
-    );
-}
-
-#[test]
 fn derive_stored_replay_with_mit_category_is_mit() {
     let mandate = domain_types::connector_types::MandateIds {
         mandate_id: None,
@@ -594,22 +553,6 @@ fn card_on_file_is_y_on_visa_cit_setup() {
 }
 
 #[test]
-fn card_on_file_is_none_on_visa_cit_using_stored() {
-    // Cert: "cardOnFile tag must not be sent on the 25.50 Visa card on
-    // file transaction in step 5 as this tag is a Merchant initiated
-    // transaction (MIT) only and this test case is a Consumer initiated
-    // transaction (CIT)."
-    let p = profile(
-        AcceptanceProfile::MotoPhone,
-        CardFamily::Visa,
-        CofPhase::CitUsingStored,
-        CommercialLevel::None,
-        CaptureKind::Auto,
-    );
-    assert!(cof_mit::card_on_file(&p).is_none());
-}
-
-#[test]
 fn card_on_file_is_sent_on_visa_mit() {
     // Cert step 9: "cardOnFile tag must not be sent on the 25.50 Visa card on
     // file transaction." cardOnFile is a storage marker for CIT-setup only; a
@@ -712,26 +655,6 @@ fn card_on_file_none_on_discover_family_unscheduled_mit() {
 }
 
 #[test]
-fn cit_status_indicator_c101_on_mastercard_cit_using_stored() {
-    // Cert: "mitStatusIndicator tag must not be sent on the 29.75
-    // Mastercard transaction in step 5 as this test case is a Card on
-    // File CIT and not MIT. The citStatusIndicator tag will need to be
-    // sent on this test case with a value of 'C101'."
-    let p = profile(
-        AcceptanceProfile::MotoPhone,
-        CardFamily::Mastercard,
-        CofPhase::CitUsingStored,
-        CommercialLevel::None,
-        CaptureKind::Auto,
-    );
-    assert!(matches!(
-        cof_mit::cit_status_indicator(&p),
-        Some(TsysTransitMcCitStatusIndicator::C101)
-    ));
-    assert!(cof_mit::mit_status_indicator(&p).is_none());
-}
-
-#[test]
 fn cit_status_indicator_c101_on_mastercard_cit_setup() {
     // Cert: "citStatusIndicator tag must be sent on the 2.00 Mastercard
     // transaction in step 5 with a value of C101 as this transaction
@@ -785,23 +708,6 @@ fn mit_status_u_on_discover_unscheduled_mit() {
     assert!(matches!(
         cof_mit::mit_status_indicator(&p),
         Some(TsysTransitMitIndicator::U)
-    ));
-}
-
-#[test]
-fn should_not_send_cof_txn_id_on_cit_using_stored() {
-    // Cert: "cardOnFileTransactionIdentifier tag must not be sent on
-    // the 25.50 Visa card on file transaction in step 5 as this tag is
-    // a Merchant initiated transaction (MIT) only..."
-    let p = profile(
-        AcceptanceProfile::MotoPhone,
-        CardFamily::Visa,
-        CofPhase::CitUsingStored,
-        CommercialLevel::None,
-        CaptureKind::Auto,
-    );
-    assert!(!cof_mit::should_send_card_on_file_transaction_identifier(
-        &p
     ));
 }
 

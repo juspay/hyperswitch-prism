@@ -796,6 +796,7 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
         ConnectorEnum::Boost => ConnectorSpecificConfig::Boost {
             client_id: k(),
             merchant_secret: k(),
+            public_key: None,
             base_url: None,
         },
         ConnectorEnum::Citigate => ConnectorSpecificConfig::Citigate {
@@ -807,6 +808,11 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             api_key: k(),
             key1: k(),
             api_secret: k(),
+            base_url: None,
+        },
+        ConnectorEnum::Worldpayraft => ConnectorSpecificConfig::Worldpayraft {
+            license: k(),
+            merchant_id: k(),
             base_url: None,
         },
     }
