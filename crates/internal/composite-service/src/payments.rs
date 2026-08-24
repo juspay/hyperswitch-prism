@@ -779,7 +779,12 @@ where
             connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
 
         let access_token_response = self
-            .create_server_authentication_token(&ConnectorVariant::Payment(connector), &payload, &metadata, &extensions)
+            .create_server_authentication_token(
+                &ConnectorVariant::Payment(connector),
+                &payload,
+                &metadata,
+                &extensions,
+            )
             .await?;
         let session_token_response = self
             .create_server_session_authentication_token(
@@ -965,7 +970,12 @@ where
         let connector =
             connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
         let access_token_response = self
-            .create_server_authentication_token(&ConnectorVariant::Payment(connector), &payload, &metadata, &extensions)
+            .create_server_authentication_token(
+                &ConnectorVariant::Payment(connector),
+                &payload,
+                &metadata,
+                &extensions,
+            )
             .await?;
         let get_response = self
             .get(
@@ -1046,7 +1056,12 @@ where
         let connector =
             connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
         let access_token_response = self
-            .create_server_authentication_token(&ConnectorVariant::Payment(connector), &payload, &metadata, &extensions)
+            .create_server_authentication_token(
+                &ConnectorVariant::Payment(connector),
+                &payload,
+                &metadata,
+                &extensions,
+            )
             .await?;
         let refund_response = self
             .refund(
@@ -1097,7 +1112,12 @@ where
         let connector =
             connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
         let access_token_response = self
-            .create_server_authentication_token(&ConnectorVariant::Payment(connector), &payload, &metadata, &extensions)
+            .create_server_authentication_token(
+                &ConnectorVariant::Payment(connector),
+                &payload,
+                &metadata,
+                &extensions,
+            )
             .await?;
         let refund_get_response = self
             .refund_get(
@@ -1144,7 +1164,12 @@ where
         let connector =
             connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
         let access_token_response = self
-            .create_server_authentication_token(&ConnectorVariant::Payment(connector), &payload, &metadata, &extensions)
+            .create_server_authentication_token(
+                &ConnectorVariant::Payment(connector),
+                &payload,
+                &metadata,
+                &extensions,
+            )
             .await?;
         let void_response = self
             .void(
@@ -1195,7 +1220,12 @@ where
         let connector =
             connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
         let access_token_response = self
-            .create_server_authentication_token(&ConnectorVariant::Payment(connector), &payload, &metadata, &extensions)
+            .create_server_authentication_token(
+                &ConnectorVariant::Payment(connector),
+                &payload,
+                &metadata,
+                &extensions,
+            )
             .await?;
         let capture_response = self
             .capture(

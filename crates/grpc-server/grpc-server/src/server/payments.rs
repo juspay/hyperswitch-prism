@@ -1,8 +1,9 @@
 use std::{fmt::Debug, sync::Arc};
 
 use crate::{
-    implement_connector_operation, resolve_connector_integration,
+    implement_connector_operation,
     request::RequestData,
+    resolve_connector_integration,
     utils::{self, get_config_from_request, grpc_logging_wrapper},
 };
 use common_enums;
