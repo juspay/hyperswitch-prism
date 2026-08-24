@@ -220,9 +220,7 @@ pub enum PaymentMethod<
 > {
     Card(PaymentMethodCard<T>),
     PaymentMethodId(PaymentMethodId),
-    ApplePayEncrypted(PaymentMethodApplePayEncrypted),
     ApplePayDecrypted(PaymentMethodApplePayDecrypted),
-    GooglePayEncrypted(PaymentMethodGooglePayEncrypted),
     GooglePayDecrypted(PaymentMethodGooglePayDecrypted),
 }
 
@@ -243,34 +241,6 @@ pub struct PaymentMethodId {
     payment_method_id: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     credential_on_file_information: Option<CredentialOnFileInformation>,
-}
-
-/// Internal struct for deserializing Apple Pay encrypted token header
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct ApplePayEncryptedTokenHeader {
-    public_key_hash: String,
-    ephemeral_public_key: String,
-    transaction_id: Option<String>,
-}
-
-/// Internal struct for deserializing Apple Pay encrypted token
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct ApplePayEncryptedToken {
-    version: String,
-    data: String,
-    signature: String,
-    header: ApplePayEncryptedTokenHeader,
-}
-
-/// Internal struct for deserializing Google Pay encrypted token
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct GooglePayEncryptedToken {
-    protocol_version: String,
-    signature: String,
-    signed_message: String,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -325,25 +295,6 @@ pub enum GooglePayWalletSource {
 
 #[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct PaymentMethodApplePayEncrypted {
-    payment_method_source: PaymentMethodSource,
-    display_name: String,
-    card_brand: MonerisCardBrand,
-    apple_pay_version: ApplePayVersion,
-    data: Secret<String>,
-    signature: Secret<String>,
-    public_key_hash: Secret<String>,
-    ephemeral_public_key: Secret<String>,
-    apple_pay_transaction_id: Secret<String>,
-    wallet_indicator: WalletIndicator,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    store_payment_method: Option<StorePaymentMethod>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    credential_on_file_information: Option<CredentialOnFileInformation>,
-}
-
-#[derive(Debug, Serialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
 pub struct PaymentMethodApplePayDecrypted {
     payment_method_source: PaymentMethodSource,
     application_primary_account_number: Secret<String>,
@@ -357,21 +308,6 @@ pub struct PaymentMethodApplePayDecrypted {
     wallet_indicator: WalletIndicator,
     #[serde(skip_serializing_if = "Option::is_none")]
     device_manufacturer_identifier: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    store_payment_method: Option<StorePaymentMethod>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    credential_on_file_information: Option<CredentialOnFileInformation>,
-}
-
-#[derive(Debug, Serialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct PaymentMethodGooglePayEncrypted {
-    payment_method_source: PaymentMethodSource,
-    card_brand: MonerisCardBrand,
-    signature: Secret<String>,
-    google_pay_protocol_version: String,
-    signed_message: Secret<String>,
-    wallet_indicator: WalletIndicator,
     #[serde(skip_serializing_if = "Option::is_none")]
     store_payment_method: Option<StorePaymentMethod>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -654,51 +590,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
                 let payment_method = match wallet_data {
                     WalletData::ApplePay(apple_pay_data) => match &apple_pay_data.payment_data {
-                        ApplePayPaymentData::Encrypted(encrypted_str) => {
-                            let token: ApplePayEncryptedToken = serde_json::from_str(encrypted_str)
-                                .change_context(IntegrationError::RequestEncodingFailed {
-                                    context: IntegrationErrorContext {
-                                        suggested_action: Some(
-                                            "Ensure the Apple Pay payment data is a \
-                                                     valid JSON token."
-                                                .to_string(),
-                                        ),
-                                        doc_url: None,
-                                        additional_context: Some(
-                                            "Failed to parse Apple Pay encrypted token \
-                                                     JSON"
-                                                .to_string(),
-                                        ),
-                                    },
-                                })?;
-                            let apple_pay_version = match token.version.as_str() {
-                                "RSA_V1" => ApplePayVersion::RsaV1,
-                                _ => ApplePayVersion::EcV1,
-                            };
-                            let card_brand = MonerisCardBrand::try_from(
-                                apple_pay_data.payment_method.network.as_str(),
-                            )?;
-                            let apple_pay_transaction_id = token
-                                .header
-                                .transaction_id
-                                .unwrap_or_else(|| apple_pay_data.transaction_identifier.clone());
-                            PaymentMethod::ApplePayEncrypted(PaymentMethodApplePayEncrypted {
-                                payment_method_source: PaymentMethodSource::ApplePayEncrypted,
-                                display_name: apple_pay_data.payment_method.display_name.clone(),
-                                card_brand,
-                                apple_pay_version,
-                                data: Secret::new(token.data),
-                                signature: Secret::new(token.signature),
-                                public_key_hash: Secret::new(token.header.public_key_hash),
-                                ephemeral_public_key: Secret::new(
-                                    token.header.ephemeral_public_key,
-                                ),
-                                apple_pay_transaction_id: Secret::new(apple_pay_transaction_id),
-                                wallet_indicator,
-                                store_payment_method,
-                                credential_on_file_information,
-                            })
-                        }
                         ApplePayPaymentData::Decrypted(decrypt_data) => {
                             let card_brand = MonerisCardBrand::try_from(
                                 apple_pay_data.payment_method.network.as_str(),
@@ -759,42 +650,30 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 credential_on_file_information,
                             })
                         }
+                        ApplePayPaymentData::Encrypted(_) => {
+                            return Err(IntegrationError::NotImplemented(
+                                "Apple Pay encrypted payment_data is not yet implemented for \
+                                 Moneris"
+                                    .to_string(),
+                                IntegrationErrorContext {
+                                    suggested_action: None,
+                                    doc_url: None,
+                                    additional_context: Some(
+                                        "Moneris supports Apple Pay encrypted tokens, but this \
+                                         integration currently only handles \
+                                         ApplePayPaymentData::Decrypted. Support for \
+                                         ApplePayPaymentData::Encrypted is pending implementation."
+                                            .to_string(),
+                                    ),
+                                },
+                            )
+                            .into());
+                        }
                     },
                     WalletData::GooglePay(gpay_data) => {
                         let card_brand =
                             MonerisCardBrand::try_from(gpay_data.info.card_network.as_str())?;
                         match &gpay_data.tokenization_data {
-                            GpayTokenizationData::Encrypted(encrypted_data) => {
-                                let token: GooglePayEncryptedToken = serde_json::from_str(
-                                    &encrypted_data.token,
-                                )
-                                .change_context(IntegrationError::RequestEncodingFailed {
-                                    context: IntegrationErrorContext {
-                                        suggested_action: Some(
-                                            "Ensure the Google Pay token is a valid JSON \
-                                                     string with protocolVersion, signature, and \
-                                                     signedMessage fields."
-                                                .to_string(),
-                                        ),
-                                        doc_url: None,
-                                        additional_context: Some(
-                                            "Failed to parse Google Pay encrypted token \
-                                                     JSON"
-                                                .to_string(),
-                                        ),
-                                    },
-                                })?;
-                                PaymentMethod::GooglePayEncrypted(PaymentMethodGooglePayEncrypted {
-                                    payment_method_source: PaymentMethodSource::GooglePayEncrypted,
-                                    card_brand,
-                                    signature: Secret::new(token.signature),
-                                    google_pay_protocol_version: token.protocol_version,
-                                    signed_message: Secret::new(token.signed_message),
-                                    wallet_indicator,
-                                    store_payment_method,
-                                    credential_on_file_information,
-                                })
-                            }
                             GpayTokenizationData::Decrypted(decrypt_data) => {
                                 let expiry_month = decrypt_data
                                     .card_exp_month
@@ -853,6 +732,26 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                     store_payment_method,
                                     credential_on_file_information,
                                 })
+                            }
+                            GpayTokenizationData::Encrypted(_) => {
+                                return Err(IntegrationError::NotImplemented(
+                                    "Google Pay encrypted tokenization_data is not yet \
+                                     implemented for Moneris"
+                                        .to_string(),
+                                    IntegrationErrorContext {
+                                        suggested_action: None,
+                                        doc_url: None,
+                                        additional_context: Some(
+                                            "Moneris supports Google Pay encrypted tokens, but \
+                                             this integration currently only handles \
+                                             GpayTokenizationData::Decrypted. Support for \
+                                             GpayTokenizationData::Encrypted is pending \
+                                             implementation."
+                                                .to_string(),
+                                        ),
+                                    },
+                                )
+                                .into());
                             }
                         }
                     }
