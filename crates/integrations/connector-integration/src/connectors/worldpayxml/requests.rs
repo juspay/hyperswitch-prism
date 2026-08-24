@@ -119,7 +119,8 @@ pub struct WorldpayxmlStoredCredentials {
     pub scheme_transaction_identifier: Option<Secret<String>>,
 }
 
-#[derive(Debug, Serialize)]
+/// Scope a Worldpay payment token is issued under. Only `shopper` is used.
+#[derive(Debug, Clone, Copy, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum WorldpayxmlTokenScope {
     Shopper,

@@ -35,6 +35,7 @@ use domain_types::payment_address::AddressDetails;
 
 const API_VERSION: &str = "1.4";
 
+/// `captureDelay` value that leaves the order uncaptured, for manual capture.
 const CAPTURE_DELAY_MANUAL: &str = "OFF";
 const CAPTURE_DELAY_AUTOMATIC: &str = "0";
 
@@ -182,7 +183,11 @@ fn get_worldpayxml_wallet_payment_method(
                         serde_json::from_slice(&decoded_data).change_context(
                             IntegrationError::InvalidDataFormat {
                                 field_name: "apple_pay_token_json",
-                                context: Default::default(),
+                                context: IntegrationErrorContext {
+                                    additional_context: Some("The decoded Apple Pay payment token is not the JSON envelope Worldpay expects (header, signature, version, data).".to_string()),
+                                    suggested_action: Some("Forward the wallet payload exactly as the Apple Pay SDK produced it.".to_string()),
+                                    ..Default::default()
+                                },
                             },
                         )?;
 
@@ -200,7 +205,11 @@ fn get_worldpayxml_wallet_payment_method(
                         year: decrypt_data.get_four_digit_expiry_year().change_context(
                             IntegrationError::MissingRequiredField {
                                 field_name: "google_pay_decrypted_data.card_exp_year",
-                                context: Default::default(),
+                                context: IntegrationErrorContext {
+                                    additional_context: Some("The decrypted Google Pay expiry year could not be widened to four digits.".to_string()),
+                                    suggested_action: Some("Check the expiry year on the decrypted token.".to_string()),
+                                    ..Default::default()
+                                },
                             },
                         )?,
                     },
@@ -239,7 +248,11 @@ fn get_worldpayxml_wallet_payment_method(
                 )
                 .change_context(IntegrationError::InvalidDataFormat {
                     field_name: "google_pay_token_json",
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        additional_context: Some("The Google Pay token is not the JSON envelope Worldpay expects (protocolVersion, signature, signedMessage).".to_string()),
+                        suggested_action: Some("Forward the wallet payload exactly as the Google Pay SDK produced it.".to_string()),
+                        ..Default::default()
+                    },
                 })?;
 
                 Ok(requests::WorldpayxmlPaymentMethod::PayWithGoogle(
@@ -334,7 +347,16 @@ fn get_worldpayxml_authenticated_shopper_id(
         Some(connector_customer) => Ok(Some(Secret::new(connector_customer))),
         None if is_required => Err(IntegrationError::MissingRequiredField {
             field_name: "connector_customer_id",
-            context: Default::default(),
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "Worldpay ties shopper-scoped tokens to authenticatedShopperID, so a                      customer-initiated mandate cannot be registered without it."
+                        .to_string(),
+                ),
+                suggested_action: Some(
+                    "Send customer.connector_customer_id on the request.".to_string(),
+                ),
+                ..Default::default()
+            },
         }
         .into()),
         None => Ok(None),
@@ -514,6 +536,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
+// SetupMandate flow transformers
+//
+// A mandate setup is submitted as an ordinary order that additionally asks Worldpay to create a
+// payment token, and flags the transaction to the scheme as the first of a stored-credential
+// agreement. The order must be zero-amount: setting up an agreement should not move money.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         WorldpayxmlRouterData<
@@ -541,6 +568,29 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
+
+        // Worldpay registers the agreement on a zero-amount verification order. A non-zero setup
+        // would authorise funds that nothing subsequently captures.
+        if router_data
+            .request
+            .minor_amount
+            .is_some_and(|amount| amount.get_amount_as_i64() > 0)
+        {
+            return Err(IntegrationError::FlowNotSupported {
+                flow: "SetupMandate with a non-zero amount".to_string(),
+                connector: "worldpayxml".to_string(),
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Send a zero amount to register the mandate, then charge with a separate \
+                         payment."
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
+            }
+            .into());
+        }
+
         let auth = WorldpayxmlAuthType::try_from(&router_data.connector_config)?;
 
         let is_manual_capture = matches!(

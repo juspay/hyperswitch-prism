@@ -386,7 +386,9 @@ pub(crate) fn apply_wallet_token_override(
     };
     match pm.payment_method.as_mut() {
         Some(PmVariant::GooglePaySdk(wallet)) => {
-            use proto::google_wallet::{tokenization_data::TokenizationData as TD, TokenizationData};
+            use proto::google_wallet::{
+                tokenization_data::TokenizationData as TD, TokenizationData,
+            };
             wallet.tokenization_data = Some(TokenizationData {
                 tokenization_data: Some(TD::EncryptedData(
                     proto::GooglePayEncryptedTokenizationData {
