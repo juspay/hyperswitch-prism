@@ -1431,6 +1431,11 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceStageRequest>
             .clone()
             .map(crate::router_request_types::BrowserInformation::foreign_try_from)
             .transpose()?;
+        let address = value
+            .address
+            .clone()
+            .map(payouts::payouts_types::PayoutAddress::foreign_try_from)
+            .transpose()?;
 
         Ok(Self {
             merchant_quote_id: value.merchant_quote_id.clone(),
@@ -1439,6 +1444,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceStageRequest>
             destination_currency,
             customer,
             browser_info,
+            address,
         })
     }
 }

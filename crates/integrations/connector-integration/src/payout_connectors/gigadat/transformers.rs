@@ -16,6 +16,7 @@ use domain_types::{
     },
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
+    utils::missing_field_err,
 };
 use error_stack::{Report, ResultExt};
 use hyperswitch_masking::{PeekInterface, Secret};
@@ -294,21 +295,26 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 "Failed to convert payout amount to Gigadat's major-unit float representation",
             )?;
 
-        let customer_id = request.get_customer_id()?;
-        let email = request.get_email()?;
-        let name = request.get_name()?;
-        // Gigadat wants the national number: country code without `+`, joined to the number.
-        let mobile = Secret::new(format!(
-            "{}{}",
-            request.get_phone_country_code()?.trim_start_matches('+'),
-            request.get_phone_number()?.peek()
-        ));
-        let user_ip = request.get_ip_address()?;
+        let customer = request.get_customer()?;
+        let billing = request
+            .address
+            .as_ref()
+            .and_then(|address| address.billing_address.as_ref())
+            .ok_or_else(missing_field_err("address.billing_address"))?;
+        let customer_id = customer.get_merchant_customer_id()?;
+        let email = customer.get_email()?;
+        let name = billing
+            .get_optional_full_name()
+            .ok_or_else(missing_field_err("address.billing_address.full_name"))?;
+        let mobile = Secret::new(
+            billing
+                .get_phone_with_country_code()?
+                .peek()
+                .trim_start_matches('+')
+                .to_string(),
+        );
+        let user_ip = request.get_browser_info()?.get_ip_address()?;
 
-        // The payout protos carry no `test_mode`, so `PayoutFlowData::test_mode` is always
-        // `None` today and this resolves to production — matching the payin connector's
-        // convention. Reading it rather than hardcoding keeps the flag correct if the
-        // framework starts forwarding `test_mode` on the payout path.
         let sandbox = item
             .router_data
             .resource_common_data

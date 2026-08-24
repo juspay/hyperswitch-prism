@@ -310,6 +310,35 @@ pub struct PayoutCustomer {
     pub phone_country_code: Option<String>,
 }
 
+impl PayoutCustomer {
+    pub fn get_merchant_customer_id(&self) -> Result<common_utils::id_type::CustomerId, Error> {
+        let id = self
+            .merchant_customer_id
+            .clone()
+            .ok_or_else(missing_field_err("customer.merchant_customer_id"))?;
+        common_utils::id_type::CustomerId::try_from(std::borrow::Cow::from(id)).change_context(
+            IntegrationError::InvalidDataFormat {
+                field_name: "customer.merchant_customer_id",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to parse customer id as a valid CustomerId".to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Ensure the customer id is a valid non-empty string".to_string(),
+                    ),
+                    doc_url: None,
+                },
+            },
+        )
+    }
+
+    pub fn get_email(&self) -> Result<common_utils::pii::Email, Error> {
+        self.email
+            .clone()
+            .ok_or_else(missing_field_err("customer.email"))
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct PayoutTransferResponse {
     pub merchant_payout_id: Option<String>,
@@ -343,79 +372,22 @@ pub struct PayoutStageRequest {
     pub destination_currency: common_enums::Currency,
     pub customer: Option<PayoutCustomer>,
     pub browser_info: Option<crate::router_request_types::BrowserInformation>,
+    pub address: Option<PayoutAddress>,
 }
 
 impl PayoutStageRequest {
-    fn customer(&self) -> Result<&PayoutCustomer, Error> {
+    pub fn get_customer(&self) -> Result<&PayoutCustomer, Error> {
         self.customer
             .as_ref()
             .ok_or_else(missing_field_err("customer"))
     }
 
-    pub fn get_customer_id(&self) -> Result<common_utils::id_type::CustomerId, Error> {
-        let id = self
-            .customer()?
-            .merchant_customer_id
-            .clone()
-            .ok_or_else(missing_field_err("customer.merchant_customer_id"))?;
-        common_utils::id_type::CustomerId::try_from(std::borrow::Cow::from(id)).change_context(
-            IntegrationError::InvalidDataFormat {
-                field_name: "customer.merchant_customer_id",
-                context: IntegrationErrorContext {
-                    additional_context: Some(
-                        "Failed to parse customer id as a valid CustomerId".to_string(),
-                    ),
-                    suggested_action: Some(
-                        "Ensure the customer id is a valid non-empty string".to_string(),
-                    ),
-                    doc_url: None,
-                },
-            },
-        )
-    }
-
-    pub fn get_email(&self) -> Result<common_utils::pii::Email, Error> {
-        self.customer()?
-            .email
-            .clone()
-            .ok_or_else(missing_field_err("customer.email"))
-    }
-
-    pub fn get_name(&self) -> Result<Secret<String>, Error> {
-        self.customer()?
-            .name
-            .clone()
-            .map(Secret::new)
-            .ok_or_else(missing_field_err("customer.name"))
-    }
-
-    pub fn get_phone_number(&self) -> Result<Secret<String>, Error> {
-        self.customer()?
-            .phone_number
-            .clone()
-            .ok_or_else(missing_field_err("customer.phone_number"))
-    }
-
-    pub fn get_phone_country_code(&self) -> Result<String, Error> {
-        self.customer()?
-            .phone_country_code
-            .clone()
-            .ok_or_else(missing_field_err("customer.phone_country_code"))
-    }
-
-    pub fn get_ip_address_as_optional(
+    pub fn get_browser_info(
         &self,
-    ) -> Option<Secret<String, common_utils::pii::IpAddress>> {
-        self.browser_info.clone().and_then(|browser_info| {
-            browser_info
-                .ip_address
-                .map(|ip| Secret::new(ip.to_string()))
-        })
-    }
-
-    pub fn get_ip_address(&self) -> Result<Secret<String, common_utils::pii::IpAddress>, Error> {
-        self.get_ip_address_as_optional()
-            .ok_or_else(missing_field_err("browser_info.ip_address"))
+    ) -> Result<&crate::router_request_types::BrowserInformation, Error> {
+        self.browser_info
+            .as_ref()
+            .ok_or_else(missing_field_err("browser_info"))
     }
 }
 
