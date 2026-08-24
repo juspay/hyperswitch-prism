@@ -1102,23 +1102,25 @@ fn map_worldpayxml_authorize_status(
 }
 
 /// Maps `lastEvent` for a mandate setup, where an authorisation already completes the flow —
-/// the order is zero-amount, so there is no capture to wait for.
-fn map_worldpayxml_setup_mandate_status(last_event: &WorldpayxmlLastEvent) -> AttemptStatus {
-    match last_event {
-        WorldpayxmlLastEvent::Authorised
-        | WorldpayxmlLastEvent::Captured
-        | WorldpayxmlLastEvent::SettledByMerchant => AttemptStatus::Charged,
-        WorldpayxmlLastEvent::Cancelled => AttemptStatus::Voided,
-        WorldpayxmlLastEvent::Refused
-        | WorldpayxmlLastEvent::SentForRefund
-        | WorldpayxmlLastEvent::Refunded
-        | WorldpayxmlLastEvent::RefundFailed
-        | WorldpayxmlLastEvent::Expired
-        | WorldpayxmlLastEvent::Error
-        | WorldpayxmlLastEvent::PushRequested
-        | WorldpayxmlLastEvent::PushPending
-        | WorldpayxmlLastEvent::PushApproved
-        | WorldpayxmlLastEvent::PushRefused => AttemptStatus::Failure,
+/// there is no capture to wait for on a (usually zero-amount) verification order.
+impl From<&WorldpayxmlLastEvent> for AttemptStatus {
+    fn from(last_event: &WorldpayxmlLastEvent) -> Self {
+        match last_event {
+            WorldpayxmlLastEvent::Authorised
+            | WorldpayxmlLastEvent::Captured
+            | WorldpayxmlLastEvent::SettledByMerchant => Self::Charged,
+            WorldpayxmlLastEvent::Cancelled => Self::Voided,
+            WorldpayxmlLastEvent::Refused
+            | WorldpayxmlLastEvent::SentForRefund
+            | WorldpayxmlLastEvent::Refunded
+            | WorldpayxmlLastEvent::RefundFailed
+            | WorldpayxmlLastEvent::Expired
+            | WorldpayxmlLastEvent::Error
+            | WorldpayxmlLastEvent::PushRequested
+            | WorldpayxmlLastEvent::PushPending
+            | WorldpayxmlLastEvent::PushApproved
+            | WorldpayxmlLastEvent::PushRefused => Self::Failure,
+        }
     }
 }
 
@@ -1391,7 +1393,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             crate::utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
         )?;
 
-        let status = map_worldpayxml_setup_mandate_status(&payment.last_event);
+        let status = AttemptStatus::from(&payment.last_event);
 
         if status == AttemptStatus::Failure {
             let return_code = payment.iso8583_return_code.as_ref();
