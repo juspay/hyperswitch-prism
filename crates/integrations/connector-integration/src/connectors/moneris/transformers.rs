@@ -186,6 +186,35 @@ pub enum EcommerceIndicator {
     SslMerchant,
 }
 
+fn derive_ecommerce_indicator(
+    channel: Option<&common_enums::PaymentChannel>,
+    mit_category: Option<&common_enums::MitCategory>,
+    is_three_ds: bool,
+) -> EcommerceIndicator {
+    match channel {
+        Some(common_enums::PaymentChannel::MailOrder)
+        | Some(common_enums::PaymentChannel::TelephoneOrder) => match mit_category {
+            Some(common_enums::MitCategory::Installment) => {
+                EcommerceIndicator::MailTelephoneOrderInstalment
+            }
+            Some(common_enums::MitCategory::Recurring) => {
+                EcommerceIndicator::MailTelephoneOrderRecurring
+            }
+            None => EcommerceIndicator::MailTelephoneOrderSingle,
+            Some(
+                common_enums::MitCategory::Unscheduled | common_enums::MitCategory::Resubmission,
+            ) => EcommerceIndicator::MailTelephoneOrderUnknown,
+        },
+        Some(common_enums::PaymentChannel::Ecommerce) | None => {
+            if is_three_ds {
+                EcommerceIndicator::AuthenticatedEcommerce
+            } else {
+                EcommerceIndicator::SslMerchant
+            }
+        }
+    }
+}
+
 #[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PaymentIndicator {
@@ -591,7 +620,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 payment_information: PaymentInformation::First,
                                 issuer_id: None,
                             }),
-                            Some(EcommerceIndicator::MailTelephoneOrderRecurring),
+                            Some(derive_ecommerce_indicator(
+                                item.router_data.request.payment_channel.as_ref(),
+                                item.router_data.request.mit_category.as_ref(),
+                                item.router_data.resource_common_data.is_three_ds(),
+                            )),
                         )
                     } else {
                         (None, None, None)
