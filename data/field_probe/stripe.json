@@ -202,44 +202,8 @@
         }
       },
       "ApplePay": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "apple_pay_sdk": {
-              "payment_data": {
-                "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9"
-              },
-              "payment_method": {
-                "display_name": "Visa 1111",
-                "network": "Visa",
-                "type": "debit"
-              },
-              "transaction_identifier": "probe_txn_id"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://api.stripe.com/v1/payment_intents",
-          "method": "Post",
-          "headers": {
-            "authorization": "Bearer probe_key",
-            "content-type": "application/x-www-form-urlencoded",
-            "stripe-version": "2022-11-15",
-            "via": "HyperSwitch"
-          },
-          "body": "amount=1000&currency=USD&metadata%5Border_id%5D=probe_txn_001&return_url=https%3A%2F%2Fexample.com%2Freturn&confirm=true&pk_token=%7B%22version%22%3A%22EC_v1%22%2C%22data%22%3A%22probe%22%2C%22signature%22%3A%22probe%22%7D&pk_token_instrument_name=debit&pk_token_payment_network=Visa&pk_token_transaction_id=probe_txn_id&capture_method=automatic&expand%5B0%5D=latest_charge"
-        }
+        "status": "not_supported",
+        "error": "Charging a decrypted wallet credential directly on /v1/payment_intents — its card[cryptogram] / card[eci] block is only accepted by /v1/tokens. Mint a token with PaymentMethodService/Tokenize and pass it back as payment_method.token is not supported by stripe"
       },
       "ApplePayDecrypted": {
         "status": "not_supported",
@@ -1839,7 +1803,7 @@
           }
         },
         "sample": {
-          "url": "https://api.stripe.com/v1/payment_methods",
+          "url": "https://api.stripe.com/v1/tokens",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",

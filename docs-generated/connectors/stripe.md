@@ -196,7 +196,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 |----------------|:---------:|
 | Card | ✓ |
 | Bancontact | ✓ |
-| Apple Pay | ✓ |
+| Apple Pay | x |
 | Apple Pay Dec | x |
 | Apple Pay SDK | ⚠ |
 | Google Pay | ✓ |
@@ -328,24 +328,6 @@ Authorize a payment amount on a payment method. This reserves funds without capt
         "token": "{\"id\":\"tok_probe_gpay\",\"object\":\"token\",\"type\":\"card\"}"
       }
     }
-  }
-}
-```
-
-##### Apple Pay
-
-```python
-"payment_method": {
-  "apple_pay_sdk": {
-    "payment_data": {
-      "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9"
-    },
-    "payment_method": {
-      "display_name": "Visa 1111",
-      "network": "Visa",
-      "type": "debit"
-    },
-    "transaction_identifier": "probe_txn_id"
   }
 }
 ```
