@@ -528,7 +528,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 //
 // A mandate setup is submitted as an ordinary order that additionally asks Worldpay to create a
 // payment token, and flags the transaction to the scheme as the first of a stored-credential
-// agreement. The order amount is whatever the caller asked for, which is normally zero.
+// agreement. The order must be zero-amount: setting up an agreement should not move money.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         WorldpayxmlRouterData<
@@ -556,6 +556,29 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
+
+        // Worldpay registers the agreement on a zero-amount verification order. A non-zero setup
+        // would authorise funds that nothing subsequently captures.
+        if router_data
+            .request
+            .minor_amount
+            .is_some_and(|amount| amount.get_amount_as_i64() > 0)
+        {
+            return Err(IntegrationError::FlowNotSupported {
+                flow: "SetupMandate with a non-zero amount".to_string(),
+                connector: "worldpayxml".to_string(),
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Send a zero amount to register the mandate, then charge with a separate \
+                         payment."
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
+            }
+            .into());
+        }
+
         let auth = WorldpayxmlAuthType::try_from(&router_data.connector_config)?;
 
         let is_manual_capture = matches!(
@@ -1078,17 +1101,10 @@ fn map_worldpayxml_authorize_status(
     }
 }
 
-/// Maps `lastEvent` for a mandate setup.
-///
-/// A zero-amount verification order is complete once authorised, but the builder honours the
-/// caller's capture method, so a non-zero manual-capture setup leaves funds uncaptured and must
-/// report `Authorized` rather than `Charged`.
-fn map_worldpayxml_setup_mandate_status(
-    last_event: &WorldpayxmlLastEvent,
-    is_auto_capture: bool,
-) -> AttemptStatus {
+/// Maps `lastEvent` for a mandate setup, where an authorisation already completes the flow —
+/// the order is zero-amount, so there is no capture to wait for.
+fn map_worldpayxml_setup_mandate_status(last_event: &WorldpayxmlLastEvent) -> AttemptStatus {
     match last_event {
-        WorldpayxmlLastEvent::Authorised if !is_auto_capture => AttemptStatus::Authorized,
         WorldpayxmlLastEvent::Authorised
         | WorldpayxmlLastEvent::Captured
         | WorldpayxmlLastEvent::SettledByMerchant => AttemptStatus::Charged,
@@ -1375,13 +1391,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             crate::utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
         )?;
 
-        let status = map_worldpayxml_setup_mandate_status(
-            &payment.last_event,
-            !matches!(
-                router_data.request.capture_method,
-                Some(CaptureMethod::Manual) | Some(CaptureMethod::ManualMultiple)
-            ),
-        );
+        let status = map_worldpayxml_setup_mandate_status(&payment.last_event);
 
         if status == AttemptStatus::Failure {
             let return_code = payment.iso8583_return_code.as_ref();
