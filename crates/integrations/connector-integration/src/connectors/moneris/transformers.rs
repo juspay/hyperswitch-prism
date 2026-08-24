@@ -1,6 +1,6 @@
 use crate::{types::ResponseRouterData, utils};
 use common_enums::RefundStatus;
-use common_utils::types::MinorUnit;
+use common_utils::types::{MinorUnit, Money};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, RSync, Refund, RepeatPayment, ServerAuthenticationToken, Void,
@@ -160,7 +160,7 @@ pub struct MonerisPaymentsRequest<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 > {
     idempotency_key: String,
-    amount: Amount,
+    amount: Money,
     payment_method: PaymentMethod<T>,
     automatic_capture: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -478,10 +478,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .resource_common_data
                         .connector_request_reference_id
                 );
-                let amount = Amount {
-                    currency: item.router_data.request.currency,
-                    amount: item.router_data.request.amount,
-                };
                 let payment_method = PaymentMethod::Card(PaymentMethodCard {
                     payment_method_source: PaymentMethodSource::Card,
                     card: MonerisCard {
@@ -543,6 +539,23 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     },
                 });
                 let automatic_capture = item.router_data.request.is_auto_capture();
+                let amount =
+                    item.router_data
+                        .resource_common_data
+                        .amount
+                        .ok_or(IntegrationError::MissingRequiredField {
+                        field_name: "amount",
+                        context: IntegrationErrorContext {
+                            suggested_action: Some(
+                                "Provide the payment amount in resource_common_data.".to_string(),
+                            ),
+                            doc_url: None,
+                            additional_context: Some(
+                                "resource_common_data.amount was None for Moneris card authorize."
+                                    .to_string(),
+                            ),
+                        },
+                    })?;
 
                 Ok(Self {
                     idempotency_key,
@@ -559,10 +572,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .resource_common_data
                         .connector_request_reference_id
                 );
-                let amount = Amount {
-                    currency: item.router_data.request.currency,
-                    amount: item.router_data.request.amount,
-                };
                 let automatic_capture = item.router_data.request.is_auto_capture();
                 let wallet_indicator = if item.router_data.request.browser_info.is_some() {
                     WalletIndicator::InBrowser
@@ -775,6 +784,24 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .into())
                     }
                 };
+
+                let amount = item
+                    .router_data
+                    .resource_common_data
+                    .amount
+                    .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "amount",
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Provide the payment amount in resource_common_data.".to_string(),
+                        ),
+                        doc_url: None,
+                        additional_context: Some(
+                            "resource_common_data.amount was None for Moneris wallet authorize."
+                                .to_string(),
+                        ),
+                    },
+                })?;
 
                 Ok(Self {
                     idempotency_key,
@@ -990,7 +1017,7 @@ pub struct MonerisRepeatPaymentRequest<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 > {
     idempotency_key: String,
-    amount: Amount,
+    amount: Money,
     payment_method: PaymentMethod<T>,
     automatic_capture: bool,
 }
@@ -1028,10 +1055,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .resource_common_data
                         .connector_request_reference_id
                 );
-                let amount = Amount {
-                    currency: item.router_data.request.currency,
-                    amount: item.router_data.request.minor_amount,
-                };
                 let automatic_capture = item.router_data.request.is_auto_capture();
                 let payment_method = PaymentMethod::PaymentMethodId(PaymentMethodId {
                     payment_method_source: PaymentMethodSource::PaymentMethodId,
@@ -1065,6 +1088,23 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         issuer_id: None,
                     }),
                 });
+                let amount =
+                    item.router_data
+                        .resource_common_data
+                        .amount
+                        .ok_or(IntegrationError::MissingRequiredField {
+                        field_name: "amount",
+                        context: IntegrationErrorContext {
+                            suggested_action: Some(
+                                "Provide the payment amount in resource_common_data.".to_string(),
+                            ),
+                            doc_url: None,
+                            additional_context: Some(
+                                "resource_common_data.amount was None for Moneris repeat payment."
+                                    .to_string(),
+                            ),
+                        },
+                    })?;
                 Ok(Self {
                     idempotency_key,
                     amount,
