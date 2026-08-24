@@ -163,6 +163,8 @@ pub struct MonerisPaymentsRequest<
     amount: Amount,
     payment_method: PaymentMethod<T>,
     automatic_capture: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    ecommerce_indicator: Option<EcommerceIndicator>,
 }
 
 #[derive(Default, Debug, Serialize, PartialEq)]
@@ -170,6 +172,44 @@ pub struct MonerisPaymentsRequest<
 pub struct Amount {
     currency: common_enums::Currency,
     amount: MinorUnit,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum EcommerceIndicator {
+    MailTelephoneOrderSingle,
+    MailTelephoneOrderRecurring,
+    MailTelephoneOrderInstalment,
+    MailTelephoneOrderUnknown,
+    AuthenticatedEcommerce,
+    NonAuthenticatedEcommerce,
+    SslMerchant,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PaymentIndicator {
+    UnscheduledCredentialOnFile,
+    Recurring,
+    MerchantInitiated,
+    VariableRecurring,
+    CustomerInitiated,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PaymentInformation {
+    First,
+    Subsequent,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct CredentialOnFileInformation {
+    payment_indicator: PaymentIndicator,
+    payment_information: PaymentInformation,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    issuer_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -201,6 +241,8 @@ pub struct PaymentMethodCard<
 pub struct PaymentMethodId {
     payment_method_source: PaymentMethodSource,
     payment_method_id: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    credential_on_file_information: Option<CredentialOnFileInformation>,
 }
 
 /// Internal struct for deserializing Apple Pay encrypted token header
@@ -294,6 +336,10 @@ pub struct PaymentMethodApplePayEncrypted {
     ephemeral_public_key: Secret<String>,
     apple_pay_transaction_id: Secret<String>,
     wallet_indicator: WalletIndicator,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    store_payment_method: Option<StorePaymentMethod>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    credential_on_file_information: Option<CredentialOnFileInformation>,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -309,6 +355,12 @@ pub struct PaymentMethodApplePayDecrypted {
     #[serde(skip_serializing_if = "Option::is_none")]
     wallet_ecommerce_indicator: Option<String>,
     wallet_indicator: WalletIndicator,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    device_manufacturer_identifier: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    store_payment_method: Option<StorePaymentMethod>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    credential_on_file_information: Option<CredentialOnFileInformation>,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -320,6 +372,10 @@ pub struct PaymentMethodGooglePayEncrypted {
     google_pay_protocol_version: String,
     signed_message: Secret<String>,
     wallet_indicator: WalletIndicator,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    store_payment_method: Option<StorePaymentMethod>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    credential_on_file_information: Option<CredentialOnFileInformation>,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -344,6 +400,10 @@ pub struct PaymentMethodGooglePayDecrypted {
     card_brand: MonerisCardBrand,
     wallet_indicator: WalletIndicator,
     card_details: GooglePayDecryptedCardDetails,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    store_payment_method: Option<StorePaymentMethod>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    credential_on_file_information: Option<CredentialOnFileInformation>,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -553,6 +613,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     amount,
                     payment_method,
                     automatic_capture,
+                    ecommerce_indicator: None,
                 })
             }
             PaymentMethodData::Wallet(ref wallet_data) => {
@@ -572,6 +633,24 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 } else {
                     WalletIndicator::InApplication
                 };
+                let is_mandate = item
+                    .router_data
+                    .request
+                    .is_customer_initiated_mandate_payment();
+                let (store_payment_method, credential_on_file_information, ecommerce_indicator) =
+                    if is_mandate {
+                        (
+                            Some(StorePaymentMethod::CardholderInitiated),
+                            Some(CredentialOnFileInformation {
+                                payment_indicator: PaymentIndicator::CustomerInitiated,
+                                payment_information: PaymentInformation::First,
+                                issuer_id: None,
+                            }),
+                            Some(EcommerceIndicator::MailTelephoneOrderRecurring),
+                        )
+                    } else {
+                        (None, None, None)
+                    };
 
                 let payment_method = match wallet_data {
                     WalletData::ApplePay(apple_pay_data) => match &apple_pay_data.payment_data {
@@ -616,6 +695,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 ),
                                 apple_pay_transaction_id: Secret::new(apple_pay_transaction_id),
                                 wallet_indicator,
+                                store_payment_method,
+                                credential_on_file_information,
                             })
                         }
                         ApplePayPaymentData::Decrypted(decrypt_data) => {
@@ -673,6 +754,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                     .eci_indicator
                                     .clone(),
                                 wallet_indicator,
+                                device_manufacturer_identifier: None,
+                                store_payment_method,
+                                credential_on_file_information,
                             })
                         }
                     },
@@ -707,6 +791,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                     google_pay_protocol_version: token.protocol_version,
                                     signed_message: Secret::new(token.signed_message),
                                     wallet_indicator,
+                                    store_payment_method,
+                                    credential_on_file_information,
                                 })
                             }
                             GpayTokenizationData::Decrypted(decrypt_data) => {
@@ -764,6 +850,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                             .eci_indicator
                                             .clone(),
                                     },
+                                    store_payment_method,
+                                    credential_on_file_information,
                                 })
                             }
                         }
@@ -794,6 +882,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     amount,
                     payment_method,
                     automatic_capture,
+                    ecommerce_indicator,
                 })
             }
             _ => Err(IntegrationError::NotImplemented(
@@ -1071,6 +1160,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             },
                         })?
                         .into(),
+                    credential_on_file_information: Some(CredentialOnFileInformation {
+                        payment_indicator: PaymentIndicator::MerchantInitiated,
+                        payment_information: PaymentInformation::Subsequent,
+                        issuer_id: None,
+                    }),
                 });
                 Ok(Self {
                     idempotency_key,
