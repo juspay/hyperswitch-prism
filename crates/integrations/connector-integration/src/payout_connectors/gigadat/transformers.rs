@@ -18,7 +18,7 @@ use domain_types::{
     router_data_v2::RouterDataV2,
 };
 use error_stack::{Report, ResultExt};
-use hyperswitch_masking::Secret;
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use super::GigadatPayoutsRouterData;
@@ -232,7 +232,7 @@ pub struct GigadatPayoutStageRequest {
     #[serde(rename = "type")]
     pub transaction_type: GigadatTransactionType,
     pub user_id: id_type::CustomerId,
-    pub user_ip: Secret<String>,
+    pub user_ip: Secret<String, common_utils::pii::IpAddress>,
     pub sandbox: bool,
 }
 
@@ -297,14 +297,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let customer_id = request.get_customer_id()?;
         let email = request.get_email()?;
         let name = request.get_name()?;
-        let mobile = request.get_mobile()?;
-        let user_ip = request.get_user_ip()?;
+        // Gigadat wants the national number: country code without `+`, joined to the number.
+        let mobile = Secret::new(format!(
+            "{}{}",
+            request.get_phone_country_code()?.trim_start_matches('+'),
+            request.get_phone_number()?.peek()
+        ));
+        let user_ip = request.get_ip_address()?;
 
+        // The payout protos carry no `test_mode`, so `PayoutFlowData::test_mode` is always
+        // `None` today and this resolves to production — matching the payin connector's
+        // convention. Reading it rather than hardcoding keeps the flag correct if the
+        // framework starts forwarding `test_mode` on the payout path.
         let sandbox = item
             .router_data
             .resource_common_data
             .test_mode
-            .unwrap_or(true);
+            .unwrap_or(false);
 
         Ok(Self {
             amount,

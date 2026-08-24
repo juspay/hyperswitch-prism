@@ -160,10 +160,18 @@ fn get_psp_token_from_payout_metadata(
         })
 }
 
+/// Redacts the `token` query parameter before a webflow url reaches the logs.
+/// Matches on `token=` rather than `&token=` so the token is still masked when it is
+/// the first query parameter, and preserves any parameters that follow it.
 fn mask_webflow_token(url: &str) -> String {
-    url.split_once("&token=")
-        .map(|(base, _token)| format!("{base}&token=***"))
-        .unwrap_or_else(|| url.to_owned())
+    match url.split_once("token=") {
+        Some((base, rest)) => {
+            let tail = rest.find('&').map(|idx| &rest[idx..]).unwrap_or_default();
+            format!("{base}token=***{tail}")
+        }
+        // No `token=` in the url means there is no token to redact.
+        None => url.to_owned(),
+    }
 }
 
 pub(crate) mod headers {
@@ -425,9 +433,12 @@ macros::macro_connector_implementation!(
 
             let token = get_psp_token_from_payout_method_data(&req.request.payout_method_data)
                 .or_else(|_| {
-                    get_psp_token_from_payout_metadata(
-                        &req.request.payout_connector_metadata,
-                    )
+                    get_psp_token_from_payout_metadata(&req.request.payout_connector_metadata)
+                        .attach_printable(
+                            "Gigadat psp_token was not present in payout_method_data.passthrough, \
+                             so the staged-payout token from the preceding PayoutStage was used \
+                             as a fallback",
+                        )
                 })?;
 
             Ok(format!(
@@ -437,7 +448,7 @@ macros::macro_connector_implementation!(
                 token.peek()
             ))
         }
-        fn get_masked_url(&self, url: &str) -> String {
+        fn get_url_for_logs(&self, url: &str) -> String {
             mask_webflow_token(url)
         }
     }
@@ -473,9 +484,12 @@ macros::macro_connector_implementation!(
 
             let token = get_psp_token_from_payout_method_data(&req.request.payout_method_data)
                 .or_else(|_| {
-                    get_psp_token_from_payout_metadata(
-                        &req.request.payout_connector_metadata,
-                    )
+                    get_psp_token_from_payout_metadata(&req.request.payout_connector_metadata)
+                        .attach_printable(
+                            "Gigadat psp_token was not present in payout_method_data.passthrough, \
+                             so the staged-payout token from the preceding PayoutStage was used \
+                             as a fallback",
+                        )
                 })?;
 
             Ok(format!(
@@ -485,7 +499,7 @@ macros::macro_connector_implementation!(
                 token.peek()
             ))
         }
-        fn get_masked_url(&self, url: &str) -> String {
+        fn get_url_for_logs(&self, url: &str) -> String {
             mask_webflow_token(url)
         }
     }
@@ -549,17 +563,26 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         event_builder: Option<&mut events::Event>,
         _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        // Try to parse as JSON first, fall back to plain text if that fails
+        // Prefer the parsed `err` field, then a bounded plain-text body, and finally a
+        // status-only message so the caller never receives an empty reason.
         let error_message = res
             .response
             .parse_struct::<gigadat::GigadatErrorResponse>("GigadatErrorResponse")
             .map(|parsed| parsed.err)
-            .unwrap_or_else(|_| {
-                // Fall back to treating response as bounded plain text
-                String::from_utf8_lossy(&res.response)
+            .ok()
+            .filter(|message| !message.trim().is_empty())
+            .or_else(|| {
+                let body: String = String::from_utf8_lossy(&res.response)
                     .chars()
                     .take(MAX_ERROR_BODY_LENGTH)
-                    .collect()
+                    .collect();
+                Some(body).filter(|body| !body.trim().is_empty())
+            })
+            .unwrap_or_else(|| {
+                format!(
+                    "Gigadat returned HTTP {} with no parsable error body",
+                    res.status_code
+                )
             });
 
         let response = gigadat::GigadatErrorResponse {

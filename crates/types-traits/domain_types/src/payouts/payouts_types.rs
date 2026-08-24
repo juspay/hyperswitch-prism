@@ -342,7 +342,7 @@ pub struct PayoutStageRequest {
     pub source_currency: common_enums::Currency,
     pub destination_currency: common_enums::Currency,
     pub customer: Option<PayoutCustomer>,
-    pub user_ip: Option<Secret<String>>,
+    pub browser_info: Option<crate::router_request_types::BrowserInformation>,
 }
 
 impl PayoutStageRequest {
@@ -389,25 +389,33 @@ impl PayoutStageRequest {
             .ok_or_else(missing_field_err("customer.name"))
     }
 
-    /// Gigadat-style national number: country code (without `+`) joined to the number.
-    pub fn get_mobile(&self) -> Result<Secret<String>, Error> {
-        let customer = self.customer()?;
-        let number = customer
+    pub fn get_phone_number(&self) -> Result<Secret<String>, Error> {
+        self.customer()?
             .phone_number
             .clone()
-            .ok_or_else(missing_field_err("customer.phone_number"))?;
-        let country_code = customer
-            .phone_country_code
-            .as_deref()
-            .unwrap_or("+1")
-            .trim_start_matches('+');
-        Ok(Secret::new(format!("{country_code}{}", number.expose())))
+            .ok_or_else(missing_field_err("customer.phone_number"))
     }
 
-    pub fn get_user_ip(&self) -> Result<Secret<String>, Error> {
-        self.user_ip
+    pub fn get_phone_country_code(&self) -> Result<String, Error> {
+        self.customer()?
+            .phone_country_code
             .clone()
-            .ok_or_else(missing_field_err("user_ip"))
+            .ok_or_else(missing_field_err("customer.phone_country_code"))
+    }
+
+    pub fn get_ip_address_as_optional(
+        &self,
+    ) -> Option<Secret<String, common_utils::pii::IpAddress>> {
+        self.browser_info.clone().and_then(|browser_info| {
+            browser_info
+                .ip_address
+                .map(|ip| Secret::new(ip.to_string()))
+        })
+    }
+
+    pub fn get_ip_address(&self) -> Result<Secret<String, common_utils::pii::IpAddress>, Error> {
+        self.get_ip_address_as_optional()
+            .ok_or_else(missing_field_err("browser_info.ip_address"))
     }
 }
 

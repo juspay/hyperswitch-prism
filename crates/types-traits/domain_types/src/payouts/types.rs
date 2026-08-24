@@ -1426,11 +1426,11 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceStageRequest>
             .clone()
             .map(convert_payouts_customer_to_domain)
             .transpose()?;
-        let user_ip = value
+        let browser_info = value
             .browser_info
-            .as_ref()
-            .and_then(|browser_info| browser_info.ip_address.clone())
-            .map(hyperswitch_masking::Secret::new);
+            .clone()
+            .map(crate::router_request_types::BrowserInformation::foreign_try_from)
+            .transpose()?;
 
         Ok(Self {
             merchant_quote_id: value.merchant_quote_id.clone(),
@@ -1438,7 +1438,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceStageRequest>
             source_currency,
             destination_currency,
             customer,
-            user_ip,
+            browser_info,
         })
     }
 }
