@@ -19,6 +19,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.08.24.0
+
+### Features
+
+- **truelayer:** Add bank name support for open banking payments ([#2166](https://github.com/juspay/connector-service/pull/2166)) ([`f829d1a`](https://github.com/juspay/connector-service/commit/f829d1aa230d41bf7803a909417124e59a9393d6))
+
+### Bug Fixes
+
+- **clippy:** Drop two useless format! calls failing CI ([#2167](https://github.com/juspay/connector-service/pull/2167)) ([`5c0befa`](https://github.com/juspay/connector-service/commit/5c0beface6fd3fb13d43264337727acebb164cf4))
+
+### Documentation
+
+- Remove php sdk references ([#2144](https://github.com/juspay/connector-service/pull/2144)) ([`c1ef97a`](https://github.com/juspay/connector-service/commit/c1ef97ae66ed8518198d826bdd1cd4cfa2188be5))
+
+**Full Changelog:** [`2026.08.20.3...2026.08.24.0`](https://github.com/juspay/connector-service/compare/2026.08.20.3...2026.08.24.0)
+
+- - -
+
 ## 2026.08.20.3
 
 ### Bug Fixes
