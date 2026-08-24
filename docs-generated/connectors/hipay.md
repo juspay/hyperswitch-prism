@@ -135,7 +135,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/hipay/hipay.py#L138) · [JavaScript](../../examples/hipay/hipay.js) · [Kotlin](../../examples/hipay/hipay.kt#L114) · [Rust](../../examples/hipay/hipay.rs#L179)
+**Examples:** [Python](../../examples/hipay/hipay.py#L159) · [JavaScript](../../examples/hipay/hipay.js) · [Kotlin](../../examples/hipay/hipay.kt#L115) · [Rust](../../examples/hipay/hipay.rs#L206)
 
 ### Card Payment (Authorize + Capture)
 
@@ -149,25 +149,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/hipay/hipay.py#L157) · [JavaScript](../../examples/hipay/hipay.js) · [Kotlin](../../examples/hipay/hipay.kt#L130) · [Rust](../../examples/hipay/hipay.rs#L195)
+**Examples:** [Python](../../examples/hipay/hipay.py#L178) · [JavaScript](../../examples/hipay/hipay.js) · [Kotlin](../../examples/hipay/hipay.kt#L131) · [Rust](../../examples/hipay/hipay.rs#L222)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/hipay/hipay.py#L182) · [JavaScript](../../examples/hipay/hipay.js) · [Kotlin](../../examples/hipay/hipay.kt#L152) · [Rust](../../examples/hipay/hipay.rs#L218)
+**Examples:** [Python](../../examples/hipay/hipay.py#L203) · [JavaScript](../../examples/hipay/hipay.js) · [Kotlin](../../examples/hipay/hipay.kt#L153) · [Rust](../../examples/hipay/hipay.rs#L245)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/hipay/hipay.py#L207) · [JavaScript](../../examples/hipay/hipay.js) · [Kotlin](../../examples/hipay/hipay.kt#L174) · [Rust](../../examples/hipay/hipay.rs#L241)
+**Examples:** [Python](../../examples/hipay/hipay.py#L228) · [JavaScript](../../examples/hipay/hipay.js) · [Kotlin](../../examples/hipay/hipay.kt#L175) · [Rust](../../examples/hipay/hipay.rs#L268)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/hipay/hipay.py#L229) · [JavaScript](../../examples/hipay/hipay.js) · [Kotlin](../../examples/hipay/hipay.kt#L193) · [Rust](../../examples/hipay/hipay.rs#L260)
+**Examples:** [Python](../../examples/hipay/hipay.py#L250) · [JavaScript](../../examples/hipay/hipay.js) · [Kotlin](../../examples/hipay/hipay.kt#L194) · [Rust](../../examples/hipay/hipay.rs#L287)
 
 ## API Reference
 
@@ -315,7 +315,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/hipay/hipay.py) · [TypeScript](../../examples/hipay/hipay.ts#L264) · [Kotlin](../../examples/hipay/hipay.kt#L211) · [Rust](../../examples/hipay/hipay.rs)
+**Examples:** [Python](../../examples/hipay/hipay.py) · [TypeScript](../../examples/hipay/hipay.ts#L286) · [Kotlin](../../examples/hipay/hipay.kt#L212) · [Rust](../../examples/hipay/hipay.rs)
 
 #### PaymentService.Capture
 
@@ -326,7 +326,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/hipay/hipay.py) · [TypeScript](../../examples/hipay/hipay.ts#L273) · [Kotlin](../../examples/hipay/hipay.kt#L223) · [Rust](../../examples/hipay/hipay.rs)
+**Examples:** [Python](../../examples/hipay/hipay.py) · [TypeScript](../../examples/hipay/hipay.ts#L295) · [Kotlin](../../examples/hipay/hipay.kt#L224) · [Rust](../../examples/hipay/hipay.rs)
 
 #### PaymentService.Get
 
@@ -337,7 +337,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/hipay/hipay.py) · [TypeScript](../../examples/hipay/hipay.ts#L282) · [Kotlin](../../examples/hipay/hipay.kt#L233) · [Rust](../../examples/hipay/hipay.rs)
+**Examples:** [Python](../../examples/hipay/hipay.py) · [TypeScript](../../examples/hipay/hipay.ts#L304) · [Kotlin](../../examples/hipay/hipay.kt#L234) · [Rust](../../examples/hipay/hipay.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -348,7 +348,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/hipay/hipay.py) · [TypeScript](../../examples/hipay/hipay.ts#L291) · [Kotlin](../../examples/hipay/hipay.kt#L241) · [Rust](../../examples/hipay/hipay.rs)
+**Examples:** [Python](../../examples/hipay/hipay.py) · [TypeScript](../../examples/hipay/hipay.ts#L313) · [Kotlin](../../examples/hipay/hipay.kt#L242) · [Rust](../../examples/hipay/hipay.rs)
 
 #### PaymentService.Refund
 
@@ -359,7 +359,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/hipay/hipay.py) · [TypeScript](../../examples/hipay/hipay.ts#L300) · [Kotlin](../../examples/hipay/hipay.kt#L270) · [Rust](../../examples/hipay/hipay.rs)
+**Examples:** [Python](../../examples/hipay/hipay.py) · [TypeScript](../../examples/hipay/hipay.ts#L322) · [Kotlin](../../examples/hipay/hipay.kt#L271) · [Rust](../../examples/hipay/hipay.rs)
 
 #### PaymentService.TokenAuthorize
 
@@ -370,7 +370,7 @@ Authorize using a connector-issued payment method token.
 | **Request** | `PaymentServiceTokenAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/hipay/hipay.py) · [TypeScript](../../examples/hipay/hipay.ts#L318) · [Kotlin](../../examples/hipay/hipay.kt#L292) · [Rust](../../examples/hipay/hipay.rs)
+**Examples:** [Python](../../examples/hipay/hipay.py) · [TypeScript](../../examples/hipay/hipay.ts#L340) · [Kotlin](../../examples/hipay/hipay.kt#L293) · [Rust](../../examples/hipay/hipay.rs)
 
 #### PaymentMethodService.Tokenize
 
@@ -381,112 +381,7 @@ Tokenize payment method for secure storage. Replaces raw card details with secur
 | **Request** | `PaymentMethodServiceTokenizeRequest` |
 | **Response** | `PaymentMethodServiceTokenizeResponse` |
 
-**Supported payment method types:**
-
-| Payment Method | Supported |
-|----------------|:---------:|
-| Card | ✓ |
-| Bancontact | ⚠ |
-| Apple Pay | ⚠ |
-| Apple Pay Dec | ⚠ |
-| Apple Pay SDK | ⚠ |
-| Google Pay | ⚠ |
-| Google Pay Dec | ⚠ |
-| Google Pay SDK | ⚠ |
-| PayPal SDK | ⚠ |
-| Amazon Pay | ⚠ |
-| Cash App | ⚠ |
-| PayPal | ⚠ |
-| WeChat Pay | ⚠ |
-| Alipay | ⚠ |
-| Revolut Pay | ⚠ |
-| MiFinity | ⚠ |
-| Bluecode | ⚠ |
-| Paze | x |
-| Samsung Pay | ⚠ |
-| MB Way | ⚠ |
-| Satispay | ⚠ |
-| Wero | ⚠ |
-| GoPay | ⚠ |
-| GCash | ⚠ |
-| Momo | ⚠ |
-| Dana | ⚠ |
-| Kakao Pay | ⚠ |
-| Touch 'n Go | ⚠ |
-| Twint | ⚠ |
-| Vipps | ⚠ |
-| Swish | ⚠ |
-| Affirm | ⚠ |
-| Afterpay | ⚠ |
-| Klarna | ⚠ |
-| UPI Collect | ⚠ |
-| UPI Intent | ⚠ |
-| UPI QR | ⚠ |
-| Thailand | ⚠ |
-| Czech | ⚠ |
-| Finland | ⚠ |
-| FPX | ⚠ |
-| Poland | ⚠ |
-| Slovakia | ⚠ |
-| UK | ⚠ |
-| PIS | x |
-| Generic | ⚠ |
-| Local | ⚠ |
-| iDEAL | ⚠ |
-| Sofort | ⚠ |
-| Trustly | ⚠ |
-| Giropay | ⚠ |
-| EPS | ⚠ |
-| Przelewy24 | ⚠ |
-| PSE | ⚠ |
-| BLIK | ⚠ |
-| Interac | ⚠ |
-| Bizum | ⚠ |
-| EFT | ⚠ |
-| DuitNow | x |
-| ACH | ⚠ |
-| SEPA | ⚠ |
-| BACS | ⚠ |
-| Multibanco | ⚠ |
-| Instant | ⚠ |
-| Instant FI | ⚠ |
-| Instant PL | ⚠ |
-| Pix | ⚠ |
-| Permata | ⚠ |
-| BCA | ⚠ |
-| BNI VA | ⚠ |
-| BRI VA | ⚠ |
-| CIMB VA | ⚠ |
-| Danamon VA | ⚠ |
-| Mandiri VA | ⚠ |
-| Local | ⚠ |
-| Indonesian | ⚠ |
-| ACH | ⚠ |
-| SEPA | ⚠ |
-| BACS | ⚠ |
-| BECS | ⚠ |
-| SEPA Guaranteed | ⚠ |
-| Crypto | x |
-| Reward | ⚠ |
-| Givex | x |
-| PaySafeCard | ⚠ |
-| E-Voucher | ⚠ |
-| Boleto | ⚠ |
-| Efecty | ⚠ |
-| Pago Efectivo | ⚠ |
-| Red Compra | ⚠ |
-| Red Pagos | ⚠ |
-| Alfamart | ⚠ |
-| Indomaret | ⚠ |
-| Oxxo | ⚠ |
-| 7-Eleven | ⚠ |
-| Lawson | ⚠ |
-| Mini Stop | ⚠ |
-| Family Mart | ⚠ |
-| Seicomart | ⚠ |
-| Pay Easy | ⚠ |
-
-**Examples:** [Python](../../examples/hipay/hipay.py) · [TypeScript](../../examples/hipay/hipay.ts) · [Kotlin](../../examples/hipay/hipay.kt) · [Rust](../../examples/hipay/hipay.rs)
+**Examples:** [Python](../../examples/hipay/hipay.py) · [TypeScript](../../examples/hipay/hipay.ts#L349) · [Kotlin](../../examples/hipay/hipay.kt#L314) · [Rust](../../examples/hipay/hipay.rs)
 
 #### PaymentService.Void
 
@@ -497,7 +392,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/hipay/hipay.py) · [TypeScript](../../examples/hipay/hipay.ts) · [Kotlin](../../examples/hipay/hipay.kt#L313) · [Rust](../../examples/hipay/hipay.rs)
+**Examples:** [Python](../../examples/hipay/hipay.py) · [TypeScript](../../examples/hipay/hipay.ts) · [Kotlin](../../examples/hipay/hipay.kt#L340) · [Rust](../../examples/hipay/hipay.rs)
 
 ### Refunds
 
@@ -510,4 +405,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/hipay/hipay.py) · [TypeScript](../../examples/hipay/hipay.ts#L309) · [Kotlin](../../examples/hipay/hipay.kt#L280) · [Rust](../../examples/hipay/hipay.rs)
+**Examples:** [Python](../../examples/hipay/hipay.py) · [TypeScript](../../examples/hipay/hipay.ts#L331) · [Kotlin](../../examples/hipay/hipay.kt#L281) · [Rust](../../examples/hipay/hipay.rs)
