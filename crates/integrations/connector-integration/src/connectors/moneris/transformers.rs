@@ -1,5 +1,5 @@
 use crate::{types::ResponseRouterData, utils};
-use common_enums::RefundStatus;
+use common_enums::{MitCategory, PaymentChannel, RefundStatus};
 use common_utils::types::{MinorUnit, Money};
 use domain_types::{
     connector_flow::{
@@ -187,30 +187,29 @@ pub enum EcommerceIndicator {
 }
 
 fn derive_ecommerce_indicator(
-    channel: Option<&common_enums::PaymentChannel>,
-    mit_category: Option<&common_enums::MitCategory>,
+    channel: Option<&PaymentChannel>,
+    mit_category: Option<&MitCategory>,
     is_three_ds: bool,
+    is_recurring: bool,
 ) -> EcommerceIndicator {
-    match channel {
-        Some(common_enums::PaymentChannel::MailOrder)
-        | Some(common_enums::PaymentChannel::TelephoneOrder) => match mit_category {
-            Some(common_enums::MitCategory::Installment) => {
-                EcommerceIndicator::MailTelephoneOrderInstalment
-            }
-            Some(common_enums::MitCategory::Recurring) => {
-                EcommerceIndicator::MailTelephoneOrderRecurring
-            }
-            None => EcommerceIndicator::MailTelephoneOrderSingle,
-            Some(
-                common_enums::MitCategory::Unscheduled | common_enums::MitCategory::Resubmission,
-            ) => EcommerceIndicator::MailTelephoneOrderUnknown,
-        },
-        Some(common_enums::PaymentChannel::Ecommerce) | None => {
-            if is_three_ds {
-                EcommerceIndicator::AuthenticatedEcommerce
-            } else {
-                EcommerceIndicator::SslMerchant
-            }
+    if !matches!(
+        channel,
+        Some(PaymentChannel::MailOrder | PaymentChannel::TelephoneOrder)
+    ) {
+        return if is_three_ds {
+            EcommerceIndicator::AuthenticatedEcommerce
+        } else {
+            EcommerceIndicator::SslMerchant
+        };
+    }
+
+    match mit_category {
+        Some(MitCategory::Installment) => EcommerceIndicator::MailTelephoneOrderInstalment,
+        Some(MitCategory::Recurring) => EcommerceIndicator::MailTelephoneOrderRecurring,
+        None if is_recurring => EcommerceIndicator::MailTelephoneOrderRecurring,
+        None => EcommerceIndicator::MailTelephoneOrderSingle,
+        Some(MitCategory::Unscheduled | MitCategory::Resubmission) => {
+            EcommerceIndicator::MailTelephoneOrderUnknown
         }
     }
 }
@@ -607,12 +606,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 } else {
                     WalletIndicator::InApplication
                 };
-                let is_mandate = item
+                let is_cit_mandate = item
                     .router_data
                     .request
                     .is_customer_initiated_mandate_payment();
+                let is_recurring = item.router_data.request.is_mandate_payment();
                 let (store_payment_method, credential_on_file_information, ecommerce_indicator) =
-                    if is_mandate {
+                    if is_cit_mandate {
                         (
                             Some(StorePaymentMethod::CardholderInitiated),
                             Some(CredentialOnFileInformation {
@@ -624,6 +624,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 item.router_data.request.payment_channel.as_ref(),
                                 item.router_data.request.mit_category.as_ref(),
                                 item.router_data.resource_common_data.is_three_ds(),
+                                is_recurring,
                             )),
                         )
                     } else {
