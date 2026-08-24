@@ -35,10 +35,6 @@ use domain_types::payment_address::AddressDetails;
 
 const API_VERSION: &str = "1.4";
 
-/// Worldpay scopes the tokens it issues to a single shopper, which is the scope stored as the
-/// connector mandate id.
-const TOKEN_SCOPE_SHOPPER: &str = "shopper";
-
 /// `captureDelay` value that leaves the order uncaptured, for manual capture.
 const CAPTURE_DELAY_MANUAL: &str = "OFF";
 /// `captureDelay` value that captures the order immediately, for automatic capture.
@@ -188,7 +184,11 @@ fn get_worldpayxml_wallet_payment_method(
                         serde_json::from_slice(&decoded_data).change_context(
                             IntegrationError::InvalidDataFormat {
                                 field_name: "apple_pay_token_json",
-                                context: Default::default(),
+                                context: IntegrationErrorContext {
+                                    additional_context: Some("The decoded Apple Pay payment token is not the JSON envelope Worldpay expects (header, signature, version, data).".to_string()),
+                                    suggested_action: Some("Forward the wallet payload exactly as the Apple Pay SDK produced it.".to_string()),
+                                    ..Default::default()
+                                },
                             },
                         )?;
 
@@ -206,7 +206,11 @@ fn get_worldpayxml_wallet_payment_method(
                         year: decrypt_data.get_four_digit_expiry_year().change_context(
                             IntegrationError::MissingRequiredField {
                                 field_name: "google_pay_decrypted_data.card_exp_year",
-                                context: Default::default(),
+                                context: IntegrationErrorContext {
+                                    additional_context: Some("The decrypted Google Pay expiry year could not be widened to four digits.".to_string()),
+                                    suggested_action: Some("Check the expiry year on the decrypted token.".to_string()),
+                                    ..Default::default()
+                                },
                             },
                         )?,
                     },
@@ -246,7 +250,11 @@ fn get_worldpayxml_wallet_payment_method(
                 )
                 .change_context(IntegrationError::InvalidDataFormat {
                     field_name: "google_pay_token_json",
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        additional_context: Some("The Google Pay token is not the JSON envelope Worldpay expects (protocolVersion, signature, signedMessage).".to_string()),
+                        suggested_action: Some("Forward the wallet payload exactly as the Google Pay SDK produced it.".to_string()),
+                        ..Default::default()
+                    },
                 })?;
 
                 Ok(requests::WorldpayxmlPaymentMethod::PayWithGoogle(
@@ -328,7 +336,16 @@ fn get_worldpayxml_authenticated_shopper_id(
         Some(connector_customer) => Ok(Some(Secret::new(connector_customer))),
         None if is_required => Err(IntegrationError::MissingRequiredField {
             field_name: "connector_customer_id",
-            context: Default::default(),
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "Worldpay ties shopper-scoped tokens to authenticatedShopperID, so a                      customer-initiated mandate cannot be registered without it."
+                        .to_string(),
+                ),
+                suggested_action: Some(
+                    "Send customer.connector_customer_id on the request.".to_string(),
+                ),
+                ..Default::default()
+            },
         }
         .into()),
         None => Ok(None),
@@ -428,7 +445,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // Ask Worldpay to issue a payment token on the customer-initiated transaction; without it
         // there is nothing for a later merchant-initiated payment to be charged against.
         let create_token = is_cit_mandate_payment.then(|| requests::WorldpayxmlCreateToken {
-            token_scope: TOKEN_SCOPE_SHOPPER.to_string(),
+            token_scope: requests::WorldpayxmlTokenScope::Shopper,
             token_event_reference: router_data
                 .resource_common_data
                 .connector_request_reference_id
@@ -648,7 +665,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     },
                     billing_address,
                     create_token: Some(requests::WorldpayxmlCreateToken {
-                        token_scope: TOKEN_SCOPE_SHOPPER.to_string(),
+                        token_scope: requests::WorldpayxmlTokenScope::Shopper,
                         token_event_reference: router_data
                             .resource_common_data
                             .connector_request_reference_id
@@ -778,7 +795,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         action: None,
                         payment_method: requests::WorldpayxmlPaymentMethod::TokenSsl(
                             requests::WorldpayxmlTokenData {
-                                token_scope: Secret::new(TOKEN_SCOPE_SHOPPER.to_string()),
+                                token_scope: requests::WorldpayxmlTokenScope::Shopper,
                                 payment_token_id: Secret::new(payment_token_id),
                             },
                         ),
@@ -1061,26 +1078,31 @@ fn map_worldpayxml_authorize_status(
     }
 }
 
-/// Maps `lastEvent` for a mandate setup, where an authorisation already completes the flow —
-/// there is no capture to wait for on a (usually zero-amount) verification order.
-impl From<&WorldpayxmlLastEvent> for AttemptStatus {
-    fn from(last_event: &WorldpayxmlLastEvent) -> Self {
-        match last_event {
-            WorldpayxmlLastEvent::Authorised
-            | WorldpayxmlLastEvent::Captured
-            | WorldpayxmlLastEvent::SettledByMerchant => Self::Charged,
-            WorldpayxmlLastEvent::Cancelled => Self::Voided,
-            WorldpayxmlLastEvent::Refused
-            | WorldpayxmlLastEvent::SentForRefund
-            | WorldpayxmlLastEvent::Refunded
-            | WorldpayxmlLastEvent::RefundFailed
-            | WorldpayxmlLastEvent::Expired
-            | WorldpayxmlLastEvent::Error
-            | WorldpayxmlLastEvent::PushRequested
-            | WorldpayxmlLastEvent::PushPending
-            | WorldpayxmlLastEvent::PushApproved
-            | WorldpayxmlLastEvent::PushRefused => Self::Failure,
-        }
+/// Maps `lastEvent` for a mandate setup.
+///
+/// A zero-amount verification order is complete once authorised, but the builder honours the
+/// caller's capture method, so a non-zero manual-capture setup leaves funds uncaptured and must
+/// report `Authorized` rather than `Charged`.
+fn map_worldpayxml_setup_mandate_status(
+    last_event: &WorldpayxmlLastEvent,
+    is_auto_capture: bool,
+) -> AttemptStatus {
+    match last_event {
+        WorldpayxmlLastEvent::Authorised if !is_auto_capture => AttemptStatus::Authorized,
+        WorldpayxmlLastEvent::Authorised
+        | WorldpayxmlLastEvent::Captured
+        | WorldpayxmlLastEvent::SettledByMerchant => AttemptStatus::Charged,
+        WorldpayxmlLastEvent::Cancelled => AttemptStatus::Voided,
+        WorldpayxmlLastEvent::Refused
+        | WorldpayxmlLastEvent::SentForRefund
+        | WorldpayxmlLastEvent::Refunded
+        | WorldpayxmlLastEvent::RefundFailed
+        | WorldpayxmlLastEvent::Expired
+        | WorldpayxmlLastEvent::Error
+        | WorldpayxmlLastEvent::PushRequested
+        | WorldpayxmlLastEvent::PushPending
+        | WorldpayxmlLastEvent::PushApproved
+        | WorldpayxmlLastEvent::PushRefused => AttemptStatus::Failure,
     }
 }
 
@@ -1353,7 +1375,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             crate::utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
         )?;
 
-        let status = AttemptStatus::from(&payment.last_event);
+        let status = map_worldpayxml_setup_mandate_status(
+            &payment.last_event,
+            !matches!(
+                router_data.request.capture_method,
+                Some(CaptureMethod::Manual) | Some(CaptureMethod::ManualMultiple)
+            ),
+        );
 
         if status == AttemptStatus::Failure {
             let return_code = payment.iso8583_return_code.as_ref();
