@@ -19,6 +19,76 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.08.20.3
+
+### Bug Fixes
+
+- **connectors:** [tsys_transit] send NTID in merchant initiated nitd transactions ([#2163](https://github.com/juspay/connector-service/pull/2163)) ([`377bc4e`](https://github.com/juspay/connector-service/commit/377bc4e0ba4ab1d6488521a8752f6bfb1890f982))
+
+**Full Changelog:** [`2026.08.20.2...2026.08.20.3`](https://github.com/juspay/connector-service/compare/2026.08.20.2...2026.08.20.3)
+
+- - -
+
+## 2026.08.20.2
+
+### Features
+
+- **connector:** Worldpay Raft Connector Integration ([#2138](https://github.com/juspay/connector-service/pull/2138)) ([`ce5dbe0`](https://github.com/juspay/connector-service/commit/ce5dbe003bdca61fec02b0265c3dd64264ad9c12))
+
+### Refactors
+
+- **connector:** Add card payment method support (with RSA/AES encryption) ([#2151](https://github.com/juspay/connector-service/pull/2151)) ([`0a9d576`](https://github.com/juspay/connector-service/commit/0a9d576501d8dd75e9422ae4eb8b154aa62c9cfd))
+
+**Full Changelog:** [`2026.08.20.1...2026.08.20.2`](https://github.com/juspay/connector-service/compare/2026.08.20.1...2026.08.20.2)
+
+- - -
+
+## 2026.08.20.1
+
+### Features
+
+- **connector:** Add Elavon repeat payment flow ([#2149](https://github.com/juspay/connector-service/pull/2149)) ([`dfab298`](https://github.com/juspay/connector-service/commit/dfab298734724e211b1155c73649f5aec692e53b))
+
+### Bug Fixes
+
+- **connectors:** [tsys_transit] add support for syncing manual capture payments ([#2160](https://github.com/juspay/connector-service/pull/2160)) ([`8bfb0aa`](https://github.com/juspay/connector-service/commit/8bfb0aa03ad78264af91d669dffa3bf8b655abd1))
+
+### Miscellaneous Tasks
+
+- Add issue template ([#2158](https://github.com/juspay/connector-service/pull/2158)) ([`a0c98c3`](https://github.com/juspay/connector-service/commit/a0c98c333e123e41911d74c69a4047fa7ef299fd))
+
+**Full Changelog:** [`2026.08.20.0...2026.08.20.1`](https://github.com/juspay/connector-service/compare/2026.08.20.0...2026.08.20.1)
+
+- - -
+
+## 2026.08.20.0
+
+### Features
+
+- **connector:**
+  - [ilixium] add Ilixium connector with all six core flows ([#2125](https://github.com/juspay/connector-service/pull/2125)) ([`3d5ed5c`](https://github.com/juspay/connector-service/commit/3d5ed5c804ef31e988d048dd87e3e32964854e59))
+  - [Trustly] Implementation ([#2068](https://github.com/juspay/connector-service/pull/2068)) ([`5d67244`](https://github.com/juspay/connector-service/commit/5d67244a0b7baefd990aefeb9145b93a839cb947))
+
+### Bug Fixes
+
+- **events:** Serialize connector payloads as JSON text ([#2077](https://github.com/juspay/connector-service/pull/2077)) ([`b19b733`](https://github.com/juspay/connector-service/commit/b19b73334f4066de9b6b5b287904b096966dea34))
+- **log:** Normalize dotted source fields in log transformations ([#2154](https://github.com/juspay/connector-service/pull/2154)) ([`49d73fb`](https://github.com/juspay/connector-service/commit/49d73fb3d26bc6739af7535ed66b758c1980df0d))
+
+**Full Changelog:** [`2026.08.19.0...2026.08.20.0`](https://github.com/juspay/connector-service/compare/2026.08.19.0...2026.08.20.0)
+
+- - -
+
+## 2026.08.19.0
+
+### Features
+
+- **connector:** Moneris Connector Integration ([#2127](https://github.com/juspay/connector-service/pull/2127)) ([`7aa0b8b`](https://github.com/juspay/connector-service/commit/7aa0b8b69cf23ffa5d721707b839e7a80add590d))
+- **shadow:** Add x-org-id header to outgoing shadow mode requests ([#2148](https://github.com/juspay/connector-service/pull/2148)) ([`d452e76`](https://github.com/juspay/connector-service/commit/d452e769c5acce8fca48ca1a45124d7b03fb0c4d))
+
+**Full Changelog:** [`2026.08.18.1...2026.08.19.0`](https://github.com/juspay/connector-service/compare/2026.08.18.1...2026.08.19.0)
+
+- - -
+
 ## 2026.08.18.1
 
 ### Features

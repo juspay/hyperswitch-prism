@@ -475,6 +475,18 @@ impl EventStage {
 pub struct KafkaTopicConfig {
     pub topic: String,
     pub partition_key_field: String,
+    #[serde(default)]
+    pub payload_format: EventPayloadFormat,
+}
+
+#[derive(
+    Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq, config_patch_derive::Patch,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum EventPayloadFormat {
+    #[default]
+    Json,
+    JsonString,
 }
 
 /// Controls whether transformations copy or replace the original source fields.
@@ -538,7 +550,12 @@ impl CompiledLogFields {
                 let segments: Vec<String> = target_path.split('.').map(String::from).collect();
                 let root_key = segments.first()?.clone();
                 let entry = match field_entry {
-                    LogFieldEntry::Source { source } => CompiledFieldEntry::Source(source.clone()),
+                    LogFieldEntry::Source { source } => {
+                        // In prod infra, `.` cannot be used in config keys, so
+                        // fields are specified as `request_DOT_body`. Decode
+                        // `_DOT_` back to `.` at compile time for correct lookups.
+                        CompiledFieldEntry::Source(crate::consts::decode_dot(source))
+                    }
                     LogFieldEntry::Value { value } => {
                         CompiledFieldEntry::Value(serde_json::Value::String(value.clone()))
                     }
@@ -932,7 +949,27 @@ pub(crate) fn process_event_with_config(
         }
     }
 
+    if config.topic_config(&event.stage).payload_format == EventPayloadFormat::JsonString {
+        stringify_event_payloads(&mut result);
+    }
+
     Ok(result)
+}
+
+fn stringify_event_payloads(result: &mut serde_json::Value) {
+    let Some(obj) = result.as_object_mut() else {
+        return;
+    };
+
+    for field in ["request_data", "response_data", "error"] {
+        let Some(value) = obj.get_mut(field) else {
+            continue;
+        };
+
+        if !value.is_null() && !value.is_string() {
+            *value = serde_json::Value::String(value.to_string());
+        }
+    }
 }
 
 pub(crate) fn extract_from_request(

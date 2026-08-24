@@ -141,6 +141,7 @@ pub struct PayoutTransferRequest {
     pub source_bank_data: Option<Bank>,
     pub customer: Option<PayoutCustomer>,
     pub connector_eligibility_reference_id: Option<String>,
+    pub payout_connector_metadata: Option<common_utils::pii::SecretSerdeValue>,
 }
 
 impl PayoutTransferRequest {
@@ -433,74 +434,13 @@ pub struct PayoutIndividualDetails {
 pub type IdNumberOrSsnLast4 = (Option<Secret<String>>, Option<Secret<String>>);
 
 impl PayoutCreateRecipientRequest {
-    pub fn get_billing(&self) -> Result<&Address, Error> {
-        self.address
-            .as_ref()
-            .and_then(|a| a.billing_address.as_ref())
-            .ok_or_else(missing_field_err("address.billing_address"))
-    }
-
-    pub fn get_billing_address(&self) -> Result<&crate::payment_address::AddressDetails, Error> {
-        self.get_billing()?
-            .address
-            .as_ref()
-            .ok_or_else(missing_field_err("address.billing_address.address"))
-    }
-
-    pub fn get_optional_billing_line1(&self) -> Option<Secret<String>> {
+    /// Navigate to the billing `AddressDetails`; per-field accessors live on
+    /// [`crate::payment_address::AddressDetails`] and are reused from there.
+    pub fn get_optional_billing_address(&self) -> Option<&crate::payment_address::AddressDetails> {
         self.address
             .as_ref()
             .and_then(|a| a.billing_address.as_ref())
             .and_then(|b| b.address.as_ref())
-            .and_then(|addr| addr.line1.clone())
-    }
-
-    pub fn get_optional_billing_line2(&self) -> Option<Secret<String>> {
-        self.address
-            .as_ref()
-            .and_then(|a| a.billing_address.as_ref())
-            .and_then(|b| b.address.as_ref())
-            .and_then(|addr| addr.line2.clone())
-    }
-
-    pub fn get_optional_billing_city(&self) -> Option<Secret<String>> {
-        self.address
-            .as_ref()
-            .and_then(|a| a.billing_address.as_ref())
-            .and_then(|b| b.address.as_ref())
-            .and_then(|addr| addr.city.clone())
-    }
-
-    pub fn get_optional_billing_state(&self) -> Option<Secret<String>> {
-        self.address
-            .as_ref()
-            .and_then(|a| a.billing_address.as_ref())
-            .and_then(|b| b.address.as_ref())
-            .and_then(|addr| addr.state.clone())
-    }
-
-    pub fn get_optional_billing_zip(&self) -> Option<Secret<String>> {
-        self.address
-            .as_ref()
-            .and_then(|a| a.billing_address.as_ref())
-            .and_then(|b| b.address.as_ref())
-            .and_then(|addr| addr.zip.clone())
-    }
-
-    pub fn get_optional_billing_country(&self) -> Option<common_enums::CountryAlpha2> {
-        self.address
-            .as_ref()
-            .and_then(|a| a.billing_address.as_ref())
-            .and_then(|b| b.address.as_ref())
-            .and_then(|addr| addr.country)
-    }
-
-    pub fn get_optional_billing_email(&self) -> Option<Secret<String>> {
-        self.address
-            .as_ref()
-            .and_then(|a| a.billing_address.as_ref())
-            .and_then(|b| b.email.as_ref())
-            .map(|e| Secret::new(e.peek().to_string()))
     }
 
     fn vendor_details(&self) -> Option<&PayoutVendorDetails> {
@@ -648,6 +588,7 @@ pub struct PayoutCreateRecipientResponse {
     pub payout_status: common_enums::PayoutStatus,
     pub connector_payout_id: Option<String>,
     pub status_code: u16,
+    pub payout_connector_metadata: Option<common_utils::pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone)]

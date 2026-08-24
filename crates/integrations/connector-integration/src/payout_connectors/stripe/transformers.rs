@@ -42,7 +42,16 @@ impl TryFrom<&ConnectorSpecificConfig> for StripeAuthType {
                 api_key: api_key.to_owned(),
             }),
             _ => Err(IntegrationError::FailedToObtainAuthType {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Stripe payouts requires a Stripe connector auth type".to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Configure the merchant connector account with Stripe credentials"
+                            .to_string(),
+                    ),
+                    doc_url: None,
+                },
             }
             .into()),
         }
@@ -78,36 +87,6 @@ fn stripe_currency_string(currency: common_enums::Currency) -> String {
 const STRIPE_ACCOUNT_TYPE_INDIVIDUAL: &str = "individual";
 const STRIPE_ACCOUNT_TYPE_COMPANY: &str = "company";
 const STRIPE_EXTERNAL_ACCOUNT_OBJECT_BANK: &str = "bank_account";
-
-fn tos_acceptance_now() -> Result<i64, error_stack::Report<IntegrationError>> {
-    let secs = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_err(|_| IntegrationError::InvalidDataFormat {
-            field_name: "system_time",
-            context: IntegrationErrorContext {
-                additional_context: Some(
-                    "System clock is set before the Unix epoch, so tos_acceptance[date] cannot be computed"
-                        .to_string(),
-                ),
-                suggested_action: Some("Ensure the host system clock is configured correctly".to_string()),
-                doc_url: None,
-            },
-        })?
-        .as_secs();
-    i64::try_from(secs).map_err(|_| {
-        error_stack::report!(IntegrationError::InvalidDataFormat {
-            field_name: "system_time",
-            context: IntegrationErrorContext {
-                additional_context: Some(
-                    "Current Unix timestamp does not fit into i64, so tos_acceptance[date] cannot be computed"
-                        .to_string(),
-                ),
-                suggested_action: Some("Ensure the host system clock is configured correctly".to_string()),
-                doc_url: None,
-            },
-        })
-    })
-}
 
 // =============================================================================
 // PAYOUT CREATE (TRANSFER CREATE)
@@ -151,7 +130,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .ok_or_else(|| {
                 report!(IntegrationError::MissingRequiredField {
                     field_name: "customer.connector_customer_id",
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Stripe transfers are created against the connected account, so the \
+                             `acct_…` id is required as the transfer destination"
+                                .to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Run PayoutCreateRecipient first so the connected account id is available"
+                                .to_string(),
+                        ),
+                        doc_url: None,
+                    },
                 })
             })?;
 
@@ -566,26 +556,29 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let (id_number, ssn_last_4) = request.get_id_number_or_ssn_last_4()?;
 
         let email = request.get_email_with_fallback();
-        let addr_line1 = request.get_optional_billing_line1();
-        let addr_line2 = request.get_optional_billing_line2();
-        let addr_zip = request.get_optional_billing_zip();
-        let addr_city = request.get_optional_billing_city();
-        let addr_state = request.get_optional_billing_state();
-        let addr_country = request.get_optional_billing_country().ok_or_else(|| {
-            report!(IntegrationError::MissingRequiredField {
-                field_name: "billing.address.country",
-                context: IntegrationErrorContext {
-                    additional_context: Some(
-                        "Billing country is required to create a Stripe connected account"
-                            .to_string(),
-                    ),
-                    suggested_action: Some(
-                        "Provide the recipient's billing address country".to_string(),
-                    ),
-                    doc_url: None,
-                },
-            })
-        })?;
+        let billing = request.get_optional_billing_address();
+        let addr_line1 = billing.and_then(|addr| addr.get_optional_line1());
+        let addr_line2 = billing.and_then(|addr| addr.get_optional_line2());
+        let addr_zip = billing.and_then(|addr| addr.get_optional_zip());
+        let addr_city = billing.and_then(|addr| addr.get_optional_city());
+        let addr_state = billing.and_then(|addr| addr.state.clone());
+        let addr_country = billing
+            .and_then(|addr| addr.get_optional_country())
+            .ok_or_else(|| {
+                report!(IntegrationError::MissingRequiredField {
+                    field_name: "billing.address.country",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Billing country is required to create a Stripe connected account"
+                                .to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Provide the recipient's billing address country".to_string(),
+                        ),
+                        doc_url: None,
+                    },
+                })
+            })?;
 
         Ok(Self {
             account_type,
@@ -593,7 +586,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             email: email.clone(),
             capabilities_card_payments: Some(true),
             capabilities_transfers: Some(true),
-            tos_acceptance_date: Some(tos_acceptance_now()?),
+            tos_acceptance_date: Some(common_utils::date_time::now_unix_timestamp()),
             tos_acceptance_ip: Some(tos_acceptance_ip),
             business_type,
             business_profile_mcc: Some(business_profile_mcc),
@@ -649,6 +642,9 @@ impl TryFrom<ResponseRouterData<StripeConnectRecipientCreateResponse, Self>>
                 payout_status: common_enums::PayoutStatus::RequiresCreation,
                 connector_payout_id: Some(item.response.id.clone()),
                 status_code: item.http_code,
+                // Stripe Connect carries the connected-account id in connector_payout_id;
+                // nothing extra needs threading into the transfer call.
+                payout_connector_metadata: None,
             }),
             ..item.router_data
         })
@@ -730,7 +726,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             }
             _ => Err(IntegrationError::NotImplemented(
                 "Only ACH bank transfers are supported for external account enrollment".to_string(),
-                IntegrationErrorContext::default(),
+                IntegrationErrorContext {
+                    additional_context: Some(
+                        "Stripe external accounts are created from ACH bank details only"
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Send the payout method as an ACH bank transfer".to_string(),
+                    ),
+                    doc_url: None,
+                },
             )
             .into()),
         }

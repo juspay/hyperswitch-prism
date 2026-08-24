@@ -17,12 +17,12 @@ use domain_types::{
     connector_types::{
         ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
     },
-    errors::{ConnectorError, IntegrationError},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
     payouts::payouts_types::{
         PayoutCreateLinkRequest, PayoutCreateLinkResponse, PayoutCreateRecipientRequest,
-        PayoutCreateRecipientResponse, PayoutCreateRequest, PayoutCreateResponse,
+        PayoutCreateRecipientResponse, PayoutCreateRequest, PayoutCreateResponse, PayoutCustomer,
         PayoutEligibilityRequest, PayoutEligibilityResponse, PayoutEnrollDisburseAccountRequest,
         PayoutEnrollDisburseAccountResponse, PayoutFlowData, PayoutGetRequest, PayoutGetResponse,
         PayoutStageRequest, PayoutStageResponse, PayoutTransferRequest, PayoutTransferResponse,
@@ -124,10 +124,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                 .code
                 .clone()
                 .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
-            message: if response.error.message.is_empty() {
-                NO_ERROR_MESSAGE.to_string()
-            } else {
-                response.error.message.clone()
+            message: match response.error.message.is_empty() {
+                true => NO_ERROR_MESSAGE.to_string(),
+                false => response.error.message.clone(),
             },
             reason: response.error.decline_code.clone(),
             attempt_status: None,
@@ -175,18 +174,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Payo
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     PayoutEnrollDisburseAccountV2 for StripePayouts<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> PayoutStageV2
-    for StripePayouts<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> PayoutCreateLinkV2
-    for StripePayouts<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> PayoutEligibilityV2
-    for StripePayouts<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ServerAuthentication
@@ -259,6 +246,27 @@ macros::create_all_prerequisites!(
                 ),
             ])
         }
+
+        /// Base payout headers plus `Stripe-Account` when the flow runs against a
+        /// connected account. The `acct_…` rides on `customer.connector_customer_id`.
+        pub fn build_connect_headers(
+            &self,
+            connector_config: &ConnectorSpecificConfig,
+            customer: Option<&PayoutCustomer>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            let mut headers = self.build_payout_headers(connector_config)?;
+            headers.extend(
+                customer
+                    .and_then(|customer| customer.connector_customer_id.as_ref())
+                    .map(|account_id| {
+                        (
+                            headers::STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
+                            Secret::new(account_id.clone()).into_masked(),
+                        )
+                    }),
+            );
+            Ok(headers)
+        }
     }
 );
 
@@ -315,19 +323,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            let mut headers = self.build_payout_headers(&req.connector_config)?;
-            if let Some(account_id) = req
-                .request
-                .customer
-                .as_ref()
-                .and_then(|c| c.connector_customer_id.as_ref())
-            {
-                headers.push((
-                    headers::STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
-                    Secret::new(account_id.clone()).into_masked(),
-                ));
-            }
-            Ok(headers)
+            self.build_connect_headers(&req.connector_config, req.request.customer.as_ref())
         }
 
         fn get_url(
@@ -360,19 +356,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            let mut headers = self.build_payout_headers(&req.connector_config)?;
-            if let Some(account_id) = req
-                .request
-                .customer
-                .as_ref()
-                .and_then(|c| c.connector_customer_id.as_ref())
-            {
-                headers.push((
-                    headers::STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
-                    Secret::new(account_id.clone()).into_masked(),
-                ));
-            }
-            Ok(headers)
+            self.build_connect_headers(&req.connector_config, req.request.customer.as_ref())
         }
 
         fn get_url(
@@ -381,7 +365,15 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, IntegrationError> {
             let payout_id = req.request.connector_payout_id.clone().ok_or_else(|| {
                 IntegrationError::MissingConnectorTransactionID {
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Stripe payout retrieve needs the `po_…` id returned by the transfer call".to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Run PayoutTransfer first, or pass the connector payout id on the request".to_string(),
+                        ),
+                        doc_url: None,
+                    },
                 }
             })?;
             Ok(format!(
@@ -421,7 +413,15 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, IntegrationError> {
             let transfer_id = req.request.connector_payout_id.clone().ok_or_else(|| {
                 IntegrationError::MissingConnectorTransactionID {
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Stripe transfer reversal needs the `tr_…` id returned by the transfer create call".to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Run PayoutCreate first, or pass the connector payout id on the request".to_string(),
+                        ),
+                        doc_url: None,
+                    },
                 }
             })?;
             Ok(format!(
@@ -495,7 +495,15 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, IntegrationError> {
             let account_id = req.request.connector_payout_id.clone().ok_or_else(|| {
                 IntegrationError::MissingConnectorTransactionID {
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Stripe external-account creation needs the `acct_…` id of the connected account".to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Run PayoutCreateRecipient first, or pass the connector payout id on the request".to_string(),
+                        ),
+                        doc_url: None,
+                    },
                 }
             })?;
             Ok(format!(
@@ -509,74 +517,65 @@ macros::macro_connector_implementation!(
 
 // ===== PAYOUT STUB FLOWS (NOT SUPPORTED BY STRIPE) =====
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<PayoutStage, PayoutFlowData, PayoutStageRequest, PayoutStageResponse>
-    for StripePayouts<T>
-{
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<PayoutStage, PayoutFlowData, PayoutStageRequest, PayoutStageResponse>,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(IntegrationError::connector_flow_not_implemented(
-            self.id(),
-            "payout_stage",
-            Default::default(),
-        )
-        .into())
-    }
+/// Stripe payouts covers create/transfer/get/void/recipient/enroll only. The remaining
+/// payout flows fail at URL construction so callers get a clear not-implemented error
+/// instead of a request that cannot succeed.
+macro_rules! impl_unimplemented_payout_flow {
+    ($trait_name:ident, $flow:ty, $request:ty, $response:ty, $flow_name:literal) => {
+        impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> $trait_name
+            for StripePayouts<T>
+        {
+        }
+
+        impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+            ConnectorIntegrationV2<$flow, PayoutFlowData, $request, $response>
+            for StripePayouts<T>
+        {
+            fn get_url(
+                &self,
+                _req: &RouterDataV2<$flow, PayoutFlowData, $request, $response>,
+            ) -> CustomResult<String, IntegrationError> {
+                Err(IntegrationError::connector_flow_not_implemented(
+                    self.id(),
+                    $flow_name,
+                    IntegrationErrorContext {
+                        additional_context: Some(
+                            concat!("Stripe payouts does not expose a ", $flow_name, " endpoint")
+                                .to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Route this flow to a connector that supports it".to_string(),
+                        ),
+                        doc_url: None,
+                    },
+                )
+                .into())
+            }
+        }
+    };
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        PayoutCreateLink,
-        PayoutFlowData,
-        PayoutCreateLinkRequest,
-        PayoutCreateLinkResponse,
-    > for StripePayouts<T>
-{
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            PayoutCreateLink,
-            PayoutFlowData,
-            PayoutCreateLinkRequest,
-            PayoutCreateLinkResponse,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(IntegrationError::connector_flow_not_implemented(
-            self.id(),
-            "payout_create_link",
-            Default::default(),
-        )
-        .into())
-    }
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        PayoutEligibility,
-        PayoutFlowData,
-        PayoutEligibilityRequest,
-        PayoutEligibilityResponse,
-    > for StripePayouts<T>
-{
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            PayoutEligibility,
-            PayoutFlowData,
-            PayoutEligibilityRequest,
-            PayoutEligibilityResponse,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(IntegrationError::connector_flow_not_implemented(
-            self.id(),
-            "payout_eligibility",
-            Default::default(),
-        )
-        .into())
-    }
-}
+impl_unimplemented_payout_flow!(
+    PayoutStageV2,
+    PayoutStage,
+    PayoutStageRequest,
+    PayoutStageResponse,
+    "payout_stage"
+);
+impl_unimplemented_payout_flow!(
+    PayoutCreateLinkV2,
+    PayoutCreateLink,
+    PayoutCreateLinkRequest,
+    PayoutCreateLinkResponse,
+    "payout_create_link"
+);
+impl_unimplemented_payout_flow!(
+    PayoutEligibilityV2,
+    PayoutEligibility,
+    PayoutEligibilityRequest,
+    PayoutEligibilityResponse,
+    "payout_eligibility"
+);
 
 // ===== SERVER AUTHENTICATION (not implemented) =====
 
