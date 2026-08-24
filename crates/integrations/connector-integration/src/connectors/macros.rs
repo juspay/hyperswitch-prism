@@ -1772,39 +1772,6 @@ macro_rules! expand_payout_implementation {
 
         }
     };
-    (
-        connector: $connector: ident,
-        flow: PayoutEligibility,
-        generic_type: $generic_type:tt,
-        [ $($bounds:tt)* ]
-    ) => {
-        impl<$generic_type: $($bounds)*> ::interfaces::connector_types::PayoutEligibilityV2 for $connector<$generic_type> {}
-        impl<$generic_type: $($bounds)*>
-            ::interfaces::connector_integration_v2::ConnectorIntegrationV2<
-                ::domain_types::connector_flow::PayoutEligibility,
-                ::domain_types::payouts::payouts_types::PayoutFlowData,
-                ::domain_types::payouts::payouts_types::PayoutEligibilityRequest,
-                ::domain_types::payouts::payouts_types::PayoutEligibilityResponse,
-            > for $connector<$generic_type>
-        {
-            fn get_url(
-                &self,
-                _req: &::domain_types::router_data_v2::RouterDataV2<
-                    ::domain_types::connector_flow::PayoutEligibility,
-                    ::domain_types::payouts::payouts_types::PayoutFlowData,
-                    ::domain_types::payouts::payouts_types::PayoutEligibilityRequest,
-                    ::domain_types::payouts::payouts_types::PayoutEligibilityResponse,
-                >,
-            ) -> ::common_utils::CustomResult<String, ::domain_types::errors::IntegrationError> {
-                Err(::domain_types::errors::IntegrationError::connector_flow_not_implemented(
-                    ::interfaces::api::ConnectorCommon::id(self),
-                    "payout_eligibility",
-                    ::domain_types::errors::IntegrationErrorContext::default(),
-                ).into())
-            }
-
-        }
-    };
 }
 pub(crate) use expand_payout_implementation;
 

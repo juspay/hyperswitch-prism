@@ -25,10 +25,6 @@ pub struct PayoutFlowData {
     pub typed_connector_request: Option<String>,
     pub access_token: Option<ServerAuthenticationTokenResponseData>,
     pub test_mode: Option<bool>,
-    /// Connector metadata carried over from a preceding flow (e.g. the staged-payout
-    /// token returned by PayoutStage). Distinct from `raw_connector_response`, which
-    /// holds the untouched connector body for diagnostics.
-    pub payout_connector_metadata: Option<Secret<String>>,
     pub description: Option<String>,
 }
 
@@ -112,6 +108,7 @@ pub struct PayoutCreateRequest {
     pub webhook_url: Option<String>,
     pub payout_method_data: Option<PayoutMethodData>,
     pub source_bank_data: Option<Bank>,
+    pub payout_connector_metadata: Option<common_utils::pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone)]

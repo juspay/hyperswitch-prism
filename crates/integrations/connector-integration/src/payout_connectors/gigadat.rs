@@ -15,13 +15,13 @@ use common_utils::{
     FloatMajorUnit,
 };
 use domain_types::{
-    connector_flow::{PayoutCreate, PayoutGet, PayoutStage, PayoutTransfer},
+    connector_flow::{PayoutCreate, PayoutEligibility, PayoutGet, PayoutStage, PayoutTransfer},
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::PaymentMethodDataTypes,
     payouts::payouts_types::{
-        PayoutCreateRequest, PayoutCreateResponse, PayoutFlowData, PayoutGetRequest,
-        PayoutGetResponse, PayoutStageRequest, PayoutStageResponse, PayoutTransferRequest,
-        PayoutTransferResponse,
+        PayoutCreateRequest, PayoutCreateResponse, PayoutEligibilityRequest,
+        PayoutEligibilityResponse, PayoutFlowData, PayoutGetRequest, PayoutGetResponse,
+        PayoutStageRequest, PayoutStageResponse, PayoutTransferRequest, PayoutTransferResponse,
     },
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -34,7 +34,8 @@ use interfaces::{
     api::ConnectorCommon,
     connector_integration_v2::ConnectorIntegrationV2,
     connector_types::{
-        PayoutCreateV2, PayoutGetV2, PayoutServiceTrait, PayoutStageV2, PayoutTransferV2,
+        PayoutCreateV2, PayoutEligibilityV2, PayoutGetV2, PayoutServiceTrait, PayoutStageV2,
+        PayoutTransferV2,
     },
 };
 use serde::Serialize;
@@ -119,37 +120,44 @@ fn get_psp_token_from_payout_method_data(
 }
 
 fn get_psp_token_from_payout_metadata(
-    payout_connector_metadata: &Option<Secret<String>>,
+    payout_connector_metadata: &Option<common_utils::pii::SecretSerdeValue>,
 ) -> CustomResult<Secret<String>, IntegrationError> {
-    match payout_connector_metadata {
-        Some(raw) => serde_json::from_str::<GigadatPayoutMeta>(raw.peek())
-            .map(|meta| meta.token)
-            .change_context(IntegrationError::InvalidDataFormat {
-                field_name: "payout_connector_metadata (expected staged-payout token json)",
+    payout_connector_metadata
+        .as_ref()
+        .ok_or_else(|| {
+            IntegrationError::MissingRequiredField {
+                field_name: "payout_connector_metadata",
                 context: IntegrationErrorContext {
                     additional_context: Some(
-                        "The staged payout response body did not contain the expected token json"
+                        "No staged payout response was carried over, so the token cannot be \
+                         recovered"
                             .to_string(),
                     ),
                     suggested_action: Some(
-                        "Check that the preceding PayoutStage call succeeded".to_string(),
+                        "Run PayoutStage before PayoutCreate / PayoutTransfer".to_string(),
                     ),
                     doc_url: None,
                 },
-            }),
-        None => Err(IntegrationError::MissingRequiredField {
-            field_name: "psp_token (from payout_connector_metadata)",
-            context: IntegrationErrorContext {
-                additional_context: Some(
-                    "No staged payout response was carried over, so the token cannot be recovered"
-                        .to_string(),
-                ),
-                suggested_action: Some("Run PayoutStage before PayoutTransfer".to_string()),
-                doc_url: None,
-            },
-        }
-        .into()),
-    }
+            }
+            .into()
+        })
+        .and_then(|metadata| {
+            serde_json::from_value::<GigadatPayoutMeta>(metadata.peek().clone())
+                .map(|meta| meta.token)
+                .change_context(IntegrationError::InvalidDataFormat {
+                    field_name: "payout_connector_metadata",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Gigadat staged-payout metadata did not contain the expected token"
+                                .to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Check that the preceding PayoutStage call succeeded".to_string(),
+                        ),
+                        doc_url: None,
+                    },
+                })
+        })
 }
 
 fn mask_webflow_token(url: &str) -> String {
@@ -264,10 +272,50 @@ macros::macro_connector_payout_implementation!(
         PayoutVoid,
         PayoutCreateLink,
         PayoutCreateRecipient,
-        PayoutEnrollDisburseAccount,
-        PayoutEligibility
+        PayoutEnrollDisburseAccount
     ]
 );
+
+// `PayoutEligibility` has no arm in `macro_connector_payout_implementation!`,
+// so its stub is still written out by hand.
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> PayoutEligibilityV2
+    for GigadatPayouts<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    ConnectorIntegrationV2<
+        PayoutEligibility,
+        PayoutFlowData,
+        PayoutEligibilityRequest,
+        PayoutEligibilityResponse,
+    > for GigadatPayouts<T>
+{
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            PayoutEligibility,
+            PayoutFlowData,
+            PayoutEligibilityRequest,
+            PayoutEligibilityResponse,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(IntegrationError::connector_flow_not_implemented(
+            ConnectorCommon::id(self),
+            "payout_eligibility",
+            IntegrationErrorContext {
+                additional_context: Some(
+                    "Gigadat does not expose a payout eligibility endpoint".to_string(),
+                ),
+                suggested_action: Some(
+                    "Route this flow to a connector that supports it".to_string(),
+                ),
+                doc_url: None,
+            },
+        )
+        .into())
+    }
+}
 
 // ===== PAYOUT STAGE FLOW =====
 macros::macro_connector_implementation!(
@@ -378,7 +426,7 @@ macros::macro_connector_implementation!(
             let token = get_psp_token_from_payout_method_data(&req.request.payout_method_data)
                 .or_else(|_| {
                     get_psp_token_from_payout_metadata(
-                        &req.resource_common_data.payout_connector_metadata,
+                        &req.request.payout_connector_metadata,
                     )
                 })?;
 
@@ -426,7 +474,7 @@ macros::macro_connector_implementation!(
             let token = get_psp_token_from_payout_method_data(&req.request.payout_method_data)
                 .or_else(|_| {
                     get_psp_token_from_payout_metadata(
-                        &req.resource_common_data.payout_connector_metadata,
+                        &req.request.payout_connector_metadata,
                     )
                 })?;
 

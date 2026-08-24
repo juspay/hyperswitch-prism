@@ -49,7 +49,6 @@ impl
                 }
             }),
             test_mode: None,
-            payout_connector_metadata: value.payout_connector_metadata.clone(),
             description: value.description.clone(),
         })
     }
@@ -134,6 +133,15 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateRequest>
             source_bank_data: value
                 .source_bank_data
                 .map(payouts::payout_method_data::Bank::foreign_try_from)
+                .transpose()?,
+            payout_connector_metadata: value
+                .payout_connector_metadata
+                .map(|m| {
+                    common_utils::pii::SecretSerdeValue::foreign_try_from((
+                        m,
+                        "payout_connector_metadata",
+                    ))
+                })
                 .transpose()?,
         })
     }
@@ -1681,7 +1689,6 @@ impl
                 }
             }),
             test_mode: None,
-            payout_connector_metadata: value.payout_connector_metadata.clone(),
             description: value.description.clone(),
         })
     }
@@ -1725,7 +1732,6 @@ impl
                 }
             }),
             test_mode: None,
-            payout_connector_metadata: None,
             description: None,
         })
     }
@@ -1769,7 +1775,6 @@ impl
                 }
             }),
             test_mode: None,
-            payout_connector_metadata: None,
             description: None,
         })
     }
@@ -1813,7 +1818,6 @@ impl
                 }
             }),
             test_mode: None,
-            payout_connector_metadata: None,
             description: None,
         })
     }
@@ -1857,7 +1861,6 @@ impl
                 }
             }),
             test_mode: None,
-            payout_connector_metadata: None,
             description: None,
         })
     }
@@ -1901,7 +1904,6 @@ impl
                 }
             }),
             test_mode: None,
-            payout_connector_metadata: None,
             description: None,
         })
     }
@@ -1945,7 +1947,6 @@ impl
                 }
             }),
             test_mode: None,
-            payout_connector_metadata: None,
             description: None,
         })
     }
@@ -2404,7 +2405,6 @@ impl
                 }
             }),
             test_mode: None,
-            payout_connector_metadata: None,
             description: None,
         })
     }
