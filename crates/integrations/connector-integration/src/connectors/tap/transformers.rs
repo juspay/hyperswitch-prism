@@ -257,10 +257,65 @@ fn encrypt_tap_card<T: PaymentMethodDataTypes + std::fmt::Debug>(
     Ok(common_utils::consts::BASE64_ENGINE.encode(&buffer))
 }
 
+/// A token source (`source.id = <token>`, no encryption) — used for stored connector
+/// tokens/mandates and wallet variants that carry a Tap-usable token.
+fn tap_token_source(token: String) -> TapSource {
+    TapSource {
+        id: Some(token),
+        card: None,
+    }
+}
+
+/// `NotImplemented` for a wallet variant UCS cannot turn into a Tap `source.id` token.
+///
+/// Kept honest: only wallet variants whose token we can extract ([`WalletData::get_wallet_token`]
+/// — Google Pay / Apple Pay / PayPal SDK) are wired; every other wallet is deferred here with the
+/// variant named, rather than guessing an encoding Tap would reject.
+fn unsupported_wallet_error(
+    wallet: &domain_types::payment_method_data::WalletData,
+) -> error_stack::Report<errors::IntegrationError> {
+    error_stack::report!(errors::IntegrationError::NotImplemented(
+        "tap wallet source not implemented for this wallet variant; only wallets carrying a \
+         Tap-usable token (Google Pay / Apple Pay / PayPal SDK) map to source.id"
+            .to_string(),
+        errors::IntegrationErrorContext {
+            suggested_action: Some(
+                "Route this payment with a card, a stored connector mandate token, or a \
+                 Google Pay / Apple Pay / PayPal SDK wallet."
+                    .to_string(),
+            ),
+            doc_url: Some("https://developers.tap.company/reference".to_string()),
+            additional_context: Some(format!("Unsupported wallet variant for tap: {wallet:?}")),
+        },
+    ))
+}
+
+/// Resolves the Tap `source`, mirroring euler's `useId` selection.
+///
+/// Precedence:
+/// 1. A stored connector token / mandate id (`connector_mandate_id`) — a mandate/repeat payment —
+///    goes into `source.id` as a plain token string (no encryption).
+/// 2. `PaymentMethodData::MandatePayment` (a bare mandate marker) likewise routes to `source.id`,
+///    using the same connector token; without a token it is refused.
+/// 3. `PaymentMethodData::Wallet` — the wallet token (Google Pay / Apple Pay / PayPal SDK) goes
+///    into `source.id`; other wallet variants are refused with [`unsupported_wallet_error`].
+/// 4. `PaymentMethodData::Card` — RSA-encrypted (PKCS#1 v1.5) with the merchant `tapPublicKey`
+///    into `source.card` (see [`encrypt_tap_card`]). Unchanged.
+///
+/// Any other payment method is refused with a `NotImplemented` naming the variant.
 fn build_tap_source<T: PaymentMethodDataTypes + std::fmt::Debug>(
     payment_method_data: &PaymentMethodData<T>,
     public_key: &Secret<String>,
+    connector_mandate_id: Option<String>,
 ) -> Result<TapSource, error_stack::Report<errors::IntegrationError>> {
+    // 1. A stored connector token / mandate id always wins: it is a plain token → source.id.
+    if let Some(token) = connector_mandate_id
+        .as_ref()
+        .filter(|token| !token.is_empty())
+    {
+        return Ok(tap_token_source(token.clone()));
+    }
+
     match payment_method_data {
         PaymentMethodData::Card(card) => {
             let encrypted_card = encrypt_tap_card(card, public_key)?;
@@ -269,13 +324,45 @@ fn build_tap_source<T: PaymentMethodDataTypes + std::fmt::Debug>(
                 card: Some(encrypted_card),
             })
         }
+        // A bare mandate marker with no accompanying connector token cannot be turned into a
+        // Tap source: source.id needs the stored token string.
+        PaymentMethodData::MandatePayment => Err(error_stack::report!(
+            errors::IntegrationError::MissingRequiredField {
+                field_name: "mandate_id.connector_mandate_id",
+                context: errors::IntegrationErrorContext {
+                    suggested_action: Some(
+                        "A tap mandate/stored-token payment must carry the connector mandate id \
+                         (the Tap token) in mandate_id; it is sent as source.id."
+                            .to_string(),
+                    ),
+                    doc_url: Some("https://developers.tap.company/reference".to_string()),
+                    additional_context: Some(
+                        "PaymentMethodData::MandatePayment received for tap without a \
+                         connector_mandate_id token."
+                            .to_string(),
+                    ),
+                },
+            }
+        )),
+        PaymentMethodData::Wallet(wallet) => {
+            // Only wallets whose token we can extract map cleanly to source.id; others are
+            // deferred with the variant named (no guessed encoding).
+            let token = wallet
+                .get_wallet_token()
+                .map_err(|_| unsupported_wallet_error(wallet))?;
+            Ok(tap_token_source(token.peek().to_string()))
+        }
         other => Err(error_stack::report!(
             errors::IntegrationError::NotImplemented(
-                "tap supports only card payments in this connector; wallets, APMs and bank \
-                 transfers are out of scope"
+                "tap supports card, stored connector token/mandate and token-bearing wallet \
+                 payments in this connector; other APMs and bank transfers are out of scope"
                     .to_string(),
                 errors::IntegrationErrorContext {
-                    suggested_action: Some("Route this payment with a card.".to_string()),
+                    suggested_action: Some(
+                        "Route this payment with a card, a stored connector mandate token, or a \
+                         Google Pay / Apple Pay / PayPal SDK wallet."
+                            .to_string(),
+                    ),
                     doc_url: None,
                     additional_context: Some(format!(
                         "Unsupported payment_method_data variant for tap: {other:?}"
@@ -335,7 +422,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 },
             })?;
 
-        let source = build_tap_source(&request.payment_method_data, &auth.public_key)?;
+        let source = build_tap_source(
+            &request.payment_method_data,
+            &auth.public_key,
+            request.connector_mandate_id(),
+        )?;
 
         // three_ds off for NoThreeDs; PaymentFlowData carries the resolved auth_type.
         let three_d_secure = common.auth_type == common_enums::AuthenticationType::ThreeDs;
@@ -1281,4 +1372,143 @@ impl TryFrom<crate::types::ResponseRouterData<TapRefundSyncResponse, Self>>
 /// The connector refund id an RSync must address (`GET /refunds/{id}`).
 pub fn refund_sync_id(request: &RefundSyncData) -> String {
     request.connector_refund_id.clone()
+}
+
+// ---------------------------------------------------------------------------
+// Incoming webhooks (POST from Tap → us)
+// ---------------------------------------------------------------------------
+//
+// Mirrors euler `Gateway/Tap/Flows/Webhook.hs`. A Tap webhook body is either a **charge** webhook
+// or a **refund** webhook; both share the `id` / `status` / `response{code,message}` shape, so one
+// permissive struct deserialises both and [`TapWebhookBody::classify`] decides which it is:
+//
+// * **Charge** — carries `object` (`AUTHORIZE`/`CHARGE`) and a `reference.transaction` (the merchant
+//   txn id). `(object,status)` of `(AUTHORIZE,AUTHORIZED)` or `(CHARGE,CAPTURED)` is a payment
+//   event; anything else is treated as pending/unspecified.
+// * **Refund** — its `id` is a `ref_…` and it carries `metadata{txn_id,refund_id}`. The merchant
+//   txn id is `metadata.txn_id`, the merchant refund ref is `metadata.refund_id`.
+//
+// **No signature verification.** Tap does not sign its webhooks; euler trusts the body and confirms
+// via a follow-up sync. `verify_webhook_source` therefore returns `Ok(true)` (documented in tap.rs).
+
+/// The `reference` object echoed on a charge webhook (`reference.transaction` = merchant txn id).
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct TapWebhookReference {
+    pub transaction: Option<String>,
+    pub order: Option<String>,
+}
+
+/// The `metadata` object echoed on a refund webhook, carrying the UCS refund/txn references.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct TapWebhookMetadata {
+    pub txn_id: Option<String>,
+    pub refund_id: Option<String>,
+}
+
+/// A single incoming Tap webhook body — permissive over both the charge and refund shapes.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct TapWebhookBody {
+    /// `chg_…`/`auth_…` for a charge webhook, `ref_…` for a refund webhook.
+    pub id: String,
+    /// The object type on a charge webhook (`AUTHORIZE`, `CHARGE`, …). Absent on refund webhooks.
+    pub object: Option<String>,
+    /// String status (`AUTHORIZED`, `CAPTURED`, …).
+    pub status: Option<String>,
+    pub response: Option<TapResponseDetail>,
+    pub transaction: Option<TapTransaction>,
+    pub reference: Option<TapWebhookReference>,
+    pub metadata: Option<TapWebhookMetadata>,
+}
+
+/// Which kind of webhook a [`TapWebhookBody`] is.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TapWebhookKind {
+    /// A charge/pre-auth webhook (payment event).
+    Charge,
+    /// A refund webhook (refund event).
+    Refund,
+}
+
+impl TapWebhookBody {
+    /// Classify the body as a charge or refund webhook.
+    ///
+    /// Refund webhooks carry a `metadata` block and/or a `ref_…` id and no `object`; charge
+    /// webhooks carry an `object`. Mirrors euler's two-way `TapWebhookResponse` split.
+    pub fn classify(&self) -> TapWebhookKind {
+        let looks_like_refund =
+            self.metadata.is_some() || self.id.starts_with("ref_") || self.object.is_none();
+        if looks_like_refund && self.object.is_none() {
+            TapWebhookKind::Refund
+        } else {
+            TapWebhookKind::Charge
+        }
+    }
+
+    /// Reconstruct the shared charge envelope so the existing [`map_attempt_status`] status map is
+    /// reused rather than duplicating status logic in the webhook path.
+    fn as_charge_response(&self) -> TapChargeResponse {
+        TapChargeResponse {
+            id: self.id.clone(),
+            status: self.status.clone(),
+            response: self.response.clone(),
+            transaction: self.transaction.clone(),
+        }
+    }
+
+    /// Reconstruct the shared refund envelope so the existing [`map_refund_status`] status map is
+    /// reused for the refund webhook path.
+    fn as_refund_response(&self) -> TapRefundResponse {
+        TapRefundResponse {
+            id: self.id.clone(),
+            charge_id: self.metadata.as_ref().and_then(|meta| meta.txn_id.clone()),
+            status: self.status.clone(),
+            response: self.response.as_ref().map(|detail| TapRefundResponseDetail {
+                code: detail.code.clone(),
+                message: detail.message.clone(),
+            }),
+        }
+    }
+
+    /// The merchant transaction id echoed by the webhook (`reference.transaction` on a charge,
+    /// `metadata.txn_id` on a refund).
+    pub fn merchant_transaction_id(&self) -> Option<String> {
+        match self.classify() {
+            TapWebhookKind::Charge => self
+                .reference
+                .as_ref()
+                .and_then(|reference| reference.transaction.clone()),
+            TapWebhookKind::Refund => {
+                self.metadata.as_ref().and_then(|meta| meta.txn_id.clone())
+            }
+        }
+    }
+
+    /// The merchant refund reference echoed by a refund webhook (`metadata.refund_id`).
+    pub fn merchant_refund_id(&self) -> Option<String> {
+        self.metadata.as_ref().and_then(|meta| meta.refund_id.clone())
+    }
+
+    /// Map a charge webhook to a payment [`AttemptStatus`] using the shared charge status map.
+    pub fn payment_attempt_status(&self) -> AttemptStatus {
+        map_attempt_status(&self.as_charge_response())
+    }
+
+    /// Map a refund webhook to a [`RefundStatus`] using the shared refund status map.
+    pub fn refund_status(&self) -> RefundStatus {
+        map_refund_status(&self.as_refund_response())
+    }
+
+    /// The Tap numeric result code (`response.code`), if any.
+    pub fn result_code(&self) -> Option<&str> {
+        self.response
+            .as_ref()
+            .and_then(|detail| detail.code.as_deref())
+    }
+
+    /// The human-readable message (`response.message`), if any.
+    pub fn result_message(&self) -> Option<String> {
+        self.response
+            .as_ref()
+            .and_then(|detail| detail.message.clone())
+    }
 }

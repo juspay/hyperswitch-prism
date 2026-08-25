@@ -488,9 +488,163 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+/// Parse a raw webhook body into a [`tap::TapWebhookBody`], mapping any decode failure to
+/// [`WebhookError::WebhookBodyDecodingFailed`].
+fn parse_tap_webhook_body(
+    body: &[u8],
+) -> Result<tap::TapWebhookBody, error_stack::Report<errors::WebhookError>> {
+    body.parse_struct::<tap::TapWebhookBody>("TapWebhookBody")
+        .change_context(errors::WebhookError::WebhookBodyDecodingFailed)
+}
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for Tap<T>
 {
+    /// Tap does not sign its webhooks (no HMAC/secret is available); euler trusts the body and
+    /// re-confirms via a follow-up sync. There is therefore nothing to verify here — accept the
+    /// source and let the downstream sync be the source of truth.
+    fn verify_webhook_source(
+        &self,
+        _request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<bool, error_stack::Report<errors::WebhookError>> {
+        Ok(true)
+    }
+
+    fn sample_webhook_body(&self) -> &'static [u8] {
+        br#"{"id":"chg_probe_001","object":"charge","status":"CAPTURED","reference":{"transaction":"probe_txn_001"},"response":{"code":"000","message":"Captured"}}"#
+    }
+
+    /// Charge webhooks (`AUTHORIZE`/`CHARGE`) map to a payment event off the shared attempt-status
+    /// map; refund webhooks map to a refund event off the shared refund-status map. Non-terminal
+    /// states map to the processing/action-required variants, never a bare success/failure.
+    fn get_event_type(
+        &self,
+        request: RequestDetails,
+    ) -> Result<EventType, error_stack::Report<errors::WebhookError>> {
+        let body = parse_tap_webhook_body(&request.body)?;
+        let event = match body.classify() {
+            tap::TapWebhookKind::Charge => match body.payment_attempt_status() {
+                common_enums::AttemptStatus::Charged => {
+                    EventType::PaymentIntentSuccess
+                }
+                common_enums::AttemptStatus::Authorized => {
+                    EventType::PaymentIntentAuthorizationSuccess
+                }
+                common_enums::AttemptStatus::Voided => {
+                    EventType::PaymentIntentCancelled
+                }
+                common_enums::AttemptStatus::Failure => {
+                    EventType::PaymentIntentFailure
+                }
+                common_enums::AttemptStatus::AuthenticationPending => {
+                    EventType::PaymentActionRequired
+                }
+                _ => EventType::PaymentIntentProcessing,
+            },
+            tap::TapWebhookKind::Refund => match body.refund_status() {
+                common_enums::RefundStatus::Success => EventType::RefundSuccess,
+                common_enums::RefundStatus::Failure => EventType::RefundFailure,
+                _ => EventType::RefundProcessing,
+            },
+        };
+        Ok(event)
+    }
+
+    /// The object reference in the webhook: a charge webhook yields a payment reference
+    /// (charge id + merchant txn id from `reference.transaction`); a refund webhook yields a refund
+    /// reference (`ref_…` id, merchant refund id from `metadata.refund_id`, and the merchant txn id
+    /// from `metadata.txn_id`).
+    fn get_webhook_event_reference(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<errors::WebhookError>>
+    {
+        let body = parse_tap_webhook_body(&request.body)?;
+        let reference = match body.classify() {
+            tap::TapWebhookKind::Charge => WebhookResourceReference::Payment(
+                PaymentWebhookReference {
+                    connector_transaction_id: Some(body.id.clone()),
+                    merchant_transaction_id: body.merchant_transaction_id(),
+                },
+            ),
+            tap::TapWebhookKind::Refund => WebhookResourceReference::Refund(
+                RefundWebhookReference {
+                    connector_refund_id: Some(body.id.clone()),
+                    merchant_refund_id: body.merchant_refund_id(),
+                    connector_transaction_id: body
+                        .metadata
+                        .as_ref()
+                        .and_then(|meta| meta.txn_id.clone()),
+                    merchant_transaction_id: body.merchant_transaction_id(),
+                },
+            ),
+        };
+        Ok(Some(reference))
+    }
+
+    /// Parse a Tap **charge** webhook into a [`WebhookDetailsResponse`]. Status is mapped via the
+    /// shared [`tap::TapWebhookBody::payment_attempt_status`] (which delegates to `map_attempt_status`);
+    /// resource id is the charge id and the merchant reference is `reference.transaction`.
+    fn process_payment_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+        _event_context: Option<EventContext>,
+    ) -> Result<WebhookDetailsResponse, error_stack::Report<errors::WebhookError>> {
+        let body = parse_tap_webhook_body(&request.body)?;
+        let status = body.payment_attempt_status();
+        let is_failure = status == common_enums::AttemptStatus::Failure;
+        let merchant_reference = body.merchant_transaction_id();
+
+        Ok(WebhookDetailsResponse {
+            resource_id: Some(ResponseId::ConnectorTransactionId(body.id.clone())),
+            status,
+            connector_response_reference_id: Some(body.id.clone()),
+            connector_request_reference_id: merchant_reference,
+            mandate_reference: None,
+            error_code: is_failure.then(|| body.result_code().map(ToString::to_string)).flatten(),
+            error_message: is_failure.then(|| body.result_message()).flatten(),
+            error_reason: is_failure.then(|| body.result_message()).flatten(),
+            raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
+            status_code: 200,
+            response_headers: None,
+            amount_captured: None,
+            minor_amount_captured: None,
+            network_txn_id: None,
+            payment_method_update: None,
+            sender_payment_instrument_id: None,
+        })
+    }
+
+    /// Parse a Tap **refund** webhook into a [`RefundWebhookDetailsResponse`]. Status is mapped via
+    /// the shared [`tap::TapWebhookBody::refund_status`] (which delegates to `map_refund_status`);
+    /// `connector_refund_id` is the `ref_…` id and the merchant refund ref is `metadata.refund_id`.
+    fn process_refund_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<RefundWebhookDetailsResponse, error_stack::Report<errors::WebhookError>> {
+        let body = parse_tap_webhook_body(&request.body)?;
+        let status = body.refund_status();
+        let is_failure = status == common_enums::RefundStatus::Failure;
+
+        Ok(RefundWebhookDetailsResponse {
+            connector_refund_id: Some(body.id.clone()),
+            // Tap's refund webhook echoes the UCS refund reference in metadata.refund_id.
+            merchant_transaction_id: body.merchant_refund_id(),
+            status,
+            connector_response_reference_id: Some(body.id.clone()),
+            error_code: is_failure.then(|| body.result_code().map(ToString::to_string)).flatten(),
+            error_message: is_failure.then(|| body.result_message()).flatten(),
+            raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
+            status_code: 200,
+            response_headers: None,
+        })
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
