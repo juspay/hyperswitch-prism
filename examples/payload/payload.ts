@@ -216,7 +216,7 @@ function _buildRecurringChargeRequest(): types.IRecurringPaymentServiceChargeReq
         "paymentMethod": {  // Optional payment Method Information (for network transaction flows).
             "token": {  // Payment tokens.
                 "token": {"value": "probe_pm_token"},  // The token string representing a payment method.
-                "kind": TokenKind.TOKEN_KIND_MULTI_USE
+                "kind": TokenKind.MULTI_USE
             }
         },
         "returnUrl": "https://example.com/recurring-return",

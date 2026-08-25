@@ -84,7 +84,7 @@ def _build_recurring_charge_request():
         payment_method=payment_methods_pb2.PaymentMethod(  # Optional payment Method Information (for network transaction flows).
             token=payment_methods_pb2.TokenPaymentMethodType(
                 token=payment_methods_pb2.SecretString(value="probe_pm_token"),  # The token string representing a payment method.
-                kind=payment_methods_pb2.TokenKind.Value("TOKEN_KIND_MULTI_USE"),
+                kind=payment_methods_pb2.TokenKind.Value("MULTI_USE"),
             ),
         ),
         return_url="https://example.com/recurring-return",

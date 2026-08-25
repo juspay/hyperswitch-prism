@@ -819,7 +819,7 @@
           "payment_method": {
             "token": {
               "token": "probe_pm_token",
-              "kind": "TOKEN_KIND_MULTI_USE"
+              "kind": "MULTI_USE"
             }
           },
           "return_url": "https://example.com/recurring-return",
