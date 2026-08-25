@@ -371,44 +371,32 @@ fn map_travelhub_refund_status(result: &str) -> RefundStatus {
 
 // Authorize Response Transformation
 
-impl<T: PaymentMethodDataTypes>
-    TryFrom<
-        ResponseRouterData<
-            TravelhubPaymentsResponse,
-            Self,
-        >,
-    > for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<TravelhubPaymentsResponse, Self>>
+    for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<
-            TravelhubPaymentsResponse,
-            Self,
-        >,
+        item: ResponseRouterData<TravelhubPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let result = item.response.result.as_deref().unwrap_or("PENDING");
 
-        let redirection_data = item
-            .response
-            .response3ds
-            .as_ref()
-            .and_then(|r3ds| {
-                r3ds.acs_url.as_ref().map(|acs_url| {
-                    let mut form_fields = std::collections::HashMap::new();
-                    if let Some(pa_req) = &r3ds.pa_req {
-                        form_fields.insert("PaReq".to_string(), pa_req.clone());
-                    }
-                    if let Some(md) = &r3ds.md {
-                        form_fields.insert("MD".to_string(), md.clone());
-                    }
-                    Box::new(RedirectForm::Form {
-                        endpoint: acs_url.clone(),
-                        method: common_utils::Method::Post,
-                        form_fields,
-                    })
+        let redirection_data = item.response.response3ds.as_ref().and_then(|r3ds| {
+            r3ds.acs_url.as_ref().map(|acs_url| {
+                let mut form_fields = std::collections::HashMap::new();
+                if let Some(pa_req) = &r3ds.pa_req {
+                    form_fields.insert("PaReq".to_string(), pa_req.clone());
+                }
+                if let Some(md) = &r3ds.md {
+                    form_fields.insert("MD".to_string(), md.clone());
+                }
+                Box::new(RedirectForm::Form {
+                    endpoint: acs_url.clone(),
+                    method: common_utils::Method::Post,
+                    form_fields,
                 })
-            });
+            })
+        });
 
         let status = if redirection_data.is_some() {
             AttemptStatus::AuthenticationPending
