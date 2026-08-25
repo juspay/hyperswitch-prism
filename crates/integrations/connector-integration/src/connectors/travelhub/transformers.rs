@@ -205,7 +205,7 @@ impl<T: PaymentMethodDataTypes>
             card_data.get_card_expiry_year_2_digit()?.peek()
         );
 
-        let payment_method_code = get_card_payment_method_code(&card_data)?.to_string();
+        let payment_method_code = get_card_payment_method_code(card_data)?.to_string();
 
         let is_auto_capture = !crate::utils::is_manual_capture(item.request.capture_method);
 
@@ -375,12 +375,7 @@ impl<T: PaymentMethodDataTypes>
     TryFrom<
         ResponseRouterData<
             TravelhubPaymentsResponse,
-            RouterDataV2<
-                Authorize,
-                PaymentFlowData,
-                PaymentsAuthorizeData<T>,
-                PaymentsResponseData,
-            >,
+            Self,
         >,
     > for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
@@ -389,12 +384,7 @@ impl<T: PaymentMethodDataTypes>
     fn try_from(
         item: ResponseRouterData<
             TravelhubPaymentsResponse,
-            RouterDataV2<
-                Authorize,
-                PaymentFlowData,
-                PaymentsAuthorizeData<T>,
-                PaymentsResponseData,
-            >,
+            Self,
         >,
     ) -> Result<Self, Self::Error> {
         let result = item.response.result.as_deref().unwrap_or("PENDING");
@@ -403,21 +393,21 @@ impl<T: PaymentMethodDataTypes>
             .response
             .response3ds
             .as_ref()
-            .and_then(|r3ds| r3ds.acs_url.as_ref())
-            .and_then(|acs_url| {
-                let r3ds = item.response.response3ds.as_ref().unwrap();
-                let mut form_fields = std::collections::HashMap::new();
-                if let Some(pa_req) = &r3ds.pa_req {
-                    form_fields.insert("PaReq".to_string(), pa_req.clone());
-                }
-                if let Some(md) = &r3ds.md {
-                    form_fields.insert("MD".to_string(), md.clone());
-                }
-                Some(Box::new(RedirectForm::Form {
-                    endpoint: acs_url.clone(),
-                    method: common_utils::Method::Post,
-                    form_fields,
-                }))
+            .and_then(|r3ds| {
+                r3ds.acs_url.as_ref().map(|acs_url| {
+                    let mut form_fields = std::collections::HashMap::new();
+                    if let Some(pa_req) = &r3ds.pa_req {
+                        form_fields.insert("PaReq".to_string(), pa_req.clone());
+                    }
+                    if let Some(md) = &r3ds.md {
+                        form_fields.insert("MD".to_string(), md.clone());
+                    }
+                    Box::new(RedirectForm::Form {
+                        endpoint: acs_url.clone(),
+                        method: common_utils::Method::Post,
+                        form_fields,
+                    })
+                })
             });
 
         let status = if redirection_data.is_some() {
