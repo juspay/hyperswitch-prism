@@ -1065,8 +1065,8 @@
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: pre_authenticate flow for paypal"
+        "status": "error",
+        "error": "Failed to obtain authentication type"
       }
     },
     "proxy_authorize": {
