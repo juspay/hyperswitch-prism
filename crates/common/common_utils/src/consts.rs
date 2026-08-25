@@ -28,6 +28,26 @@ pub const MAX_GLOBAL_ID_LENGTH: u8 = 64;
 pub const MIN_GLOBAL_ID_LENGTH: u8 = 32;
 
 // =============================================================================
+// Tracing Field Name Encoding
+// =============================================================================
+
+/// Encoded dot separator used in prod infra config keys (e.g. `request_DOT_body`).
+pub const DOT_ENCODED: &str = "_DOT_";
+
+/// Lowercase variant of [`DOT_ENCODED`] for case-insensitive matching.
+/// The `config` crate lowercases all TOML keys at parse time, so runtime
+/// values contain `_dot_` instead of `_DOT_`.
+pub const DOT_ENCODED_LOWER: &str = "_dot_";
+
+/// Decode `_DOT_` back to `.` in field names from config.
+///
+/// Lowercases the input first so that both `_DOT_` (source TOML) and `_dot_`
+/// (lowercased by the `config` crate) are matched.
+pub fn decode_dot(s: &str) -> String {
+    s.to_lowercase().replace(DOT_ENCODED_LOWER, ".")
+}
+
+// =============================================================================
 // HTTP Headers
 // =============================================================================
 
@@ -47,6 +67,8 @@ pub const X_FRM_CONNECTOR_NAME: &str = "x-frm-connector";
 pub const X_AUTHENTICATOR_CONNECTOR_NAME: &str = "x-auth-connector";
 /// Header key for merchant identification
 pub const X_MERCHANT_ID: &str = "x-merchant-id";
+/// Header key for organization identification
+pub const X_ORG_ID: &str = "x-org-id";
 /// Header key for payment method identification
 pub const X_PAYMENT_METHOD: &str = "x-payment-method";
 /// Header key for payment method type identification

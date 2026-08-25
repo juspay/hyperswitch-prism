@@ -782,7 +782,14 @@ pub enum BankRedirectData {
     Eft {
         provider: String,
     },
-    OpenBanking {},
+    OpenBanking {
+        bank_name: Option<common_enums::BankNames>,
+        account_number: Option<Secret<String>>,
+        sort_code: Option<Secret<String>>,
+        iban: Option<Secret<String>>,
+        account_holder_name: Option<Secret<String>>,
+        additional_details: Option<Secret<serde_json::Value>>,
+    },
     Netbanking {
         issuer: common_enums::BankNames,
     },

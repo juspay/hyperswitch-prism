@@ -475,6 +475,18 @@ impl EventStage {
 pub struct KafkaTopicConfig {
     pub topic: String,
     pub partition_key_field: String,
+    #[serde(default)]
+    pub payload_format: EventPayloadFormat,
+}
+
+#[derive(
+    Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq, config_patch_derive::Patch,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum EventPayloadFormat {
+    #[default]
+    Json,
+    JsonString,
 }
 
 /// Controls whether transformations copy or replace the original source fields.
@@ -535,10 +547,16 @@ impl CompiledLogFields {
         let rules = raw
             .iter()
             .filter_map(|(target_path, field_entry)| {
-                let segments: Vec<String> = target_path.split('.').map(String::from).collect();
+                let decoded_target = crate::consts::decode_dot(target_path);
+                let segments: Vec<String> = decoded_target.split('.').map(String::from).collect();
                 let root_key = segments.first()?.clone();
                 let entry = match field_entry {
-                    LogFieldEntry::Source { source } => CompiledFieldEntry::Source(source.clone()),
+                    LogFieldEntry::Source { source } => {
+                        // In prod infra, `.` cannot be used in config keys, so
+                        // fields are specified as `request_DOT_body`. Decode
+                        // `_DOT_` back to `.` at compile time for correct lookups.
+                        CompiledFieldEntry::Source(crate::consts::decode_dot(source))
+                    }
                     LogFieldEntry::Value { value } => {
                         CompiledFieldEntry::Value(serde_json::Value::String(value.clone()))
                     }
@@ -698,16 +716,20 @@ pub fn maskable_headers_to_json<'a>(
 /// All reserved-key filtering happens **outside** the span lock to avoid
 /// deadlocks (the storage layer logs a warning for reserved keys, which would
 /// re-enter the subscriber).
+#[cfg(feature = "logging")]
 pub fn record_json_fields_on_span(fields: Vec<(&'static str, serde_json::Value)>) {
+    // Filter reserved keys and log fields outside the span lock to avoid deadlocks
+    // (tracing::info!/warn! re-enters the subscriber).
     let fields: Vec<_> = fields
         .into_iter()
-        .filter(|(key, _)| {
+        .filter(|(key, value)| {
             if log_utils::Storage::is_reserved(key) {
                 tracing::warn!(
                     "Span field `{key}` is reserved by the logging infrastructure, skipping"
                 );
                 false
             } else {
+                tracing::info!(%value, "{key}");
                 true
             }
         })
@@ -928,7 +950,27 @@ pub(crate) fn process_event_with_config(
         }
     }
 
+    if config.topic_config(&event.stage).payload_format == EventPayloadFormat::JsonString {
+        stringify_event_payloads(&mut result);
+    }
+
     Ok(result)
+}
+
+fn stringify_event_payloads(result: &mut serde_json::Value) {
+    let Some(obj) = result.as_object_mut() else {
+        return;
+    };
+
+    for field in ["request_data", "response_data", "error"] {
+        let Some(value) = obj.get_mut(field) else {
+            continue;
+        };
+
+        if !value.is_null() && !value.is_string() {
+            *value = serde_json::Value::String(value.to_string());
+        }
+    }
 }
 
 pub(crate) fn extract_from_request(

@@ -135,5 +135,16 @@
     "https://www.checkout.com/docs/payments/store-and-manage-credentials/store-credentials/network-tokens",
     "https://www.checkout.com/docs/developer-resources/testing/test-cards",
     "https://www.checkout.com/docs/developer-resources/testing/payments-testing"
+  ],
+  "Ilixium": [
+    "https://docs.ilixium.com/docs/api/authorisation",
+    "https://docs.ilixium.com/docs/api/threedcomplete",
+    "https://docs.ilixium.com/docs/direct/3dsecure",
+    "https://docs.ilixium.com/docs/direct/digest",
+    "https://docs.ilixium.com/docs/direct/introduction",
+    "https://docs.ilixium.com/docs/direct/optional-address",
+    "https://docs.ilixium.com/docs/api/api",
+    "https://docs.ilixium.com/docs/response-codes/",
+    "https://docs.ilixium.com/docs/sandbox/"
   ]
 }
