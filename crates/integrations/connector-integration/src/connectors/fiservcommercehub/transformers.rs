@@ -962,7 +962,6 @@ impl<T: PaymentMethodDataTypes>
     fn try_from(
         item: ResponseRouterData<FiservcommercehubAuthorizeResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        tracing::info!(raw_connector_response = ?item.response, "fiservcommercehub authorize response");
         let txn = &item
             .response
             .gateway_response
@@ -1163,8 +1162,6 @@ impl TryFrom<ResponseRouterData<FiservcommercehubPSyncResponse, Self>>
 #[serde(rename_all = "camelCase")]
 pub struct FiservcommercehubRefundTransactionDetails {
     pub merchant_transaction_id: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub merchant_order_id: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -1209,7 +1206,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .resource_common_data
                     .connector_request_reference_id
                     .clone(),
-                merchant_order_id: router_data.request.connector_order_id.clone(),
             },
             merchant_details: FiservcommercehubMerchantDetails {
                 merchant_id: auth.merchant_id.clone(),
@@ -1418,7 +1414,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .resource_common_data
                     .connector_request_reference_id
                     .clone(),
-                merchant_order_id: router_data.request.merchant_order_id.clone(),
             },
             merchant_details: FiservcommercehubMerchantDetails {
                 merchant_id: auth.merchant_id.clone(),
