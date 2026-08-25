@@ -248,6 +248,53 @@ Ready-made integrations for popular platforms.
 
 ---
 
+## 🐳 Running the gRPC Server (Docker)
+
+Prism also runs as a standalone gRPC server. Multi-arch images (`linux/amd64`, `linux/arm64`) are published to GitHub Container Registry on every nightly tag — [browse the available tags](https://github.com/juspay/hyperswitch-prism/pkgs/container/hyperswitch-prism). There is no `latest` tag, so pick a dated one.
+
+```bash
+# gRPC on 8000, Prometheus metrics on 8080
+docker run --rm -p 8000:8000 -p 8080:8080 \
+  ghcr.io/juspay/hyperswitch-prism:2026.08.25.0
+```
+
+Server reflection is enabled, so [`grpcurl`](https://github.com/fullstorydev/grpcurl) works without local `.proto` files:
+
+```bash
+grpcurl -plaintext localhost:8000 grpc.health.v1.Health/Check
+# { "status": "SERVING" }
+
+grpcurl -plaintext localhost:8000 list
+```
+
+Connector credentials are sent per request as gRPC metadata (`x-connector`, `x-auth`, `x-api-key`, ...) — the server keeps nothing. See [setup.md](./setup.md) for a complete authorize request and troubleshooting.
+
+### Configuration
+
+The image ships `development.toml` (default), `sandbox.toml` and `production.toml`. Pick one with `CS__COMMON__ENVIRONMENT`:
+
+```bash
+docker run --rm -p 8000:8000 -p 8080:8080 \
+  -e CS__COMMON__ENVIRONMENT=sandbox \
+  ghcr.io/juspay/hyperswitch-prism:2026.08.25.0
+```
+
+Individual keys are overridden with `CS__<SECTION>__<KEY>` environment variables, for example `CS__SERVER__PORT=9000`. To supply a config of your own, mount it over the one in the image:
+
+```bash
+docker run --rm -p 8000:8000 \
+  -v "$(pwd)/my-config.toml:/app/config/development.toml:ro" \
+  ghcr.io/juspay/hyperswitch-prism:2026.08.25.0
+```
+
+### Building the image yourself
+
+```bash
+docker build -t hyperswitch-prism:local .
+```
+
+---
+
 ## 🛠️ Development
 
 ### Prerequisites
