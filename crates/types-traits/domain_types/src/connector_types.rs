@@ -4514,7 +4514,8 @@ pub struct SplitSettlementVendor {
     /// reference (e.g. Adyen split item `reference`) and echoed on the response.
     pub merchant_reference_id: Option<String>,
     /// Connector-specific per-split attributes (typed inside the connector), e.g. Adyen split_type.
-    pub split_metadata: Option<String>,
+    /// Opaque to us, so it is masked as a secret to keep any caller-supplied data out of logs.
+    pub split_metadata: Option<Secret<String>>,
 }
 
 /// Split settlement (refund request).
@@ -4539,7 +4540,9 @@ pub struct SplitSettlementRefundVendor {
     pub merchant_commission: Option<MinorUnit>,
     /// The merchant's OWN reference for this refund split.
     pub merchant_reference_id: Option<String>,
-    pub split_metadata: Option<String>,
+    /// Connector-specific per-split attributes (typed inside the connector), e.g. Adyen split_type.
+    /// Opaque to us, so it is masked as a secret to keep any caller-supplied data out of logs.
+    pub split_metadata: Option<Secret<String>>,
 }
 
 #[derive(Debug, Default, Clone, Serialize)]
