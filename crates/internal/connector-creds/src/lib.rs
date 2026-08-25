@@ -28,6 +28,12 @@
 //! Keeping this in one place is the point: a second copy that skips any of the
 //! three fails only at runtime, against a live sandbox, with an error that
 //! names a serde type rather than the omission.
+//!
+//! TODO: delete this crate once the credentials artifact is stored in the shape
+//! the header already uses — `{"stripe":{"config":{"Stripe":{"api_key":"sk"}}}}`.
+//! The transformation is the only thing worth sharing; with a passthrough file
+//! the read is three lines in each caller, and the dropped-field check belongs
+//! in a one-shot artifact validator rather than on every read.
 
 use std::{collections::HashSet, fs, path::Path};
 
