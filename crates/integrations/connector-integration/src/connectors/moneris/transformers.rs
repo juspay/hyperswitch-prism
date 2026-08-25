@@ -190,16 +190,17 @@ fn derive_ecommerce_indicator(
     channel: Option<&PaymentChannel>,
     mit_category: Option<&MitCategory>,
     is_three_ds: bool,
+    has_authentication_cavv: bool,
     is_recurring: bool,
 ) -> EcommerceIndicator {
     if !matches!(
         channel,
         Some(PaymentChannel::MailOrder | PaymentChannel::TelephoneOrder)
     ) {
-        return if is_three_ds {
-            EcommerceIndicator::AuthenticatedEcommerce
-        } else {
-            EcommerceIndicator::SslMerchant
+        return match (is_three_ds, has_authentication_cavv) {
+            (true, true) => EcommerceIndicator::AuthenticatedEcommerce,
+            (true, false) => EcommerceIndicator::NonAuthenticatedEcommerce,
+            (false, _) => EcommerceIndicator::SslMerchant,
         };
     }
 
@@ -567,30 +568,32 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     },
                 });
                 let automatic_capture = item.router_data.request.is_auto_capture();
-                let amount =
-                    item.router_data
-                        .resource_common_data
-                        .amount
-                        .ok_or(IntegrationError::MissingRequiredField {
-                        field_name: "amount",
-                        context: IntegrationErrorContext {
-                            suggested_action: Some(
-                                "Provide the payment amount in resource_common_data.".to_string(),
-                            ),
-                            doc_url: None,
-                            additional_context: Some(
-                                "resource_common_data.amount was None for Moneris card authorize."
-                                    .to_string(),
-                            ),
-                        },
-                    })?;
+                let is_three_ds = item.router_data.resource_common_data.is_three_ds();
+                let is_recurring = item.router_data.request.is_mandate_payment();
+                let has_authentication_cavv = item
+                    .router_data
+                    .request
+                    .authentication_data
+                    .as_ref()
+                    .is_some_and(|a| a.cavv.is_some());
+                let amount = Money {
+                    amount: item.router_data.request.minor_amount,
+                    currency: item.router_data.request.currency,
+                };
+                let ecommerce_indicator = Some(derive_ecommerce_indicator(
+                    item.router_data.request.payment_channel.as_ref(),
+                    item.router_data.request.mit_category.as_ref(),
+                    is_three_ds,
+                    has_authentication_cavv,
+                    is_recurring,
+                ));
 
                 Ok(Self {
                     idempotency_key,
                     amount,
                     payment_method,
                     automatic_capture,
-                    ecommerce_indicator: None,
+                    ecommerce_indicator,
                 })
             }
             PaymentMethodData::Wallet(ref wallet_data) => {
@@ -611,25 +614,30 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .request
                     .is_customer_initiated_mandate_payment();
                 let is_recurring = item.router_data.request.is_mandate_payment();
-                let (store_payment_method, credential_on_file_information, ecommerce_indicator) =
-                    if is_cit_mandate {
-                        (
-                            Some(StorePaymentMethod::CardholderInitiated),
-                            Some(CredentialOnFileInformation {
-                                payment_indicator: PaymentIndicator::CustomerInitiated,
-                                payment_information: PaymentInformation::First,
-                                issuer_id: None,
-                            }),
-                            Some(derive_ecommerce_indicator(
-                                item.router_data.request.payment_channel.as_ref(),
-                                item.router_data.request.mit_category.as_ref(),
-                                item.router_data.resource_common_data.is_three_ds(),
-                                is_recurring,
-                            )),
-                        )
-                    } else {
-                        (None, None, None)
-                    };
+                // ecommerce_indicator describes the transaction channel (MOTO, 3DS, SSL) —
+                // independent of credential storage, so it is derived for every wallet payment.
+                // Wallets carry their own authentication via wallet_ecommerce_indicator (Apple Pay
+                // ECI / Google Pay cryptogram), so is_three_ds and has_authentication_cavv are
+                // always false here — the top-level indicator reflects channel only.
+                let ecommerce_indicator = Some(derive_ecommerce_indicator(
+                    item.router_data.request.payment_channel.as_ref(),
+                    item.router_data.request.mit_category.as_ref(),
+                    false,
+                    false,
+                    is_recurring,
+                ));
+                let (store_payment_method, credential_on_file_information) = if is_cit_mandate {
+                    (
+                        Some(StorePaymentMethod::CardholderInitiated),
+                        Some(CredentialOnFileInformation {
+                            payment_indicator: PaymentIndicator::CustomerInitiated,
+                            payment_information: PaymentInformation::First,
+                            issuer_id: None,
+                        }),
+                    )
+                } else {
+                    (None, None)
+                };
 
                 let payment_method = match wallet_data {
                     WalletData::ApplePay(apple_pay_data) => match &apple_pay_data.payment_data {
@@ -654,7 +662,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                     },
                                 })?;
                             let expiry_year = decrypt_data
-                                .application_expiration_year
+                                .get_four_digit_expiry_year()
                                 .peek()
                                 .parse::<i64>()
                                 .change_context(IntegrationError::InvalidDataFormat {
@@ -677,7 +685,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 ),
                                 expiry_month: Secret::new(expiry_month),
                                 expiry_year: Secret::new(expiry_year),
-                                data_type: ApplePayDataType::ThreeDSecure,
+                                data_type: match card_brand {
+                                    MonerisCardBrand::Interac => ApplePayDataType::Emv,
+                                    _ => ApplePayDataType::ThreeDSecure,
+                                },
                                 cryptogram: decrypt_data
                                     .payment_data
                                     .online_payment_cryptogram
@@ -735,7 +746,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                         },
                                     })?;
                                 let expiry_year = decrypt_data
-                                    .card_exp_year
+                                    .get_four_digit_expiry_year()
+                                    .change_context(IntegrationError::InvalidDataFormat {
+                                        field_name: "google_pay_expiry_year",
+                                        context: IntegrationErrorContext {
+                                            suggested_action: Some(
+                                                "Pass expiry year as a 4-digit numeric string."
+                                                    .to_string(),
+                                            ),
+                                            doc_url: None,
+                                            additional_context: None,
+                                        },
+                                    })?
                                     .peek()
                                     .parse::<i64>()
                                     .change_context(IntegrationError::InvalidDataFormat {
@@ -819,23 +841,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     }
                 };
 
-                let amount = item
-                    .router_data
-                    .resource_common_data
-                    .amount
-                    .ok_or(IntegrationError::MissingRequiredField {
-                    field_name: "amount",
-                    context: IntegrationErrorContext {
-                        suggested_action: Some(
-                            "Provide the payment amount in resource_common_data.".to_string(),
-                        ),
-                        doc_url: None,
-                        additional_context: Some(
-                            "resource_common_data.amount was None for Moneris wallet authorize."
-                                .to_string(),
-                        ),
-                    },
-                })?;
+                let amount = Money {
+                    amount: item.router_data.request.minor_amount,
+                    currency: item.router_data.request.currency,
+                };
 
                 Ok(Self {
                     idempotency_key,
@@ -1117,28 +1126,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         })?
                         .into(),
                     credential_on_file_information: Some(CredentialOnFileInformation {
-                        payment_indicator: PaymentIndicator::MerchantInitiated,
+                        payment_indicator: if item.router_data.request.off_session == Some(false) {
+                            PaymentIndicator::CustomerInitiated
+                        } else {
+                            PaymentIndicator::MerchantInitiated
+                        },
                         payment_information: PaymentInformation::Subsequent,
                         issuer_id: None,
                     }),
                 });
-                let amount =
-                    item.router_data
-                        .resource_common_data
-                        .amount
-                        .ok_or(IntegrationError::MissingRequiredField {
-                        field_name: "amount",
-                        context: IntegrationErrorContext {
-                            suggested_action: Some(
-                                "Provide the payment amount in resource_common_data.".to_string(),
-                            ),
-                            doc_url: None,
-                            additional_context: Some(
-                                "resource_common_data.amount was None for Moneris repeat payment."
-                                    .to_string(),
-                            ),
-                        },
-                    })?;
+                let amount = Money {
+                    amount: item.router_data.request.minor_amount,
+                    currency: item.router_data.request.currency,
+                };
                 Ok(Self {
                     idempotency_key,
                     amount,
