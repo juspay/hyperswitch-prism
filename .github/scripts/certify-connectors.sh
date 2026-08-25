@@ -76,85 +76,8 @@ build_binaries() {
   cargo build --workspace --bins 2>&1 | tail -5
   return "${PIPESTATUS[0]}"
 }
-
-# Whether the connector answered, or the request never got an answer at all.
-#
-# Read from the response record rather than the wording of an error, so a
-# content failure that happens to mention "timeout" is not mistaken for an
-# outage. In order of certainty:
-#
-#   rc 124/137            killed by the attempt timeout; there may be no report.
-#   trailers in output    the server replied. grpcurl prints "Response trailers
-#                         received" only after a reply, so this holds even for a
-#                         gRPC status carrying no body.
-#   res_body.raw_response no response body could be parsed, so grpcurl's output
-#                         was stored verbatim. Verified against a closed port:
-#                         this is what `connection refused` yields.
-#   res_body present      grpcurl produced parseable JSON.
-#
-# The order matters, and not only for correctness today. `res_body` is NOT proof
-# the connector answered: on a failed call the harness fills it by scanning
-# grpcurl's verbose output for the longest valid JSON (scenario_api.rs,
-# extract_best_json_value), which picks up the echoed `x-connector-config`
-# request header. Entries in the report pipeline that received zero responses
-# carry `res_body: {"config":{"Aci":{...}}}` for that reason. Those calls did
-# reach a server that answered with a gRPC status, so `contract` is the right
-# verdict — but reaching it through res_body would be right by accident. If the
-# harness ever stops scanning its own request echo, those entries lose res_body
-# and would fall through to `availability`; the trailers check keeps the verdict
-# correct either way.
-classify_failure() {
-  local rc="$1" report="$2" scenario="$3"
-
-  # Killed by the attempt timeout: nothing came back, and there may be no
-  # report to consult.
-  if [[ "${rc}" -eq 124 || "${rc}" -eq 137 ]]; then
-    printf 'availability'
-    return
-  fi
-
-  # grpcurl prints this section only once the server has replied, whatever the
-  # reply says. A connector answering "unauthenticated" answered. Checked before
-  # the body, because a reply the harness could not decode still proves the
-  # exchange happened.
-  local answered_with_status
-  answered_with_status=$(jq --arg s "${scenario}" '
-    [ .[]? | select(.scenario == $s and .is_dependency != true
-                    and ((.grpc_response // "") | contains("Response trailers received"))) ]
-    | length' "${report}" 2>/dev/null || echo 0)
-
-  if [[ "${answered_with_status:-0}" -gt 0 ]]; then
-    printf 'contract'
-    return
-  fi
-
-  # No response body could be parsed: grpcurl's raw output was stored instead.
-  local unparseable
-  unparseable=$(jq --arg s "${scenario}" '
-    [ .[]? | select(.scenario == $s and .is_dependency != true
-                    and (.res_body.raw_response? != null)) ] | length' \
-    "${report}" 2>/dev/null || echo 0)
-
-  if [[ "${unparseable:-0}" -gt 0 ]]; then
-    printf 'availability'
-    return
-  fi
-
-  local answered
-  answered=$(jq --arg s "${scenario}" '
-    [ .[]? | select(.scenario == $s and .is_dependency != true
-                    and .res_body != null) ] | length' \
-    "${report}" 2>/dev/null || echo 0)
-
-  if [[ "${answered:-0}" -gt 0 ]]; then
-    printf 'contract'
-  else
-    printf 'availability'
-  fi
-}
-
 # Runs one scenario against whatever is currently checked out and built.
-# Sets LAST_RC, LAST_ERROR and LAST_CLASS for the caller.
+# Sets LAST_RC and LAST_ERROR for the caller.
 run_scenario() {
   local name="$1" suite="$2" scenario="$3"
   local report="${RUNNER_TEMP:-/tmp}/certify-report.json"
@@ -174,8 +97,6 @@ run_scenario() {
       [ .[]? | select(.scenario == $s and .assertion_result == "FAIL") | .error // "" ]
       | first // ""' "${report}" 2>/dev/null || true)
   fi
-  LAST_CLASS=""
-  [[ "${LAST_RC}" -ne 0 ]] && LAST_CLASS="$(classify_failure "${LAST_RC}" "${report}" "${scenario}")"
 
   return "${LAST_RC}"
 }
@@ -296,28 +217,45 @@ for target in ${FAILED[@]+"${FAILED[@]}"}; do
     # Skipping arbitration here would absolve a PR that made the connector
     # unreachable itself — a broken base_url reads as "availability" too, and
     # the merge base is the only thing that tells the two apart.
-    CONFIRMED+=("$(jq -c --arg e "${LAST_ERROR}" --arg c "${LAST_CLASS}" \
-                     '. + {head_error: $e, head_class: $c}' <<< "${target}")")
+    CONFIRMED+=("$(jq -c --arg e "${LAST_ERROR}" \
+                     '. + {head_error: $e}' <<< "${target}")")
   fi
   echo "::endgroup::"
 done
 
 # ── Pass 3: arbitrate confirmed failures against the merge base ──────────────
+#
+# One question decides the build: did this scenario pass at the merge base?
+# A pass there and a failure here is proof the PR is responsible. Everything
+# else — the base failing too, or being unreachable — is an absence of proof,
+# not evidence of innocence, so it is reported with both errors and does not
+# block. Nothing is compared, because there is nothing to compare that would
+# survive contact with a live sandbox: two failures that look alike may be
+# unrelated, and two that look different may be the same cause.
 declare -a REGRESSIONS=()
-declare -a PRE_EXISTING=()
-declare -a INCONCLUSIVE=()
-# HEAD failed on content while the merge base was unreachable. Distinct from
-# INCONCLUSIVE, which covers infrastructure gaps that carry no such signal.
-declare -a NO_BASELINE=()
+declare -a NOT_ATTRIBUTABLE=()
+
+# "<label> — <why no baseline>" for a failure the merge base could not judge.
+unattributed() {
+  local target="$1" reason="$2" base_error="${3:-}"
+  local label
+  label="$(jq -r '"\(.name) (\(.suite) / \(.scenario))"' <<< "${target}")"
+  local head_error
+  head_error="$(jq -r '.head_error // ""' <<< "${target}")"
+  local line="${label} — ${reason}"
+  [[ -n "${head_error}" ]] && line+=" · here: ${head_error}"
+  [[ -n "${base_error}" ]] && line+=" · at the merge base: ${base_error}"
+  NOT_ATTRIBUTABLE+=("${line}")
+}
 
 if [[ ${#CONFIRMED[@]} -gt 0 ]]; then
   if [[ -z "${BASE_SHA}" ]]; then
     for target in "${CONFIRMED[@]}"; do
-      INCONCLUSIVE+=("$(jq -r '"\(.name) (\(.suite) / \(.scenario))"' <<< "${target}") — no merge base to compare against")
+      unattributed "${target}" "no merge base to compare against"
     done
   elif ! prepare_base; then
     for target in "${CONFIRMED[@]}"; do
-      INCONCLUSIVE+=("$(jq -r '"\(.name) (\(.suite) / \(.scenario))"' <<< "${target}") — merge base unavailable")
+      unattributed "${target}" "merge base unavailable"
     done
   else
     for target in "${CONFIRMED[@]}"; do
@@ -326,20 +264,13 @@ if [[ ${#CONFIRMED[@]} -gt 0 ]]; then
       scenario=$(jq -r '.scenario' <<< "${target}")
       label="${name} (${suite} / ${scenario})"
 
-      head_class=$(jq -r '.head_class // ""' <<< "${target}")
-
       echo "::group::Arbitrate ${label} at merge base"
       if run_scenario "${name}" "${suite}" "${scenario}"; then
-        # Works without this PR, fails with it — whatever the failure looked
-        # like. This is what catches a PR that broke connectivity itself.
+        # Works without this PR, fails with it. The only verdict this design
+        # can prove, and the only one that fails the build.
         REGRESSIONS+=("${label}")
-      elif [[ "${LAST_CLASS}" == "${head_class}" ]]; then
-        PRE_EXISTING+=("${label}")
       else
-        # Both sides fail but for different reasons, so the merge base is not a
-        # baseline for what HEAD is doing. Calling that "pre-existing" is how a
-        # real regression merges during a sandbox outage.
-        NO_BASELINE+=("${label} (fails as ${head_class} here, ${LAST_CLASS} at the merge base)")
+        unattributed "${target}" "also fails at the merge base" "${LAST_ERROR}"
       fi
       echo "::endgroup::"
     done
@@ -348,32 +279,23 @@ fi
 
 # ── Report ───────────────────────────────────────────────────────────────────
 {
-  for x in ${PASSED[@]+"${PASSED[@]}"};       do echo "- ✅ **passed** — ${x}"; done
-  for x in ${FLAKY[@]+"${FLAKY[@]}"};         do echo "- 🔁 **flaky** — ${x} (failed once, passed on re-check)"; done
-  for x in ${PRE_EXISTING[@]+"${PRE_EXISTING[@]}"}; do echo "- ⚠️ **already failing before this PR** — ${x}"; done
-  for x in ${NO_CREDS[@]+"${NO_CREDS[@]}"};   do echo "- ⚠️ **not certified** — ${x}: no credentials in CI"; done
-  for x in ${INCONCLUSIVE[@]+"${INCONCLUSIVE[@]}"}; do echo "- ⚠️ **inconclusive** — ${x}"; done
-  for x in ${NO_BASELINE[@]+"${NO_BASELINE[@]}"};   do echo "- ❌ **no baseline** — ${x}"; done
-  for x in ${REGRESSIONS[@]+"${REGRESSIONS[@]}"};   do echo "- ❌ **regressed in this PR** — ${x}"; done
+  for x in ${PASSED[@]+"${PASSED[@]}"};   do echo "- ✅ **passed** — ${x}"; done
+  for x in ${FLAKY[@]+"${FLAKY[@]}"};     do echo "- 🔁 **flaky** — ${x} (failed once, passed on re-check)"; done
+  for x in ${NO_CREDS[@]+"${NO_CREDS[@]}"}; do echo "- ⚠️ **not certified** — ${x}: no credentials in CI"; done
+  for x in ${NOT_ATTRIBUTABLE[@]+"${NOT_ATTRIBUTABLE[@]}"}; do echo "- ⚠️ **not attributable to this PR** — ${x}"; done
+  for x in ${REGRESSIONS[@]+"${REGRESSIONS[@]}"}; do echo "- ❌ **regressed in this PR** — ${x}"; done
 } >> "${SUMMARY}"
 
-for x in ${PRE_EXISTING[@]+"${PRE_EXISTING[@]}"}; do
-  echo "::warning::${x} was already failing at the merge base — not attributed to this PR. It stays broken in main until someone fixes it; the nightly gate is what holds that line."
-done
-for x in ${INCONCLUSIVE[@]+"${INCONCLUSIVE[@]}"}; do
-  echo "::warning::Could not determine whether this PR caused the failure: ${x}"
+# These stay broken in main until someone fixes them; the nightly gate is what
+# holds that line. Both errors are on the line so a reviewer can judge whether
+# the two failures are really the same thing — this build does not guess.
+for x in ${NOT_ATTRIBUTABLE[@]+"${NOT_ATTRIBUTABLE[@]}"}; do
+  echo "::warning::Not attributable to this PR: ${x}"
 done
 
 blocking=0
 for x in ${REGRESSIONS[@]+"${REGRESSIONS[@]}"}; do
   echo "::error::${x} passes at the merge base and fails here — this PR breaks it."
-  blocking=1
-done
-# Not absolved: HEAD failed on content, and the merge base was unreachable, so
-# there is no evidence either way. Treating that as "pre-existing" is how a real
-# regression would merge during a sandbox outage. Re-run once the sandbox is back.
-for x in ${NO_BASELINE[@]+"${NO_BASELINE[@]}"}; do
-  echo "::error::${x} fails here on content, and the merge base could not be reached to compare. No baseline, so this is not being written off — re-run once the connector sandbox is reachable."
   blocking=1
 done
 
