@@ -34,7 +34,9 @@ use crate::harness::{
         configured_all_connectors, get_the_assertion as get_the_assertion_impl,
         get_the_grpc_req as get_the_grpc_req_impl, is_suite_supported_for_connector,
         load_connector_browser_automation_spec, load_connector_spec, load_default_scenario_name,
-        load_scenario, load_suite_scenarios, load_suite_spec, load_supported_suites_for_connector,
+        load_scenario, load_suite_scenarios, load_suite_spec,
+        load_supported_payment_methods_for_connector, load_supported_suites_for_connector,
+        scenario_matches_supported_payment_methods,
     },
     scenario_types::{
         BrowserAutomationHook, BrowserAutomationPhase, CliPreRequestHookConfig, ContextMap,
@@ -3671,7 +3673,16 @@ pub fn run_suite_test_with_options(
 ) -> Result<SuiteRunSummary, ScenarioError> {
     let connector = connector.unwrap_or(DEFAULT_CONNECTOR);
     let target_suite_spec = load_suite_spec(suite)?;
-    let scenarios = load_suite_scenarios(suite)?;
+
+    // A scenario naming a payment method the connector never claimed cannot
+    // pass. Running it anyway leaves one honest way out — overriding `assert` to
+    // expect the failure — which reads as a passing test and hides whatever
+    // breaks there next. A connector that declares nothing keeps every scenario.
+    let supported_methods = load_supported_payment_methods_for_connector(connector)?;
+    let scenarios: BTreeMap<_, _> = load_suite_scenarios(suite)?
+        .into_iter()
+        .filter(|(_, def)| scenario_matches_supported_payment_methods(def, &supported_methods))
+        .collect();
 
     let mut results = Vec::new();
     let mut passed = 0usize;

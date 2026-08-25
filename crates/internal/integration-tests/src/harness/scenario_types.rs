@@ -240,6 +240,29 @@ pub struct ConnectorSuiteSpec {
     pub connector: String,
     /// Suites explicitly supported for this connector.
     pub supported_suites: Vec<String>,
+    /// True when this connector carries real production traffic.
+    ///
+    /// What it gates: a change to shared code — core, proto, harness — certifies
+    /// these connectors rather than the 100+ in the repo, because theirs is the
+    /// failure that means a real payment breaks. The full sweep is the nightly's
+    /// job. Kept as a fact about the connector rather than a curated CI list, so
+    /// the PR that takes a connector live is the one that says so.
+    #[serde(default)]
+    pub live_in_production: bool,
+    /// Payment methods this connector supports, named as the `payment_method`
+    /// oneof variant a scenario populates (`card`, `klarna`, `upi_intent`).
+    ///
+    /// A scenario that names a payment method is run only when it appears here.
+    /// Scenarios that name none — Capture, Void, Get, Refund and the rest, which
+    /// act on a payment their dependency already made — always run.
+    ///
+    /// Empty or absent means run everything, so a connector that has not declared
+    /// its methods keeps the behaviour it had before this field existed. It is a
+    /// statement of support, not of coverage: the alternative to declaring is
+    /// overriding `assert` to expect the failure, which reads as a passing test
+    /// and hides the next real regression behind it.
+    #[serde(default)]
+    pub supported_payment_methods: Vec<String>,
     /// If set, the harness reads this request field as the connector request
     /// reference ID instead of generating the default `{suite}_{scenario}_ref`.
     /// Example: `"merchant_order_id"`.

@@ -214,6 +214,57 @@ pub fn is_suite_supported_for_connector(
 
 /// Lists all suites supported by a connector, preserving order from connector
 /// spec and removing duplicates.
+/// Payment methods this connector declares support for, as `payment_method`
+/// oneof variant names. Empty means it has not declared any, which is read as
+/// "run everything" rather than "supports nothing".
+pub fn load_supported_payment_methods_for_connector(
+    connector: &str,
+) -> Result<Vec<String>, ScenarioError> {
+    let path = connector_spec_file_path(connector);
+    if !path.exists() {
+        return Ok(Vec::new());
+    }
+    let content = fs::read_to_string(&path).map_err(|source| ScenarioError::ConnectorSpecRead {
+        path: path.clone(),
+        source,
+    })?;
+    let spec = serde_json::from_str::<ConnectorSuiteSpec>(&content).map_err(|source| {
+        ScenarioError::ConnectorSpecParse {
+            path: path.clone(),
+            source,
+        }
+    })?;
+    Ok(spec.supported_payment_methods)
+}
+
+/// The `payment_method` oneof variant a scenario populates, if it names one.
+///
+/// Scenarios that name none act on a payment their dependency already made and
+/// inherit its method, so they are never filtered.
+pub fn scenario_payment_method(scenario: &ScenarioDef) -> Option<String> {
+    scenario
+        .grpc_req
+        .get("payment_method")?
+        .as_object()?
+        .keys()
+        .next()
+        .cloned()
+}
+
+/// True when `scenario` should run for a connector declaring `supported`.
+pub fn scenario_matches_supported_payment_methods(
+    scenario: &ScenarioDef,
+    supported: &[String],
+) -> bool {
+    if supported.is_empty() {
+        return true;
+    }
+    match scenario_payment_method(scenario) {
+        Some(method) => supported.iter().any(|m| m == &method),
+        None => true,
+    }
+}
+
 pub fn load_supported_suites_for_connector(connector: &str) -> Result<Vec<String>, ScenarioError> {
     let path = connector_spec_file_path(connector);
     if path.exists() {
@@ -400,11 +451,25 @@ mod tests {
 
     use crate::harness::scenario_types::DependencyScope;
 
+    use serde_json::json;
+
     use crate::harness::scenario_loader::{
         configured_all_connectors, discover_all_connectors, get_the_assertion, get_the_grpc_req,
         load_scenario, load_suite_scenarios, load_suite_spec, load_supported_suites_for_connector,
-        scenario_root, suite_dir_name_to_suite_name,
+        scenario_matches_supported_payment_methods, scenario_payment_method, scenario_root,
+        suite_dir_name_to_suite_name,
     };
+    use crate::harness::scenario_types::ScenarioDef;
+
+    /// A scenario carrying only the request shape these tests care about.
+    fn def(grpc_req: serde_json::Value) -> ScenarioDef {
+        ScenarioDef {
+            grpc_req,
+            assert_rules: std::collections::BTreeMap::new(),
+            is_default: false,
+            display_name: None,
+        }
+    }
 
     #[test]
     fn suite_dir_name_to_suite_name_splits_at_first_underscore() {
@@ -742,5 +807,37 @@ mod tests {
                 && paypal.contains(&"RecurringPaymentService/Charge".to_string()),
             "paypal should include token + recurring suites"
         );
+    }
+
+    #[test]
+    fn a_scenario_naming_no_payment_method_always_runs() {
+        // Capture, Void, Get, Refund and the rest act on a payment their
+        // dependency already made, so they carry no method of their own.
+        let scenario = def(json!({ "amount": { "minor_amount": 100 } }));
+        assert!(scenario_payment_method(&scenario).is_none());
+        assert!(scenario_matches_supported_payment_methods(&scenario, &[]));
+        assert!(scenario_matches_supported_payment_methods(
+            &scenario,
+            &["card".to_string()]
+        ));
+    }
+
+    #[test]
+    fn declaring_nothing_keeps_every_scenario() {
+        // The field is opt-in: a connector that has not declared its methods
+        // must behave exactly as it did before the field existed.
+        let upi = def(json!({ "payment_method": { "upi_intent": {} } }));
+        assert!(scenario_matches_supported_payment_methods(&upi, &[]));
+    }
+
+    #[test]
+    fn a_declared_method_runs_and_an_undeclared_one_does_not() {
+        let card = def(json!({ "payment_method": { "card": { "card_number": "4242" } } }));
+        let upi = def(json!({ "payment_method": { "upi_intent": {} } }));
+        let declared = vec!["card".to_string()];
+
+        assert_eq!(scenario_payment_method(&card).as_deref(), Some("card"));
+        assert!(scenario_matches_supported_payment_methods(&card, &declared));
+        assert!(!scenario_matches_supported_payment_methods(&upi, &declared));
     }
 }

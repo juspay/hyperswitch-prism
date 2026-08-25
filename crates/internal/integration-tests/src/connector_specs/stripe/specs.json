@@ -1,5 +1,7 @@
 {
   "connector": "stripe",
+  "live_creds": true,
+  "live_in_production": true,
   "supported_suites": [
     "PaymentService/Authorize",
     "PaymentService/Capture",
@@ -19,6 +21,5 @@
     "PaymentService/TokenSetupRecurring",
     "PaymentMethodService/Tokenize",
     "PaymentService/Void"
-  ],
-  "live_creds": true
+  ]
 }
