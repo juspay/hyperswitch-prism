@@ -318,7 +318,6 @@ impl
             authentication_data,
             metadata: item.metadata.clone(),
             connector_feature_data,
-            additional_connector_details: item.additional_connector_details.clone(),
             return_url: item.return_url.clone(),
             webhook_url: item.webhook_url.clone(),
             complete_authorize_url: item.complete_authorize_url.clone(),
@@ -816,7 +815,7 @@ impl
             merchant_request_id: item.merchant_request_id.clone(),
             order_tax_amount: item.order_tax_amount,
             split_payments: item.split_payments.clone(),
-            additional_connector_details: item.additional_connector_details.clone(),
+            currency_conversion_data: item.currency_conversion_data.clone(),
         }
     }
 }
@@ -1180,7 +1179,6 @@ impl
             authentication_data: request.authentication_data.clone(),
             metadata: request.metadata.clone(),
             connector_feature_data: request.connector_feature_data.clone(),
-            additional_connector_details: request.additional_connector_details.clone(),
             return_url: request.return_url.clone(),
             webhook_url: request.webhook_url.clone(),
             complete_authorize_url: request.complete_authorize_url.clone(),

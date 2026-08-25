@@ -97,6 +97,12 @@ message CurrencyConversionQuote {
 
   // Time when the quote expires, in Unix epoch seconds.
   optional int64 expires_at = 11;
+
+  // Provider-defined code describing the reason or classification for this currency conversion.
+  optional string conversion_reason_code = 12;
+
+  // Identifier assigned to the user by the currency conversion provider.
+  optional string user_id = 13;
 }
 
 // Identifies the currency conversion model used for the payment.
@@ -129,31 +135,6 @@ message CurrencyConversionData {
   CurrencyConversionDecision decision = 1;
   // Currency conversion quote presented to the customer, when available.
   optional CurrencyConversionQuote quote = 2;
-}
-
-// Additional connector-specific details to be passed through to the
-// connector for the transaction. Currently only the Datatrans variant is defined.
-message AdditionalConnectorDetails {
-  // Datatrans-specific metadata for multi-currency processing (MCP).
-  optional DatatransAdditionalInformation datatrans = 1;
-}
-
-// Datatrans-specific details for multi-currency processing.
-message DatatransAdditionalInformation {
-  // The targeted currency and amount
-  Money amount = 1;
-  // Conversion rate received from the currency rates endpoint. Required for dynamic MCP.
-  optional double conversion_rate = 2;
-  // Transaction datetime received from the currency rates endpoint, in Unix epoch seconds (UTC).
-  optional int64 transaction_date = 3;
-  // Retrieval reference number received from the currency rates endpoint.
-  optional string retrieval_reference_number = 4;
-  // The user identifier.
-  string user_id = 5;
-  // The provider for multi currency processing.
-  string provider = 6;
-  // Reason indicator received from the acquirer.
-  string reason_indicator = 7;
 }
 
 // Permissions wraps a repeated string field to allow optional presence
@@ -2646,9 +2627,6 @@ message PaymentServiceAuthorizeRequest {
   // Currency conversion quote and decision data passed through the
   // authorization flow for future connector-specific processing.
   optional CurrencyConversionData currency_conversion_data = 51;
-
-  // Additional connector-specific information received from the merchant for the transaction
-  optional AdditionalConnectorDetails additional_connector_details = 52;
 }
 
 // Partner / external-platform application details.
@@ -3163,8 +3141,9 @@ message PaymentServiceCaptureRequest {
   // Split payment configuration (platform fees, transfers, etc.)
   optional SplitPaymentsDetails split_payments = 14;
 
-  // Additional connector-specific information received from the merchant for the transaction
-  optional AdditionalConnectorDetails additional_connector_details = 15;
+  // Currency conversion quote and decision data passed through the
+  // capture flow for future connector-specific processing.
+  optional CurrencyConversionData currency_conversion_data = 15;
 }
 
 // Response message for a payment capture operation
@@ -3729,8 +3708,9 @@ message RecurringPaymentServiceChargeRequest {
   // Channel through which the repeat payment was initiated.
   optional PaymentChannel payment_channel = 38;
 
-  // Additional connector-specific information received from the merchant for the transaction
-  optional AdditionalConnectorDetails additional_connector_details = 39;
+  // Currency conversion quote and decision data passed through the
+  // recurring flow for future connector-specific processing.
+  optional CurrencyConversionData currency_conversion_data = 39;
 }
 
 // Response message for repeat payment operation

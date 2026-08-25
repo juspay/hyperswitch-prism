@@ -1714,7 +1714,6 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub enable_overcapture: Option<bool>,
     pub setup_mandate_details: Option<MandateData>,
     pub connector_feature_data: Option<SecretSerdeValue>,
-    pub additional_connector_details: Option<AdditionalConnectorDetails>,
     pub connector_testing_data: Option<SecretSerdeValue>,
     pub payment_channel: Option<PaymentChannel>,
     pub enable_partial_authorization: Option<bool>,
@@ -3518,7 +3517,7 @@ pub struct PaymentsCaptureData {
     pub connector_transaction_id: ResponseId,
     pub multiple_capture_data: Option<MultipleCaptureRequestData>,
     pub connector_feature_data: Option<SecretSerdeValue>,
-    pub additional_connector_details: Option<AdditionalConnectorDetails>,
+    pub currency_conversion_data: Option<CurrencyConversionData>,
     pub integrity_object: Option<CaptureIntegrityObject>,
     pub browser_info: Option<BrowserInformation>,
     pub capture_method: Option<common_enums::CaptureMethod>,
@@ -3692,7 +3691,7 @@ pub struct RepeatPaymentData<T: PaymentMethodDataTypes> {
     pub connector_testing_data: Option<SecretSerdeValue>,
     pub merchant_account_id: Option<Secret<String>>,
     pub merchant_configured_currency: Option<Currency>,
-    pub additional_connector_details: Option<AdditionalConnectorDetails>,
+    pub currency_conversion_data: Option<CurrencyConversionData>,
     pub additional_payment_data: Option<AdditionalPaymentData>,
     /// Partner / merchant application identifiers (e.g. Adyen applicationInfo).
     pub partner_merchant_identifier_details: Option<PartnerMerchantIdentifierDetails>,
@@ -4545,6 +4544,8 @@ pub struct CurrencyConversionQuote {
     pub currency_conversion_type: Option<CurrencyConversionType>,
     pub quoted_at: Option<i64>,
     pub expires_at: Option<i64>,
+    pub conversion_reason_code: Option<String>,
+    pub user_id: Option<String>,
 }
 
 /// A validated currency conversion decision and the quote presented to the cardholder.
@@ -4552,64 +4553,6 @@ pub struct CurrencyConversionQuote {
 pub struct CurrencyConversionData {
     pub decision: CurrencyConversionDecision,
     pub quote: Option<CurrencyConversionQuote>,
-}
-
-/// Additional connector-specific details/metadata to be passed through to the
-/// connector for the transaction. Mirrors the proto `AdditionalConnectorDetails`.
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct AdditionalConnectorDetails {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub datatrans: Option<DatatransAdditionalInformation>,
-}
-
-/// Datatrans-specific connector metadata for multi-currency processing (MCP).
-/// Mirrors the data returned by the Datatrans currency-rates endpoint and is
-/// serialised to the Datatrans MCP request body.
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct DatatransAdditionalInformation {
-    /// The targeted currency.
-    pub currency: Currency,
-    /// The amount in the targeted currency.
-    pub amount: MinorUnit,
-    /// Conversion rate received from the currency rates endpoint. Required for dynamic MCP.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub conversion_rate: Option<f64>,
-    /// Transaction datetime received from the currency rates endpoint.
-    #[serde(
-        skip_serializing_if = "Option::is_none",
-        deserialize_with = "common_utils::custom_serde::iso8601::option::deserialize",
-        serialize_with = "serialize_date_as_rfc3339"
-    )]
-    pub transaction_date: Option<PrimitiveDateTime>,
-    /// RetrievalReferenceNumber received from the currency rates endpoint.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub retrieval_reference_number: Option<String>,
-    pub user_id: String,
-    /// The provider for multi currency processing.
-    pub provider: String,
-    /// Reason indicator received from the acquirer.
-    pub reason_indicator: String,
-}
-
-/// Serialize [`Option<PrimitiveDateTime>`] as an RFC 3339 string
-fn serialize_date_as_rfc3339<S>(
-    date_time: &Option<PrimitiveDateTime>,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-{
-    date_time
-        .map(|date_time| {
-            date_time
-                .assume_utc()
-                .format(&time::format_description::well_known::Rfc3339)
-        })
-        .transpose()
-        .map_err(<S::Error as serde::ser::Error>::custom)?
-        .serialize(serializer)
 }
 
 /// Domain-specific data supplied by the merchant (airline today; extensible

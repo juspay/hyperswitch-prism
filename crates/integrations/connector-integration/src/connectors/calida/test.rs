@@ -165,7 +165,6 @@ mod tests {
                     setup_mandate_details: None,
                     enable_overcapture: None,
                     connector_feature_data: None,
-                    additional_connector_details: None,
                     billing_descriptor: None,
                     enable_partial_authorization: None,
                     locale: None,
@@ -368,7 +367,6 @@ mod tests {
                     payment_channel: None,
                     domain_data: None,
                     partner_merchant_identifier_details: None,
-                    additional_connector_details: None,
                 },
                 response: Err(ErrorResponse::default()),
             };
@@ -525,7 +523,6 @@ mod tests {
                     setup_mandate_details: None,
                     enable_overcapture: None,
                     connector_feature_data: None,
-                    additional_connector_details: None,
                     billing_descriptor: None,
                     enable_partial_authorization: None,
                     locale: None,

@@ -12,7 +12,8 @@ use domain_types::{
     },
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
-        ConnectorSpecificClientAuthenticationResponse, DatatransAdditionalInformation,
+        ConnectorSpecificClientAuthenticationResponse, CurrencyConversionData,
+        CurrencyConversionType,
         DatatransClientAuthenticationResponse as DatatransClientAuthenticationResponseDomain,
         MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
         PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
@@ -264,7 +265,24 @@ pub struct DatatransPaymentsRequest<
     #[serde(rename = "APL", skip_serializing_if = "Option::is_none")]
     pub apl: Option<DatatransApplePayRequest>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub mcp: Option<DatatransAdditionalInformation>,
+    pub mcp: Option<DatatransMcp>,
+}
+
+/// Datatrans multi-currency processing (MCP) object.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DatatransMcp {
+    pub currency: Currency,
+    pub amount: MinorUnit,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub conversion_rate: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transaction_date: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub retrieval_reference_number: Option<String>,
+    pub provider: String,
+    pub user_id: String,
+    pub reason_indicator: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -272,6 +290,127 @@ pub struct DatatransPaymentsRequest<
 pub struct CaptureMCPData {
     pub currency: Currency,
     pub amount: MinorUnit,
+}
+
+fn get_mcp_quote(
+    currency_conversion_data: Option<&CurrencyConversionData>,
+) -> Option<&domain_types::connector_types::CurrencyConversionQuote> {
+    currency_conversion_data
+        .and_then(|data| data.quote.as_ref())
+        .filter(|quote| {
+            matches!(
+                quote.currency_conversion_type,
+                Some(CurrencyConversionType::Mcp)
+            )
+        })
+}
+
+fn build_capture_mcp_data(
+    currency_conversion_data: Option<&CurrencyConversionData>,
+) -> Result<Option<CaptureMCPData>, error_stack::Report<IntegrationError>> {
+    get_mcp_quote(currency_conversion_data)
+        .map(|quote| {
+            let money = get_mcp_amount(quote)?;
+            Ok(CaptureMCPData {
+                currency: money.currency,
+                amount: money.amount,
+            })
+        })
+        .transpose()
+}
+
+fn get_mcp_amount(
+    quote: &domain_types::connector_types::CurrencyConversionQuote,
+) -> Result<common_utils::types::Money, error_stack::Report<IntegrationError>> {
+    quote.merchant_order_amount.clone().ok_or_else(|| {
+        error_stack::report!(IntegrationError::MissingRequiredField {
+            field_name: "currency_conversion_data.quote.merchant_order_amount",
+            context: datatrans_context(
+                "Datatrans MCP requires the targeted currency and amount for the transaction",
+            ),
+        })
+    })
+}
+
+fn get_required_quote_field(
+    value: Option<&String>,
+    field_name: &'static str,
+    context: &'static str,
+) -> Result<String, error_stack::Report<IntegrationError>> {
+    value.cloned().ok_or_else(|| {
+        error_stack::report!(IntegrationError::MissingRequiredField {
+            field_name,
+            context: datatrans_context(context),
+        })
+    })
+}
+
+/// Builds the `mcp` object for an Authorize or RepeatPayment request.
+fn build_mcp_data(
+    currency_conversion_data: Option<&CurrencyConversionData>,
+) -> Result<Option<DatatransMcp>, error_stack::Report<IntegrationError>> {
+    let Some(quote) = get_mcp_quote(currency_conversion_data) else {
+        return Ok(None);
+    };
+    let money = get_mcp_amount(quote)?;
+
+    let conversion_rate = quote
+        .exchange_rate
+        .as_ref()
+        .map(|exchange_rate| {
+            exchange_rate
+                .parse::<f64>()
+                .change_context(IntegrationError::InvalidDataFormat {
+                    field_name: "currency_conversion_data.quote.exchange_rate",
+                    context: datatrans_context(
+                        "Datatrans MCP requires the conversion rate as a decimal number",
+                    ),
+                })
+        })
+        .transpose()?;
+
+    let transaction_date = quote
+        .quoted_at
+        .map(|quoted_at| {
+            time::OffsetDateTime::from_unix_timestamp(quoted_at)
+                .change_context(IntegrationError::InvalidDataFormat {
+                    field_name: "currency_conversion_data.quote.quoted_at",
+                    context: datatrans_context(
+                        "Datatrans MCP requires a valid Unix timestamp for the quote time",
+                    ),
+                })?
+                .format(&time::format_description::well_known::Rfc3339)
+                .change_context(IntegrationError::InvalidDataFormat {
+                    field_name: "currency_conversion_data.quote.quoted_at",
+                    context: datatrans_context(
+                        "Datatrans MCP requires the quote time as an RFC 3339 timestamp",
+                    ),
+                })
+        })
+        .transpose()?;
+
+    Ok(Some(DatatransMcp {
+        currency: money.currency,
+        amount: money.amount,
+        conversion_rate,
+        transaction_date,
+        retrieval_reference_number: quote.exchange_rate_id.clone(),
+        provider: get_required_quote_field(
+            quote.provider.as_ref(),
+            "currency_conversion_data.quote.provider",
+            "Datatrans MCP requires the multi-currency processing provider",
+        )?,
+        user_id: get_required_quote_field(
+            quote.user_id.as_ref(),
+            "currency_conversion_data.quote.user_id",
+            "Datatrans MCP requires the user id assigned by the MCP provider",
+        )?,
+        reason_indicator: get_required_quote_field(
+            quote.conversion_reason_code.as_ref(),
+            "currency_conversion_data.quote.conversion_reason_code",
+            "Datatrans MCP requires the reason indicator for the conversion",
+        )?,
+    }))
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -519,11 +658,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             ),
             pay,
             apl,
-            mcp: router_data
-                .request
-                .additional_connector_details
-                .as_ref()
-                .and_then(|metadata| metadata.datatrans.clone()),
+            mcp: build_mcp_data(router_data.request.currency_conversion_data.as_ref())?,
         })
     }
 }
@@ -1077,11 +1212,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             option: None,
             pay: None,
             apl: None,
-            mcp: router_data
-                .request
-                .additional_connector_details
-                .as_ref()
-                .and_then(|metadata| metadata.datatrans.clone()),
+            mcp: build_mcp_data(router_data.request.currency_conversion_data.as_ref())?,
         })
     }
 }
@@ -1492,16 +1623,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .connector_request_reference_id
                 .clone(),
             refno2: None,
-            mcp: router_data
-                .request
-                .additional_connector_details
-                .as_ref()
-                .and_then(|metadata| {
-                    metadata.datatrans.clone().map(|data| CaptureMCPData {
-                        currency: data.currency,
-                        amount: data.amount,
-                    })
-                }),
+            mcp: build_capture_mcp_data(router_data.request.currency_conversion_data.as_ref())?,
         })
     }
 }

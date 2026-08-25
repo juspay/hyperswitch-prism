@@ -135,9 +135,6 @@ message CompositeAuthorizeRequest {
   // Currency conversion quote and customer decision supplied for
   // authorization.
   optional CurrencyConversionData currency_conversion_data = 58;
-
- // Additional xonnector-specific information received from the merchant for the transaction
-  optional AdditionalConnectorDetails additional_connector_details = 59;
 }
 
 // Status of the composite authorize flow — indicates whether the flow is complete or needs a redirect.
@@ -497,8 +494,8 @@ message CompositeCaptureRequest {
   // Split payment configuration (platform fees, transfers, etc.)
   optional SplitPaymentsDetails split_payments = 16;
 
-  // Additional xonnector-specific information received from the merchant for the transaction
-  optional AdditionalConnectorDetails additional_connector_details = 17;
+  // Currency conversion quote and customer decision supplied for the capture.
+  optional CurrencyConversionData currency_conversion_data = 17;
 }
 
 // Response message for composite capture flow.
@@ -790,9 +787,6 @@ message CompositeVerifyRedirectResponseRequest {
   // Currency conversion quote and customer decision supplied for
   // authorization after redirect verification.
   optional CurrencyConversionData currency_conversion_data = 54;
-
-  // Additional xonnector-specific information received from the merchant for the transaction
-  optional AdditionalConnectorDetails additional_connector_details = 55;
 }
 
 // Response message for composite verify redirect response flow.

@@ -3398,7 +3398,6 @@ pub struct AuthorizationRequest {
     // Metadata
     pub metadata: Option<Secret<String>>,
     pub connector_feature_data: Option<Secret<String>>,
-    pub additional_connector_details: Option<grpc_payment_types::AdditionalConnectorDetails>,
     // URLs
     pub return_url: Option<String>,
     pub webhook_url: Option<String>,
@@ -3517,7 +3516,6 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
             authentication_data: req.authentication_data.clone(),
             metadata: req.metadata.clone(),
             connector_feature_data: req.connector_feature_data.clone(),
-            additional_connector_details: req.additional_connector_details.clone(),
             return_url: req.return_url.clone(),
             webhook_url: req.webhook_url.clone(),
             complete_authorize_url: req.complete_authorize_url.clone(),
@@ -3588,7 +3586,6 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             authentication_data: req.authentication_data.clone(),
             metadata: req.metadata.clone(),
             connector_feature_data: req.connector_feature_data.clone(),
-            additional_connector_details: None,
             return_url: req.return_url.clone(),
             webhook_url: req.webhook_url.clone(),
             complete_authorize_url: None,
@@ -4251,6 +4248,8 @@ impl ForeignTryFrom<grpc_payment_types::CurrencyConversionQuote>
                 .transpose()?,
             quoted_at: value.quoted_at,
             expires_at: value.expires_at,
+            conversion_reason_code: value.conversion_reason_code,
+            user_id: value.user_id,
         })
     }
 }
@@ -4282,55 +4281,6 @@ impl ForeignTryFrom<grpc_payment_types::CurrencyConversionData>
             quote: value
                 .quote
                 .map(connector_types::CurrencyConversionQuote::foreign_try_from)
-                .transpose()?,
-        })
-    }
-}
-
-impl ForeignTryFrom<grpc_payment_types::DatatransAdditionalInformation>
-    for connector_types::DatatransAdditionalInformation
-{
-    type Error = IntegrationError;
-
-    fn foreign_try_from(
-        value: grpc_payment_types::DatatransAdditionalInformation,
-    ) -> Result<Self, error_stack::Report<Self::Error>> {
-        let money = value.amount.ok_or(IntegrationError::MissingRequiredField {
-            field_name: "datatrans_additional_information.amount",
-            context: IntegrationErrorContext {
-                additional_context: Some("Missing amount details".to_string()),
-                ..Default::default()
-            },
-        })?;
-
-        Ok(Self {
-            currency: common_enums::Currency::foreign_try_from(money.currency())?,
-            amount: common_utils::types::MinorUnit::new(money.minor_amount),
-            conversion_rate: value.conversion_rate,
-            transaction_date: value
-                .transaction_date
-                .and_then(|secs| time::OffsetDateTime::from_unix_timestamp(secs).ok())
-                .map(|odt| time::PrimitiveDateTime::new(odt.date(), odt.time())),
-            retrieval_reference_number: value.retrieval_reference_number,
-            user_id: value.user_id,
-            provider: value.provider,
-            reason_indicator: value.reason_indicator,
-        })
-    }
-}
-
-impl ForeignTryFrom<grpc_payment_types::AdditionalConnectorDetails>
-    for connector_types::AdditionalConnectorDetails
-{
-    type Error = IntegrationError;
-
-    fn foreign_try_from(
-        value: grpc_payment_types::AdditionalConnectorDetails,
-    ) -> Result<Self, error_stack::Report<Self::Error>> {
-        Ok(Self {
-            datatrans: value
-                .datatrans
-                .map(connector_types::DatatransAdditionalInformation::foreign_try_from)
                 .transpose()?,
         })
     }
@@ -4562,11 +4512,6 @@ impl<
             .clone()
             .map(|m| ForeignTryFrom::foreign_try_from((m, "feature_data")))
             .transpose()?;
-        let additional_connector_details = value
-            .additional_connector_details
-            .clone()
-            .map(connector_types::AdditionalConnectorDetails::foreign_try_from)
-            .transpose()?;
         let merchant_account_id = connector_feature_data
             .as_ref()
             .and_then(|m: &SecretSerdeValue| m.peek().get("merchant_account_id"))
@@ -4719,7 +4664,6 @@ impl<
                 .transpose()?,
             request_extended_authorization: value.request_extended_authorization,
             connector_feature_data,
-            additional_connector_details,
             connector_testing_data,
             payment_channel,
             enable_partial_authorization: value.enable_partial_authorization,
@@ -11188,9 +11132,9 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceCaptureRequest>
                 .connector_feature_data
                 .map(|m| ForeignTryFrom::foreign_try_from((m, "connector metadata")))
                 .transpose()?,
-            additional_connector_details: value
-                .additional_connector_details
-                .map(connector_types::AdditionalConnectorDetails::foreign_try_from)
+            currency_conversion_data: value
+                .currency_conversion_data
+                .map(connector_types::CurrencyConversionData::foreign_try_from)
                 .transpose()?,
             merchant_order_id: value.merchant_order_id,
             order_tax_amount: value
@@ -14971,9 +14915,9 @@ impl<
             }),
             merchant_account_id: value.merchant_account_id,
             merchant_configured_currency,
-            additional_connector_details: value
-                .additional_connector_details
-                .map(connector_types::AdditionalConnectorDetails::foreign_try_from)
+            currency_conversion_data: value
+                .currency_conversion_data
+                .map(connector_types::CurrencyConversionData::foreign_try_from)
                 .transpose()?,
             additional_payment_data: value
                 .additional_payment_data
@@ -17711,7 +17655,6 @@ pub fn tokenized_authorize_to_base(
         webhook_url: v.webhook_url,
         metadata: v.metadata,
         connector_feature_data: v.connector_feature_data,
-        additional_connector_details: None,
         setup_future_usage: v.setup_future_usage,
         browser_info: v.browser_info,
         state: v.state,
@@ -17892,7 +17835,6 @@ pub fn proxied_authorize_to_base(
         webhook_url: v.webhook_url,
         metadata: v.metadata,
         connector_feature_data: v.connector_feature_data,
-        additional_connector_details: None,
         setup_future_usage: v.setup_future_usage,
         browser_info: v.browser_info,
         state: v.state,

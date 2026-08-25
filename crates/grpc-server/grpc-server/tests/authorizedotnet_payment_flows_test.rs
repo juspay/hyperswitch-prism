@@ -414,6 +414,7 @@ fn create_payment_capture_request(transaction_id: &str) -> PaymentServiceCapture
     let request_ref_id = generate_unique_request_ref_id("capture");
 
     PaymentServiceCaptureRequest {
+        currency_conversion_data: None,
         merchant_capture_id: Some(request_ref_id),
         connector_transaction_id: transaction_id.to_string(),
         amount_to_capture: Some(grpc_api_types::payments::Money {
@@ -431,7 +432,6 @@ fn create_payment_capture_request(transaction_id: &str) -> PaymentServiceCapture
         merchant_order_id: None,
         split_payments: None,
         merchant_request_id: None,
-        additional_connector_details: None,
     }
 }
 
