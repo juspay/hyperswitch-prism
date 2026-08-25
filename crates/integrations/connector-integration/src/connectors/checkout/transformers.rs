@@ -431,7 +431,9 @@ impl TryFrom<&ConnectorSpecificConfig> for CheckoutAuthType {
                          api_secret and processing_channel_id."
                             .to_owned(),
                     ),
-                    additional_context: Some("Failed to obtain CheckoutAuthType from ConnectorSpecificConfig".to_owned()),
+                    additional_context: Some(
+                        "Failed to obtain CheckoutAuthType from ConnectorSpecificConfig".to_owned(),
+                    ),
                     doc_url: None,
                 },
             }
