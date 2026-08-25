@@ -112,8 +112,8 @@ message CompositeAuthorizeRequest {
   // Domain-specific data (e.g. airline itinerary) for connectors that need it.
   optional DomainData domain_data = 52;
 
-  // Split payment configuration (platform fees, transfers, etc.)
-  optional SplitPaymentsDetails split_payments = 53;
+  // Deprecated: use split_settlement instead. Legacy split payment configuration.
+  optional SplitPaymentsDetails split_payments = 53 [deprecated = true];
   // Unified split settlement (supersedes split_payments); forwarded to Authorize.
   optional SplitSettlement split_settlement = 59;
 
@@ -275,8 +275,8 @@ message CompositeGetRequest {
   // sync (e.g. Adyen, to build connector_response) can populate it.
   optional PaymentMethodType payment_method_type = 18;
 
-  // Split payment configuration (platform fees, transfers, etc.)
-  optional SplitPaymentsDetails split_payments = 19;
+  // Deprecated: use split_settlement instead. Legacy split payment configuration.
+  optional SplitPaymentsDetails split_payments = 19 [deprecated = true];
 
   optional ConnectorMandateReferenceId mandate_reference = 20;
 }
@@ -441,8 +441,8 @@ message CompositeVoidRequest {
   // Required by some connectors that demand a per-request idempotency token.
   optional string merchant_request_id = 14;
 
-  // Split payment configuration (platform fees, transfers, etc.)
-  optional SplitPaymentsDetails split_payments = 15;
+  // Deprecated: use split_settlement instead. Legacy split payment configuration.
+  optional SplitPaymentsDetails split_payments = 15 [deprecated = true];
 }
 
 // Response message for composite void flow.
@@ -495,8 +495,8 @@ message CompositeCaptureRequest {
   // Order-level tax amount.
   optional Money order_tax_amount = 15;
 
-  // Split payment configuration (platform fees, transfers, etc.)
-  optional SplitPaymentsDetails split_payments = 16;
+  // Deprecated: use split_settlement instead. Legacy split payment configuration.
+  optional SplitPaymentsDetails split_payments = 16 [deprecated = true];
   optional SplitSettlement split_settlement = 17;
 }
 
@@ -585,7 +585,7 @@ message CompositePaymentMethodGetRequest {
   optional Money amount = 12;
   optional PaymentAddress address = 13;
   optional string return_url = 14;
-  optional SplitPaymentsDetails split_payments = 15;
+  optional SplitPaymentsDetails split_payments = 15 [deprecated = true];
   optional PaymentMethod payment_method = 16;
 }
 
@@ -773,8 +773,8 @@ message CompositeVerifyRedirectResponseRequest {
   // Connector-agnostic domain-specific data (airline, lodging, etc.).
   optional DomainData domain_data = 49;
 
-  // Split payment configuration (platform fees, transfers, etc.)
-  optional SplitPaymentsDetails split_payments = 50;
+  // Deprecated: use split_settlement instead. Legacy split payment configuration.
+  optional SplitPaymentsDetails split_payments = 50 [deprecated = true];
   optional SplitSettlement split_settlement = 55;
 
   // MIT Category — mirrors PaymentServiceAuthorizeRequest.mit_category.
