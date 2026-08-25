@@ -669,17 +669,15 @@ jobs:
         run: .github/scripts/certify-connectors.sh
 
       # A connector whose connector_specs/<name>/ directory did not exist at this
-      # PR's base commit must prove itself on its own PR. The author declares what
-      # they verified in their own specs.json `verified_scenarios`; each entry needs
-      # { suite, scenario, has_live_creds, no_creds_reason }.
+      # PR's base commit must prove itself on its own PR. Its specs.json states
+      # what it supports in `supported_suites` and whether CI can prove it in
+      # `live_creds`.
       #
-      # The array is expected to grow as later PRs add payment methods and flows —
-      # it is a running record of what has been proven, not a one-time gate.
-      #
-      # has_live_creds: true runs the call and must pass. has_live_creds: false is
-      # allowed but never silent: no_creds_reason is mandatory, the connector is
-      # listed in the job summary and in a PR comment as unproven. It does not
-      # certify until has_live_creds is flipped to true in a later PR.
+      # live_creds: true runs every scenario of every declared suite against the
+      # sandbox, and they must pass. live_creds: false is allowed but never
+      # silent: no_creds_reason is mandatory, and the connector is listed in the
+      # job summary and in a PR comment as unproven. It does not certify until
+      # live_creds is flipped to true in a later PR.
       - name: Comment unproven connector declarations on the PR
         if: ${{ github.event_name == 'pull_request' && steps.verify-new-connectors.outputs.unproven == 'true' }}
         uses: actions/github-script@v7
@@ -696,9 +694,9 @@ jobs:
               '',
               ...lines.map(l => `- ${l}`),
               '',
-              'These connectors declare `has_live_creds: false` in their `specs.json`.',
+              'These connectors declare `live_creds: false` in their `specs.json`.',
               'No real sandbox call backs them. Confirm each stated reason before approving;',
-              'they do not certify until `has_live_creds` is flipped to true.',
+              'they do not certify until `live_creds` is flipped to true.',
             ].join('\n');
 
             const { owner, repo } = context.repo;

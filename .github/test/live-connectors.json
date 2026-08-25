@@ -1,0 +1,21 @@
+{
+  "_comment": [
+    "Connectors and scenarios that run in production, and the scenarios that",
+    "guard them. A change to shared code — proto, core, harness — certifies only",
+    "this list, because it is the only set whose failure means a real payment",
+    "would break. Everything else is certified by the PR that touches it.",
+    "",
+    "This list is not derivable from the repository: it records which",
+    "integrations are actually live, which is a fact about deployment, not code.",
+    "Add an entry when a connector goes live for a payment method, and name the",
+    "scenario rather than the suite — scenario names carry the payment method,",
+    "so listing them is how the set stays scoped to what is really enabled."
+  ],
+  "entries": [
+    {
+      "connector": "stripe",
+      "suite": "PaymentService/Authorize",
+      "scenario": "no3ds_auto_capture_credit_card"
+    }
+  ]
+}

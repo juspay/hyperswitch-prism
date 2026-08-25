@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 #
-# Verifies the scenarios a newly added connector declares it was tested against.
+# Verifies a newly added connector against the suites it declares.
 #
-# A connector added in this PR must say what it proved, and prove it: every
-# verified_scenarios entry with live credentials is executed against the real
-# sandbox here. An entry may opt out with has_live_creds: false, but never
-# silently — it must give a reason, and the reason is surfaced on the PR.
+# The connector's own specs.json is the statement: supported_suites says what it
+# supports, and live_creds says whether CI can prove it. When live_creds is true
+# every scenario of every declared suite runs against the real sandbox here. A
+# connector may say false, but never silently — it must give a reason, and the
+# reason is surfaced on the PR.
 #
 # Inputs (environment):
 #   NEW_CONNECTORS            comma-separated connector names added in this PR
@@ -19,6 +20,7 @@
 set -uo pipefail
 
 SPECS_ROOT="crates/internal/integration-tests/src/connector_specs"
+SUITES_ROOT="crates/internal/integration-tests/src/global_suites"
 SUMMARY="${GITHUB_STEP_SUMMARY:-/dev/null}"
 UNPROVEN_FILE="${UNPROVEN_FILE:-}"
 
@@ -73,66 +75,52 @@ for name in "${CONNECTORS[@]}"; do
     continue
   fi
 
-  entry_count=$(jq '.verified_scenarios // [] | length' "${specs}")
-  if [[ "${entry_count}" -eq 0 ]]; then
-    echo "::error::New connector '${name}' declares no \"verified_scenarios\" in ${specs}. Every new connector must declare at least one entry { suite, scenario, has_live_creds, no_creds_reason (when has_live_creds is false) } so its own PR either proves a real sandbox call or records, in the diff, that it did not."
+  # live_creds is the author's statement about whether CI can prove any of this.
+  # It must be present: a new connector arriving with no statement is the case
+  # that used to pass silently and certify nothing.
+  if [[ "$(jq 'has("live_creds")' "${specs}")" != "true" ]]; then
+    echo "::error::New connector '${name}' does not declare \"live_creds\" in ${specs}. Set it to true when the connector has credentials in the CI file, or false with a \"no_creds_reason\" saying why it cannot be proven yet."
     failures=$((failures + 1))
     continue
   fi
 
-  # Every flow the connector claims must have a scenario behind it. The claim
-  # itself is already forced to match the code by check_connector_specs, so this
-  # closes the last link: code -> supported_suites -> verified_scenarios. A flow
-  # that genuinely cannot be exercised still needs an entry, with
-  # has_live_creds: false and a reason — unproven is acceptable, unmentioned is
-  # not. Without this a connector could ship six flows and certify one.
-  uncovered=$(jq -r '
-    (.supported_suites // []) as $declared
-    | [ (.verified_scenarios // [])[].suite ] as $covered
-    | $declared - $covered
-    | .[]' "${specs}")
-  if [[ -n "${uncovered}" ]]; then
-    while IFS= read -r suite; do
-      echo "::error::New connector '${name}' declares support for ${suite} but no verified_scenarios entry covers it. Add one — with has_live_creds: false and a no_creds_reason if it cannot be exercised in CI."
+  live_creds=$(jq -r '.live_creds' "${specs}")
+  no_creds_reason=$(jq -r '.no_creds_reason // empty' "${specs}")
+
+  if [[ "${live_creds}" != "true" ]]; then
+    if [[ -z "${no_creds_reason}" ]]; then
+      echo "::error::New connector '${name}' sets live_creds: false with no no_creds_reason in ${specs}. State why, e.g. \"sandbox access requested, pending <team/ticket>\"."
       failures=$((failures + 1))
-    done <<< "${uncovered}"
+      continue
+    fi
+    echo "::warning::'${name}' is merging WITHOUT live sandbox proof. Reason: ${no_creds_reason}"
+    unproven+=("\`${name}\` — _${no_creds_reason}_")
+    continue
   fi
 
-  for i in $(seq 0 $((entry_count - 1))); do
-    entry=$(jq -c ".verified_scenarios[$i]" "${specs}")
-    suite=$(jq -r '.suite // empty' <<< "${entry}")
-    scenario=$(jq -r '.scenario // empty' <<< "${entry}")
-    has_live_creds=$(jq -r '.has_live_creds // false' <<< "${entry}")
-    no_creds_reason=$(jq -r '.no_creds_reason // empty' <<< "${entry}")
+  if ! jq -e --arg c "${name}" 'has($c)' "${CONNECTOR_AUTH_FILE_PATH}" >/dev/null; then
+    echo "::error::New connector '${name}' sets live_creds: true but has no entry in the CI credentials file — add the credentials, or set live_creds: false with a reason. Without an entry the sweep would skip it, and a connector missing from the report reads as no regression."
+    failures=$((failures + 1))
+    continue
+  fi
 
-    if [[ -z "${suite}" || -z "${scenario}" ]]; then
-      echo "::error::New connector '${name}' verified_scenarios[$i] is missing suite/scenario in ${specs}"
-      failures=$((failures + 1))
+  # Every declared suite runs. The author said the connector supports it; this is
+  # where that claim meets the sandbox.
+  while IFS= read -r suite; do
+    [[ -n "${suite}" ]] || continue
+    suite_file="${SUITES_ROOT}/${suite//\//_}/scenario.json"
+    if [[ ! -f "${suite_file}" ]]; then
+      echo "::warning::'${name}' declares ${suite}, which has no scenario.json — nothing to run."
       continue
     fi
-
-    if [[ "${has_live_creds}" != "true" ]]; then
-      if [[ -z "${no_creds_reason}" ]]; then
-        echo "::error::New connector '${name}' verified_scenarios[$i] (${suite} / ${scenario}) sets has_live_creds: false with no no_creds_reason. State why, e.g. \"sandbox access requested, pending <team/ticket>\"."
+    while IFS= read -r scenario; do
+      [[ -n "${scenario}" ]] || continue
+      if ! verify_scenario "${name}" "${suite}" "${scenario}"; then
+        echo "::error::Verification failed for new connector ${name} (${suite} / ${scenario})"
         failures=$((failures + 1))
-        continue
       fi
-      echo "::warning::'${name}' (${suite} / ${scenario}) is merging WITHOUT live sandbox proof. Reason: ${no_creds_reason}"
-      unproven+=("\`${name}\` — ${suite} / ${scenario} — _${no_creds_reason}_")
-      continue
-    fi
-
-    if ! jq -e --arg c "${name}" 'has($c)' "${CONNECTOR_AUTH_FILE_PATH}" >/dev/null; then
-      echo "::error::New connector '${name}' verified_scenarios[$i] sets has_live_creds: true but has no entry in the CI credentials file — fix the declaration or add the credentials"
-      failures=$((failures + 1))
-      continue
-    fi
-
-    if ! verify_scenario "${name}" "${suite}" "${scenario}"; then
-      echo "::error::Verification failed for new connector ${name} (${suite} / ${scenario})"
-      failures=$((failures + 1))
-    fi
-  done
+    done < <(jq -r 'keys[]' "${suite_file}")
+  done < <(jq -r '(.supported_suites // [])[]' "${specs}")
 done
 
 # Surface unproven declarations where a reviewer sees them without opening the
@@ -144,7 +132,7 @@ if [[ ${#unproven[@]} -gt 0 ]]; then
     echo ""
     for u in "${unproven[@]}"; do echo "- ${u}"; done
     echo ""
-    echo "Each line above is a \`has_live_creds: false\` entry in the connector's \`specs.json\`. Confirm the stated reason is real before approving."
+    echo "Each line above is a \`live_creds: false\` declaration in the connector's \`specs.json\`. Confirm the stated reason is real before approving."
   } >> "${SUMMARY}"
 
   if [[ -n "${UNPROVEN_FILE}" ]]; then
