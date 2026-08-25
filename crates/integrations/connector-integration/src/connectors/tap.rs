@@ -526,18 +526,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let body = parse_tap_webhook_body(&request.body)?;
         let event = match body.classify() {
             tap::TapWebhookKind::Charge => match body.payment_attempt_status() {
-                common_enums::AttemptStatus::Charged => {
-                    EventType::PaymentIntentSuccess
-                }
+                common_enums::AttemptStatus::Charged => EventType::PaymentIntentSuccess,
                 common_enums::AttemptStatus::Authorized => {
                     EventType::PaymentIntentAuthorizationSuccess
                 }
-                common_enums::AttemptStatus::Voided => {
-                    EventType::PaymentIntentCancelled
-                }
-                common_enums::AttemptStatus::Failure => {
-                    EventType::PaymentIntentFailure
-                }
+                common_enums::AttemptStatus::Voided => EventType::PaymentIntentCancelled,
+                common_enums::AttemptStatus::Failure => EventType::PaymentIntentFailure,
                 common_enums::AttemptStatus::AuthenticationPending => {
                     EventType::PaymentActionRequired
                 }
@@ -559,18 +553,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn get_webhook_event_reference(
         &self,
         request: RequestDetails,
-    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<errors::WebhookError>>
-    {
+    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<errors::WebhookError>> {
         let body = parse_tap_webhook_body(&request.body)?;
         let reference = match body.classify() {
-            tap::TapWebhookKind::Charge => WebhookResourceReference::Payment(
-                PaymentWebhookReference {
+            tap::TapWebhookKind::Charge => {
+                WebhookResourceReference::Payment(PaymentWebhookReference {
                     connector_transaction_id: Some(body.id.clone()),
                     merchant_transaction_id: body.merchant_transaction_id(),
-                },
-            ),
-            tap::TapWebhookKind::Refund => WebhookResourceReference::Refund(
-                RefundWebhookReference {
+                })
+            }
+            tap::TapWebhookKind::Refund => {
+                WebhookResourceReference::Refund(RefundWebhookReference {
                     connector_refund_id: Some(body.id.clone()),
                     merchant_refund_id: body.merchant_refund_id(),
                     connector_transaction_id: body
@@ -578,8 +571,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         .as_ref()
                         .and_then(|meta| meta.txn_id.clone()),
                     merchant_transaction_id: body.merchant_transaction_id(),
-                },
-            ),
+                })
+            }
         };
         Ok(Some(reference))
     }
@@ -605,7 +598,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             connector_response_reference_id: Some(body.id.clone()),
             connector_request_reference_id: merchant_reference,
             mandate_reference: None,
-            error_code: is_failure.then(|| body.result_code().map(ToString::to_string)).flatten(),
+            error_code: is_failure
+                .then(|| body.result_code().map(ToString::to_string))
+                .flatten(),
             error_message: is_failure.then(|| body.result_message()).flatten(),
             error_reason: is_failure.then(|| body.result_message()).flatten(),
             raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
@@ -638,7 +633,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             merchant_transaction_id: body.merchant_refund_id(),
             status,
             connector_response_reference_id: Some(body.id.clone()),
-            error_code: is_failure.then(|| body.result_code().map(ToString::to_string)).flatten(),
+            error_code: is_failure
+                .then(|| body.result_code().map(ToString::to_string))
+                .flatten(),
             error_message: is_failure.then(|| body.result_message()).flatten(),
             raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
             status_code: 200,

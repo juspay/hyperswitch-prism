@@ -761,10 +761,10 @@ examples_python: none
 ## Tap
 connector_id: tap
 doc: docs/connectors/tap.md
-scenarios: none
-payment_methods: none
-flows: capture, get, refund, refund_get, void
-examples_python: none
+scenarios: checkout_autocapture, refund, void_payment, get_payment
+payment_methods: ApplePay, GooglePay, PaypalSdk
+flows: authorize, capture, get, handle_event, parse_event, refund, refund_get, void
+examples_python: examples/tap/tap.py
 
 ## Tesouro
 connector_id: tesouro

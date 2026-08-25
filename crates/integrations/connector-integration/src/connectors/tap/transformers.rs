@@ -1462,10 +1462,13 @@ impl TapWebhookBody {
             id: self.id.clone(),
             charge_id: self.metadata.as_ref().and_then(|meta| meta.txn_id.clone()),
             status: self.status.clone(),
-            response: self.response.as_ref().map(|detail| TapRefundResponseDetail {
-                code: detail.code.clone(),
-                message: detail.message.clone(),
-            }),
+            response: self
+                .response
+                .as_ref()
+                .map(|detail| TapRefundResponseDetail {
+                    code: detail.code.clone(),
+                    message: detail.message.clone(),
+                }),
         }
     }
 
@@ -1477,15 +1480,15 @@ impl TapWebhookBody {
                 .reference
                 .as_ref()
                 .and_then(|reference| reference.transaction.clone()),
-            TapWebhookKind::Refund => {
-                self.metadata.as_ref().and_then(|meta| meta.txn_id.clone())
-            }
+            TapWebhookKind::Refund => self.metadata.as_ref().and_then(|meta| meta.txn_id.clone()),
         }
     }
 
     /// The merchant refund reference echoed by a refund webhook (`metadata.refund_id`).
     pub fn merchant_refund_id(&self) -> Option<String> {
-        self.metadata.as_ref().and_then(|meta| meta.refund_id.clone())
+        self.metadata
+            .as_ref()
+            .and_then(|meta| meta.refund_id.clone())
     }
 
     /// Map a charge webhook to a payment [`AttemptStatus`] using the shared charge status map.

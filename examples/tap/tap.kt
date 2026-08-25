@@ -10,8 +10,12 @@ package examples.tap
 import types.Payment.*
 import types.PaymentMethods.*
 import payments.PaymentClient
+import payments.EventClient
 import payments.RefundClient
+import payments.AuthenticationType
+import payments.CaptureMethod
 import payments.Currency
+import payments.HttpMethod
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
@@ -19,7 +23,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.TapConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("capture", "get", "refund", "refund_get", "void")
+val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "get", "parse_event", "refund", "refund_get", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -36,6 +40,39 @@ val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .build()
 
 
+
+private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAuthorizeRequest {
+    return PaymentServiceAuthorizeRequest.newBuilder().apply {
+        merchantTransactionId = "probe_txn_001"  // Identification.
+        amountBuilder.apply {  // The amount for the payment.
+            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+        paymentMethodBuilder.apply {  // Payment method to be used.
+            googlePaySdkBuilder.apply {  // Google Pay.
+                type = "CARD"  // Type of payment method.
+                description = "Visa 1111"  // User-facing description of the payment method.
+                infoBuilder.apply {
+                    cardNetwork = "VISA"  // Card network name.
+                    cardDetails = "1111"  // Card details (usually last 4 digits).
+                }
+                tokenizationDataBuilder.apply {
+                    encryptedDataBuilder.apply {  // Encrypted Google Pay payment data.
+                        tokenType = "PAYMENT_GATEWAY"  // The type of the token.
+                        token = "{\"id\":\"tok_probe_gpay\",\"object\":\"token\",\"type\":\"card\"}"  // Token generated for the wallet.
+                    }
+                }
+            }
+        }
+        captureMethod = CaptureMethod.valueOf(captureMethodStr)  // Method for capturing the payment.
+        addressBuilder.apply {  // Address Information.
+            billingAddressBuilder.apply {
+            }
+        }
+        authType = AuthenticationType.NO_THREE_DS  // Authentication Details.
+        returnUrl = "https://example.com/return"  // URLs for Redirection and Webhooks.
+    }.build()
+}
 
 private fun buildCaptureRequest(connectorTransactionIdStr: String): PaymentServiceCaptureRequest {
     return PaymentServiceCaptureRequest.newBuilder().apply {
@@ -79,6 +116,94 @@ private fun buildVoidRequest(connectorTransactionIdStr: String): PaymentServiceV
     }.build()
 }
 
+// Scenario: One-step Payment (Authorize + Capture)
+// Simple payment that authorizes and captures in one call. Use for immediate charges.
+fun processCheckoutAutocapture(txnId: String, config: ConnectorConfig = _defaultConfig): Map<String, Any?> {
+    val paymentClient = PaymentClient(config)
+
+    // Step 1: Authorize — reserve funds on the payment method
+    val authorizeResponse = paymentClient.authorize(buildAuthorizeRequest("AUTOMATIC"))
+
+    when (authorizeResponse.status.name) {
+        "FAILED"  -> throw RuntimeException("Payment failed: ${authorizeResponse.error.unifiedDetails.message}")
+        "PENDING" -> return mapOf("status" to "PENDING")  // await webhook before proceeding
+    }
+
+    return mapOf("status" to authorizeResponse.status.name, "transactionId" to authorizeResponse.connectorTransactionId, "error" to authorizeResponse.error)
+}
+
+// Scenario: Refund
+// Return funds to the customer for a completed payment.
+fun processRefund(txnId: String, config: ConnectorConfig = _defaultConfig): Map<String, Any?> {
+    val paymentClient = PaymentClient(config)
+
+    // Step 1: Authorize — reserve funds on the payment method
+    val authorizeResponse = paymentClient.authorize(buildAuthorizeRequest("AUTOMATIC"))
+
+    when (authorizeResponse.status.name) {
+        "FAILED"  -> throw RuntimeException("Payment failed: ${authorizeResponse.error.unifiedDetails.message}")
+        "PENDING" -> return mapOf("status" to "PENDING")  // await webhook before proceeding
+    }
+
+    // Step 2: Refund — return funds to the customer
+    val refundResponse = paymentClient.refund(buildRefundRequest(authorizeResponse.connectorTransactionId ?: ""))
+
+    if (refundResponse.status.name == "FAILED")
+        throw RuntimeException("Refund failed: ${refundResponse.error.unifiedDetails.message}")
+
+    return mapOf("status" to refundResponse.status.name, "error" to refundResponse.error)
+}
+
+// Scenario: Void Payment
+// Cancel an authorized but not-yet-captured payment.
+fun processVoidPayment(txnId: String, config: ConnectorConfig = _defaultConfig): Map<String, Any?> {
+    val paymentClient = PaymentClient(config)
+
+    // Step 1: Authorize — reserve funds on the payment method
+    val authorizeResponse = paymentClient.authorize(buildAuthorizeRequest("MANUAL"))
+
+    when (authorizeResponse.status.name) {
+        "FAILED"  -> throw RuntimeException("Payment failed: ${authorizeResponse.error.unifiedDetails.message}")
+        "PENDING" -> return mapOf("status" to "PENDING")  // await webhook before proceeding
+    }
+
+    // Step 2: Void — release reserved funds (cancel authorization)
+    val voidResponse = paymentClient.void(buildVoidRequest(authorizeResponse.connectorTransactionId ?: ""))
+
+    return mapOf("status" to voidResponse.status.name, "transactionId" to authorizeResponse.connectorTransactionId, "error" to voidResponse.error)
+}
+
+// Scenario: Get Payment Status
+// Retrieve current payment status from the connector.
+fun processGetPayment(txnId: String, config: ConnectorConfig = _defaultConfig): Map<String, Any?> {
+    val paymentClient = PaymentClient(config)
+
+    // Step 1: Authorize — reserve funds on the payment method
+    val authorizeResponse = paymentClient.authorize(buildAuthorizeRequest("MANUAL"))
+
+    when (authorizeResponse.status.name) {
+        "FAILED"  -> throw RuntimeException("Payment failed: ${authorizeResponse.error.unifiedDetails.message}")
+        "PENDING" -> return mapOf("status" to "PENDING")  // await webhook before proceeding
+    }
+
+    // Step 2: Get — retrieve current payment status from the connector
+    val getResponse = paymentClient.get(buildGetRequest(authorizeResponse.connectorTransactionId ?: ""))
+
+    return mapOf("status" to getResponse.status.name, "transactionId" to getResponse.connectorTransactionId, "error" to getResponse.error)
+}
+
+// Flow: PaymentService.Authorize (GooglePay)
+fun authorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
+    val request = buildAuthorizeRequest("AUTOMATIC")
+    val response = client.authorize(request)
+    when (response.status.name) {
+        "FAILED"  -> throw RuntimeException("Authorize failed: ${response.error.unifiedDetails.message}")
+        "PENDING" -> println("Pending — await webhook before proceeding")
+        else      -> println("Authorized: ${response.connectorTransactionId}")
+    }
+}
+
 // Flow: PaymentService.Capture
 fun capture(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
@@ -95,6 +220,37 @@ fun get(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val request = buildGetRequest("probe_connector_txn_001")
     val response = client.get(request)
     println("Status: ${response.status.name}")
+}
+
+// Flow: EventService.HandleEvent
+fun handleEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = EventClient(config)
+    val request = EventServiceHandleRequest.newBuilder().apply {
+        merchantEventId = "probe_event_001"  // Caller-supplied correlation key, echoed in the response. Not used by UCS for processing.
+        requestDetailsBuilder.apply {
+            method = HttpMethod.HTTP_METHOD_POST  // HTTP method of the request (e.g., GET, POST).
+            uri = "https://example.com/webhook"  // URI of the request.
+            putAllHeaders(mapOf())  // Headers of the HTTP request.
+            body = com.google.protobuf.ByteString.copyFromUtf8("{\"id\":\"chg_probe_001\",\"object\":\"charge\",\"status\":\"CAPTURED\",\"reference\":{\"transaction\":\"probe_txn_001\"},\"response\":{\"code\":\"000\",\"message\":\"Captured\"}}")  // Body of the HTTP request.
+        }
+    }.build()
+    val response = client.handle_event(request)
+    println("Webhook: type=${response.eventType.name} verified=${response.sourceVerified}")
+}
+
+// Flow: EventService.ParseEvent
+fun parseEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = EventClient(config)
+    val request = EventServiceParseRequest.newBuilder().apply {
+        requestDetailsBuilder.apply {
+            method = HttpMethod.HTTP_METHOD_POST  // HTTP method of the request (e.g., GET, POST).
+            uri = "https://example.com/webhook"  // URI of the request.
+            putAllHeaders(mapOf())  // Headers of the HTTP request.
+            body = com.google.protobuf.ByteString.copyFromUtf8("{\"id\":\"chg_probe_001\",\"object\":\"charge\",\"status\":\"CAPTURED\",\"reference\":{\"transaction\":\"probe_txn_001\"},\"response\":{\"code\":\"000\",\"message\":\"Captured\"}}")  // Body of the HTTP request.
+        }
+    }.build()
+    val response = client.parse_event(request)
+    println("Webhook parsed: type=${response.eventType.name}")
 }
 
 // Flow: PaymentService.Refund
@@ -132,13 +288,20 @@ fun void(txnId: String, config: ConnectorConfig = _defaultConfig) {
 
 fun main(args: Array<String>) {
     val txnId = "order_001"
-    val flow = args.firstOrNull() ?: "capture"
+    val flow = args.firstOrNull() ?: "processCheckoutAutocapture"
     when (flow) {
+        "processCheckoutAutocapture" -> processCheckoutAutocapture(txnId)
+        "processRefund" -> processRefund(txnId)
+        "processVoidPayment" -> processVoidPayment(txnId)
+        "processGetPayment" -> processGetPayment(txnId)
+        "authorize" -> authorize(txnId)
         "capture" -> capture(txnId)
         "get" -> get(txnId)
+        "handleEvent" -> handleEvent(txnId)
+        "parseEvent" -> parseEvent(txnId)
         "refund" -> refund(txnId)
         "refundGet" -> refundGet(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: capture, get, refund, refundGet, void")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processRefund, processVoidPayment, processGetPayment, authorize, capture, get, handleEvent, parseEvent, refund, refundGet, void")
     }
 }
