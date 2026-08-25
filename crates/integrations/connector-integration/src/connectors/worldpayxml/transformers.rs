@@ -169,14 +169,36 @@ fn get_worldpayxml_wallet_payment_method(
                         .get_encrypted_apple_pay_payment_data_mandatory()
                         .change_context(IntegrationError::MissingRequiredField {
                             field_name: "apple_pay_encrypted_data",
-                            context: Default::default(),
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "The Apple Pay payload carried neither decrypted token data \
+                                     nor an encrypted payment token."
+                                        .to_string(),
+                                ),
+                                suggested_action: Some(
+                                    "Send the PKPaymentToken's paymentData, or decrypt the token \
+                                     before forwarding it."
+                                        .to_string(),
+                                ),
+                                ..Default::default()
+                            },
                         })?;
 
                     let decoded_data = BASE64_STANDARD_ENGINE
                         .decode(encrypted_data)
                         .change_context(IntegrationError::InvalidDataFormat {
                             field_name: "apple_pay_encrypted_data",
-                            context: Default::default(),
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "The Apple Pay payment token is not valid base64.".to_string(),
+                                ),
+                                suggested_action: Some(
+                                    "Forward the wallet payload exactly as the Apple Pay SDK \
+                                     produced it."
+                                        .to_string(),
+                                ),
+                                ..Default::default()
+                            },
                         })?;
 
                     let apple_pay_token: requests::WorldpayxmlApplePayData =
@@ -349,7 +371,8 @@ fn get_worldpayxml_authenticated_shopper_id(
             field_name: "connector_customer_id",
             context: IntegrationErrorContext {
                 additional_context: Some(
-                    "Worldpay ties shopper-scoped tokens to authenticatedShopperID, so a                      customer-initiated mandate cannot be registered without it."
+                    "Worldpay ties shopper-scoped tokens to authenticatedShopperID, so a \
+                     customer-initiated mandate cannot be registered without it."
                         .to_string(),
                 ),
                 suggested_action: Some(
@@ -406,8 +429,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let auth = WorldpayxmlAuthType::try_from(&router_data.connector_config)?;
 
         // Determine if manual capture
-        let is_manual_capture = router_data.request.capture_method == Some(CaptureMethod::Manual)
-            || router_data.request.capture_method == Some(CaptureMethod::ManualMultiple);
+        let is_manual_capture = !router_data.request.is_auto_capture();
 
         // Extract billing address first (needed for payment method)
         let billing_address = get_worldpayxml_billing_address(&router_data.resource_common_data);
@@ -593,10 +615,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let auth = WorldpayxmlAuthType::try_from(&router_data.connector_config)?;
 
-        let is_manual_capture = matches!(
-            router_data.request.capture_method,
-            Some(CaptureMethod::Manual) | Some(CaptureMethod::ManualMultiple)
-        );
+        let is_manual_capture = !router_data.request.is_auto_capture();
 
         let billing_address = get_worldpayxml_billing_address(&router_data.resource_common_data);
 
