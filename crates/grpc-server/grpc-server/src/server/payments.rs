@@ -2905,39 +2905,37 @@ impl MerchantAuthentication {
         ServerAuthenticationTokenRequestData:
             for<'a> ForeignTryFrom<&'a ConnectorSpecificConfig, Error = IntegrationError>,
     {
-        // Resolve connector integration for ServerAuthenticationToken flow
+        // Resolve connector integration for ServerAuthenticationToken flow. Tries
+        // each family in order via the shared `resolve_connector_integration!`
+        // primitive — no hand-written match on `ConnectorVariant` needed; growing
+        // support to another family is just adding it to this list.
         let connector_integration: BoxedConnectorIntegrationV2<
             '_,
             ServerAuthenticationToken,
             MerchantAuthenticationFlowData,
             ServerAuthenticationTokenRequestData,
             ServerAuthenticationTokenResponseData,
-        > = match connector_variant {
-            ConnectorVariant::Payment(conn) => {
-                ConnectorData::<DefaultPCIHolder>::get_connector_by_name(conn)
-                    .connector
-                    .get_connector_integration_v2()
-            }
-            ConnectorVariant::Frm(conn) => FrmConnectorData::get_connector_by_name(conn)
-                .connector
-                .get_connector_integration_v2(),
-            ConnectorVariant::Payout(conn) => PayoutConnectorData::get_connector_by_name(conn)
-                .connector
-                .get_connector_integration_v2(),
-            ConnectorVariant::Surcharge(_) | ConnectorVariant::Authenticator(_) => {
-                return Err(error_stack::Report::new(ucs_env::error::GrpcError::from(
-                    IntegrationError::NotSupported {
-                        message: "Surcharge/Authenticator connectors do not support server authentication tokens"
-                            .to_string(),
-                        connector: "N/A",
-                        context: domain_types::errors::IntegrationErrorContext {
-                            suggested_action: Some("Check connector rollout/configuration and call only flows implemented for this connector".to_string()),
-                            ..Default::default()
-                        },
+        > = resolve_connector_integration!(
+            connector_variant,
+            [
+                ConnectorData::<DefaultPCIHolder>,
+                FrmConnectorData,
+                PayoutConnectorData
+            ]
+        )
+        .ok_or_else(|| {
+            error_stack::Report::new(ucs_env::error::GrpcError::from(
+                IntegrationError::NotSupported {
+                    message: "Surcharge/Authenticator connectors do not support server authentication tokens"
+                        .to_string(),
+                    connector: "N/A",
+                    context: domain_types::errors::IntegrationErrorContext {
+                        suggested_action: Some("Check connector rollout/configuration and call only flows implemented for this connector".to_string()),
+                        ..Default::default()
                     },
-                )));
-            }
-        };
+                },
+            ))
+        })?;
 
         // Create access token request data - grant type determined by connector
         let access_token_request_data = ServerAuthenticationTokenRequestData::foreign_try_from(
