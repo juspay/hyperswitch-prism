@@ -10620,19 +10620,17 @@ impl ForeignTryFrom<grpc_api_types::payments::SplitSettlementVendor>
             Some(grpc_api_types::payments::split_settlement_vendor::SplitValue::Percentage(
                 percentage,
             )) => connector_types::SplitValue::Percentage(percentage),
-            None => {
-                return Err(IntegrationError::MissingRequiredField {
-                    field_name: "vendor_split_value",
-                    context: IntegrationErrorContext {
-                        additional_context: Some(
-                            "vendor split value must be provided as either an amount or a percentage"
-                                .to_string(),
-                        ),
-                        ..Default::default()
-                    },
-                }
-                .into())
+            None => return Err(IntegrationError::MissingRequiredField {
+                field_name: "vendor_split_value",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "vendor split value must be provided as either an amount or a percentage"
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
             }
+            .into()),
         };
         Ok(Self {
             split_value,
