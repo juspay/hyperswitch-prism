@@ -187,10 +187,6 @@ impl From<common_enums::AuthenticationType> for Auth3ds {
     }
 }
 
-/// Mirrors OSS `stripe.rs` tokenize `get_url`: a split-payment card is tokenized on
-/// `/v1/payment_methods`, minting a reusable `pm_…`; everything else on `/v1/tokens`,
-/// minting a single-use `tok_…`. Also decides the `token_kind` the response reports,
-/// so the endpoint and the kind cannot disagree.
 pub fn tokenize_mints_payment_method<T>(request: &PaymentMethodTokenizationData<T>) -> bool
 where
     T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
@@ -634,7 +630,6 @@ pub enum StripePaymentMethodData<
     T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
 > {
     CardToken(StripeCardToken<T>),
-    /// A `tok_…` minted on `/v1/tokens`, replayed on `/v1/payment_intents`.
     CardTokenPayment(StripeCardTokenPayment),
     Card(StripeCardData<T>),
     CardNetworkTransactionId(StripeCardNetworkTransactionIdData),
@@ -682,8 +677,6 @@ pub struct StripeCardToken<T: PaymentMethodDataTypes + Debug + Sync + Send + 'st
     pub billing: StripeBillingAddressCardToken,
 }
 
-/// Spends a Token on a PaymentIntent. `payment_method=tok_…` is rejected, so the id rides on
-/// `payment_method_data[card][token]`.
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeCardTokenPayment {
     #[serde(rename = "payment_method_data[type]")]
@@ -786,7 +779,6 @@ pub struct StripeGooglePayPredecrypt {
     exp_month: Secret<String>,
     #[serde(rename = "card[cryptogram]")]
     cryptogram: Secret<String>,
-    /// Optional: Google Pay may omit it. The cryptogram, not the ECI, makes this a network token.
     #[serde(rename = "card[eci]")]
     eci: Option<String>,
     #[serde(rename = "card[tokenization_method]")]
@@ -1952,7 +1944,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         (gpay_data, auth_type): (&GooglePayWalletData, common_enums::AuthenticationType),
     ) -> Result<Self, Self::Error> {
         match &gpay_data.tokenization_data {
-            // Already decrypted: send the network token (PAN + cryptogram), not the wallet token.
             payment_method_data::GpayTokenizationData::Decrypted(google_pay_decrypted_data) => {
                 let exp_year = google_pay_decrypted_data
                     .get_four_digit_expiry_year()
@@ -1961,7 +1952,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         context: Default::default(),
                     })?;
 
-                // The cryptogram alone decides the shape; the ECI is carried when present.
                 match google_pay_decrypted_data.cryptogram.clone() {
                     Some(cryptogram) => Ok(Self::Wallet(StripeWallet::GooglePayPredecryptToken(
                         Box::new(StripeGooglePayPredecrypt {
@@ -1975,8 +1965,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             tokenization_method: "android_pay".to_string(),
                         }),
                     ))),
-                    // PAN_ONLY carries no cryptogram, so the decrypted PAN goes over as a plain
-                    // card.
                     None => Ok(Self::CardNetworkTransactionId(
                         StripeCardNetworkTransactionIdData {
                             payment_method_data_type: StripePaymentMethodType::Card,
@@ -2064,8 +2052,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             _ => None,
         };
 
-        // A Token from `/v1/tokens` goes on `payment_method_data[card][token]`, a PaymentMethod
-        // from `/v1/payment_methods` on `payment_method`.
         let (card_token, payment_method_id) = match payment_method_token.as_ref() {
             Some(pm_token) if pm_token.kind == Some(common_enums::TokenKind::SingleUse) => {
                 (Some(pm_token.token.clone()), None)
@@ -2325,7 +2311,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             charges
         };
 
-        // A `tok_…` already rides on `payment_data`, so only a `pm_…` goes on `payment_method`.
         let pm = match (payment_method, payment_method_id) {
             (Some(method), _) => Some(Secret::new(method)),
             (None, Some(token)) => Some(token),

@@ -276,8 +276,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn should_create_connector_customer(&self) -> bool {
         true
     }
-    /// Only a cryptogram-bearing wallet credential needs `/v1/tokens`. An encrypted Google Pay
-    /// payload and a decrypted `PAN_ONLY` one both go inline on `/v1/payment_intents`.
     fn should_do_payment_method_token(
         &self,
         payment_method: common_enums::PaymentMethod,
@@ -691,7 +689,6 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
         ) -> CustomResult<String, IntegrationError> {
-            // Split-payment cards mint a reusable PaymentMethod; everything else a Token.
             let endpoint = if transformers::tokenize_mints_payment_method(&req.request) {
                 "v1/payment_methods"
             } else {
