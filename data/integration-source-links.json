@@ -103,5 +103,12 @@
     "https://docs.tamara.co/docs/postman-collection",
     "https://docs.tamara.co/docs/testing-checklist",
     "https://docs.tamara.co/docs/online-go-live-testing-checklist"
+  ],
+  "TravelHub": [
+    "https://docs.travel.worldline-solutions.com/travelHub/API-reference/index.html",
+    "https://docs.travel.worldline-solutions.com/travelHub/API-reference/tpaOpenApi_49.json",
+    "https://docs.travel.worldline-solutions.com/TravelHub/api-overview",
+    "https://docs.travel.worldline-solutions.com/TravelHub/get-the-basics",
+    "https://docs.travel.worldline-solutions.com/TravelHub/Integration-options"
   ]
 }

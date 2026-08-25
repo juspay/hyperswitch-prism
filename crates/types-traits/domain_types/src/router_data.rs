@@ -939,6 +939,12 @@ pub enum ConnectorSpecificConfig {
         api_secret: Secret<String>,
         base_url: Option<String>,
     },
+    Travelhub {
+        username: Secret<String>,
+        password: Secret<String>,
+        merchant_id: Secret<String>,
+        base_url: Option<String>,
+    },
 }
 
 impl ConnectorSpecificConfig {
@@ -1273,6 +1279,11 @@ impl ConnectorSpecificConfig {
                 api_key,
                 key1,
                 api_secret
+            },
+            Travelhub {
+                username,
+                password,
+                merchant_id,
             },
             Imerchantsolutions { api_key },
             Interpayments { api_key },
@@ -1726,6 +1737,11 @@ impl ConnectorSpecificConfig {
                     api_key,
                     key1,
                     api_secret
+                },
+                Travelhub {
+                    username,
+                    password,
+                    merchant_id,
                 },
                 Imerchantsolutions { api_key },
                 Interpayments { api_key },
@@ -2324,6 +2340,12 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 key1: tesouro.key1.ok_or_else(err)?,
                 api_secret: tesouro.api_secret.ok_or_else(err)?,
                 base_url: tesouro.base_url,
+            }),
+            AuthType::Travelhub(travelhub) => Ok(Self::Travelhub {
+                username: travelhub.username.ok_or_else(err)?,
+                password: travelhub.password.ok_or_else(err)?,
+                merchant_id: travelhub.merchant_id.ok_or_else(err)?,
+                base_url: travelhub.base_url,
             }),
             AuthType::Imerchantsolutions(imerchantsolutions) => Ok(Self::Imerchantsolutions {
                 api_key: imerchantsolutions.api_key.ok_or_else(err)?,
@@ -3503,6 +3525,19 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         api_key: api_key.clone(),
                         key1: key1.clone(),
                         api_secret: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Travelhub => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Travelhub {
+                        username: api_key.clone(),
+                        password: key1.clone(),
+                        merchant_id: api_secret.clone(),
                         base_url: None,
                     }),
                     _ => Err(err().into()),
