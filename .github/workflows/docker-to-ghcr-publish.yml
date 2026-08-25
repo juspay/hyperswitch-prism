@@ -159,21 +159,6 @@ jobs:
             "ghcr.io/${REPO}:${VERSION}-linux-arm64"
           echo "Successfully created manifest: ghcr.io/${REPO}:${VERSION}"
 
-      # `latest` follows nightly CalVer tags only. Hotfix tags are cut from
-      # older release branches and branch dispatches build unreleased code, so
-      # neither may move it backwards.
-      - name: Tag latest
-        if: ${{ github.ref_type == 'tag' }}
-        env:
-          REF_NAME: ${{ github.ref_name }}
-        run: |
-          if [[ "${REF_NAME}" =~ ^20[0-9]{2}\.[0-9]{2}\.[0-9]{2}\.[0-9]+$ ]]; then
-            docker buildx imagetools create --tag "ghcr.io/${REPO}:latest" "ghcr.io/${REPO}:${VERSION}"
-            echo "Moved latest to ghcr.io/${REPO}:${VERSION}"
-          else
-            echo "Tag '${REF_NAME}' is not a nightly tag - leaving latest unchanged."
-          fi
-
       - name: Get manifest digest
         id: digest
         run: |
@@ -188,3 +173,18 @@ jobs:
           subject-name: ghcr.io/${{ github.repository }}
           subject-digest: ${{ steps.digest.outputs.digest }}
           push-to-registry: true
+
+      # `latest` follows nightly CalVer tags only. Hotfix tags are cut from
+      # older release branches and branch dispatches build unreleased code, so
+      # neither may move it backwards.
+      - name: Tag latest
+        if: ${{ github.ref_type == 'tag' }}
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [[ "${REF_NAME}" =~ ^20[0-9]{2}\.[0-9]{2}\.[0-9]{2}\.[0-9]+$ ]]; then
+            docker buildx imagetools create --tag "ghcr.io/${REPO}:latest" "ghcr.io/${REPO}:${VERSION}"
+            echo "Moved latest to ghcr.io/${REPO}:${VERSION}"
+          else
+            echo "Tag '${REF_NAME}' is not a nightly tag - leaving latest unchanged."
+          fi
