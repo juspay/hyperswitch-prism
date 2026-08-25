@@ -1323,18 +1323,8 @@ pub fn apply_context_map(
     collected_context: &[(ContextMap, Value, Value)],
     current_grpc_req: &mut Value,
 ) {
-    // Read the guard against the request as the scenario wrote it: injecting one
-    // target must not make a sibling target look like a variant the author chose.
-    let scenario_req = current_grpc_req.clone();
-
     for (context_map, dep_req, dep_res) in collected_context {
         for (target_path, source_ref) in context_map {
-            // The scenario chose a different variant of this `oneof`. Writing
-            // here would leave both set, which no `oneof` can represent.
-            if target_conflicts_with_chosen_oneof_variant(&scenario_req, target_path) {
-                continue;
-            }
-
             let (source_json, source_path) = if let Some(path) = source_ref.strip_prefix("req.") {
                 (dep_req, path)
             } else if let Some(path) = source_ref.strip_prefix("res.") {
@@ -1375,37 +1365,6 @@ pub fn apply_context_map(
             }
         }
     }
-}
-
-/// True when the scenario populated a different member of the `oneof` that
-/// `target_path` points into — `payment_method` holding `card` when the target
-/// is `payment_method.token...`.
-///
-/// Only a divergence below the root counts: every message has sibling fields, so
-/// an absent top-level field says nothing about a `oneof`.
-fn target_conflicts_with_chosen_oneof_variant(scenario_req: &Value, target_path: &str) -> bool {
-    let segments: Vec<&str> = target_path.split('.').collect();
-    let mut current = scenario_req;
-
-    for (i, segment) in segments.iter().enumerate() {
-        let Some(next) = lookup_json_path_with_case_fallback(current, segment) else {
-            if i == 0 {
-                // The root is a message, not a `oneof`.
-                return false;
-            }
-            let Some(current_obj) = current.as_object() else {
-                return false;
-            };
-            return current_obj
-                .iter()
-                .any(|(key, value)| key != *segment && !value.is_null());
-        };
-        if i == segments.len() - 1 {
-            return false;
-        }
-        current = next;
-    }
-    false
 }
 
 /// Like `set_json_path_value` but creates intermediate objects if they don't exist.
@@ -6016,62 +5975,6 @@ grpc-status: 0
         apply_context_map(&collected, &mut req);
 
         assert_eq!(req["state"]["access_token"]["token_type"], json!("Bearer"));
-    }
-
-    #[test]
-    fn apply_context_map_leaves_a_chosen_oneof_variant_alone() {
-        // The scenario sends a raw card; a dependency offers a token for the
-        // sibling variant of the same proto `oneof`. Writing it would leave both
-        // set, which no `oneof` can represent, so the scenario's choice stands.
-        let mut grpc_req = json!({
-            "payment_method": { "card": { "card_number": "4242424242424242" } }
-        });
-        let context_map: ContextMap = [(
-            "payment_method.token.token.value".to_string(),
-            "res.payment_method_token".to_string(),
-        )]
-        .into_iter()
-        .collect();
-        let collected = vec![(
-            context_map,
-            json!({}),
-            json!({ "payment_method_token": "tok_live_123" }),
-        )];
-
-        apply_context_map(&collected, &mut grpc_req);
-
-        assert_eq!(
-            grpc_req,
-            json!({
-                "payment_method": { "card": { "card_number": "4242424242424242" } }
-            }),
-            "a dependency must not populate a second variant of a chosen oneof"
-        );
-    }
-
-    #[test]
-    fn apply_context_map_still_fills_a_target_the_scenario_left_open() {
-        // The counterpart: nothing else under `payment_method` is set, so the
-        // dependency is the only source for it and must be applied.
-        let mut grpc_req = json!({ "amount": 1000 });
-        let context_map: ContextMap = [(
-            "payment_method.token.token.value".to_string(),
-            "res.payment_method_token".to_string(),
-        )]
-        .into_iter()
-        .collect();
-        let collected = vec![(
-            context_map,
-            json!({}),
-            json!({ "payment_method_token": "tok_live_123" }),
-        )];
-
-        apply_context_map(&collected, &mut grpc_req);
-
-        assert_eq!(
-            grpc_req["payment_method"]["token"]["token"]["value"],
-            json!("tok_live_123")
-        );
     }
 
     #[test]
