@@ -141,15 +141,6 @@ jobs:
       # scenario against an already-built binary, and it is safe for unrelated
       # PRs because certify-connectors.sh only fails the build for a scenario it
       # can show passes at the merge base.
-      - name: Select certification targets
-        id: certified-connectors
-        shell: bash
-        env:
-          RUST_CORE_CHANGED: ${{ steps.filter.outputs.rust-core }}
-          PROTO_CHANGED: ${{ steps.filter.outputs.proto }}
-          CHANGED_CONNECTORS: ${{ steps.connector-names.outputs.list }}
-        run: .github/scripts/select-certification-targets.sh
-
       - name: Detect newly added connectors
         id: new-connectors
         if: steps.connector-names.outputs.list != ''
@@ -170,6 +161,21 @@ jobs:
           done
           echo "list=$new_list" >> $GITHUB_OUTPUT
           echo "Newly added connectors: $new_list"
+
+      - name: Select certification targets
+        id: certified-connectors
+        shell: bash
+        env:
+          RUST_CORE_CHANGED: ${{ steps.filter.outputs.rust-core }}
+          PROTO_CHANGED: ${{ steps.filter.outputs.proto }}
+          CHANGED_CONNECTORS: ${{ steps.connector-names.outputs.list }}
+          # A connector added by this PR is certified by the new-connector gate,
+          # which runs the same scenarios. It is excluded here so they are not
+          # run twice, and because arbitration cannot judge it: it does not exist
+          # at the merge base, so the base run would fail for that reason alone.
+          NEW_CONNECTORS: ${{ steps.new-connectors.outputs.list }}
+        run: .github/scripts/select-certification-targets.sh
+
 
   # ── Fast Checks ───────────────────────────────────────────────────────────
 

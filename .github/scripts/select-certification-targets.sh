@@ -17,6 +17,8 @@
 #   RUST_CORE_CHANGED    "true" when core/harness sources changed
 #   PROTO_CHANGED        "true" when proto definitions changed
 #   CHANGED_CONNECTORS   comma-separated connector names touched by this PR
+#   NEW_CONNECTORS       comma-separated names added by this PR — excluded here,
+#                        see the skip below
 #   SPECS_ROOT           override for the connector_specs directory (tests)
 #   SUITES_ROOT          override for the global_suites directory (tests)
 #   LIVE_CONNECTORS      override for live-connectors.json (tests)
@@ -61,6 +63,16 @@ else
     [[ -n "${name}" ]] || continue
     specs="${SPECS_ROOT}/${name}/specs.json"
     [[ -f "${specs}" ]] || continue
+
+    # A connector this PR adds is handled by verify-new-connectors.sh, which runs
+    # the same scenarios. Selecting it here would run every one of them twice
+    # against the sandbox, and the arbitration that follows could not judge it
+    # anyway: it does not exist at the merge base, so the base run fails for that
+    # reason alone and every verdict would come back "not attributable".
+    if [[ ",${NEW_CONNECTORS:-}," == *",${name},"* ]]; then
+      echo "  ${name}: added by this PR — certified by the new-connector gate" >&2
+      continue
+    fi
 
     # A connector states in its own specs.json whether it has credentials in CI.
     # Absent or false means it is not certified here; verify-new-connectors.sh is
