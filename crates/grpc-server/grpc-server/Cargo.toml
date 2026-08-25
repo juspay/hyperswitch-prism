@@ -85,7 +85,10 @@ prost-reflect = { version = "0.16.5", features = ["serde"], optional = true }
 http-body = { version = "1.0.1", optional = true }
 http-body-util = { version = "0.1.3", optional = true }
 bytes = { workspace = true, optional = true }
-rdkafka = { version = "0.36", optional = true }
+# `zstd` compiles librdkafka with libzstd: the deployed sink config sets
+# compression.type=zstd, and without the feature the producer fails at boot
+# ("libzstd not available at build time") and the deja hook disables itself.
+rdkafka = { version = "0.36", optional = true, features = ["zstd"] }
 
 [build-dependencies]
 build_info = { git = "https://github.com/juspay/framework-libs-rs", rev = "3cdcc24b461917b29641942b04f3aef8110b1adf", package = "build_info", features = [
