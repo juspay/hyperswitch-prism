@@ -2602,9 +2602,12 @@ message PaymentServiceAuthorizeRequest {
   // connectors that need it. Connectors map from this into their own payloads.
   optional DomainData domain_data = 46;
 
-  // Split payment configuration (platform fees, transfers, etc.)
+  // Deprecated: use split_settlement instead. Legacy split payment configuration
+  // (platform fees, transfers, etc.), read only by connectors still on the old
+  // split_payments contract (e.g. Stripe, Adyen).
   optional SplitPaymentsDetails split_payments = 47;
-  // Split settlement across a marketplace + N vendors (supersedes split_payments).
+  // Unified, connector-agnostic split settlement: a marketplace/platform cut plus
+  // N per-vendor splits. Supersedes split_payments; new connectors read this field.
   optional SplitSettlement split_settlement = 52;
 
   // MIT Category — for CIT (this request) it signals the future intended MIT
@@ -2748,7 +2751,9 @@ message PaymentServiceGetRequest {
   // sync (e.g. Adyen, to build connector_response) can populate it.
   optional PaymentMethodType payment_method_type = 16;
 
-  // Split payment configuration (platform fees, transfers, etc.)
+  // Deprecated: use split_settlement instead. Legacy split payment configuration
+  // (platform fees, transfers, etc.), read only by connectors still on the old
+  // split_payments contract (e.g. Stripe, Adyen).
   optional SplitPaymentsDetails split_payments = 17;
 
   optional ConnectorMandateReferenceId mandate_reference = 18;
@@ -2880,7 +2885,9 @@ message PaymentServiceVoidRequest {
   // Required by some connectors that demand a per-request idempotency token.
   optional string merchant_request_id = 12;
 
-  // Split payment configuration (platform fees, transfers, etc.)
+  // Deprecated: use split_settlement instead. Legacy split payment configuration
+  // (platform fees, transfers, etc.), read only by connectors still on the old
+  // split_payments contract (e.g. Stripe, Adyen).
   optional SplitPaymentsDetails split_payments = 13;
 }
 
@@ -3137,9 +3144,12 @@ message PaymentServiceCaptureRequest {
   // settlement receives the Level II sales tax value.
   optional Money order_tax_amount = 13;
 
-  // Split payment configuration (platform fees, transfers, etc.)
+  // Deprecated: use split_settlement instead. Legacy split payment configuration
+  // (platform fees, transfers, etc.), read only by connectors still on the old
+  // split_payments contract (e.g. Stripe, Adyen).
   optional SplitPaymentsDetails split_payments = 14;
-  // Split settlement (supersedes split_payments).
+  // Unified, connector-agnostic split settlement: a marketplace/platform cut plus
+  // N per-vendor splits. Supersedes split_payments; new connectors read this field.
   optional SplitSettlement split_settlement = 15;
 }
 
@@ -3699,9 +3709,12 @@ message RecurringPaymentServiceChargeRequest {
   // Additional payment data for various payment methods
   optional AdditionalPaymentData additional_payment_data = 33;
 
-  // Split payment configuration (platform fees, transfers, etc.)
+  // Deprecated: use split_settlement instead. Legacy split payment configuration
+  // (platform fees, transfers, etc.), read only by connectors still on the old
+  // split_payments contract (e.g. Stripe, Adyen).
   optional SplitPaymentsDetails split_payments = 34;
-  // Split settlement (supersedes split_payments).
+  // Unified, connector-agnostic split settlement: a marketplace/platform cut plus
+  // N per-vendor splits. Supersedes split_payments; new connectors read this field.
   optional SplitSettlement split_settlement = 39;
 
   optional PartnerMerchantIdentifierDetails partner_merchant_identifier_details = 35;
@@ -4422,7 +4435,9 @@ message PaymentMethodServiceTokenizeRequest {
   // State Information
   optional ConnectorState state = 10;
 
-  // Split payment configuration (platform fees, transfers, etc.)
+  // Deprecated: use split_settlement instead. Legacy split payment configuration
+  // (platform fees, transfers, etc.), read only by connectors still on the old
+  // split_payments contract (e.g. Stripe, Adyen).
   optional SplitPaymentsDetails split_payments = 11;
 }
 
@@ -4715,7 +4730,9 @@ message CustomerServiceCreateRequest {
   // Environment Configuration
   optional bool test_mode = 8;
 
-  // Split payment configuration (platform fees, transfers, etc.)
+  // Deprecated: use split_settlement instead. Legacy split payment configuration
+  // (platform fees, transfers, etc.), read only by connectors still on the old
+  // split_payments contract (e.g. Stripe, Adyen).
   optional SplitPaymentsDetails split_payments = 9;
 }
 
@@ -6415,29 +6432,41 @@ message SplitSettlementVendor {
 
 // ---- Refund split (request) ----
 
-// Wrapper carried by every refund request that supports split.
+// Wrapper carried by every refund request that supports split. Mirrors SplitSettlement
+// but each line's amount is the portion of THIS refund to claw back from that account.
 message SplitSettlementRefund {
+  // Marketplace / platform share of the refund, when applicable.
   optional SplitSettlementRefundMarketplace marketplace_split_details = 1;
+  // Per-vendor refund splits (a refund can span many vendors).
   repeated SplitSettlementRefundVendor vendor_split_details = 2;
 }
 
+// Marketplace / platform share to reverse on this refund — leaner than a vendor line.
 message SplitSettlementRefundMarketplace {
+  // Marketplace refund share as an amount or a percent — exactly one.
   oneof split_value {
     Money refund_amount = 1;
     double percentage = 2;
   }
+  // WHERE it reverses: the connector's own id for the marketplace/platform account.
   optional string connector_sub_account_id = 3;
 }
 
+// Per-vendor refund split line.
 message SplitSettlementRefundVendor {
+  // Vendor refund share as an amount or a percent — exactly one.
   oneof split_value {
     Money refund_amount = 1;
     double percentage = 2;
   }
+  // WHERE it reverses: the connector's own id for the payee (vendor) account.
   optional string connector_sub_account_id = 3;
+  // Commission to reverse from the merchant on this vendor's refunded share.
   optional Money merchant_commission = 4;
   // The merchant's OWN reference for this refund split; forwarded to the connector.
   optional string merchant_reference_id = 5;
+  // Connector-specific per-split attributes (opaque here; typed inside the connector),
+  // e.g. Adyen split_type. Explicit — never inferred from structure.
   optional string split_metadata = 6;
 }
 
