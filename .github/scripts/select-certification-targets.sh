@@ -15,7 +15,7 @@
 #   SPECS_ROOT           override for the connector_specs directory (tests)
 #   GITHUB_OUTPUT        step output file (optional)
 #
-# Emits a JSON array of {name, suite, scenario, skip_dependencies} on stdout,
+# Emits a JSON array of {name, suite, scenario} on stdout,
 # and as the `targets` step output when GITHUB_OUTPUT is set.
 
 set -uo pipefail
@@ -46,8 +46,7 @@ for specs in "${SPECS_ROOT}"/*/specs.json; do
   entries=$(jq -c --arg n "${name}" '
     [ (.verified_scenarios // [])[]
       | select(.has_live_creds == true)
-      | { name: $n, suite, scenario,
-          skip_dependencies: (.skip_dependencies // false) } ]' "${specs}")
+      | { name: $n, suite, scenario } ]' "${specs}")
 
   targets=$(jq -c -s 'add' <<< "${targets}"$'\n'"${entries}")
 done

@@ -290,17 +290,6 @@ pub enum ScenarioError {
     },
     #[error("scenario '{scenario}' not found in suite '{suite}'")]
     ScenarioNotFound { suite: String, scenario: String },
-    #[error(
-        "cannot skip dependencies for '{suite}/{scenario}': its own request does not \
-         provide a value at '{target_path}', which a dependency's context_map would \
-         otherwise fill. Run with dependencies enabled, or give the scenario its own \
-         literal value at that path."
-    )]
-    DependenciesRequired {
-        suite: String,
-        scenario: String,
-        target_path: String,
-    },
     #[error("assertion rule for field '{field}' is invalid: {message}")]
     InvalidAssertionRule { field: String, message: String },
     #[error("assertion failed for field '{field}': {message}")]

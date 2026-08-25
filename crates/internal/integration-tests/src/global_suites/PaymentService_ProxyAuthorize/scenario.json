@@ -23,8 +23,7 @@
       },
       "capture_method": "AUTOMATIC",
       "customer": {
-        "id": "auto_generate",
-        "connector_customer_id": ""
+        "id": "auto_generate"
       },
       "state": {
         "access_token": {
@@ -33,15 +32,17 @@
           },
           "token_type": "",
           "expires_in_seconds": 0
-        },
-        "connector_customer_id": ""
+        }
       },
       "auth_type": "NO_THREE_DS",
       "test_mode": true
     },
     "assert": {
       "status": {
-        "one_of": ["CHARGED", "AUTHORIZED"]
+        "one_of": [
+          "CHARGED",
+          "AUTHORIZED"
+        ]
       },
       "connector_transaction_id": {
         "must_exist": true

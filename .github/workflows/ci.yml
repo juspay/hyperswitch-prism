@@ -671,7 +671,7 @@ jobs:
       # A connector whose connector_specs/<name>/ directory did not exist at this
       # PR's base commit must prove itself on its own PR. The author declares what
       # they verified in their own specs.json `verified_scenarios`; each entry needs
-      # { suite, scenario, skip_dependencies, has_live_creds, no_creds_reason }.
+      # { suite, scenario, has_live_creds, no_creds_reason }.
       #
       # The array is expected to grow as later PRs add payment methods and flows —
       # it is a running record of what has been proven, not a one-time gate.

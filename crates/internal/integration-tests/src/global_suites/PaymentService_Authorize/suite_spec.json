@@ -4,13 +4,7 @@
   "depends_on": [
     "MerchantAuthenticationService/CreateServerAuthenticationToken",
     "MerchantAuthenticationService/CreateServerSessionAuthenticationToken",
-    "CustomerService/Create",
-    {
-      "suite": "PaymentMethodService/Tokenize",
-      "context_map": {
-        "payment_method.token.token.value": "res.payment_method_token"
-      }
-    }
+    "CustomerService/Create"
   ],
   "dependency_scope": "scenario",
   "strict_dependencies": false

@@ -86,7 +86,6 @@ fn main() {
         plaintext: args.plaintext,
         backend: ExecutionBackend::SdkFfi,
         report: args.report,
-        skip_dependencies: false,
     };
 
     if args.all_connectors {

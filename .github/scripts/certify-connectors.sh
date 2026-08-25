@@ -11,7 +11,7 @@
 # never touched, and one connector's bad day would stop every merge.
 #
 # Inputs (environment):
-#   TARGETS_JSON              JSON array of {name, suite, scenario, skip_dependencies}
+#   TARGETS_JSON              JSON array of {name, suite, scenario}
 #   BASE_SHA                  merge base to arbitrate against; empty disables arbitration
 #   CONNECTOR_AUTH_FILE_PATH  decrypted connector credentials
 #   ATTEMPT_TIMEOUT           per-attempt timeout in seconds (default 300)
@@ -156,14 +156,13 @@ classify_failure() {
 # Runs one scenario against whatever is currently checked out and built.
 # Sets LAST_RC, LAST_ERROR and LAST_CLASS for the caller.
 run_scenario() {
-  local name="$1" suite="$2" scenario="$3" skip_deps="$4"
+  local name="$1" suite="$2" scenario="$3"
   local report="${RUNNER_TEMP:-/tmp}/certify-report.json"
   rm -f "${report}"
 
   local args=(--skip-setup --no-build --no-server --connector "${name}"
               --suite "${suite}" --scenario "${scenario}"
               --interface grpc --report)
-  [[ "${skip_deps}" == "true" ]] && args+=(--skip-dependencies)
 
   UCS_RUN_TEST_REPORT_PATH="${report}" \
     timeout --kill-after=30s "${ATTEMPT_TIMEOUT}" ./scripts/run-tests "${args[@]}"
@@ -256,7 +255,6 @@ for i in $(seq 0 $((count - 1))); do
   name=$(jq -r '.name' <<< "${target}")
   suite=$(jq -r '.suite' <<< "${target}")
   scenario=$(jq -r '.scenario' <<< "${target}")
-  skip_deps=$(jq -r '.skip_dependencies // false' <<< "${target}")
 
   if ! valid_name "${name}"; then
     echo "::error::Invalid connector name in certification manifest: '${name}'"
@@ -270,7 +268,7 @@ for i in $(seq 0 $((count - 1))); do
   fi
 
   echo "::group::Certify ${name} (${suite} / ${scenario})"
-  if run_scenario "${name}" "${suite}" "${scenario}" "${skip_deps}"; then
+  if run_scenario "${name}" "${suite}" "${scenario}"; then
     PASSED+=("${name} (${suite} / ${scenario})")
   else
     FAILED+=("${target}")
@@ -288,10 +286,9 @@ for target in ${FAILED[@]+"${FAILED[@]}"}; do
   name=$(jq -r '.name' <<< "${target}")
   suite=$(jq -r '.suite' <<< "${target}")
   scenario=$(jq -r '.scenario' <<< "${target}")
-  skip_deps=$(jq -r '.skip_dependencies // false' <<< "${target}")
 
   echo "::group::Re-check ${name} (${suite} / ${scenario})"
-  if run_scenario "${name}" "${suite}" "${scenario}" "${skip_deps}"; then
+  if run_scenario "${name}" "${suite}" "${scenario}"; then
     echo "Passed on re-check — treating the first failure as a flake."
     FLAKY+=("${name} (${suite} / ${scenario})")
   else
@@ -327,13 +324,12 @@ if [[ ${#CONFIRMED[@]} -gt 0 ]]; then
       name=$(jq -r '.name' <<< "${target}")
       suite=$(jq -r '.suite' <<< "${target}")
       scenario=$(jq -r '.scenario' <<< "${target}")
-      skip_deps=$(jq -r '.skip_dependencies // false' <<< "${target}")
       label="${name} (${suite} / ${scenario})"
 
       head_class=$(jq -r '.head_class // ""' <<< "${target}")
 
       echo "::group::Arbitrate ${label} at merge base"
-      if run_scenario "${name}" "${suite}" "${scenario}" "${skip_deps}"; then
+      if run_scenario "${name}" "${suite}" "${scenario}"; then
         # Works without this PR, fails with it — whatever the failure looked
         # like. This is what catches a PR that broke connectivity itself.
         REGRESSIONS+=("${label}")

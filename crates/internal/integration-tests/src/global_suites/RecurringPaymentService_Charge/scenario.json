@@ -11,10 +11,7 @@
         "minor_amount": 6000,
         "currency": "USD"
       },
-      "connector_customer_id": "",
-      "customer": {
-        "connector_customer_id": ""
-      },
+      "customer": {},
       "state": {
         "access_token": {
           "token": {
@@ -48,10 +45,7 @@
         "minor_amount": 6000,
         "currency": "USD"
       },
-      "connector_customer_id": "",
-      "customer": {
-        "connector_customer_id": ""
-      },
+      "customer": {},
       "state": {
         "access_token": {
           "token": {
@@ -84,10 +78,7 @@
         "minor_amount": 1000,
         "currency": "USD"
       },
-      "connector_customer_id": "",
-      "customer": {
-        "connector_customer_id": ""
-      },
+      "customer": {},
       "state": {
         "access_token": {
           "token": {
@@ -126,10 +117,7 @@
       "description": "Recurring charge with order context",
       "off_session": true,
       "test_mode": true,
-      "connector_customer_id": "",
-      "customer": {
-        "connector_customer_id": ""
-      },
+      "customer": {},
       "state": {
         "access_token": {
           "token": {

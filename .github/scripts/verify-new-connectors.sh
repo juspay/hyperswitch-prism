@@ -19,7 +19,6 @@
 set -uo pipefail
 
 SPECS_ROOT="crates/internal/integration-tests/src/connector_specs"
-SRC_ROOT="crates/integrations/connector-integration/src/connectors"
 SUMMARY="${GITHUB_STEP_SUMMARY:-/dev/null}"
 UNPROVEN_FILE="${UNPROVEN_FILE:-}"
 
@@ -40,10 +39,9 @@ fi
 # non-zero on failure; a scenario that was skipped rather than run is caught by
 # test_ucs itself, which treats a named scenario that never ran as an error.
 verify_scenario() {
-  local name="$1" suite="$2" scenario="$3" skip_deps="$4"
+  local name="$1" suite="$2" scenario="$3"
   local args=(--skip-setup --no-build --connector "${name}" --suite "${suite}"
               --scenario "${scenario}" --interface grpc --report)
-  [[ "${skip_deps}" == "true" ]] && args+=(--skip-dependencies)
 
   echo "::group::Verify ${name} (${suite} / ${scenario})"
   local rc=0
@@ -104,7 +102,6 @@ for name in "${CONNECTORS[@]}"; do
     entry=$(jq -c ".verified_scenarios[$i]" "${specs}")
     suite=$(jq -r '.suite // empty' <<< "${entry}")
     scenario=$(jq -r '.scenario // empty' <<< "${entry}")
-    skip_deps=$(jq -r '.skip_dependencies // false' <<< "${entry}")
     has_live_creds=$(jq -r '.has_live_creds // false' <<< "${entry}")
     no_creds_reason=$(jq -r '.no_creds_reason // empty' <<< "${entry}")
 
@@ -131,7 +128,7 @@ for name in "${CONNECTORS[@]}"; do
       continue
     fi
 
-    if ! verify_scenario "${name}" "${suite}" "${scenario}" "${skip_deps}"; then
+    if ! verify_scenario "${name}" "${suite}" "${scenario}"; then
       echo "::error::Verification failed for new connector ${name} (${suite} / ${scenario})"
       failures=$((failures + 1))
     fi

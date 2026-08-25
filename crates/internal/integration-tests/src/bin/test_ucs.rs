@@ -27,7 +27,6 @@
 //! | `--interface grpc\|sdk` | Execution interface (default: grpc) |
 //! | `--endpoint <addr>`  | Override gRPC endpoint |
 //! | `--report`           | Write report.json + markdown test reports |
-//! | `--skip-dependencies` | Run only the selected scenario without suite dependencies |
 //! | `--interactive`      | Open the step-by-step searchable TUI wizard |
 
 use std::{collections::BTreeSet, fs, path::PathBuf};
@@ -103,7 +102,6 @@ fn run_non_interactive(args: &[String]) -> Result<(), String> {
     let mut interface_str: Option<String> = None;
     let mut endpoint_flag: Option<String> = None;
     let mut report = false;
-    let mut skip_dependencies = false;
 
     let mut iter = args.iter();
     while let Some(arg) = iter.next() {
@@ -140,9 +138,6 @@ fn run_non_interactive(args: &[String]) -> Result<(), String> {
             "--report" => {
                 report = true;
             }
-            "--skip-dependencies" => {
-                skip_dependencies = true;
-            }
             other => {
                 return Err(format!(
                     "unknown flag '{other}'. run with --help for usage."
@@ -171,7 +166,6 @@ fn run_non_interactive(args: &[String]) -> Result<(), String> {
         plaintext: true,
         backend,
         report,
-        skip_dependencies,
     };
 
     let connector_selection = if let Some(name) = connector.filter(|_| !all_connectors) {
@@ -456,7 +450,6 @@ fn run_interactive(args: &[String]) -> Result<(), String> {
         plaintext: true,
         backend,
         report,
-        skip_dependencies: false,
     };
 
     println!("\n[test_ucs] starting run...");
@@ -928,7 +921,6 @@ FLAGS
   --interface grpc|sdk   Execution interface (default: grpc)
   --endpoint <addr>      Override gRPC endpoint
   --report               Write report.json + markdown test_report/ files
-  --skip-dependencies    Run only the selected scenario without suite dependencies
   -h, --help             Print this help and exit
 
 Default (no flags):

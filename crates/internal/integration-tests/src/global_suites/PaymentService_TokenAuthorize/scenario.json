@@ -11,8 +11,7 @@
       },
       "capture_method": "AUTOMATIC",
       "customer": {
-        "id": "auto_generate",
-        "connector_customer_id": ""
+        "id": "auto_generate"
       },
       "state": {
         "access_token": {
@@ -21,14 +20,16 @@
           },
           "token_type": "",
           "expires_in_seconds": 0
-        },
-        "connector_customer_id": ""
+        }
       },
       "test_mode": true
     },
     "assert": {
       "status": {
-        "one_of": ["CHARGED", "AUTHORIZED"]
+        "one_of": [
+          "CHARGED",
+          "AUTHORIZED"
+        ]
       },
       "connector_transaction_id": {
         "must_exist": true
@@ -49,8 +50,7 @@
       },
       "capture_method": "MANUAL",
       "customer": {
-        "id": "auto_generate",
-        "connector_customer_id": ""
+        "id": "auto_generate"
       },
       "state": {
         "access_token": {
@@ -59,14 +59,15 @@
           },
           "token_type": "",
           "expires_in_seconds": 0
-        },
-        "connector_customer_id": ""
+        }
       },
       "test_mode": true
     },
     "assert": {
       "status": {
-        "one_of": ["AUTHORIZED"]
+        "one_of": [
+          "AUTHORIZED"
+        ]
       },
       "connector_transaction_id": {
         "must_exist": true

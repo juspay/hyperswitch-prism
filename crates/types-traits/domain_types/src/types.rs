@@ -1106,14 +1106,6 @@ impl ForeignTryFrom<grpc_api_types::payments::Tokenization> for common_enums::To
     }
 }
 
-/// Normalizes an empty `connector_customer_id` to `None`. Proven necessary
-/// for Authorize against a real Stripe sandbox call; reused at other call
-/// sites by analogy, unverified there — see PR discussion before extending
-/// to new fields.
-fn non_empty_connector_customer_id(connector_customer_id: Option<String>) -> Option<String> {
-    connector_customer_id.filter(|id| !id.is_empty())
-}
-
 // Helper functions for Samsung Pay credential validation
 /// Trims a string and returns None if empty, Some(trimmed) otherwise
 fn trim_and_check_empty(value: &str) -> Option<&str> {
@@ -5439,11 +5431,9 @@ impl ForeignTryFrom<(PaymentServiceAuthorizeRequest, Connectors, &MaskedMetadata
                         doc_url: None,
                     },
                 })?,
-            connector_customer: non_empty_connector_customer_id(
-                value
-                    .customer
-                    .and_then(|customer| customer.connector_customer_id),
-            ),
+            connector_customer: value
+                .customer
+                .and_then(|customer| customer.connector_customer_id),
             description: value.description,
             return_url: value.return_url.clone(),
             connector_feature_data,
@@ -5545,11 +5535,9 @@ impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for Pay
                 &value.merchant_transaction_id,
             ),
             customer_id: Option::<CustomerId>::foreign_try_from(value.customer.clone())?,
-            connector_customer: non_empty_connector_customer_id(
-                value
-                    .customer
-                    .and_then(|customer| customer.connector_customer_id),
-            ),
+            connector_customer: value
+                .customer
+                .and_then(|customer| customer.connector_customer_id),
             description: value.description,
             return_url: value.return_url.clone(),
             connector_feature_data,
@@ -5643,11 +5631,9 @@ impl ForeignTryFrom<(SetupRecurringRequest, Connectors, &MaskedMetadata)> for Pa
                 value.merchant_recurring_payment_id.clone(),
             )),
             customer_id: Option::<CustomerId>::foreign_try_from(value.customer.clone())?,
-            connector_customer: non_empty_connector_customer_id(
-                value
-                    .customer
-                    .and_then(|customer| customer.connector_customer_id),
-            ),
+            connector_customer: value
+                .customer
+                .and_then(|customer| customer.connector_customer_id),
             description: None,
             return_url: value.return_url.clone(),
             connector_feature_data,
@@ -5765,7 +5751,7 @@ impl
                 &value.merchant_charge_id,
             ),
             customer_id,
-            connector_customer: non_empty_connector_customer_id(value.connector_customer_id),
+            connector_customer: value.connector_customer_id,
             description: value.description,
             return_url: None,
             connector_feature_data: value
@@ -6030,11 +6016,9 @@ impl
             auth_type: common_enums::AuthenticationType::default(),
             connector_request_reference_id: String::new(),
             customer_id: Option::<CustomerId>::foreign_try_from(value.customer.clone())?,
-            connector_customer: non_empty_connector_customer_id(
-                value
-                    .customer
-                    .and_then(|customer| customer.connector_customer_id),
-            ),
+            connector_customer: value
+                .customer
+                .and_then(|customer| customer.connector_customer_id),
             l2_l3_data: None,
             description: None,
             return_url: None,
@@ -11648,11 +11632,9 @@ impl
             )?,
             connector_request_reference_id: value.merchant_recurring_payment_id,
             customer_id: Option::<CustomerId>::foreign_try_from(value.customer.clone())?,
-            connector_customer: non_empty_connector_customer_id(
-                value
-                    .customer
-                    .and_then(|customer| customer.connector_customer_id),
-            ),
+            connector_customer: value
+                .customer
+                .and_then(|customer| customer.connector_customer_id),
             description,
             return_url: None,
             connector_feature_data,
@@ -11752,11 +11734,9 @@ impl
             auth_type: common_enums::AuthenticationType::default(),
             connector_request_reference_id: value.merchant_recurring_payment_id,
             customer_id: Option::<CustomerId>::foreign_try_from(value.customer.clone())?,
-            connector_customer: non_empty_connector_customer_id(
-                value
-                    .customer
-                    .and_then(|customer| customer.connector_customer_id),
-            ),
+            connector_customer: value
+                .customer
+                .and_then(|customer| customer.connector_customer_id),
             description,
             return_url: None,
             connector_feature_data,
@@ -13795,9 +13775,7 @@ impl
                         doc_url: None,
                     },
                 })?,
-            connector_customer: non_empty_connector_customer_id(
-                value.customer.and_then(|c| c.connector_customer_id),
-            ),
+            connector_customer: value.customer.and_then(|c| c.connector_customer_id),
             description: None,
             return_url: value.return_url,
             connector_feature_data: None,
@@ -14597,9 +14575,7 @@ impl
             auth_type: common_enums::AuthenticationType::default(),
             connector_request_reference_id: value.merchant_customer_id.unwrap_or_default(),
             customer_id: None,
-            connector_customer: non_empty_connector_customer_id(
-                value.connector_customer_id.clone(),
-            ),
+            connector_customer: value.connector_customer_id.clone(),
             description: None,
             return_url: None,
             connector_feature_data: None,
