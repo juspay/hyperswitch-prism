@@ -6474,35 +6474,55 @@ message SplitSettlementRefundVendor {
 
 // Wrapper on the response — also holds split_applied (a property of the split as a whole).
 message SplitSettlementResponse {
+  // Whether the connector actually applied the split for this transaction.
   optional SplitAppliedStatus split_applied = 1;
+  // Marketplace / platform share of the settlement, as reported by the connector.
   optional SplitSettlementResponseMarketplace marketplace_split_details = 2;
+  // Per-vendor settlement lines, as reported by the connector.
   repeated SplitSettlementResponseVendor vendor_split_details = 3;
 }
 
+// Marketplace / platform settlement line echoed back by the connector.
 message SplitSettlementResponseMarketplace {
+  // Amount settled to the marketplace/platform for this transaction.
   optional Money amount = 1;
+  // WHERE it settled: the connector's own id for the marketplace/platform account.
   optional string connector_sub_account_id = 2;
+  // Portion of this settlement that has since been refunded/reversed.
   optional Money refunded_amount = 3;
+  // Net amount settled after refunds/reversals (amount minus refunded_amount).
   optional Money total_settlement_amount = 4;
   // WHEN it paid out: the connector's id for the payout/settlement event (T+n).
   optional string connector_settlement_id = 5;
+  // Per-line settlement lifecycle status (pending / settled / failed), when reported.
   optional SplitSettlementStatus settlement_status = 6;
+  // When the settlement occurred (connector-provided timestamp/date string).
   optional string settlement_date = 7;
   // Bank UTR, once the money has moved.
   optional string utr = 8;
 }
 
+// Per-vendor settlement line echoed back by the connector.
 message SplitSettlementResponseVendor {
+  // Amount settled to this vendor for this transaction.
   optional Money amount = 1;
+  // WHERE it settled: the connector's own id for the payee (vendor) account.
   optional string connector_sub_account_id = 2;
+  // Commission retained by the merchant from this vendor's settled share.
   optional Money merchant_commission = 3;
   // Echoed from the request so the caller matches this response line to its request line.
   optional string merchant_reference_id = 4;
+  // Portion of this vendor's share that has since been refunded/reversed.
   optional Money refunded_amount = 5;
+  // Net amount settled to this vendor after refunds/reversals.
   optional Money total_settlement_amount = 6;
+  // WHEN it paid out: the connector's id for the payout/settlement event (T+n).
   optional string connector_settlement_id = 7;
+  // Per-line settlement lifecycle status (pending / settled / failed), when reported.
   optional SplitSettlementStatus settlement_status = 8;
+  // When the settlement occurred (connector-provided timestamp/date string).
   optional string settlement_date = 9;
+  // Bank UTR, once the money has moved.
   optional string utr = 10;
   // The connector's id for the TRANSFER of this slice to the vendor (e.g. Stripe tr_…).
   optional string connector_transaction_id = 11;
