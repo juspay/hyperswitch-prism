@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.08.25.1
+
+### Bug Fixes
+
+- **log:** Decode _DOT_ in target paths and add dev log field config ([#2176](https://github.com/juspay/connector-service/pull/2176)) ([`35f28b4`](https://github.com/juspay/connector-service/commit/35f28b4dc5cc539fcbe9bca9e767b4ac14eda0d8))
+
+**Full Changelog:** [`2026.08.25.0...2026.08.25.1`](https://github.com/juspay/connector-service/compare/2026.08.25.0...2026.08.25.1)
+
+- - -
+
 ## 2026.08.25.0
 
 ### Bug Fixes
