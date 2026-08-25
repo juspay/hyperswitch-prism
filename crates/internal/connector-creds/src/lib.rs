@@ -1,16 +1,29 @@
 //! Reads the shared CI credentials file and produces the `x-connector-config`
 //! header a real caller sends.
 //!
-//! One file backs both consumers — the Jenkins report pipeline and the GitHub
-//! Actions workflow — and both need the same three adjustments before the entry
-//! is a valid [`ConnectorSpecificConfig`]:
+//! The header hyperswitch sends is plain serde JSON —
+//! `{"config":{"Stripe":{"api_key":"sk_…"}}}` — and the server reads it back the
+//! same way (`serde_json::from_str::<ConnectorSpecificConfig>` in
+//! `ucs_interface_common::auth`). This crate exists to emit exactly that from a
+//! file stored in a different shape, which needs three adjustments:
 //!
-//! - secrets are stored as `{"value": "…"}`, while the proto fields are
-//!   `Secret<String>`, whose `Deserialize` delegates to `String` and so rejects
-//!   a map;
+//! - secrets are stored as `{"value": "…"}`. That is how protobuf JSON encodes
+//!   the `SecretString` message, and it is what grpcurl needs in a request
+//!   *body* — but `build.rs` maps `.types.SecretString` to
+//!   `hyperswitch_masking::Secret<String>` via `extern_path`, and that type's
+//!   `Deserialize` delegates straight to `String`, so a map is rejected;
 //! - a `metadata` sibling is carried for tooling that is not the config;
 //! - the config is a oneof, so the entry has to be wrapped under its
 //!   PascalCase variant name.
+//!
+//! The unwrapping is a pre-pass over `serde_json::Value` rather than a
+//! `Deserialize` impl, and it has to be. `Secret` and `String` are both foreign
+//! to this crate, so Rust's orphan rule forbids
+//! `impl Deserialize for Secret<String>` here. The alternatives are a
+//! `deserialize_with` attribute on each of the 713 `SecretString` fields in the
+//! protos, re-enumerated whenever one is added, or an `extern_path` to a local
+//! newtype that changes the public type of all 713. A pre-pass at the one
+//! boundary that needs it is the smaller thing.
 //!
 //! Keeping this in one place is the point: a second copy that skips any of the
 //! three fails only at runtime, against a live sandbox, with an error that
