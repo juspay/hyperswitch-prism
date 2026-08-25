@@ -600,16 +600,9 @@ impl CompiledLogFieldsConfig {
     }
 }
 
-/// Span storage key for the masked connector reply. A single flat dotted key, matching how
-/// `response.body` and `response.headers` are already recorded.
 #[cfg(feature = "log-transformations")]
 const MASKED_BODY_KEY: &str = "response.masked_body";
 
-/// The connector's raw reply, handed to [`apply_log_fields`] so it can build the masked view.
-///
-/// These inputs cannot be read back out of span storage: the log formatter serialises every stored
-/// key on every event, so an unmasked body parked on the span would leak through any intervening
-/// log line. It is passed in directly and never recorded.
 #[cfg(feature = "log-transformations")]
 pub struct ConnectorResponseForLogging<'a> {
     pub body: &'a [u8],
@@ -626,19 +619,11 @@ pub struct ConnectorResponseForLogging<'a> {
 ///
 /// Dotted target paths build nested JSON objects. When writing a nested object,
 /// it is deep-merged with any existing value for the same root key in the span.
-///
-/// When `connector_response` is supplied, the masked view of the connector's reply is recorded as
-/// `response.masked_body`. That value goes to our own logs and nowhere else — it is deliberately
-/// never returned to the caller, so a careless allowlist entry cannot put connector response
-/// content on the wire.
 #[cfg(feature = "log-transformations")]
 pub fn apply_log_fields(
     compiled: &CompiledLogFields,
     connector_response: Option<ConnectorResponseForLogging<'_>>,
 ) {
-    // Two independent jobs behind two independent switches: `[log.fields]` drives the rules,
-    // `[connector_response_masking]` drives the masked body. Bail only when neither has work —
-    // gating on `compiled` alone would kill masking, since no shipped config defines `[log.fields]`.
     if compiled.is_empty() && connector_response.is_none() {
         return;
     }
@@ -646,8 +631,6 @@ pub fn apply_log_fields(
     // Build writes: for each rule, resolve the value and group by root key.
     let mut writes: HashMap<String, serde_json::Value> = HashMap::new();
 
-    // Masked first, and outside every span lock: the `tracing::debug!` below re-enters the
-    // subscriber, which deadlocks if called from inside `with_current_span*`.
     if let Some(masked) = connector_response.and_then(|response| {
         let masked = crate::connector_response_masking::mask_connector_response(
             response.body,
@@ -655,8 +638,6 @@ pub fn apply_log_fields(
             response.connector_name,
             response.masking_keys,
         )?;
-        // Metadata only, and cheap: content type and size are what explain an unexpected
-        // `_format: unparsable` stub in the field below.
         tracing::debug!(
             connector = response.connector_name,
             content_type = response.content_type.unwrap_or("<none>"),
@@ -668,9 +649,6 @@ pub fn apply_log_fields(
         writes.insert(MASKED_BODY_KEY.to_string(), masked);
     }
 
-    // Snapshot span storage for `Source` entries. Skipped when no rule reads one: this function
-    // now runs on every connector call whenever masking is on, and cloning the whole span map
-    // per request to serve zero `Source` rules is pure waste.
     let snapshot: Option<HashMap<Cow<'static, str>, serde_json::Value>> = compiled
         .rules
         .iter()
@@ -719,9 +697,6 @@ pub fn apply_log_fields(
                 );
                 false
             } else {
-                // Span storage alone is invisible under `log_format = "default"`: that formatter is
-                // stock tracing-subscriber and never reads it. Emit the value as its own event too,
-                // matching `record_json_fields_on_span`.
                 tracing::info!(%value, "{key}");
                 true
             }
@@ -1100,4 +1075,99 @@ pub(crate) fn set_nested_value(
     );
 
     result.map(|_| ())
+}
+
+#[cfg(test)]
+#[allow(clippy::expect_used)]
+mod runtime_metadata_tests {
+    use std::collections::HashMap;
+
+    use super::{Event, EventStage, ExecutionMode, FlowName, RuntimeMetadata};
+    use crate::lineage;
+
+    /// Build a minimal event carrying the given runtime metadata (no connector I/O fields set).
+    fn sample_event(runtime_metadata: RuntimeMetadata) -> Event {
+        Event {
+            request_id: "req-1".to_string(),
+            timestamp: 0,
+            flow_type: FlowName::Authorize,
+            connector: "tamara".to_string(),
+            url: None,
+            method: None,
+            stage: EventStage::ConnectorCall,
+            execution_mode: ExecutionMode::from_shadow_flag(false),
+            latency_ms: None,
+            status_code: None,
+            request_data: None,
+            response_data: None,
+            error: None,
+            headers: HashMap::new(),
+            additional_fields: HashMap::new(),
+            lineage_ids: lineage::LineageIds::default(),
+            runtime_metadata,
+        }
+    }
+
+    #[test]
+    fn all_supplied_metadata_reaches_top_level_event_fields() {
+        let rm = RuntimeMetadata {
+            version: "2026.07.21.2".to_string(),
+            application_name: Some("connector-service-http".to_string()),
+            deployment_id: Some("d02a2ba".to_string()),
+            pod_name: Some("connector-service-http-d02a2bac0e-c9d9c4945-h6r4g".to_string()),
+        };
+        let value = serde_json::to_value(sample_event(rm)).expect("event serializes");
+        let obj = value.as_object().expect("event is a JSON object");
+
+        assert_eq!(
+            obj.get("version").and_then(|v| v.as_str()),
+            Some("2026.07.21.2")
+        );
+        assert_eq!(
+            obj.get("application_name").and_then(|v| v.as_str()),
+            Some("connector-service-http")
+        );
+        assert_eq!(
+            obj.get("deployment_id").and_then(|v| v.as_str()),
+            Some("d02a2ba")
+        );
+        assert_eq!(
+            obj.get("pod_name").and_then(|v| v.as_str()),
+            Some("connector-service-http-d02a2bac0e-c9d9c4945-h6r4g")
+        );
+        // Flattened as top-level keys, not nested under a "runtime_metadata" object.
+        assert!(obj.get("runtime_metadata").is_none());
+    }
+
+    #[test]
+    fn absent_optional_metadata_is_omitted_but_version_remains() {
+        let rm = RuntimeMetadata {
+            version: "2026.07.21.2".to_string(),
+            application_name: None,
+            deployment_id: None,
+            pod_name: None,
+        };
+        let value = serde_json::to_value(sample_event(rm)).expect("event serializes");
+        let obj = value.as_object().expect("event is a JSON object");
+
+        assert_eq!(
+            obj.get("version").and_then(|v| v.as_str()),
+            Some("2026.07.21.2")
+        );
+        assert!(!obj.contains_key("application_name"));
+        assert!(!obj.contains_key("deployment_id"));
+        assert!(!obj.contains_key("pod_name"));
+    }
+
+    #[test]
+    fn minimal_metadata_still_creates_and_serializes_with_version() {
+        // Only the compiled version present (all optional identity omitted) — event creation and
+        // serialization must not fail.
+        let rm = RuntimeMetadata {
+            version: "v".to_string(),
+            ..Default::default()
+        };
+        let value = serde_json::to_value(sample_event(rm)).expect("event serializes");
+        assert_eq!(value.get("version").and_then(|v| v.as_str()), Some("v"));
+    }
 }

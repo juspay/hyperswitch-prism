@@ -347,11 +347,6 @@ fn flow_status_label(flow_status: &domain_types::router_data::FlowStatus) -> Str
     }
 }
 
-/// Capture the connector's reply before `response` is moved into `handle_connector_response`.
-///
-/// The masked view is built at the very end of `execute_connector_processing_step`, by which point
-/// the body is gone — so it is held here instead. Cloning `Bytes` is a refcount bump, not a copy,
-/// and nothing is cloned at all when masking is switched off.
 #[cfg(feature = "log-transformations")]
 fn capture_connector_reply<E>(
     response: &Result<Result<Response, Response>, E>,
@@ -608,9 +603,6 @@ pub struct EventProcessingParams<'a> {
     pub merchant_id: &'a str,
     pub org_id: &'a str,
     pub return_raw_connector_data: bool,
-    /// Pre-parsed per-connector unmask lists for `response.masked_body`. Ungated, like
-    /// `log_fields` below, so the ~16 construction sites stay free of `#[cfg]`; only the code that
-    /// consumes it is gated.
     pub masking_keys: &'a common_utils::connector_response_masking::CompiledMaskingKeys,
     pub connector_latency: ConnectorLatencyTracker,
     /// Runtime kill-switch for log field application.
@@ -668,8 +660,6 @@ where
     let start = tokio::time::Instant::now();
     let proxy_name = event_params.proxy_name.unwrap_or("primary");
     let transport_type = connector.get_transport_type();
-    // Set by whichever transport arm below owns a `Response`, consumed once at the end when the
-    // golden log line is built.
     #[cfg(feature = "log-transformations")]
     let mut connector_reply: Option<(bytes::Bytes, Option<String>)> = None;
     let result = match (call_connector_action, transport_type) {
@@ -1184,9 +1174,6 @@ where
                     "typed_connector_response is missing on success path — connector's handle_response_v2 did not produce a typed response value"
                 );
             }
-            // Bound into the result rather than `?`-returned: an early return here would skip
-            // the latency record, the log fields and the golden log line below, which is exactly
-            // when the connector's reply is worth having in the logs.
             data.request
                 .check_integrity(&data.request.clone(), None)
                 .map_err(|err| {
@@ -1210,10 +1197,6 @@ where
     tracing::Span::current().record("latency", elapsed);
     // Additive numeric latency alongside the existing string `latency`.
     tracing::Span::current().record("latency_ms", u64::try_from(elapsed).unwrap_or_default());
-    // Apply outgoing log fields (transformations, static values, and the masked connector reply)
-    // before emitting the golden log line. The masking switch is checked alongside
-    // `log_fields_enabled`: no shipped config defines `[log.fields]`, so gating on that alone
-    // would mean nothing is ever masked.
     #[cfg(feature = "log-transformations")]
     if event_params.log_fields_enabled || event_params.masking_keys.enabled {
         apply_log_fields(

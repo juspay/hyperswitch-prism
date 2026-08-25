@@ -70,10 +70,6 @@ pub struct Config {
     #[serde(skip)]
     #[patch(ignore)]
     pub log_fields: Arc<CompiledLogFieldsConfig>,
-    /// Pre-parsed per-connector unmask lists for `response.masked_body`.
-    /// Compiled at startup from `[connector_response_masking.connector_keys]`, so the split /
-    /// trim / lowercase work happens once instead of on every connector response.
-    /// Recompiled per-request when `x-config-override` patches `connector_response_masking`.
     #[serde(skip)]
     #[patch(ignore)]
     pub masking_keys: Arc<CompiledMaskingKeys>,
@@ -351,16 +347,6 @@ impl WebhookSourceVerificationCall {
     }
 }
 
-/// Whether `name` is a connector this build can actually route to.
-///
-/// This is the **only** place the connector enums are consulted on behalf of
-/// `connector_response_masking`. The masking code itself lives in `common_utils`, which sits below
-/// `domain_types` and cannot see them; `ucs_env` sits above both, so the check happens here, once,
-/// at startup.
-///
-/// All five enums are checked because the lookup key at runtime comes from
-/// `ConnectorVariant::get_connector_name()`, which stringifies all five — a name matching only,
-/// say, `PayoutConnectorEnum` is still reachable and must not be rejected.
 fn is_known_connector(name: &str) -> bool {
     ConnectorEnum::from_str(name).is_ok()
         || SurchargeConnectorEnum::from_str(name).is_ok()
@@ -449,11 +435,6 @@ impl Config {
             }
         }
 
-        // Fail fast on a connector name we cannot route to, naming every bad key at once. A typo
-        // here would otherwise be silent: the entry simply never matches, and the operator sees a
-        // fully-masked body with no indication why. Only config *files* abort — an unresolvable
-        // name arriving on an `x-config-override` header is left to mask everything instead, so a
-        // typo in a diagnostic setting can never cost a payment.
         let unknown = config
             .connector_response_masking
             .unknown_connectors(is_known_connector);

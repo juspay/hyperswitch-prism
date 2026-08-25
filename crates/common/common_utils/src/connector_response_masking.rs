@@ -26,11 +26,6 @@ use crate::config_patch::Patch;
 #[cfg(feature = "log-transformations")]
 pub const MASKED: &str = "***";
 
-/// Per-connector unmask lists for connector response bodies.
-///
-/// Connector names are **not** validated here. The connector enums live in `domain_types`, which
-/// depends on this crate, so the arrow cannot be reversed; `ucs_env` checks them once at startup
-/// via [`ConnectorResponseMaskingConfig::unknown_connectors`].
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct ConnectorResponseMaskingConfig {
@@ -40,8 +35,6 @@ pub struct ConnectorResponseMaskingConfig {
     pub connector_keys: HashMap<Box<str>, String>,
 }
 
-/// Lowercases connector names so lookups match `ConnectorVariant::get_connector_name()`, which is
-/// already snake_case.
 fn deserialize_connector_keys<'de, D>(
     deserializer: D,
 ) -> Result<HashMap<Box<str>, String>, D::Error>
@@ -55,11 +48,6 @@ where
 }
 
 impl ConnectorResponseMaskingConfig {
-    /// Configured connector names that `is_known` does not recognise.
-    ///
-    /// The predicate is supplied by the caller because only crates above `domain_types` can see
-    /// the connector enums. Returns them all rather than the first, so a startup failure can name
-    /// every bad key at once.
     pub fn unknown_connectors(&self, is_known: impl Fn(&str) -> bool) -> Vec<&str> {
         let mut unknown: Vec<&str> = self
             .connector_keys
@@ -67,7 +55,6 @@ impl ConnectorResponseMaskingConfig {
             .map(AsRef::as_ref)
             .filter(|name| !is_known(name))
             .collect();
-        // `HashMap` iteration order is unspecified; sort so the error message is reproducible.
         unknown.sort_unstable();
         unknown
     }
@@ -81,11 +68,6 @@ pub struct ConnectorResponseMaskingConfigPatch {
     pub connector_keys: Option<HashMap<Box<str>, String>>,
 }
 
-/// Runs on the per-request `x-config-override` header, so it must not reject anything: failing
-/// here fails deserialization of the whole `ConfigPatch`, and the middleware then returns without
-/// ever calling the handler — a typo in a diagnostic setting would cost a payment. An unresolvable
-/// connector name simply never matches at lookup time and masks everything, which is the safe
-/// direction. Names in a config *file* are still checked at startup, in `ucs_env`.
 fn deserialize_optional_connector_keys<'de, D>(
     deserializer: D,
 ) -> Result<Option<HashMap<Box<str>, String>>, D::Error>
@@ -159,7 +141,6 @@ const ALWAYS_MASKED_EXACT: &[&str] = &[
     "jwt",
 ];
 
-/// The parsed unmask list for a single connector.
 #[derive(Debug, Default, Clone)]
 pub struct MaskKeys {
     names: HashSet<Box<str>>,
@@ -167,8 +148,6 @@ pub struct MaskKeys {
 }
 
 impl MaskKeys {
-    /// Parse one connector's comma-separated entry. An entry containing `.` is also registered as
-    /// a dotted path, so `additionaldata.authcode` pins that one location as well as the bare name.
     fn parse(configured: &str) -> Self {
         let mut keys = Self::default();
 
@@ -193,15 +172,8 @@ impl MaskKeys {
     }
 }
 
-/// Per-connector [`MaskKeys`], parsed once when config is loaded or patched rather than on every
-/// connector response.
-///
-/// Mirrors `CompiledLogFieldsConfig` in [`crate::events`]: the type is always compiled, and only
-/// the functions that consume it sit behind `log-transformations`.
 #[derive(Debug, Clone, Default)]
 pub struct CompiledMaskingKeys {
-    /// Runtime kill-switch: when `false`, no masked view is built even though the
-    /// `log-transformations` feature is compiled in.
     pub enabled: bool,
     pub keys: HashMap<Box<str>, MaskKeys>,
 }
@@ -378,8 +350,6 @@ fn mask_json(body: &[u8], keys: &MaskKeys) -> Option<Value> {
 fn mask_attributes(tag: &BytesStart<'_>, keys: &MaskKeys) -> BytesStart<'static> {
     let name = String::from_utf8_lossy(tag.name().as_ref()).into_owned();
     let mut rebuilt = BytesStart::new(name);
-    // quick-xml's duplicate-attribute check is quadratic in attributes-per-element, and the error
-    // it produces is exactly what `flatten` discards. Skip it.
     let mut attributes = tag.attributes();
     attributes.with_checks(false);
 
@@ -571,12 +541,6 @@ fn detect(content_type: Option<&str>, body: &[u8]) -> Option<Format> {
     Some(sniffed)
 }
 
-/// Build the masked view of a connector response body, ready to hand to
-/// [`crate::events::record_json_fields_on_span`].
-///
-/// JSON bodies come back as a `Value::Object`, so the log formatter emits them as real nested JSON
-/// rather than one escaped blob. XML and form bodies keep their original text and come back as
-/// `Value::String`, since neither round-trips through JSON without losing structure.
 #[cfg(feature = "log-transformations")]
 pub fn mask_connector_response(
     body: &[u8],
@@ -590,8 +554,6 @@ pub fn mask_connector_response(
 
     let body = crate::bytes_utils::strip_utf8_bom(body);
 
-    // A connector with no configured entry gets every value masked, so the empty set is the
-    // correct fallback rather than an error.
     let empty = MaskKeys::default();
     let keys = compiled.keys.get(connector_name).unwrap_or(&empty);
 
@@ -602,8 +564,6 @@ pub fn mask_connector_response(
         None => None,
     };
 
-    // A body matching no structured format is replaced by a size-only stub rather than emitted:
-    // with no keys to gate on, there is nothing to decide what would be safe to reveal.
     Some(
         masked.unwrap_or_else(
             || serde_json::json!({ "_format": "unparsable", "_bytes": body.len() }),
