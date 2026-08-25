@@ -602,6 +602,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             // Determine connector_transaction_id:
@@ -864,6 +868,10 @@ impl TryFrom<ResponseRouterData<FinixCaptureResponse, Self>>
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {
@@ -952,6 +960,7 @@ impl TryFrom<ResponseRouterData<FinixRSyncResponse, Self>>
                 connector_refund_id: response.id,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -1067,6 +1076,7 @@ impl TryFrom<ResponseRouterData<FinixRefundResponse, Self>>
                 connector_refund_id: response.id,
                 refund_status: status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -1395,6 +1405,10 @@ fn disabled_instrument_error(
         network_decline_code: None,
         network_advice_code: None,
         network_error_message: None,
+        typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
     }
 }
 
@@ -1824,6 +1838,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {
@@ -2168,6 +2186,7 @@ pub(super) fn get_finix_webhook_reference(
                         connector_refund_id: Some(transfer.id),
                         merchant_refund_id: None,
                         connector_transaction_id: None,
+                        merchant_transaction_id: None,
                     },
                 ))),
                 // finix platform fee ignored (HS: Err(WebhookEventTypeNotFound))
@@ -2282,7 +2301,8 @@ pub(super) fn build_finix_payment_webhook_response(
     Ok(WebhookDetailsResponse {
         resource_id: Some(ResponseId::ConnectorTransactionId(resource.id.clone())),
         status,
-        connector_response_reference_id: Some(resource.id),
+        connector_response_reference_id: Some(resource.id.clone()),
+        connector_request_reference_id: Some(resource.id),
         mandate_reference: None,
         error_code: resource.failure_code,
         error_message: resource.failure_message.clone(),

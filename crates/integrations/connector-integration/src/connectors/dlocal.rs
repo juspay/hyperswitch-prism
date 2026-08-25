@@ -256,6 +256,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .order_id
                 .clone()
                 .or_else(|| body.external_id.clone()),
+            connector_request_reference_id: body
+                .order_id
+                .clone()
+                .or_else(|| body.external_id.clone()),
             mandate_reference,
             error_code: is_failure
                 .then(|| body.status_code.as_ref().map(ToString::to_string))
@@ -374,7 +378,7 @@ macros::create_all_prerequisites!(
                     "{}{}{}",
                     auth.x_login.peek(),
                     date,
-                    dlocal_req.get_inner_value().peek().to_owned()
+                    dlocal_req.content.get_inner_value().peek().to_owned()
                 ),
                 None => format!("{}{}", auth.x_login.peek(), date)
 };
@@ -459,6 +463,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         with_error_response_body!(event_builder, response);
 
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.code.to_string(),
@@ -469,6 +475,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     }
 }

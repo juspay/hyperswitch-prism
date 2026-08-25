@@ -1747,6 +1747,10 @@ where
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             };
             return Ok(Self {
                 resource_common_data: PaymentFlowData {
@@ -1819,6 +1823,10 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             };
             return Ok(Self {
                 resource_common_data: PaymentFlowData {
@@ -1890,6 +1898,10 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             };
             return Ok(Self {
                 resource_common_data: PaymentFlowData {
@@ -1961,6 +1973,10 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             };
             return Ok(Self {
                 resource_common_data: PaymentFlowData {
@@ -2042,6 +2058,10 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             };
             return Ok(Self {
                 resource_common_data: RefundFlowData {
@@ -2067,6 +2087,7 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
                 connector_refund_id,
                 refund_status,
                 status_code: http_code,
+                acquirer_reference_number: None,
             }),
             ..router_data
         })
@@ -2211,6 +2232,10 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoInquiryResponse, Self>>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             };
             return Ok(Self {
                 resource_common_data: PaymentFlowData {
@@ -2316,6 +2341,10 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoInquiryResponse, Self>>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             };
             return Ok(Self {
                 resource_common_data: RefundFlowData {
@@ -2341,6 +2370,7 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoInquiryResponse, Self>>
                 connector_refund_id,
                 refund_status,
                 status_code: http_code,
+                acquirer_reference_number: None,
             }),
             ..router_data
         })

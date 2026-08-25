@@ -311,6 +311,7 @@ pub enum ConnectorSpecificConfig {
     Calida {
         api_key: Secret<String>,
         base_url: Option<String>,
+        shop_name: Option<Secret<String>>,
     },
     Celero {
         api_key: Secret<String>,
@@ -506,6 +507,12 @@ pub enum ConnectorSpecificConfig {
         profile_token: Option<Secret<String>>,
         base_url: Option<String>,
         secondary_base_url: Option<String>,
+    },
+    Moneris {
+        client_secret: Secret<String>,
+        merchant_id: Secret<String>,
+        client_id: Secret<String>,
+        base_url: Option<String>,
     },
     Nmi {
         api_key: Secret<String>,
@@ -856,6 +863,11 @@ pub enum ConnectorSpecificConfig {
         juspay_public_key: Secret<String>,
         base_url: Option<String>,
     },
+    Maya {
+        public_key: Secret<String>,
+        secret_key: Secret<String>,
+        base_url: Option<String>,
+    },
     TwocTwopPaco {
         access_token: Secret<String>,
         office_id: Secret<String>,
@@ -920,11 +932,27 @@ pub enum ConnectorSpecificConfig {
         private_key: Secret<String>,
         base_url: Option<String>,
     },
+    Santander {
+        client_id: Secret<String>,
+        client_secret: Secret<String>,
+        workspace_id: String,
+        certificates: Option<Secret<String>>,
+        private_key: Option<Secret<String>>,
+        base_url: Option<String>,
+    },
     Kount {
         api_key: Secret<String>,
         /// Kount OAuth authorization-server id; account/environment specific.
         /// Falls back to the sandbox auth server when `None`.
         auth_server_id: Option<String>,
+        base_url: Option<String>,
+    },
+    Grabpay {
+        partner_id: Secret<String>,
+        partner_secret: Secret<String>,
+        client_id: Secret<String>,
+        client_secret: Secret<String>,
+        merchant_id: Secret<String>,
         base_url: Option<String>,
     },
     Plaid {
@@ -937,6 +965,34 @@ pub enum ConnectorSpecificConfig {
         api_key: Secret<String>,
         key1: Secret<String>,
         api_secret: Secret<String>,
+        base_url: Option<String>,
+    },
+    Boost {
+        client_id: Secret<String>,
+        merchant_secret: Secret<String>,
+        /// BCPG RSA public key (base64-encoded DER SPKI), used to encrypt
+        /// card data for Authorize. Optional — not needed by other flows.
+        public_key: Option<Secret<String>>,
+        base_url: Option<String>,
+    },
+    Citigate {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        base_url: Option<String>,
+    },
+    /// Ilixium Direct API.
+    /// `api_key`    = Digest Calculation Password (input to X-MERCHANT-DIGEST, never sent)
+    /// `key1`       = MerchantId (request body `merchant.merchantId`)
+    /// `api_secret` = AccountId  (request body `merchant.accountId`)
+    Ilixium {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        api_secret: Secret<String>,
+        base_url: Option<String>,
+    },
+    Worldpayraft {
+        license: Secret<String>,
+        merchant_id: Secret<String>,
         base_url: Option<String>,
     },
     Travelhub {
@@ -1121,6 +1177,11 @@ impl ConnectorSpecificConfig {
                 merchant_id,
                 client_secret
             },
+            Moneris {
+                client_secret,
+                merchant_id,
+                client_id
+            },
             Noon {
                 api_key,
                 business_identifier,
@@ -1263,6 +1324,10 @@ impl ConnectorSpecificConfig {
                 client_id,
                 client_secret
             },
+            Maya {
+                public_key,
+                secret_key
+            },
             Juspay {
                 api_key,
                 merchant_id
@@ -1275,10 +1340,28 @@ impl ConnectorSpecificConfig {
             Tamara { api_key },
             Kount { api_key },
             Hyperswitch { api_key },
+            Grabpay {
+                partner_id,
+                partner_secret,
+                client_id,
+                client_secret,
+                merchant_id
+            },
             Tesouro {
                 api_key,
                 key1,
                 api_secret
+            },
+            Boost { api_key },
+            Citigate { api_key, key1 },
+            Ilixium {
+                api_key,
+                key1,
+                api_secret
+            },
+            Worldpayraft {
+                license,
+                merchant_id
             },
             Travelhub {
                 username,
@@ -1311,6 +1394,11 @@ impl ConnectorSpecificConfig {
             },
             Plaid { client_id, secret },
             Givepayments { api_key },
+            Santander {
+                client_id,
+                client_secret,
+                workspace_id
+            },
         )
     }
 
@@ -1577,6 +1665,11 @@ impl ConnectorSpecificConfig {
                     merchant_id,
                     client_secret
                 },
+                Moneris {
+                    client_secret,
+                    merchant_id,
+                    client_id
+                },
                 Noon {
                     api_key,
                     business_identifier,
@@ -1721,6 +1814,10 @@ impl ConnectorSpecificConfig {
                     client_id,
                     client_secret
                 },
+                Maya {
+                    public_key,
+                    secret_key
+                },
                 Juspay {
                     api_key,
                     merchant_id
@@ -1733,10 +1830,28 @@ impl ConnectorSpecificConfig {
                 Tamara { api_key },
                 Kount { api_key },
                 Hyperswitch { api_key },
+                Grabpay {
+                    partner_id,
+                    partner_secret,
+                    client_id,
+                    client_secret,
+                    merchant_id
+                },
                 Tesouro {
                     api_key,
                     key1,
                     api_secret
+                },
+                Boost { api_key },
+                Citigate { api_key, key1 },
+                Ilixium {
+                    api_key,
+                    key1,
+                    api_secret
+                },
+                Worldpayraft {
+                    license,
+                    merchant_id
                 },
                 Travelhub {
                     username,
@@ -1770,6 +1885,11 @@ impl ConnectorSpecificConfig {
                 },
                 Plaid { client_id, secret },
                 Givepayments { api_key },
+                Santander {
+                    client_id,
+                    client_secret,
+                    workspace_id
+                },
             ),
             serde_json::Value::Object(connector_patch),
         );
@@ -1971,6 +2091,12 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 api_key: multisafepay.api_key.ok_or_else(err)?,
                 base_url: multisafepay.base_url,
             }),
+            AuthType::Moneris(moneris) => Ok(Self::Moneris {
+                client_secret: moneris.client_secret.ok_or_else(err)?,
+                merchant_id: moneris.merchant_id.ok_or_else(err)?,
+                client_id: moneris.client_id.ok_or_else(err)?,
+                base_url: moneris.base_url,
+            }),
             AuthType::Nexinets(nexinets) => Ok(Self::Nexinets {
                 merchant_id: nexinets.merchant_id.ok_or_else(err)?,
                 api_key: nexinets.api_key.ok_or_else(err)?,
@@ -2121,6 +2247,7 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             AuthType::Calida(calida) => Ok(Self::Calida {
                 api_key: calida.api_key.ok_or_else(err)?,
                 base_url: calida.base_url,
+                shop_name: calida.shop_name,
             }),
             AuthType::Payload(payload) => Ok(Self::Payload {
                 auth_key_map: serde_json::to_value(payload.auth_key_map)
@@ -2309,6 +2436,11 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 base_url: easebuzz.base_url,
                 secondary_base_url: easebuzz.secondary_base_url,
             }),
+            AuthType::Maya(maya) => Ok(Self::Maya {
+                public_key: maya.public_key.ok_or_else(err)?,
+                secret_key: maya.secret_key.ok_or_else(err)?,
+                base_url: maya.base_url,
+            }),
             AuthType::Juspay(juspay) => Ok(Self::Juspay {
                 api_key: juspay.api_key.ok_or_else(err)?,
                 merchant_id: juspay.merchant_id.ok_or_else(err)?,
@@ -2335,11 +2467,41 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 api_key: hyperswitch.api_key.ok_or_else(err)?,
                 base_url: hyperswitch.base_url,
             }),
+            AuthType::Grabpay(grabpay) => Ok(Self::Grabpay {
+                partner_id: grabpay.partner_id.ok_or_else(err)?,
+                partner_secret: grabpay.partner_secret.ok_or_else(err)?,
+                client_id: grabpay.client_id.ok_or_else(err)?,
+                client_secret: grabpay.client_secret.ok_or_else(err)?,
+                merchant_id: grabpay.merchant_id.ok_or_else(err)?,
+                base_url: grabpay.base_url,
+            }),
             AuthType::Tesouro(tesouro) => Ok(Self::Tesouro {
                 api_key: tesouro.api_key.ok_or_else(err)?,
                 key1: tesouro.key1.ok_or_else(err)?,
                 api_secret: tesouro.api_secret.ok_or_else(err)?,
                 base_url: tesouro.base_url,
+            }),
+            AuthType::Boost(boost) => Ok(Self::Boost {
+                client_id: boost.client_id.ok_or_else(err)?,
+                merchant_secret: boost.merchant_secret.ok_or_else(err)?,
+                public_key: boost.public_key,
+                base_url: boost.base_url,
+            }),
+            AuthType::Citigate(citigate) => Ok(Self::Citigate {
+                api_key: citigate.api_key.ok_or_else(err)?,
+                key1: citigate.key1.ok_or_else(err)?,
+                base_url: citigate.base_url,
+            }),
+            AuthType::Ilixium(ilixium) => Ok(Self::Ilixium {
+                api_key: ilixium.api_key.ok_or_else(err)?,
+                key1: ilixium.key1.ok_or_else(err)?,
+                api_secret: ilixium.api_secret.ok_or_else(err)?,
+                base_url: ilixium.base_url,
+            }),
+            AuthType::Worldpayraft(worldpayraft) => Ok(Self::Worldpayraft {
+                license: worldpayraft.license.ok_or_else(err)?,
+                merchant_id: worldpayraft.merchant_id.ok_or_else(err)?,
+                base_url: worldpayraft.base_url,
             }),
             AuthType::Travelhub(travelhub) => Ok(Self::Travelhub {
                 username: travelhub.username.ok_or_else(err)?,
@@ -2441,6 +2603,14 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 api_key: givepayments.api_key.ok_or_else(err)?,
                 base_url: givepayments.base_url,
             }),
+            AuthType::Santander(santander) => Ok(Self::Santander {
+                client_id: santander.client_id.ok_or_else(err)?,
+                client_secret: santander.client_secret.ok_or_else(err)?,
+                workspace_id: santander.workspace_id,
+                certificates: santander.certificates,
+                private_key: santander.private_key,
+                base_url: santander.base_url,
+            }),
         }
     }
 }
@@ -2475,6 +2645,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Calida {
                         api_key: api_key.clone(),
                         base_url: None,
+                        shop_name: None,
                     }),
                     _ => Err(err().into()),
                 },
@@ -3078,6 +3249,19 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
+                ConnectorEnum::Moneris => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Moneris {
+                        client_secret: api_key.clone(),
+                        merchant_id: api_secret.clone(),
+                        client_id: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
                 ConnectorEnum::Noon => match auth {
                     ConnectorAuthType::SignatureKey {
                         api_key,
@@ -3493,6 +3677,14 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
+                ConnectorEnum::Maya => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Maya {
+                        public_key: api_key.clone(),
+                        secret_key: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
                 ConnectorEnum::Payconex => match auth {
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Payconex {
                         api_key: api_key.clone(),
@@ -3516,6 +3708,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
+                ConnectorEnum::Grabpay => Err(err().into()),
                 ConnectorEnum::Tesouro => match auth {
                     ConnectorAuthType::SignatureKey {
                         api_key,
@@ -3525,6 +3718,54 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         api_key: api_key.clone(),
                         key1: key1.clone(),
                         api_secret: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Ilixium => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Ilixium {
+                        api_key: api_key.clone(),
+                        key1: key1.clone(),
+                        api_secret: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Boost => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Boost {
+                        client_id: api_key.clone(),
+                        merchant_secret: key1.clone(),
+                        public_key: None,
+                        base_url: None,
+                    }),
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Boost {
+                        client_id: api_key.clone(),
+                        merchant_secret: key1.clone(),
+                        public_key: Some(api_secret.clone()),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Citigate => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Citigate {
+                        api_key: api_key.clone(),
+                        key1: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Worldpayraft => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Worldpayraft {
+                        license: api_key.clone(),
+                        merchant_id: key1.clone(),
                         base_url: None,
                     }),
                     _ => Err(err().into()),
@@ -3759,6 +4000,21 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
+                PayoutConnectorEnum::Santander => Err(err().into()),
+                PayoutConnectorEnum::Truelayer => Err(err().into()),
+                PayoutConnectorEnum::Trustly => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Trustly {
+                        username: api_key.clone(),
+                        password: key1.clone(),
+                        private_key: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
             },
         }
     }
@@ -3809,6 +4065,10 @@ pub struct ErrorResponse {
     pub network_decline_code: Option<String>,
     pub network_advice_code: Option<String>,
     pub network_error_message: Option<String>,
+    pub typed_connector_response: Option<String>,
+    pub raw_connector_response: Option<Secret<String>>,
+    pub raw_connector_request: Option<Secret<String>>,
+    pub typed_connector_request: Option<String>,
 }
 
 impl Default for ErrorResponse {
@@ -3823,6 +4083,10 @@ impl Default for ErrorResponse {
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         }
     }
 }
@@ -3860,6 +4124,10 @@ impl ErrorResponse {
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         }
     }
 }

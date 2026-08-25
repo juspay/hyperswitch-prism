@@ -22,7 +22,8 @@ use crate::{
     mandates::{CustomerAcceptance, MandateData},
     payment_address::{self, Address, AddressDetails, PhoneDetails},
     payment_method_data::{
-        self, Card, CustomerDocumentDetails, PaymentMethodData, PaymentMethodDataTypes,
+        self, Card, CustomerDocumentDetails, DefaultPCIHolder, PaymentMethodData,
+        PaymentMethodDataTypes,
     },
     router_data::{self, ConnectorResponseData},
     router_request_types::{
@@ -120,6 +121,7 @@ pub enum ConnectorEnum {
     Barclaycard,
     Nexixpay,
     Mollie,
+    Moneris,
     Airwallex,
     Tsys,
     Bankofamerica,
@@ -146,6 +148,7 @@ pub enum ConnectorEnum {
     PinelabsOnline,
     Easebuzz,
     Axisbank,
+    Maya,
     TsysTransit,
     TwocTwopPaco,
     Juspay,
@@ -158,7 +161,12 @@ pub enum ConnectorEnum {
     Affirm,
     Kount,
     Givepayments,
+    Grabpay,
     Tesouro,
+    Boost,
+    Citigate,
+    Ilixium,
+    Worldpayraft,
     Travelhub,
 }
 
@@ -241,6 +249,9 @@ pub enum PayoutConnectorEnum {
     Deutschebank,
     Worldpayxml,
     Cybersource,
+    Santander,
+    Truelayer,
+    Trustly,
 }
 
 impl TryFrom<ConnectorEnum> for PayoutConnectorEnum {
@@ -253,6 +264,8 @@ impl TryFrom<ConnectorEnum> for PayoutConnectorEnum {
             ConnectorEnum::Itaubank => Ok(Self::Itaubank),
             ConnectorEnum::Worldpayxml => Ok(Self::Worldpayxml),
             ConnectorEnum::Cybersource => Ok(Self::Cybersource),
+            ConnectorEnum::Truelayer => Ok(Self::Truelayer),
+            ConnectorEnum::Trustly => Ok(Self::Trustly),
             _ => Err(IntegrationError::InvalidDataFormat {
                 field_name: "connector",
                 context: IntegrationErrorContext::default(),
@@ -293,6 +306,9 @@ impl ForeignTryFrom<AuthType> for PayoutConnectorEnum {
             AuthType::Deutschebank(_) => Ok(Self::Deutschebank),
             AuthType::Worldpayxml(_) => Ok(Self::Worldpayxml),
             AuthType::Cybersource(_) => Ok(Self::Cybersource),
+            AuthType::Santander(_) => Ok(Self::Santander),
+            AuthType::Truelayer(_) => Ok(Self::Truelayer),
+            AuthType::Trustly(_) => Ok(Self::Trustly),
             _ => Err(error_stack::Report::new(
                 IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -490,6 +506,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Hyperpg => Ok(Self::Hyperpg),
             grpc_api_types::payments::Connector::Zift => Ok(Self::Zift),
             grpc_api_types::payments::Connector::Revolv3 => Ok(Self::Revolv3),
+            grpc_api_types::payments::Connector::Moneris => Ok(Self::Moneris),
             grpc_api_types::payments::Connector::Ppro => Ok(Self::Ppro),
             grpc_api_types::payments::Connector::Fiservcommercehub => Ok(Self::Fiservcommercehub),
             grpc_api_types::payments::Connector::Truelayer => Ok(Self::Truelayer),
@@ -501,6 +518,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Easebuzz => Ok(Self::Easebuzz),
             grpc_api_types::payments::Connector::Imerchantsolutions => Ok(Self::Imerchantsolutions),
             grpc_api_types::payments::Connector::Axisbank => Ok(Self::Axisbank),
+            grpc_api_types::payments::Connector::Maya => Ok(Self::Maya),
             grpc_api_types::payments::Connector::TsysTransit => Ok(Self::TsysTransit),
             grpc_api_types::payments::Connector::TwocTwopPaco => Ok(Self::TwocTwopPaco),
             grpc_api_types::payments::Connector::Juspay => Ok(Self::Juspay),
@@ -513,6 +531,11 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Tesouro => Ok(Self::Tesouro),
             grpc_api_types::payments::Connector::Glomopay => Ok(Self::Glomopay),
             grpc_api_types::payments::Connector::Givepayments => Ok(Self::Givepayments),
+            grpc_api_types::payments::Connector::Boost => Ok(Self::Boost),
+            grpc_api_types::payments::Connector::Ilixium => Ok(Self::Ilixium),
+            grpc_api_types::payments::Connector::Grabpay => Ok(Self::Grabpay),
+            grpc_api_types::payments::Connector::Citigate => Ok(Self::Citigate),
+            grpc_api_types::payments::Connector::Worldpayraft => Ok(Self::Worldpayraft),
             grpc_api_types::payments::Connector::Travelhub => Ok(Self::Travelhub),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
@@ -592,6 +615,10 @@ pub trait RawConnectorRequestResponse {
     fn get_raw_connector_response(&self) -> Option<Secret<String>>;
     fn set_raw_connector_request(&mut self, request: Option<Secret<String>>);
     fn get_raw_connector_request(&self) -> Option<Secret<String>>;
+    fn set_typed_connector_response(&mut self, response: Option<String>);
+    fn get_typed_connector_response(&self) -> Option<String>;
+    fn set_typed_connector_request(&mut self, request: Option<String>);
+    fn get_typed_connector_request(&self) -> Option<String>;
 }
 
 pub trait ConnectorResponseHeaders {
@@ -766,6 +793,7 @@ pub struct PaymentFlowData {
     pub attempt_id: String,
     pub status: AttemptStatus,
     pub payment_method: PaymentMethod,
+    pub payment_method_type: Option<PaymentMethodType>,
     pub description: Option<String>,
     pub return_url: Option<String>,
     pub address: payment_address::PaymentAddress,
@@ -791,7 +819,9 @@ pub struct PaymentFlowData {
     pub external_latency: Option<u128>,
     pub connectors: Connectors,
     pub raw_connector_response: Option<Secret<String>>,
+    pub typed_connector_response: Option<String>,
     pub raw_connector_request: Option<Secret<String>>,
+    pub typed_connector_request: Option<String>,
     pub vault_headers: Option<HashMap<String, Secret<String>>>,
     /// This field is used to store various data regarding the response from connector
     pub connector_response: Option<ConnectorResponseData>,
@@ -805,6 +835,7 @@ pub struct PaymentFlowData {
     /// idempotency token on their wire envelope.
     pub merchant_request_id: Option<String>,
     pub sender_payment_instrument_id: Option<String>,
+    pub connector_returned_payment_method_details: Option<PaymentMethodData<DefaultPCIHolder>>,
     /// Settlement phase reported by the connector.
     /// Lives on PaymentFlowData (not PaymentsSyncData) so other flows can
     /// populate it in the future if a connector starts reporting settlement state on authorize, capture, etc.
@@ -1488,6 +1519,22 @@ impl RawConnectorRequestResponse for PaymentFlowData {
     fn set_raw_connector_request(&mut self, request: Option<Secret<String>>) {
         self.raw_connector_request = request;
     }
+
+    fn set_typed_connector_response(&mut self, response: Option<String>) {
+        self.typed_connector_response = response;
+    }
+
+    fn get_typed_connector_response(&self) -> Option<String> {
+        self.typed_connector_response.clone()
+    }
+
+    fn set_typed_connector_request(&mut self, request: Option<String>) {
+        self.typed_connector_request = request;
+    }
+
+    fn get_typed_connector_request(&self) -> Option<String> {
+        self.typed_connector_request.clone()
+    }
 }
 
 impl ConnectorResponseHeaders for PaymentFlowData {
@@ -1557,6 +1604,10 @@ pub struct PaymentMethodEligibilityData {
     pub amount: common_utils::types::Money,
     /// Customer details (phone, email, name, etc.) for eligibility check.
     pub customer: Option<CustomerInfo>,
+    /// Connector-issued payment method ID (e.g. wallet number) being checked,
+    /// when known. Mirrors `GetPaymentMethodData`'s identifier so connectors
+    /// can reuse the same lookup as `GetPaymentMethod`.
+    pub connector_payment_method_id: Option<String>,
     /// Market/country the eligibility check is for. BNPL eligibility is
     /// country-gated, so connectors operating per-market rely on this.
     /// (Billing/shipping address and order line items are carried on the
@@ -1578,6 +1629,10 @@ pub struct PaymentMethodEligibilityData {
 #[derive(Debug, Clone)]
 pub struct PaymentMethodEligibilityResponse {
     pub eligibility: common_enums::EligibilityStatus,
+    /// Payment method details resolved as part of the eligibility check (e.g.
+    /// wallet/gift-card balance and items), when the connector call that
+    /// determines eligibility also returns them.
+    pub payment_method_details: Option<payment_method_data::PaymentMethodDetails>,
     pub status_code: u32,
 }
 
@@ -2197,6 +2252,14 @@ pub struct PaymentsPreAuthenticateData<T: PaymentMethodDataTypes> {
     pub mandate_reference: Option<MandateReferenceId>,
     /// Merchant transaction id, used to derive the FRM DDC sessionId (e.g. Kount).
     pub merchant_transaction_id: Option<String>,
+    /// Merchant-supplied connector metadata, mirroring `PaymentsAuthorizeData::metadata`.
+    ///
+    /// The gRPC request has always carried this (`PaymentMethodAuthenticationService
+    /// PreAuthenticateRequest.metadata`) but it was previously dropped on the floor here, so a
+    /// connector whose PreAuthenticate leg sends a full authorisation could not reach
+    /// merchant-supplied fields that have no home in the UCS payment model — Ilixium's
+    /// schema-mandatory `customer.dateOfBirth`, for one.
+    pub metadata: Option<common_utils::pii::SecretSerdeValue>,
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsPreAuthenticateData<T> {
@@ -2666,6 +2729,7 @@ pub struct RefundsResponseData {
     pub connector_refund_id: String,
     pub refund_status: common_enums::RefundStatus,
     pub status_code: u16,
+    pub acquirer_reference_number: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -2676,8 +2740,10 @@ pub struct RefundFlowData {
     pub connectors: Connectors,
     pub connector_request_reference_id: String,
     pub raw_connector_response: Option<Secret<String>>,
+    pub typed_connector_response: Option<String>,
     pub connector_response_headers: Option<http::HeaderMap>,
     pub raw_connector_request: Option<Secret<String>>,
+    pub typed_connector_request: Option<String>,
     pub access_token: Option<ServerAuthenticationTokenResponseData>,
     pub connector_feature_data: Option<SecretSerdeValue>,
     pub test_mode: Option<bool>,
@@ -2705,6 +2771,22 @@ impl RawConnectorRequestResponse for RefundFlowData {
 
     fn set_raw_connector_request(&mut self, request: Option<Secret<String>>) {
         self.raw_connector_request = request;
+    }
+
+    fn set_typed_connector_response(&mut self, response: Option<String>) {
+        self.typed_connector_response = response;
+    }
+
+    fn get_typed_connector_response(&self) -> Option<String> {
+        self.typed_connector_response.clone()
+    }
+
+    fn set_typed_connector_request(&mut self, request: Option<String>) {
+        self.typed_connector_request = request;
+    }
+
+    fn get_typed_connector_request(&self) -> Option<String> {
+        self.typed_connector_request.clone()
     }
 }
 
@@ -2757,6 +2839,7 @@ pub struct RedirectDetailsResponse {
     pub error_message: Option<String>,
     pub error_reason: Option<String>,
     pub raw_connector_response: Option<String>,
+    pub connector_feature_data: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -2764,6 +2847,7 @@ pub struct WebhookDetailsResponse {
     pub resource_id: Option<ResponseId>,
     pub status: AttemptStatus,
     pub connector_response_reference_id: Option<String>,
+    pub connector_request_reference_id: Option<String>,
     pub mandate_reference: Option<Box<MandateReference>>,
     pub error_code: Option<String>,
     pub error_message: Option<String>,
@@ -2822,6 +2906,8 @@ pub struct RefundWebhookReference {
     pub merchant_refund_id: Option<String>,
     /// PSP-assigned ID of the original payment this refund belongs to.
     pub connector_transaction_id: Option<String>,
+    /// Caller-assigned order / invoice ID echoed back by the connector.
+    pub merchant_transaction_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -2836,6 +2922,8 @@ pub struct DisputeWebhookReference {
 pub struct MandateWebhookReference {
     /// PSP-assigned mandate ID.
     pub connector_mandate_id: Option<String>,
+    /// Caller-assigned order / invoice ID echoed back by the connector.
+    pub merchant_transaction_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -3711,7 +3799,9 @@ pub struct DisputeFlowData {
     pub defense_reason_code: Option<String>,
     pub connector_request_reference_id: String,
     pub raw_connector_response: Option<Secret<String>>,
+    pub typed_connector_response: Option<String>,
     pub raw_connector_request: Option<Secret<String>>,
+    pub typed_connector_request: Option<String>,
     pub connector_response_headers: Option<http::HeaderMap>,
 }
 
@@ -3731,6 +3821,22 @@ impl RawConnectorRequestResponse for DisputeFlowData {
     fn get_raw_connector_request(&self) -> Option<Secret<String>> {
         self.raw_connector_request.clone()
     }
+
+    fn set_typed_connector_response(&mut self, response: Option<String>) {
+        self.typed_connector_response = response;
+    }
+
+    fn get_typed_connector_response(&self) -> Option<String> {
+        self.typed_connector_response.clone()
+    }
+
+    fn set_typed_connector_request(&mut self, request: Option<String>) {
+        self.typed_connector_request = request;
+    }
+
+    fn get_typed_connector_request(&self) -> Option<String> {
+        self.typed_connector_request.clone()
+    }
 }
 
 impl ConnectorResponseHeaders for DisputeFlowData {
@@ -3748,7 +3854,9 @@ pub struct VerifyWebhookSourceFlowData {
     pub connectors: Connectors,
     pub connector_request_reference_id: String,
     pub raw_connector_response: Option<Secret<String>>,
+    pub typed_connector_response: Option<String>,
     pub raw_connector_request: Option<Secret<String>>,
+    pub typed_connector_request: Option<String>,
     pub connector_response_headers: Option<http::HeaderMap>,
 }
 
@@ -3768,6 +3876,22 @@ impl RawConnectorRequestResponse for VerifyWebhookSourceFlowData {
     fn set_raw_connector_request(&mut self, request: Option<Secret<String>>) {
         self.raw_connector_request = request;
     }
+
+    fn set_typed_connector_response(&mut self, response: Option<String>) {
+        self.typed_connector_response = response;
+    }
+
+    fn get_typed_connector_response(&self) -> Option<String> {
+        self.typed_connector_response.clone()
+    }
+
+    fn set_typed_connector_request(&mut self, request: Option<String>) {
+        self.typed_connector_request = request;
+    }
+
+    fn get_typed_connector_request(&self) -> Option<String> {
+        self.typed_connector_request.clone()
+    }
 }
 
 impl ConnectorResponseHeaders for VerifyWebhookSourceFlowData {
@@ -3786,7 +3910,9 @@ pub struct RefreshPaymentMethodFlowData {
     pub connector_request_reference_id: String,
     /// Provider's encrypted form only — never decrypted payment method data.
     pub raw_connector_response: Option<Secret<String>>,
+    pub typed_connector_response: Option<String>,
     pub raw_connector_request: Option<Secret<String>>,
+    pub typed_connector_request: Option<String>,
     pub connector_response_headers: Option<http::HeaderMap>,
 }
 
@@ -3805,6 +3931,22 @@ impl RawConnectorRequestResponse for RefreshPaymentMethodFlowData {
 
     fn set_raw_connector_request(&mut self, request: Option<Secret<String>>) {
         self.raw_connector_request = request;
+    }
+
+    fn set_typed_connector_response(&mut self, response: Option<String>) {
+        self.typed_connector_response = response;
+    }
+
+    fn get_typed_connector_response(&self) -> Option<String> {
+        self.typed_connector_response.clone()
+    }
+
+    fn set_typed_connector_request(&mut self, request: Option<String>) {
+        self.typed_connector_request = request;
+    }
+
+    fn get_typed_connector_request(&self) -> Option<String> {
+        self.typed_connector_request.clone()
     }
 }
 
@@ -3969,6 +4111,7 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                     Self::ApplePayThirdPartySdk
                 }
                 payment_method_data::WalletData::DanaRedirect {} => Self::DanaRedirect,
+                payment_method_data::WalletData::GrabpayRedirect {} => Self::GrabpayRedirect,
                 payment_method_data::WalletData::GooglePay(_) => Self::GooglePay,
                 payment_method_data::WalletData::GooglePayRedirect(_) => Self::GooglePayRedirect,
                 payment_method_data::WalletData::GooglePayThirdPartySdk(_) => {
@@ -3999,6 +4142,7 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                 payment_method_data::WalletData::CashfreeRedirect(_) => Self::CashfreeRedirect,
                 payment_method_data::WalletData::PayURedirect(_) => Self::PayURedirect,
                 payment_method_data::WalletData::EaseBuzzRedirect(_) => Self::EaseBuzzRedirect,
+                payment_method_data::WalletData::PaymayaRedirect(_) => Self::PaymayaRedirect,
                 payment_method_data::WalletData::QwikcilverWalletDirect(_) => {
                     Self::QwikcilverWalletDirect
                 }
@@ -4053,7 +4197,7 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                     Self::LocalBankRedirect
                 }
                 payment_method_data::BankRedirectData::Eft { .. } => Self::Eft,
-                payment_method_data::BankRedirectData::OpenBanking {} => Self::OpenBanking,
+                payment_method_data::BankRedirectData::OpenBanking { .. } => Self::OpenBanking,
                 payment_method_data::BankRedirectData::Netbanking { .. } => Self::Netbanking,
             },
             PaymentMethodData::BankDebit(bank_debit_data) => match bank_debit_data {
@@ -5546,6 +5690,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Authorizedotnet(_) => Ok(Self::Payment(ConnectorEnum::Authorizedotnet)),
             AuthType::Ppro(_) => Ok(Self::Payment(ConnectorEnum::Ppro)),
             AuthType::PinelabsOnline(_) => Ok(Self::Payment(ConnectorEnum::PinelabsOnline)),
+            AuthType::Moneris(_) => Ok(Self::Payment(ConnectorEnum::Moneris)),
             AuthType::Easebuzz(_) => Ok(Self::Payment(ConnectorEnum::Easebuzz)),
             AuthType::Juspay(_) => Ok(Self::Payment(ConnectorEnum::Juspay)),
             AuthType::Glomopay(_) => Ok(Self::Payment(ConnectorEnum::Glomopay)),
@@ -5553,7 +5698,13 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Payconex(_) => Ok(Self::Payment(ConnectorEnum::Payconex)),
             AuthType::Kount(_) => Ok(Self::Payment(ConnectorEnum::Kount)),
             AuthType::Hyperswitch(_) => Ok(Self::Payment(ConnectorEnum::Hyperswitch)),
+            AuthType::Grabpay(_) => Ok(Self::Payment(ConnectorEnum::Grabpay)),
+            AuthType::Maya(_) => Ok(Self::Payment(ConnectorEnum::Maya)),
             AuthType::Tesouro(_) => Ok(Self::Payment(ConnectorEnum::Tesouro)),
+            AuthType::Boost(_) => Ok(Self::Payment(ConnectorEnum::Boost)),
+            AuthType::Citigate(_) => Ok(Self::Payment(ConnectorEnum::Citigate)),
+            AuthType::Ilixium(_) => Ok(Self::Payment(ConnectorEnum::Ilixium)),
+            AuthType::Worldpayraft(_) => Ok(Self::Payment(ConnectorEnum::Worldpayraft)),
             AuthType::Travelhub(_) => Ok(Self::Payment(ConnectorEnum::Travelhub)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TsysTransit(_) => Ok(Self::Payment(ConnectorEnum::TsysTransit)),
@@ -5570,6 +5721,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Affirm(_) => Ok(Self::Payment(ConnectorEnum::Affirm)),
             AuthType::Plaid(_) => Ok(Self::Authenticator(AuthenticatorConnectorEnum::Plaid)),
             AuthType::Givepayments(_) => Ok(Self::Payment(ConnectorEnum::Givepayments)),
+            AuthType::Santander(_) => Ok(Self::Payout(PayoutConnectorEnum::Santander)),
         }
     }
 }

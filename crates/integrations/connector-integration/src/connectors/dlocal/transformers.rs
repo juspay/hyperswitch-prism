@@ -958,6 +958,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..item.router_data
             });
@@ -1479,6 +1483,7 @@ impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
                 connector_refund_id: item.response.id,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -1496,6 +1501,7 @@ impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
                 connector_refund_id: item.response.id,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })

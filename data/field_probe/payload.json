@@ -786,7 +786,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":\"10.00\",\"payment_method\":{\"type\":\"card\",\"card\":{\"card_number\":\"{{$card_number}}\",\"expiry\":\"{{$card_exp_month}}/{{$card_exp_year}}\",\"card_code\":\"{{$card_cvc}}\"},\"billing_address\":{\"city\":\"Seattle\",\"country_code\":\"US\",\"postal_code\":\"98101\",\"state_province\":\"WA\",\"street_address\":\"123 Main St\"},\"keep_active\":false},\"type\":\"payment\"}"
+          "body": "{\"amount\":\"10.00\",\"payment_method\":{\"type\":\"card\",\"card\":{\"card_number\":\"{{$card_number}}\",\"expiry\":\"03/30\",\"card_code\":\"{{$card_cvc}}\"},\"billing_address\":{\"city\":\"Seattle\",\"country_code\":\"US\",\"postal_code\":\"98101\",\"state_province\":\"WA\",\"street_address\":\"123 Main St\"},\"keep_active\":false},\"type\":\"payment\"}"
         }
       }
     },
@@ -838,7 +838,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":\"0\",\"payment_method\":{\"type\":\"card\",\"card\":{\"card_number\":\"{{$card_number}}\",\"expiry\":\"{{$card_exp_month}}/{{$card_exp_year}}\",\"card_code\":\"{{$card_cvc}}\"},\"billing_address\":{\"city\":\"Seattle\",\"country_code\":\"US\",\"postal_code\":\"98101\",\"state_province\":\"WA\",\"street_address\":\"123 Main St\"},\"keep_active\":true},\"type\":\"payment\"}"
+          "body": "{\"amount\":\"0\",\"payment_method\":{\"type\":\"card\",\"card\":{\"card_number\":\"{{$card_number}}\",\"expiry\":\"03/30\",\"card_code\":\"{{$card_cvc}}\"},\"billing_address\":{\"city\":\"Seattle\",\"country_code\":\"US\",\"postal_code\":\"98101\",\"state_province\":\"WA\",\"street_address\":\"123 Main St\"},\"keep_active\":true},\"type\":\"payment\"}"
         }
       }
     },

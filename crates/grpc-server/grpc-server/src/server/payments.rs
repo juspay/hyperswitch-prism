@@ -98,7 +98,7 @@ use grpc_api_types::payments::{
     RecurringPaymentServiceChargeResponse, RecurringPaymentServiceRevokeRequest,
     RecurringPaymentServiceRevokeResponse, RefundResponse,
 };
-use hyperswitch_masking::{ExposeInterface, PeekInterface};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use injector::TokenData;
 use interfaces::{
     connector_integration_v2::BoxedConnectorIntegrationV2,
@@ -123,6 +123,7 @@ struct EventParams<'a> {
     proxy_name: Option<&'a str>,
     tenant_id: &'a str,
     merchant_id: &'a str,
+    org_id: &'a str,
     connector_latency: common_utils::request_metrics::ConnectorLatencyTracker,
 }
 
@@ -561,6 +562,7 @@ impl Payments {
         })?;
 
         // Execute connector processing
+
         let event_params = EventProcessingParams {
             connector_name: &connector.get_connector_name(),
             service_name,
@@ -576,8 +578,11 @@ impl Payments {
             proxy_name: metadata_payload.proxy_name.as_deref(),
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
+            org_id: metadata_payload.org_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
             connector_latency: metadata_payload.connector_latency.clone(),
+            log_fields_enabled: config.log_fields.enabled,
+            log_fields: &config.log_fields.outgoing,
         };
 
         // Execute connector processing - ONLY the authorize call
@@ -714,8 +719,11 @@ impl Payments {
             proxy_name: metadata_payload.proxy_name.as_deref(),
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
+            org_id: metadata_payload.org_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
             connector_latency: metadata_payload.connector_latency.clone(),
+            log_fields_enabled: config.log_fields.enabled,
+            log_fields: &config.log_fields.outgoing,
         };
 
         let response = Box::pin(
@@ -1113,6 +1121,7 @@ impl PaymentService for Payments {
                             }))
                         })?;
 
+
                     let event_params = EventProcessingParams {
                         connector_name: &connector.get_connector_name(),
                         service_name: &service_name,
@@ -1128,8 +1137,11 @@ impl PaymentService for Payments {
                         proxy_name: metadata_payload.proxy_name.as_deref(),
                         tenant_id: &metadata_payload.tenant_id,
                         merchant_id: metadata_payload.merchant_id.as_str(),
+                        org_id: metadata_payload.org_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
                 connector_latency: metadata_payload.connector_latency.clone(),
+                        log_fields_enabled: config.log_fields.enabled,
+            log_fields: &config.log_fields.outgoing,
                     };
 
                     // handle_response field removed from proto (field 5 reserved)
@@ -1381,6 +1393,7 @@ impl PaymentService for Payments {
                         .transpose()
                         .map_err(|e| e.to_grpc_error())?
                         .map(ConnectorSourceVerificationSecrets::RedirectResponseSecret);
+                    let connector_feature_data = payload.connector_feature_data;
 
                        let connector_data: ConnectorData<DefaultPCIHolder> =
                         ConnectorData::from_connector_variant(&connector)
@@ -1433,6 +1446,7 @@ impl PaymentService for Payments {
                         .connector
                         .process_redirect_response(
                             &updated_request_details,
+                            connector_feature_data.as_ref(),
                         )
                         .to_grpc_error()?;
 
@@ -2591,6 +2605,7 @@ impl PaymentMethod {
         })?;
 
         // Execute connector processing
+
         let event_params = EventProcessingParams {
             connector_name: &connector.get_connector_name(),
             service_name,
@@ -2606,8 +2621,11 @@ impl PaymentMethod {
             proxy_name: metadata_payload.proxy_name.as_deref(),
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
+            org_id: metadata_payload.org_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
             connector_latency: metadata_payload.connector_latency.clone(),
+            log_fields_enabled: config.log_fields.enabled,
+            log_fields: &config.log_fields.outgoing,
         };
 
         let response = Box::pin(
@@ -2681,7 +2699,7 @@ impl PaymentMethod {
         // Authenticator connectors use PaymentMethodType instead of PMData
         let dummy_pm_data = payment_method_data::PaymentMethodData::PaymentMethodToken(
             payment_method_data::PaymentMethodToken {
-                token: hyperswitch_masking::Secret::new(String::new()),
+                token: Secret::new(String::new()),
             },
         );
         let connector_feature_data = request
@@ -2742,9 +2760,12 @@ impl PaymentMethod {
             proxy_name: metadata_payload.proxy_name.as_deref(),
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
+            org_id: metadata_payload.org_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
             connector_latency: metadata_payload.connector_latency.clone(),
             runtime_metadata: &config.runtime_metadata,
+            log_fields_enabled: config.log_fields.enabled,
+            log_fields: &config.log_fields.outgoing,
         };
 
         let response = Box::pin(
@@ -2844,6 +2865,7 @@ impl MerchantAuthentication {
             })?;
 
         // Create event processing parameters
+
         let external_event_params = EventProcessingParams {
             connector_name,
             service_name,
@@ -2859,8 +2881,11 @@ impl MerchantAuthentication {
             proxy_name: event_params.proxy_name,
             tenant_id: event_params.tenant_id,
             merchant_id: event_params.merchant_id,
+            org_id: event_params.org_id,
             return_raw_connector_data: config.common.return_raw_connector_data,
             connector_latency: event_params.connector_latency.clone(),
+            log_fields_enabled: config.log_fields.enabled,
+            log_fields: &config.log_fields.outgoing,
         };
 
         // Execute connector processing
@@ -2889,7 +2914,7 @@ impl MerchantAuthentication {
                 Ok(session_response)
             }
             Err(error_response) => Err(error_stack::report!(
-                ConnectorError::ConnectorErrorResponse(error_response)
+                ConnectorError::ConnectorErrorResponse(Box::new(error_response))
             )
             .to_grpc_error()),
         }
@@ -2985,6 +3010,7 @@ impl MerchantAuthentication {
             })?;
 
         // Execute connector processing
+
         let external_event_params = EventProcessingParams {
             connector_name,
             service_name,
@@ -3000,8 +3026,11 @@ impl MerchantAuthentication {
             proxy_name: event_params.proxy_name,
             tenant_id: event_params.tenant_id,
             merchant_id: event_params.merchant_id,
+            org_id: event_params.org_id,
             return_raw_connector_data: config.common.return_raw_connector_data,
             connector_latency: event_params.connector_latency.clone(),
+            log_fields_enabled: config.log_fields.enabled,
+            log_fields: &config.log_fields.outgoing,
         };
 
         let response = Box::pin(
@@ -3228,6 +3257,7 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                         proxy_name: metadata_payload.proxy_name.as_deref(),
                         tenant_id: &metadata_payload.tenant_id,
                         merchant_id: metadata_payload.merchant_id.as_str(),
+                        org_id: metadata_payload.org_id.as_str(),
                         connector_latency: metadata_payload.connector_latency.clone(),
                     };
 
@@ -3344,6 +3374,7 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                         proxy_name: metadata_payload.proxy_name.as_deref(),
                         tenant_id: &metadata_payload.tenant_id,
                         merchant_id: metadata_payload.merchant_id.as_str(),
+                        org_id: metadata_payload.org_id.as_str(),
                         connector_latency: metadata_payload.connector_latency.clone(),
                     };
 
@@ -3564,6 +3595,7 @@ impl RecurringPaymentService for RecurringPayments {
                             }))
                         })?;
 
+
                     let event_params = EventProcessingParams {
                         connector_name: &metadata_payload.connector.get_connector_name(),
                         service_name: &service_name,
@@ -3579,8 +3611,11 @@ impl RecurringPaymentService for RecurringPayments {
                         proxy_name: metadata_payload.proxy_name.as_deref(),
                         tenant_id: &metadata_payload.tenant_id,
                         merchant_id: metadata_payload.merchant_id.as_str(),
+                        org_id: metadata_payload.org_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
                 connector_latency: metadata_payload.connector_latency.clone(),
+                        log_fields_enabled: config.log_fields.enabled,
+            log_fields: &config.log_fields.outgoing,
                     };
 
                     let response = Box::pin(
@@ -3852,9 +3887,17 @@ pub fn generate_mandate_revoke_response(
     let raw_connector_response = router_data_v2
         .resource_common_data
         .get_raw_connector_response();
+    let typed_connector_response = router_data_v2
+        .resource_common_data
+        .get_typed_connector_response()
+        .map(Secret::new);
     let raw_connector_request = router_data_v2
         .resource_common_data
         .get_raw_connector_request();
+    let typed_connector_request = router_data_v2
+        .resource_common_data
+        .get_typed_connector_request()
+        .map(Secret::new);
     let response_headers = router_data_v2
         .resource_common_data
         .get_connector_response_headers_as_map();
@@ -3881,7 +3924,9 @@ pub fn generate_mandate_revoke_response(
             network_transaction_id: None,
             merchant_revoke_id: None,
             raw_connector_response,
+            typed_connector_response,
             raw_connector_request,
+            typed_connector_request,
         }),
         Err(e) => Ok(RecurringPaymentServiceRevokeResponse {
             status: grpc_api_types::payments::MandateStatus::MandateRevokeFailed.into(),
@@ -3901,7 +3946,9 @@ pub fn generate_mandate_revoke_response(
             network_transaction_id: None,
             merchant_revoke_id: e.connector_transaction_id,
             raw_connector_response,
+            typed_connector_response,
             raw_connector_request,
+            typed_connector_request,
         }),
     }
 }

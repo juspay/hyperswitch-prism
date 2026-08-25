@@ -288,7 +288,9 @@ fn build_payload_bank_account_request_data<T: PaymentMethodDataTypes>(
                 Some(enums::BankType::Transmission)
                 | Some(enums::BankType::Current)
                 | Some(enums::BankType::Bond)
-                | Some(enums::BankType::SubscriptionShare) => {
+                | Some(enums::BankType::SubscriptionShare)
+                | Some(enums::BankType::Salary)
+                | Some(enums::BankType::Payment) => {
                     Err(error_stack::report!(IntegrationError::NotSupported {
                         message: format!(
                             "Bank type {:?} is not supported for ACH bank debit",
@@ -798,6 +800,10 @@ fn handle_payment_response<F, T>(
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 })
             } else {
                 Ok(PaymentsResponseData::TransactionResponse {
@@ -991,6 +997,7 @@ impl TryFrom<ResponseRouterData<PayloadRefundResponse, Self>>
                 connector_refund_id: item.response.transaction_id.to_string(),
                 refund_status: enums::RefundStatus::from(item.response.status),
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -1023,6 +1030,7 @@ impl TryFrom<ResponseRouterData<PayloadRefundResponse, Self>>
                 connector_refund_id: item.response.transaction_id.to_string(),
                 refund_status: enums::RefundStatus::from(item.response.status),
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })

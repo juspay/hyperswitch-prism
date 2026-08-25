@@ -88,6 +88,7 @@ macro_rules! default_impl_verify_webhook_source_v2_single {
             ) -> CustomResult<Option<Request>, IntegrationError> {
                 Ok(None)
             }
+
         }
     };
 }
@@ -135,6 +136,7 @@ macro_rules! default_impl_payment_method_eligibility_v2_single {
                 )
                 .into())
             }
+
         }
     };
 }
@@ -286,7 +288,13 @@ default_impl_verify_webhook_source_v2!(
         Kount,
         Hyperswitch,
         Affirm,
+        Grabpay,
         Tesouro,
+        Boost,
+        Citigate,
+        Moneris,
+        Ilixium,
+        Worldpayraft,
         Travelhub,
     ],
 );
@@ -351,6 +359,7 @@ macro_rules! default_impl_recharge_v2_single {
             ) -> CustomResult<Option<Request>, IntegrationError> {
                 Ok(None)
             }
+
         }
     };
 }
@@ -363,6 +372,9 @@ macro_rules! default_impl_recharge_v2 {
 }
 
 default_impl_recharge_v2!(
+    Citigate,
+    Boost,
+    Ilixium,
     Tesouro,
     AbsaSanlam,
     Aci,
@@ -413,6 +425,7 @@ default_impl_recharge_v2!(
     Loonio,
     Mifinity,
     Mollie,
+    Moneris,
     Multisafepay,
     Netcetera,
     Nexinets,
@@ -459,6 +472,7 @@ default_impl_recharge_v2!(
     Wellsfargo,
     Worldpay,
     Worldpayvantiv,
+    Worldpayraft,
     Worldpayxml,
     Xendit,
     Zift,
@@ -518,6 +532,7 @@ macro_rules! default_impl_create_payment_method_v2_single {
             ) -> CustomResult<Option<Request>, IntegrationError> {
                 Ok(None)
             }
+
         }
     };
 }
@@ -573,6 +588,7 @@ macro_rules! default_impl_get_payment_method_v2_single {
             ) -> CustomResult<Option<Request>, IntegrationError> {
                 Ok(None)
             }
+
         }
     };
 }
@@ -586,6 +602,9 @@ macro_rules! default_impl_get_payment_method_v2 {
 
 // Same connector universe as default_impl_recharge_v2! above.
 default_impl_create_payment_method_v2!(
+    Citigate,
+    Boost,
+    Ilixium,
     Tesouro,
     AbsaSanlam,
     Aci,
@@ -636,6 +655,7 @@ default_impl_create_payment_method_v2!(
     Loonio,
     Mifinity,
     Mollie,
+    Moneris,
     Multisafepay,
     Netcetera,
     Nexinets,
@@ -682,6 +702,7 @@ default_impl_create_payment_method_v2!(
     Wellsfargo,
     Worldpay,
     Worldpayvantiv,
+    Worldpayraft,
     Worldpayxml,
     Xendit,
     Zift,
@@ -689,6 +710,9 @@ default_impl_create_payment_method_v2!(
 );
 
 default_impl_get_payment_method_v2!(
+    Citigate,
+    Boost,
+    Ilixium,
     Tesouro,
     AbsaSanlam,
     Aci,
@@ -739,6 +763,7 @@ default_impl_get_payment_method_v2!(
     Loonio,
     Mifinity,
     Mollie,
+    Moneris,
     Multisafepay,
     Netcetera,
     Nexinets,
@@ -785,6 +810,7 @@ default_impl_get_payment_method_v2!(
     Wellsfargo,
     Worldpay,
     Worldpayvantiv,
+    Worldpayraft,
     Worldpayxml,
     Xendit,
     Zift,
@@ -793,6 +819,9 @@ default_impl_get_payment_method_v2!(
 
 default_impl_payment_method_eligibility_v2!(
     not_supported: [
+        Citigate,
+        Boost,
+        Ilixium,
         Tesouro,
         Adyen,
         Authorizedotnet,
@@ -848,6 +877,7 @@ default_impl_payment_method_eligibility_v2!(
         Loonio,
         Mifinity,
         Mollie,
+        Moneris,
         Multisafepay,
         Nexinets,
         Nexixpay,
@@ -863,7 +893,6 @@ default_impl_payment_method_eligibility_v2!(
         PinelabsOnline,
         Placetopay,
         Powertranz,
-        Qwikcilver,
         Rapyd,
         Razorpay,
         RazorpayV2,
@@ -880,6 +909,7 @@ default_impl_payment_method_eligibility_v2!(
         Volt,
         Wellsfargo,
         Worldpay,
+        Worldpayraft,
         Worldpayxml,
         Xendit,
         Zift,
@@ -889,6 +919,7 @@ default_impl_payment_method_eligibility_v2!(
         Truelayer,
         Hyperswitch,
         Affirm,
+        Maya
         Travelhub,
     ],
 );
@@ -944,6 +975,7 @@ macro_rules! default_impl_refresh_payment_method_v2_single {
             ) -> CustomResult<Option<Request>, IntegrationError> {
                 Ok(None)
             }
+
         }
     };
 }
@@ -956,6 +988,9 @@ macro_rules! default_impl_refresh_payment_method_v2 {
 }
 
 default_impl_refresh_payment_method_v2!(
+    Citigate,
+    Boost,
+    Ilixium,
     AbsaSanlam,
     Aci,
     Adyen,
@@ -994,6 +1029,7 @@ default_impl_refresh_payment_method_v2!(
     Givepayments,
     Globalpay,
     Glomopay,
+    Grabpay,
     Helcim,
     Hipay,
     Hyperpg,
@@ -1006,6 +1042,7 @@ default_impl_refresh_payment_method_v2!(
     Loonio,
     Mifinity,
     Mollie,
+    Moneris,
     Multisafepay,
     Netcetera,
     Nexinets,
@@ -1052,6 +1089,7 @@ default_impl_refresh_payment_method_v2!(
     Wellsfargo,
     Worldpay,
     Worldpayvantiv,
+    Worldpayraft,
     Worldpayxml,
     Xendit,
     Zift,

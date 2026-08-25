@@ -279,6 +279,10 @@ pub fn build_powertranz_error_response(
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             };
         }
     }
@@ -295,6 +299,10 @@ pub fn build_powertranz_error_response(
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         };
     }
 
@@ -308,6 +316,10 @@ pub fn build_powertranz_error_response(
         network_decline_code: None,
         network_advice_code: None,
         network_error_message: None,
+        typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
     }
 }
 
@@ -735,6 +747,7 @@ impl<F> TryFrom<ResponseRouterData<PowertranzRefundResponse, Self>>
                 connector_refund_id: response.transaction_identifier.clone(),
                 refund_status,
                 status_code: http_code,
+                acquirer_reference_number: None,
             }),
             ..router_data
         })
@@ -769,6 +782,7 @@ impl<F> TryFrom<ResponseRouterData<PowertranzRSyncResponse, Self>>
                 connector_refund_id: response.transaction_identifier.clone(),
                 refund_status,
                 status_code: http_code,
+                acquirer_reference_number: None,
             }),
             ..router_data
         })

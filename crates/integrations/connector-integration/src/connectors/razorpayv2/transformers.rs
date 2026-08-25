@@ -6,11 +6,11 @@ use base64::{engine::general_purpose::STANDARD, Engine};
 use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::{consts, pii::Email, types::MinorUnit};
 use domain_types::{
-    connector_flow::{Authorize, PSync, RSync, Refund},
+    connector_flow::{Authorize, CreateOrder, PSync, RSync, Refund},
     connector_types::{
-        PaymentCreateOrderData, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        ResponseId,
+        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentsAuthorizeData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, ResponseId,
     },
     payment_address::Address,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, UpiData},
@@ -23,6 +23,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::connectors::razorpay::transformers::ForeignTryFrom;
+use crate::types::ResponseRouterData;
 use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
 
@@ -158,6 +159,30 @@ pub struct RazorpayV2CreateOrderResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub offer_id: Option<String>,
     pub created_at: i64,
+}
+
+impl TryFrom<ResponseRouterData<RazorpayV2CreateOrderResponse, Self>>
+    for RouterDataV2<
+        CreateOrder,
+        PaymentFlowData,
+        PaymentCreateOrderData,
+        PaymentCreateOrderResponse,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<RazorpayV2CreateOrderResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let mut data = item.router_data;
+        let response = item.response;
+        data.resource_common_data.connector_order_id = Some(response.id.clone());
+        data.response = Ok(PaymentCreateOrderResponse {
+            connector_order_id: response.id,
+            session_data: None,
+        });
+        Ok(data)
+    }
 }
 
 // ============ Payment Authorization Types ============
@@ -513,6 +538,7 @@ impl
             connector_refund_id: response.id,
             refund_status: status,
             status_code: _status_code,
+            acquirer_reference_number: None,
         };
 
         Ok(Self {
@@ -556,6 +582,7 @@ impl
             connector_refund_id: response.id,
             refund_status: status,
             status_code: _status_code,
+            acquirer_reference_number: None,
         };
 
         Ok(Self {
@@ -631,6 +658,10 @@ impl
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             }),
         };
 

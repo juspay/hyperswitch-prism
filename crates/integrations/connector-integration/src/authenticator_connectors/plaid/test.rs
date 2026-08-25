@@ -51,6 +51,8 @@ mod tests {
                     merchant_request_id: None,
                     raw_connector_response: None,
                     raw_connector_request: None,
+                    typed_connector_request: None,
+                    typed_connector_response: None,
                     connector_response_headers: None,
                 },
                 connector_config: ConnectorSpecificConfig::Plaid {
@@ -208,6 +210,7 @@ mod tests {
                     attempt_id: "attempt_test".to_owned(),
                     status: common_enums::AttemptStatus::Pending,
                     payment_method: common_enums::PaymentMethod::BankDebit,
+                    payment_method_type: None,
                     description: None,
                     return_url: None,
                     order_details: None,
@@ -234,6 +237,7 @@ mod tests {
                     raw_connector_response: None,
                     vault_headers: None,
                     raw_connector_request: None,
+                    typed_connector_request: None,
                     minor_amount_capturable: None,
                     amount: None,
                     connector_response: None,
@@ -243,6 +247,8 @@ mod tests {
                     sender_payment_instrument_id: None,
                     settlement_status: None,
                     raw_connector_status: None,
+                    connector_returned_payment_method_details: None,
+                    typed_connector_response: None,
                 },
                 connector_config: ConnectorSpecificConfig::Plaid {
                     client_id: Secret::new("test_client_id".to_owned()),
@@ -366,6 +372,7 @@ mod tests {
                     attempt_id: "attempt_test".to_owned(),
                     status: common_enums::AttemptStatus::Pending,
                     payment_method: common_enums::PaymentMethod::BankDebit,
+                    payment_method_type: None,
                     description: None,
                     return_url: None,
                     order_details: None,
@@ -392,6 +399,7 @@ mod tests {
                     raw_connector_response: None,
                     vault_headers: None,
                     raw_connector_request: None,
+                    typed_connector_request: None,
                     minor_amount_capturable: None,
                     amount: None,
                     connector_response: None,
@@ -401,6 +409,8 @@ mod tests {
                     sender_payment_instrument_id: None,
                     settlement_status: None,
                     raw_connector_status: None,
+                    connector_returned_payment_method_details: None,
+                    typed_connector_response: None,
                 },
                 connector_config: ConnectorSpecificConfig::Plaid {
                     client_id: Secret::new("test_client_id".to_owned()),
@@ -449,6 +459,7 @@ mod tests {
                 numbers,
                 item: PlaidItem {
                     item_id: "item_001".to_owned(),
+                    institution_name: Some("Test Bank".to_owned()),
                 },
                 request_id: "req_001".to_owned(),
             };

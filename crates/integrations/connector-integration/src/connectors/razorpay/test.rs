@@ -67,6 +67,7 @@ mod tests {
                     attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
                     status: AttemptStatus::Pending,
                     payment_method: PaymentMethod::Card,
+                    payment_method_type: None,
                     description: None,
                     return_url: None,
                     order_details: None,
@@ -112,13 +113,16 @@ mod tests {
                     vault_headers: None,
                     connector_response_headers: None,
                     raw_connector_request: None,
+                    typed_connector_request: None,
                     connector_response: None,
                     recurring_mandate_payment_data: None,
                     l2_l3_data: None,
 
                     merchant_request_id: None,
                     sender_payment_instrument_id: None,
+                    connector_returned_payment_method_details: None,
                     settlement_status: None,
+                    typed_connector_response: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
                     api_key: "dummy_api_key".to_string().into(),
@@ -227,6 +231,10 @@ mod tests {
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
             };
 
@@ -234,7 +242,7 @@ mod tests {
             let result = connector.get_request_body(&test_router_data);
             let request_content = result.unwrap();
 
-            let actual_json: Value = match request_content {
+            let actual_json: Value = match request_content.map(|d| d.content) {
                 Some(RequestContent::Json(payload)) => {
                     to_value(&payload).expect("Failed to serialize payload to JSON")
                 }
@@ -282,6 +290,7 @@ mod tests {
                     attempt_id: "MISSING_CARD_ID".to_string(),
                     status: AttemptStatus::Pending,
                     payment_method: PaymentMethod::Card,
+                    payment_method_type: None,
                     description: None,
                     return_url: None,
                     address: PaymentAddress::new(None, None, None, None),
@@ -312,6 +321,7 @@ mod tests {
                     vault_headers: None,
                     connector_response_headers: None,
                     raw_connector_request: None,
+                    typed_connector_request: None,
                     connector_response: None,
                     recurring_mandate_payment_data: None,
                     order_details: None,
@@ -319,8 +329,10 @@ mod tests {
                     amount: None,
                     l2_l3_data: None,
                     sender_payment_instrument_id: None,
+                    connector_returned_payment_method_details: None,
                     settlement_status: None,
                     merchant_request_id: None,
+                    typed_connector_response: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
                     api_key: "dummy_api_key".to_string().into(),
@@ -406,6 +418,10 @@ mod tests {
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
             };
 
@@ -435,6 +451,7 @@ mod tests {
                     attempt_id: "INVALID_ATTEMPT".to_string(),
                     status: AttemptStatus::Pending,
                     payment_method: PaymentMethod::Card,
+                    payment_method_type: None,
                     description: None,
                     return_url: None,
                     address: PaymentAddress::new(None, None, None, None),
@@ -465,6 +482,7 @@ mod tests {
                     vault_headers: None,
                     connector_response_headers: None,
                     raw_connector_request: None,
+                    typed_connector_request: None,
                     connector_response: None,
                     recurring_mandate_payment_data: None,
                     order_details: None,
@@ -472,8 +490,10 @@ mod tests {
                     amount: None,
                     l2_l3_data: None,
                     sender_payment_instrument_id: None,
+                    connector_returned_payment_method_details: None,
                     settlement_status: None,
                     merchant_request_id: None,
+                    typed_connector_response: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
                     api_key: "dummy_api_key".to_string().into(),
@@ -559,6 +579,10 @@ mod tests {
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
             };
 
@@ -598,6 +622,7 @@ mod tests {
                     attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
                     status: AttemptStatus::Pending,
                     payment_method: PaymentMethod::Card,
+                    payment_method_type: None,
                     description: None,
                     return_url: None,
                     address: PaymentAddress::new(
@@ -640,6 +665,7 @@ mod tests {
                     vault_headers: None,
                     connector_response_headers: None,
                     raw_connector_request: None,
+                    typed_connector_request: None,
                     connector_response: None,
                     recurring_mandate_payment_data: None,
                     order_details: None,
@@ -648,7 +674,9 @@ mod tests {
                     l2_l3_data: None,
                     merchant_request_id: None,
                     sender_payment_instrument_id: None,
+                    connector_returned_payment_method_details: None,
                     settlement_status: None,
+                    typed_connector_response: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
                     api_key: "dummy_api_key".to_string().into(),
@@ -757,6 +785,10 @@ mod tests {
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
             };
 
@@ -841,7 +873,11 @@ mod tests {
                 "connector_transaction_id": null,
                 "network_advice_code": null,
                 "network_decline_code": null,
-                "network_error_message": null
+                "network_error_message": null,
+                "typed_connector_response": actual_json["typed_connector_response"].clone(),
+                "raw_connector_response": null,
+                "raw_connector_request": null,
+                "typed_connector_request": null
             });
 
             assert_eq!(actual_json, expected_json);
@@ -971,6 +1007,7 @@ mod tests {
                 attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
                 status: AttemptStatus::Pending,
                 payment_method: PaymentMethod::Card,
+                payment_method_type: None,
                 description: None,
                 return_url: None,
                 address: PaymentAddress::new(
@@ -1014,14 +1051,17 @@ mod tests {
                 vault_headers: None,
                 connector_response_headers: None,
                 raw_connector_request: None,
+                typed_connector_request: None,
                 connector_response: None,
                 recurring_mandate_payment_data: None,
                 order_details: None,
                 minor_amount_capturable: None,
                 l2_l3_data: None,
                 sender_payment_instrument_id: None,
+                connector_returned_payment_method_details: None,
                 settlement_status: None,
                 merchant_request_id: None,
+                typed_connector_response: None,
             },
             connector_config: ConnectorSpecificConfig::Razorpay {
                 api_key: "dummy_api_key".to_string().into(),
@@ -1126,6 +1166,10 @@ mod tests {
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             }),
         };
 
@@ -1180,6 +1224,7 @@ mod tests {
                 attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
                 status: AttemptStatus::Pending,
                 payment_method: PaymentMethod::Card,
+                payment_method_type: None,
                 description: None,
                 return_url: None,
                 address: PaymentAddress::new(
@@ -1223,6 +1268,7 @@ mod tests {
                 vault_headers: None,
                 connector_response_headers: None,
                 raw_connector_request: None,
+                typed_connector_request: None,
                 minor_amount_capturable: None,
                 connector_response: None,
                 recurring_mandate_payment_data: None,
@@ -1230,7 +1276,9 @@ mod tests {
                 l2_l3_data: None,
                 merchant_request_id: None,
                 sender_payment_instrument_id: None,
+                connector_returned_payment_method_details: None,
                 settlement_status: None,
+                typed_connector_response: None,
             },
             connector_config: ConnectorSpecificConfig::Razorpay {
                 api_key: "dummy_api_key".to_string().into(),
@@ -1335,6 +1383,10 @@ mod tests {
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             }),
         };
 
@@ -1391,6 +1443,7 @@ mod tests {
                     attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
                     status: common_enums::AttemptStatus::Pending,
                     payment_method: common_enums::PaymentMethod::Card,
+                    payment_method_type: None,
                     description: None,
                     return_url: None,
                     address: PaymentAddress::new(
@@ -1435,13 +1488,16 @@ mod tests {
                     vault_headers: None,
                     connector_response_headers: None,
                     raw_connector_request: None,
+                    typed_connector_request: None,
                     connector_response: None,
                     recurring_mandate_payment_data: None,
                     order_details: None,
                     l2_l3_data: None,
                     sender_payment_instrument_id: None,
+                    connector_returned_payment_method_details: None,
                     settlement_status: None,
                     merchant_request_id: None,
+                    typed_connector_response: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
                     api_key: "dummy_api_key".to_string().into(),
@@ -1467,13 +1523,17 @@ mod tests {
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
             };
 
             let connector: BoxedConnector<DefaultPCIHolder> = Box::new(Razorpay::new());
             let result = connector.get_request_body(&test_router_data).unwrap();
 
-            let actual_json: Value = match result {
+            let actual_json: Value = match result.map(|d| d.content) {
                 Some(RequestContent::Json(payload)) => {
                     to_value(&payload).expect("Failed to serialize payload")
                 }
@@ -1527,6 +1587,7 @@ mod tests {
                     attempt_id: "".to_string(),
                     status: common_enums::AttemptStatus::Pending,
                     payment_method: common_enums::PaymentMethod::Card,
+                    payment_method_type: None,
                     description: None,
                     return_url: None,
                     address: PaymentAddress::default(),
@@ -1559,13 +1620,16 @@ mod tests {
                     vault_headers: None,
                     connector_response_headers: None,
                     raw_connector_request: None,
+                    typed_connector_request: None,
                     connector_response: None,
                     recurring_mandate_payment_data: None,
                     order_details: None,
                     l2_l3_data: None,
                     merchant_request_id: None,
                     sender_payment_instrument_id: None,
+                    connector_returned_payment_method_details: None,
                     settlement_status: None,
+                    typed_connector_response: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
                     api_key: "dummy_api_key".to_string().into(),
@@ -1591,6 +1655,10 @@ mod tests {
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
             };
 
@@ -1598,7 +1666,7 @@ mod tests {
             let result = connector.get_request_body(&test_router_data);
             let req = result.unwrap();
 
-            let actual_json: Value = match req {
+            let actual_json: Value = match req.map(|d| d.content) {
                 Some(RequestContent::Json(payload)) => {
                     to_value(&payload).expect("Failed to serialize payload")
                 }
@@ -1654,6 +1722,7 @@ mod tests {
                     attempt_id: "invalid_attempt_id".to_string(),
                     status: AttemptStatus::Pending,
                     payment_method: PaymentMethod::Card,
+                    payment_method_type: None,
                     description: None,
                     return_url: None,
                     address: PaymentAddress::new(None, None, None, None),
@@ -1686,13 +1755,16 @@ mod tests {
                     vault_headers: None,
                     connector_response_headers: None,
                     raw_connector_request: None,
+                    typed_connector_request: None,
                     connector_response: None,
                     recurring_mandate_payment_data: None,
                     order_details: None,
                     l2_l3_data: None,
                     sender_payment_instrument_id: None,
+                    connector_returned_payment_method_details: None,
                     settlement_status: None,
                     merchant_request_id: None,
+                    typed_connector_response: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
                     api_key: "invalid_key".to_string().into(),
@@ -1778,6 +1850,10 @@ mod tests {
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
             };
 
@@ -1816,6 +1892,7 @@ mod tests {
                 attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
                 status: AttemptStatus::Pending,
                 payment_method: PaymentMethod::Card,
+                payment_method_type: None,
                 description: None,
                 return_url: None,
                 address: PaymentAddress::new(
@@ -1859,6 +1936,7 @@ mod tests {
                 vault_headers: None,
                 connector_response_headers: None,
                 raw_connector_request: None,
+                typed_connector_request: None,
                 connector_response: None,
                 recurring_mandate_payment_data: None,
                 order_details: None,
@@ -1866,7 +1944,9 @@ mod tests {
                 l2_l3_data: None,
                 merchant_request_id: None,
                 sender_payment_instrument_id: None,
+                connector_returned_payment_method_details: None,
                 settlement_status: None,
+                typed_connector_response: None,
             },
             connector_config: ConnectorSpecificConfig::Razorpay {
                 api_key: "dummy_api_key".to_string().into(),
@@ -1892,6 +1972,10 @@ mod tests {
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             }),
         };
 
@@ -1952,6 +2036,7 @@ mod tests {
                 attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
                 status: AttemptStatus::Pending,
                 payment_method: PaymentMethod::Card,
+                payment_method_type: None,
                 description: None,
                 return_url: None,
                 address: PaymentAddress::new(
@@ -1996,13 +2081,16 @@ mod tests {
                 vault_headers: None,
                 connector_response_headers: None,
                 raw_connector_request: None,
+                typed_connector_request: None,
                 connector_response: None,
                 recurring_mandate_payment_data: None,
                 order_details: None,
                 l2_l3_data: None,
                 sender_payment_instrument_id: None,
+                connector_returned_payment_method_details: None,
                 settlement_status: None,
                 merchant_request_id: None,
+                typed_connector_response: None,
             },
             connector_config: ConnectorSpecificConfig::Razorpay {
                 api_key: "dummy_api_key".to_string().into(),
@@ -2028,6 +2116,10 @@ mod tests {
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             }),
         };
 
@@ -2077,6 +2169,7 @@ mod tests {
                 attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
                 status: AttemptStatus::Pending,
                 payment_method: PaymentMethod::Card,
+                payment_method_type: None,
                 description: None,
                 return_url: None,
                 address: PaymentAddress::new(
@@ -2121,13 +2214,16 @@ mod tests {
                 vault_headers: None,
                 connector_response_headers: None,
                 raw_connector_request: None,
+                typed_connector_request: None,
                 connector_response: None,
                 recurring_mandate_payment_data: None,
                 order_details: None,
                 l2_l3_data: None,
                 sender_payment_instrument_id: None,
+                connector_returned_payment_method_details: None,
                 settlement_status: None,
                 merchant_request_id: None,
+                typed_connector_response: None,
             },
             connector_config: ConnectorSpecificConfig::Razorpay {
                 api_key: "dummy_api_key".to_string().into(),
@@ -2153,6 +2249,10 @@ mod tests {
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             }),
         };
 
@@ -2226,7 +2326,11 @@ mod tests {
             "connector_transaction_id": null,
             "network_advice_code": null,
             "network_decline_code": null,
-            "network_error_message": null
+            "network_error_message": null,
+            "typed_connector_response": actual_json["typed_connector_response"].clone(),
+            "raw_connector_response": null,
+            "raw_connector_request": null,
+            "typed_connector_request": null
         });
         assert_eq!(actual_json, expected_json);
     }
@@ -2303,7 +2407,11 @@ mod tests {
             "connector_transaction_id": null,
             "network_advice_code": null,
             "network_decline_code": null,
-            "network_error_message": null
+            "network_error_message": null,
+            "typed_connector_response": actual_json["typed_connector_response"].clone(),
+            "raw_connector_response": null,
+            "raw_connector_request": null,
+            "typed_connector_request": null
         });
         assert_eq!(actual_json, expected_json);
     }

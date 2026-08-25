@@ -79,6 +79,8 @@ pub enum Bank {
     Pix(PixBankTransfer),
     PixKey(PixKeyBankTransfer),
     PixEmv(PixEmvBankTransfer),
+    OpenBanking(OpenBanking),
+    Trustly(TrustlyBankTransfer),
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug)]
@@ -155,6 +157,15 @@ pub struct PixBankTransfer {
 
     /// An 8-digit routing code that uniquely identifies the specific bank, fintech, or payment institution
     pub ispb: Option<Secret<String>>,
+
+    /// The bank code (COMPE code) used to identify the bank
+    pub bank_code: Option<String>,
+
+    /// The bank account type
+    pub bank_account_type: Option<common_enums::BankType>,
+
+    /// The account holder name
+    pub account_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug)]
@@ -167,6 +178,25 @@ pub struct PixKeyBankTransfer {
 pub struct PixEmvBankTransfer {
     /// EMV data for pix
     pub emv: Secret<String>,
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug)]
+// Trustly bank transfer destination. The account can be identified either by an
+// IBAN or by a bank_account_number + bank_number pair.
+pub struct TrustlyBankTransfer {
+    /// International Bank Account Number (IBAN). When present, it is used as the
+    /// account number and no separate bank number is required.
+    pub iban: Option<Secret<String>>,
+
+    /// Bank account number, used when an IBAN is not available.
+    pub bank_account_number: Option<Secret<String>>,
+
+    /// Bank/clearing number identifying the destination bank.
+    pub bank_number: Option<Secret<String>>,
+
+    /// Bank country code. Maps to Trustly's `ClearingHouse` (the English country
+    /// name in upper case).
+    pub bank_country_code: common_enums::CountryAlpha2,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
@@ -189,6 +219,14 @@ pub struct Interac {
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug)]
+pub struct OpenBanking {
+    /// Account holder name
+    pub account_holder_name: Secret<String>,
+    /// International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.
+    pub iban: Secret<String>,
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug)]
 pub struct OpenBankingUk {
     /// Account holder name
     pub account_holder_name: Secret<String>,
@@ -200,6 +238,9 @@ pub struct OpenBankingUk {
 pub struct Passthrough {
     /// PSP token generated for the payout method
     pub psp_token: Secret<String>,
+
+    /// PSP customer ID
+    pub psp_customer_id: Option<Secret<String>>,
 
     /// Payout method type of the token
     pub token_type: common_enums::PaymentMethodType,

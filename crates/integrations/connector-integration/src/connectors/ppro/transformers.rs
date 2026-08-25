@@ -778,6 +778,10 @@ where
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 });
             }
         }
@@ -936,12 +940,17 @@ impl<F, Req, T> TryFrom<ResponseRouterData<PproRefundResponse, Self>>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             Ok(RefundsResponseData {
                 connector_refund_id: item.response.id.clone(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             })
         };
 
@@ -999,6 +1008,7 @@ impl TryFrom<ResponseRouterData<PproRSyncResponse, Self>>
             connector_refund_id: connector_refund_id.clone(),
             refund_status,
             status_code: item.http_code,
+            acquirer_reference_number: None,
         });
 
         Ok(Self {
@@ -1428,6 +1438,10 @@ impl<F, Req> TryFrom<ResponseRouterData<PproAgreementResponse, Self>>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 });
             }
         }

@@ -264,6 +264,10 @@ fn build_payments_response(
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     } else {
         Ok(PaymentsResponseData::TransactionResponse {
@@ -460,7 +464,8 @@ pub fn build_webhook_payment_response(
             payment.payment_id.clone(),
         )),
         status,
-        connector_response_reference_id: Some(payment.payment_id),
+        connector_response_reference_id: Some(payment.payment_id.clone()),
+        connector_request_reference_id: Some(payment.payment_id),
         mandate_reference: None,
         error_code: payment.error_code,
         error_message: payment.error_message.clone(),

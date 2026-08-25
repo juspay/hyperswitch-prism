@@ -103,6 +103,7 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
             ConnectorEnum::Barclaycard => Box::new(connectors::Barclaycard::new()),
             ConnectorEnum::Billwerk => Box::new(connectors::Billwerk::new()),
             ConnectorEnum::Payme => Box::new(connectors::Payme::new()),
+            ConnectorEnum::Moneris => Box::new(connectors::Moneris::new()),
             ConnectorEnum::Nuvei => Box::new(connectors::Nuvei::new()),
             ConnectorEnum::Airwallex => Box::new(connectors::Airwallex::new()),
             ConnectorEnum::Bambora => Box::new(connectors::Bambora::new()),
@@ -126,6 +127,7 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
             ConnectorEnum::Easebuzz => Box::new(connectors::Easebuzz::new()),
             ConnectorEnum::Imerchantsolutions => Box::new(connectors::Imerchantsolutions::new()),
             ConnectorEnum::Axisbank => Box::new(connectors::Axisbank::new()),
+            ConnectorEnum::Maya => Box::new(connectors::Maya::new()),
             ConnectorEnum::TsysTransit => Box::new(connectors::TsysTransit::new()),
             ConnectorEnum::TwocTwopPaco => Box::new(connectors::TwocTwopPaco::new()),
             ConnectorEnum::Juspay => Box::new(connectors::Juspay::<T>::new()),
@@ -138,7 +140,12 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
             ConnectorEnum::Affirm => Box::new(connectors::Affirm::<T>::new()),
             ConnectorEnum::Kount => Box::new(connectors::Kount::<T>::new()),
             ConnectorEnum::Givepayments => Box::new(connectors::Givepayments::<T>::new()),
+            ConnectorEnum::Grabpay => Box::new(connectors::Grabpay::<T>::new()),
             ConnectorEnum::Tesouro => Box::new(connectors::Tesouro::<T>::new()),
+            ConnectorEnum::Boost => Box::new(connectors::Boost::<T>::new()),
+            ConnectorEnum::Citigate => Box::new(connectors::Citigate::<T>::new()),
+            ConnectorEnum::Ilixium => Box::new(connectors::Ilixium::<T>::new()),
+            ConnectorEnum::Worldpayraft => Box::new(connectors::Worldpayraft::<T>::new()),
             ConnectorEnum::Travelhub => Box::new(connectors::Travelhub::<T>::new()),
         }
     }
@@ -227,6 +234,11 @@ impl PayoutConnectorData {
             PayoutConnectorEnum::Cybersource => {
                 Box::new(payout_connectors::CybersourcePayouts::new())
             }
+            PayoutConnectorEnum::Santander => Box::new(payout_connectors::SantanderPayouts::new()),
+            PayoutConnectorEnum::Truelayer => Box::new(payout_connectors::TruelayerPayouts::new()),
+            PayoutConnectorEnum::Trustly => Box::new(payout_connectors::TrustlyPayouts::<
+                domain_types::payment_method_data::DefaultPCIHolder,
+            >::new()),
         }
     }
 }

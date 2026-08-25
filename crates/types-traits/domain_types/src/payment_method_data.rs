@@ -782,7 +782,14 @@ pub enum BankRedirectData {
     Eft {
         provider: String,
     },
-    OpenBanking {},
+    OpenBanking {
+        bank_name: Option<common_enums::BankNames>,
+        account_number: Option<Secret<String>>,
+        sort_code: Option<Secret<String>>,
+        iban: Option<Secret<String>>,
+        account_holder_name: Option<Secret<String>>,
+        additional_details: Option<Secret<serde_json::Value>>,
+    },
     Netbanking {
         issuer: common_enums::BankNames,
     },
@@ -816,6 +823,7 @@ pub enum WalletData {
     ApplePayRedirect(Box<ApplePayRedirectData>),
     ApplePayThirdPartySdk(Box<ApplePayThirdPartySdkData>),
     DanaRedirect {},
+    GrabpayRedirect {},
     GooglePay(GooglePayWalletData),
     GooglePayRedirect(Box<GooglePayRedirectData>),
     GooglePayThirdPartySdk(Box<GooglePayThirdPartySdkData>),
@@ -843,6 +851,7 @@ pub enum WalletData {
     CashfreeRedirect(CashfreeRedirection),
     PayURedirect(PayURedirection),
     EaseBuzzRedirect(EaseBuzzRedirection),
+    PaymayaRedirect(PaymayaRedirection),
     /// Qwikcilver / Pine Labs stored-value wallet — caller supplies the wallet number directly.
     QwikcilverWalletDirect(Box<QwikcilverWalletDirectData>),
     /// Skrill redirect wallet — consumer email is sourced from billing details.
@@ -928,6 +937,9 @@ pub struct PayURedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct EaseBuzzRedirection {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct PaymayaRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct MifinityData {
@@ -1969,6 +1981,7 @@ pub struct BankAccount {
     pub balance: Option<common_utils::types::Money>,
     pub available_balance: Option<common_utils::types::Money>,
     pub account_details: Option<BankAccountRoutingDetails>,
+    pub bank_name: Option<String>,
 }
 
 /// A collection of bank accounts returned by a bank-linking flow (matches proto `BankAccountDetails`)

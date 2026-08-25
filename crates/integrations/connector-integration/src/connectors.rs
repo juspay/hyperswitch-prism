@@ -260,6 +260,9 @@ pub mod juspay_upi_stack;
 pub mod axisbank;
 pub use self::axisbank::Axisbank;
 
+pub mod maya;
+pub use self::maya::Maya;
+
 pub mod tsys_transit;
 pub use self::tsys_transit::TsysTransit;
 pub mod twoc_twop_paco;
@@ -286,13 +289,30 @@ pub use self::flywire::Flywire;
 pub mod affirm;
 pub use self::affirm::Affirm;
 
+pub mod moneris;
+pub use self::moneris::Moneris;
+
 pub mod kount;
 pub use self::kount::Kount;
 
 pub mod givepayments;
 pub use self::givepayments::Givepayments;
+
+pub mod grabpay;
+pub use self::grabpay::Grabpay;
 pub mod tesouro;
 pub use self::tesouro::Tesouro;
+
+pub mod boost;
+pub use self::boost::Boost;
+
+pub mod citigate;
+pub use self::citigate::Citigate;
+pub mod ilixium;
+pub use self::ilixium::Ilixium;
+
+pub mod worldpayraft;
+pub use self::worldpayraft::Worldpayraft;
 
 pub mod travelhub;
 pub use self::travelhub::Travelhub;

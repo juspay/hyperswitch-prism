@@ -19,8 +19,10 @@ pub struct PayoutFlowData {
     pub connectors: Connectors,
     pub connector_request_reference_id: String,
     pub raw_connector_response: Option<Secret<String>>,
+    pub typed_connector_response: Option<String>,
     pub connector_response_headers: Option<http::HeaderMap>,
     pub raw_connector_request: Option<Secret<String>>,
+    pub typed_connector_request: Option<String>,
     pub access_token: Option<ServerAuthenticationTokenResponseData>,
     pub test_mode: Option<bool>,
     pub description: Option<String>,
@@ -41,6 +43,22 @@ impl RawConnectorRequestResponse for PayoutFlowData {
 
     fn set_raw_connector_request(&mut self, request: Option<Secret<String>>) {
         self.raw_connector_request = request;
+    }
+
+    fn set_typed_connector_response(&mut self, response: Option<String>) {
+        self.typed_connector_response = response;
+    }
+
+    fn get_typed_connector_response(&self) -> Option<String> {
+        self.typed_connector_response.clone()
+    }
+
+    fn set_typed_connector_request(&mut self, request: Option<String>) {
+        self.typed_connector_request = request;
+    }
+
+    fn get_typed_connector_request(&self) -> Option<String> {
+        self.typed_connector_request.clone()
     }
 }
 
@@ -121,6 +139,8 @@ pub struct PayoutTransferRequest {
     pub address: Option<PayoutAddress>,
     pub source_bank_data: Option<Bank>,
     pub customer: Option<PayoutCustomer>,
+    pub connector_eligibility_reference_id: Option<String>,
+    pub payout_connector_metadata: Option<common_utils::pii::SecretSerdeValue>,
 }
 
 impl PayoutTransferRequest {
@@ -373,6 +393,19 @@ pub struct PayoutCreateRecipientRequest {
     pub source_currency: common_enums::Currency,
     pub payout_method_data: Option<PayoutMethodData>,
     pub recipient_type: common_enums::PayoutRecipientType,
+    pub customer: Option<PayoutCustomer>,
+    pub address: Option<PayoutAddress>,
+}
+
+impl PayoutCreateRecipientRequest {
+    /// Navigate to the billing `AddressDetails`; per-field accessors live on
+    /// [`crate::payment_address::AddressDetails`] and are reused from there.
+    pub fn get_optional_billing_address(&self) -> Option<&crate::payment_address::AddressDetails> {
+        self.address
+            .as_ref()
+            .and_then(|a| a.billing_address.as_ref())
+            .and_then(|b| b.address.as_ref())
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -381,6 +414,7 @@ pub struct PayoutCreateRecipientResponse {
     pub payout_status: common_enums::PayoutStatus,
     pub connector_payout_id: Option<String>,
     pub status_code: u16,
+    pub payout_connector_metadata: Option<common_utils::pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone)]
@@ -417,4 +451,6 @@ pub struct PayoutEligibilityResponse {
     pub connector_payout_id: Option<String>,
     pub payout_eligible: Option<bool>,
     pub status_code: u16,
+    pub connector_metadata: Option<common_utils::pii::SecretSerdeValue>,
+    pub connector_eligibility_reference_id: Option<String>,
 }

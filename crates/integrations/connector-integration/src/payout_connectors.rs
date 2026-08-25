@@ -10,8 +10,17 @@ pub use self::paypal::PaypalPayouts;
 pub mod deutschebank;
 pub use self::deutschebank::DeutschebankPayouts;
 
+pub mod truelayer;
+pub use self::truelayer::TruelayerPayouts;
+
 pub mod worldpayxml;
 pub use self::worldpayxml::WorldpayxmlPayouts;
 
 pub mod cybersource;
 pub use self::cybersource::CybersourcePayouts;
+
+pub mod santander;
+pub use self::santander::SantanderPayouts;
+
+pub mod trustly;
+pub use self::trustly::TrustlyPayouts;

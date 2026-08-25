@@ -672,6 +672,7 @@ fn wallet_to_juspay(
         )),
         WalletData::BluecodeRedirect {}
         | WalletData::DanaRedirect {}
+        | WalletData::GrabpayRedirect {}
         | WalletData::MbWayRedirect(_)
         | WalletData::MobilePayRedirect(_)
         | WalletData::TwintRedirect {}
@@ -685,7 +686,8 @@ fn wallet_to_juspay(
         | WalletData::Wero(_)
         | WalletData::Paze(_)
         | WalletData::QwikcilverWalletDirect(_)
-        | WalletData::Skrill(_) => Err(error_stack::report!(
+        | WalletData::Skrill(_)
+        | WalletData::PaymayaRedirect(_) => Err(error_stack::report!(
             errors::IntegrationError::NotImplemented(
                 format!("Juspay wallet variant not supported: {wallet:?}"),
                 Default::default(),
@@ -1208,6 +1210,7 @@ impl TryFrom<ResponseRouterData<JuspayRefundResponse, Self>>
                 connector_refund_id,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,
@@ -1263,6 +1266,7 @@ impl TryFrom<ResponseRouterData<JuspayRefundSyncResponse, Self>>
                 connector_refund_id: resolved_refund_id,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,
@@ -1779,6 +1783,10 @@ pub fn build_card_sync_failure(
         network_decline_code: None,
         network_advice_code: None,
         network_error_message: None,
+        typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
     }
 }
 

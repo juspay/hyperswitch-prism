@@ -206,7 +206,7 @@ fn fetch_payment_instrument<
             | WalletDataPaymentMethod::GcashRedirect(_)
             | WalletDataPaymentMethod::ApplePayRedirect(_)
             | WalletDataPaymentMethod::ApplePayThirdPartySdk(_)
-            | WalletDataPaymentMethod::DanaRedirect {}
+            | WalletDataPaymentMethod::DanaRedirect {} | WalletDataPaymentMethod::GrabpayRedirect {}
             | WalletDataPaymentMethod::GooglePayRedirect(_)
             | WalletDataPaymentMethod::GooglePayThirdPartySdk(_)
             | WalletDataPaymentMethod::MbWayRedirect(_)
@@ -234,6 +234,7 @@ fn fetch_payment_instrument<
             | WalletDataPaymentMethod::CashfreeRedirect(_)
             | WalletDataPaymentMethod::PayURedirect(_)
             | WalletDataPaymentMethod::EaseBuzzRedirect(_)
+            | WalletDataPaymentMethod::PaymayaRedirect(_)
             | WalletDataPaymentMethod::QwikcilverWalletDirect(_)
             | WalletDataPaymentMethod::Skrill(_) => {
                 Err(error_stack::report!(IntegrationError::NotSupported {
@@ -1109,6 +1110,10 @@ impl<F, T>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             }),
             (_, Some((code, message, advice_code))) => Err(ErrorResponse {
                 code: code.clone(),
@@ -1122,6 +1127,10 @@ impl<F, T>
                 // You can use raw response codes to inform your retry logic. A rawCode is only returned if specifically requested.
                 network_decline_code: Some(code),
                 network_error_message: Some(message),
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             }),
         };
         Ok(Self {
@@ -1314,6 +1323,7 @@ impl<F> TryFrom<ResponseRouterData<WorldpayPaymentsResponse, Self>>
             connector_refund_id: item.router_data.request.refund_id.clone(),
             refund_status,
             status_code: item.http_code,
+            acquirer_reference_number: None,
         });
 
         Ok(Self {
@@ -1343,6 +1353,7 @@ impl<F> TryFrom<ResponseRouterData<WorldpayEventResponse, Self>>
                 .clone(),
             refund_status,
             status_code: item.http_code,
+            acquirer_reference_number: None,
         });
 
         Ok(Self {

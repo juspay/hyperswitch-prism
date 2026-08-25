@@ -100,6 +100,7 @@ fn get_order_type_from_payment_method<T: PaymentMethodDataTypes>(
             | WalletData::ApplePayRedirect(_)
             | WalletData::ApplePayThirdPartySdk(_)
             | WalletData::DanaRedirect {}
+            | WalletData::GrabpayRedirect {}
             | WalletData::GooglePayRedirect(_)
             | WalletData::GooglePayThirdPartySdk(_)
             | WalletData::MobilePayRedirect(_)
@@ -123,6 +124,7 @@ fn get_order_type_from_payment_method<T: PaymentMethodDataTypes>(
             | WalletData::CashfreeRedirect(_)
             | WalletData::PayURedirect(_)
             | WalletData::EaseBuzzRedirect(_)
+            | WalletData::PaymayaRedirect(_)
             | WalletData::QwikcilverWalletDirect(_)
             | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
                 crate::utils::get_unimplemented_payment_method_error_message("multisafepay"),
@@ -150,7 +152,7 @@ fn get_order_type_from_payment_method<T: PaymentMethodDataTypes>(
             | BankRedirectData::OnlineBankingFpx { .. }
             | BankRedirectData::OnlineBankingThailand { .. }
             | BankRedirectData::LocalBankRedirect {}
-            | BankRedirectData::OpenBanking {}
+            | BankRedirectData::OpenBanking { .. }
             | BankRedirectData::Netbanking { .. } => Err(IntegrationError::NotImplemented(
                 crate::utils::get_unimplemented_payment_method_error_message("multisafepay"),
                 Default::default(),
@@ -203,7 +205,10 @@ fn card_network_to_gateway(network: &common_enums::CardNetwork) -> Option<Gatewa
         | common_enums::CardNetwork::Star
         | common_enums::CardNetwork::Pulse
         | common_enums::CardNetwork::Accel
-        | common_enums::CardNetwork::Nyce => None,
+        | common_enums::CardNetwork::Nyce
+        | common_enums::CardNetwork::Prop
+        | common_enums::CardNetwork::PrivateLabel
+        | common_enums::CardNetwork::Dinacard => None,
     }
 }
 
@@ -278,7 +283,7 @@ fn get_gateway_from_payment_method<T: PaymentMethodDataTypes>(
             | BankRedirectData::OnlineBankingFpx { .. }
             | BankRedirectData::OnlineBankingThailand { .. }
             | BankRedirectData::LocalBankRedirect {}
-            | BankRedirectData::OpenBanking {}
+            | BankRedirectData::OpenBanking { .. }
             | BankRedirectData::Netbanking { .. } => Err(IntegrationError::NotImplemented(
                 crate::utils::get_unimplemented_payment_method_error_message("multisafepay"),
                 Default::default(),
@@ -303,6 +308,7 @@ fn get_gateway_from_payment_method<T: PaymentMethodDataTypes>(
             | WalletData::ApplePayRedirect(_)
             | WalletData::ApplePayThirdPartySdk(_)
             | WalletData::DanaRedirect {}
+            | WalletData::GrabpayRedirect {}
             | WalletData::GooglePayRedirect(_)
             | WalletData::GooglePayThirdPartySdk(_)
             | WalletData::MobilePayRedirect(_)
@@ -326,6 +332,7 @@ fn get_gateway_from_payment_method<T: PaymentMethodDataTypes>(
             | WalletData::CashfreeRedirect(_)
             | WalletData::PayURedirect(_)
             | WalletData::EaseBuzzRedirect(_)
+            | WalletData::PaymayaRedirect(_)
             | WalletData::QwikcilverWalletDirect(_)
             | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
                 crate::utils::get_unimplemented_payment_method_error_message("multisafepay"),
@@ -1097,6 +1104,7 @@ impl<F> TryFrom<ResponseRouterData<MultisafepayRefundResponse, Self>>
                 connector_refund_id: item.response.data.refund_id.to_string(),
                 refund_status: refund_status.into(),
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -1123,6 +1131,7 @@ impl TryFrom<ResponseRouterData<MultisafepayRefundResponse, Self>>
                 connector_refund_id: item.response.data.refund_id.to_string(),
                 refund_status: refund_status.into(),
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })

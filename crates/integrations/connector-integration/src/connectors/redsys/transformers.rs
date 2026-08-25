@@ -736,6 +736,10 @@ fn get_payments_response(
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else if use_transaction_response {
             Ok(PaymentsResponseData::TransactionResponse {
@@ -990,6 +994,10 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResp
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..item.router_data
             }),
@@ -1186,6 +1194,10 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResp
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..item.router_data
             }),
@@ -1507,6 +1519,10 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResp
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..item.router_data
             }),
@@ -1626,6 +1642,10 @@ impl TryFrom<ResponseRouterData<responses::RedsysResponse, Self>>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..item.router_data
             }),
@@ -1749,6 +1769,10 @@ impl TryFrom<ResponseRouterData<responses::RedsysResponse, Self>>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..item.router_data
             }),
@@ -1944,6 +1968,10 @@ impl TryFrom<ResponseRouterData<responses::RedsysSyncResponse, Self>>
                         network_decline_code: None,
                         network_advice_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     });
                     (item.router_data.resource_common_data.status, error_response)
                 }
@@ -1960,6 +1988,10 @@ impl TryFrom<ResponseRouterData<responses::RedsysSyncResponse, Self>>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 });
                 (item.router_data.resource_common_data.status, response)
             }
@@ -2043,6 +2075,7 @@ impl TryFrom<ResponseRouterData<responses::RedsysResponse, Self>>
                     connector_refund_id: response_data.ds_order,
                     refund_status,
                     status_code: item.http_code,
+                    acquirer_reference_number: None,
                 })
             }
             responses::RedsysResponse::RedsysErrorResponse(ref err) => {
@@ -2059,6 +2092,10 @@ impl TryFrom<ResponseRouterData<responses::RedsysResponse, Self>>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 })
             }
         };
@@ -2100,12 +2137,14 @@ impl TryFrom<ResponseRouterData<responses::RedsysSyncResponse, Self>>
                             connector_refund_id: latest_response.ds_order,
                             refund_status,
                             status_code: item.http_code,
+                            acquirer_reference_number: None,
                         })
                     } else {
                         Ok(RefundsResponseData {
                             connector_refund_id: latest_response.ds_order,
                             refund_status: common_enums::RefundStatus::Pending,
                             status_code: item.http_code,
+                            acquirer_reference_number: None,
                         })
                     }
                 } else {
@@ -2122,6 +2161,10 @@ impl TryFrom<ResponseRouterData<responses::RedsysSyncResponse, Self>>
                         network_decline_code: None,
                         network_advice_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     })
                 }
             }
@@ -2137,6 +2180,10 @@ impl TryFrom<ResponseRouterData<responses::RedsysSyncResponse, Self>>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 })
             }
             (Some(_), Some(_)) | (None, None) => Err(utils::response_handling_fail_for_connector(

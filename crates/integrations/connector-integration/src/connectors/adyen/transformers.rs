@@ -1390,7 +1390,10 @@ fn get_adyen_card_network(card_network: common_enums::CardNetwork) -> Option<Car
         common_enums::CardNetwork::Accel => Some(CardBrand::Accel),
         common_enums::CardNetwork::Pulse => Some(CardBrand::Pulse),
         common_enums::CardNetwork::Nyce => Some(CardBrand::Nyce),
-        common_enums::CardNetwork::Interac => None,
+        common_enums::CardNetwork::Interac
+        | common_enums::CardNetwork::Prop
+        | common_enums::CardNetwork::PrivateLabel
+        | common_enums::CardNetwork::Dinacard => None,
     }
 }
 
@@ -1571,7 +1574,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | WalletData::CashfreeRedirect(_)
             | WalletData::PayURedirect(_)
             | WalletData::EaseBuzzRedirect(_)
+            | WalletData::PaymayaRedirect(_)
             | WalletData::QwikcilverWalletDirect(_)
+            | WalletData::GrabpayRedirect { .. }
             | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
                 ("payment_method").into(),
                 Default::default(),
@@ -4727,6 +4732,10 @@ pub fn get_adyen_response(
                 .and_then(|data| data.extract_network_advice_code()),
             network_decline_code,
             network_error_message,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     } else {
         None
@@ -4838,6 +4847,10 @@ pub fn get_present_to_shopper_response(
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     } else {
         None
@@ -4929,6 +4942,10 @@ pub fn get_redirection_error_response(
             network_advice_code,
             network_decline_code,
             network_error_message,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     };
     // We don't get connector transaction id for redirections in Adyen.
@@ -4984,6 +5001,10 @@ pub fn get_qr_code_response(
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     } else {
         None
@@ -5111,6 +5132,10 @@ pub fn get_webhook_response(
             network_advice_code: None,
             network_decline_code,
             network_error_message,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     } else {
         None
@@ -5274,6 +5299,10 @@ pub fn get_redirection_response(
             network_advice_code: None,
             network_decline_code,
             network_error_message,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     } else {
         None
@@ -6158,6 +6187,7 @@ impl<F, Req> TryFrom<ResponseRouterData<AdyenRefundResponse, Self>>
             connector_refund_id: response.psp_reference,
             refund_status: status,
             status_code: http_code,
+            acquirer_reference_number: None,
         };
 
         Ok(Self {
@@ -7063,6 +7093,10 @@ impl<F, Req> TryFrom<ResponseRouterData<AdyenDisputeAcceptResponse, Self>>
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             };
 
             Ok(Self {
@@ -7268,6 +7302,10 @@ impl<F, Req> TryFrom<ResponseRouterData<AdyenSubmitEvidenceResponse, Self>>
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             };
 
             Ok(Self {
@@ -7390,6 +7428,10 @@ impl<F, Req> TryFrom<ResponseRouterData<AdyenDefendDisputeResponse, Self>>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..router_data
             }),

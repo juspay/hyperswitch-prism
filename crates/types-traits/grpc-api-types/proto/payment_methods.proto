@@ -26,6 +26,9 @@ enum CardNetwork {
   PULSE = 13;
   ACCEL = 14;
   NYCE = 15;
+  PROP = 16;
+  PRIVATE_LABEL = 17;
+  DINACARD = 18;
 }
 
 // Paysafecard - Prepaid payment method
@@ -96,9 +99,13 @@ message PaymentMethod {
     VenmoRedirectWallet venmo_redirect = 173;            // Venmo
     SkrillRedirectWallet skrill_redirect = 174;          // Skrill
     PayseraRedirectWallet paysera_redirect = 175;        // Paysera
+    PaymayaRedirectWallet paymaya_redirect = 186;      // Paymaya Redirect
 
     // --- DIRECT WALLETS --- (server-to-server; wallet id rides on the payment_method itself)
     QwikcilverDirectWallet qwikcilver_wallet_direct = 185; // Qwikcilver / Pine Labs stored-value wallet
+
+    // --- GRABPAY WALLET ---
+    GrabpayRedirectWallet grabpay_redirect = 187;          // GrabPay one-time-charge redirect wallet
 
     // --- DEPRECATED REDIRECT WALLETS ---
     RevolutPayWallet revolut_pay = 181;                   // Revolut Pay
@@ -215,6 +222,8 @@ message PaymentMethod {
     NetbankingPayment netbanking = 158;                          // Netbanking - Indian online banking (bank redirect)
   }
 }
+
+message GrabpayRedirectWallet {}
 
 // ============================================================================
 // PAYMENT METHOD CATEGORIES
@@ -718,6 +727,11 @@ message PayseraRedirectWallet {
   // Fields will be added as needed for Paysera Redirect integration
 }
 
+// Paymaya Redirect - Philippine digital wallet Paymaya redirect
+message PaymayaRedirectWallet {
+  // Fields will be added as needed for Paymaya redirect integration
+}
+
 // Apple Pay Third Party SDK - Apple Pay with token from third-party SDK
 message ApplePayThirdPartySdkWallet {
   // Payment token from third-party SDK
@@ -971,7 +985,18 @@ message OpenBankingUK {
 
 // Open Banking - Open Banking implementation
 message OpenBanking {
-  // Fields will be added as needed for Open Banking integration
+  // International Bank Account Number
+  optional SecretString iban = 1;
+  // Bank account number
+  optional SecretString account_number = 2;
+  // Sort code for the bank account
+  optional SecretString sort_code = 3;
+  // Name of the account holder
+  optional SecretString account_holder_name = 4;
+  // Additional payment details as a JSON string
+  optional SecretString additional_details = 5;
+  // Bank Name
+  optional BankNames bank_name = 6;
 }
 
 // Open Banking Payment Initiation Service
@@ -1553,6 +1578,420 @@ enum BankNames {
   BankRakyatIndonesia = 201;
   CimbNiaga = 202;
   PermataBank = 203;
+  // European Bank Names
+  AibBusiness = 204;
+  Aktia = 205;
+  Alandsbanken = 206;
+  AllianzBankFinancialAdvisorsSpa = 207;
+  AllianzBanque = 208;
+  AlliedIrishBank = 209;
+  AlliedIrishBankCorporate = 210;
+  AltoAdige = 211;
+  AltoAdigeBancaSuedtirolBank = 212;
+  Argenta = 213;
+  ArkeaBanqueEntreprisesEtInstitutionnels = 214;
+  ArkeaBanquePrivee = 215;
+  AxaBanque = 216;
+  Banca360CreditoCooperativoFvg = 217;
+  BancaAdriaColliEuganei = 218;
+  BancaAgricolaPopolareDiRagusa = 219;
+  BancaAlpiMarittimeCcCarru = 220;
+  BancaAltaToscana = 221;
+  BancaAnnia = 222;
+  BancaCentroEmilia = 223;
+  BancaCentroLazio = 224;
+  BancaCentroToscanaUmbria = 225;
+  BancaCentropadana = 226;
+  BancaCesarePonti = 227;
+  BancaDelCatanzarese = 228;
+  BancaDelCilentoDiSassanoEV = 229;
+  BancaDelPiceno = 230;
+  BancaDelPiemonte = 231;
+  BancaDelTerritorioLombardo = 232;
+  BancaDelVenetoCentrale = 233;
+  BancaDellaMarcaCredcooperativo = 234;
+  BancaDelleTerreVenete = 235;
+  BancaDiAlbaCreditoCooperativo = 236;
+  BancaDiAnghiariEStiaCc = 237;
+  BancaDiBologna = 238;
+  BancaDiCaraglio = 239;
+  BancaDiCreditoPopolareScpa = 240;
+  BancaDiImolaSpa = 241;
+  BancaDiPesaro = 242;
+  BancaDiPesciaECascina = 243;
+  BancaDiPiacenzaScpa = 244;
+  BancaDiTarantoBcc = 245;
+  BancaDiUdineCreditoCoop = 246;
+  BancaDonRizzo = 247;
+  BancaFideuram = 248;
+  BancaFinnatEuramericaSpa = 249;
+  BancaGeneraliSpa = 250;
+  BancaLazioNord = 251;
+  BancaMalatestiana = 252;
+  BancaMonteDeiPaschiDiSiena = 253;
+  BancaPassadore = 254;
+  BancaPatavina = 255;
+  BancaPatrimoniSella = 256;
+  BancaPerIlTrentinoaltoadige = 257;
+  BancaPopolareDelLazioScpa = 258;
+  BancaPopolareDellAltoAdige = 259;
+  BancaPopolareDiSondrio = 260;
+  BancaPopolarePugliese = 261;
+  BancaPopolareValconcaScpa = 262;
+  BancaSanFrancescoCreditoCoop = 263;
+  BancaSella = 264;
+  BancaSistemaSpa = 265;
+  BancaSviluppoCooperazCredito = 266;
+  BancaTema = 267;
+  BancaTerreEtruscheEDiMaremma = 268;
+  BancaTerritoriDelMonviso = 269;
+  BancaValsabbina = 270;
+  BancaVeroneseCcDiConcamarise = 271;
+  BancoAzzoaglio = 272;
+  BancoBpmSpaServizioWebank = 273;
+  BancoBpmSpaServizioYouweb = 274;
+  BancoBpmSpaYoubusinessWeb = 275;
+  BancoBpmWeBank = 276;
+  BancoBpmYouWeb = 277;
+  BancoDeSabadell = 278;
+  BancoDesioBrianza = 279;
+  BancoDiSardegna = 280;
+  BancoMarchigiano = 281;
+  BancoPosta = 282;
+  BancoSantander = 283;
+  BankOfIreland = 284;
+  BankOfIrelandBusiness = 285;
+  BankOfIrelandUk = 286;
+  BankOfScotlandBusiness = 287;
+  Bankinter = 288;
+  BanqueDeSavoie = 289;
+  BanquePopulaire = 290;
+  Barclaycard = 291;
+  BarclaysBusiness = 292;
+  BawagPsk = 293;
+  Bbva = 294;
+  BccAbruzzeseCappelleSulTavo = 295;
+  BccAbruzziEMolise = 296;
+  BccAdriaticoTeramano = 297;
+  BccAgroBresciano = 298;
+  BccAgroPontino = 299;
+  BccAlberobelloSammicheleMonopoli = 300;
+  BccAltoTirrenoDellaCalabria = 301;
+  BccAnagni = 302;
+  BccBasilicata = 303;
+  BccBellegra = 304;
+  BccBrescia = 305;
+  BccBrianzaELaghi = 306;
+  BccCampaniaCentro = 307;
+  BccCapaccioPaestum = 308;
+  BccCastelliRomaniETuscolo = 309;
+  BccCentroCalabria = 310;
+  BccConversano = 311;
+  BccDegliUliviTerraDiBari = 312;
+  BccDeiCastelliEDegliIblei = 313;
+  BccDeiColliAlbani = 314;
+  BccDelCirceoEPrivernate = 315;
+  BccDelGarda = 316;
+  BccDelMetauro = 317;
+  BccDelVelino = 318;
+  BccDellAltaMurgia = 319;
+  BccDellaProvinciaRomana = 320;
+  BccDellaRomagnaOccidentale = 321;
+  BccDelleMadonie = 322;
+  BccDiAltofonteECaccamo = 323;
+  BccDiAquara = 324;
+  BccDiArborea = 325;
+  BccDiBari = 326;
+  BccDiBarlassina = 327;
+  BccDiBeneVagienna = 328;
+  BccDiBinasco = 329;
+  BccDiBuccinoEComuniCilentani = 330;
+  BccDiBustoGarolfoEBuguggiate = 331;
+  BccDiCagliari = 332;
+  BccDiCanosaLoconia = 333;
+  BccDiCaravaggio = 334;
+  BccDiCassanoDelleMurgeETolve = 335;
+  BccDiCherasco = 336;
+  BccDiFilottrano = 337;
+  BccDiFlumeri = 338;
+  BccDiGambatesa = 339;
+  BccDiGaudianoDiLavello = 340;
+  BccDiLeverano = 341;
+  BccDiLocorotondo = 342;
+  BccDiMontepaone = 343;
+  BccDiNapoli = 344;
+  BccDiOstraEMorroDAlba = 345;
+  BccDiOstuni = 346;
+  BccDiPachino = 347;
+  BccDiPergolaECorinaldo = 348;
+  BccDiPianfeiERoccaDeBaldi = 349;
+  BccDiPontassieve = 350;
+  BccDiRecanatiEColmurano = 351;
+  BccDiRoma = 352;
+  BccDiSanGiovanniRotondo = 353;
+  BccDiSanMarzanoDiSanGiuseppe = 354;
+  BccDiSanteramoInColle = 355;
+  BccDiSarsina = 356;
+  BccDiScafatiECetara = 357;
+  BccDiSmarcoDeiCavoti = 358;
+  BccDiSpelloEDelVelino = 359;
+  BccDiTerraDOtranto = 360;
+  BccFelsinea = 361;
+  BccGTonioloDiSanCataldo = 362;
+  BccGranSassoDItalia = 363;
+  BccLaRiscossaDiRegalbuto = 364;
+  BccLodi = 365;
+  BccMilano = 366;
+  BccMontePruno = 367;
+  BccNettuno = 368;
+  BccOglioESerio = 369;
+  BccPordenoneseEMonsile = 370;
+  BccPratolaPeligna = 371;
+  BccPrealpiSanBiagio = 372;
+  BccRavennaForliImola = 373;
+  BccSanGiuseppeDiMussomeli = 374;
+  BccTerraDiLavoro = 375;
+  BccTriuggioValleDelLambro = 376;
+  BccValdarnoFiorentino = 377;
+  BccValdostana = 378;
+  BccValleDelTorto = 379;
+  BccVeneta = 380;
+  BccVeneziaGiulia = 381;
+  BccVersiliaLunigianaEGarfagnana = 382;
+  BccVicentinoPojanaMaggiore = 383;
+  Belfius = 384;
+  Beobank = 385;
+  BiBanca = 386;
+  BluBancaSpa = 387;
+  Bnl = 388;
+  BnpParibasFortis = 389;
+  BoursoBank = 390;
+  Bozen = 391;
+  Bpe = 392;
+  BperBanca = 393;
+  BvrBancaBancheVeneteRiunite = 394;
+  CaisseDEpargne = 395;
+  Caixa = 396;
+  CajaRural = 397;
+  Cajamar = 398;
+  CassaCentraleBanca = 399;
+  CassaDiRisparmioDiBolzano = 400;
+  CassaDiRisparmioDiFermoSpa = 401;
+  CassaDiRisparmioDiSavigliano = 402;
+  CassaPadana = 403;
+  CassaRuraleAltaValsugana = 404;
+  CassaRuraleAltoGardaRovereto = 405;
+  CassaRuraleDiLedro = 406;
+  CassaRuraleDiTreviglio = 407;
+  CassaRuraleFvg = 408;
+  CassaRuraleRenon = 409;
+  CassaRuraleValDiFiemme = 410;
+  CassaRuraleValDiSole = 411;
+  CassaRuraleVallagarina = 412;
+  CassaRuraleValsuganaETesino = 413;
+  CastagnetoBanca1910 = 414;
+  CbcBanque = 415;
+  CentromarcaBanca = 416;
+  ChiantibancaCreditoCooperativo = 417;
+  Cic = 418;
+  ClydesdaleBank = 419;
+  Comdirect = 420;
+  Commerzbank = 421;
+  Cortinabanca = 422;
+  Coutts = 423;
+  CrValDiNonRotalianaEGiovo = 424;
+  CraBccDiCantu = 425;
+  CraDiBorgoSanGiacomo = 426;
+  CraDiBoves = 427;
+  CraDiPaliano = 428;
+  Credem = 429;
+  Credifriuli = 430;
+  CreditMutuel = 431;
+  CreditMutuelDeBretagne = 432;
+  CreditMutuelDuSudOuest = 433;
+  CreditoCooperativoAgrigentino = 434;
+  CreditoCooperativoMediocrati = 435;
+  CreditoCooperativoRomagnolo = 436;
+  CreditoDiRomagna = 437;
+  CreditoLombardoVeneto = 438;
+  DanskeBankBusiness = 439;
+  Desio = 440;
+  DeutscheBank = 441;
+  Dkb = 442;
+  EasyBank = 443;
+  Ebs = 444;
+  EmilbancaCc = 445;
+  ErsteBank = 446;
+  EvoBanco = 447;
+  Fineco = 448;
+  Fintro = 449;
+  Fortuneo = 450;
+  FpbCassaDiFassaPrimieroBelluno = 451;
+  HelloBank = 452;
+  Hsbc = 453;
+  HsbcBusiness = 454;
+  Hype = 455;
+  HypoVereinsbank = 456;
+  Ibercaja = 457;
+  IccreaBancaSpa = 458;
+  Illimity = 459;
+  Imagin = 460;
+  ImprebancaSpa = 461;
+  IntesaSanpaolo = 462;
+  IntesaSanpaoloInbiz = 463;
+  IntesaSanpaoloPrivateBankingSpa = 464;
+  Isybank = 465;
+  Kbc = 466;
+  KbcBrussels = 467;
+  Kutxabank = 468;
+  LaBanquePostale = 469;
+  LaBanquePostaleBusiness = 470;
+  LaCassaDiRavennaSpa = 471;
+  LaCassaRurale = 472;
+  LaboralKutxa = 473;
+  Lcl = 474;
+  LisPaySpa = 475;
+  LloydsBusiness = 476;
+  LloydsCommercial = 477;
+  MSBank = 478;
+  Mbna = 479;
+  MettleBank = 480;
+  Monabanq = 481;
+  Mooney = 482;
+  Mps = 483;
+  NatWestBankline = 484;
+  Nationwide = 485;
+  Nordea = 486;
+  OmaSp = 487;
+  Op = 488;
+  Openbank = 489;
+  PopPankki = 490;
+  PostePayEvolution = 491;
+  PrimacassaFvg = 492;
+  Ptsb = 493;
+  RaiffeisenAlgund = 494;
+  RaiffeisenAltaPusteria = 495;
+  RaiffeisenAltaVenosta = 496;
+  RaiffeisenAltoAdige = 497;
+  Raiffeisenbank = 498;
+  RaiffeisenBassaAtesina = 499;
+  RaiffeisenBassaValleIsarco = 500;
+  RaiffeisenBassaVenosta = 501;
+  RaiffeisenBolzano = 502;
+  RaiffeisenBozen = 503;
+  RaiffeisenBruneck = 504;
+  RaiffeisenBrunico = 505;
+  RaiffeisenCampoDiTrens = 506;
+  RaiffeisenCassaCentrAltoAdige = 507;
+  RaiffeisenCastelrottoortisei = 508;
+  RaiffeisenDeutschnofenaldein = 509;
+  RaiffeisenDobbiaco = 510;
+  RaiffeisenEisacktal = 511;
+  RaiffeisenEtschtal = 512;
+  RaiffeisenFreienfeld = 513;
+  RaiffeisenFunes = 514;
+  RaiffeisenGadertal = 515;
+  RaiffeisenGroeden = 516;
+  RaiffeisenHochpustertal = 517;
+  RaiffeisenKastelruthstulrich = 518;
+  RaiffeisenLaas = 519;
+  RaiffeisenLaces = 520;
+  RaiffeisenLagundo = 521;
+  RaiffeisenLana = 522;
+  RaiffeisenLandesbankSuedtirol = 523;
+  RaiffeisenLasa = 524;
+  RaiffeisenLatsch = 525;
+  RaiffeisenMarlengo = 526;
+  RaiffeisenMarling = 527;
+  RaiffeisenMeran = 528;
+  RaiffeisenMerano = 529;
+  RaiffeisenMonguelfocasiestesido = 530;
+  RaiffeisenNiederdorf = 531;
+  RoyalBankOfScotlandBankline = 532;
+  SPankki = 533;
+  Saastopankki = 534;
+  Santander = 535;
+  SantanderBusiness = 536;
+  SantanderPersonal = 537;
+  Sparkasse = 538;
+  TargoBank = 539;
+  Tide = 540;
+  Triodos = 541;
+  Tsb = 542;
+  UlsterBankline = 543;
+  Unicaja = 544;
+  VirginMoney = 545;
+  VirginMoneyMerged = 546;
+  VolksbankenRaiffeisenbanken = 547;
+  Wise = 548;
+  YorkshireBank = 549;
+  Zempler = 550;
+  RaiffeisenNovaLevante = 551;
+  RaiffeisenNovaPonentealdino = 552;
+  RaiffeisenObervinschgau = 553;
+  RaiffeisenOltradige = 554;
+  RaiffeisenParcines = 555;
+  RaiffeisenPartschins = 556;
+  RaiffeisenPasseier = 557;
+  RaiffeisenPradtaufers = 558;
+  RaiffeisenPratotubre = 559;
+  RaiffeisenSalorno = 560;
+  RaiffeisenSalurn = 561;
+  RaiffeisenSanMartinoInPassiria = 562;
+  RaiffeisenSarntal = 563;
+  RaiffeisenScena = 564;
+  RaiffeisenSchenna = 565;
+  RaiffeisenSchlanders = 566;
+  RaiffeisenSchlernrosengarten = 567;
+  RaiffeisenSilandro = 568;
+  RaiffeisenSuedtirol = 569;
+  RaiffeisenTaufererahrntal = 570;
+  RaiffeisenTesimo = 571;
+  RaiffeisenTirol = 572;
+  RaiffeisenTirolo = 573;
+  RaiffeisenTisens = 574;
+  RaiffeisenToblach = 575;
+  RaiffeisenTuresaurina = 576;
+  RaiffeisenUeberetsch = 577;
+  RaiffeisenUltenstpankrazlaurein = 578;
+  RaiffeisenUltimospancrlaur = 579;
+  RaiffeisenUntereisacktal = 580;
+  RaiffeisenUnterland = 581;
+  RaiffeisenUntervinschgau = 582;
+  RaiffeisenValBadia = 583;
+  RaiffeisenValGardena = 584;
+  RaiffeisenValPassiria = 585;
+  RaiffeisenValSarentino = 586;
+  RaiffeisenValleIsarco = 587;
+  RaiffeisenVandoies = 588;
+  RaiffeisenVillabassa = 589;
+  RaiffeisenVillnoess = 590;
+  RaiffeisenVintl = 591;
+  RaiffeisenWelsberggsiestaisten = 592;
+  RaiffeisenWelschnofen = 593;
+  RaiffeisenWipptal = 594;
+  RaiffeisenkasseRitten = 595;
+  RivieraBanca = 596;
+  RomagnaBanca = 597;
+  Sella = 598;
+  Sicilbanca = 599;
+  SolutionBank = 600;
+  Suedtiroler = 601;
+  SuedtirolerSparkasse = 602;
+  SuedtirolerVolksbank = 603;
+  Unicredit = 604;
+  UnicreditOnlineBanking = 605;
+  UnicreditUniwebCorporate = 606;
+  ValpolicellaBenacoBanca = 607;
+  Volksbank = 608;
+  VolksbankBancaPopolare = 609;
+  Widiba = 610;
+  ZkbCredcoopdiTriesteEGorizia = 611;
+  Asn = 612;
+  Sns = 613;
+  Seb = 614;
+  Swedbank = 615;
+  MockUkPayments = 616;
 }
 
 // ============================================================================
@@ -1859,6 +2298,7 @@ enum CountryAlpha2 {
   ZW = 249;
 }
 
+// The type of bank account
 enum BankType {
   BANK_TYPE_UNSPECIFIED = 0;
   BANK_TYPE_CHECKING = 1;
@@ -1867,8 +2307,11 @@ enum BankType {
   BANK_TYPE_CURRENT = 4;
   BANK_TYPE_BOND = 5;
   BANK_TYPE_SUBSCRIPTION_SHARE = 6;
+  BANK_TYPE_SALARY = 7;
+  BANK_TYPE_PAYMENT = 8;
 }
 
+// The type of entity holding the bank account
 enum BankHolderType {
   BANK_HOLDER_TYPE_UNSPECIFIED = 0;
   BANK_HOLDER_TYPE_PERSONAL = 1;

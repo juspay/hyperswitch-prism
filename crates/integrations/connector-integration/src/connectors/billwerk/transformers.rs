@@ -401,6 +401,10 @@ impl<F, T> TryFrom<ResponseRouterData<BillwerkPaymentsResponse, Self>>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             None
@@ -530,6 +534,7 @@ impl<F> TryFrom<RefundsResponseRouterData<F, RefundResponse>>
                 connector_refund_id: item.response.id.to_string(),
                 refund_status: common_enums::RefundStatus::from(item.response.state),
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -547,6 +552,7 @@ impl TryFrom<ResponseRouterData<RefundResponse, Self>>
                 connector_refund_id: item.response.id.to_string(),
                 refund_status: common_enums::RefundStatus::from(item.response.state),
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })

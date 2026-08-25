@@ -1214,6 +1214,10 @@ impl TryFrom<ResponseRouterData<CashfreeSyncResponse, Self>>
                         network_decline_code: None,
                         network_advice_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     }),
                     ..router_data
                 });
@@ -1342,6 +1346,7 @@ impl TryFrom<ResponseRouterData<CashfreeRefundResponse, Self>>
                 connector_refund_id: response.refund_id,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,
@@ -1381,6 +1386,7 @@ impl TryFrom<ResponseRouterData<CashfreeRefundSyncResponse, Self>>
                 connector_refund_id: response.refund_id,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,

@@ -91,6 +91,18 @@ pub enum RedirectState {
     RedirectWithoutParams,
 }
 
+/// Describes which merchant-side identifier a connector uses as its order reference.
+/// Some connectors do not distinguish between order and transaction and expect
+/// merchant_transaction_id wherever an order identifier is required.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MerchantOrderIdSource {
+    /// Connector uses merchant_order_id (default)
+    OrderId,
+    /// Connector treats order and transaction as the same entity;
+    /// merchant_transaction_id is used wherever an order identifier is needed
+    TransactionId,
+}
+
 pub trait ConnectorServiceTrait<T: PaymentMethodDataTypes>:
     ConnectorCommon
     + ValidationTrait
@@ -214,7 +226,10 @@ pub trait ValidationTrait: ConnectorCommon {
         false
     }
 
-    fn should_do_session_token(&self) -> bool {
+    fn should_do_session_token(
+        &self,
+        _connector_feature_data: Option<&hyperswitch_masking::Secret<String>>,
+    ) -> bool {
         false
     }
 
@@ -270,6 +285,13 @@ pub trait ValidationTrait: ConnectorCommon {
     /// after VerifyRedirectResponse in the composite flow.
     fn requires_authorize_post_redirect(&self) -> bool {
         false
+    }
+
+    /// Returns which merchant identifier this connector uses as its order reference.
+    /// Connectors that treat order and transaction as the same entity should return
+    /// `MerchantOrderIdSource::TransactionId`.
+    fn merchant_order_id_source(&self) -> MerchantOrderIdSource {
+        MerchantOrderIdSource::OrderId
     }
 }
 
@@ -703,6 +725,7 @@ pub trait VerifyRedirectResponse: SourceVerification + BodyDecoding {
     fn process_redirect_response(
         &self,
         _request: &RequestDetails,
+        _connector_feature_data: Option<&hyperswitch_masking::Secret<String>>,
     ) -> CustomResult<RedirectDetailsResponse, domain_types::errors::IntegrationError> {
         Err(domain_types::errors::IntegrationError::NotImplemented(
             "process_redirect_response".to_string(),

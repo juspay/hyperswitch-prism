@@ -36,6 +36,26 @@ type ResponseError = error_stack::Report<ConnectorError>;
 const JPMORGAN_GETTING_STARTED_DOC: &str =
     "https://developer.payments.jpmorgan.com/docs/commerce-solutions/online-payments/guides/getting-started";
 
+impl TryFrom<Option<common_enums::BankType>> for requests::JpmorganAchAccountType {
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(bank_type: Option<common_enums::BankType>) -> Result<Self, Self::Error> {
+        match bank_type {
+            Some(common_enums::BankType::Savings) => Ok(Self::Savings),
+            Some(common_enums::BankType::Checking) | None => Ok(Self::Checking),
+            Some(bank) => Err(error_stack::report!(IntegrationError::NotSupported {
+                message: format!("Bank type {bank:?} is not supported by jpmorgan"),
+                connector: "jpmorgan",
+                context: IntegrationErrorContext {
+                    suggested_action: Some("Provide a valid bank account type".to_owned()),
+                    additional_context: None,
+                    doc_url: None,
+                },
+            })),
+        }
+    }
+}
+
 /// Build an `IntegrationErrorContext` for a missing JPMorgan connector config field.
 fn jpmorgan_missing_field_context(field_name: &str) -> IntegrationErrorContext {
     IntegrationErrorContext {
@@ -338,11 +358,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 };
 
                 // Determine account type based on bank_type field, default to Checking
-                let account_type = if let Some(common_enums::BankType::Savings) = bank_type {
-                    requests::JpmorganAchAccountType::Savings
-                } else {
-                    requests::JpmorganAchAccountType::Checking
-                };
+                let account_type = requests::JpmorganAchAccountType::try_from(*bank_type)?;
 
                 let ach = requests::JpmorganAch {
                     account_number: account_number.clone(),
@@ -666,6 +682,10 @@ impl<F> TryFrom<ResponseRouterData<responses::JpmorganPaymentsResponse, Self>>
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             Ok(PaymentsResponseData::PostCaptureVoidResponse {
@@ -815,6 +835,10 @@ fn build_payments_response_result(
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         }))
     } else {
         Ok(Ok(PaymentsResponseData::try_from(response)?))
@@ -834,6 +858,7 @@ impl TryFrom<&responses::JpmorganRefundResponse> for RefundsResponseData {
             connector_refund_id: item.transaction_id.clone(),
             refund_status,
             status_code: item.response_code.parse::<u16>().unwrap_or(0),
+            acquirer_reference_number: None,
         })
     }
 }

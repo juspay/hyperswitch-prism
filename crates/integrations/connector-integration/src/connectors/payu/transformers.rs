@@ -957,6 +957,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 network_error_message: None,
                 network_advice_code: None,
                 network_decline_code: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             };
 
             return Ok(Self {
@@ -1124,6 +1128,10 @@ impl TryFrom<ResponseRouterData<PayuSyncResponse, Self>>
                             network_error_message: None,
                             network_advice_code: None,
                             network_decline_code: None,
+                            typed_connector_response: None,
+                            raw_connector_response: None,
+                            raw_connector_request: None,
+                            typed_connector_request: None,
                         };
 
                         Ok(Self {
@@ -1149,6 +1157,10 @@ impl TryFrom<ResponseRouterData<PayuSyncResponse, Self>>
                     network_error_message: None,
                     network_advice_code: None,
                     network_decline_code: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 };
 
                 Ok(Self {
@@ -1370,6 +1382,10 @@ impl TryFrom<ResponseRouterData<PayuCaptureResponse, Self>>
                 network_error_message: None,
                 network_advice_code: None,
                 network_decline_code: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             };
 
             return Ok(Self {
@@ -1557,6 +1573,10 @@ impl TryFrom<ResponseRouterData<PayuVoidResponse, Self>>
                 network_error_message: None,
                 network_advice_code: None,
                 network_decline_code: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             };
 
             return Ok(Self {
@@ -1749,6 +1769,10 @@ impl TryFrom<ResponseRouterData<PayuRefundResponse, Self>>
                 network_error_message: None,
                 network_advice_code: None,
                 network_decline_code: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             };
             return Ok(Self {
                 response: Err(error_response),
@@ -1777,6 +1801,7 @@ impl TryFrom<ResponseRouterData<PayuRefundResponse, Self>>
                 connector_refund_id,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,
@@ -1929,6 +1954,7 @@ impl TryFrom<ResponseRouterData<PayuRefundSyncResponse, Self>>
                                 connector_refund_id,
                                 refund_status,
                                 status_code: item.http_code,
+                                acquirer_reference_number: None,
                             }),
                             resource_common_data: RefundFlowData {
                                 status: refund_status,
@@ -1946,6 +1972,7 @@ impl TryFrom<ResponseRouterData<PayuRefundSyncResponse, Self>>
                                 connector_refund_id,
                                 refund_status: RefundStatus::Pending,
                                 status_code: item.http_code,
+                                acquirer_reference_number: None,
                             }),
                             resource_common_data: RefundFlowData {
                                 status: RefundStatus::Pending,
@@ -1970,6 +1997,10 @@ impl TryFrom<ResponseRouterData<PayuRefundSyncResponse, Self>>
                     network_error_message: None,
                     network_advice_code: None,
                     network_decline_code: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 };
 
                 Ok(Self {
@@ -2093,6 +2124,10 @@ impl TryFrom<ResponseRouterData<PayuSessionTokenResponse, Self>>
                     network_error_message: None,
                     network_advice_code: None,
                     network_decline_code: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..item.router_data
             });

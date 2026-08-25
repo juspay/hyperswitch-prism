@@ -190,7 +190,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         Some(OpenBankingUk { transaction_type }),
                         None,
                     )),
-                    BankRedirectData::OpenBanking {} => {
+                    BankRedirectData::OpenBanking { .. } => {
                         if matches!(currency, common_enums::Currency::GBP) {
                             Ok((
                                 PaymentSystem::OpenBankingUk,
@@ -568,6 +568,10 @@ impl<F, T> TryFrom<ResponseRouterData<VoltPaymentsResponseData, Self>>
                             network_advice_code: None,
                             network_decline_code: None,
                             network_error_message: None,
+                            typed_connector_response: None,
+                            raw_connector_response: None,
+                            raw_connector_request: None,
+                            typed_connector_request: None,
                         })
                     } else {
                         Ok(PaymentsResponseData::TransactionResponse {
@@ -617,6 +621,10 @@ impl<F, T> TryFrom<ResponseRouterData<VoltPaymentsResponseData, Self>>
                             network_advice_code: None,
                             network_decline_code: None,
                             network_error_message: None,
+                            typed_connector_response: None,
+                            raw_connector_response: None,
+                            raw_connector_request: None,
+                            typed_connector_request: None,
                         })
                     } else {
                         Ok(PaymentsResponseData::TransactionResponse {
@@ -695,6 +703,7 @@ impl<F> TryFrom<RefundsResponseRouterData<F, RefundResponse>>
                 connector_refund_id: item.response.id.to_string(),
                 refund_status: common_enums::RefundStatus::Pending, //We get Refund Status only by Webhooks
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
