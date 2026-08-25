@@ -256,8 +256,6 @@ Prism also runs as a standalone gRPC server. Multi-arch images (`linux/amd64`, `
 docker run --rm -p 8000:8000 ghcr.io/juspay/hyperswitch-prism:latest
 ```
 
-`--rm` deletes the container once it exits — leave it out if you want to read the logs afterwards.
-
 The server registers its own descriptors, so [`grpcurl`](https://github.com/fullstorydev/grpcurl) needs no local `.proto` files — it can list the services and print the exact request schema:
 
 ```bash
@@ -269,7 +267,7 @@ grpcurl -plaintext localhost:8000 describe types.PaymentService.Authorize
 grpcurl -plaintext localhost:8000 describe types.PaymentServiceAuthorizeRequest
 ```
 
-Connector credentials are sent per request as gRPC metadata (`x-connector`, `x-auth`, `x-api-key`, ...) — the server keeps nothing. The proto definitions are in [`crates/types-traits/grpc-api-types/proto`](./crates/types-traits/grpc-api-types/proto).
+Connector credentials are sent per request in the `x-connector-config` metadata header, as JSON of the form `{"config":{"Stripe":{"api_key":"sk_test_..."}}}` — it selects the connector and carries its credentials, and the server keeps neither. The proto definitions are in [`crates/types-traits/grpc-api-types/proto`](./crates/types-traits/grpc-api-types/proto).
 
 ### Configuration
 
@@ -291,23 +289,12 @@ docker run --rm -p 8000:8000 \
 
 ### Metrics
 
-Prometheus metrics are always served on port `8080`. Publish that port as well if you want to scrape them:
+Prometheus metrics are served on port `8080`. Publish that port as well if you want to scrape them:
 
 ```bash
 docker run --rm -p 8000:8000 -p 8080:8080 ghcr.io/juspay/hyperswitch-prism:latest
 curl localhost:8080/metrics
 ```
-
-The same instruments can be pushed to an OpenTelemetry collector over OTLP/gRPC instead. That pipeline is compiled into the image but disabled in every config it ships with, so turn it on explicitly:
-
-```bash
-docker run --rm -p 8000:8000 \
-  -e CS__METRICS__OTEL__ENABLED=true \
-  -e CS__METRICS__OTEL__OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317 \
-  ghcr.io/juspay/hyperswitch-prism:latest
-```
-
-The endpoint must be an OTLP gRPC receiver (port 4317), not an HTTP one. Both paths are independent — enabling OTLP does not turn off the `/metrics` endpoint.
 
 ---
 
