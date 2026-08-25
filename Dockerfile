@@ -6,7 +6,10 @@
 ########################################
 FROM public.ecr.aws/docker/library/rust:slim-bookworm AS base
 
-# Install system dependencies and clean up
+# Install system dependencies and clean up.
+# clang/libclang-dev: zstd-sys (pulled by rdkafka's `zstd` feature, which the
+# deja Kafka sink needs for compression.type=zstd) generates its bindings with
+# bindgen, which loads libclang at build time.
 RUN apt-get update \
     && apt-get install -y \
        pkg-config \
@@ -14,6 +17,8 @@ RUN apt-get update \
        g++ \
        make \
        perl \
+       clang \
+       libclang-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
