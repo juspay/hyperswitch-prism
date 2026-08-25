@@ -1,0 +1,755 @@
+{
+  "connector": "travelhub",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for travelhub"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "AchBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "Affirm": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "Afterpay": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "Alfamart": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "AliPayRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "ApplePay": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "Bacs": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "BacsBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "BancontactCard": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "BcaBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "Becs": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "BillDeskRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "Bizum": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "Blik": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "Bluecode": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "Boleto": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "Card": {
+        "status": "not_supported",
+        "error": "card network is not supported by travelhub"
+      },
+      "CashappQr": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "CashfreeRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "ClassicReward": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Dana": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "EVoucher": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "Efecty": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "Eft": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "Eps": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "FamilyMart": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "GCash": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "Giropay": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "GoPay": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "GooglePay": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "Ideal": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "Indomaret": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "InstantBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "Interac": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "KakaoPay": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "Klarna": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "Lawson": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "LazyPayRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "LocalBankRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "LocalBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "MbWay": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "Mifinity": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "MiniStop": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Momo": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "Netbanking": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "OpenBanking": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "OpenBankingUk": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "Oxxo": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "PagoEfectivo": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "PayEasy": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "PayURedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "PaypalRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "PaypalSdk": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "PhonePeRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "Pix": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "Przelewy24": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "Pse": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "RedCompra": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "RedPagos": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "RevolutPay": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "SamsungPay": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "Satispay": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "Seicomart": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "Sepa": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "SepaBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "SevenEleven": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "Skrill": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "Sofort": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "Swish": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "TouchNGo": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "Trustly": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "Twint": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "UpiCollect": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "UpiIntent": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "UpiQr": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "Vipps": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "WeChatPayQr": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      },
+      "Wero": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_capture_id": "probe_capture_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount_to_capture": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://preprod.travel.worldline-solutions.com/travelhub/tpa/api/v1/capture",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"merchantId\":\"probe_key\",\"orderId\":\"probe_capture_001\",\"amount\":1000,\"currency\":\"USD\"}"
+        }
+      }
+    },
+    "create_client_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: client_authentication_token flow for travelhub"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_order flow for travelhub"
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_authentication_token flow for travelhub"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_session_authentication_token flow for travelhub"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for travelhub"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: get_connector_customer flow for travelhub"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: accept_dispute flow for travelhub"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: defend_dispute flow for travelhub"
+      }
+    },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: submit_evidence flow for travelhub"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by travelhub connector"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://preprod.travel.worldline-solutions.com/travelhub/tpa/api/v1/status",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"merchantId\":\"probe_key\",\"orderId\":\"probe_merchant_txn_001\"}"
+        }
+      }
+    },
+    "handle_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: incremental_authorization flow for travelhub"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for travelhub"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for travelhub"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_proxy_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://preprod.travel.worldline-solutions.com/travelhub/tpa/api/v1/authorize",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"merchantId\":\"probe_key\",\"orderId\":\"probe_proxy_txn_001\",\"amount\":1000,\"currency\":\"USD\",\"capture\":true,\"payment\":{\"paymentMethod\":{\"code\":\"108\"},\"paymentCard\":{\"cardName\":\"John Doe\",\"cardNumber\":\"{{$card_number}}\",\"expiryDate\":\"0330\",\"cvc\":\"{{$card_cvc}}\",\"authentication\":false}}}"
+        }
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for travelhub"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: repeat_payment flow for travelhub"
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for travelhub"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "payment_amount": 1000,
+          "refund_amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "reason": "customer_request"
+        },
+        "sample": {
+          "url": "https://preprod.travel.worldline-solutions.com/travelhub/tpa/api/v1/refund",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"merchantId\":\"probe_key\",\"orderId\":\"probe_refund_001\",\"amount\":1000,\"currency\":\"USD\"}"
+        }
+      }
+    },
+    "refund_get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "refund_id": "probe_refund_id_001"
+        },
+        "sample": {
+          "url": "https://preprod.travel.worldline-solutions.com/travelhub/tpa/api/v1/status",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"merchantId\":\"probe_key\",\"orderId\":\"probe_refund_001\"}"
+        }
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void_post_capture flow for travelhub"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for travelhub"
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for travelhub"
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for travelhub"
+      }
+    },
+    "verify_redirect": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_void_id": "probe_void_001",
+          "connector_transaction_id": "probe_connector_txn_001"
+        },
+        "sample": {
+          "url": "https://preprod.travel.worldline-solutions.com/travelhub/tpa/api/v1/cancel",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"merchantId\":\"probe_key\",\"orderId\":\"probe_void_001\"}"
+        }
+      }
+    }
+  }
+}
