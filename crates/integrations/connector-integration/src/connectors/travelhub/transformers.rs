@@ -219,36 +219,30 @@ impl<T: PaymentMethodDataTypes>
             }
         };
 
-        let request3ds =
-            item.request
-                .authentication_data
+        let request3ds = item.request.authentication_data.as_ref().map(|auth_data| {
+            let cavv_algorithm = auth_data
+                .network_params
                 .as_ref()
-                .map(|auth_data| {
-                    let cavv_algorithm = auth_data
-                        .network_params
-                        .as_ref()
-                        .and_then(|np| np.cartes_bancaires.as_ref())
-                        .map(|cb| match cb.cavv_algorithm {
-                            common_enums::CavvAlgorithm::Zero => "0",
-                            common_enums::CavvAlgorithm::One => "1",
-                            common_enums::CavvAlgorithm::Two => "2",
-                            common_enums::CavvAlgorithm::Three => "3",
-                            common_enums::CavvAlgorithm::Four => "4",
-                            common_enums::CavvAlgorithm::A => "A",
-                        })
-                        .unwrap_or("1");
-                    TravelhubRequest3DS {
-                    cavv: auth_data.cavv.as_ref().map(|c| c.peek().to_string()),
-                    cavv_algorithm: Some(cavv_algorithm.to_string()),
-                    eci: auth_data.eci.clone(),
-                    xid: None,
-                    ds_transaction_id: auth_data.ds_trans_id.clone(),
-                    three_ds_secure_version: auth_data
-                        .message_version
-                        .as_ref()
-                        .map(|v| v.to_string()),
-                    acs_transaction_id: None,
-                }});
+                .and_then(|np| np.cartes_bancaires.as_ref())
+                .map(|cb| match cb.cavv_algorithm {
+                    common_enums::CavvAlgorithm::Zero => "0",
+                    common_enums::CavvAlgorithm::One => "1",
+                    common_enums::CavvAlgorithm::Two => "2",
+                    common_enums::CavvAlgorithm::Three => "3",
+                    common_enums::CavvAlgorithm::Four => "4",
+                    common_enums::CavvAlgorithm::A => "A",
+                })
+                .unwrap_or("1");
+            TravelhubRequest3DS {
+                cavv: auth_data.cavv.as_ref().map(|c| c.peek().to_string()),
+                cavv_algorithm: Some(cavv_algorithm.to_string()),
+                eci: auth_data.eci.clone(),
+                xid: None,
+                ds_transaction_id: auth_data.ds_trans_id.clone(),
+                three_ds_secure_version: auth_data.message_version.as_ref().map(|v| v.to_string()),
+                acs_transaction_id: None,
+            }
+        });
 
         Ok(Self {
             merchant_id: auth.get_merchant_id(),
@@ -748,6 +742,7 @@ impl TryFrom<ResponseRouterData<TravelhubRefundResponse, Self>>
                 connector_refund_id,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -807,6 +802,7 @@ impl TryFrom<ResponseRouterData<TravelhubRSyncResponse, Self>>
                 connector_refund_id,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })

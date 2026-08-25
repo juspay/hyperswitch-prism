@@ -6016,7 +6016,7 @@ message ConnectorSpecificConfig {
     // WORLDPAYRAFT = 139
     WorldpayraftConfig worldpayraft = 149;
     // TRAVELHUB = 140
-    TravelhubConfig travelhub = 142;
+    TravelhubConfig travelhub = 150;
   }
 }
 
