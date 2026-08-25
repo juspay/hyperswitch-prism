@@ -650,14 +650,14 @@
     },
     "post_authenticate": {
       "default": {
-        "status": "not_supported",
-        "error": "post_authenticate flow not supported by moneris connector"
+        "status": "error",
+        "error": "Stuck on field: request.redirect_response.payload — Missing required field: request.redirect_response.payload"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_supported",
-        "error": "pre_authenticate flow not supported by moneris connector"
+        "status": "error",
+        "error": "Stuck on field: billing.address.first_name — Missing required field: billing.address.first_name"
       }
     },
     "proxy_authorize": {
