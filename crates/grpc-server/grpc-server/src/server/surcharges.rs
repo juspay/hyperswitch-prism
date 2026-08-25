@@ -60,7 +60,6 @@ impl SurchargeService for Surcharges {
             service_method = DomainFlowName::SurchargeCalculate.to_string(),
             request_body = tracing::field::Empty,
             response_body = tracing::field::Empty,
-            error_response_details = tracing::field::Empty,
             error_message = tracing::field::Empty,
             merchant_id = tracing::field::Empty,
             gateway = tracing::field::Empty,

@@ -142,7 +142,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = convert_amount(
             item.connector.amount_converter,
             item.router_data.request.amount,
-            item.router_data.request.source_currency,
+            item.router_data.request.destination_currency,
         )?;
         let payload = GotymeSanlamPayoutTransferPayload::try_from((&item.router_data, amount))?;
 
