@@ -95,18 +95,6 @@ fn flow_to_suites(flow: &str) -> Option<&'static [&'static str]> {
         "CreateOrder" => Some(&["PaymentService/CreateOrder"]),
         "IncrementalAuthorization" => Some(&["PaymentService/IncrementalAuthorization"]),
         // Dispute flows — out of scope (no test suites yet).
-        "Accept" => None,
-        "DefendDispute" => None,
-        "SubmitEvidence" => None,
-        // Payout flows — out of scope.
-        "PayoutCreate" => None,
-        "PayoutGet" => None,
-        "PayoutStage" => None,
-        "PayoutTransfer" => None,
-        "PayoutVoid" => None,
-        "PayoutEnrollDisburseAccount" => None,
-        "PayoutCreateRecipient" => None,
-        "PayoutCreateLink" => None,
         // Anything not listed above is unknown: OUT_OF_SCOPE_FLOWS is the only
         // way to opt a flow out, and main() fails on a flow that is in neither.
         _ => None,

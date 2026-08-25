@@ -250,7 +250,7 @@ fi
 echo "## Connector certification" >> "${SUMMARY}"
 echo "" >> "${SUMMARY}"
 
-# ── Pass 1: run every target at HEAD ─────────────────────────────────────────
+# ── Pass 1: run every selected connector at HEAD ─────────────────────────────
 declare -a FAILED=()
 declare -a PASSED=()
 declare -a NO_CREDS=()

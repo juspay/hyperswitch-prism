@@ -17,7 +17,6 @@
 set -uo pipefail
 
 SPECS_ROOT="crates/internal/integration-tests/src/connector_specs"
-SUITES_ROOT="crates/internal/integration-tests/src/global_suites"
 SUMMARY="${GITHUB_STEP_SUMMARY:-/dev/null}"
 UNPROVEN_FILE="${UNPROVEN_FILE:-}"
 
@@ -34,15 +33,13 @@ if [[ -z "${CONNECTOR_AUTH_FILE_PATH:-}" || ! -s "${CONNECTOR_AUTH_FILE_PATH}" ]
   exit 1
 fi
 
-# Runs one declared scenario and confirms it actually executed. run-tests exits
-# non-zero on failure; a scenario that was skipped rather than run is caught by
-# test_ucs itself, which treats a named scenario that never ran as an error.
-verify_scenario() {
-  local name="$1" suite="$2" scenario="$3"
-  local args=(--skip-setup --no-build --connector "${name}" --suite "${suite}"
-              --scenario "${scenario}" --interface grpc --report)
+# Runs everything the connector declares; the framework derives suites and
+# scenarios from its specs.json.
+verify_connector() {
+  local name="$1"
+  local args=(--skip-setup --no-build --connector "${name}" --interface grpc --report)
 
-  echo "::group::Verify ${name} (${suite} / ${scenario})"
+  echo "::group::Verify ${name}"
   local rc=0
   ./scripts/run-tests "${args[@]}" || rc=$?
   echo "::endgroup::"
@@ -96,22 +93,11 @@ for name in "${CONNECTORS[@]}"; do
     continue
   fi
 
-  # Every declared suite runs against the sandbox.
-  while IFS= read -r suite; do
-    [[ -n "${suite}" ]] || continue
-    suite_file="${SUITES_ROOT}/${suite//\//_}/scenario.json"
-    if [[ ! -f "${suite_file}" ]]; then
-      echo "::warning::'${name}' declares ${suite}, which has no scenario.json — nothing to run."
-      continue
-    fi
-    while IFS= read -r scenario; do
-      [[ -n "${scenario}" ]] || continue
-      if ! verify_scenario "${name}" "${suite}" "${scenario}"; then
-        echo "::error::Verification failed for new connector ${name} (${suite} / ${scenario})"
-        failures=$((failures + 1))
-      fi
-    done < <(jq -r 'keys[]' "${suite_file}")
-  done < <(jq -r '(.supported_suites // [])[]' "${specs}")
+  # Everything the connector declares runs against the sandbox.
+  if ! verify_connector "${name}"; then
+    echo "::error::Verification failed for new connector ${name}"
+    failures=$((failures + 1))
+  fi
 done
 
 # Surface unproven declarations where a reviewer sees them without opening the
