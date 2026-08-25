@@ -1329,11 +1329,8 @@ pub fn apply_context_map(
 
     for (context_map, dep_req, dep_res) in collected_context {
         for (target_path, source_ref) in context_map {
-            // The scenario populated a different variant of this proto `oneof` —
-            // a raw card where the dependency supplies a token. Writing here
-            // would leave both variants set, which no `oneof` can represent, and
-            // the connector would receive a request neither side intended. A
-            // dependency that has nothing to contribute contributes nothing.
+            // The scenario chose a different variant of this `oneof`. Writing
+            // here would leave both set, which no `oneof` can represent.
             if target_conflicts_with_chosen_oneof_variant(&scenario_req, target_path) {
                 continue;
             }
@@ -1380,15 +1377,12 @@ pub fn apply_context_map(
     }
 }
 
-/// True when the scenario populated a different member of the same proto `oneof`
-/// that `target_path` points into.
+/// True when the scenario populated a different member of the `oneof` that
+/// `target_path` points into — `payment_method` holding `card` when the target
+/// is `payment_method.token...`.
 ///
-/// Only a divergence *below* the root counts. Every message has sibling fields,
-/// so an absent top-level field says nothing about a `oneof` — it just means the
-/// scenario left that field for a dependency to supply. The case this catches is
-/// the path reaching a populated object holding some other key instead of the one
-/// targeted: `payment_method` holding `card` when the target is
-/// `payment_method.token...`.
+/// Only a divergence below the root counts: every message has sibling fields, so
+/// an absent top-level field says nothing about a `oneof`.
 fn target_conflicts_with_chosen_oneof_variant(scenario_req: &Value, target_path: &str) -> bool {
     let segments: Vec<&str> = target_path.split('.').collect();
     let mut current = scenario_req;
@@ -3675,9 +3669,8 @@ pub fn run_suite_test_with_options(
     let target_suite_spec = load_suite_spec(suite)?;
 
     // A scenario naming a payment method the connector never claimed cannot
-    // pass. Running it anyway leaves one honest way out — overriding `assert` to
-    // expect the failure — which reads as a passing test and hides whatever
-    // breaks there next. A connector that declares nothing keeps every scenario.
+    // pass; the only way through is an `assert` override that hides real
+    // regressions. Declaring nothing keeps every scenario.
     let supported_methods = load_supported_payment_methods_for_connector(connector)?;
     let scenarios: BTreeMap<_, _> = load_suite_scenarios(suite)?
         .into_iter()

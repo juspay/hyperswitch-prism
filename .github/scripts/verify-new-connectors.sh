@@ -2,11 +2,8 @@
 #
 # Verifies a newly added connector against the suites it declares.
 #
-# The connector's own specs.json is the statement: supported_suites says what it
-# supports, and live_creds says whether CI can prove it. When live_creds is true
-# every scenario of every declared suite runs against the real sandbox here. A
-# connector may say false, but never silently — it must give a reason, and the
-# reason is surfaced on the PR.
+# live_creds true runs every scenario of every declared suite against the
+# sandbox. False is allowed but needs a reason, which is surfaced on the PR.
 #
 # Inputs (environment):
 #   NEW_CONNECTORS            comma-separated connector names added in this PR
@@ -64,10 +61,7 @@ for name in "${CONNECTORS[@]}"; do
     continue
   fi
 
-  # supported_suites is where the author states, by hand, what the connector
-  # supports. It is what check_connector_specs verifies the code against and
-  # what certification runs from, so an empty list means nothing is covered.
-  # Reading it needs no inference about the source, so it cannot misfire.
+  # An empty list means nothing is covered.
   suite_count=$(jq '.supported_suites // [] | length' "${specs}")
   if [[ "${suite_count}" -eq 0 ]]; then
     echo "::error::New connector '${name}' declares no \"supported_suites\" in ${specs}. List every suite the connector supports; nothing is certified without it."
@@ -75,9 +69,7 @@ for name in "${CONNECTORS[@]}"; do
     continue
   fi
 
-  # live_creds is the author's statement about whether CI can prove any of this.
-  # It must be present: a new connector arriving with no statement is the case
-  # that used to pass silently and certify nothing.
+  # Must be stated: silence here used to pass while certifying nothing.
   if [[ "$(jq 'has("live_creds")' "${specs}")" != "true" ]]; then
     echo "::error::New connector '${name}' does not declare \"live_creds\" in ${specs}. Set it to true when the connector has credentials in the CI file, or false with a \"no_creds_reason\" saying why it cannot be proven yet."
     failures=$((failures + 1))
@@ -104,8 +96,7 @@ for name in "${CONNECTORS[@]}"; do
     continue
   fi
 
-  # Every declared suite runs. The author said the connector supports it; this is
-  # where that claim meets the sandbox.
+  # Every declared suite runs against the sandbox.
   while IFS= read -r suite; do
     [[ -n "${suite}" ]] || continue
     suite_file="${SUITES_ROOT}/${suite//\//_}/scenario.json"

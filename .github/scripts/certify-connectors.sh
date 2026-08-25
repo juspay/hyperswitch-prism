@@ -80,14 +80,9 @@ build_binaries() {
   cargo build --workspace --bins 2>&1 | tail -5
   return "${PIPESTATUS[0]}"
 }
-# Runs everything one connector declares, and reports which scenarios failed.
-#
-# The suites, the scenarios and the payment-method filtering are the framework's
-# to decide — it reads them from the connector's own specs.json, exactly as it
-# does for a local or nightly run. Naming them here would be a second copy of
-# that rule, in a second language, kept in step by hand.
-#
-# Echoes one {name, suite, scenario, head_error} object per failed scenario.
+# Runs everything one connector declares; the framework derives suites and
+# scenarios from its specs.json. Echoes one {name, suite, scenario, head_error}
+# object per failed scenario.
 run_connector() {
   local name="$1"
   local report="${RUNNER_TEMP:-/tmp}/certify-${name}.json"
@@ -115,10 +110,8 @@ run_connector() {
     return 0
   fi
 
-  # No failed row, but the run did not succeed: a timeout, a crash, or a failure
-  # before any scenario was reached. Reporting a pass here would turn every one
-  # of those into a green check, so it is surfaced against the connector itself
-  # and left for the merge base to judge.
+  # Non-zero exit with no failed row — a timeout or a crash. Reported against
+  # the connector so it cannot read as a pass.
   if [[ "${rc}" -ne 0 ]]; then
     jq -cn --arg n "${name}" --arg rc "${rc}" \
       '{ name: $n, suite: "-", scenario: "-",
@@ -192,17 +185,12 @@ prepare_base() {
   return 0
 }
 
-# ── Which connectors ──────────────────────────────────────────────────────────
-#
-# Two git facts decide this, and nothing else: what the PR touched, and whether
-# it touched shared code. What each connector then runs is the framework's to
-# work out from its own specs.json.
+# ── Which connectors ─────────────────────────────────────────────────────────
+# Decided from git facts only; what each one runs comes from its specs.json.
 declare -a CONNECTORS=()
 
 if [[ "${SHARED_CHANGED:-}" == "true" ]]; then
-  # A core or proto change can break any connector, and all 100+ is the
-  # nightly's job. The ones carrying real traffic are where a break means a real
-  # payment fails, so they are what a PR has to clear.
+  # All 100+ is the nightly's job; a PR clears the ones carrying real traffic.
   echo "Shared code changed — certifying connectors live in production"
   for specs in "${SPECS_ROOT}"/*/specs.json; do
     [[ -f "${specs}" ]] || continue
@@ -221,10 +209,8 @@ else
     specs="${SPECS_ROOT}/${name}/specs.json"
     [[ -f "${specs}" ]] || continue
 
-    # A connector this PR adds is run by verify-new-connectors.sh. Running it
-    # here too would repeat every scenario, and the arbitration below could not
-    # judge it anyway: it does not exist at the merge base, so the base run
-    # fails for that reason alone.
+    # Run by verify-new-connectors.sh instead: it has no merge base to
+    # arbitrate against, so every failure there is this PR's by definition.
     if [[ ",${NEW_CONNECTORS:-}," == *",${name},"* ]]; then
       echo "  ${name}: added by this PR — certified by the new-connector gate"
       continue
@@ -306,10 +292,8 @@ for target in ${FAILED[@]+"${FAILED[@]}"}; do
   suite=$(jq -r '.suite' <<< "${target}")
   scenario=$(jq -r '.scenario' <<< "${target}")
 
-  # A failure with no scenario behind it is re-checked the same way, by running
-  # the whole connector again. A timeout is precisely the transient this pass
-  # exists to absorb, and skipping it would send one straight into the
-  # merge-base rebuild.
+  # Re-checked by rerunning the whole connector: a timeout is the transient
+  # this pass exists to absorb.
   if [[ "${suite}" == "-" ]]; then
     echo "::group::Re-check ${name} (whole connector)"
     recheck=$(run_connector "${name}")
@@ -339,14 +323,8 @@ for target in ${FAILED[@]+"${FAILED[@]}"}; do
 done
 
 # ── Pass 3: arbitrate confirmed failures against the merge base ──────────────
-#
-# One question decides the build: did this scenario pass at the merge base?
-# A pass there and a failure here is proof the PR is responsible. Everything
-# else — the base failing too, or being unreachable — is an absence of proof,
-# not evidence of innocence, so it is reported with both errors and does not
-# block. Nothing is compared, because there is nothing to compare that would
-# survive contact with a live sandbox: two failures that look alike may be
-# unrelated, and two that look different may be the same cause.
+# Passing at the base and failing here is the only proof of a regression, so it
+# is the only verdict that blocks. Everything else is reported with both errors.
 declare -a REGRESSIONS=()
 declare -a NOT_ATTRIBUTABLE=()
 
@@ -379,9 +357,7 @@ if [[ ${#CONFIRMED[@]} -gt 0 ]]; then
       scenario=$(jq -r '.scenario' <<< "${target}")
       label="${name} (${suite} / ${scenario})"
 
-      # A failure with no scenario behind it — a timeout or a crash — still
-      # arbitrates: the whole connector runs at the merge base instead. Passing
-      # there and failing here is the same proof, at connector granularity.
+      # No scenario to compare, so the whole connector runs at the base.
       if [[ "${suite}" == "-" ]]; then
         echo "::group::Arbitrate ${name} at merge base (whole connector)"
         base_failures=$(run_connector "${name}")

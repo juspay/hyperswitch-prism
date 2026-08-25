@@ -126,20 +126,6 @@ jobs:
           echo "list=$names" >> $GITHUB_OUTPUT
           echo "Changed connectors: $names"
 
-      # Selects which certified scenarios the test job should run.
-      #
-      # Declaring a scenario you proved against live credentials is what enrols
-      # a connector: there is no separate opt-in list to be added to, so a new
-      # integration is certified by the same PR that adds it, and adding a flow
-      # or payment method later never touches shared state. Parallel connector
-      # work therefore cannot contend over a central file.
-      #
-      # Shared code (core, proto, harness) is the change with the widest blast
-      # radius, so it selects every certified connector rather than skipping
-      # certification. That is affordable because the run itself is seconds per
-      # scenario against an already-built binary, and it is safe for unrelated
-      # PRs because certify-connectors.sh only fails the build for a scenario it
-      # can show passes at the merge base.
       - name: Detect newly added connectors
         id: new-connectors
         if: steps.connector-names.outputs.list != ''
