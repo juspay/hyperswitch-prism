@@ -21,11 +21,11 @@ use domain_types::{
     connector_types::{
         ClientAuthenticationTokenRequestData, EventContext, PaymentCreateOrderData,
         PaymentCreateOrderResponse, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsPostAuthenticateData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        RequestDetails, ServerAuthenticationTokenRequestData,
-        ServerAuthenticationTokenResponseData, SetupMandateRequestData,
-        VerifyWebhookSourceFlowData,
+        PaymentsCaptureData, PaymentsPostAuthenticateData, PaymentsPreAuthenticateData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, RepeatPaymentData, RequestDetails,
+        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+        SetupMandateRequestData, VerifyWebhookSourceFlowData,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, WalletData},
@@ -52,7 +52,8 @@ use crate::{
         PaypalClientAuthTokenRequest, PaypalClientAuthTokenResponse, PaypalOrderCreateRequest,
         PaypalOrderCreateResponse, PaypalPaymentsCancelResponse, PaypalPaymentsCaptureRequest,
         PaypalPaymentsRequest, PaypalRefundRequest, PaypalRepeatPaymentRequest,
-        PaypalRepeatPaymentResponse, PaypalSetupMandatesResponse, PaypalSyncResponse,
+        PaypalRepeatPaymentResponse, PaypalSetTransactionContextRequest,
+        PaypalSetTransactionContextResponse, PaypalSetupMandatesResponse, PaypalSyncResponse,
         PaypalZeroMandateRequest, RefundResponse, RefundSyncResponse,
     },
     finalize_connector_response,
@@ -71,6 +72,11 @@ pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::genera
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentPostAuthenticateV2<T> for Paypal<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentPreAuthenticateV2<T> for Paypal<T>
 {
 }
 
@@ -448,6 +454,12 @@ macros::create_all_prerequisites!(
             router_data: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ),
         (
+            flow: PreAuthenticate,
+            request_body: PaypalSetTransactionContextRequest,
+            response_body: PaypalSetTransactionContextResponse,
+            router_data: RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
+        ),
+        (
             flow: PSync,
             response_body: PaypalSyncResponse,
             router_data: RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
@@ -802,6 +814,143 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
         self.get_order_error_response(res, event_builder)
+    }
+}
+
+// Manual implementation for the Set Transaction Context (STC) pre-authentication step.
+// The call to PayPal's Risk-as-a-Service API is informational: the response can be an
+// empty body or the echoed transaction context, either way the payment authorization
+// proceeds afterwards.
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    ConnectorIntegrationV2<
+        PreAuthenticate,
+        PaymentFlowData,
+        PaymentsPreAuthenticateData<T>,
+        PaymentsResponseData,
+    > for Paypal<T>
+{
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_http_method(&self) -> common_utils::request::Method {
+        common_utils::request::Method::Post
+    }
+
+    fn get_headers(
+        &self,
+        req: &RouterDataV2<
+            PreAuthenticate,
+            PaymentFlowData,
+            PaymentsPreAuthenticateData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+        let access_token = req.resource_common_data.access_token.clone().ok_or(
+            IntegrationError::FailedToObtainAuthType {
+                context: Default::default(),
+            },
+        )?;
+        let connector_metadata = req
+            .resource_common_data
+            .connector_feature_data
+            .as_ref()
+            .map(|secret| secret.clone().expose());
+        self.build_headers(
+            &access_token.access_token.expose(),
+            &req.resource_common_data.connector_request_reference_id,
+            &req.connector_config,
+            connector_metadata.as_ref(),
+        )
+    }
+
+    fn get_url(
+        &self,
+        req: &RouterDataV2<
+            PreAuthenticate,
+            PaymentFlowData,
+            PaymentsPreAuthenticateData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Ok(format!(
+            "{}v1/risk/transaction-contexts",
+            self.connector_base_url_payments(req)
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &RouterDataV2<
+            PreAuthenticate,
+            PaymentFlowData,
+            PaymentsPreAuthenticateData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> CustomResult<Option<common_utils::request::ConnectorRequestData>, IntegrationError> {
+        let connector_req = PaypalSetTransactionContextRequest::build(req)?;
+        let typed = events::MaskedSerdeValue::from_masked_optional(
+            &connector_req,
+            "typed_connector_request",
+        );
+
+        Ok(Some(common_utils::request::ConnectorRequestData::new(
+            common_utils::request::RequestContent::Json(Box::new(connector_req)),
+            typed,
+        )))
+    }
+
+    fn handle_response_v2(
+        &self,
+        data: &RouterDataV2<
+            PreAuthenticate,
+            PaymentFlowData,
+            PaymentsPreAuthenticateData<T>,
+            PaymentsResponseData,
+        >,
+        event_builder: Option<&mut events::Event>,
+        res: Response,
+    ) -> CustomResult<
+        RouterDataV2<
+            PreAuthenticate,
+            PaymentFlowData,
+            PaymentsPreAuthenticateData<T>,
+            PaymentsResponseData,
+        >,
+        ConnectorError,
+    > {
+        if res.response.is_empty() {
+            // The STC API can respond with an empty body; treat as success with no reference id.
+            Ok(RouterDataV2 {
+                response: Ok(PaymentsResponseData::PreAuthenticateResponse {
+                    resource_id: None,
+                    redirection_data: None,
+                    connector_response_reference_id: None,
+                    status_code: res.status_code,
+                    authentication_data: None,
+                }),
+                ..data.clone()
+            })
+        } else {
+            let response: PaypalSetTransactionContextResponse = res
+                .response
+                .parse_struct("PaypalSetTransactionContextResponse")
+                .change_context(utils::response_handling_fail_for_connector(
+                    res.status_code,
+                    "paypal",
+                ))?;
+
+            finalize_connector_response!(event_builder, response, data, res.status_code)
+        }
+    }
+
+    fn get_error_response_v2(
+        &self,
+        res: Response,
+        event_builder: Option<&mut events::Event>,
+        connector_config: &ConnectorSpecificConfig,
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
+        self.build_error_response(res, event_builder, connector_config)
     }
 }
 
@@ -1790,7 +1939,6 @@ macros::macro_connector_flow_status_impls!(
         CreateConnectorCustomer,
         GetConnectorCustomer,
         PaymentMethodToken,
-        PreAuthenticate,
         Authenticate,
         MandateRevoke,
     ],

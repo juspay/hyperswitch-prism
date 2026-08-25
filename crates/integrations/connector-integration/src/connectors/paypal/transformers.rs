@@ -14,12 +14,13 @@ use common_utils::{
 use domain_types::{
     connector_flow::{
         Authorize, Capture, ClientAuthenticationToken, CreateOrder, PSync, PostAuthenticate,
-        RepeatPayment, VerifyWebhookSource,
+        PreAuthenticate, RepeatPayment, VerifyWebhookSource,
     },
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData, MandateReference,
         PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsPostAuthenticateData, PaymentsResponseData, PaymentsSyncData,
+        PaymentsCaptureData, PaymentsPostAuthenticateData, PaymentsPreAuthenticateData,
+        PaymentsResponseData, PaymentsSyncData,
         PaypalClientAuthenticationResponse as PaypalClientAuthenticationResponseDomain,
         PaypalFlow as PaypalFlowDomain, PaypalTransactionInfo as PaypalTransactionInfoDomain,
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
@@ -40,7 +41,7 @@ use domain_types::{
     utils,
 };
 use error_stack::{Report, ResultExt};
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use url::Url;
@@ -2284,6 +2285,227 @@ pub struct PaypalMeta {
     pub psync_flow: PaypalPaymentIntent,
     pub next_action: Option<NextActionCall>,
     pub order_id: Option<String>,
+}
+
+// Keys of the sender profile data dictionary expected by PayPal's Risk-as-a-Service API
+pub const STC_SENDER_ACCOUNT_ID: &str = "sender_account_id";
+pub const STC_SENDER_FIRST_NAME: &str = "sender_first_name";
+pub const STC_SENDER_LAST_NAME: &str = "sender_last_name";
+pub const STC_SENDER_EMAIL: &str = "sender_email";
+pub const STC_SENDER_PHONE: &str = "sender_phone";
+pub const STC_SENDER_COUNTRY_CODE: &str = "sender_country_code";
+pub const STC_SENDER_CREATE_DATE: &str = "sender_create_date";
+pub const STC_CD_STRING_ONE: &str = "cd_string_one";
+pub const STC_FIRST_INTERACTION_DATE: &str = "first_interaction_date";
+
+/// Request for PayPal's Risk-as-a-Service Set Transaction Context (STC) API
+/// Ref: https://developer.paypal.com/api/limited-release/raas/v1/#transaction-contexts_set
+#[derive(Debug, Serialize)]
+pub struct PaypalSetTransactionContextRequest {
+    pub tracking_id: String,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub additional_data: Vec<PaypalAdditionalDataItem>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaypalAdditionalDataItem {
+    pub key: String,
+    pub value: Secret<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaypalSetTransactionContextResponse {
+    pub tracking_id: Option<String>,
+    pub additional_data: Option<Vec<PaypalAdditionalDataItem>>,
+}
+
+/// Payment-intent level connector metadata (`connector_metadata`)
+/// as serialized by the caller into `connector_feature_data`.
+/// Only the `paypal` section is consumed here; all other connector keys are ignored.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct PaypalConnectorIntentMetadata {
+    pub paypal: Option<PaypalIntentConnectorMetadata>,
+}
+
+/// PayPal connector specific metadata passed at the payment level (`connector_metadata.paypal`);
+/// mirroring the downstream API model of the same shape.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaypalIntentConnectorMetadata {
+    pub transaction_context: Option<PaypalRiskData>,
+}
+
+/// Sender profile information sent to PayPal's Risk-as-a-Service
+/// Set Transaction Context (STC) API for fraud risk assessment.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaypalRiskData {
+    pub sender_account_id: Option<String>,
+    pub sender_first_name: Option<Secret<String>>,
+    pub sender_last_name: Option<Secret<String>>,
+    pub sender_email: Option<Secret<String>>,
+    pub sender_phone: Option<Secret<String>>,
+    pub sender_country_code: Option<common_enums::CountryAlpha2>,
+    pub sender_create_date: Option<String>,
+    pub cd_string_one: Option<PaypalBonusEligibility>,
+    pub first_interaction_date: Option<String>,
+}
+
+/// Identifier whether the transaction is eligible for bonus, serialized as a string
+/// flag ("0" means ineligible, "1" means eligible) in the STC sender profile data
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, strum::Display)]
+pub enum PaypalBonusEligibility {
+    /// Transaction is ineligible for bonus
+    #[serde(rename = "0")]
+    #[strum(serialize = "0")]
+    Ineligible,
+    /// Transaction is eligible for bonus
+    #[serde(rename = "1")]
+    #[strum(serialize = "1")]
+    Eligible,
+}
+
+impl PaypalSetTransactionContextRequest {
+    pub fn build<
+        T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+    >(
+        router_data: &RouterDataV2<
+            PreAuthenticate,
+            PaymentFlowData,
+            PaymentsPreAuthenticateData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Report<IntegrationError>> {
+        let transaction_context = router_data
+            .resource_common_data
+            .connector_feature_data
+            .clone()
+            .map(|feature_data| feature_data.expose())
+            .and_then(|value| serde_json::from_value::<PaypalConnectorIntentMetadata>(value).ok())
+            .and_then(|metadata| metadata.paypal)
+            .and_then(|paypal_metadata| paypal_metadata.transaction_context);
+
+        let billing = router_data.resource_common_data.get_optional_billing();
+        let billing_address = billing.and_then(|billing| billing.address.as_ref());
+
+        let sender_account_id = transaction_context
+            .as_ref()
+            .and_then(|transaction_context| transaction_context.sender_account_id.clone())
+            .or_else(|| {
+                router_data
+                    .resource_common_data
+                    .customer_id
+                    .clone()
+                    .map(|customer_id| customer_id.get_string_repr().to_string())
+            });
+        let sender_first_name = transaction_context
+            .as_ref()
+            .and_then(|transaction_context| transaction_context.sender_first_name.clone())
+            .map(|name| name.expose())
+            .or_else(|| {
+                billing_address
+                    .and_then(|address| address.first_name.clone())
+                    .map(|name| name.expose())
+            });
+        let sender_last_name = transaction_context
+            .as_ref()
+            .and_then(|transaction_context| transaction_context.sender_last_name.clone())
+            .map(|name| name.expose())
+            .or_else(|| {
+                billing_address
+                    .and_then(|address| address.last_name.clone())
+                    .map(|name| name.expose())
+            });
+        let sender_email = transaction_context
+            .as_ref()
+            .and_then(|transaction_context| transaction_context.sender_email.clone())
+            .map(|email| email.expose())
+            .or_else(|| {
+                router_data
+                    .request
+                    .email
+                    .clone()
+                    .map(|email| email.peek().to_owned())
+            })
+            .or_else(|| {
+                billing
+                    .and_then(|billing| billing.email.clone())
+                    .map(|email| email.peek().to_owned())
+            });
+        let sender_phone = transaction_context
+            .as_ref()
+            .and_then(|transaction_context| transaction_context.sender_phone.clone())
+            .or_else(|| {
+                billing
+                    .and_then(|billing| billing.phone.as_ref())
+                    .and_then(|phone| phone.number.clone())
+            });
+        let sender_country_code = transaction_context
+            .as_ref()
+            .and_then(|transaction_context| transaction_context.sender_country_code)
+            .or_else(|| billing_address.and_then(|address| address.country));
+        let sender_create_date = transaction_context
+            .as_ref()
+            .and_then(|transaction_context| transaction_context.sender_create_date.clone());
+        let cd_string_one = transaction_context
+            .as_ref()
+            .and_then(|transaction_context| transaction_context.cd_string_one);
+        let first_interaction_date = transaction_context
+            .as_ref()
+            .and_then(|transaction_context| transaction_context.first_interaction_date.clone());
+
+        let mut additional_data = Vec::new();
+        let mut push = |key: &str, value: Option<String>| {
+            if let Some(value) = value.filter(|value| !value.is_empty()) {
+                additional_data.push(PaypalAdditionalDataItem {
+                    key: key.to_string(),
+                    value: Secret::new(value),
+                });
+            }
+        };
+        push(STC_SENDER_ACCOUNT_ID, sender_account_id);
+        push(STC_SENDER_FIRST_NAME, sender_first_name);
+        push(STC_SENDER_LAST_NAME, sender_last_name);
+        push(STC_SENDER_EMAIL, sender_email);
+        push(STC_SENDER_PHONE, sender_phone.map(|phone| phone.expose()));
+        push(
+            STC_SENDER_COUNTRY_CODE,
+            sender_country_code.map(|country| country.to_string()),
+        );
+        push(STC_SENDER_CREATE_DATE, sender_create_date);
+        push(
+            STC_CD_STRING_ONE,
+            cd_string_one.map(|eligibility| eligibility.to_string()),
+        );
+        push(STC_FIRST_INTERACTION_DATE, first_interaction_date);
+
+        Ok(Self {
+            tracking_id: router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+            additional_data,
+        })
+    }
+}
+
+impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<PaypalSetTransactionContextResponse, Self>>
+    for RouterDataV2<F, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>
+{
+    type Error = Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<PaypalSetTransactionContextResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(PaymentsResponseData::PreAuthenticateResponse {
+                resource_id: None,
+                redirection_data: None,
+                connector_response_reference_id: item.response.tracking_id,
+                status_code: item.http_code,
+                authentication_data: None,
+            }),
+            ..item.router_data
+        })
+    }
 }
 
 fn get_id_based_on_intent(
