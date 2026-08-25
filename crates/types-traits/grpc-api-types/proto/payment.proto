@@ -6426,7 +6426,7 @@ message SplitSettlementVendor {
   // reference (e.g. Adyen split item `reference`) and echoed on the response for matching.
   optional string merchant_reference_id = 6;
   // Connector-specific per-split attributes (opaque here; typed inside the connector),
-  // e.g. Adyen split_type. Explicit — never inferred from structure.
+  // e.g. Adyen split_type.
   optional string split_metadata = 7;
 }
 
@@ -6466,7 +6466,7 @@ message SplitSettlementRefundVendor {
   // The merchant's OWN reference for this refund split; forwarded to the connector.
   optional string merchant_reference_id = 5;
   // Connector-specific per-split attributes (opaque here; typed inside the connector),
-  // e.g. Adyen split_type. Explicit — never inferred from structure.
+  // e.g. Adyen split_type.
   optional string split_metadata = 6;
 }
 
