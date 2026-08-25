@@ -41,8 +41,60 @@
         "error": "This feature is not implemented: Apple Pay encrypted payment_data is not yet implemented for Moneris. Moneris supports Apple Pay encrypted tokens, but this integration currently only handles ApplePayPaymentData::Decrypted. Support for ApplePayPaymentData::Encrypted is pending implementation."
       },
       "ApplePayDecrypted": {
-        "status": "error",
-        "error": "Stuck on field: amount. resource_common_data.amount was None for Moneris wallet authorize. — Missing required field: amount. resource_common_data.amount was None for Moneris wallet authorize."
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay_sdk": {
+              "payment_data": {
+                "decrypted_data": {
+                  "application_primary_account_number": "4111111111111111",
+                  "application_expiration_month": "03",
+                  "application_expiration_year": "2030",
+                  "payment_data": {
+                    "online_payment_cryptogram": "AAAAAA==",
+                    "eci_indicator": "05"
+                  }
+                }
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type": "debit"
+              },
+              "transaction_identifier": "probe_txn_id"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.sb.moneris.io/payments",
+          "method": "Post",
+          "headers": {
+            "api-version": "2026-08-14",
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-merchant-id": "probe_merchant"
+          },
+          "body": "{\"idempotencyKey\":\"auth_probe_txn_001\",\"amount\":{\"amount\":1000,\"currency\":\"USD\"},\"paymentMethod\":{\"paymentMethodSource\":\"APPLE_PAY_DECRYPTED\",\"applicationPrimaryAccountNumber\":\"4111111111111111\",\"expiryMonth\":3,\"expiryYear\":2030,\"dataType\":\"THREE_D_SECURE\",\"cryptogram\":\"AAAAAA==\",\"cardBrand\":\"VISA\",\"walletEcommerceIndicator\":\"05\",\"walletIndicator\":\"IN_APPLICATION\"},\"automaticCapture\":true,\"ecommerceIndicator\":\"SSL_MERCHANT\"}"
+        }
       },
       "ApplePayThirdPartySdk": {
         "status": "not_implemented",
@@ -97,8 +149,48 @@
         "error": "This feature is not implemented: Only card and wallet payments are currently implemented for Moneris. Moneris authorize received a non-card, non-wallet payment method: BankTransfer(BriVaBankTransfer)."
       },
       "Card": {
-        "status": "error",
-        "error": "Stuck on field: amount. resource_common_data.amount was None for Moneris card authorize. — Missing required field: amount. resource_common_data.amount was None for Moneris card authorize."
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.sb.moneris.io/payments",
+          "method": "Post",
+          "headers": {
+            "api-version": "2026-08-14",
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-merchant-id": "probe_merchant"
+          },
+          "body": "{\"idempotencyKey\":\"auth_probe_txn_001\",\"amount\":{\"amount\":1000,\"currency\":\"USD\"},\"paymentMethod\":{\"paymentMethodSource\":\"CARD\",\"card\":{\"cardNumber\":\"4111111111111111\",\"expiryMonth\":3,\"expiryYear\":2030,\"cardSecurityCode\":\"737\"},\"storePaymentMethod\":\"DO_NOT_STORE\"},\"automaticCapture\":true,\"ecommerceIndicator\":\"SSL_MERCHANT\"}"
+        }
       },
       "CashappQr": {
         "status": "not_implemented",
@@ -177,8 +269,58 @@
         "error": "This feature is not implemented: Google Pay encrypted tokenization_data is not yet implemented for Moneris. Moneris supports Google Pay encrypted tokens, but this integration currently only handles GpayTokenizationData::Decrypted. Support for GpayTokenizationData::Encrypted is pending implementation."
       },
       "GooglePayDecrypted": {
-        "status": "error",
-        "error": "Stuck on field: amount. resource_common_data.amount was None for Moneris wallet authorize. — Missing required field: amount. resource_common_data.amount was None for Moneris wallet authorize."
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay_sdk": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "decrypted_data": {
+                  "card_exp_month": "03",
+                  "card_exp_year": "2030",
+                  "application_primary_account_number": "4111111111111111",
+                  "cryptogram": "AAAAAA==",
+                  "eci_indicator": "05"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.sb.moneris.io/payments",
+          "method": "Post",
+          "headers": {
+            "api-version": "2026-08-14",
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-merchant-id": "probe_merchant"
+          },
+          "body": "{\"idempotencyKey\":\"auth_probe_txn_001\",\"amount\":{\"amount\":1000,\"currency\":\"USD\"},\"paymentMethod\":{\"paymentMethodSource\":\"GOOGLE_PAY_DECRYPTED\",\"walletSource\":\"TOKENIZED_CARD\",\"cardBrand\":\"VISA\",\"walletIndicator\":\"IN_APPLICATION\",\"cardDetails\":{\"personalAccountNumber\":\"4111111111111111\",\"expiryMonth\":3,\"expiryYear\":2030,\"cryptogram\":\"AAAAAA==\",\"walletEcommerceIndicator\":\"05\"}},\"automaticCapture\":true,\"ecommerceIndicator\":\"SSL_MERCHANT\"}"
+        }
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
@@ -622,8 +764,47 @@
     },
     "proxy_authorize": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: amount. resource_common_data.amount was None for Moneris card authorize. — Missing required field: amount. resource_common_data.amount was None for Moneris card authorize."
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_proxy_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.sb.moneris.io/payments",
+          "method": "Post",
+          "headers": {
+            "api-version": "2026-08-14",
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-merchant-id": "probe_merchant"
+          },
+          "body": "{\"idempotencyKey\":\"auth_probe_proxy_txn_001\",\"amount\":{\"amount\":1000,\"currency\":\"USD\"},\"paymentMethod\":{\"paymentMethodSource\":\"CARD\",\"card\":{\"cardNumber\":\"{{$card_number}}\",\"expiryMonth\":3,\"expiryYear\":2030,\"cardSecurityCode\":\"{{$card_cvc}}\"},\"storePaymentMethod\":\"DO_NOT_STORE\"},\"automaticCapture\":true,\"ecommerceIndicator\":\"SSL_MERCHANT\"}"
+        }
       }
     },
     "proxy_setup_recurring": {
