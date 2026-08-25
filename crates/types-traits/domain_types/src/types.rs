@@ -10571,18 +10571,27 @@ impl ForeignTryFrom<grpc_api_types::payments::SplitSettlementMarketplace>
         value: grpc_api_types::payments::SplitSettlementMarketplace,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let split_value = match value.split_value {
-            Some(grpc_api_types::payments::split_settlement_marketplace::SplitValue::Amount(m)) => {
-                connector_types::SplitValue::Amount(common_utils::types::MinorUnit::new(
-                    m.minor_amount,
-                ))
-            }
+            Some(grpc_api_types::payments::split_settlement_marketplace::SplitValue::Amount(
+                money,
+            )) => connector_types::SplitValue::Amount(common_utils::types::Money {
+                amount: common_utils::types::MinorUnit::new(money.minor_amount),
+                currency: common_enums::Currency::foreign_try_from(money.currency())?,
+            }),
             Some(
-                grpc_api_types::payments::split_settlement_marketplace::SplitValue::Percentage(p),
-            ) => connector_types::SplitValue::Percentage(p),
+                grpc_api_types::payments::split_settlement_marketplace::SplitValue::Percentage(
+                    percentage,
+                ),
+            ) => connector_types::SplitValue::Percentage(percentage),
             None => {
                 return Err(IntegrationError::MissingRequiredField {
                     field_name: "marketplace_split_value",
-                    context: IntegrationErrorContext::default(),
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "marketplace split value must be provided as either an amount or a percentage"
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
                 }
                 .into())
             }
@@ -10602,18 +10611,25 @@ impl ForeignTryFrom<grpc_api_types::payments::SplitSettlementVendor>
         value: grpc_api_types::payments::SplitSettlementVendor,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let split_value = match value.split_value {
-            Some(grpc_api_types::payments::split_settlement_vendor::SplitValue::Amount(m)) => {
-                connector_types::SplitValue::Amount(common_utils::types::MinorUnit::new(
-                    m.minor_amount,
-                ))
+            Some(grpc_api_types::payments::split_settlement_vendor::SplitValue::Amount(money)) => {
+                connector_types::SplitValue::Amount(common_utils::types::Money {
+                    amount: common_utils::types::MinorUnit::new(money.minor_amount),
+                    currency: common_enums::Currency::foreign_try_from(money.currency())?,
+                })
             }
-            Some(grpc_api_types::payments::split_settlement_vendor::SplitValue::Percentage(p)) => {
-                connector_types::SplitValue::Percentage(p)
-            }
+            Some(grpc_api_types::payments::split_settlement_vendor::SplitValue::Percentage(
+                percentage,
+            )) => connector_types::SplitValue::Percentage(percentage),
             None => {
                 return Err(IntegrationError::MissingRequiredField {
                     field_name: "vendor_split_value",
-                    context: IntegrationErrorContext::default(),
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "vendor split value must be provided as either an amount or a percentage"
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
                 }
                 .into())
             }
@@ -10623,7 +10639,7 @@ impl ForeignTryFrom<grpc_api_types::payments::SplitSettlementVendor>
             connector_sub_account_id: value.connector_sub_account_id,
             merchant_commission: value
                 .merchant_commission
-                .map(|m| common_utils::types::MinorUnit::new(m.minor_amount)),
+                .map(|commission| common_utils::types::MinorUnit::new(commission.minor_amount)),
             description: value.description,
             merchant_reference_id: value.merchant_reference_id,
             split_metadata: value.split_metadata,
@@ -10660,16 +10676,25 @@ impl ForeignTryFrom<grpc_api_types::payments::SplitSettlementRefundMarketplace>
         value: grpc_api_types::payments::SplitSettlementRefundMarketplace,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let split_value = match value.split_value {
-            Some(grpc_api_types::payments::split_settlement_refund_marketplace::SplitValue::RefundAmount(m)) => {
-                connector_types::SplitValue::Amount(common_utils::types::MinorUnit::new(m.minor_amount))
+            Some(grpc_api_types::payments::split_settlement_refund_marketplace::SplitValue::RefundAmount(money)) => {
+                connector_types::SplitValue::Amount(common_utils::types::Money {
+                    amount: common_utils::types::MinorUnit::new(money.minor_amount),
+                    currency: common_enums::Currency::foreign_try_from(money.currency())?,
+                })
             }
-            Some(grpc_api_types::payments::split_settlement_refund_marketplace::SplitValue::Percentage(p)) => {
-                connector_types::SplitValue::Percentage(p)
+            Some(grpc_api_types::payments::split_settlement_refund_marketplace::SplitValue::Percentage(percentage)) => {
+                connector_types::SplitValue::Percentage(percentage)
             }
             None => {
                 return Err(IntegrationError::MissingRequiredField {
                     field_name: "refund_marketplace_split_value",
-                    context: IntegrationErrorContext::default(),
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "refund marketplace split value must be provided as either an amount or a percentage"
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
                 }
                 .into())
             }
@@ -10691,18 +10716,27 @@ impl ForeignTryFrom<grpc_api_types::payments::SplitSettlementRefundVendor>
         let split_value = match value.split_value {
             Some(
                 grpc_api_types::payments::split_settlement_refund_vendor::SplitValue::RefundAmount(
-                    m,
+                    money,
                 ),
-            ) => connector_types::SplitValue::Amount(common_utils::types::MinorUnit::new(
-                m.minor_amount,
-            )),
+            ) => connector_types::SplitValue::Amount(common_utils::types::Money {
+                amount: common_utils::types::MinorUnit::new(money.minor_amount),
+                currency: common_enums::Currency::foreign_try_from(money.currency())?,
+            }),
             Some(
-                grpc_api_types::payments::split_settlement_refund_vendor::SplitValue::Percentage(p),
-            ) => connector_types::SplitValue::Percentage(p),
+                grpc_api_types::payments::split_settlement_refund_vendor::SplitValue::Percentage(
+                    percentage,
+                ),
+            ) => connector_types::SplitValue::Percentage(percentage),
             None => {
                 return Err(IntegrationError::MissingRequiredField {
                     field_name: "refund_vendor_split_value",
-                    context: IntegrationErrorContext::default(),
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "refund vendor split value must be provided as either an amount or a percentage"
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
                 }
                 .into())
             }
@@ -10712,7 +10746,7 @@ impl ForeignTryFrom<grpc_api_types::payments::SplitSettlementRefundVendor>
             connector_sub_account_id: value.connector_sub_account_id,
             merchant_commission: value
                 .merchant_commission
-                .map(|m| common_utils::types::MinorUnit::new(m.minor_amount)),
+                .map(|commission| common_utils::types::MinorUnit::new(commission.minor_amount)),
             merchant_reference_id: value.merchant_reference_id,
             split_metadata: value.split_metadata,
         })

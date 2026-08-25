@@ -4477,8 +4477,10 @@ pub struct DestinationChargeRefund {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum SplitValue {
-    /// Absolute amount for this split line.
-    Amount(MinorUnit),
+    /// Absolute amount (with currency) for this split line. Mirrors the proto `Money`
+    /// so the currency travels with the amount and the type stays consistent across
+    /// the proto and domain contracts.
+    Amount(Money),
     /// Percentage of the payment for this split line.
     Percentage(f64),
 }
