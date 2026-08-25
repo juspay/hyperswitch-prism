@@ -712,13 +712,17 @@ pub fn apply_log_fields(
     // the subscriber and deadlocks when called inside `with_current_span_mut`.
     let writes: Vec<_> = writes
         .into_iter()
-        .filter(|(key, _)| {
+        .filter(|(key, value)| {
             if log_utils::Storage::is_reserved(key) {
                 tracing::warn!(
                     "Log field target key `{key}` is reserved by the logging infrastructure, skipping"
                 );
                 false
             } else {
+                // Span storage alone is invisible under `log_format = "default"`: that formatter is
+                // stock tracing-subscriber and never reads it. Emit the value as its own event too,
+                // matching `record_json_fields_on_span`.
+                tracing::info!(%value, "{key}");
                 true
             }
         })
