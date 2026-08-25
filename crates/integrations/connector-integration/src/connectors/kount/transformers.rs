@@ -900,6 +900,12 @@ pub struct KountEvaluateOrderRequest {
     /// Merchant details (id), when provided.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub merchant: Option<KountMerchant>,
+    /// Arbitrary merchant-supplied custom fields, sourced from the Pre Risk
+    /// Check request's `metadata` blob. See [`kount_custom_fields`] for
+    /// Kount's constraints (key ≤32 chars, string values ≤256 chars, no
+    /// nested objects/arrays).
+    #[serde(rename = "customFields", skip_serializing_if = "Option::is_none")]
+    pub custom_fields: Option<serde_json::Map<String, serde_json::Value>>,
 }
 
 /// Kount `merchant` object. `id` comes from the FRM `MerchantDetails` contract;
@@ -1573,6 +1579,92 @@ pub(super) fn kount_pre_risk_feature_data(
         .unwrap_or_default()
 }
 
+/// Pull Kount's `customFields` out of the Pre Risk Check `metadata` blob.
+///
+/// `metadata` is a *shared* object (it already carries `merchantOrderId` /
+/// `userIp` from the caller, and may carry more keys later) — only its
+/// `customFields` key is used here; every sibling key is ignored. That key's
+/// value must itself be a JSON object of caller-supplied key/value pairs.
+/// Kount constrains it: keys ≤32 chars; values are string (≤256 chars),
+/// number, or boolean — no nested objects/arrays. Entries that violate this
+/// are dropped individually (with a warning) rather than losing every custom
+/// field over one bad entry. An explicit JSON `null` value is dropped
+/// silently — the caller's convention elsewhere is to emit `null` for an
+/// absent value, not to omit the key.
+pub(super) fn kount_custom_fields(
+    metadata: Option<&Secret<String>>,
+) -> Option<serde_json::Map<String, serde_json::Value>> {
+    let raw = metadata
+        .map(|m| m.peek().trim().to_owned())
+        .filter(|s| !s.is_empty())?;
+
+    let parsed = serde_json::from_str::<serde_json::Value>(&raw)
+        .inspect_err(|err| {
+            tracing::warn!(
+                error = %err,
+                "Kount metadata is not valid JSON; customFields will not be sent"
+            );
+        })
+        .ok()?;
+
+    let metadata_obj = match parsed {
+        serde_json::Value::Object(map) => map,
+        _ => {
+            tracing::warn!("Kount metadata is not a JSON object; customFields will not be sent");
+            return None;
+        }
+    };
+
+    // Absent is normal/silent — most callers won't send this key yet.
+    let custom_fields = metadata_obj.get("customFields")?;
+
+    let obj = match custom_fields {
+        serde_json::Value::Object(map) => map.clone(),
+        _ => {
+            tracing::warn!(
+                "Kount metadata.customFields is not a JSON object; customFields will not be sent"
+            );
+            return None;
+        }
+    };
+
+    let filtered: serde_json::Map<String, serde_json::Value> = obj
+        .into_iter()
+        .filter(|(key, value)| match value {
+            serde_json::Value::Null => false,
+            serde_json::Value::String(s) => {
+                let ok = key.len() <= 32 && s.len() <= 256;
+                if !ok {
+                    tracing::warn!(
+                        key = %key,
+                        "Kount custom field dropped: exceeds Kount's length limits"
+                    );
+                }
+                ok
+            }
+            serde_json::Value::Number(_) | serde_json::Value::Bool(_) => {
+                let ok = key.len() <= 32;
+                if !ok {
+                    tracing::warn!(
+                        key = %key,
+                        "Kount custom field dropped: key exceeds Kount's 32-char limit"
+                    );
+                }
+                ok
+            }
+            serde_json::Value::Array(_) | serde_json::Value::Object(_) => {
+                tracing::warn!(
+                    key = %key,
+                    "Kount custom field dropped: array/object values are not allowed"
+                );
+                false
+            }
+        })
+        .collect();
+
+    (!filtered.is_empty()).then_some(filtered)
+}
+
 /// Trim a caller-supplied secret and drop it when empty, so Kount never
 /// receives `"name": ""` or `"contactPhoneNumber": ""`.
 pub(super) fn non_empty_secret(value: Option<Secret<String>>) -> Option<Secret<String>> {
@@ -1657,6 +1749,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // merchant name / contact number). Parsed once, up front, so both the
         // account block below and the merchant block further down can use it.
         let feature_data = kount_pre_risk_feature_data(req.connector_feature_data.as_ref());
+        let custom_fields = kount_custom_fields(req.metadata.as_ref());
         let account_created_at = feature_data
             .customer_creating_time
             .as_deref()
@@ -1854,6 +1947,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             device,
             merchant_category_code,
             merchant,
+            custom_fields,
         })
     }
 }
