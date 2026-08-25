@@ -13891,7 +13891,7 @@ pub fn generate_create_payment_method_token_response<T: PaymentMethodDataTypes>(
             Ok(
                 grpc_api_types::payments::PaymentMethodServiceTokenizeResponse {
                     payment_method_token: response.token,
-                    payment_method_token_kind: grpc_api_types::payments::TokenKind::foreign_from(
+                    token_kind: grpc_api_types::payments::TokenKind::foreign_from(
                         response.token_kind,
                     )
                     .into(),
@@ -13907,7 +13907,7 @@ pub fn generate_create_payment_method_token_response<T: PaymentMethodDataTypes>(
         Err(e) => Ok(
             grpc_api_types::payments::PaymentMethodServiceTokenizeResponse {
                 payment_method_token: String::new(),
-                payment_method_token_kind: grpc_api_types::payments::TokenKind::Unspecified.into(),
+                token_kind: grpc_api_types::payments::TokenKind::Unspecified.into(),
                 error: Some(grpc_api_types::payments::ErrorInfo {
                     unified_details: None,
                     connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
@@ -17665,7 +17665,7 @@ pub fn tokenized_authorize_to_base(
             payment_method: Some(grpc_payment_types::payment_method::PaymentMethod::Token(
                 grpc_payment_types::TokenPaymentMethodType {
                     token: v.connector_token.clone(),
-                    kind: v.connector_token_kind,
+                    kind: v.token_kind,
                 },
             )),
         }),
@@ -17759,7 +17759,7 @@ pub fn tokenized_setup_recurring_to_base(
             payment_method: Some(grpc_payment_types::payment_method::PaymentMethod::Token(
                 grpc_payment_types::TokenPaymentMethodType {
                     token: v.connector_token.clone(),
-                    kind: v.connector_token_kind,
+                    kind: v.token_kind,
                 },
             )),
         }),
