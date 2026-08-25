@@ -1412,32 +1412,6 @@ fn target_conflicts_with_chosen_oneof_variant(scenario_req: &Value, target_path:
     false
 }
 
-/// True if `target_path` stops resolving at an object that holds a different
-/// populated key — a proto `oneof` where another variant was chosen.
-fn parent_has_different_populated_variant(scenario_grpc_req: &Value, target_path: &str) -> bool {
-    let segments: Vec<&str> = target_path.split('.').collect();
-    let mut current = scenario_grpc_req;
-
-    for (i, segment) in segments.iter().enumerate() {
-        let Some(next) = lookup_json_path_with_case_fallback(current, segment) else {
-            // `segment` is absent; a different populated key on the same
-            // object means a sibling oneof variant was chosen.
-            let Some(current_obj) = current.as_object() else {
-                return false;
-            };
-            return current_obj
-                .iter()
-                .any(|(key, value)| key != *segment && !value.is_null());
-        };
-        if i == segments.len() - 1 {
-            // Fully resolved — the caller already handled this case.
-            return false;
-        }
-        current = next;
-    }
-    false
-}
-
 /// Like `set_json_path_value` but creates intermediate objects if they don't exist.
 fn deep_set_json_path(root: &mut Value, path: &str, value: Value) -> bool {
     let segments: Vec<&str> = path.split('.').collect();
