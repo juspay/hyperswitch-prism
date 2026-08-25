@@ -258,16 +258,18 @@ docker run --rm -p 8000:8000 ghcr.io/juspay/hyperswitch-prism:latest
 
 `--rm` deletes the container once it exits — leave it out if you want to read the logs afterwards.
 
-Server reflection is enabled, so [`grpcurl`](https://github.com/fullstorydev/grpcurl) works without local `.proto` files:
+The server registers its own descriptors, so [`grpcurl`](https://github.com/fullstorydev/grpcurl) needs no local `.proto` files — it can list the services and print the exact request schema:
 
 ```bash
 grpcurl -plaintext localhost:8000 grpc.health.v1.Health/Check
 # { "status": "SERVING" }
 
 grpcurl -plaintext localhost:8000 list
+grpcurl -plaintext localhost:8000 describe types.PaymentService.Authorize
+grpcurl -plaintext localhost:8000 describe types.PaymentServiceAuthorizeRequest
 ```
 
-Connector credentials are sent per request as gRPC metadata (`x-connector`, `x-auth`, `x-api-key`, ...) — the server keeps nothing. See [setup.md](./setup.md) for a complete authorize request and troubleshooting.
+Connector credentials are sent per request as gRPC metadata (`x-connector`, `x-auth`, `x-api-key`, ...) — the server keeps nothing. The proto definitions are in [`crates/types-traits/grpc-api-types/proto`](./crates/types-traits/grpc-api-types/proto).
 
 ### Configuration
 
@@ -306,12 +308,6 @@ docker run --rm -p 8000:8000 \
 ```
 
 The endpoint must be an OTLP gRPC receiver (port 4317), not an HTTP one. Both paths are independent — enabling OTLP does not turn off the `/metrics` endpoint.
-
-### Building the image yourself
-
-```bash
-docker build -t hyperswitch-prism:local .
-```
 
 ---
 
