@@ -580,7 +580,7 @@ macros::macro_connector_implementation!(
 
 // Connector-decryption head: hand Checkout the raw Apple Pay / Google Pay payload and get a
 // single-use `tok_...` back. The Authorize / SetupMandate tail then spends that token as
-// `source.type = "token"` (see `build_wallet_token_source` in transformers.rs).
+// `source.type = "token"` (see the `WalletSource` `From` impl in transformers.rs).
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Checkout,
