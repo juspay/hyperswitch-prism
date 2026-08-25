@@ -97,6 +97,12 @@ message CurrencyConversionQuote {
 
   // Time when the quote expires, in Unix epoch seconds.
   optional int64 expires_at = 11;
+
+  // Provider-defined code describing the reason or classification for this currency conversion.
+  optional string conversion_reason_code = 12;
+
+  // Identifier assigned to the user by the currency conversion provider.
+  optional string user_id = 13;
 }
 
 // Identifies the currency conversion model used for the payment.
@@ -3134,6 +3140,10 @@ message PaymentServiceCaptureRequest {
 
   // Split payment configuration (platform fees, transfers, etc.)
   optional SplitPaymentsDetails split_payments = 14;
+
+  // Currency conversion quote and decision data passed through the
+  // capture flow for future connector-specific processing.
+  optional CurrencyConversionData currency_conversion_data = 15;
 }
 
 // Response message for a payment capture operation
@@ -3697,6 +3707,10 @@ message RecurringPaymentServiceChargeRequest {
 
   // Channel through which the repeat payment was initiated.
   optional PaymentChannel payment_channel = 38;
+
+  // Currency conversion quote and decision data passed through the
+  // recurring flow for future connector-specific processing.
+  optional CurrencyConversionData currency_conversion_data = 39;
 }
 
 // Response message for repeat payment operation

@@ -493,6 +493,9 @@ message CompositeCaptureRequest {
 
   // Split payment configuration (platform fees, transfers, etc.)
   optional SplitPaymentsDetails split_payments = 16;
+
+  // Currency conversion quote and customer decision supplied for the capture.
+  optional CurrencyConversionData currency_conversion_data = 17;
 }
 
 // Response message for composite capture flow.
