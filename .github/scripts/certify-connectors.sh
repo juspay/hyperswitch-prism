@@ -11,7 +11,10 @@
 # never touched, and one connector's bad day would stop every merge.
 #
 # Inputs (environment):
-#   TARGETS_JSON              JSON array of {name, suite, scenario}
+#   CHANGED_CONNECTORS        comma-separated connector names touched by this PR
+#   NEW_CONNECTORS            comma-separated names added by this PR (gated elsewhere)
+#   SHARED_CHANGED            "true" when core, proto or harness sources changed
+#   SPECS_ROOT                override for the connector_specs directory (tests)
 #   BASE_SHA                  merge base to arbitrate against; empty disables arbitration
 #   CONNECTOR_AUTH_FILE_PATH  decrypted connector credentials
 #   ATTEMPT_TIMEOUT           per-attempt timeout in seconds (default 300)
@@ -21,6 +24,7 @@
 set -uo pipefail
 
 ATTEMPT_TIMEOUT="${ATTEMPT_TIMEOUT:-300}"
+SPECS_ROOT="${SPECS_ROOT:-crates/internal/integration-tests/src/connector_specs}"
 BASE_SHA="${BASE_SHA:-}"
 SUMMARY="${GITHUB_STEP_SUMMARY:-/dev/null}"
 
@@ -76,6 +80,52 @@ build_binaries() {
   cargo build --workspace --bins 2>&1 | tail -5
   return "${PIPESTATUS[0]}"
 }
+# Runs everything one connector declares, and reports which scenarios failed.
+#
+# The suites, the scenarios and the payment-method filtering are the framework's
+# to decide — it reads them from the connector's own specs.json, exactly as it
+# does for a local or nightly run. Naming them here would be a second copy of
+# that rule, in a second language, kept in step by hand.
+#
+# Echoes one {name, suite, scenario, head_error} object per failed scenario.
+run_connector() {
+  local name="$1"
+  local report="${RUNNER_TEMP:-/tmp}/certify-${name}.json"
+  rm -f "${report}"
+
+  local args=(--skip-setup --no-build --no-server --connector "${name}"
+              --interface grpc --report)
+
+  UCS_RUN_TEST_REPORT_PATH="${report}" \
+    timeout --kill-after=30s "${ATTEMPT_TIMEOUT}" ./scripts/run-tests "${args[@]}"
+  local rc=$?
+
+  local rows=""
+  if [[ -s "${report}" ]]; then
+    rows=$(jq -c --arg n "${name}" '
+      [ .[]? | select(.is_dependency != true and .assertion_result == "FAIL") ]
+      | map({ name: $n, suite: .suite, scenario: .scenario,
+              head_error: (.error // "") })
+      | unique_by([.suite, .scenario])
+      | .[]' "${report}" 2>/dev/null || true)
+  fi
+
+  if [[ -n "${rows}" ]]; then
+    printf '%s\n' "${rows}"
+    return 0
+  fi
+
+  # No failed row, but the run did not succeed: a timeout, a crash, or a failure
+  # before any scenario was reached. Reporting a pass here would turn every one
+  # of those into a green check, so it is surfaced against the connector itself
+  # and left for the merge base to judge.
+  if [[ "${rc}" -ne 0 ]]; then
+    jq -cn --arg n "${name}" --arg rc "${rc}" \
+      '{ name: $n, suite: "-", scenario: "-",
+         head_error: ("the run failed with status " + $rc + " and named no scenario") }'
+  fi
+}
+
 # Runs one scenario against whatever is currently checked out and built.
 # Sets LAST_RC and LAST_ERROR for the caller.
 run_scenario() {
@@ -142,17 +192,65 @@ prepare_base() {
   return 0
 }
 
-count=$(jq 'length' <<< "${TARGETS_JSON}")
+# ── Which connectors ──────────────────────────────────────────────────────────
+#
+# Two git facts decide this, and nothing else: what the PR touched, and whether
+# it touched shared code. What each connector then runs is the framework's to
+# work out from its own specs.json.
+declare -a CONNECTORS=()
+
+if [[ "${SHARED_CHANGED:-}" == "true" ]]; then
+  # A core or proto change can break any connector, and all 100+ is the
+  # nightly's job. The ones carrying real traffic are where a break means a real
+  # payment fails, so they are what a PR has to clear.
+  echo "Shared code changed — certifying connectors live in production"
+  for specs in "${SPECS_ROOT}"/*/specs.json; do
+    [[ -f "${specs}" ]] || continue
+    [[ "$(jq -r '.live_in_production // false' "${specs}")" == "true" ]] || continue
+    CONNECTORS+=("$(basename "$(dirname "${specs}")")")
+  done
+  if [[ ${#CONNECTORS[@]} -eq 0 ]]; then
+    echo "::error::Shared code changed but no connector declares live_in_production — nothing would be certified."
+    exit 1
+  fi
+else
+  echo "Certifying connectors touched by this PR"
+  IFS=',' read -ra TOUCHED <<< "${CHANGED_CONNECTORS:-}"
+  for name in ${TOUCHED[@]+"${TOUCHED[@]}"}; do
+    [[ -n "${name}" ]] || continue
+    specs="${SPECS_ROOT}/${name}/specs.json"
+    [[ -f "${specs}" ]] || continue
+
+    # A connector this PR adds is run by verify-new-connectors.sh. Running it
+    # here too would repeat every scenario, and the arbitration below could not
+    # judge it anyway: it does not exist at the merge base, so the base run
+    # fails for that reason alone.
+    if [[ ",${NEW_CONNECTORS:-}," == *",${name},"* ]]; then
+      echo "  ${name}: added by this PR — certified by the new-connector gate"
+      continue
+    fi
+
+    if [[ "$(jq -r '.live_creds // false' "${specs}")" != "true" ]]; then
+      echo "  ${name}: live_creds is not true — not certified by this PR"
+      continue
+    fi
+
+    CONNECTORS+=("${name}")
+  done
+fi
+
+count=${#CONNECTORS[@]}
 if [[ "${count}" -eq 0 ]]; then
-  echo "No certification targets selected."
+  echo "No connectors selected for certification."
   exit 0
 fi
+echo "Selected ${count} connector(s): ${CONNECTORS[*]}"
 
 # Certification was selected, so absent credentials are a hard failure here.
 # Falling back to placeholder credentials would let a scenario "pass" without
 # ever reaching the connector.
 if [[ -z "${CONNECTOR_AUTH_FILE_PATH:-}" || ! -s "${CONNECTOR_AUTH_FILE_PATH}" ]]; then
-  echo "::error::${count} connector scenario(s) selected for certification but no credentials file is available."
+  echo "::error::${count} connector(s) selected for certification but no credentials file is available."
   exit 1
 fi
 
@@ -171,30 +269,30 @@ declare -a FAILED=()
 declare -a PASSED=()
 declare -a NO_CREDS=()
 
-for i in $(seq 0 $((count - 1))); do
-  target=$(jq -c ".[$i]" <<< "${TARGETS_JSON}")
-  name=$(jq -r '.name' <<< "${target}")
-  suite=$(jq -r '.suite' <<< "${target}")
-  scenario=$(jq -r '.scenario' <<< "${target}")
-
+for name in "${CONNECTORS[@]}"; do
   if ! valid_name "${name}"; then
-    echo "::error::Invalid connector name in certification manifest: '${name}'"
+    echo "::error::Invalid connector name: '${name}'"
     exit 1
   fi
 
   if ! jq -e --arg c "${name}" 'has($c)' "${CONNECTOR_AUTH_FILE_PATH}" >/dev/null; then
     echo "::warning::No credentials for '${name}' — cannot certify"
-    NO_CREDS+=("${name} (${suite} / ${scenario})")
+    NO_CREDS+=("${name}")
     continue
   fi
 
-  echo "::group::Certify ${name} (${suite} / ${scenario})"
-  if run_scenario "${name}" "${suite}" "${scenario}"; then
-    PASSED+=("${name} (${suite} / ${scenario})")
-  else
-    FAILED+=("${target}")
-  fi
+  echo "::group::Certify ${name}"
+  failures=$(run_connector "${name}")
   echo "::endgroup::"
+
+  if [[ -z "${failures}" ]]; then
+    PASSED+=("${name}")
+    continue
+  fi
+  while IFS= read -r target; do
+    [[ -n "${target}" ]] || continue
+    FAILED+=("${target}")
+  done <<< "${failures}"
 done
 
 # ── Pass 2: confirm each failure reproduces at HEAD ──────────────────────────
@@ -207,6 +305,23 @@ for target in ${FAILED[@]+"${FAILED[@]}"}; do
   name=$(jq -r '.name' <<< "${target}")
   suite=$(jq -r '.suite' <<< "${target}")
   scenario=$(jq -r '.scenario' <<< "${target}")
+
+  # A failure with no scenario behind it is re-checked the same way, by running
+  # the whole connector again. A timeout is precisely the transient this pass
+  # exists to absorb, and skipping it would send one straight into the
+  # merge-base rebuild.
+  if [[ "${suite}" == "-" ]]; then
+    echo "::group::Re-check ${name} (whole connector)"
+    recheck=$(run_connector "${name}")
+    echo "::endgroup::"
+    if [[ -z "${recheck}" ]]; then
+      echo "Passed on re-check — treating the first failure as a flake."
+      FLAKY+=("${name}")
+    else
+      CONFIRMED+=("${target}")
+    fi
+    continue
+  fi
 
   echo "::group::Re-check ${name} (${suite} / ${scenario})"
   if run_scenario "${name}" "${suite}" "${scenario}"; then
@@ -263,6 +378,22 @@ if [[ ${#CONFIRMED[@]} -gt 0 ]]; then
       suite=$(jq -r '.suite' <<< "${target}")
       scenario=$(jq -r '.scenario' <<< "${target}")
       label="${name} (${suite} / ${scenario})"
+
+      # A failure with no scenario behind it — a timeout or a crash — still
+      # arbitrates: the whole connector runs at the merge base instead. Passing
+      # there and failing here is the same proof, at connector granularity.
+      if [[ "${suite}" == "-" ]]; then
+        echo "::group::Arbitrate ${name} at merge base (whole connector)"
+        base_failures=$(run_connector "${name}")
+        echo "::endgroup::"
+        if [[ -z "${base_failures}" ]]; then
+          REGRESSIONS+=("${label}")
+        else
+          unattributed "${target}" "also fails at the merge base" \
+            "$(jq -r '.head_error // ""' <<< "$(head -1 <<< "${base_failures}")")"
+        fi
+        continue
+      fi
 
       echo "::group::Arbitrate ${label} at merge base"
       if run_scenario "${name}" "${suite}" "${scenario}"; then

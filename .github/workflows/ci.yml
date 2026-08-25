@@ -58,7 +58,6 @@ jobs:
       any-rs: ${{ steps.filter.outputs.any-rs }}
       ci: ${{ steps.filter.outputs.ci }}
       connector-names: ${{ steps.connector-names.outputs.list }}
-      certification-targets: ${{ steps.certified-connectors.outputs.targets }}
       new-connectors: ${{ steps.new-connectors.outputs.list }}
     steps:
       - name: Checkout repository
@@ -161,20 +160,6 @@ jobs:
           done
           echo "list=$new_list" >> $GITHUB_OUTPUT
           echo "Newly added connectors: $new_list"
-
-      - name: Select certification targets
-        id: certified-connectors
-        shell: bash
-        env:
-          RUST_CORE_CHANGED: ${{ steps.filter.outputs.rust-core }}
-          PROTO_CHANGED: ${{ steps.filter.outputs.proto }}
-          CHANGED_CONNECTORS: ${{ steps.connector-names.outputs.list }}
-          # A connector added by this PR is certified by the new-connector gate,
-          # which runs the same scenarios. It is excluded here so they are not
-          # run twice, and because arbitration cannot judge it: it does not exist
-          # at the merge base, so the base run would fail for that reason alone.
-          NEW_CONNECTORS: ${{ steps.new-connectors.outputs.list }}
-        run: .github/scripts/select-certification-targets.sh
 
 
   # ── Fast Checks ───────────────────────────────────────────────────────────
@@ -631,7 +616,7 @@ jobs:
       # so both are built once here with the same features the test run above
       # used, and the certification steps reuse them via `--no-build`.
       - name: Build certification binaries
-        if: ${{ env.RUN_TESTS == 'true' && (needs.changes.outputs.certification-targets != '[]' || needs.changes.outputs.new-connectors != '') }}
+        if: ${{ env.RUN_TESTS == 'true' && (needs.changes.outputs.connector == 'true' || needs.changes.outputs.rust-core == 'true' || needs.changes.outputs.proto == 'true') }}
         shell: bash
         run: |
           cargo build --workspace --bins \
@@ -639,7 +624,7 @@ jobs:
 
       # The test harness shells out to grpcurl to make the actual call.
       - name: Install grpcurl
-        if: ${{ env.RUN_TESTS == 'true' && (needs.changes.outputs.certification-targets != '[]' || needs.changes.outputs.new-connectors != '') }}
+        if: ${{ env.RUN_TESTS == 'true' && (needs.changes.outputs.connector == 'true' || needs.changes.outputs.rust-core == 'true' || needs.changes.outputs.proto == 'true') }}
         shell: bash
         env:
           GRPCURL_VERSION: "1.9.3"
@@ -667,10 +652,14 @@ jobs:
         run: .github/scripts/verify-new-connectors.sh
 
       - name: Certify selected connectors
-        if: ${{ env.RUN_TESTS == 'true' && needs.changes.outputs.certification-targets != '[]' }}
+        if: ${{ env.RUN_TESTS == 'true' && (needs.changes.outputs.connector == 'true' || needs.changes.outputs.rust-core == 'true' || needs.changes.outputs.proto == 'true') }}
         shell: bash
         env:
-          TARGETS_JSON: ${{ needs.changes.outputs.certification-targets }}
+          # Git facts only. Which suites and scenarios each connector runs is the
+          # framework's to derive from that connector's own specs.json.
+          CHANGED_CONNECTORS: ${{ needs.changes.outputs.connector-names }}
+          NEW_CONNECTORS: ${{ needs.changes.outputs.new-connectors }}
+          SHARED_CHANGED: ${{ needs.changes.outputs.rust-core == 'true' || needs.changes.outputs.proto == 'true' }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: .github/scripts/certify-connectors.sh
 
