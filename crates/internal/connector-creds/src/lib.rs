@@ -33,7 +33,7 @@
 //! the header already uses — `{"stripe":{"config":{"Stripe":{"api_key":"sk"}}}}`.
 //! The transformation is the only thing worth sharing; with a passthrough file
 //! the read is three lines in each caller, and the dropped-field check belongs
-//! in a one-shot artifact validator rather than on every read.
+//! in a validator run once against the artifact rather than on every read.
 
 use std::{collections::HashSet, fs, path::Path};
 
