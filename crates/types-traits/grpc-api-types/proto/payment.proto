@@ -5301,6 +5301,10 @@ message WorldpayxmlConfig {
   SecretString api_username = 1;
   SecretString api_password = 2;
   SecretString merchant_code = 3;
+  // Cardinal 3DS JWT credentials, from the merchant connector account metadata.
+  optional SecretString issuer_id = 4;
+  optional SecretString organizational_unit_id = 5;
+  optional SecretString jwt_mac_key = 6;
   optional string base_url = 50;
 }
 
