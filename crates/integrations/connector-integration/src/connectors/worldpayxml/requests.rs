@@ -1,7 +1,7 @@
 use common_utils::StringMinorUnit;
 use error_stack::ResultExt;
 use hyperswitch_masking::Secret;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use super::super::macros::GetSoapXml;
 use domain_types::errors::IntegrationError;
@@ -61,6 +61,20 @@ pub struct WorldpayxmlOrder {
     pub shopper: WorldpayxmlShopper,
     #[serde(rename = "billingAddress", skip_serializing_if = "Option::is_none")]
     pub billing_address: Option<WorldpayxmlBillingAddress>,
+    // NOTE: must stay the LAST field — quick-xml emits elements in declaration
+    // order and the WPG DTD expects <createToken> after <billingAddress>
+    #[serde(rename = "createToken", skip_serializing_if = "Option::is_none")]
+    pub create_token: Option<WorldpayxmlCreateToken>,
+}
+
+/// Asks Worldpay to issue a payment token against this order, so that later merchant-initiated
+/// payments can be submitted with the token instead of the original payment credentials.
+#[derive(Debug, Serialize)]
+pub struct WorldpayxmlCreateToken {
+    #[serde(rename = "@tokenScope")]
+    pub token_scope: WorldpayxmlTokenScope,
+    #[serde(rename = "tokenEventReference")]
+    pub token_event_reference: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -75,10 +89,54 @@ pub struct WorldpayxmlAmount {
 
 #[derive(Debug, Serialize)]
 pub struct WorldpayxmlPaymentDetails {
-    #[serde(rename = "@action")]
-    pub action: WorldpayxmlAction,
+    /// Omitted for merchant-initiated payments, where Worldpay derives the action from the
+    /// order's capture delay instead.
+    #[serde(rename = "@action", skip_serializing_if = "Option::is_none")]
+    pub action: Option<WorldpayxmlAction>,
     #[serde(rename = "$value")]
     pub payment_method: WorldpayxmlPaymentMethod,
+    #[serde(rename = "storedCredentials", skip_serializing_if = "Option::is_none")]
+    pub stored_credentials: Option<WorldpayxmlStoredCredentials>,
+}
+
+/// Tells Worldpay that this authorisation is part of a stored-credential agreement, so the scheme
+/// records it as such and later merchant-initiated transactions are accepted against it.
+#[derive(Debug, Serialize)]
+pub struct WorldpayxmlStoredCredentials {
+    #[serde(rename = "@usage")]
+    pub usage: WorldpayxmlUsageType,
+    #[serde(
+        rename = "@customerInitiatedReason",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub customer_initiated_reason: Option<WorldpayxmlMandateType>,
+    #[serde(
+        rename = "@merchantInitiatedReason",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub merchant_initiated_reason: Option<WorldpayxmlMandateType>,
+    #[serde(
+        rename = "schemeTransactionIdentifier",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub scheme_transaction_identifier: Option<Secret<String>>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum WorldpayxmlUsageType {
+    /// The customer-initiated transaction that establishes the agreement.
+    First,
+    /// A subsequent transaction against an already-established agreement.
+    Used,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum WorldpayxmlMandateType {
+    Recurring,
+    Unscheduled,
+    Instalment,
 }
 
 #[derive(Debug, Serialize)]
@@ -90,6 +148,79 @@ pub enum WorldpayxmlPaymentMethod {
     Visa(WorldpayxmlCard),
     #[serde(rename = "ECMC-SSL")]
     Ecmc(WorldpayxmlCard),
+    #[serde(rename = "PAYWITHGOOGLE-SSL")]
+    PayWithGoogle(WorldpayxmlGooglePayData),
+    #[serde(rename = "APPLEPAY-SSL")]
+    ApplePay(WorldpayxmlApplePayData),
+    /// Carries a wallet token that Hyperswitch has already decrypted into a network token.
+    #[serde(rename = "EMVCO_TOKEN-SSL")]
+    EmvcoToken(WorldpayxmlEmvcoTokenData),
+    /// Carries a Worldpay-issued payment token, used by merchant-initiated payments against an
+    /// already-established stored-credential agreement.
+    #[serde(rename = "TOKEN-SSL")]
+    TokenSsl(WorldpayxmlTokenData),
+}
+
+/// Scope a Worldpay payment token is issued under. Only `shopper` is used.
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum WorldpayxmlTokenScope {
+    Shopper,
+}
+
+#[derive(Debug, Serialize)]
+pub struct WorldpayxmlTokenData {
+    #[serde(rename = "@tokenScope")]
+    pub token_scope: WorldpayxmlTokenScope,
+    #[serde(rename = "paymentTokenID")]
+    pub payment_token_id: Secret<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayxmlGooglePayData {
+    pub protocol_version: Secret<String>,
+    pub signature: Secret<String>,
+    pub signed_message: Secret<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayxmlApplePayData {
+    pub header: WorldpayxmlApplePayHeader,
+    pub signature: Secret<String>,
+    pub version: Secret<String>,
+    pub data: Secret<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayxmlApplePayHeader {
+    pub ephemeral_public_key: Secret<String>,
+    pub public_key_hash: Secret<String>,
+    pub transaction_id: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum WorldpayxmlEmvcoTokenType {
+    Applepay,
+    Googlepay,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayxmlEmvcoTokenData {
+    #[serde(rename = "@type")]
+    pub token_type: WorldpayxmlEmvcoTokenType,
+    pub token_number: cards::CardNumber,
+    pub expiry_date: WorldpayxmlExpiryDate,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_holder_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cryptogram: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub eci_indicator: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -99,7 +230,9 @@ pub struct WorldpayxmlCard {
     pub expiry_date: WorldpayxmlExpiryDate,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub card_holder_name: Option<Secret<String>>,
-    pub cvc: Secret<String>,
+    /// Absent when the PAN came from a decrypted wallet token, which carries no CVC.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cvc: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -122,6 +255,13 @@ pub struct WorldpayxmlShopper {
         skip_serializing_if = "Option::is_none"
     )]
     pub shopper_email_address: Option<common_utils::Email>,
+    /// Worldpay scopes shopper tokens to this identifier, so it must be present on every
+    /// request that creates or spends one.
+    #[serde(
+        rename = "authenticatedShopperID",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub authenticated_shopper_id: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub browser: Option<WorldpayxmlBrowser>,
 }
@@ -322,6 +462,12 @@ pub struct WorldpayxmlOrderInquiry {
 
 // Type alias for RSync - reuses PSync request structure
 pub type WorldpayxmlRSyncRequest = WorldpayxmlPSyncRequest;
+
+// SetupMandate and RepeatPayment submit the same `<submit><order>` envelope as Authorize.
+// They are aliased (rather than reused directly) because the connector macros key their
+// per-flow bridge types off the request/response type name.
+pub type WorldpayxmlSetupMandateRequest = WorldpayxmlPaymentsRequest;
+pub type WorldpayxmlRepeatPaymentRequest = WorldpayxmlPaymentsRequest;
 
 // ===== PAYOUT REQUESTS =====
 

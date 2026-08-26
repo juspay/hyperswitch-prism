@@ -134,3 +134,10 @@ replace_with_static = ["salt", "idempotency-key", "timestamp", "x-request-id", "
 [normalize_json]
 dynamic_fields = ["nonce", "invoiceNumber", "timestamp", "requestTimestamp"]
 digit_value_fields = ["NUMQUESTION"]
+
+# Per-connector wallet token overrides, keyed [wallet_token_overrides.<connector>].
+# Google Pay's PAYMENT_GATEWAY token is gateway-specific: the shared fixture carries
+# Stripe's `tok_...` shape, while connectors that forward the raw envelope (worldpayxml)
+# need Google's signed ECv2 envelope. Only the encrypted variants are affected.
+[wallet_token_overrides.worldpayxml]
+GooglePay = '{"protocolVersion":"ECv2","signature":"probe","signedMessage":"probe"}'
