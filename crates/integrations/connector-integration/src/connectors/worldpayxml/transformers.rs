@@ -509,22 +509,24 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         .resource_common_data
                         .connector_request_reference_id
                         .clone(),
-                    capture_delay: if is_manual_capture {
+                    capture_delay: Some(if is_manual_capture {
                         CAPTURE_DELAY_MANUAL.to_string()
                     } else {
                         CAPTURE_DELAY_AUTOMATIC.to_string()
-                    },
-                    description: router_data
-                        .resource_common_data
-                        .description
-                        .clone()
-                        .unwrap_or_else(|| DEFAULT_PAYMENT_DESCRIPTION.to_string()),
-                    amount: requests::WorldpayxmlAmount {
+                    }),
+                    description: Some(
+                        router_data
+                            .resource_common_data
+                            .description
+                            .clone()
+                            .unwrap_or_else(|| DEFAULT_PAYMENT_DESCRIPTION.to_string()),
+                    ),
+                    amount: Some(requests::WorldpayxmlAmount {
                         value: converted_amount,
                         currency_code: router_data.request.currency,
                         exponent: get_worldpayxml_exponent(router_data.request.currency)?,
-                    },
-                    payment_details: requests::WorldpayxmlPaymentDetails {
+                    }),
+                    payment_details: Some(requests::WorldpayxmlPaymentDetails {
                         action: Some(if is_manual_capture {
                             WorldpayxmlAction::Authorise
                         } else {
@@ -532,8 +534,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         }),
                         payment_method,
                         stored_credentials,
-                    },
-                    shopper: requests::WorldpayxmlShopper {
+                    }),
+                    shopper: Some(requests::WorldpayxmlShopper {
                         shopper_email_address: router_data.request.email.clone(),
                         authenticated_shopper_id,
                         browser: router_data
@@ -552,7 +554,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                 browser_screen_height: browser_info.screen_height,
                                 browser_screen_width: browser_info.screen_width,
                             }),
-                    },
+                    }),
                     billing_address,
                     create_token,
                 },
@@ -676,22 +678,24 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         .resource_common_data
                         .connector_request_reference_id
                         .clone(),
-                    capture_delay: if is_manual_capture {
+                    capture_delay: Some(if is_manual_capture {
                         CAPTURE_DELAY_MANUAL.to_string()
                     } else {
                         CAPTURE_DELAY_AUTOMATIC.to_string()
-                    },
-                    description: router_data
-                        .resource_common_data
-                        .description
-                        .clone()
-                        .unwrap_or_else(|| DEFAULT_PAYMENT_DESCRIPTION.to_string()),
-                    amount: requests::WorldpayxmlAmount {
+                    }),
+                    description: Some(
+                        router_data
+                            .resource_common_data
+                            .description
+                            .clone()
+                            .unwrap_or_else(|| DEFAULT_PAYMENT_DESCRIPTION.to_string()),
+                    ),
+                    amount: Some(requests::WorldpayxmlAmount {
                         value: converted_amount,
                         currency_code: router_data.request.currency,
                         exponent: get_worldpayxml_exponent(router_data.request.currency)?,
-                    },
-                    payment_details: requests::WorldpayxmlPaymentDetails {
+                    }),
+                    payment_details: Some(requests::WorldpayxmlPaymentDetails {
                         action: Some(if is_manual_capture {
                             WorldpayxmlAction::Authorise
                         } else {
@@ -708,8 +712,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             merchant_initiated_reason: None,
                             scheme_transaction_identifier: None,
                         }),
-                    },
-                    shopper: requests::WorldpayxmlShopper {
+                    }),
+                    shopper: Some(requests::WorldpayxmlShopper {
                         shopper_email_address: router_data.request.email.clone(),
                         authenticated_shopper_id,
                         browser: router_data
@@ -728,7 +732,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                 browser_screen_height: browser_info.screen_height,
                                 browser_screen_width: browser_info.screen_width,
                             }),
-                    },
+                    }),
                     billing_address,
                     create_token: Some(requests::WorldpayxmlCreateToken {
                         token_scope: requests::WorldpayxmlTokenScope::Shopper,
@@ -840,22 +844,24 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         .resource_common_data
                         .connector_request_reference_id
                         .clone(),
-                    capture_delay: if is_manual_capture {
+                    capture_delay: Some(if is_manual_capture {
                         CAPTURE_DELAY_MANUAL.to_string()
                     } else {
                         CAPTURE_DELAY_AUTOMATIC.to_string()
-                    },
-                    description: router_data
-                        .resource_common_data
-                        .description
-                        .clone()
-                        .unwrap_or_else(|| DEFAULT_PAYMENT_DESCRIPTION.to_string()),
-                    amount: requests::WorldpayxmlAmount {
+                    }),
+                    description: Some(
+                        router_data
+                            .resource_common_data
+                            .description
+                            .clone()
+                            .unwrap_or_else(|| DEFAULT_PAYMENT_DESCRIPTION.to_string()),
+                    ),
+                    amount: Some(requests::WorldpayxmlAmount {
                         value: converted_amount,
                         currency_code: router_data.request.currency,
                         exponent: get_worldpayxml_exponent(router_data.request.currency)?,
-                    },
-                    payment_details: requests::WorldpayxmlPaymentDetails {
+                    }),
+                    payment_details: Some(requests::WorldpayxmlPaymentDetails {
                         action: None,
                         payment_method: requests::WorldpayxmlPaymentMethod::TokenSsl(
                             requests::WorldpayxmlTokenData {
@@ -877,12 +883,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                 .get_connector_mandate_request_reference_id()
                                 .map(Secret::new),
                         }),
-                    },
-                    shopper: requests::WorldpayxmlShopper {
+                    }),
+                    shopper: Some(requests::WorldpayxmlShopper {
                         shopper_email_address: router_data.request.email.clone(),
                         authenticated_shopper_id,
                         browser: None,
-                    },
+                    }),
                     billing_address: get_worldpayxml_billing_address(
                         &router_data.resource_common_data,
                     ),

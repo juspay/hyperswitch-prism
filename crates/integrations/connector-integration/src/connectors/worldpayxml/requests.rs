@@ -52,13 +52,16 @@ pub struct WorldpayxmlSubmit {
 pub struct WorldpayxmlOrder {
     #[serde(rename = "@orderCode")]
     pub order_code: String,
-    #[serde(rename = "@captureDelay")]
-    pub capture_delay: String,
-    pub description: String,
-    pub amount: WorldpayxmlAmount,
-    #[serde(rename = "paymentDetails")]
-    pub payment_details: WorldpayxmlPaymentDetails,
-    pub shopper: WorldpayxmlShopper,
+    #[serde(rename = "@captureDelay", skip_serializing_if = "Option::is_none")]
+    pub capture_delay: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub amount: Option<WorldpayxmlAmount>,
+    #[serde(rename = "paymentDetails", skip_serializing_if = "Option::is_none")]
+    pub payment_details: Option<WorldpayxmlPaymentDetails>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shopper: Option<WorldpayxmlShopper>,
     #[serde(rename = "billingAddress", skip_serializing_if = "Option::is_none")]
     pub billing_address: Option<WorldpayxmlBillingAddress>,
     // NOTE: field order below is wire order — quick-xml emits elements in declaration
