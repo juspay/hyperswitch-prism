@@ -1,0 +1,773 @@
+{
+  "connector": "saferpay",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for saferpay"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "AchBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "Affirm": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "Afterpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "Alfamart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "AliPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "ApplePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "Bacs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "BacsBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "BancontactCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "BcaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "Becs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "Bizum": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "Blik": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "Bluecode": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "Boleto": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "Card": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://test.saferpay.com/api/Payment/v1/Transaction/AuthorizeDirect",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"RequestHeader\":{\"SpecVersion\":\"1.44\",\"CustomerId\":\"probe_key\",\"RequestId\":\"00000000-0000-0000-0000-000000000000\",\"RetryIndicator\":0},\"TerminalId\":\"probe_key\",\"Payment\":{\"Amount\":{\"Value\":\"1000\",\"CurrencyCode\":\"USD\"},\"OrderId\":\"probe_txn_001\",\"Description\":\"Payment\"},\"PaymentMeans\":{\"Card\":{\"Number\":\"4111111111111111\",\"ExpYear\":2030,\"ExpMonth\":3,\"VerificationCode\":\"737\",\"HolderName\":\"John Doe\"}}}"
+        }
+      },
+      "CashappQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "ClassicReward": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Dana": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "Efecty": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "Eft": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "Eps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "FamilyMart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "GCash": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "Giropay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "GoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "GooglePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "Ideal": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "Indomaret": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "InstantBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "Interac": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "KakaoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "Klarna": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "Lawson": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "LocalBankRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "LocalBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "MbWay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "Mifinity": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "MiniStop": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Momo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "Netbanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "OpenBanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "OpenBankingUk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "Oxxo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "PagoEfectivo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "PayEasy": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "PaySafeCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "PaypalRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "PaypalSdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "PhonePeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "Pix": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "Przelewy24": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "Pse": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "RedCompra": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "RedPagos": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "RevolutPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "SamsungPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "Satispay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "Seicomart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "Sepa": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "SepaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "SevenEleven": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "Skrill": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "Sofort": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "Swish": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "TouchNGo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "Trustly": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "Twint": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "UpiCollect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "UpiIntent": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "UpiQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "Vipps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "WeChatPayQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      },
+      "Wero": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_capture_id": "probe_capture_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount_to_capture": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://test.saferpay.com/api/Payment/v1/Transaction/Capture",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"RequestHeader\":{\"SpecVersion\":\"1.44\",\"CustomerId\":\"probe_key\",\"RequestId\":\"00000000-0000-0000-0000-000000000000\",\"RetryIndicator\":0},\"TransactionReference\":{\"TransactionId\":\"probe_connector_txn_001\"},\"Amount\":{\"Value\":\"1000\",\"CurrencyCode\":\"USD\"}}"
+        }
+      }
+    },
+    "create_client_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: client_authentication_token flow for saferpay"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_order flow for saferpay"
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_authentication_token flow for saferpay"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_session_authentication_token flow for saferpay"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for saferpay"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: get_connector_customer flow for saferpay"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: accept_dispute flow for saferpay"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: defend_dispute flow for saferpay"
+      }
+    },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: submit_evidence flow for saferpay"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by saferpay connector"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://test.saferpay.com/api/Payment/v1/Transaction/Inquire",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"RequestHeader\":{\"SpecVersion\":\"1.44\",\"CustomerId\":\"probe_key\",\"RequestId\":\"00000000-0000-0000-0000-000000000000\",\"RetryIndicator\":0},\"TransactionReference\":{\"TransactionId\":\"probe_connector_txn_001\"}}"
+        }
+      }
+    },
+    "handle_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: incremental_authorization flow for saferpay"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for saferpay"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for saferpay"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_proxy_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://test.saferpay.com/api/Payment/v1/Transaction/AuthorizeDirect",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"RequestHeader\":{\"SpecVersion\":\"1.44\",\"CustomerId\":\"probe_key\",\"RequestId\":\"00000000-0000-0000-0000-000000000000\",\"RetryIndicator\":0},\"TerminalId\":\"probe_key\",\"Payment\":{\"Amount\":{\"Value\":\"1000\",\"CurrencyCode\":\"USD\"},\"OrderId\":\"probe_proxy_txn_001\",\"Description\":\"Payment\"},\"PaymentMeans\":{\"Card\":{\"Number\":\"{{$card_number}}\",\"ExpYear\":2030,\"ExpMonth\":3,\"VerificationCode\":\"{{$card_cvc}}\",\"HolderName\":\"John Doe\"}}}"
+        }
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for saferpay"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: repeat_payment flow for saferpay"
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for saferpay"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: refund_metadata.capture_id — Missing required field: refund_metadata.capture_id"
+      }
+    },
+    "refund_get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "refund_id": "probe_refund_id_001"
+        },
+        "sample": {
+          "url": "https://test.saferpay.com/api/Payment/v1/Transaction/Inquire",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"RequestHeader\":{\"SpecVersion\":\"1.44\",\"CustomerId\":\"probe_key\",\"RequestId\":\"00000000-0000-0000-0000-000000000000\",\"RetryIndicator\":0},\"TransactionReference\":{\"TransactionId\":\"probe_refund_id_001\"}}"
+        }
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void_post_capture flow for saferpay"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for saferpay"
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for saferpay"
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for saferpay"
+      }
+    },
+    "verify_redirect": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_void_id": "probe_void_001",
+          "connector_transaction_id": "probe_connector_txn_001"
+        },
+        "sample": {
+          "url": "https://test.saferpay.com/api/Payment/v1/Transaction/Cancel",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"RequestHeader\":{\"SpecVersion\":\"1.44\",\"CustomerId\":\"probe_key\",\"RequestId\":\"00000000-0000-0000-0000-000000000000\",\"RetryIndicator\":0},\"TransactionReference\":{\"TransactionId\":\"probe_connector_txn_001\"}}"
+        }
+      }
+    }
+  }
+}
