@@ -6,7 +6,7 @@
 // Run a scenario:  npx tsx nexinets.ts checkout_autocapture
 
 import { PaymentClient, MerchantAuthenticationClient, RecurringPaymentClient, types } from 'hyperswitch-prism';
-const { Environment, AuthenticationType, CaptureMethod, CardNetwork, Currency, PaymentMethodType, TokenKind } = types;
+const { Environment, AuthenticationType, CaptureMethod, CardNetwork, Currency, PaymentMethodType } = types;
 export const SUPPORTED_FLOWS = ["authorize", "create_client_authentication_token", "get", "proxy_authorize", "recurring_charge", "refund"];
 
 const _defaultConfig: types.IConnectorConfig = {
@@ -107,8 +107,7 @@ function _buildRecurringChargeRequest(): types.IRecurringPaymentServiceChargeReq
         },
         "paymentMethod": {  // Optional payment Method Information (for network transaction flows).
             "token": {  // Payment tokens.
-                "token": {"value": "probe_pm_token"},  // The token string representing a payment method.
-                "kind": TokenKind.MULTI_USE
+                "token": {"value": "probe_pm_token"}  // The token string representing a payment method.
             }
         },
         "returnUrl": "https://example.com/recurring-return",

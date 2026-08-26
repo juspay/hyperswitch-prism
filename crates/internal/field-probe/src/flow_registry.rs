@@ -37,7 +37,9 @@ pub fn probe_flow_by_definition(
         for (pm_name, pm) in pm_variants {
             let auth = crate::auth::dummy_auth(connector);
             let result = match def.key {
-                "tokenize" => probe_tokenize(connector, pm_name, pm.clone(), config, auth, metadata),
+                "tokenize" => {
+                    probe_tokenize(connector, pm_name, pm.clone(), config, auth, metadata)
+                }
                 _ => probe_authorize(connector, pm_name, pm.clone(), config, auth, metadata),
             };
             results.insert(pm_name.clone(), result);

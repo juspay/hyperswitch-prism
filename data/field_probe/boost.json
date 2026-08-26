@@ -679,7 +679,7 @@
     "token_authorize": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Boost only supports Card and CardRedirect payment_method_data for Authorize — Card for the Direct Card Payment flow (client-side encrypted, integration guideline section 4.2), CardRedirect for the hosted/3DS redirect flow where BCPG collects card details on its own page; other payment method data types are out of scope for this connector implementation. Unsupported payment_method_data variant for Boost Authorize: PaymentMethodToken(PaymentMethodToken { token: *** alloc::string::String ***, kind: None })"
+        "error": "This feature is not implemented: Boost only supports Card and CardRedirect payment_method_data for Authorize — Card for the Direct Card Payment flow (client-side encrypted, integration guideline section 4.2), CardRedirect for the hosted/3DS redirect flow where BCPG collects card details on its own page; other payment method data types are out of scope for this connector implementation. Unsupported payment_method_data variant for Boost Authorize: PaymentMethodToken(PaymentMethodToken { token: *** alloc::string::String *** })"
       }
     },
     "token_setup_recurring": {

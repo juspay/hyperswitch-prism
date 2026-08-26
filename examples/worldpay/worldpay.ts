@@ -6,7 +6,7 @@
 // Run a scenario:  npx tsx worldpay.ts checkout_autocapture
 
 import { PaymentClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
-const { Environment, AuthenticationType, CaptureMethod, CardNetwork, Currency, PaymentMethodType, TokenKind } = types;
+const { Environment, AuthenticationType, CaptureMethod, CardNetwork, Currency, PaymentMethodType } = types;
 export const SUPPORTED_FLOWS = ["authorize", "capture", "get", "incremental_authorization", "proxy_authorize", "recurring_charge", "refund", "refund_get", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
@@ -120,8 +120,7 @@ function _buildRecurringChargeRequest(): types.IRecurringPaymentServiceChargeReq
         },
         "paymentMethod": {  // Optional payment Method Information (for network transaction flows).
             "token": {  // Payment tokens.
-                "token": {"value": "probe_pm_token"},  // The token string representing a payment method.
-                "kind": TokenKind.MULTI_USE
+                "token": {"value": "probe_pm_token"}  // The token string representing a payment method.
             }
         },
         "returnUrl": "https://example.com/recurring-return",

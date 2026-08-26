@@ -654,8 +654,7 @@
           },
           "payment_method": {
             "token": {
-              "token": "probe_pm_token",
-              "kind": "MULTI_USE"
+              "token": "probe_pm_token"
             }
           },
           "return_url": "https://example.com/recurring-return",
@@ -792,13 +791,13 @@
     "token_authorize": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method PaymentMethodToken(PaymentMethodToken { token: *** alloc::string::String ***, kind: None })"
+        "error": "This feature is not implemented: Payment method PaymentMethodToken(PaymentMethodToken { token: *** alloc::string::String *** })"
       }
     },
     "token_setup_recurring": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method PaymentMethodToken(PaymentMethodToken { token: *** alloc::string::String ***, kind: None }) for SetupMandate"
+        "error": "This feature is not implemented: Payment method PaymentMethodToken(PaymentMethodToken { token: *** alloc::string::String *** }) for SetupMandate"
       }
     },
     "tokenize": {

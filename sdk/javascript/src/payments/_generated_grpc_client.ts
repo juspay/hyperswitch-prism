@@ -152,7 +152,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   StripeClientAuthenticationResponse: ["clientSecret"],
   GpayTokenParameters: ["publicKey"],
   SecretInfoToInitiateSdk: ["display", "payment"],
-  PaymentServiceAuthorizeRequest: ["metadata", "connectorFeatureData"],
+  PaymentServiceAuthorizeRequest: ["metadata", "connectorFeatureData", "paymentMethodToken"],
   PaymentServiceAuthorizeResponse: ["rawConnectorResponse", "typedConnectorResponse", "rawConnectorRequest", "typedConnectorRequest", "connectorFeatureData"],
   PaymentServiceGetRequest: ["metadata", "connectorFeatureData"],
   PaymentServiceGetResponse: ["metadata", "rawConnectorResponse", "typedConnectorResponse", "rawConnectorRequest", "typedConnectorRequest", "connectorFeatureData"],

@@ -6,7 +6,7 @@
 // Run a scenario:  npx tsx billwerk.ts checkout_autocapture
 
 import { PaymentClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
-const { Environment, AcceptanceType, CaptureMethod, Currency, FutureUsage, PaymentMethodType, TokenKind } = types;
+const { Environment, AcceptanceType, CaptureMethod, Currency, FutureUsage, PaymentMethodType } = types;
 export const SUPPORTED_FLOWS = ["capture", "get", "recurring_charge", "refund", "refund_get", "token_authorize", "token_setup_recurring", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
@@ -57,8 +57,7 @@ function _buildRecurringChargeRequest(): types.IRecurringPaymentServiceChargeReq
         },
         "paymentMethod": {  // Optional payment Method Information (for network transaction flows).
             "token": {  // Payment tokens.
-                "token": {"value": "probe_pm_token"},  // The token string representing a payment method.
-                "kind": TokenKind.MULTI_USE
+                "token": {"value": "probe_pm_token"}  // The token string representing a payment method.
             }
         },
         "returnUrl": "https://example.com/recurring-return",

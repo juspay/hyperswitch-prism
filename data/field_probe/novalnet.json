@@ -959,8 +959,7 @@
           },
           "payment_method": {
             "token": {
-              "token": "probe_pm_token",
-              "kind": "MULTI_USE"
+              "token": "probe_pm_token"
             }
           },
           "webhook_url": "https://example.com/webhook",
