@@ -296,6 +296,21 @@ docker run --rm -p 8000:8000 -p 8080:8080 ghcr.io/juspay/hyperswitch-prism:lates
 curl localhost:8080/metrics
 ```
 
+The endpoint is empty until the server has handled its first request.
+
+The image is also built with the OTLP push pipeline compiled in, disabled by default.
+Enable it to push metrics to an OpenTelemetry collector over gRPC:
+
+```bash
+docker run --rm -p 8000:8000 \
+  -e CS__METRICS__OTEL__ENABLED=true \
+  -e CS__METRICS__OTEL__OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317 \
+  ghcr.io/juspay/hyperswitch-prism:latest
+```
+
+The endpoint must be an OTLP gRPC receiver (default port `4317`). Enabling this does
+not affect the Prometheus endpoint above.
+
 ---
 
 ## 🛠️ Development
