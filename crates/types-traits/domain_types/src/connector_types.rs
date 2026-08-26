@@ -1660,6 +1660,8 @@ impl PaymentsCancelPostCaptureData {
 #[derive(Debug, Clone)]
 pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub payment_method_data: PaymentMethodData<T>,
+    /// Connector token from a Tokenize pre-step, carried alongside the payment method.
+    pub payment_method_token: Option<Secret<String>>,
     /// total amount (original_amount + surcharge_amount + tax_on_surcharge_amount)
     /// If connector supports separate field for surcharge amount, consider using below functions defined on `PaymentsAuthorizeData` to fetch original amount and surcharge amount separately
     /// ```text
@@ -2127,10 +2129,6 @@ pub struct PaymentMethodTokenResponse {
     pub token: String,
     pub connector_payment_method_id: Option<String>,
     pub status_code: u16,
-    /// Which of the connector's tokenization endpoints minted `token`. Connectors that mint a
-    /// single kind of token leave this `None`; the payment that spends the token echoes it back
-    /// so the connector does not have to infer the kind from the token string.
-    pub token_kind: Option<common_enums::TokenKind>,
 }
 
 #[derive(Debug, Clone)]

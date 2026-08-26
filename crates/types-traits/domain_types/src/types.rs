@@ -1485,7 +1485,6 @@ impl<
                 }
                 grpc_api_types::payments::payment_method::PaymentMethod::Token(token) => {
                     Ok(Self::PaymentMethodToken(payment_method_data::PaymentMethodToken {
-                        kind: ForeignFrom::foreign_from(token.kind()),
                         token: token
                             .token
                             .ok_or_else(|| report!(IntegrationError::MissingRequiredField {
@@ -3546,7 +3545,7 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
             statement_descriptor_suffix: req.statement_descriptor_suffix,
             order_details: Some(req.order_details),
             test_mode: req.test_mode,
-            payment_method_token: None,
+            payment_method_token: req.payment_method_token.clone(),
             mit_category,
             merchant_request_id: req.merchant_request_id,
             connector_order_id: req.connector_order_id,
@@ -4586,6 +4585,7 @@ impl<
             authentication_data,
             capture_method: Some(CaptureMethod::foreign_try_from(value.capture_method)?),
             payment_method_data,
+            payment_method_token: value.payment_method_token.clone(),
             amount: common_utils::types::MinorUnit::new(amount.minor_amount),
             currency: common_enums::Currency::foreign_try_from(amount.currency())?,
             confirm: true,
@@ -12482,30 +12482,6 @@ impl ForeignFrom<grpc_api_types::payments::MitCategory> for common_enums::MitCat
     }
 }
 
-impl ForeignFrom<grpc_api_types::payments::TokenKind> for Option<common_enums::TokenKind> {
-    fn foreign_from(value: grpc_api_types::payments::TokenKind) -> Self {
-        match value {
-            grpc_api_types::payments::TokenKind::SingleUse => {
-                Some(common_enums::TokenKind::SingleUse)
-            }
-            grpc_api_types::payments::TokenKind::MultiUse => {
-                Some(common_enums::TokenKind::MultiUse)
-            }
-            grpc_api_types::payments::TokenKind::Unspecified => None,
-        }
-    }
-}
-
-impl ForeignFrom<Option<common_enums::TokenKind>> for grpc_api_types::payments::TokenKind {
-    fn foreign_from(value: Option<common_enums::TokenKind>) -> Self {
-        match value {
-            Some(common_enums::TokenKind::SingleUse) => Self::SingleUse,
-            Some(common_enums::TokenKind::MultiUse) => Self::MultiUse,
-            None => Self::Unspecified,
-        }
-    }
-}
-
 #[allow(deprecated)]
 pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
     router_data_v2: RouterDataV2<
@@ -13891,10 +13867,6 @@ pub fn generate_create_payment_method_token_response<T: PaymentMethodDataTypes>(
             Ok(
                 grpc_api_types::payments::PaymentMethodServiceTokenizeResponse {
                     payment_method_token: response.token,
-                    token_kind: grpc_api_types::payments::TokenKind::foreign_from(
-                        response.token_kind,
-                    )
-                    .into(),
                     error: None,
                     status_code: u32::from(response.status_code),
                     response_headers,
@@ -13907,7 +13879,6 @@ pub fn generate_create_payment_method_token_response<T: PaymentMethodDataTypes>(
         Err(e) => Ok(
             grpc_api_types::payments::PaymentMethodServiceTokenizeResponse {
                 payment_method_token: String::new(),
-                token_kind: grpc_api_types::payments::TokenKind::Unspecified.into(),
                 error: Some(grpc_api_types::payments::ErrorInfo {
                     unified_details: None,
                     connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
@@ -17659,13 +17630,13 @@ pub fn tokenized_authorize_to_base(
     v: grpc_payment_types::PaymentServiceTokenAuthorizeRequest,
 ) -> PaymentServiceAuthorizeRequest {
     PaymentServiceAuthorizeRequest {
+        payment_method_token: None,
         merchant_transaction_id: v.merchant_transaction_id,
         amount: v.amount,
         payment_method: Some(grpc_payment_types::PaymentMethod {
             payment_method: Some(grpc_payment_types::payment_method::PaymentMethod::Token(
                 grpc_payment_types::TokenPaymentMethodType {
                     token: v.connector_token.clone(),
-                    kind: v.token_kind,
                 },
             )),
         }),
@@ -17759,7 +17730,6 @@ pub fn tokenized_setup_recurring_to_base(
             payment_method: Some(grpc_payment_types::payment_method::PaymentMethod::Token(
                 grpc_payment_types::TokenPaymentMethodType {
                     token: v.connector_token.clone(),
-                    kind: v.token_kind,
                 },
             )),
         }),
@@ -17843,6 +17813,7 @@ pub fn proxied_authorize_to_base(
         })
     })?;
     Ok(PaymentServiceAuthorizeRequest {
+        payment_method_token: None,
         merchant_transaction_id: v.merchant_transaction_id,
         amount: v.amount,
         payment_method: Some(grpc_payment_types::PaymentMethod {

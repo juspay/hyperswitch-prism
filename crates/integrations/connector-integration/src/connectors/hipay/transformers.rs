@@ -642,7 +642,6 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<HipayTokenResponse, S
                 token: item.response.token.expose(),
                 connector_payment_method_id: None,
                 status_code: item.http_code,
-                token_kind: None,
             }),
             ..item.router_data
         })

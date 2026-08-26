@@ -185,7 +185,6 @@ pub(crate) fn base_recurring_charge_request() -> RecurringPaymentServiceChargeRe
         payment_method: Some(PaymentMethod {
             payment_method: Some(PmVariant::Token(proto::TokenPaymentMethodType {
                 token: Some(Secret::new("probe_pm_token".to_string())),
-                kind: proto::TokenKind::MultiUse.into(),
             })),
         }),
         off_session: Some(true),

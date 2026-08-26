@@ -644,6 +644,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 ..item.router_data.resource_common_data
             },
             request: PaymentsAuthorizeData {
+                payment_method_token: None,
                 integrity_object: response_integrity_object,
                 ..item.router_data.request
             },

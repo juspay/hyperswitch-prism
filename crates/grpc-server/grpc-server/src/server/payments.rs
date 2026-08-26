@@ -2700,7 +2700,6 @@ impl PaymentMethod {
         let dummy_pm_data = payment_method_data::PaymentMethodData::PaymentMethodToken(
             payment_method_data::PaymentMethodToken {
                 token: Secret::new(String::new()),
-                kind: None,
             },
         );
         let connector_feature_data = request

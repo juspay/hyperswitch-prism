@@ -2047,17 +2047,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let (transfer_account_id, charge_type, application_fees) = (None, None, None);
 
-        let payment_method_token = match &item.request.payment_method_data {
-            PaymentMethodData::PaymentMethodToken(t) => Some(t.clone()),
-            _ => None,
+        let side_token = item.request.payment_method_token.clone();
+        let (card_token, payment_method_id) = match (&item.request.payment_method_data, side_token)
+        {
+            (
+                PaymentMethodData::Wallet(WalletData::ApplePay(_) | WalletData::GooglePay(_)),
+                Some(token),
+            ) => (Some(token), None),
+            (PaymentMethodData::PaymentMethodToken(t), _) => (None, Some(t.token.clone())),
+            (_, other) => (None, other),
         };
-
-        let (card_token, payment_method_id) = match payment_method_token.as_ref() {
-            Some(pm_token) if pm_token.kind == Some(common_enums::TokenKind::SingleUse) => {
-                (Some(pm_token.token.clone()), None)
-            }
-            other => (None, other.map(|pm_token| pm_token.token.clone())),
-        };
+        let payment_method_token = card_token.clone().or(payment_method_id.clone());
 
         let amount =
             StripeAmountConvertor::convert(item.request.minor_amount, item.request.currency)?;
@@ -6065,17 +6065,11 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<StripeTokenResponse, Self>) -> Result<Self, Self::Error> {
         let token = item.response.id.clone().expose();
-        let token_kind = if tokenize_mints_payment_method(&item.router_data.request) {
-            common_enums::TokenKind::MultiUse
-        } else {
-            common_enums::TokenKind::SingleUse
-        };
         Ok(Self {
             response: Ok(PaymentMethodTokenResponse {
                 token,
                 connector_payment_method_id: None,
                 status_code: item.http_code,
-                token_kind: Some(token_kind),
             }),
             ..item.router_data
         })

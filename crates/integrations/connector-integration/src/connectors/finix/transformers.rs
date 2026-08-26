@@ -1373,7 +1373,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     token: id,
                     connector_payment_method_id: None,
                     status_code: http_code,
-                    token_kind: None,
                 }),
                 _ => Err(disabled_instrument_error(&response, http_code)),
             },

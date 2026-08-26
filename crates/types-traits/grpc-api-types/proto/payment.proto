@@ -2532,6 +2532,8 @@ message PaymentServiceAuthorizeRequest {
 
   // Session and Token Information
   optional string session_token = 17;
+  // Connector token from a PaymentMethodService/Tokenize pre-step, carried alongside payment_method.
+  optional SecretString payment_method_token = 52;
 
   // Order Details
   optional string order_category = 18;
@@ -4426,7 +4428,6 @@ message PaymentMethodServiceTokenizeResponse {
   optional ConnectorState state = 6;
 
   optional string connector_payment_method_id = 7; // Connector-issued payment method ID
-  TokenKind token_kind = 8;
 }
 
 message PaymentMethodServiceCreateRequest {
@@ -6027,7 +6028,6 @@ message PaymentServiceTokenAuthorizeRequest {
   optional Customer customer = 4;
   PaymentAddress address = 5;
   optional CaptureMethod capture_method = 6;
-  TokenKind token_kind = 24;
   optional string return_url = 7;
   optional string webhook_url = 8;
   optional SecretString metadata = 9;
@@ -6056,7 +6056,6 @@ message PaymentServiceTokenSetupRecurringRequest {
   string merchant_recurring_payment_id = 1;
   Money amount = 2;
   SecretString connector_token = 3;
-  TokenKind token_kind = 16;
   optional Customer customer = 4;
   PaymentAddress address = 5;
   optional string return_url = 6;

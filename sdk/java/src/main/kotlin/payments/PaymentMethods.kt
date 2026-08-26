@@ -19,5 +19,4 @@ typealias NetworkTokenType = types.PaymentMethods.NetworkTokenType
 typealias CardRedirect = types.PaymentMethods.CardRedirect
 typealias CardNetwork = types.PaymentMethods.CardNetwork
 typealias TokenPaymentMethodType = types.PaymentMethods.TokenPaymentMethodType
-typealias TokenKind = types.PaymentMethods.TokenKind
 typealias CountryAlpha2 = types.PaymentMethods.CountryAlpha2

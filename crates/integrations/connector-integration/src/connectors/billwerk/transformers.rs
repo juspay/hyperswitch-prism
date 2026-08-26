@@ -366,7 +366,6 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<BillwerkTokenResponse
                 token: item.response.id.expose(),
                 connector_payment_method_id: None,
                 status_code: item.http_code,
-                token_kind: None,
             }),
             ..item.router_data
         })
