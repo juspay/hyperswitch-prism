@@ -100,8 +100,11 @@ run_connector() {
 
   local rows=""
   if [[ -s "${report}" ]]; then
+    # The report is {"runs": [...]}, not a bare array. Reading it as an array
+    # made jq error out, which `|| true` swallowed — so no scenario was ever
+    # named and every failure degraded to a whole-connector one.
     rows=$(jq -c --arg n "${name}" '
-      [ .[]? | select(.is_dependency != true and .assertion_result == "FAIL") ]
+      [ (.runs // .)[]? | select(.is_dependency != true and .assertion_result == "FAIL") ]
       | map({ name: $n, suite: .suite, scenario: .scenario,
               head_error: (.error // "") })
       | unique_by([.suite, .scenario])
@@ -140,7 +143,7 @@ run_scenario() {
   LAST_ERROR=""
   if [[ "${LAST_RC}" -ne 0 && -s "${report}" ]]; then
     LAST_ERROR=$(jq -r --arg s "${scenario}" '
-      [ .[]? | select(.scenario == $s and .assertion_result == "FAIL") | .error // "" ]
+      [ (.runs // .)[]? | select(.scenario == $s and .assertion_result == "FAIL") | .error // "" ]
       | first // ""' "${report}" 2>/dev/null || true)
   fi
 
