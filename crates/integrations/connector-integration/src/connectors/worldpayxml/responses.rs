@@ -1,3 +1,4 @@
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -24,7 +25,26 @@ pub struct WorldpayxmlOrderStatus {
     #[serde(rename = "@orderCode")]
     pub order_code: String,
     pub payment: Option<WorldpayxmlPayment>,
+    /// Present when the order asked Worldpay to create a payment token; carries the token
+    /// that subsequent merchant-initiated payments are submitted against.
+    pub token: Option<WorldpayxmlToken>,
     pub error: Option<WorldpayxmlError>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayxmlToken {
+    #[serde(rename = "authenticatedShopperID")]
+    pub authenticated_shopper_id: Option<String>,
+    pub token_details: WorldpayxmlTokenDetails,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct WorldpayxmlTokenDetails {
+    #[serde(rename = "@tokenEvent")]
+    pub token_event: Option<String>,
+    #[serde(rename = "paymentTokenID")]
+    pub payment_token_id: Secret<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -308,6 +328,12 @@ pub struct WorldpayxmlWebhookResponse {
 
 // Type alias for RSync - reuses PSync response structure
 pub type WorldpayxmlRsyncResponse = WorldpayxmlTransactionResponse;
+
+// SetupMandate and RepeatPayment return the same `<reply><orderStatus>` envelope as Authorize.
+// They are aliased (rather than reused directly) because the connector macros key their
+// per-flow bridge types off the request/response type name.
+pub type WorldpayxmlSetupMandateResponse = WorldpayxmlAuthorizeResponse;
+pub type WorldpayxmlRepeatPaymentResponse = WorldpayxmlAuthorizeResponse;
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
