@@ -1,6 +1,6 @@
 use crate::{types::ResponseRouterData, utils};
-use common_enums::RefundStatus;
-use common_utils::types::MinorUnit;
+use common_enums::{MitCategory, PaymentChannel, RefundStatus};
+use common_utils::types::{MinorUnit, Money};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, RSync, Refund, RepeatPayment, ServerAuthenticationToken, Void,
@@ -160,7 +160,7 @@ pub struct MonerisPaymentsRequest<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 > {
     idempotency_key: String,
-    amount: Amount,
+    amount: Money,
     payment_method: PaymentMethod<T>,
     automatic_capture: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -184,6 +184,35 @@ pub enum EcommerceIndicator {
     AuthenticatedEcommerce,
     NonAuthenticatedEcommerce,
     SslMerchant,
+}
+
+fn derive_ecommerce_indicator(
+    channel: Option<&PaymentChannel>,
+    mit_category: Option<&MitCategory>,
+    is_three_ds: bool,
+    has_authentication_cavv: bool,
+    is_recurring: bool,
+) -> EcommerceIndicator {
+    if !matches!(
+        channel,
+        Some(PaymentChannel::MailOrder | PaymentChannel::TelephoneOrder)
+    ) {
+        return match (is_three_ds, has_authentication_cavv) {
+            (true, true) => EcommerceIndicator::AuthenticatedEcommerce,
+            (true, false) => EcommerceIndicator::NonAuthenticatedEcommerce,
+            (false, _) => EcommerceIndicator::SslMerchant,
+        };
+    }
+
+    match mit_category {
+        Some(MitCategory::Installment) => EcommerceIndicator::MailTelephoneOrderInstalment,
+        Some(MitCategory::Recurring) => EcommerceIndicator::MailTelephoneOrderRecurring,
+        None if is_recurring => EcommerceIndicator::MailTelephoneOrderRecurring,
+        None => EcommerceIndicator::MailTelephoneOrderSingle,
+        Some(MitCategory::Unscheduled | MitCategory::Resubmission) => {
+            EcommerceIndicator::MailTelephoneOrderUnknown
+        }
+    }
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -220,9 +249,7 @@ pub enum PaymentMethod<
 > {
     Card(PaymentMethodCard<T>),
     PaymentMethodId(PaymentMethodId),
-    ApplePayEncrypted(PaymentMethodApplePayEncrypted),
     ApplePayDecrypted(PaymentMethodApplePayDecrypted),
-    GooglePayEncrypted(PaymentMethodGooglePayEncrypted),
     GooglePayDecrypted(PaymentMethodGooglePayDecrypted),
 }
 
@@ -243,34 +270,6 @@ pub struct PaymentMethodId {
     payment_method_id: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     credential_on_file_information: Option<CredentialOnFileInformation>,
-}
-
-/// Internal struct for deserializing Apple Pay encrypted token header
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct ApplePayEncryptedTokenHeader {
-    public_key_hash: String,
-    ephemeral_public_key: String,
-    transaction_id: Option<String>,
-}
-
-/// Internal struct for deserializing Apple Pay encrypted token
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct ApplePayEncryptedToken {
-    version: String,
-    data: String,
-    signature: String,
-    header: ApplePayEncryptedTokenHeader,
-}
-
-/// Internal struct for deserializing Google Pay encrypted token
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct GooglePayEncryptedToken {
-    protocol_version: String,
-    signature: String,
-    signed_message: String,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -325,25 +324,6 @@ pub enum GooglePayWalletSource {
 
 #[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct PaymentMethodApplePayEncrypted {
-    payment_method_source: PaymentMethodSource,
-    display_name: String,
-    card_brand: MonerisCardBrand,
-    apple_pay_version: ApplePayVersion,
-    data: Secret<String>,
-    signature: Secret<String>,
-    public_key_hash: Secret<String>,
-    ephemeral_public_key: Secret<String>,
-    apple_pay_transaction_id: Secret<String>,
-    wallet_indicator: WalletIndicator,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    store_payment_method: Option<StorePaymentMethod>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    credential_on_file_information: Option<CredentialOnFileInformation>,
-}
-
-#[derive(Debug, Serialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
 pub struct PaymentMethodApplePayDecrypted {
     payment_method_source: PaymentMethodSource,
     application_primary_account_number: Secret<String>,
@@ -357,21 +337,6 @@ pub struct PaymentMethodApplePayDecrypted {
     wallet_indicator: WalletIndicator,
     #[serde(skip_serializing_if = "Option::is_none")]
     device_manufacturer_identifier: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    store_payment_method: Option<StorePaymentMethod>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    credential_on_file_information: Option<CredentialOnFileInformation>,
-}
-
-#[derive(Debug, Serialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct PaymentMethodGooglePayEncrypted {
-    payment_method_source: PaymentMethodSource,
-    card_brand: MonerisCardBrand,
-    signature: Secret<String>,
-    google_pay_protocol_version: String,
-    signed_message: Secret<String>,
-    wallet_indicator: WalletIndicator,
     #[serde(skip_serializing_if = "Option::is_none")]
     store_payment_method: Option<StorePaymentMethod>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -542,10 +507,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .resource_common_data
                         .connector_request_reference_id
                 );
-                let amount = Amount {
-                    currency: item.router_data.request.currency,
-                    amount: item.router_data.request.amount,
-                };
                 let payment_method = PaymentMethod::Card(PaymentMethodCard {
                     payment_method_source: PaymentMethodSource::Card,
                     card: MonerisCard {
@@ -607,13 +568,32 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     },
                 });
                 let automatic_capture = item.router_data.request.is_auto_capture();
+                let is_three_ds = item.router_data.resource_common_data.is_three_ds();
+                let is_recurring = item.router_data.request.is_mandate_payment();
+                let has_authentication_cavv = item
+                    .router_data
+                    .request
+                    .authentication_data
+                    .as_ref()
+                    .is_some_and(|a| a.cavv.is_some());
+                let amount = Money {
+                    amount: item.router_data.request.minor_amount,
+                    currency: item.router_data.request.currency,
+                };
+                let ecommerce_indicator = Some(derive_ecommerce_indicator(
+                    item.router_data.request.payment_channel.as_ref(),
+                    item.router_data.request.mit_category.as_ref(),
+                    is_three_ds,
+                    has_authentication_cavv,
+                    is_recurring,
+                ));
 
                 Ok(Self {
                     idempotency_key,
                     amount,
                     payment_method,
                     automatic_capture,
-                    ecommerce_indicator: None,
+                    ecommerce_indicator,
                 })
             }
             PaymentMethodData::Wallet(ref wallet_data) => {
@@ -623,82 +603,44 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .resource_common_data
                         .connector_request_reference_id
                 );
-                let amount = Amount {
-                    currency: item.router_data.request.currency,
-                    amount: item.router_data.request.amount,
-                };
                 let automatic_capture = item.router_data.request.is_auto_capture();
                 let wallet_indicator = if item.router_data.request.browser_info.is_some() {
                     WalletIndicator::InBrowser
                 } else {
                     WalletIndicator::InApplication
                 };
-                let is_mandate = item
+                let is_cit_mandate = item
                     .router_data
                     .request
                     .is_customer_initiated_mandate_payment();
-                let (store_payment_method, credential_on_file_information, ecommerce_indicator) =
-                    if is_mandate {
-                        (
-                            Some(StorePaymentMethod::CardholderInitiated),
-                            Some(CredentialOnFileInformation {
-                                payment_indicator: PaymentIndicator::CustomerInitiated,
-                                payment_information: PaymentInformation::First,
-                                issuer_id: None,
-                            }),
-                            Some(EcommerceIndicator::MailTelephoneOrderRecurring),
-                        )
-                    } else {
-                        (None, None, None)
-                    };
+                let is_recurring = item.router_data.request.is_mandate_payment();
+                // ecommerce_indicator describes the transaction channel (MOTO, 3DS, SSL) —
+                // independent of credential storage, so it is derived for every wallet payment.
+                // Wallets carry their own authentication via wallet_ecommerce_indicator (Apple Pay
+                // ECI / Google Pay cryptogram), so is_three_ds and has_authentication_cavv are
+                // always false here — the top-level indicator reflects channel only.
+                let ecommerce_indicator = Some(derive_ecommerce_indicator(
+                    item.router_data.request.payment_channel.as_ref(),
+                    item.router_data.request.mit_category.as_ref(),
+                    false,
+                    false,
+                    is_recurring,
+                ));
+                let (store_payment_method, credential_on_file_information) = if is_cit_mandate {
+                    (
+                        Some(StorePaymentMethod::CardholderInitiated),
+                        Some(CredentialOnFileInformation {
+                            payment_indicator: PaymentIndicator::CustomerInitiated,
+                            payment_information: PaymentInformation::First,
+                            issuer_id: None,
+                        }),
+                    )
+                } else {
+                    (None, None)
+                };
 
                 let payment_method = match wallet_data {
                     WalletData::ApplePay(apple_pay_data) => match &apple_pay_data.payment_data {
-                        ApplePayPaymentData::Encrypted(encrypted_str) => {
-                            let token: ApplePayEncryptedToken = serde_json::from_str(encrypted_str)
-                                .change_context(IntegrationError::RequestEncodingFailed {
-                                    context: IntegrationErrorContext {
-                                        suggested_action: Some(
-                                            "Ensure the Apple Pay payment data is a \
-                                                     valid JSON token."
-                                                .to_string(),
-                                        ),
-                                        doc_url: None,
-                                        additional_context: Some(
-                                            "Failed to parse Apple Pay encrypted token \
-                                                     JSON"
-                                                .to_string(),
-                                        ),
-                                    },
-                                })?;
-                            let apple_pay_version = match token.version.as_str() {
-                                "RSA_V1" => ApplePayVersion::RsaV1,
-                                _ => ApplePayVersion::EcV1,
-                            };
-                            let card_brand = MonerisCardBrand::try_from(
-                                apple_pay_data.payment_method.network.as_str(),
-                            )?;
-                            let apple_pay_transaction_id = token
-                                .header
-                                .transaction_id
-                                .unwrap_or_else(|| apple_pay_data.transaction_identifier.clone());
-                            PaymentMethod::ApplePayEncrypted(PaymentMethodApplePayEncrypted {
-                                payment_method_source: PaymentMethodSource::ApplePayEncrypted,
-                                display_name: apple_pay_data.payment_method.display_name.clone(),
-                                card_brand,
-                                apple_pay_version,
-                                data: Secret::new(token.data),
-                                signature: Secret::new(token.signature),
-                                public_key_hash: Secret::new(token.header.public_key_hash),
-                                ephemeral_public_key: Secret::new(
-                                    token.header.ephemeral_public_key,
-                                ),
-                                apple_pay_transaction_id: Secret::new(apple_pay_transaction_id),
-                                wallet_indicator,
-                                store_payment_method,
-                                credential_on_file_information,
-                            })
-                        }
                         ApplePayPaymentData::Decrypted(decrypt_data) => {
                             let card_brand = MonerisCardBrand::try_from(
                                 apple_pay_data.payment_method.network.as_str(),
@@ -720,7 +662,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                     },
                                 })?;
                             let expiry_year = decrypt_data
-                                .application_expiration_year
+                                .get_four_digit_expiry_year()
                                 .peek()
                                 .parse::<i64>()
                                 .change_context(IntegrationError::InvalidDataFormat {
@@ -743,7 +685,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 ),
                                 expiry_month: Secret::new(expiry_month),
                                 expiry_year: Secret::new(expiry_year),
-                                data_type: ApplePayDataType::ThreeDSecure,
+                                data_type: match card_brand {
+                                    MonerisCardBrand::Interac => ApplePayDataType::Emv,
+                                    _ => ApplePayDataType::ThreeDSecure,
+                                },
                                 cryptogram: decrypt_data
                                     .payment_data
                                     .online_payment_cryptogram
@@ -759,42 +704,30 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 credential_on_file_information,
                             })
                         }
+                        ApplePayPaymentData::Encrypted(_) => {
+                            return Err(IntegrationError::NotImplemented(
+                                "Apple Pay encrypted payment_data is not yet implemented for \
+                                 Moneris"
+                                    .to_string(),
+                                IntegrationErrorContext {
+                                    suggested_action: None,
+                                    doc_url: None,
+                                    additional_context: Some(
+                                        "Moneris supports Apple Pay encrypted tokens, but this \
+                                         integration currently only handles \
+                                         ApplePayPaymentData::Decrypted. Support for \
+                                         ApplePayPaymentData::Encrypted is pending implementation."
+                                            .to_string(),
+                                    ),
+                                },
+                            )
+                            .into());
+                        }
                     },
                     WalletData::GooglePay(gpay_data) => {
                         let card_brand =
                             MonerisCardBrand::try_from(gpay_data.info.card_network.as_str())?;
                         match &gpay_data.tokenization_data {
-                            GpayTokenizationData::Encrypted(encrypted_data) => {
-                                let token: GooglePayEncryptedToken = serde_json::from_str(
-                                    &encrypted_data.token,
-                                )
-                                .change_context(IntegrationError::RequestEncodingFailed {
-                                    context: IntegrationErrorContext {
-                                        suggested_action: Some(
-                                            "Ensure the Google Pay token is a valid JSON \
-                                                     string with protocolVersion, signature, and \
-                                                     signedMessage fields."
-                                                .to_string(),
-                                        ),
-                                        doc_url: None,
-                                        additional_context: Some(
-                                            "Failed to parse Google Pay encrypted token \
-                                                     JSON"
-                                                .to_string(),
-                                        ),
-                                    },
-                                })?;
-                                PaymentMethod::GooglePayEncrypted(PaymentMethodGooglePayEncrypted {
-                                    payment_method_source: PaymentMethodSource::GooglePayEncrypted,
-                                    card_brand,
-                                    signature: Secret::new(token.signature),
-                                    google_pay_protocol_version: token.protocol_version,
-                                    signed_message: Secret::new(token.signed_message),
-                                    wallet_indicator,
-                                    store_payment_method,
-                                    credential_on_file_information,
-                                })
-                            }
                             GpayTokenizationData::Decrypted(decrypt_data) => {
                                 let expiry_month = decrypt_data
                                     .card_exp_month
@@ -813,7 +746,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                         },
                                     })?;
                                 let expiry_year = decrypt_data
-                                    .card_exp_year
+                                    .get_four_digit_expiry_year()
+                                    .change_context(IntegrationError::InvalidDataFormat {
+                                        field_name: "google_pay_expiry_year",
+                                        context: IntegrationErrorContext {
+                                            suggested_action: Some(
+                                                "Pass expiry year as a 4-digit numeric string."
+                                                    .to_string(),
+                                            ),
+                                            doc_url: None,
+                                            additional_context: None,
+                                        },
+                                    })?
                                     .peek()
                                     .parse::<i64>()
                                     .change_context(IntegrationError::InvalidDataFormat {
@@ -854,6 +798,26 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                     credential_on_file_information,
                                 })
                             }
+                            GpayTokenizationData::Encrypted(_) => {
+                                return Err(IntegrationError::NotImplemented(
+                                    "Google Pay encrypted tokenization_data is not yet \
+                                     implemented for Moneris"
+                                        .to_string(),
+                                    IntegrationErrorContext {
+                                        suggested_action: None,
+                                        doc_url: None,
+                                        additional_context: Some(
+                                            "Moneris supports Google Pay encrypted tokens, but \
+                                             this integration currently only handles \
+                                             GpayTokenizationData::Decrypted. Support for \
+                                             GpayTokenizationData::Encrypted is pending \
+                                             implementation."
+                                                .to_string(),
+                                        ),
+                                    },
+                                )
+                                .into());
+                            }
                         }
                     }
                     _ => {
@@ -875,6 +839,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         )
                         .into())
                     }
+                };
+
+                let amount = Money {
+                    amount: item.router_data.request.minor_amount,
+                    currency: item.router_data.request.currency,
                 };
 
                 Ok(Self {
@@ -1091,7 +1060,7 @@ pub struct MonerisRepeatPaymentRequest<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 > {
     idempotency_key: String,
-    amount: Amount,
+    amount: Money,
     payment_method: PaymentMethod<T>,
     automatic_capture: bool,
 }
@@ -1129,10 +1098,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .resource_common_data
                         .connector_request_reference_id
                 );
-                let amount = Amount {
-                    currency: item.router_data.request.currency,
-                    amount: item.router_data.request.minor_amount,
-                };
                 let automatic_capture = item.router_data.request.is_auto_capture();
                 let payment_method = PaymentMethod::PaymentMethodId(PaymentMethodId {
                     payment_method_source: PaymentMethodSource::PaymentMethodId,
@@ -1161,11 +1126,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         })?
                         .into(),
                     credential_on_file_information: Some(CredentialOnFileInformation {
-                        payment_indicator: PaymentIndicator::MerchantInitiated,
+                        payment_indicator: if item.router_data.request.off_session == Some(false) {
+                            PaymentIndicator::CustomerInitiated
+                        } else {
+                            PaymentIndicator::MerchantInitiated
+                        },
                         payment_information: PaymentInformation::Subsequent,
                         issuer_id: None,
                     }),
                 });
+                let amount = Money {
+                    amount: item.router_data.request.minor_amount,
+                    currency: item.router_data.request.currency,
+                };
                 Ok(Self {
                     idempotency_key,
                     amount,

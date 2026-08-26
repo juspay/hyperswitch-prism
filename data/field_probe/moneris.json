@@ -37,8 +37,8 @@
         "error": "This feature is not implemented: Selected payment method through Moneris. Moneris wallet authorize received an unsupported wallet variant: AmazonPayRedirect(AmazonPayRedirectData)."
       },
       "ApplePay": {
-        "status": "error",
-        "error": "Failed to encode connector request. Failed to parse Apple Pay encrypted token JSON"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Apple Pay encrypted payment_data is not yet implemented for Moneris. Moneris supports Apple Pay encrypted tokens, but this integration currently only handles ApplePayPaymentData::Decrypted. Support for ApplePayPaymentData::Encrypted is pending implementation."
       },
       "ApplePayDecrypted": {
         "status": "supported",
@@ -93,7 +93,7 @@
             "via": "HyperSwitch",
             "x-merchant-id": "probe_merchant"
           },
-          "body": "{\"idempotencyKey\":\"auth_probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"amount\":1000},\"paymentMethod\":{\"paymentMethodSource\":\"APPLE_PAY_DECRYPTED\",\"applicationPrimaryAccountNumber\":\"4111111111111111\",\"expiryMonth\":3,\"expiryYear\":2030,\"dataType\":\"THREE_D_SECURE\",\"cryptogram\":\"AAAAAA==\",\"cardBrand\":\"VISA\",\"walletEcommerceIndicator\":\"05\",\"walletIndicator\":\"IN_APPLICATION\"},\"automaticCapture\":true}"
+          "body": "{\"idempotencyKey\":\"auth_probe_txn_001\",\"amount\":{\"amount\":1000,\"currency\":\"USD\"},\"paymentMethod\":{\"paymentMethodSource\":\"APPLE_PAY_DECRYPTED\",\"applicationPrimaryAccountNumber\":\"4111111111111111\",\"expiryMonth\":3,\"expiryYear\":2030,\"dataType\":\"THREE_D_SECURE\",\"cryptogram\":\"AAAAAA==\",\"cardBrand\":\"VISA\",\"walletEcommerceIndicator\":\"05\",\"walletIndicator\":\"IN_APPLICATION\"},\"automaticCapture\":true,\"ecommerceIndicator\":\"SSL_MERCHANT\"}"
         }
       },
       "ApplePayThirdPartySdk": {
@@ -189,7 +189,7 @@
             "via": "HyperSwitch",
             "x-merchant-id": "probe_merchant"
           },
-          "body": "{\"idempotencyKey\":\"auth_probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"amount\":1000},\"paymentMethod\":{\"paymentMethodSource\":\"CARD\",\"card\":{\"cardNumber\":\"4111111111111111\",\"expiryMonth\":3,\"expiryYear\":2030,\"cardSecurityCode\":\"737\"},\"storePaymentMethod\":\"DO_NOT_STORE\"},\"automaticCapture\":true}"
+          "body": "{\"idempotencyKey\":\"auth_probe_txn_001\",\"amount\":{\"amount\":1000,\"currency\":\"USD\"},\"paymentMethod\":{\"paymentMethodSource\":\"CARD\",\"card\":{\"cardNumber\":\"4111111111111111\",\"expiryMonth\":3,\"expiryYear\":2030,\"cardSecurityCode\":\"737\"},\"storePaymentMethod\":\"DO_NOT_STORE\"},\"automaticCapture\":true,\"ecommerceIndicator\":\"SSL_MERCHANT\"}"
         }
       },
       "CashappQr": {
@@ -265,8 +265,8 @@
         "error": "This feature is not implemented: Selected payment method through Moneris. Moneris wallet authorize received an unsupported wallet variant: GoPayRedirect(GoPayRedirection)."
       },
       "GooglePay": {
-        "status": "error",
-        "error": "Failed to encode connector request. Failed to parse Google Pay encrypted token JSON"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Google Pay encrypted tokenization_data is not yet implemented for Moneris. Moneris supports Google Pay encrypted tokens, but this integration currently only handles GpayTokenizationData::Decrypted. Support for GpayTokenizationData::Encrypted is pending implementation."
       },
       "GooglePayDecrypted": {
         "status": "supported",
@@ -319,7 +319,7 @@
             "via": "HyperSwitch",
             "x-merchant-id": "probe_merchant"
           },
-          "body": "{\"idempotencyKey\":\"auth_probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"amount\":1000},\"paymentMethod\":{\"paymentMethodSource\":\"GOOGLE_PAY_DECRYPTED\",\"walletSource\":\"TOKENIZED_CARD\",\"cardBrand\":\"VISA\",\"walletIndicator\":\"IN_APPLICATION\",\"cardDetails\":{\"personalAccountNumber\":\"4111111111111111\",\"expiryMonth\":3,\"expiryYear\":2030,\"cryptogram\":\"AAAAAA==\",\"walletEcommerceIndicator\":\"05\"}},\"automaticCapture\":true}"
+          "body": "{\"idempotencyKey\":\"auth_probe_txn_001\",\"amount\":{\"amount\":1000,\"currency\":\"USD\"},\"paymentMethod\":{\"paymentMethodSource\":\"GOOGLE_PAY_DECRYPTED\",\"walletSource\":\"TOKENIZED_CARD\",\"cardBrand\":\"VISA\",\"walletIndicator\":\"IN_APPLICATION\",\"cardDetails\":{\"personalAccountNumber\":\"4111111111111111\",\"expiryMonth\":3,\"expiryYear\":2030,\"cryptogram\":\"AAAAAA==\",\"walletEcommerceIndicator\":\"05\"}},\"automaticCapture\":true,\"ecommerceIndicator\":\"SSL_MERCHANT\"}"
         }
       },
       "GooglePayThirdPartySdk": {
@@ -803,7 +803,7 @@
             "via": "HyperSwitch",
             "x-merchant-id": "probe_merchant"
           },
-          "body": "{\"idempotencyKey\":\"auth_probe_proxy_txn_001\",\"amount\":{\"currency\":\"USD\",\"amount\":1000},\"paymentMethod\":{\"paymentMethodSource\":\"CARD\",\"card\":{\"cardNumber\":\"{{$card_number}}\",\"expiryMonth\":3,\"expiryYear\":2030,\"cardSecurityCode\":\"{{$card_cvc}}\"},\"storePaymentMethod\":\"DO_NOT_STORE\"},\"automaticCapture\":true}"
+          "body": "{\"idempotencyKey\":\"auth_probe_proxy_txn_001\",\"amount\":{\"amount\":1000,\"currency\":\"USD\"},\"paymentMethod\":{\"paymentMethodSource\":\"CARD\",\"card\":{\"cardNumber\":\"{{$card_number}}\",\"expiryMonth\":3,\"expiryYear\":2030,\"cardSecurityCode\":\"{{$card_cvc}}\"},\"storePaymentMethod\":\"DO_NOT_STORE\"},\"automaticCapture\":true,\"ecommerceIndicator\":\"SSL_MERCHANT\"}"
         }
       }
     },
