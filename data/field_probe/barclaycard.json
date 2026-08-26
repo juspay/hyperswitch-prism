@@ -98,7 +98,7 @@
           "payment_method": {
             "apple_pay_sdk": {
               "payment_data": {
-                "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9"
+                "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSIsImhlYWRlciI6eyJlcGhlbWVyYWxQdWJsaWNLZXkiOiJwcm9iZSIsInB1YmxpY0tleUhhc2giOiJwcm9iZSIsInRyYW5zYWN0aW9uSWQiOiJwcm9iZV90eG5faWQifX0="
               },
               "payment_method": {
                 "display_name": "Visa 1111",
@@ -139,7 +139,7 @@
             "v-c-merchant-id": "probe_merchant",
             "via": "HyperSwitch"
           },
-          "body": "{\"processingInformation\":{\"commerceIndicator\":\"internet\",\"capture\":true,\"paymentSolution\":\"001\",\"cavvAlgorithm\":\"2\"},\"paymentInformation\":{\"fluidData\":{\"value\":\"eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9\",\"descriptor\":\"RklEPUNPTU1PTi5BUFBMRS5JTkFQUC5QQVlNRU5U\"},\"tokenizedCard\":{\"transactionType\":\"1\"}},\"orderInformation\":{\"amountDetails\":{\"totalAmount\":\"10.00\",\"currency\":\"USD\"},\"billTo\":{\"firstName\":\"John\",\"lastName\":\"Doe\",\"address1\":\"123 Main St\",\"locality\":\"Seattle\",\"administrativeArea\":\"WA\",\"postalCode\":\"98101\",\"country\":\"US\",\"email\":\"test@example.com\"}},\"clientReferenceInformation\":{\"code\":\"probe_txn_001\"},\"consumerAuthenticationInformation\":{}}"
+          "body": "{\"processingInformation\":{\"commerceIndicator\":\"internet\",\"capture\":true,\"paymentSolution\":\"001\",\"cavvAlgorithm\":\"2\"},\"paymentInformation\":{\"fluidData\":{\"value\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\",\"descriptor\":\"RklEPUNPTU1PTi5BUFBMRS5JTkFQUC5QQVlNRU5U\"},\"tokenizedCard\":{\"transactionType\":\"1\"}},\"orderInformation\":{\"amountDetails\":{\"totalAmount\":\"10.00\",\"currency\":\"USD\"},\"billTo\":{\"firstName\":\"John\",\"lastName\":\"Doe\",\"address1\":\"123 Main St\",\"locality\":\"Seattle\",\"administrativeArea\":\"WA\",\"postalCode\":\"98101\",\"country\":\"US\",\"email\":\"test@example.com\"}},\"clientReferenceInformation\":{\"code\":\"probe_txn_001\"},\"consumerAuthenticationInformation\":{}}"
         }
       },
       "ApplePayDecrypted": {

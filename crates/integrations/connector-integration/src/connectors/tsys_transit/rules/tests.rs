@@ -274,10 +274,10 @@ fn jcb_with_cvv_uses_key_entered_input() {
 }
 
 #[test]
-fn mastercard_cit_setup_uses_key_entered_input() {
-    // Cert: "cardDataInputMode tag must be set to 'KEY_ENTERED_INPUT'
-    // on the 0.00 Visa card authentication in step 5 as this transaction
-    // will be used to store credentials for payment."
+fn mastercard_cit_setup_uses_stored_on_file_marker() {
+    // Mastercard sCIT (CIT-setup) carries the same
+    // MERCHANT_INITIATED_TRANSACTION_CARD_CREDENTIAL_STORED_ON_FILE
+    // cardDataInputMode as Visa CIT-setup.
     let p = profile(
         AcceptanceProfile::MotoPhone,
         CardFamily::Mastercard,
@@ -290,7 +290,7 @@ fn mastercard_cit_setup_uses_key_entered_input() {
     let block = AcceptanceProfile::MotoPhone.terminal_data();
     assert!(matches!(
         card_input_mode::card_data_input_mode(&p, &block, false),
-        TsysTransitCardDataInputMode::KeyEnteredInput
+        TsysTransitCardDataInputMode::MerchantInitiatedTransactionCardCredentialStoredOnFile
     ));
 }
 
@@ -1066,10 +1066,10 @@ mod golden {
     ///
     /// The struct is built by hand with the MotoPhone terminalData values a
     /// Visa phone card-auth resolves to (cvv2 999, Visa Account Name Inquiry
-    /// firstName/lastName, cardOnFile=Y). authorizationIndicator is NOT sent on
-    /// CardAuthentication — the stagegw XSD rejects it (F9901). TSYS is
-    /// XSD-order-sensitive, so any field reorder / casing change breaks this on
-    /// purpose.
+    /// firstName/lastName, cardOnFile=Y). authorizationIndicator and
+    /// mPosAcceptanceDeviceType are NOT sent on setup mandate (CIT)
+    /// CardAuthentication. TSYS is XSD-order-sensitive, so any field
+    /// reorder / casing change breaks this on purpose.
     #[test]
     fn golden_card_authentication_visa_phone() {
         let req = TsysTransitCardAuthenticationRequest {
@@ -1079,11 +1079,11 @@ mod golden {
             card_number: "4012000098765439".to_string().into(),
             expiration_date: "12/28".to_string().into(),
             cvv2: Some("999".to_string().into()),
+            cit_status_indicator: None,
             address_line1: "8320 S HARDY DR".to_string().into(),
             zip: "85284".to_string().into(),
             external_reference_id: "rCAXREFSUFFIXXX".to_string(),
             card_on_file: Some(TsysTransitCardOnFile::Y),
-            cit_status_indicator: None,
             authorization_indicator: None,
             first_name: Some("JANE".to_string().into()),
             middle_name: None,
@@ -1107,7 +1107,6 @@ mod golden {
             cardholder_authentication_entity:
                 TsysTransitCardholderAuthenticationEntity::NotAuthenticated,
             card_data_output_capability: TsysTransitCardDataOutputCapability::None,
-            m_pos_acceptance_device_type: Some("0".to_string()),
             acceptor_customer_service_phone_number: None,
             acceptor_phone_number: None,
             acceptor_u_r_l_address: None,
@@ -1144,7 +1143,6 @@ mod golden {
         "<cardDataInputMode>KEY_ENTERED_INPUT</cardDataInputMode>",
         "<cardholderAuthenticationEntity>NOT_AUTHENTICATED</cardholderAuthenticationEntity>",
         "<cardDataOutputCapability>NONE</cardDataOutputCapability>",
-        "<mPosAcceptanceDeviceType>0</mPosAcceptanceDeviceType>",
         "</CardAuthentication>",
     );
 

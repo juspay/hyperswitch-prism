@@ -127,7 +127,7 @@
           "payment_method": {
             "apple_pay_sdk": {
               "payment_data": {
-                "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9"
+                "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSIsImhlYWRlciI6eyJlcGhlbWVyYWxQdWJsaWNLZXkiOiJwcm9iZSIsInB1YmxpY0tleUhhc2giOiJwcm9iZSIsInRyYW5zYWN0aW9uSWQiOiJwcm9iZV90eG5faWQifX0="
               },
               "payment_method": {
                 "display_name": "Visa 1111",
@@ -160,7 +160,7 @@
             "v-c-merchant-id": "probe_merchant",
             "via": "HyperSwitch"
           },
-          "body": "{\"processingInformation\":{\"actionList\":null,\"actionTokenTypes\":null,\"authorizationOptions\":{\"initiator\":null,\"merchantInitiatedTransaction\":null,\"ignoreAvsResult\":null,\"ignoreCvResult\":null},\"commerceIndicator\":\"internet\",\"capture\":true,\"captureOptions\":null,\"paymentSolution\":\"001\"},\"paymentInformation\":{\"fluidData\":{\"value\":\"eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9\",\"descriptor\":\"RklEPUNPTU1PTi5BUFBMRS5JTkFQUC5QQVlNRU5U\"},\"tokenizedCard\":{\"transactionType\":\"1\"}},\"orderInformation\":{\"amountDetails\":{\"totalAmount\":\"10.00\",\"currency\":\"USD\"},\"billTo\":{\"firstName\":null,\"lastName\":null,\"address1\":null,\"locality\":null,\"country\":null,\"email\":\"test@example.com\"}},\"clientReferenceInformation\":{\"code\":\"probe_txn_001\"},\"consumerAuthenticationInformation\":{\"ucafCollectionIndicator\":null,\"cavv\":null,\"ucafAuthenticationData\":null,\"xid\":null,\"directoryServerTransactionId\":null,\"specificationVersion\":null,\"paSpecificationVersion\":null,\"veresEnrolled\":null,\"eciRaw\":null,\"paresStatus\":null,\"authenticationDate\":null,\"effectiveAuthenticationType\":null,\"challengeCode\":null,\"signedParesStatusReason\":null,\"challengeCancelCode\":null,\"networkScore\":null,\"acsTransactionId\":null,\"cavvAlgorithm\":null}}"
+          "body": "{\"processingInformation\":{\"actionList\":null,\"actionTokenTypes\":null,\"authorizationOptions\":{\"initiator\":null,\"merchantInitiatedTransaction\":null,\"ignoreAvsResult\":null,\"ignoreCvResult\":null},\"commerceIndicator\":\"internet\",\"capture\":true,\"captureOptions\":null,\"paymentSolution\":\"001\"},\"paymentInformation\":{\"fluidData\":{\"value\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\",\"descriptor\":\"RklEPUNPTU1PTi5BUFBMRS5JTkFQUC5QQVlNRU5U\"},\"tokenizedCard\":{\"transactionType\":\"1\"}},\"orderInformation\":{\"amountDetails\":{\"totalAmount\":\"10.00\",\"currency\":\"USD\"},\"billTo\":{\"firstName\":null,\"lastName\":null,\"address1\":null,\"locality\":null,\"country\":null,\"email\":\"test@example.com\"}},\"clientReferenceInformation\":{\"code\":\"probe_txn_001\"},\"consumerAuthenticationInformation\":{\"ucafCollectionIndicator\":null,\"cavv\":null,\"ucafAuthenticationData\":null,\"xid\":null,\"directoryServerTransactionId\":null,\"specificationVersion\":null,\"paSpecificationVersion\":null,\"veresEnrolled\":null,\"eciRaw\":null,\"paresStatus\":null,\"authenticationDate\":null,\"effectiveAuthenticationType\":null,\"challengeCode\":null,\"signedParesStatusReason\":null,\"challengeCancelCode\":null,\"networkScore\":null,\"acsTransactionId\":null,\"cavvAlgorithm\":null}}"
         }
       },
       "ApplePayDecrypted": {

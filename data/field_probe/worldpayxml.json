@@ -30,23 +30,101 @@
       },
       "AliPayRedirect": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "error": "Selected wallet is not supported by worldpayxml"
       },
       "AmazonPayRedirect": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "error": "Selected wallet is not supported by worldpayxml"
       },
       "ApplePay": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay_sdk": {
+              "payment_data": {
+                "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSIsImhlYWRlciI6eyJlcGhlbWVyYWxQdWJsaWNLZXkiOiJwcm9iZSIsInB1YmxpY0tleUhhc2giOiJwcm9iZSIsInRyYW5zYWN0aW9uSWQiOiJwcm9iZV90eG5faWQifX0="
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type": "debit"
+              },
+              "transaction_identifier": "probe_txn_id"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://secure-test.worldpay.com/jsp/merchant/xml/paymentService.jsp",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "text/xml",
+            "via": "HyperSwitch"
+          },
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE paymentService PUBLIC \"-//Worldpay//DTD Worldpay PaymentService v1//EN\" \"http://dtd.worldpay.com/paymentService_v1.dtd\">\n<paymentService version=\"1.4\" merchantCode=\"probe_merchant_code\"><submit><order orderCode=\"probe_txn_001\" captureDelay=\"0\"><description>Payment</description><amount value=\"1000\" currencyCode=\"USD\" exponent=\"2\"/><paymentDetails action=\"SALE\"><APPLEPAY-SSL><header><ephemeralPublicKey>probe</ephemeralPublicKey><publicKeyHash>probe</publicKeyHash><transactionId>probe_txn_id</transactionId></header><signature>probe</signature><version>EC_v1</version><data>probe</data></APPLEPAY-SSL></paymentDetails><shopper/><billingAddress><address/></billingAddress></order></submit></paymentService>"
+        }
       },
       "ApplePayDecrypted": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay_sdk": {
+              "payment_data": {
+                "decrypted_data": {
+                  "application_primary_account_number": "4111111111111111",
+                  "application_expiration_month": "03",
+                  "application_expiration_year": "2030",
+                  "payment_data": {
+                    "online_payment_cryptogram": "AAAAAA==",
+                    "eci_indicator": "05"
+                  }
+                }
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type": "debit"
+              },
+              "transaction_identifier": "probe_txn_id"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://secure-test.worldpay.com/jsp/merchant/xml/paymentService.jsp",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "text/xml",
+            "via": "HyperSwitch"
+          },
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE paymentService PUBLIC \"-//Worldpay//DTD Worldpay PaymentService v1//EN\" \"http://dtd.worldpay.com/paymentService_v1.dtd\">\n<paymentService version=\"1.4\" merchantCode=\"probe_merchant_code\"><submit><order orderCode=\"probe_txn_001\" captureDelay=\"0\"><description>Payment</description><amount value=\"1000\" currencyCode=\"USD\" exponent=\"2\"/><paymentDetails action=\"SALE\"><EMVCO_TOKEN-SSL type=\"APPLEPAY\"><tokenNumber>4111111111111111</tokenNumber><expiryDate><date month=\"03\" year=\"2030\"/></expiryDate><cryptogram>AAAAAA==</cryptogram><eciIndicator>05</eciIndicator></EMVCO_TOKEN-SSL></paymentDetails><shopper/><billingAddress><address/></billingAddress></order></submit></paymentService>"
+        }
       },
       "ApplePayThirdPartySdk": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "error": "Selected wallet is not supported by worldpayxml"
       },
       "Bacs": {
         "status": "not_supported",
@@ -70,7 +148,7 @@
       },
       "BillDeskRedirect": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "error": "Selected wallet is not supported by worldpayxml"
       },
       "Bizum": {
         "status": "not_supported",
@@ -82,7 +160,7 @@
       },
       "Bluecode": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "error": "Selected wallet is not supported by worldpayxml"
       },
       "BniVaBankTransfer": {
         "status": "not_supported",
@@ -133,11 +211,11 @@
       },
       "CashappQr": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "error": "Selected wallet is not supported by worldpayxml"
       },
       "CashfreeRedirect": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "error": "Selected wallet is not supported by worldpayxml"
       },
       "CimbVaBankTransfer": {
         "status": "not_supported",
@@ -153,7 +231,7 @@
       },
       "Dana": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "error": "Selected wallet is not supported by worldpayxml"
       },
       "DanamonVaBankTransfer": {
         "status": "not_supported",
@@ -169,7 +247,7 @@
       },
       "EaseBuzzRedirect": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "error": "Selected wallet is not supported by worldpayxml"
       },
       "Efecty": {
         "status": "not_supported",
@@ -189,7 +267,7 @@
       },
       "GCash": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "error": "Selected wallet is not supported by worldpayxml"
       },
       "Giropay": {
         "status": "not_supported",
@@ -201,19 +279,98 @@
       },
       "GoPay": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "error": "Selected wallet is not supported by worldpayxml"
       },
       "GooglePay": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay_sdk": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "encrypted_data": {
+                  "token_type": "PAYMENT_GATEWAY",
+                  "token": "{\"protocolVersion\":\"ECv2\",\"signature\":\"probe\",\"signedMessage\":\"probe\"}"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://secure-test.worldpay.com/jsp/merchant/xml/paymentService.jsp",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "text/xml",
+            "via": "HyperSwitch"
+          },
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE paymentService PUBLIC \"-//Worldpay//DTD Worldpay PaymentService v1//EN\" \"http://dtd.worldpay.com/paymentService_v1.dtd\">\n<paymentService version=\"1.4\" merchantCode=\"probe_merchant_code\"><submit><order orderCode=\"probe_txn_001\" captureDelay=\"0\"><description>Payment</description><amount value=\"1000\" currencyCode=\"USD\" exponent=\"2\"/><paymentDetails action=\"SALE\"><PAYWITHGOOGLE-SSL><protocolVersion>ECv2</protocolVersion><signature>probe</signature><signedMessage>probe</signedMessage></PAYWITHGOOGLE-SSL></paymentDetails><shopper/><billingAddress><address/></billingAddress></order></submit></paymentService>"
+        }
       },
       "GooglePayDecrypted": {
-        "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay_sdk": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "decrypted_data": {
+                  "card_exp_month": "03",
+                  "card_exp_year": "2030",
+                  "application_primary_account_number": "4111111111111111",
+                  "cryptogram": "AAAAAA==",
+                  "eci_indicator": "05"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://secure-test.worldpay.com/jsp/merchant/xml/paymentService.jsp",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "text/xml",
+            "via": "HyperSwitch"
+          },
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE paymentService PUBLIC \"-//Worldpay//DTD Worldpay PaymentService v1//EN\" \"http://dtd.worldpay.com/paymentService_v1.dtd\">\n<paymentService version=\"1.4\" merchantCode=\"probe_merchant_code\"><submit><order orderCode=\"probe_txn_001\" captureDelay=\"0\"><description>Payment</description><amount value=\"1000\" currencyCode=\"USD\" exponent=\"2\"/><paymentDetails action=\"SALE\"><EMVCO_TOKEN-SSL type=\"GOOGLEPAY\"><tokenNumber>4111111111111111</tokenNumber><expiryDate><date month=\"03\" year=\"2030\"/></expiryDate><cryptogram>AAAAAA==</cryptogram><eciIndicator>05</eciIndicator></EMVCO_TOKEN-SSL></paymentDetails><shopper/><billingAddress><address/></billingAddress></order></submit></paymentService>"
+        }
       },
       "GooglePayThirdPartySdk": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "error": "Selected wallet is not supported by worldpayxml"
       },
       "Ideal": {
         "status": "not_supported",
@@ -245,7 +402,7 @@
       },
       "KakaoPay": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "error": "Selected wallet is not supported by worldpayxml"
       },
       "Klarna": {
         "status": "not_supported",
@@ -257,7 +414,7 @@
       },
       "LazyPayRedirect": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "error": "Selected wallet is not supported by worldpayxml"
       },
       "LocalBankRedirect": {
         "status": "not_supported",
@@ -273,11 +430,11 @@
       },
       "MbWay": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "error": "Selected wallet is not supported by worldpayxml"
       },
       "Mifinity": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "error": "Selected wallet is not supported by worldpayxml"
       },
       "MiniStop": {
         "status": "not_supported",
@@ -289,7 +446,7 @@
       },
       "Momo": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "error": "Selected wallet is not supported by worldpayxml"
       },
       "MultibancoBankTransfer": {
         "status": "not_supported",
@@ -353,15 +510,15 @@
       },
       "PayURedirect": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "error": "Selected wallet is not supported by worldpayxml"
       },
       "PaypalRedirect": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "error": "Selected wallet is not supported by worldpayxml"
       },
       "PaypalSdk": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "error": "Selected wallet is not supported by worldpayxml"
       },
       "Paysera": {
         "status": "not_supported",
@@ -377,7 +534,7 @@
       },
       "PhonePeRedirect": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "error": "Selected wallet is not supported by worldpayxml"
       },
       "Pix": {
         "status": "not_supported",
@@ -401,15 +558,15 @@
       },
       "RevolutPay": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "error": "Selected wallet is not supported by worldpayxml"
       },
       "SamsungPay": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "error": "Selected wallet is not supported by worldpayxml"
       },
       "Satispay": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "error": "Selected wallet is not supported by worldpayxml"
       },
       "Seicomart": {
         "status": "not_supported",
@@ -433,7 +590,7 @@
       },
       "Skrill": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "error": "Selected wallet is not supported by worldpayxml"
       },
       "Sofort": {
         "status": "not_supported",
@@ -441,11 +598,11 @@
       },
       "Swish": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "error": "Selected wallet is not supported by worldpayxml"
       },
       "TouchNGo": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "error": "Selected wallet is not supported by worldpayxml"
       },
       "Trustly": {
         "status": "not_supported",
@@ -453,7 +610,7 @@
       },
       "Twint": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "error": "Selected wallet is not supported by worldpayxml"
       },
       "UpiCollect": {
         "status": "not_supported",
@@ -469,15 +626,15 @@
       },
       "Vipps": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "error": "Selected wallet is not supported by worldpayxml"
       },
       "WeChatPayQr": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "error": "Selected wallet is not supported by worldpayxml"
       },
       "Wero": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by worldpayxml"
+        "error": "Selected wallet is not supported by worldpayxml"
       }
     },
     "capture": {
@@ -662,14 +819,81 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for worldpayxml"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_proxy_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "customer": {
+            "connector_customer_id": "probe_customer_001"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
+          "auth_type": "NO_THREE_DS",
+          "setup_future_usage": "OFF_SESSION"
+        },
+        "sample": {
+          "url": "https://secure-test.worldpay.com/jsp/merchant/xml/paymentService.jsp",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "text/xml",
+            "via": "HyperSwitch"
+          },
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE paymentService PUBLIC \"-//Worldpay//DTD Worldpay PaymentService v1//EN\" \"http://dtd.worldpay.com/paymentService_v1.dtd\">\n<paymentService version=\"1.4\" merchantCode=\"probe_merchant_code\"><submit><order orderCode=\"probe_proxy_mandate_001\" captureDelay=\"0\"><description>Payment</description><amount value=\"0\" currencyCode=\"USD\" exponent=\"2\"/><paymentDetails action=\"SALE\"><VISA-SSL><cardNumber>{{$card_number}}</cardNumber><expiryDate><date month=\"03\" year=\"2030\"/></expiryDate><cardHolderName>John Doe</cardHolderName><cvc>{{$card_cvc}}</cvc></VISA-SSL><storedCredentials usage=\"FIRST\" cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"UNSCHEDULED\"/></paymentDetails><shopper><authenticatedShopperID>probe_customer_001</authenticatedShopperID></shopper><billingAddress><address/></billingAddress><createToken tokenScope=\"shopper\"><tokenEventReference>probe_proxy_mandate_001</tokenEventReference></createToken></order></submit></paymentService>"
+        }
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: repeat_payment flow for worldpayxml"
+        "status": "supported",
+        "proto_request": {
+          "connector_recurring_payment_id": {
+            "mandate_id_type": {
+              "connector_mandate_id": {
+                "connector_mandate_id": "probe-mandate-123"
+              }
+            }
+          },
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "token": {
+              "token": "probe_pm_token"
+            }
+          },
+          "return_url": "https://example.com/recurring-return",
+          "connector_customer_id": "cust_probe_123",
+          "payment_method_type": "PAY_PAL",
+          "off_session": true
+        },
+        "sample": {
+          "url": "https://secure-test.worldpay.com/jsp/merchant/xml/paymentService.jsp",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "text/xml",
+            "via": "HyperSwitch"
+          },
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE paymentService PUBLIC \"-//Worldpay//DTD Worldpay PaymentService v1//EN\" \"http://dtd.worldpay.com/paymentService_v1.dtd\">\n<paymentService version=\"1.4\" merchantCode=\"probe_merchant_code\"><submit><order orderCode=\"\" captureDelay=\"0\"><description>Payment</description><amount value=\"1000\" currencyCode=\"USD\" exponent=\"2\"/><paymentDetails><TOKEN-SSL tokenScope=\"shopper\"><paymentTokenID>probe-mandate-123</paymentTokenID></TOKEN-SSL><storedCredentials usage=\"USED\" cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"UNSCHEDULED\"/></paymentDetails><shopper><authenticatedShopperID>cust_probe_123</authenticatedShopperID></shopper></order></submit></paymentService>"
+        }
       }
     },
     "recurring_revoke": {
@@ -749,8 +973,48 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for worldpayxml"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "customer": {
+            "connector_customer_id": "cust_probe_123"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/mandate-return",
+          "setup_future_usage": "OFF_SESSION",
+          "request_incremental_authorization": false,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          }
+        },
+        "sample": {
+          "url": "https://secure-test.worldpay.com/jsp/merchant/xml/paymentService.jsp",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "text/xml",
+            "via": "HyperSwitch"
+          },
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE paymentService PUBLIC \"-//Worldpay//DTD Worldpay PaymentService v1//EN\" \"http://dtd.worldpay.com/paymentService_v1.dtd\">\n<paymentService version=\"1.4\" merchantCode=\"probe_merchant_code\"><submit><order orderCode=\"probe_mandate_001\" captureDelay=\"0\"><description>Payment</description><amount value=\"0\" currencyCode=\"USD\" exponent=\"2\"/><paymentDetails action=\"SALE\"><CARD-SSL><cardNumber>4111111111111111</cardNumber><expiryDate><date month=\"03\" year=\"2030\"/></expiryDate><cardHolderName>John Doe</cardHolderName><cvc>737</cvc></CARD-SSL><storedCredentials usage=\"FIRST\" cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"UNSCHEDULED\"/></paymentDetails><shopper><authenticatedShopperID>cust_probe_123</authenticatedShopperID></shopper><billingAddress><address/></billingAddress><createToken tokenScope=\"shopper\"><tokenEventReference>probe_mandate_001</tokenEventReference></createToken></order></submit></paymentService>"
+        }
       }
     },
     "token_authorize": {
@@ -761,8 +1025,8 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for worldpayxml"
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by worldpayxml"
       }
     },
     "tokenize": {

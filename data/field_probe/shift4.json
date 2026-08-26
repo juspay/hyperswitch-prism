@@ -377,7 +377,7 @@
       },
       "OpenBanking": {
         "status": "not_supported",
-        "error": "BankRedirect type OpenBanking { account_number: None, sort_code: None, iban: None, account_holder_name: None, additional_details: None } is not supported by Shift4 is not supported by Shift4"
+        "error": "BankRedirect type OpenBanking { bank_name: None, account_number: None, sort_code: None, iban: None, account_holder_name: None, additional_details: None } is not supported by Shift4 is not supported by Shift4"
       },
       "OpenBankingPis": {
         "status": "not_supported",

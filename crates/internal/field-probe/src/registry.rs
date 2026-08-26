@@ -1,5 +1,7 @@
 use domain_types::connector_types::ConnectorEnum;
-use grpc_api_types::payments::PaymentMethod;
+use grpc_api_types::payments::{
+    self as proto, payment_method::PaymentMethod as PmVariant, PaymentMethod,
+};
 use hyperswitch_masking::Secret;
 use strum::IntoEnumIterator;
 
@@ -366,5 +368,42 @@ pub(crate) fn doc_payment_method_override(pm_name: &str) -> Option<serde_json::V
             }
         })),
         _ => None,
+    }
+}
+
+/// Replaces the encrypted wallet token on `pm` with a connector-specific override, when one is
+/// configured for this `(connector, pm_name)` pair.
+///
+/// Only the encrypted variants carry a gateway-shaped blob; the decrypted ones are plain card data
+/// and are identical for every connector, so they are left alone.
+pub(crate) fn apply_wallet_token_override(
+    pm: &mut PaymentMethod,
+    connector: &ConnectorEnum,
+    pm_name: &str,
+) {
+    let Some(token) = crate::config::wallet_token_override(connector, pm_name) else {
+        return;
+    };
+    match pm.payment_method.as_mut() {
+        Some(PmVariant::GooglePaySdk(wallet)) => {
+            use proto::google_wallet::{
+                tokenization_data::TokenizationData as TD, TokenizationData,
+            };
+            wallet.tokenization_data = Some(TokenizationData {
+                tokenization_data: Some(TD::EncryptedData(
+                    proto::GooglePayEncryptedTokenizationData {
+                        token,
+                        token_type: "PAYMENT_GATEWAY".to_string(),
+                    },
+                )),
+            });
+        }
+        Some(PmVariant::ApplePaySdk(wallet)) => {
+            use proto::apple_wallet::{payment_data::PaymentData as PD, PaymentData};
+            wallet.payment_data = Some(PaymentData {
+                payment_data: Some(PD::EncryptedData(token)),
+            });
+        }
+        _ => {}
     }
 }

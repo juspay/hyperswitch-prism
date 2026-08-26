@@ -27,18 +27,18 @@ pub fn probe_flow_by_definition(
     config: &Arc<ucs_env::configs::Config>,
     auth: ConnectorSpecificConfig,
     metadata: &MaskedMetadata,
-    pm_variants: &HashMap<String, fn() -> PaymentMethod>,
+    pm_variants: &HashMap<String, PaymentMethod>,
 ) -> Option<BTreeMap<String, FlowResult>> {
     if def.has_payment_methods {
         // Authorize and Tokenize are probed once per payment method. Tokenize needs its own cell
         // per method because a connector that tokenizes a credential before charging it supports
         // that method through Tokenize, not through a direct Authorize.
         let mut results = BTreeMap::new();
-        for (pm_name, pm_fn) in pm_variants {
+        for (pm_name, pm) in pm_variants {
             let auth = crate::auth::dummy_auth(connector);
             let result = match def.key {
-                "tokenize" => probe_tokenize(connector, pm_name, pm_fn(), config, auth, metadata),
-                _ => probe_authorize(connector, pm_name, pm_fn(), config, auth, metadata),
+                "tokenize" => probe_tokenize(connector, pm_name, pm.clone(), config, auth, metadata),
+                _ => probe_authorize(connector, pm_name, pm.clone(), config, auth, metadata),
             };
             results.insert(pm_name.clone(), result);
         }

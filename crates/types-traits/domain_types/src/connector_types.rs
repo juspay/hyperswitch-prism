@@ -3606,6 +3606,14 @@ pub struct SetupMandateRequestData<T: PaymentMethodDataTypes> {
 }
 
 impl<T: PaymentMethodDataTypes> SetupMandateRequestData<T> {
+    pub fn is_auto_capture(&self) -> bool {
+        !matches!(
+            self.capture_method,
+            Some(common_enums::CaptureMethod::Manual)
+                | Some(common_enums::CaptureMethod::ManualMultiple)
+        )
+    }
+
     pub fn get_connector_testing_data(&self) -> Option<SecretSerdeValue> {
         self.connector_testing_data.clone()
     }
