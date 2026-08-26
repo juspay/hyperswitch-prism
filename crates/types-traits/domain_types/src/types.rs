@@ -18080,6 +18080,7 @@ impl
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_order_id.clone(),
             ),
+            // to change customer id
             customer_id: value
                 .customer
                 .clone()
