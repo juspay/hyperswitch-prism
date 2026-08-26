@@ -3450,6 +3450,7 @@ pub struct AuthorizationRequest {
     /// Domain-specific data (e.g. airline itinerary) for connectors that need it.
     pub domain_data: Option<grpc_payment_types::DomainData>,
     pub split_payments: Option<grpc_payment_types::SplitPaymentsDetails>,
+    pub split_settlement: Option<grpc_payment_types::SplitSettlement>,
     /// Partner / merchant application identifiers (e.g. Adyen applicationInfo).
     pub partner_merchant_identifier_details:
         Option<grpc_payment_types::PartnerMerchantIdentifierDetails>,
@@ -3558,6 +3559,7 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
             connector_order_id: req.connector_order_id,
             domain_data: req.domain_data,
             split_payments: req.split_payments,
+            split_settlement: req.split_settlement,
             partner_merchant_identifier_details: req.partner_merchant_identifier_details,
             currency_conversion_data: req.currency_conversion_data,
         }
@@ -3628,6 +3630,7 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             connector_order_id: req.connector_order_id,
             domain_data: req.domain_data,
             split_payments: None,
+            split_settlement: None,
             partner_merchant_identifier_details: None,
             currency_conversion_data: None,
         }
@@ -4589,6 +4592,12 @@ impl<
         };
 
         Ok(Self {
+            split_settlement: value
+                .split_settlement
+                .clone()
+                .map(connector_types::SplitSettlement::foreign_try_from)
+                .transpose()?
+                .map(Box::new),
             authentication_data,
             capture_method: Some(CaptureMethod::foreign_try_from(value.capture_method)?),
             payment_method_data,
@@ -6821,6 +6830,7 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                     .transpose()?;
 
                 PaymentServiceAuthorizeResponse {
+                    split_settlement: None,
                     raw_connector_status: router_data_v2
                         .resource_common_data
                         .raw_connector_status
@@ -6889,6 +6899,7 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
             };
 
             PaymentServiceAuthorizeResponse {
+                split_settlement: None,
                 raw_connector_status: router_data_v2
                     .resource_common_data
                     .raw_connector_status
@@ -8330,6 +8341,7 @@ pub fn generate_payment_sync_response(
                     .transpose()?;
 
                 Ok(PaymentServiceGetResponse {
+                    split_settlement: None,
                     raw_connector_status: router_data_v2
                         .resource_common_data
                         .raw_connector_status
@@ -8470,6 +8482,7 @@ pub fn generate_payment_sync_response(
                     .transpose()?;
 
                 Ok(PaymentServiceGetResponse {
+                    split_settlement: None,
                     raw_connector_status: router_data_v2
                         .resource_common_data
                         .raw_connector_status
@@ -8557,6 +8570,7 @@ pub fn generate_payment_sync_response(
                 })
                 .transpose()?;
             Ok(PaymentServiceGetResponse {
+                split_settlement: None,
                 raw_connector_status: router_data_v2
                     .resource_common_data
                     .raw_connector_status
@@ -9378,6 +9392,7 @@ pub fn generate_refund_sync_response(
                 .resource_common_data
                 .get_connector_response_headers_as_map();
             Ok(RefundResponse {
+                split_settlement: None,
                 raw_connector_status: router_data_v2
                     .resource_common_data
                     .raw_connector_status
@@ -9436,6 +9451,7 @@ pub fn generate_refund_sync_response(
                 .get_connector_response_headers_as_map();
 
             Ok(RefundResponse {
+                split_settlement: None,
                 raw_connector_status: router_data_v2
                     .resource_common_data
                     .raw_connector_status
@@ -9536,6 +9552,7 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
             }
         });
         Ok(Self {
+            split_settlement: None,
             raw_connector_status: None,
             connector_transaction_id: extract_connector_request_reference_id(
                 &value
@@ -9809,6 +9826,7 @@ pub fn generate_void_post_refund_response(
             })?;
 
             Ok(RefundResponse {
+                split_settlement: None,
                 raw_connector_status: router_data_v2
                     .resource_common_data
                     .raw_connector_status
@@ -9861,6 +9879,7 @@ pub fn generate_void_post_refund_response(
             })
         }
         Err(e) => Ok(RefundResponse {
+            split_settlement: None,
             raw_connector_status: router_data_v2
                 .resource_common_data
                 .raw_connector_status
@@ -10167,6 +10186,7 @@ impl ForeignTryFrom<RefundWebhookDetailsResponse> for RefundResponse {
             .unwrap_or_default();
 
         Ok(Self {
+            split_settlement: None,
             raw_connector_status: None,
             connector_transaction_id: None,
             connector_refund_id: value.connector_refund_id.unwrap_or_default(),
@@ -10530,6 +10550,217 @@ impl ForeignTryFrom<grpc_api_types::payments::SplitRefundsDetails>
     }
 }
 
+// ---- Unified split settlement (proto -> domain) ----
+
+impl ForeignTryFrom<grpc_api_types::payments::SplitSettlement>
+    for connector_types::SplitSettlement
+{
+    type Error = IntegrationError;
+    fn foreign_try_from(
+        value: grpc_api_types::payments::SplitSettlement,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        Ok(Self {
+            marketplace_split_details: value
+                .marketplace_split_details
+                .map(connector_types::SplitSettlementMarketplace::foreign_try_from)
+                .transpose()?,
+            vendor_split_details: value
+                .vendor_split_details
+                .into_iter()
+                .map(connector_types::SplitSettlementVendor::foreign_try_from)
+                .collect::<Result<Vec<_>, _>>()?,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payments::SplitSettlementMarketplace>
+    for connector_types::SplitSettlementMarketplace
+{
+    type Error = IntegrationError;
+    fn foreign_try_from(
+        value: grpc_api_types::payments::SplitSettlementMarketplace,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let split_value = match value.split_value {
+            Some(grpc_api_types::payments::split_settlement_marketplace::SplitValue::Amount(
+                money,
+            )) => connector_types::SplitValue::Amount(common_utils::types::Money {
+                amount: common_utils::types::MinorUnit::new(money.minor_amount),
+                currency: common_enums::Currency::foreign_try_from(money.currency())?,
+            }),
+            Some(
+                grpc_api_types::payments::split_settlement_marketplace::SplitValue::Percentage(
+                    percentage,
+                ),
+            ) => connector_types::SplitValue::Percentage(percentage),
+            None => {
+                return Err(IntegrationError::MissingRequiredField {
+                    field_name: "marketplace_split_value",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "marketplace split value must be provided as either an amount or a percentage"
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                }
+                .into())
+            }
+        };
+        Ok(Self {
+            split_value,
+            connector_sub_account_id: value.connector_sub_account_id,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payments::SplitSettlementVendor>
+    for connector_types::SplitSettlementVendor
+{
+    type Error = IntegrationError;
+    fn foreign_try_from(
+        value: grpc_api_types::payments::SplitSettlementVendor,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let split_value = match value.split_value {
+            Some(grpc_api_types::payments::split_settlement_vendor::SplitValue::Amount(money)) => {
+                connector_types::SplitValue::Amount(common_utils::types::Money {
+                    amount: common_utils::types::MinorUnit::new(money.minor_amount),
+                    currency: common_enums::Currency::foreign_try_from(money.currency())?,
+                })
+            }
+            Some(grpc_api_types::payments::split_settlement_vendor::SplitValue::Percentage(
+                percentage,
+            )) => connector_types::SplitValue::Percentage(percentage),
+            None => return Err(IntegrationError::MissingRequiredField {
+                field_name: "vendor_split_value",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "vendor split value must be provided as either an amount or a percentage"
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
+            }
+            .into()),
+        };
+        Ok(Self {
+            split_value,
+            connector_sub_account_id: value.connector_sub_account_id,
+            merchant_commission: value
+                .merchant_commission
+                .map(|commission| common_utils::types::MinorUnit::new(commission.minor_amount)),
+            description: value.description,
+            merchant_reference_id: value.merchant_reference_id,
+            split_metadata: value.split_metadata,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payments::SplitSettlementRefund>
+    for connector_types::SplitSettlementRefund
+{
+    type Error = IntegrationError;
+    fn foreign_try_from(
+        value: grpc_api_types::payments::SplitSettlementRefund,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        Ok(Self {
+            marketplace_split_details: value
+                .marketplace_split_details
+                .map(connector_types::SplitSettlementRefundMarketplace::foreign_try_from)
+                .transpose()?,
+            vendor_split_details: value
+                .vendor_split_details
+                .into_iter()
+                .map(connector_types::SplitSettlementRefundVendor::foreign_try_from)
+                .collect::<Result<Vec<_>, _>>()?,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payments::SplitSettlementRefundMarketplace>
+    for connector_types::SplitSettlementRefundMarketplace
+{
+    type Error = IntegrationError;
+    fn foreign_try_from(
+        value: grpc_api_types::payments::SplitSettlementRefundMarketplace,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let split_value = match value.split_value {
+            Some(grpc_api_types::payments::split_settlement_refund_marketplace::SplitValue::RefundAmount(money)) => {
+                connector_types::SplitValue::Amount(common_utils::types::Money {
+                    amount: common_utils::types::MinorUnit::new(money.minor_amount),
+                    currency: common_enums::Currency::foreign_try_from(money.currency())?,
+                })
+            }
+            Some(grpc_api_types::payments::split_settlement_refund_marketplace::SplitValue::Percentage(percentage)) => {
+                connector_types::SplitValue::Percentage(percentage)
+            }
+            None => {
+                return Err(IntegrationError::MissingRequiredField {
+                    field_name: "refund_marketplace_split_value",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "refund marketplace split value must be provided as either an amount or a percentage"
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                }
+                .into())
+            }
+        };
+        Ok(Self {
+            split_value,
+            connector_sub_account_id: value.connector_sub_account_id,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payments::SplitSettlementRefundVendor>
+    for connector_types::SplitSettlementRefundVendor
+{
+    type Error = IntegrationError;
+    fn foreign_try_from(
+        value: grpc_api_types::payments::SplitSettlementRefundVendor,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let split_value = match value.split_value {
+            Some(
+                grpc_api_types::payments::split_settlement_refund_vendor::SplitValue::RefundAmount(
+                    money,
+                ),
+            ) => connector_types::SplitValue::Amount(common_utils::types::Money {
+                amount: common_utils::types::MinorUnit::new(money.minor_amount),
+                currency: common_enums::Currency::foreign_try_from(money.currency())?,
+            }),
+            Some(
+                grpc_api_types::payments::split_settlement_refund_vendor::SplitValue::Percentage(
+                    percentage,
+                ),
+            ) => connector_types::SplitValue::Percentage(percentage),
+            None => {
+                return Err(IntegrationError::MissingRequiredField {
+                    field_name: "refund_vendor_split_value",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "refund vendor split value must be provided as either an amount or a percentage"
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                }
+                .into())
+            }
+        };
+        Ok(Self {
+            split_value,
+            connector_sub_account_id: value.connector_sub_account_id,
+            merchant_commission: value
+                .merchant_commission
+                .map(|commission| common_utils::types::MinorUnit::new(commission.minor_amount)),
+            merchant_reference_id: value.merchant_reference_id,
+            split_metadata: value.split_metadata,
+        })
+    }
+}
+
 impl ForeignFrom<common_enums::AdyenSplitType> for grpc_api_types::payments::AdyenSplitType {
     fn foreign_from(split_type: common_enums::AdyenSplitType) -> Self {
         match split_type {
@@ -10646,6 +10877,12 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceRefundRequest> for R
         let connector_transaction_id = value.connector_transaction_id;
 
         Ok(Self {
+            split_settlement_refund: value
+                .split_settlement_refund
+                .clone()
+                .map(connector_types::SplitSettlementRefund::foreign_try_from)
+                .transpose()?
+                .map(Box::new),
             refund_id: extract_connector_request_reference_id(&value.merchant_refund_id.clone()),
             connector_transaction_id,
             connector_refund_id: None, // refund_id field is used as refund_id, not connector_refund_id
@@ -10870,6 +11107,7 @@ pub fn generate_refund_response(
             let grpc_status = grpc_api_types::payments::RefundStatus::foreign_from(status);
 
             Ok(RefundResponse {
+                split_settlement: None,
                 raw_connector_status: router_data_v2
                     .resource_common_data
                     .raw_connector_status
@@ -10924,6 +11162,7 @@ pub fn generate_refund_response(
                 .unwrap_or_default();
 
             Ok(RefundResponse {
+                split_settlement: None,
                 raw_connector_status: router_data_v2
                     .resource_common_data
                     .raw_connector_status
@@ -11119,6 +11358,12 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceCaptureRequest>
         }?;
 
         Ok(Self {
+            split_settlement: value
+                .split_settlement
+                .clone()
+                .map(connector_types::SplitSettlement::foreign_try_from)
+                .transpose()?
+                .map(Box::new),
             amount_to_capture: amount.amount.get_amount_as_i64(),
             minor_amount_to_capture: amount.amount,
             currency: amount.currency,
@@ -11492,6 +11737,7 @@ pub fn generate_payment_capture_response(
                 });
 
                 Ok(PaymentServiceCaptureResponse {
+                    split_settlement: None,
                     raw_connector_status: router_data_v2
                         .resource_common_data
                         .raw_connector_status
@@ -11549,6 +11795,7 @@ pub fn generate_payment_capture_response(
                 None => grpc_api_types::payments::PaymentStatus::Unspecified,
             };
             Ok(PaymentServiceCaptureResponse {
+                split_settlement: None,
                 raw_connector_status: router_data_v2
                     .resource_common_data
                     .raw_connector_status
@@ -14860,6 +15107,12 @@ impl<
         }?;
 
         Ok(Self {
+            split_settlement: value
+                .split_settlement
+                .clone()
+                .map(connector_types::SplitSettlement::foreign_try_from)
+                .transpose()?
+                .map(Box::new),
             mandate_reference: mandate_ref,
             amount: amount.amount.get_amount_as_i64(),
             minor_amount: amount.amount,
@@ -15028,6 +15281,7 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
 
                 Ok(
                     grpc_api_types::payments::RecurringPaymentServiceChargeResponse {
+                        split_settlement: None,
                         raw_connector_status: router_data_v2
                             .resource_common_data
                             .raw_connector_status
@@ -15094,6 +15348,7 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
             };
             Ok(
                 grpc_api_types::payments::RecurringPaymentServiceChargeResponse {
+                    split_settlement: None,
                     raw_connector_status: router_data_v2
                         .resource_common_data
                         .raw_connector_status
@@ -19090,6 +19345,7 @@ pub fn tokenized_authorize_to_base(
     v: grpc_payment_types::PaymentServiceTokenAuthorizeRequest,
 ) -> PaymentServiceAuthorizeRequest {
     PaymentServiceAuthorizeRequest {
+        split_settlement: None,
         merchant_transaction_id: v.merchant_transaction_id,
         amount: v.amount,
         payment_method: Some(grpc_payment_types::PaymentMethod {
@@ -19272,6 +19528,7 @@ pub fn proxied_authorize_to_base(
         })
     })?;
     Ok(PaymentServiceAuthorizeRequest {
+        split_settlement: None,
         merchant_transaction_id: v.merchant_transaction_id,
         amount: v.amount,
         payment_method: Some(grpc_payment_types::PaymentMethod {

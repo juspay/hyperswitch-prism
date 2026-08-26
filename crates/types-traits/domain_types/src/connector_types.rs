@@ -1699,6 +1699,9 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub metadata: Option<SecretSerdeValue>,
     pub authentication_data: Option<router_request_types::AuthenticationData>,
     pub split_payments: Option<SplitPaymentsDetails>,
+    /// Unified split settlement (supersedes split_payments). Boxed to keep the
+    /// enclosing request (and its RouterDataV2 clones) small on the async stack.
+    pub split_settlement: Option<Box<SplitSettlement>>,
     // New amount for amount frame work
     pub minor_amount: MinorUnit,
     /// Merchant's identifier for the payment/invoice. This will be sent to the connector
@@ -3452,6 +3455,9 @@ pub struct RefundsData {
     pub browser_info: Option<BrowserInformation>,
     /// Charges associated with the payment
     pub split_refunds: Option<SplitRefundsDetails>,
+    /// Unified split settlement for the refund (supersedes split_refunds). Boxed to keep
+    /// the enclosing request (and its RouterDataV2 clones) small on the async stack.
+    pub split_settlement_refund: Option<Box<SplitSettlementRefund>>,
     /// Connector-side identifier for the original payment that this refund targets.
     pub connector_order_id: Option<String>,
     pub payment_method_data:
@@ -3524,6 +3530,9 @@ pub struct PaymentsCaptureData {
     pub order_tax_amount: Option<MinorUnit>,
     pub merchant_order_id: Option<String>,
     pub split_payments: Option<SplitPaymentsDetails>,
+    /// Unified split settlement (supersedes split_payments). Boxed to keep the
+    /// enclosing request (and its RouterDataV2 clones) small on the async stack.
+    pub split_settlement: Option<Box<SplitSettlement>>,
 }
 
 impl PaymentsCaptureData {
@@ -3686,6 +3695,9 @@ pub struct RepeatPaymentData<T: PaymentMethodDataTypes> {
     /// wallet MIT requires buyer re-approval so the buyer returns to HS for completion.
     pub complete_authorize_url: Option<String>,
     pub split_payments: Option<SplitPaymentsDetails>,
+    /// Unified split settlement (supersedes split_payments). Boxed to keep the
+    /// enclosing request (and its RouterDataV2 clones) small on the async stack.
+    pub split_settlement: Option<Box<SplitSettlement>>,
     pub recurring_mandate_payment_data: Option<router_data::RecurringMandatePaymentData>,
     pub shipping_cost: Option<MinorUnit>,
     pub payment_channel: Option<PaymentChannel>,
@@ -4468,6 +4480,83 @@ pub struct DirectChargeRefund {
 pub struct DestinationChargeRefund {
     pub revert_platform_fee: bool,
     pub revert_transfer: bool,
+}
+
+// ============================================================================
+// SPLIT SETTLEMENT — unified, connector-agnostic split contract (domain mirror
+// of proto SplitSettlement / SplitSettlementRefund). Supersedes SplitPaymentsDetails.
+// ============================================================================
+
+/// A split share expressed as an absolute amount OR a percentage (exactly one).
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum SplitValue {
+    /// Absolute amount (with currency) for this split line. Mirrors the proto `Money`
+    /// so the currency travels with the amount and the type stays consistent across
+    /// the proto and domain contracts.
+    Amount(Money),
+    /// Percentage of the payment for this split line.
+    Percentage(f64),
+}
+
+/// Split settlement across a marketplace (the platform's own cut) + N vendors (request).
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct SplitSettlement {
+    pub marketplace_split_details: Option<SplitSettlementMarketplace>,
+    pub vendor_split_details: Vec<SplitSettlementVendor>,
+}
+
+/// Marketplace / platform share (the merchant's own cut).
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct SplitSettlementMarketplace {
+    pub split_value: SplitValue,
+    /// Connector's own id for the marketplace/platform account this settles to.
+    pub connector_sub_account_id: Option<String>,
+}
+
+/// Per-vendor split line.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct SplitSettlementVendor {
+    pub split_value: SplitValue,
+    /// Connector's own id for the payee (vendor) account this line settles to.
+    pub connector_sub_account_id: Option<String>,
+    /// Commission retained by the merchant from this vendor's share.
+    pub merchant_commission: Option<MinorUnit>,
+    /// Per-split description forwarded to the connector.
+    pub description: Option<String>,
+    /// Merchant's own per-split reference; forwarded to the connector as its per-split
+    /// reference (e.g. Adyen split item `reference`) and echoed on the response.
+    pub merchant_reference_id: Option<String>,
+    /// Connector-specific per-split attributes (typed inside the connector), e.g. Adyen split_type.
+    /// Opaque to us, so it is masked as a secret to keep any caller-supplied data out of logs.
+    pub split_metadata: Option<Secret<String>>,
+}
+
+/// Split settlement (refund request).
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct SplitSettlementRefund {
+    pub marketplace_split_details: Option<SplitSettlementRefundMarketplace>,
+    pub vendor_split_details: Vec<SplitSettlementRefundVendor>,
+}
+
+/// Marketplace / platform refund share.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct SplitSettlementRefundMarketplace {
+    pub split_value: SplitValue,
+    pub connector_sub_account_id: Option<String>,
+}
+
+/// Per-vendor refund split line.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct SplitSettlementRefundVendor {
+    pub split_value: SplitValue,
+    pub connector_sub_account_id: Option<String>,
+    pub merchant_commission: Option<MinorUnit>,
+    /// The merchant's OWN reference for this refund split.
+    pub merchant_reference_id: Option<String>,
+    /// Connector-specific per-split attributes (typed inside the connector), e.g. Adyen split_type.
+    /// Opaque to us, so it is masked as a secret to keep any caller-supplied data out of logs.
+    pub split_metadata: Option<Secret<String>>,
 }
 
 #[derive(Debug, Default, Clone, Serialize)]

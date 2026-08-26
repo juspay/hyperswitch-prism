@@ -3778,6 +3778,7 @@ fn repeat_payment_data_to_authorize<T: PaymentMethodDataTypes>(
         metadata: req.metadata.clone(),
         authentication_data: req.authentication_data.clone(),
         split_payments: req.split_payments.clone(),
+        split_settlement: req.split_settlement.clone(),
         minor_amount: req.minor_amount,
         merchant_order_id: req.merchant_order_id.clone(),
         shipping_cost: req.shipping_cost,
