@@ -298,7 +298,7 @@ fn get_worldpayxml_exponent(
     currency
         .number_of_digits_after_decimal_point()
         .map(|digits| digits.to_string())
-        .map_err(|_| {
+        .map_err(|err| {
             IntegrationError::InvalidDataFormat {
                 field_name: "currency",
                 context: IntegrationErrorContext {
@@ -308,7 +308,7 @@ fn get_worldpayxml_exponent(
                     ),
                     doc_url: None,
                     additional_context: Some(format!(
-                        "Currency {currency:?} has no known minor-unit exponent"
+                        "Currency {currency:?} has no known minor-unit exponent: {err}"
                     )),
                 },
             }
