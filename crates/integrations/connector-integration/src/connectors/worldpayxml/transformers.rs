@@ -27,7 +27,7 @@ use super::{
     responses::{self, WorldpayxmlLastEvent},
     WorldpayxmlRouterData,
 };
-use crate::types::ResponseRouterData;
+use crate::{types::ResponseRouterData, utils};
 use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
 use domain_types::errors::IntegrationErrorContext;
@@ -84,14 +84,14 @@ where
 {
     match payment_method_data {
         PaymentMethodData::Card(_) => {
-            let formatted_year = crate::utils::pad_expiry_year_to_four_digits(&card.card_exp_year);
+            let formatted_year = utils::pad_expiry_year_to_four_digits(&card.card_exp_year);
 
-            let card_holder_name = crate::utils::build_card_holder_name(
+            let card_holder_name = utils::build_card_holder_name(
                 &card.card_holder_name,
                 billing_address.and_then(|b| b.address.first_name.clone()),
                 billing_address.and_then(|b| b.address.last_name.clone()),
             )
-            .map(crate::utils::normalize_cardholder_name);
+            .map(utils::normalize_cardholder_name);
 
             let card_data = requests::WorldpayxmlCard {
                 card_number: Secret::new(card.card_number.peek().to_string()),
@@ -452,7 +452,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             .resource_common_data
                             .get_optional_billing_full_name()
                     })
-                    .map(crate::utils::normalize_cardholder_name);
+                    .map(utils::normalize_cardholder_name);
 
                 get_worldpayxml_wallet_payment_method(wallet_data, customer_name)?
             }
@@ -636,7 +636,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             .resource_common_data
                             .get_optional_billing_full_name()
                     })
-                    .map(crate::utils::normalize_cardholder_name);
+                    .map(utils::normalize_cardholder_name);
 
                 get_worldpayxml_wallet_payment_method(wallet_data, customer_name)?
             }
@@ -1129,7 +1129,7 @@ fn map_worldpayxml_authorize_status(
         | WorldpayxmlLastEvent::SettledByMerchant => Ok(AttemptStatus::Charged),
         WorldpayxmlLastEvent::SentForAuthorisation => Ok(AttemptStatus::Authorizing),
         WorldpayxmlLastEvent::Unknown => Ok(retain_previous_attempt_status(previous_status)),
-        _ => Err(crate::utils::unexpected_response_fail(
+        _ => Err(utils::unexpected_response_fail(
             http_code,
             "worldpayxml: lastEvent is not part of a payment authorisation lifecycle.",
         )),
@@ -1157,7 +1157,7 @@ fn map_worldpayxml_setup_mandate_status(
         | WorldpayxmlLastEvent::SettledByMerchant => Ok(AttemptStatus::Charged),
         WorldpayxmlLastEvent::SentForAuthorisation => Ok(AttemptStatus::Authorizing),
         WorldpayxmlLastEvent::Unknown => Ok(retain_previous_attempt_status(previous_status)),
-        _ => Err(crate::utils::unexpected_response_fail(
+        _ => Err(utils::unexpected_response_fail(
             http_code,
             "worldpayxml: lastEvent is not part of a mandate setup lifecycle.",
         )),
@@ -1248,7 +1248,7 @@ fn map_worldpayxml_refund_status(
             );
             Ok(previous_status)
         }
-        _ => Err(crate::utils::unexpected_response_fail(
+        _ => Err(utils::unexpected_response_fail(
             http_code,
             "worldpayxml: lastEvent is not part of a refund lifecycle.",
         )),
@@ -1296,7 +1296,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         // Extract order status
         let order_status = response.reply.order_status.as_ref().ok_or(
-            crate::utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
+            utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
         )?;
 
         // Check for error in order status
@@ -1327,7 +1327,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         // Extract payment details
         let payment = order_status.payment.as_ref().ok_or(
-            crate::utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
+            utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
         )?;
 
         // Map status from lastEvent
@@ -1446,7 +1446,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         }
 
         let order_status = response.reply.order_status.as_ref().ok_or(
-            crate::utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
+            utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
         )?;
 
         if let Some(error) = &order_status.error {
@@ -1475,7 +1475,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         }
 
         let payment = order_status.payment.as_ref().ok_or(
-            crate::utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
+            utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
         )?;
 
         let status = map_worldpayxml_setup_mandate_status(
@@ -1586,7 +1586,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         }
 
         let order_status = response.reply.order_status.as_ref().ok_or(
-            crate::utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
+            utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
         )?;
 
         if let Some(error) = &order_status.error {
@@ -1615,7 +1615,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         }
 
         let payment = order_status.payment.as_ref().ok_or(
-            crate::utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
+            utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
         )?;
 
         let status = map_worldpayxml_authorize_status(
@@ -1728,7 +1728,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlCaptureResponse, Self>>
 
         // Extract ok response
         let ok_response = response.reply.ok.as_ref().ok_or(
-            crate::utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
+            utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
         )?;
 
         // Extract captureReceived
@@ -1801,7 +1801,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlVoidResponse, Self>>
 
         // Extract ok response
         let ok_response = response.reply.ok.as_ref().ok_or(
-            crate::utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
+            utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
         )?;
 
         // Extract cancelReceived
@@ -1879,7 +1879,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>
 
                 // Extract order status
                 let order_status = response.reply.order_status.as_ref().ok_or(
-                    crate::utils::response_deserialization_fail(
+                    utils::response_deserialization_fail(
                         item.http_code,
                     "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
                 )?;
@@ -1949,7 +1949,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>
 
                 // Extract payment details
                 let payment = order_status.payment.as_ref().ok_or(
-                    crate::utils::response_deserialization_fail(
+                    utils::response_deserialization_fail(
                         item.http_code,
                     "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
                 )?;
@@ -2103,7 +2103,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlRefundResponse, Self>>
 
         // Extract ok response
         let ok_response = response.reply.ok.as_ref().ok_or(
-            crate::utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
+            utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
         )?;
 
         // Extract refundReceived
@@ -2146,7 +2146,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlRsyncResponse, Self>>
                 // Check for top-level error first
                 if let Some(error) = &response.reply.error {
                     return Ok(Self {
-                        response: Err(crate::utils::build_error_response(
+                        response: Err(utils::build_error_response(
                             error.code.clone(),
                             error.message.clone(),
                             item.http_code,
@@ -2158,7 +2158,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlRsyncResponse, Self>>
 
                 // Extract order status
                 let order_status = response.reply.order_status.as_ref().ok_or(
-                    crate::utils::response_deserialization_fail(
+                    utils::response_deserialization_fail(
                         item.http_code,
                     "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
                 )?;
@@ -2183,7 +2183,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlRsyncResponse, Self>>
 
                 // Extract payment details
                 let payment = order_status.payment.as_ref().ok_or(
-                    crate::utils::response_deserialization_fail(
+                    utils::response_deserialization_fail(
                         item.http_code,
                     "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
                 )?;
@@ -2337,7 +2337,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlVoidPCResponse, Self>>
 
         // Extract ok response
         let ok_response = response.reply.ok.as_ref().ok_or(
-            crate::utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
+            utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
         )?;
 
         // Extract order_code from ok element — WorldpayXML may return it as:
