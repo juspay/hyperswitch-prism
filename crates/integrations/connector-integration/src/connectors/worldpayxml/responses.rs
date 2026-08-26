@@ -28,7 +28,27 @@ pub struct WorldpayxmlOrderStatus {
     pub payment: Option<WorldpayxmlPayment>,
     /// Present when the order asked Worldpay to create a payment token.
     pub token: Option<WorldpayxmlToken>,
+    /// Present when 3DS authentication demands a shopper challenge.
+    #[serde(rename = "challengeRequired")]
+    pub challenge_required: Option<WorldpayxmlChallengeRequired>,
     pub error: Option<WorldpayxmlError>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct WorldpayxmlChallengeRequired {
+    #[serde(rename = "threeDSChallengeDetails")]
+    pub three_ds_challenge_details: Option<WorldpayxmlThreeDSChallengeDetails>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct WorldpayxmlThreeDSChallengeDetails {
+    #[serde(rename = "threeDSVersion")]
+    pub three_ds_version: Option<String>,
+    #[serde(rename = "acsURL")]
+    pub acs_url: Option<String>,
+    #[serde(rename = "transactionId3DS")]
+    pub transaction_id_3ds: Option<String>,
+    pub payload: Option<Secret<String>>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

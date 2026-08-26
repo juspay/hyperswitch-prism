@@ -61,10 +61,52 @@ pub struct WorldpayxmlOrder {
     pub shopper: WorldpayxmlShopper,
     #[serde(rename = "billingAddress", skip_serializing_if = "Option::is_none")]
     pub billing_address: Option<WorldpayxmlBillingAddress>,
-    // NOTE: must stay the LAST field — quick-xml emits elements in declaration
-    // order and the WPG DTD expects <createToken> after <billingAddress>
+    // NOTE: field order below is wire order — quick-xml emits elements in declaration
+    // order and the WPG DTD expects info3DSecure, session, createToken, additional3DSData
+    // after <billingAddress>.
+    #[serde(rename = "info3DSecure", skip_serializing_if = "Option::is_none")]
+    pub info_threed_secure: Option<WorldpayxmlInfo3DSecure>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session: Option<WorldpayxmlSession>,
     #[serde(rename = "createToken", skip_serializing_if = "Option::is_none")]
     pub create_token: Option<WorldpayxmlCreateToken>,
+    #[serde(rename = "additional3DSData", skip_serializing_if = "Option::is_none")]
+    pub additional_threeds_data: Option<WorldpayxmlAdditionalThreeDSData>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct WorldpayxmlInfo3DSecure {
+    #[serde(rename = "completedAuthentication")]
+    pub completed_authentication: WorldpayxmlCompletedAuthentication,
+}
+
+#[derive(Debug, Serialize)]
+pub struct WorldpayxmlCompletedAuthentication {}
+
+#[derive(Debug, Serialize)]
+pub struct WorldpayxmlSession {
+    #[serde(rename = "@id")]
+    pub id: String,
+    #[serde(rename = "@shopperIPAddress")]
+    pub shopper_ip_address: Secret<String, common_utils::pii::IpAddress>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct WorldpayxmlAdditionalThreeDSData {
+    #[serde(rename = "@dfReferenceId", skip_serializing_if = "Option::is_none")]
+    pub df_reference_id: Option<Secret<String>>,
+    #[serde(rename = "@javaScriptEnabled")]
+    pub javascript_enabled: bool,
+    #[serde(rename = "@deviceChannel")]
+    pub device_channel: String,
+    #[serde(rename = "@challengePreference")]
+    pub challenge_preference: WorldpayxmlChallengePreference,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum WorldpayxmlChallengePreference {
+    ChallengeMandated,
 }
 
 #[derive(Debug, Serialize)]

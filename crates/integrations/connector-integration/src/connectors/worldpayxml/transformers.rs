@@ -502,6 +502,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             merchant_code: auth.merchant_code,
             submit: requests::WorldpayxmlSubmit {
                 order: requests::WorldpayxmlOrder {
+                    info_threed_secure: None,
+                    session: None,
+                    additional_threeds_data: None,
                     order_code: router_data
                         .resource_common_data
                         .connector_request_reference_id
@@ -666,6 +669,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             merchant_code: auth.merchant_code,
             submit: requests::WorldpayxmlSubmit {
                 order: requests::WorldpayxmlOrder {
+                    info_threed_secure: None,
+                    session: None,
+                    additional_threeds_data: None,
                     order_code: router_data
                         .resource_common_data
                         .connector_request_reference_id
@@ -827,6 +833,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             merchant_code: auth.merchant_code,
             submit: requests::WorldpayxmlSubmit {
                 order: requests::WorldpayxmlOrder {
+                    info_threed_secure: None,
+                    session: None,
+                    additional_threeds_data: None,
                     order_code: router_data
                         .resource_common_data
                         .connector_request_reference_id
