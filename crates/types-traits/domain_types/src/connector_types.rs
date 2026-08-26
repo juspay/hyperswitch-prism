@@ -1697,8 +1697,9 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub metadata: Option<SecretSerdeValue>,
     pub authentication_data: Option<router_request_types::AuthenticationData>,
     pub split_payments: Option<SplitPaymentsDetails>,
-    /// Unified split settlement (supersedes split_payments).
-    pub split_settlement: Option<SplitSettlement>,
+    /// Unified split settlement (supersedes split_payments). Boxed to keep the
+    /// enclosing request (and its RouterDataV2 clones) small on the async stack.
+    pub split_settlement: Option<Box<SplitSettlement>>,
     // New amount for amount frame work
     pub minor_amount: MinorUnit,
     /// Merchant's identifier for the payment/invoice. This will be sent to the connector
@@ -3452,8 +3453,9 @@ pub struct RefundsData {
     pub browser_info: Option<BrowserInformation>,
     /// Charges associated with the payment
     pub split_refunds: Option<SplitRefundsDetails>,
-    /// Unified split settlement for the refund (supersedes split_refunds).
-    pub split_settlement_refund: Option<SplitSettlementRefund>,
+    /// Unified split settlement for the refund (supersedes split_refunds). Boxed to keep
+    /// the enclosing request (and its RouterDataV2 clones) small on the async stack.
+    pub split_settlement_refund: Option<Box<SplitSettlementRefund>>,
     /// Connector-side identifier for the original payment that this refund targets.
     pub connector_order_id: Option<String>,
     pub payment_method_data:
@@ -3526,8 +3528,9 @@ pub struct PaymentsCaptureData {
     pub order_tax_amount: Option<MinorUnit>,
     pub merchant_order_id: Option<String>,
     pub split_payments: Option<SplitPaymentsDetails>,
-    /// Unified split settlement (supersedes split_payments).
-    pub split_settlement: Option<SplitSettlement>,
+    /// Unified split settlement (supersedes split_payments). Boxed to keep the
+    /// enclosing request (and its RouterDataV2 clones) small on the async stack.
+    pub split_settlement: Option<Box<SplitSettlement>>,
 }
 
 impl PaymentsCaptureData {
@@ -3682,8 +3685,9 @@ pub struct RepeatPaymentData<T: PaymentMethodDataTypes> {
     /// wallet MIT requires buyer re-approval so the buyer returns to HS for completion.
     pub complete_authorize_url: Option<String>,
     pub split_payments: Option<SplitPaymentsDetails>,
-    /// Unified split settlement (supersedes split_payments).
-    pub split_settlement: Option<SplitSettlement>,
+    /// Unified split settlement (supersedes split_payments). Boxed to keep the
+    /// enclosing request (and its RouterDataV2 clones) small on the async stack.
+    pub split_settlement: Option<Box<SplitSettlement>>,
     pub recurring_mandate_payment_data: Option<router_data::RecurringMandatePaymentData>,
     pub shipping_cost: Option<MinorUnit>,
     pub payment_channel: Option<PaymentChannel>,

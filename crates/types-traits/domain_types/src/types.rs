@@ -4588,7 +4588,8 @@ impl<
                 .split_settlement
                 .clone()
                 .map(connector_types::SplitSettlement::foreign_try_from)
-                .transpose()?,
+                .transpose()?
+                .map(Box::new),
             authentication_data,
             capture_method: Some(CaptureMethod::foreign_try_from(value.capture_method)?),
             payment_method_data,
@@ -10871,7 +10872,8 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceRefundRequest> for R
                 .split_settlement_refund
                 .clone()
                 .map(connector_types::SplitSettlementRefund::foreign_try_from)
-                .transpose()?,
+                .transpose()?
+                .map(Box::new),
             refund_id: extract_connector_request_reference_id(&value.merchant_refund_id.clone()),
             connector_transaction_id,
             connector_refund_id: None, // refund_id field is used as refund_id, not connector_refund_id
@@ -11351,7 +11353,8 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceCaptureRequest>
                 .split_settlement
                 .clone()
                 .map(connector_types::SplitSettlement::foreign_try_from)
-                .transpose()?,
+                .transpose()?
+                .map(Box::new),
             amount_to_capture: amount.amount.get_amount_as_i64(),
             minor_amount_to_capture: amount.amount,
             currency: amount.currency,
@@ -15099,7 +15102,8 @@ impl<
                 .split_settlement
                 .clone()
                 .map(connector_types::SplitSettlement::foreign_try_from)
-                .transpose()?,
+                .transpose()?
+                .map(Box::new),
             mandate_reference: mandate_ref,
             amount: amount.amount.get_amount_as_i64(),
             minor_amount: amount.amount,
