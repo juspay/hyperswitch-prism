@@ -333,6 +333,8 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   PaymentServiceProxySetupRecurringRequest: ["metadata"],
   PaymentMethodServiceEligibilityRequest: ["metadata", "connectorFeatureData"],
   PaymentMethodServiceEligibilityResponse: ["rawConnectorRequest", "typedConnectorRequest", "rawConnectorResponse", "typedConnectorResponse"],
+  SplitSettlementVendor: ["splitMetadata"],
+  SplitSettlementRefundVendor: ["splitMetadata"],
   FrmServicePreRiskCheckRequest: ["metadata", "connectorFeatureData"],
   FrmServicePreRiskCheckResponse: ["rawConnectorRequest", "typedConnectorRequest", "rawConnectorResponse", "typedConnectorResponse"],
   FrmServicePostRiskCheckRequest: ["metadata", "connectorFeatureData"],
