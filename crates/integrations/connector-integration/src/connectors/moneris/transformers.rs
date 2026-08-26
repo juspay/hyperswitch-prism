@@ -1283,7 +1283,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let three_d_secure_notification_url = req
             .router_return_url
             .as_ref()
-            .map(|url| urlencoding::encode(url.as_str()).into_owned());
+            .map(|url| url.as_str().to_owned());
 
         let (
             device_channel,
@@ -1479,8 +1479,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 )
             }
             MonerisThreeDSecureTransactionStatus::NotAuthenticated
-            | MonerisThreeDSecureTransactionStatus::Rejected
-            | MonerisThreeDSecureTransactionStatus::Decoupled => {
+            | MonerisThreeDSecureTransactionStatus::Rejected => {
                 let response_data = PaymentsResponseData::PreAuthenticateResponse {
                     resource_id: Some(ResponseId::ConnectorTransactionId(
                         response.authentication_id.clone(),
@@ -1492,6 +1491,24 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 };
                 (
                     common_enums::AttemptStatus::AuthenticationFailed,
+                    response_data,
+                )
+            }
+            // Decoupled = cardholder authenticates out-of-band via their bank's app.
+            // No redirect URL is issued; the ACS notifies Moneris asynchronously.
+            // This is not a failure — it is a pending state waiting for ACS confirmation.
+            MonerisThreeDSecureTransactionStatus::Decoupled => {
+                let response_data = PaymentsResponseData::PreAuthenticateResponse {
+                    resource_id: Some(ResponseId::ConnectorTransactionId(
+                        response.authentication_id.clone(),
+                    )),
+                    authentication_data: None,
+                    redirection_data: None,
+                    connector_response_reference_id: Some(response.authentication_id.clone()),
+                    status_code: item.http_code,
+                };
+                (
+                    common_enums::AttemptStatus::AuthenticationPending,
                     response_data,
                 )
             }
@@ -1617,9 +1634,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 common_enums::AttemptStatus::AuthenticationSuccessful
             }
             Some(MonerisThreeDSecureTransactionStatus::NotAuthenticated)
-            | Some(MonerisThreeDSecureTransactionStatus::Rejected)
-            | Some(MonerisThreeDSecureTransactionStatus::Decoupled) => {
+            | Some(MonerisThreeDSecureTransactionStatus::Rejected) => {
                 common_enums::AttemptStatus::AuthenticationFailed
+            }
+            Some(MonerisThreeDSecureTransactionStatus::Decoupled) => {
+                common_enums::AttemptStatus::AuthenticationPending
             }
             _ => common_enums::AttemptStatus::AuthenticationSuccessful,
         };
