@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::{collections::HashMap, fmt::Debug};
 
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD_ENGINE, Engine};
 use common_enums::{AttemptStatus, CaptureMethod, RefundStatus};
@@ -7,8 +7,8 @@ use domain_types::{
         Authorize, Capture, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void, VoidPC,
     },
     connector_types::{
-        MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
-        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
+        ContinueRedirectionResponse, MandateReference, MandateReferenceId, PaymentFlowData,
+        PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
@@ -20,7 +20,7 @@ use domain_types::{
 };
 use error_stack::{Report, ResultExt};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use super::{
     requests::{self, WorldpayxmlAction},
@@ -28,10 +28,12 @@ use super::{
     WorldpayxmlRouterData,
 };
 use crate::{types::ResponseRouterData, utils};
+use common_utils::{pii::SecretSerdeValue, request::Method};
 use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
 use domain_types::errors::IntegrationErrorContext;
 use domain_types::payment_address::AddressDetails;
+use domain_types::router_response_types::RedirectForm;
 
 const API_VERSION: &str = "1.4";
 
@@ -398,6 +400,113 @@ impl From<Option<common_enums::MitCategory>> for requests::WorldpayxmlMandateTyp
     }
 }
 
+/// Payload the device-data-collection page posts back on the shopper's return.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct WorldpayxmlDdcRedirectResponse {
+    pub action_code: String,
+    pub session_id: Option<Secret<String>>,
+}
+
+/// Payload the ACS posts back after a 3DS challenge.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct WorldpayxmlRedirectionResponse {
+    pub m_d: Option<String>,
+    pub response: String,
+    pub transaction_id: Option<String>,
+}
+
+pub(crate) fn parse_worldpayxml_challenge_return(
+    redirect_response: Option<&ContinueRedirectionResponse>,
+) -> Option<WorldpayxmlRedirectionResponse> {
+    redirect_response
+        .and_then(|redirect| redirect.payload.as_ref())
+        .and_then(|payload| serde_json::from_value(payload.peek().clone()).ok())
+}
+
+fn parse_worldpayxml_ddc_return(
+    redirect_response: Option<&ContinueRedirectionResponse>,
+) -> Option<WorldpayxmlDdcRedirectResponse> {
+    redirect_response
+        .and_then(|redirect| redirect.payload.as_ref())
+        .and_then(|payload| serde_json::from_value(payload.peek().clone()).ok())
+}
+
+/// Worldpay pins a 3DS challenge to the machine that issued it; the `machine` cookie captured
+/// from the challenge response must be replayed on the completion leg.
+pub(crate) fn get_worldpayxml_cookie(
+    connector_feature_data: Option<&SecretSerdeValue>,
+) -> Result<String, IntegrationError> {
+    connector_feature_data
+        .and_then(|data| data.peek().get("cookie"))
+        .and_then(|value| value.as_str())
+        .map(|cookie| cookie.to_string())
+        .ok_or(IntegrationError::MissingRequiredField {
+            field_name: "connector_feature_data.cookie",
+            context: Default::default(),
+        })
+}
+
+#[derive(Debug, Serialize)]
+struct WorldpayxmlChallengeJwtPayload {
+    #[serde(rename = "ACSUrl")]
+    acs_url: String,
+    #[serde(rename = "Payload")]
+    payload: Secret<String>,
+    #[serde(rename = "TransactionId")]
+    transaction_id: String,
+}
+
+#[derive(Debug, Serialize)]
+struct WorldpayxmlChallengeJwt {
+    jti: String,
+    iat: u64,
+    iss: Secret<String>,
+    #[serde(rename = "OrgUnitId")]
+    org_unit_id: Secret<String>,
+    #[serde(rename = "ReturnUrl")]
+    return_url: String,
+    #[serde(rename = "Payload")]
+    payload: WorldpayxmlChallengeJwtPayload,
+    #[serde(rename = "ObjectifyPayload")]
+    objectify_payload: bool,
+}
+
+fn sign_worldpayxml_jwt<C: Serialize>(
+    claims: &C,
+    jwt_mac_key: &Secret<String>,
+    http_code: u16,
+) -> Result<String, Report<ConnectorError>> {
+    let claims_map = match serde_json::to_value(claims) {
+        Ok(serde_json::Value::Object(map)) => map,
+        _ => {
+            return Err(utils::response_handling_fail(
+                http_code,
+                "worldpayxml: failed to serialize the 3ds jwt claims.",
+            )
+            .into())
+        }
+    };
+    let payload = josekit::jwt::JwtPayload::from_map(claims_map).change_context(
+        utils::response_handling_fail(
+            http_code,
+            "worldpayxml: failed to build the 3ds jwt payload.",
+        ),
+    )?;
+    let signer = josekit::jws::alg::hmac::HmacJwsAlgorithm::Hs256
+        .signer_from_bytes(jwt_mac_key.peek().as_bytes())
+        .change_context(utils::response_handling_fail(
+            http_code,
+            "worldpayxml: jwt_mac_key is not a valid HS256 key.",
+        ))?;
+    let mut header = josekit::jws::JwsHeader::new();
+    header.set_algorithm("HS256");
+    josekit::jwt::encode_with_signer(&payload, &header, &signer).change_context(
+        utils::response_handling_fail(http_code, "worldpayxml: failed to sign the 3ds jwt."),
+    )
+}
+
 // Authorize flow transformers
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<
@@ -427,6 +536,77 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let auth = WorldpayxmlAuthType::try_from(&router_data.connector_config)?;
+
+        // A challenge return completes the pending order: only the order code, the session
+        // reference and an empty completedAuthentication element are resubmitted.
+        if parse_worldpayxml_challenge_return(router_data.request.redirect_response.as_ref())
+            .is_some()
+        {
+            let order_code = router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone();
+            return Ok(Self {
+                version: API_VERSION.to_string(),
+                merchant_code: auth.merchant_code,
+                submit: requests::WorldpayxmlSubmit {
+                    order: requests::WorldpayxmlOrder {
+                        info_threed_secure: Some(requests::WorldpayxmlInfo3DSecure {
+                            completed_authentication:
+                                requests::WorldpayxmlCompletedAuthentication {},
+                        }),
+                        session: Some(requests::WorldpayxmlCompleteAuthSession {
+                            id: Secret::new(order_code.clone()),
+                        }),
+                        additional_threeds_data: None,
+                        order_code,
+                        capture_delay: None,
+                        description: None,
+                        amount: None,
+                        payment_details: None,
+                        shopper: None,
+                        billing_address: None,
+                        create_token: None,
+                    },
+                },
+            });
+        }
+
+        // A device-data-collection return submits the full order plus the collected
+        // dfReferenceId so Worldpay can run 3DS authentication.
+        let ddc_return =
+            parse_worldpayxml_ddc_return(router_data.request.redirect_response.as_ref());
+        let (additional_threeds_data, session) = match ddc_return {
+            Some(ddc) => {
+                let shopper_ip_address = router_data
+                    .request
+                    .browser_info
+                    .as_ref()
+                    .and_then(|browser_info| browser_info.ip_address)
+                    .map(|ip| Secret::new(ip.to_string()))
+                    .ok_or(IntegrationError::MissingRequiredField {
+                        field_name: "browser_info.ip_address",
+                        context: Default::default(),
+                    })?;
+                (
+                    Some(requests::WorldpayxmlAdditionalThreeDSData {
+                        df_reference_id: ddc.session_id,
+                        javascript_enabled: true,
+                        device_channel: "Browser".to_string(),
+                        challenge_preference:
+                            requests::WorldpayxmlChallengePreference::ChallengeMandated,
+                    }),
+                    Some(requests::WorldpayxmlSession {
+                        id: router_data
+                            .resource_common_data
+                            .connector_request_reference_id
+                            .clone(),
+                        shopper_ip_address,
+                    }),
+                )
+            }
+            None => (None, None),
+        };
 
         // Determine if manual capture
         let is_manual_capture = !router_data.request.is_auto_capture();
@@ -504,7 +684,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 order: requests::WorldpayxmlOrder {
                     info_threed_secure: None,
                     session: None,
-                    additional_threeds_data: None,
+                    additional_threeds_data,
                     order_code: router_data
                         .resource_common_data
                         .connector_request_reference_id
@@ -534,6 +714,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         }),
                         payment_method,
                         stored_credentials,
+                        session,
                     }),
                     shopper: Some(requests::WorldpayxmlShopper {
                         shopper_email_address: router_data.request.email.clone(),
@@ -712,6 +893,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             merchant_initiated_reason: None,
                             scheme_transaction_identifier: None,
                         }),
+                        session: None,
                     }),
                     shopper: Some(requests::WorldpayxmlShopper {
                         shopper_email_address: router_data.request.email.clone(),
@@ -883,6 +1065,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                 .get_connector_mandate_request_reference_id()
                                 .map(Secret::new),
                         }),
+                        session: None,
                     }),
                     shopper: Some(requests::WorldpayxmlShopper {
                         shopper_email_address: router_data.request.email.clone(),
@@ -1335,6 +1518,143 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     raw_connector_response: None,
                     raw_connector_request: None,
                     typed_connector_request: None,
+                }),
+                ..router_data.clone()
+            });
+        }
+
+        // A challengeRequired reply means 3DS authentication demands shopper interaction:
+        // redirect the shopper to Cardinal StepUp with a signed JWT and stash the machine
+        // cookie for the completion leg.
+        if let Some(challenge_required) = order_status.challenge_required.as_ref() {
+            let details = challenge_required
+                .three_ds_challenge_details
+                .as_ref()
+                .ok_or_else(|| {
+                    utils::unexpected_response_fail(
+                        item.http_code,
+                        "worldpayxml: challengeRequired is missing threeDSChallengeDetails.",
+                    )
+                })?;
+            let acs_url = details.acs_url.clone().ok_or_else(|| {
+                utils::unexpected_response_fail(
+                    item.http_code,
+                    "worldpayxml: challengeRequired is missing acsURL.",
+                )
+            })?;
+            let payload = details.payload.clone().ok_or_else(|| {
+                utils::unexpected_response_fail(
+                    item.http_code,
+                    "worldpayxml: challengeRequired is missing payload.",
+                )
+            })?;
+            let transaction_id = details.transaction_id_3ds.clone().ok_or_else(|| {
+                utils::unexpected_response_fail(
+                    item.http_code,
+                    "worldpayxml: challengeRequired is missing transactionId3DS.",
+                )
+            })?;
+            let return_url = router_data
+                .request
+                .complete_authorize_url
+                .clone()
+                .ok_or_else(|| {
+                    utils::response_handling_fail(
+                        item.http_code,
+                        "worldpayxml: complete_authorize_url is required for a 3ds challenge.",
+                    )
+                })?;
+            let (iss, org_unit_id, jwt_mac_key) = match &router_data.connector_config {
+                ConnectorSpecificConfig::Worldpayxml {
+                    issuer_id: Some(issuer_id),
+                    organizational_unit_id: Some(organizational_unit_id),
+                    jwt_mac_key: Some(jwt_mac_key),
+                    ..
+                } => (
+                    issuer_id.clone(),
+                    organizational_unit_id.clone(),
+                    jwt_mac_key.clone(),
+                ),
+                _ => {
+                    return Err(utils::response_handling_fail(
+                        item.http_code,
+                        "worldpayxml: issuer_id, organizational_unit_id and jwt_mac_key must be configured in the connector metadata for 3ds.",
+                    )
+                    .into())
+                }
+            };
+            let iat =
+                u64::try_from(time::OffsetDateTime::now_utc().unix_timestamp()).map_err(|_| {
+                    utils::response_handling_fail(
+                        item.http_code,
+                        "worldpayxml: system time is before the unix epoch.",
+                    )
+                })?;
+            let jwt = sign_worldpayxml_jwt(
+                &WorldpayxmlChallengeJwt {
+                    jti: uuid::Uuid::new_v4().to_string(),
+                    iat,
+                    iss,
+                    org_unit_id,
+                    return_url,
+                    payload: WorldpayxmlChallengeJwtPayload {
+                        acs_url,
+                        payload,
+                        transaction_id,
+                    },
+                    objectify_payload: true,
+                },
+                &jwt_mac_key,
+                item.http_code,
+            )?;
+            let step_up_base = router_data
+                .resource_common_data
+                .connectors
+                .worldpayxml
+                .secondary_base_url
+                .as_deref()
+                .ok_or_else(|| {
+                    utils::response_handling_fail(
+                        item.http_code,
+                        "worldpayxml: secondary_base_url must be configured for the 3ds challenge redirect.",
+                    )
+                })?;
+            let redirection_data = RedirectForm::Form {
+                endpoint: format!("{}/V2/Cruise/StepUp", step_up_base.trim_end_matches('/')),
+                method: Method::Post,
+                form_fields: HashMap::from([("JWT".to_string(), jwt)]),
+            };
+            let cookie = router_data
+                .resource_common_data
+                .connector_response_headers
+                .as_ref()
+                .and_then(|headers| {
+                    headers
+                        .get_all("set-cookie")
+                        .iter()
+                        .filter_map(|value| value.to_str().ok())
+                        .find(|cookie| cookie.trim_start().starts_with("machine="))
+                        .map(|cookie| cookie.to_string())
+                });
+
+            return Ok(Self {
+                resource_common_data: PaymentFlowData {
+                    status: AttemptStatus::AuthenticationPending,
+                    ..router_data.resource_common_data.clone()
+                },
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(
+                        order_status.order_code.clone(),
+                    ),
+                    redirection_data: Some(Box::new(redirection_data)),
+                    connector_metadata: cookie.map(|value| serde_json::json!({ "cookie": value })),
+                    mandate_reference: None,
+                    network_txn_id: None,
+                    network_txn_link_id: None,
+                    connector_response_reference_id: Some(order_status.order_code.clone()),
+                    incremental_authorization_allowed: None,
+                    splits: None,
+                    status_code: item.http_code,
                 }),
                 ..router_data.clone()
             });

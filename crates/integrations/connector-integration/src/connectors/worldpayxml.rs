@@ -259,6 +259,15 @@ macros::macro_connector_implementation!(
                 (headers::CONTENT_TYPE.to_string(), CONTENT_TYPE_XML.to_string().into()),
             ];
             headers.extend(self.build_auth_header(auth)?);
+            // The 3ds challenge-completion leg must reach the same Worldpay machine that
+            // issued the challenge, so replay the cookie captured from that response.
+            if worldpayxml::parse_worldpayxml_challenge_return(req.request.redirect_response.as_ref())
+                .is_some()
+            {
+                let cookie =
+                    worldpayxml::get_worldpayxml_cookie(req.request.connector_feature_data.as_ref())?;
+                headers.push(("Cookie".to_string(), cookie.into_masked()));
+            }
             Ok(headers)
         }
 

@@ -70,7 +70,7 @@ pub struct WorldpayxmlOrder {
     #[serde(rename = "info3DSecure", skip_serializing_if = "Option::is_none")]
     pub info_threed_secure: Option<WorldpayxmlInfo3DSecure>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub session: Option<WorldpayxmlSession>,
+    pub session: Option<WorldpayxmlCompleteAuthSession>,
     #[serde(rename = "createToken", skip_serializing_if = "Option::is_none")]
     pub create_token: Option<WorldpayxmlCreateToken>,
     #[serde(rename = "additional3DSData", skip_serializing_if = "Option::is_none")]
@@ -92,6 +92,14 @@ pub struct WorldpayxmlSession {
     pub id: String,
     #[serde(rename = "@shopperIPAddress")]
     pub shopper_ip_address: Secret<String, common_utils::pii::IpAddress>,
+}
+
+/// Order-level session reference sent on the challenge-completion leg, where only the
+/// session id is echoed back.
+#[derive(Debug, Serialize)]
+pub struct WorldpayxmlCompleteAuthSession {
+    #[serde(rename = "@id")]
+    pub id: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -140,6 +148,8 @@ pub struct WorldpayxmlPaymentDetails {
     pub payment_method: WorldpayxmlPaymentMethod,
     #[serde(rename = "storedCredentials", skip_serializing_if = "Option::is_none")]
     pub stored_credentials: Option<WorldpayxmlStoredCredentials>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session: Option<WorldpayxmlSession>,
 }
 
 /// Flags the authorisation as part of a stored-credential agreement.
