@@ -7,11 +7,11 @@ use common_utils::events::apply_log_fields;
 #[cfg(feature = "injector-client")]
 use common_utils::{
     consts::{X_API_TAG, X_API_URL, X_SESSION_ID},
-    events::{maskable_headers_to_json, EventStage, MaskedSerdeValue},
+    events::{EventStage, MaskedSerdeValue},
     request::TransportType,
 };
 use common_utils::{
-    events::{record_json_fields_on_span, CompiledLogFields},
+    events::{record_json_fields_on_span, CompiledLogFields, MaskableHeadersToJson},
     ext_traits::AsyncExt,
     lineage,
     request::{Method, Request, RequestContent},
@@ -395,22 +395,25 @@ where
                         body.clone(),
                     );
 
-                    // Log response body and headers using properly masked data from connector
-                    if let Some(evt) = event.as_deref_mut() {
-                        let mut json_fields: Vec<(&'static str, serde_json::Value)> = Vec::new();
+                    let mut json_fields: Vec<(&'static str, serde_json::Value)> = Vec::new();
 
+                    // Log response body using properly masked data from connector
+                    if let Some(evt) = event.as_deref_mut() {
                         if let Some(response_data) = &evt.response_data {
                             json_fields.push(("response.body", response_data.inner().clone()));
                         }
+                    }
 
-                        // Log response headers from event (already masked)
-                        if let Ok(headers_json) = serde_json::to_value(&evt.headers) {
-                            json_fields.push(("response.headers", headers_json));
-                        }
+                    // Log masked response headers
+                    if let Some(headers) = &body.headers {
+                        let masked_response_headers = headers.maskable_headers_to_json(Some(
+                            connector.get_unmasked_response_headers(),
+                        ));
+                        json_fields.push(("response.headers", masked_response_headers));
+                    }
 
-                        if !json_fields.is_empty() {
-                            record_json_fields_on_span(json_fields);
-                        }
+                    if !json_fields.is_empty() {
+                        record_json_fields_on_span(json_fields);
                     }
 
                     handle_response_result?
@@ -484,6 +487,16 @@ where
                         "response.status_code",
                         tracing::field::display(error_response.status_code),
                     );
+                    // Log masked response headers
+                    if let Some(headers) = &body.headers {
+                        let masked_response_headers = headers.maskable_headers_to_json(Some(
+                            connector.get_unmasked_response_headers(),
+                        ));
+                        record_json_fields_on_span(vec![(
+                            "response.headers",
+                            masked_response_headers,
+                        )]);
+                    }
                     // Additive: record the connector flow outcome (FlowStatus) so a
                     // decline is visible even though the gRPC call "succeeded".
                     #[cfg(feature = "otel")]
@@ -802,7 +815,7 @@ where
                     tracing::info!(headers=?masked_headers, "headers of connector request");
                     record_json_fields_on_span(vec![(
                         "request.headers",
-                        maskable_headers_to_json(&masked_headers),
+                        masked_headers.maskable_headers_to_json(None),
                     )]);
 
                     let masked_request = request
@@ -1033,7 +1046,7 @@ where
                     tracing::info!(headers=?masked_headers, "headers of connector request");
                     record_json_fields_on_span(vec![(
                         "request.headers",
-                        maskable_headers_to_json(&masked_headers),
+                        masked_headers.maskable_headers_to_json(None),
                     )]);
 
                     let masked_request = mask_connector_request(&record.payload);

@@ -45,6 +45,11 @@ where
 pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
     ConnectorIntegrationAnyV2<Flow, ResourceCommonData, Req, Resp> + Sync + api::ConnectorCommon
 {
+    /// Response headers that are safe to expose in logs.
+    fn get_unmasked_response_headers(&self) -> &'static [&'static str] {
+        &[]
+    }
+
     /// returns a vec of tuple of header key and value
     fn get_headers(
         &self,
