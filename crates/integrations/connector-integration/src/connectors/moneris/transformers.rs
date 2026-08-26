@@ -1,5 +1,5 @@
 use crate::types::ResponseRouterData;
-use common_enums::RefundStatus;
+use common_enums::{MitCategory, PaymentChannel, RefundStatus};
 use common_utils::{types::MinorUnit, Email};
 use domain_types::{
     connector_flow::{
@@ -165,17 +165,56 @@ pub struct MonerisPaymentsRequest<
     payment_method: PaymentMethod<T>,
     automatic_capture: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
-    ecommerce_indicator: Option<MonerisEcommerceIndicator>,
+    ecommerce_indicator: Option<EcommerceIndicator>,
     #[serde(skip_serializing_if = "Option::is_none")]
     three_d_secure_data: Option<MonerisThreeDSecureData>,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum MonerisEcommerceIndicator {
+pub enum EcommerceIndicator {
+    MailTelephoneOrderSingle,
+    MailTelephoneOrderRecurring,
+    MailTelephoneOrderInstalment,
+    MailTelephoneOrderUnknown,
     AuthenticatedEcommerce,
     NonAuthenticatedEcommerce,
-    MailTelephoneOrderRecurring,
+    SslMerchant,
+}
+
+fn derive_ecommerce_indicator(
+    channel: Option<&PaymentChannel>,
+    mit_category: Option<&MitCategory>,
+    is_three_ds: bool,
+    has_authentication_cavv: bool,
+    is_recurring: bool,
+) -> EcommerceIndicator {
+    if !matches!(
+        channel,
+        Some(PaymentChannel::MailOrder | PaymentChannel::TelephoneOrder)
+    ) {
+        return match (is_three_ds, has_authentication_cavv) {
+            (true, true) => EcommerceIndicator::AuthenticatedEcommerce,
+            (true, false) => EcommerceIndicator::NonAuthenticatedEcommerce,
+            (false, _) => EcommerceIndicator::SslMerchant,
+        };
+    }
+
+    match mit_category {
+        Some(MitCategory::Installment) => EcommerceIndicator::MailTelephoneOrderInstalment,
+        Some(MitCategory::Recurring) => EcommerceIndicator::MailTelephoneOrderRecurring,
+        None if is_recurring => EcommerceIndicator::MailTelephoneOrderRecurring,
+        None => EcommerceIndicator::MailTelephoneOrderSingle,
+        Some(MitCategory::Unscheduled | MitCategory::Resubmission) => {
+            EcommerceIndicator::MailTelephoneOrderUnknown
+        }
+    }
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct MonerisThreeDSecureAuthenticationId {
+    three_d_secure_authentication_id: String,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -189,6 +228,7 @@ pub struct MonerisThreeDSecureCryptogramData {
 #[derive(Debug, Serialize, PartialEq)]
 #[serde(untagged)]
 pub enum MonerisThreeDSecureData {
+    AuthenticationId(MonerisThreeDSecureAuthenticationId),
     Cryptogram(MonerisThreeDSecureCryptogramData),
 }
 
@@ -350,9 +390,23 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     },
                 });
                 let automatic_capture = item.router_data.request.is_auto_capture();
-
-                let (three_d_secure_data, ecommerce_indicator) =
+                let three_d_secure_data =
                     build_three_d_secure_data(&item.router_data.request.authentication_data);
+                let is_three_ds = item.router_data.resource_common_data.is_three_ds();
+                let is_recurring = item.router_data.request.is_mandate_payment();
+                let has_authentication_cavv = item
+                    .router_data
+                    .request
+                    .authentication_data
+                    .as_ref()
+                    .is_some_and(|a| a.cavv.is_some());
+                let ecommerce_indicator = Some(derive_ecommerce_indicator(
+                    item.router_data.request.payment_channel.as_ref(),
+                    item.router_data.request.mit_category.as_ref(),
+                    is_three_ds,
+                    has_authentication_cavv,
+                    is_recurring,
+                ));
 
                 Ok(Self {
                     idempotency_key,
@@ -883,30 +937,30 @@ pub struct MonerisAuthErrorResponse {
 
 pub fn build_three_d_secure_data(
     authentication_data: &Option<AuthenticationData>,
-) -> (
-    Option<MonerisThreeDSecureData>,
-    Option<MonerisEcommerceIndicator>,
-) {
-    let Some(auth) = authentication_data.as_ref() else {
-        return (None, None);
-    };
-    let Some(cavv) = auth.cavv.clone() else {
-        return (None, None);
-    };
-    let three_d_secure_data = Some(MonerisThreeDSecureData::Cryptogram(
-        MonerisThreeDSecureCryptogramData {
-            three_d_secure_cryptogram: cavv,
-            three_d_secure_version: "V2".to_string(),
-            three_d_secure_server_transaction_id: auth
-                .threeds_server_transaction_id
-                .clone()
-                .unwrap_or_default(),
-        },
-    ));
-    (
-        three_d_secure_data,
-        Some(MonerisEcommerceIndicator::AuthenticatedEcommerce),
-    )
+) -> Option<MonerisThreeDSecureData> {
+    let auth = authentication_data.as_ref()?;
+
+    // Prefer Option A (authentication ID): Moneris resolves CAVV/ECI internally,
+    // keeping the Authorize request lean. Fall back to Option B (cryptogram) only
+    // when the authentication ID is absent (e.g. externally-authenticated 3DS).
+    if let Some(auth_id) = auth.transaction_id.clone() {
+        Some(MonerisThreeDSecureData::AuthenticationId(
+            MonerisThreeDSecureAuthenticationId {
+                three_d_secure_authentication_id: auth_id,
+            },
+        ))
+    } else {
+        auth.cavv.clone().map(|cavv| {
+            MonerisThreeDSecureData::Cryptogram(MonerisThreeDSecureCryptogramData {
+                three_d_secure_cryptogram: cavv,
+                three_d_secure_version: "V2".to_string(),
+                three_d_secure_server_transaction_id: auth
+                    .threeds_server_transaction_id
+                    .clone()
+                    .unwrap_or_default(),
+            })
+        })
+    }
 }
 
 // ---- 3DS Enums ----
@@ -1266,6 +1320,20 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let cardholder_phone_number = resource.get_optional_billing_phone_number();
 
+        // For a browser flow the cardholder is present and may receive a challenge;
+        // for a 3RI flow (server-initiated, no browser) there is no cardholder interaction
+        // so the request type becomes RECURRING and the challenge window is irrelevant.
+        let (three_d_secure_request_type, three_d_secure_challenge_window_size) =
+            match &device_channel {
+                ThreeDSecureDeviceChannel::Browser => (
+                    ThreeDSecureRequestType::Cardholder,
+                    Some(ThreeDSecureChallengeWindowSize::FullScreen),
+                ),
+                ThreeDSecureDeviceChannel::ThreeDSecureRequestorInitiated => {
+                    (ThreeDSecureRequestType::Recurring, None)
+                }
+            };
+
         Ok(Self {
             idempotency_key,
             amount,
@@ -1276,11 +1344,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             payment_method,
             three_d_secure_message_category: ThreeDSecureMessageCategory::Payment,
             three_d_secure_device_channel: device_channel,
-            three_d_secure_request_type: ThreeDSecureRequestType::Cardholder,
+            three_d_secure_request_type,
             three_d_secure_notification_url,
             three_d_secure_completion_indicator: ThreeDSecureCompletionIndicator::Unavailable,
             three_d_secure_challenge_requested: ThreeDSecureChallengeRequested::NoPreference,
-            three_d_secure_challenge_window_size: Some(ThreeDSecureChallengeWindowSize::FullScreen),
+            three_d_secure_challenge_window_size,
             browser_ip_address,
             browser_user_agent,
             browser_java_enabled,

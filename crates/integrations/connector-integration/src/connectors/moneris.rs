@@ -166,29 +166,45 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         event_builder: Option<&mut events::Event>,
         _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        let response: moneris::MonerisErrorResponse = res
+        // Moneris returns JSON errors for application-level failures, but
+        // WAF/CDN layers (e.g. Cloudflare) may return HTML for blocked requests.
+        // Fall back to a raw-body error when JSON parsing fails so the error
+        // propagates cleanly instead of crashing with a parse error.
+        let parsed_error = res
             .response
-            .parse_struct("MonerisErrorResponse")
-            .change_context(utils::response_handling_fail_for_connector(
-                res.status_code,
-                "moneris",
-            ))?;
+            .parse_struct::<moneris::MonerisErrorResponse>("MonerisErrorResponse");
 
-        with_error_response_body!(event_builder, response);
-
-        let reason = match &response.errors {
-            Some(error_list) => error_list
-                .iter()
-                .map(|error| format!("{}: {}", error.parameter_name, error.reason_code))
-                .collect::<Vec<String>>()
-                .join(" & "),
-            None => response.title.clone(),
+        let (code, message, reason) = match parsed_error {
+            Ok(ref r) => {
+                with_error_response_body!(event_builder, r);
+                let reason = match &r.errors {
+                    Some(error_list) => error_list
+                        .iter()
+                        .map(|e| format!("{}: {}", e.parameter_name, e.reason_code))
+                        .collect::<Vec<_>>()
+                        .join(" & "),
+                    None => r.title.clone(),
+                };
+                (r.category.clone(), r.title.clone(), reason)
+            }
+            Err(_) => {
+                let body_preview = String::from_utf8_lossy(&res.response)
+                    .chars()
+                    .take(300)
+                    .collect::<String>();
+                let msg = format!("HTTP {}", res.status_code);
+                (
+                    format!("HTTP_{}", res.status_code),
+                    msg.clone(),
+                    body_preview,
+                )
+            }
         };
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.category,
-            message: response.title,
+            code,
+            message,
             reason: Some(reason),
             attempt_status: None,
             connector_transaction_id: None,
@@ -300,6 +316,29 @@ macros::create_all_prerequisites!(
             Ok(header)
         }
 
+        pub fn get_headers_from_access_token(
+            &self,
+            access_token: Option<ServerAuthenticationTokenResponseData>,
+            connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            let token = access_token.ok_or_else(|| IntegrationError::FailedToObtainAuthType {
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Ensure the OAuth access token is obtained via the \
+                         ServerAuthenticationToken flow before initiating this operation."
+                            .to_string(),
+                    ),
+                    doc_url: None,
+                    additional_context: Some(
+                        "Moneris requires an OAuth access token on \
+                         `resource_common_data.access_token`, but it was None."
+                            .to_string(),
+                    ),
+                },
+            })?;
+            self.build_headers(&token.access_token.expose(), connector_config)
+        }
+
         pub fn connector_base_url_payments<'a, F, Req, Res>(
             &self,
             req: &'a RouterDataV2<F, PaymentFlowData, Req, Res>,
@@ -400,27 +439,8 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            let access_token = req.resource_common_data
-                .access_token
-                .clone()
-                .ok_or(IntegrationError::FailedToObtainAuthType {
-                    context: IntegrationErrorContext {
-                        suggested_action: Some(
-                            "Ensure the OAuth access token is obtained via the \
-                             ServerAuthenticationToken flow and stored on the payment \
-                             resource_common_data before triggering Authorize."
-                                .to_string(),
-                        ),
-                        doc_url: None,
-                        additional_context: Some(
-                            "Moneris Authorize requires an OAuth access token on \
-                             `resource_common_data.access_token`, but it was None."
-                                .to_string(),
-                        ),
-                    },
-                })?;
-            self.build_headers(
-                &access_token.access_token.expose(),
+            self.get_headers_from_access_token(
+                req.resource_common_data.access_token.clone(),
                 &req.connector_config,
             )
         }
@@ -450,27 +470,8 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            let access_token = req.resource_common_data
-                .access_token
-                .clone()
-                .ok_or(IntegrationError::FailedToObtainAuthType {
-                    context: IntegrationErrorContext {
-                        suggested_action: Some(
-                            "Ensure the OAuth access token is obtained via the \
-                             ServerAuthenticationToken flow and stored on the payment \
-                             resource_common_data before triggering repeat_payment."
-                                .to_string(),
-                        ),
-                        doc_url: None,
-                        additional_context: Some(
-                            "Moneris repeat_payment requires an OAuth access token on \
-                             `resource_common_data.access_token`, but it was None."
-                                .to_string(),
-                        ),
-                    },
-                })?;
-            self.build_headers(
-                &access_token.access_token.expose(),
+            self.get_headers_from_access_token(
+                req.resource_common_data.access_token.clone(),
                 &req.connector_config,
             )
         }
@@ -500,27 +501,8 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            let access_token = req.resource_common_data
-                .access_token
-                .clone()
-                .ok_or(IntegrationError::FailedToObtainAuthType {
-                    context: IntegrationErrorContext {
-                        suggested_action: Some(
-                            "Ensure the OAuth access token is obtained via the \
-                             ServerAuthenticationToken flow and stored on the payment \
-                             resource_common_data before triggering PSync."
-                                .to_string(),
-                        ),
-                        doc_url: None,
-                        additional_context: Some(
-                            "Moneris PSync requires an OAuth access token on \
-                             `resource_common_data.access_token`, but it was None."
-                                .to_string(),
-                        ),
-                    },
-                })?;
-            self.build_headers(
-                &access_token.access_token.expose(),
+            self.get_headers_from_access_token(
+                req.resource_common_data.access_token.clone(),
                 &req.connector_config,
             )
         }
@@ -554,27 +536,8 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            let access_token = req.resource_common_data
-                .access_token
-                .clone()
-                .ok_or(IntegrationError::FailedToObtainAuthType {
-                    context: IntegrationErrorContext {
-                        suggested_action: Some(
-                            "Ensure the OAuth access token is obtained via the \
-                             ServerAuthenticationToken flow and stored on the payment \
-                             resource_common_data before triggering capture."
-                                .to_string(),
-                        ),
-                        doc_url: None,
-                        additional_context: Some(
-                            "Moneris capture requires an OAuth access token on \
-                             `resource_common_data.access_token`, but it was None."
-                                .to_string(),
-                        ),
-                    },
-                })?;
-            self.build_headers(
-                &access_token.access_token.expose(),
+            self.get_headers_from_access_token(
+                req.resource_common_data.access_token.clone(),
                 &req.connector_config,
             )
         }
@@ -608,27 +571,8 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            let access_token = req.resource_common_data
-                .access_token
-                .clone()
-                .ok_or(IntegrationError::FailedToObtainAuthType {
-                    context: IntegrationErrorContext {
-                        suggested_action: Some(
-                            "Ensure the OAuth access token is obtained via the \
-                             ServerAuthenticationToken flow and stored on the payment \
-                             resource_common_data before triggering void."
-                                .to_string(),
-                        ),
-                        doc_url: None,
-                        additional_context: Some(
-                            "Moneris void requires an OAuth access token on \
-                             `resource_common_data.access_token`, but it was None."
-                                .to_string(),
-                        ),
-                    },
-                })?;
-            self.build_headers(
-                &access_token.access_token.expose(),
+            self.get_headers_from_access_token(
+                req.resource_common_data.access_token.clone(),
                 &req.connector_config,
             )
         }
@@ -662,27 +606,8 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            let access_token = req.resource_common_data
-                .access_token
-                .clone()
-                .ok_or(IntegrationError::FailedToObtainAuthType {
-                    context: IntegrationErrorContext {
-                        suggested_action: Some(
-                            "Ensure the OAuth access token is obtained via the \
-                             ServerAuthenticationToken flow and stored on the payment \
-                             resource_common_data before triggering Refund."
-                                .to_string(),
-                        ),
-                        doc_url: None,
-                        additional_context: Some(
-                            "Moneris refund requires an OAuth access token on \
-                             `resource_common_data.access_token`, but it was None."
-                                .to_string(),
-                        ),
-                    },
-                })?;
-            self.build_headers(
-                &access_token.access_token.expose(),
+            self.get_headers_from_access_token(
+                req.resource_common_data.access_token.clone(),
                 &req.connector_config,
             )
         }
@@ -711,27 +636,8 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            let access_token = req.resource_common_data
-                .access_token
-                .clone()
-                .ok_or(IntegrationError::FailedToObtainAuthType {
-                    context: IntegrationErrorContext {
-                        suggested_action: Some(
-                            "Ensure the OAuth access token is obtained via the \
-                             ServerAuthenticationToken flow and stored on the payment \
-                             resource_common_data before triggering RSync."
-                                .to_string(),
-                        ),
-                        doc_url: None,
-                        additional_context: Some(
-                            "Moneris rsync requires an OAuth access token on \
-                             `resource_common_data.access_token`, but it was None."
-                                .to_string(),
-                        ),
-                    },
-                })?;
-            self.build_headers(
-                &access_token.access_token.expose(),
+            self.get_headers_from_access_token(
+                req.resource_common_data.access_token.clone(),
                 &req.connector_config,
             )
         }
@@ -762,26 +668,8 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            let access_token = req.resource_common_data
-                .access_token
-                .clone()
-                .ok_or(IntegrationError::FailedToObtainAuthType {
-                    context: IntegrationErrorContext {
-                        suggested_action: Some(
-                            "Ensure the OAuth access token is obtained via the \
-                             ServerAuthenticationToken flow before triggering PreAuthenticate."
-                                .to_string(),
-                        ),
-                        doc_url: None,
-                        additional_context: Some(
-                            "Moneris PreAuthenticate requires an OAuth access token on \
-                             `resource_common_data.access_token`, but it was None."
-                                .to_string(),
-                        ),
-                    },
-                })?;
-            self.build_headers(
-                &access_token.access_token.expose(),
+            self.get_headers_from_access_token(
+                req.resource_common_data.access_token.clone(),
                 &req.connector_config,
             )
         }
@@ -814,26 +702,8 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            let access_token = req.resource_common_data
-                .access_token
-                .clone()
-                .ok_or(IntegrationError::FailedToObtainAuthType {
-                    context: IntegrationErrorContext {
-                        suggested_action: Some(
-                            "Ensure the OAuth access token is obtained via the \
-                             ServerAuthenticationToken flow before triggering PostAuthenticate."
-                                .to_string(),
-                        ),
-                        doc_url: None,
-                        additional_context: Some(
-                            "Moneris PostAuthenticate requires an OAuth access token on \
-                             `resource_common_data.access_token`, but it was None."
-                                .to_string(),
-                        ),
-                    },
-                })?;
-            self.build_headers(
-                &access_token.access_token.expose(),
+            self.get_headers_from_access_token(
+                req.resource_common_data.access_token.clone(),
                 &req.connector_config,
             )
         }
