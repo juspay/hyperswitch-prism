@@ -333,7 +333,7 @@
       },
       "OpenBanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Ilixium supports only raw card payments on POST /direct/auth; wallets, APMs, bank transfers and stored-card tokens are out of scope for this connector implementation. Unsupported payment_method_data variant for Ilixium /direct/auth: BankRedirect(OpenBanking { account_number: None, sort_code: None, iban: None, account_holder_name: None, additional_details: None })"
+        "error": "This feature is not implemented: Ilixium supports only raw card payments on POST /direct/auth; wallets, APMs, bank transfers and stored-card tokens are out of scope for this connector implementation. Unsupported payment_method_data variant for Ilixium /direct/auth: BankRedirect(OpenBanking { bank_name: None, account_number: None, sort_code: None, iban: None, account_holder_name: None, additional_details: None })"
       },
       "OpenBankingPis": {
         "status": "not_supported",
