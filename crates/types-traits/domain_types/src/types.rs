@@ -10641,7 +10641,7 @@ impl ForeignTryFrom<grpc_api_types::payments::SplitSettlementVendor>
                 .map(|commission| common_utils::types::MinorUnit::new(commission.minor_amount)),
             description: value.description,
             merchant_reference_id: value.merchant_reference_id,
-            split_metadata: value.split_metadata.map(Secret::new),
+            split_metadata: value.split_metadata,
         })
     }
 }
@@ -10747,7 +10747,7 @@ impl ForeignTryFrom<grpc_api_types::payments::SplitSettlementRefundVendor>
                 .merchant_commission
                 .map(|commission| common_utils::types::MinorUnit::new(commission.minor_amount)),
             merchant_reference_id: value.merchant_reference_id,
-            split_metadata: value.split_metadata.map(Secret::new),
+            split_metadata: value.split_metadata,
         })
     }
 }
