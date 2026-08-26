@@ -27,7 +27,7 @@ use super::{
     responses::{self, WorldpayxmlLastEvent},
     WorldpayxmlRouterData,
 };
-use crate::types::ResponseRouterData;
+use crate::{types::ResponseRouterData, utils};
 use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
 use domain_types::errors::IntegrationErrorContext;
@@ -37,7 +37,6 @@ const API_VERSION: &str = "1.4";
 
 /// `captureDelay` value that leaves the order uncaptured, for manual capture.
 const CAPTURE_DELAY_MANUAL: &str = "OFF";
-/// `captureDelay` value that captures the order immediately, for automatic capture.
 const CAPTURE_DELAY_AUTOMATIC: &str = "0";
 
 #[derive(Debug, Clone)]
@@ -85,14 +84,14 @@ where
 {
     match payment_method_data {
         PaymentMethodData::Card(_) => {
-            let formatted_year = crate::utils::pad_expiry_year_to_four_digits(&card.card_exp_year);
+            let formatted_year = utils::pad_expiry_year_to_four_digits(&card.card_exp_year);
 
-            let card_holder_name = crate::utils::build_card_holder_name(
+            let card_holder_name = utils::build_card_holder_name(
                 &card.card_holder_name,
                 billing_address.and_then(|b| b.address.first_name.clone()),
                 billing_address.and_then(|b| b.address.last_name.clone()),
             )
-            .map(crate::utils::normalize_cardholder_name);
+            .map(utils::normalize_cardholder_name);
 
             let card_data = requests::WorldpayxmlCard {
                 card_number: Secret::new(card.card_number.peek().to_string()),
@@ -249,8 +248,7 @@ fn get_worldpayxml_wallet_payment_method(
                             eci_indicator: decrypt_data.eci_indicator.clone(),
                         },
                     )),
-                    // Without a cryptogram there is nothing token-specific left to send, so the
-                    // decrypted PAN goes over as a plain card.
+                    // No cryptogram: nothing token-specific left, so send the PAN as a card.
                     None => Ok(requests::WorldpayxmlPaymentMethod::Card(
                         requests::WorldpayxmlCard {
                             card_number: Secret::new(
@@ -294,14 +292,28 @@ fn get_worldpayxml_wallet_payment_method(
 }
 
 /// Number of decimal places Worldpay expects for the order currency.
-fn get_worldpayxml_exponent(currency: common_enums::Currency) -> String {
-    if currency.is_three_decimal_currency() {
-        "3".to_string()
-    } else if currency.is_zero_decimal_currency() {
-        "0".to_string()
-    } else {
-        "2".to_string()
-    }
+fn get_worldpayxml_exponent(
+    currency: common_enums::Currency,
+) -> Result<String, Report<IntegrationError>> {
+    currency
+        .number_of_digits_after_decimal_point()
+        .map(|digits| digits.to_string())
+        .map_err(|err| {
+            IntegrationError::InvalidDataFormat {
+                field_name: "currency",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Use an ISO 4217 currency Worldpay accepts (e.g. GBP, USD, EUR)."
+                            .to_string(),
+                    ),
+                    doc_url: None,
+                    additional_context: Some(format!(
+                        "Currency {currency:?} has no known minor-unit exponent: {err}"
+                    )),
+                },
+            }
+            .into()
+        })
 }
 
 /// The telephone number is carried on the billing contact rather than the address itself, so it is
@@ -323,7 +335,6 @@ impl From<(&AddressDetails, Option<Secret<String>>)> for requests::WorldpayxmlAd
     }
 }
 
-/// Builds the `<billingAddress>` element from the flow's billing address, when one was supplied.
 fn get_worldpayxml_billing_address(
     resource_common_data: &PaymentFlowData,
 ) -> Option<requests::WorldpayxmlBillingAddress> {
@@ -435,7 +446,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     .request
                     .customer_name
                     .clone()
-                    .map(|name| crate::utils::normalize_cardholder_name(Secret::new(name)));
+                    .map(Secret::new)
+                    .or_else(|| {
+                        router_data
+                            .resource_common_data
+                            .get_optional_billing_full_name()
+                    })
+                    .map(utils::normalize_cardholder_name);
 
                 get_worldpayxml_wallet_payment_method(wallet_data, customer_name)?
             }
@@ -451,9 +468,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let is_cit_mandate_payment = router_data.request.is_customer_initiated_mandate_payment();
 
-        // A customer-initiated mandate setup must be flagged to Worldpay as the first transaction
-        // of a stored-credential agreement, otherwise later merchant-initiated payments against it
-        // are declined by the scheme.
         let stored_credentials =
             is_cit_mandate_payment.then(|| requests::WorldpayxmlStoredCredentials {
                 usage: requests::WorldpayxmlUsageType::First,
@@ -464,8 +478,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 scheme_transaction_identifier: None,
             });
 
-        // Ask Worldpay to issue a payment token on the customer-initiated transaction; without it
-        // there is nothing for a later merchant-initiated payment to be charged against.
         let create_token = is_cit_mandate_payment.then(|| requests::WorldpayxmlCreateToken {
             token_scope: requests::WorldpayxmlTokenScope::Shopper,
             token_event_reference: router_data
@@ -507,7 +519,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     amount: requests::WorldpayxmlAmount {
                         value: converted_amount,
                         currency_code: router_data.request.currency,
-                        exponent: get_worldpayxml_exponent(router_data.request.currency),
+                        exponent: get_worldpayxml_exponent(router_data.request.currency)?,
                     },
                     payment_details: requests::WorldpayxmlPaymentDetails {
                         action: Some(if is_manual_capture {
@@ -618,7 +630,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     .request
                     .customer_name
                     .clone()
-                    .map(|name| crate::utils::normalize_cardholder_name(Secret::new(name)));
+                    .map(Secret::new)
+                    .or_else(|| {
+                        router_data
+                            .resource_common_data
+                            .get_optional_billing_full_name()
+                    })
+                    .map(utils::normalize_cardholder_name);
 
                 get_worldpayxml_wallet_payment_method(wallet_data, customer_name)?
             }
@@ -665,7 +683,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     amount: requests::WorldpayxmlAmount {
                         value: converted_amount,
                         currency_code: router_data.request.currency,
-                        exponent: get_worldpayxml_exponent(router_data.request.currency),
+                        exponent: get_worldpayxml_exponent(router_data.request.currency)?,
                     },
                     payment_details: requests::WorldpayxmlPaymentDetails {
                         action: Some(if is_manual_capture {
@@ -719,12 +737,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
-// RepeatPayment flow transformers
-//
-// A merchant-initiated payment replays the stored-credential agreement: the Worldpay token
-// issued on the customer-initiated transaction is submitted over `TOKEN-SSL`, and the scheme
-// transaction identifier from that original transaction chains the two together. No `action`
-// is sent — Worldpay derives it from the order's capture delay, matching hyperswitch.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         WorldpayxmlRouterData<
@@ -799,7 +811,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             },
         )?;
 
-        let is_manual_capture = !router_data.request.is_auto_capture();
+        let is_manual_capture = router_data.request.capture_method == Some(CaptureMethod::Manual)
+            || router_data.request.capture_method == Some(CaptureMethod::ManualMultiple);
 
         let authenticated_shopper_id =
             get_worldpayxml_authenticated_shopper_id(&router_data.resource_common_data, true)?;
@@ -831,7 +844,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     amount: requests::WorldpayxmlAmount {
                         value: converted_amount,
                         currency_code: router_data.request.currency,
-                        exponent: get_worldpayxml_exponent(router_data.request.currency),
+                        exponent: get_worldpayxml_exponent(router_data.request.currency)?,
                     },
                     payment_details: requests::WorldpayxmlPaymentDetails {
                         action: None,
@@ -891,7 +904,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let router_data = &item.router_data;
         let auth = WorldpayxmlAuthType::try_from(&router_data.connector_config)?;
 
-        // Extract connector_transaction_id from request
         let connector_transaction_id = router_data
             .request
             .connector_transaction_id
@@ -916,7 +928,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         amount: requests::WorldpayxmlAmount {
                             value: converted_amount,
                             currency_code: router_data.request.currency,
-                            exponent: get_worldpayxml_exponent(router_data.request.currency),
+                            exponent: get_worldpayxml_exponent(router_data.request.currency)?,
                         },
                     },
                 },
@@ -945,7 +957,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let router_data = &item.router_data;
         let auth = WorldpayxmlAuthType::try_from(&router_data.connector_config)?;
 
-        // Extract connector_transaction_id from request
         let connector_transaction_id = router_data.request.connector_transaction_id.clone();
 
         Ok(Self {
@@ -981,7 +992,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let router_data = &item.router_data;
         let auth = WorldpayxmlAuthType::try_from(&router_data.connector_config)?;
 
-        // Extract connector_transaction_id from request
         let connector_transaction_id = router_data.request.connector_transaction_id.clone();
 
         // Convert refund amount using the connector's amount converter
@@ -1000,7 +1010,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         amount: requests::WorldpayxmlAmount {
                             value: converted_amount,
                             currency_code: router_data.request.currency,
-                            exponent: get_worldpayxml_exponent(router_data.request.currency),
+                            exponent: get_worldpayxml_exponent(router_data.request.currency)?,
                         },
                     },
                 },
@@ -1029,7 +1039,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let router_data = &item.router_data;
         let auth = WorldpayxmlAuthType::try_from(&router_data.connector_config)?;
 
-        // Extract connector_transaction_id from request
         let connector_transaction_id = router_data
             .request
             .connector_transaction_id
@@ -1070,7 +1079,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let router_data = &item.router_data;
         let auth = WorldpayxmlAuthType::try_from(&router_data.connector_config)?;
 
-        // Extract connector_refund_id from request
         // This could be either the connector_refund_id OR the original connector_transaction_id
         let order_code = router_data.request.connector_refund_id.clone();
 
@@ -1084,63 +1092,87 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
-// Helper function to map lastEvent to AttemptStatus
+/// Maps the `lastEvent` of a payment order onto an attempt status.
+///
+/// Only the events that belong to an authorisation/capture journey are mapped. A refund- or
+/// payout-family event on a payment order means the response does not describe the order we asked
+/// about, so it is reported as a protocol violation instead of being flattened into `Failure`,
+/// which would be indistinguishable from a genuine decline.
 fn map_worldpayxml_authorize_status(
     last_event: &WorldpayxmlLastEvent,
     is_auto_capture: bool,
-    capture_sync_status: Option<&AttemptStatus>,
-) -> AttemptStatus {
+    previous_status: Option<&AttemptStatus>,
+    http_code: u16,
+) -> Result<AttemptStatus, ConnectorError> {
     match last_event {
         WorldpayxmlLastEvent::Authorised => {
             if is_auto_capture {
-                AttemptStatus::Pending
+                // The order was submitted for automatic capture, so an authorisation already
+                // settles the attempt — there is no separate capture to wait for.
+                Ok(AttemptStatus::Charged)
             } else {
-                // Check if we're in CaptureInitiated or VoidInitiated state
-                match capture_sync_status {
+                Ok(match previous_status {
                     Some(AttemptStatus::CaptureInitiated) => AttemptStatus::CaptureInitiated,
                     Some(AttemptStatus::VoidInitiated) => AttemptStatus::VoidInitiated,
                     _ => AttemptStatus::Authorized,
-                }
+                })
             }
         }
-        WorldpayxmlLastEvent::Refused => AttemptStatus::Failure,
-        WorldpayxmlLastEvent::Cancelled => AttemptStatus::Voided,
-        WorldpayxmlLastEvent::Captured => AttemptStatus::Charged,
-        WorldpayxmlLastEvent::SentForRefund => AttemptStatus::Pending,
-        WorldpayxmlLastEvent::Refunded => AttemptStatus::Charged,
-        WorldpayxmlLastEvent::RefundFailed => AttemptStatus::Failure,
-        WorldpayxmlLastEvent::Expired => AttemptStatus::Failure,
-        WorldpayxmlLastEvent::Error => AttemptStatus::Failure,
-
-        WorldpayxmlLastEvent::PushRequested
-        | WorldpayxmlLastEvent::PushPending
-        | WorldpayxmlLastEvent::PushApproved
-        | WorldpayxmlLastEvent::PushRefused
-        | WorldpayxmlLastEvent::SettledByMerchant => AttemptStatus::Failure,
+        WorldpayxmlLastEvent::Refused => Ok(AttemptStatus::Failure),
+        // Worldpay expires an authorisation that outlives its auth window (a manual-capture order
+        // left uncaptured, say). The money can never be taken, so this is terminal — not a
+        // protocol violation to error on.
+        WorldpayxmlLastEvent::Expired => Ok(AttemptStatus::Failure),
+        WorldpayxmlLastEvent::Cancelled => Ok(AttemptStatus::Voided),
+        WorldpayxmlLastEvent::Captured
+        | WorldpayxmlLastEvent::Settled
+        | WorldpayxmlLastEvent::SettledByMerchant => Ok(AttemptStatus::Charged),
+        WorldpayxmlLastEvent::SentForAuthorisation => Ok(AttemptStatus::Authorizing),
+        WorldpayxmlLastEvent::Unknown => Ok(retain_previous_attempt_status(previous_status)),
+        _ => Err(utils::unexpected_response_fail(
+            http_code,
+            "worldpayxml: lastEvent is not part of a payment authorisation lifecycle.",
+        )),
     }
 }
 
 /// Maps `lastEvent` for a mandate setup, where an authorisation already completes the flow —
 /// there is no capture to wait for on a (usually zero-amount) verification order.
-impl From<&WorldpayxmlLastEvent> for AttemptStatus {
-    fn from(last_event: &WorldpayxmlLastEvent) -> Self {
-        match last_event {
-            WorldpayxmlLastEvent::Authorised
-            | WorldpayxmlLastEvent::Captured
-            | WorldpayxmlLastEvent::SettledByMerchant => Self::Charged,
-            WorldpayxmlLastEvent::Cancelled => Self::Voided,
-            WorldpayxmlLastEvent::Refused
-            | WorldpayxmlLastEvent::SentForRefund
-            | WorldpayxmlLastEvent::Refunded
-            | WorldpayxmlLastEvent::RefundFailed
-            | WorldpayxmlLastEvent::Expired
-            | WorldpayxmlLastEvent::Error
-            | WorldpayxmlLastEvent::PushRequested
-            | WorldpayxmlLastEvent::PushPending
-            | WorldpayxmlLastEvent::PushApproved
-            | WorldpayxmlLastEvent::PushRefused => Self::Failure,
-        }
+///
+/// Events outside that journey are rejected for the same reason as
+/// [`map_worldpayxml_authorize_status`].
+fn map_worldpayxml_setup_mandate_status(
+    last_event: &WorldpayxmlLastEvent,
+    previous_status: Option<&AttemptStatus>,
+    http_code: u16,
+) -> Result<AttemptStatus, ConnectorError> {
+    match last_event {
+        WorldpayxmlLastEvent::Refused => Ok(AttemptStatus::Failure),
+        // See [`map_worldpayxml_authorize_status`]: an expired authorisation is terminal.
+        WorldpayxmlLastEvent::Expired => Ok(AttemptStatus::Failure),
+        WorldpayxmlLastEvent::Cancelled => Ok(AttemptStatus::Voided),
+        WorldpayxmlLastEvent::Authorised
+        | WorldpayxmlLastEvent::Captured
+        | WorldpayxmlLastEvent::Settled
+        | WorldpayxmlLastEvent::SettledByMerchant => Ok(AttemptStatus::Charged),
+        WorldpayxmlLastEvent::SentForAuthorisation => Ok(AttemptStatus::Authorizing),
+        WorldpayxmlLastEvent::Unknown => Ok(retain_previous_attempt_status(previous_status)),
+        _ => Err(utils::unexpected_response_fail(
+            http_code,
+            "worldpayxml: lastEvent is not part of a mandate setup lifecycle.",
+        )),
     }
+}
+
+/// Worldpay keeps introducing journey events. An unrecognised one says nothing about the order, so
+/// hold the status we already had rather than guessing at a terminal state.
+fn retain_previous_attempt_status(previous_status: Option<&AttemptStatus>) -> AttemptStatus {
+    let status = previous_status.copied().unwrap_or_default();
+    tracing::warn!(
+        retained_status = ?status,
+        "worldpayxml: unknown lastEvent received; retaining previous attempt status"
+    );
+    status
 }
 
 /// Builds the mandate reference Hyperswitch stores for later merchant-initiated payments.
@@ -1183,43 +1215,44 @@ fn get_worldpayxml_mandate_reference(
     })
 }
 
-// Helper function to map lastEvent to RefundStatus
-impl From<&WorldpayxmlLastEvent> for RefundStatus {
-    fn from(last_event: &WorldpayxmlLastEvent) -> Self {
-        match last_event {
-            WorldpayxmlLastEvent::Refunded => Self::Success,
-            WorldpayxmlLastEvent::SentForRefund => Self::Pending,
-            WorldpayxmlLastEvent::RefundFailed => Self::Failure,
-            WorldpayxmlLastEvent::Captured => Self::Pending,
-            _ => Self::Pending, // Default to pending for unknown statuses
-        }
-    }
-}
-
-// Helper function to parse string last_event from webhook/JSON responses
-fn parse_last_event(
-    event_str: &str,
+/// Maps the `lastEvent` of a refund order onto a refund status.
+///
+/// Only the events that belong to a refund journey are mapped. `CAPTURED`/`SETTLED` are included
+/// because Worldpay keeps reporting the underlying capture until the refund itself moves, so they
+/// mean "the refund has not progressed yet" rather than "the refund succeeded". Anything outside
+/// that journey means the response does not describe the order we asked about, so it is reported as
+/// a protocol violation instead of being flattened into `Pending`, which would leave the refund
+/// polling forever.
+fn map_worldpayxml_refund_status(
+    last_event: &WorldpayxmlLastEvent,
+    previous_status: RefundStatus,
     http_code: u16,
-) -> Result<WorldpayxmlLastEvent, Report<ConnectorError>> {
-    // The event string comes off the wire, so it must be escaped rather than interpolated —
-    // a bare `"` or `\` in it would otherwise produce malformed JSON and drop the event.
-    let quoted = serde_json::to_string(event_str).map_err(|_| {
-        Report::new(
-            ConnectorError::response_deserialization_failed_with_context(
-                http_code,
-                Some("invalid last_event".to_string()),
-            ),
-        )
-    })?;
-
-    serde_json::from_str(&quoted).map_err(|_| {
-        Report::new(
-            ConnectorError::response_deserialization_failed_with_context(
-                http_code,
-                Some("invalid last_event".to_string()),
-            ),
-        )
-    })
+) -> Result<RefundStatus, ConnectorError> {
+    match last_event {
+        WorldpayxmlLastEvent::Refunded | WorldpayxmlLastEvent::RefundedByMerchant => {
+            Ok(RefundStatus::Success)
+        }
+        WorldpayxmlLastEvent::SentForRefund
+        | WorldpayxmlLastEvent::RefundRequested
+        | WorldpayxmlLastEvent::SentForFastRefund => Ok(RefundStatus::Pending),
+        WorldpayxmlLastEvent::RefundFailed => Ok(RefundStatus::Failure),
+        // An expired order can no longer be refunded, so the refund will never complete.
+        WorldpayxmlLastEvent::Expired => Ok(RefundStatus::Failure),
+        WorldpayxmlLastEvent::Captured | WorldpayxmlLastEvent::Settled => Ok(RefundStatus::Pending),
+        WorldpayxmlLastEvent::Unknown => {
+            // An unrecognised event says nothing about the refund, so hold the status we already
+            // had rather than reporting a terminal one.
+            tracing::warn!(
+                retained_status = ?previous_status,
+                "worldpayxml: unknown lastEvent received; retaining previous refund status"
+            );
+            Ok(previous_status)
+        }
+        _ => Err(utils::unexpected_response_fail(
+            http_code,
+            "worldpayxml: lastEvent is not part of a refund lifecycle.",
+        )),
+    }
 }
 
 // Response transformers - Authorize
@@ -1263,7 +1296,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         // Extract order status
         let order_status = response.reply.order_status.as_ref().ok_or(
-            crate::utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
+            utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
         )?;
 
         // Check for error in order status
@@ -1294,19 +1327,52 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         // Extract payment details
         let payment = order_status.payment.as_ref().ok_or(
-            crate::utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
+            utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
         )?;
-
-        // Determine if auto-capture
-        let is_auto_capture = router_data.request.capture_method != Some(CaptureMethod::Manual)
-            && router_data.request.capture_method != Some(CaptureMethod::ManualMultiple);
 
         // Map status from lastEvent
         let status = map_worldpayxml_authorize_status(
             &payment.last_event,
-            is_auto_capture,
+            router_data.request.capture_method != Some(CaptureMethod::Manual)
+                && router_data.request.capture_method != Some(CaptureMethod::ManualMultiple),
             Some(&router_data.resource_common_data.status),
-        );
+            item.http_code,
+        )?;
+
+        // A refused authorization is the most common decline path, so surface the ISO 8583 return
+        // code the same way the SetupMandate and RepeatPayment transformers do instead of handing
+        // the merchant a bare Failure with no code or reason.
+        if domain_types::utils::is_payment_failure(status) {
+            let return_code = payment.iso8583_return_code.as_ref();
+            return Ok(Self {
+                resource_common_data: PaymentFlowData {
+                    status,
+                    ..router_data.resource_common_data.clone()
+                },
+                response: Err(ErrorResponse {
+                    code: return_code.map_or_else(
+                        || common_utils::consts::NO_ERROR_CODE.to_string(),
+                        |code| code.code.clone(),
+                    ),
+                    message: return_code.map_or_else(
+                        || common_utils::consts::NO_ERROR_MESSAGE.to_string(),
+                        |code| code.description.clone(),
+                    ),
+                    reason: return_code.map(|code| code.description.clone()),
+                    status_code: item.http_code,
+                    attempt_status: Some(FlowStatus::Payment(status)),
+                    connector_transaction_id: Some(order_status.order_code.clone()),
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
+                }),
+                ..router_data.clone()
+            });
+        }
 
         // Build success response
         let payments_response_data = PaymentsResponseData::TransactionResponse {
@@ -1317,7 +1383,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             network_txn_id: payment
                 .authorisation_id
                 .as_ref()
-                .map(|auth_id| auth_id.id.clone()),
+                .and_then(|auth_id| auth_id.id.clone()),
             network_txn_link_id: None,
             connector_response_reference_id: Some(order_status.order_code.clone()),
             incremental_authorization_allowed: None,
@@ -1380,7 +1446,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         }
 
         let order_status = response.reply.order_status.as_ref().ok_or(
-            crate::utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
+            utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
         )?;
 
         if let Some(error) = &order_status.error {
@@ -1409,12 +1475,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         }
 
         let payment = order_status.payment.as_ref().ok_or(
-            crate::utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
+            utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
         )?;
 
-        let status = AttemptStatus::from(&payment.last_event);
+        let status = map_worldpayxml_setup_mandate_status(
+            &payment.last_event,
+            Some(&router_data.resource_common_data.status),
+            item.http_code,
+        )?;
 
-        if status == AttemptStatus::Failure {
+        if domain_types::utils::is_payment_failure(status) {
             let return_code = payment.iso8583_return_code.as_ref();
             return Ok(Self {
                 resource_common_data: PaymentFlowData {
@@ -1458,7 +1528,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             network_txn_id: payment
                 .authorisation_id
                 .as_ref()
-                .map(|auth_id| auth_id.id.clone()),
+                .and_then(|auth_id| auth_id.id.clone()),
             network_txn_link_id: None,
             connector_response_reference_id: Some(order_status.order_code.clone()),
             incremental_authorization_allowed: None,
@@ -1516,7 +1586,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         }
 
         let order_status = response.reply.order_status.as_ref().ok_or(
-            crate::utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
+            utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
         )?;
 
         if let Some(error) = &order_status.error {
@@ -1545,19 +1615,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         }
 
         let payment = order_status.payment.as_ref().ok_or(
-            crate::utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
+            utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
         )?;
 
         let status = map_worldpayxml_authorize_status(
             &payment.last_event,
-            router_data.request.is_auto_capture(),
+            router_data.request.capture_method != Some(CaptureMethod::Manual)
+                && router_data.request.capture_method != Some(CaptureMethod::ManualMultiple),
             Some(&router_data.resource_common_data.status),
-        );
+            item.http_code,
+        )?;
 
         // A refused merchant-initiated payment is the case that most needs its decline detail
         // (retry and dunning logic key off it), so surface the ISO 8583 return code the same
         // way the SetupMandate transformer does instead of a bare Failure status.
-        if status == AttemptStatus::Failure {
+        if domain_types::utils::is_payment_failure(status) {
             let return_code = payment.iso8583_return_code.as_ref();
             return Ok(Self {
                 resource_common_data: PaymentFlowData {
@@ -1597,7 +1669,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             network_txn_id: payment
                 .authorisation_id
                 .as_ref()
-                .map(|auth_id| auth_id.id.clone()),
+                .and_then(|auth_id| auth_id.id.clone()),
             network_txn_link_id: None,
             connector_response_reference_id: Some(order_status.order_code.clone()),
             incremental_authorization_allowed: None,
@@ -1656,7 +1728,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlCaptureResponse, Self>>
 
         // Extract ok response
         let ok_response = response.reply.ok.as_ref().ok_or(
-            crate::utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
+            utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
         )?;
 
         // Extract captureReceived
@@ -1729,7 +1801,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlVoidResponse, Self>>
 
         // Extract ok response
         let ok_response = response.reply.ok.as_ref().ok_or(
-            crate::utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
+            utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
         )?;
 
         // Extract cancelReceived
@@ -1807,7 +1879,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>
 
                 // Extract order status
                 let order_status = response.reply.order_status.as_ref().ok_or(
-                    crate::utils::response_deserialization_fail(
+                    utils::response_deserialization_fail(
                         item.http_code,
                     "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
                 )?;
@@ -1815,13 +1887,26 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>
                 // Special handling: If error exists but payment is None, return current status (don't fail)
                 if let Some(error) = &order_status.error {
                     if order_status.payment.is_none() {
-                        // Error exists but no payment data - return current status as Pending
+                        // An inquiry-level error with no payment element says nothing about the
+                        // order itself, so hold the status we already had. Overwriting it would
+                        // walk a terminal attempt (a Charged one, say) back to Pending.
                         let payments_response_data = PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::ConnectorTransactionId(
                                 order_status.order_code.clone(),
                             ),
                             redirection_data: None,
-                            mandate_reference: None,
+                            // A token can be present even when the inquiry itself errored, and it
+                            // is the only place the mandate becomes observable, so surface it.
+                            mandate_reference: order_status.token.as_ref().map(|token| {
+                                Box::new(MandateReference {
+                                    connector_mandate_id: Some(
+                                        token.token_details.payment_token_id.peek().to_string(),
+                                    ),
+                                    payment_method_id: None,
+                                    mandate_metadata: None,
+                                    connector_mandate_request_reference_id: None,
+                                })
+                            }),
                             connector_metadata: None,
                             network_txn_id: None,
                             network_txn_link_id: None,
@@ -1832,10 +1917,6 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>
                         };
 
                         return Ok(Self {
-                            resource_common_data: PaymentFlowData {
-                                status: AttemptStatus::Pending,
-                                ..router_data.resource_common_data.clone()
-                            },
                             response: Ok(payments_response_data),
                             ..router_data.clone()
                         });
@@ -1868,22 +1949,54 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>
 
                 // Extract payment details
                 let payment = order_status.payment.as_ref().ok_or(
-                    crate::utils::response_deserialization_fail(
+                    utils::response_deserialization_fail(
                         item.http_code,
                     "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
                 )?;
 
-                // Determine if auto-capture from request data
-                let is_auto_capture = router_data.request.capture_method
-                    != Some(CaptureMethod::Manual)
-                    && router_data.request.capture_method != Some(CaptureMethod::ManualMultiple);
-
                 // Map status from lastEvent - reuse the helper function
                 let status = map_worldpayxml_authorize_status(
                     &payment.last_event,
-                    is_auto_capture,
+                    router_data.request.capture_method != Some(CaptureMethod::Manual)
+                        && router_data.request.capture_method
+                            != Some(CaptureMethod::ManualMultiple),
                     Some(&router_data.resource_common_data.status),
-                );
+                    item.http_code,
+                )?;
+
+                // A sync that observes a refused order carries the same decline detail an
+                // Authorize reply does, so report it identically rather than as a bare Failure.
+                if domain_types::utils::is_payment_failure(status) {
+                    let return_code = payment.iso8583_return_code.as_ref();
+                    return Ok(Self {
+                        resource_common_data: PaymentFlowData {
+                            status,
+                            ..router_data.resource_common_data.clone()
+                        },
+                        response: Err(ErrorResponse {
+                            code: return_code.map_or_else(
+                                || common_utils::consts::NO_ERROR_CODE.to_string(),
+                                |code| code.code.clone(),
+                            ),
+                            message: return_code.map_or_else(
+                                || common_utils::consts::NO_ERROR_MESSAGE.to_string(),
+                                |code| code.description.clone(),
+                            ),
+                            reason: return_code.map(|code| code.description.clone()),
+                            status_code: item.http_code,
+                            attempt_status: Some(FlowStatus::Payment(status)),
+                            connector_transaction_id: Some(order_status.order_code.clone()),
+                            network_decline_code: None,
+                            network_advice_code: None,
+                            network_error_message: None,
+                            typed_connector_response: None,
+                            raw_connector_response: None,
+                            raw_connector_request: None,
+                            typed_connector_request: None,
+                        }),
+                        ..router_data.clone()
+                    });
+                }
 
                 // Build success response
                 let payments_response_data = PaymentsResponseData::TransactionResponse {
@@ -1896,7 +2009,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>
                     network_txn_id: payment
                         .authorisation_id
                         .as_ref()
-                        .map(|auth_id| auth_id.id.clone()),
+                        .and_then(|auth_id| auth_id.id.clone()),
                     network_txn_link_id: None,
                     connector_response_reference_id: Some(order_status.order_code.clone()),
                     incremental_authorization_allowed: None,
@@ -1914,36 +2027,18 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>
                 })
             }
             responses::WorldpayxmlTransactionResponse::Webhook(webhook_response) => {
-                // Process JSON webhook response
-                let order_code = webhook_response
-                    .order_code
-                    .clone()
-                    .unwrap_or_else(|| "unknown".to_string());
+                // Process order-notification body
+                let order_code = webhook_response.order_code.clone();
 
-                let last_event_str = webhook_response
-                    .last_event
-                    .as_ref()
-                    .or(webhook_response.payment_status.as_ref())
-                    .ok_or(
-                        crate::utils::response_deserialization_fail(
-                            item.http_code,
-                        "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
-                    )?;
-
-                // Parse string to enum
-                let last_event = parse_last_event(last_event_str, item.http_code)?;
-
-                // Determine if auto-capture from request data
-                let is_auto_capture = router_data.request.capture_method
-                    != Some(CaptureMethod::Manual)
-                    && router_data.request.capture_method != Some(CaptureMethod::ManualMultiple);
-
-                // Map status from lastEvent
+                // Map status from PaymentStatus
                 let status = map_worldpayxml_authorize_status(
-                    &last_event,
-                    is_auto_capture,
+                    &webhook_response.payment_status,
+                    router_data.request.capture_method != Some(CaptureMethod::Manual)
+                        && router_data.request.capture_method
+                            != Some(CaptureMethod::ManualMultiple),
                     Some(&router_data.resource_common_data.status),
-                );
+                    item.http_code,
+                )?;
 
                 // Build success response
                 let payments_response_data = PaymentsResponseData::TransactionResponse {
@@ -2008,7 +2103,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlRefundResponse, Self>>
 
         // Extract ok response
         let ok_response = response.reply.ok.as_ref().ok_or(
-            crate::utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
+            utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
         )?;
 
         // Extract refundReceived
@@ -2051,7 +2146,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlRsyncResponse, Self>>
                 // Check for top-level error first
                 if let Some(error) = &response.reply.error {
                     return Ok(Self {
-                        response: Err(crate::utils::build_error_response(
+                        response: Err(utils::build_error_response(
                             error.code.clone(),
                             error.message.clone(),
                             item.http_code,
@@ -2063,7 +2158,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlRsyncResponse, Self>>
 
                 // Extract order status
                 let order_status = response.reply.order_status.as_ref().ok_or(
-                    crate::utils::response_deserialization_fail(
+                    utils::response_deserialization_fail(
                         item.http_code,
                     "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
                 )?;
@@ -2088,13 +2183,17 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlRsyncResponse, Self>>
 
                 // Extract payment details
                 let payment = order_status.payment.as_ref().ok_or(
-                    crate::utils::response_deserialization_fail(
+                    utils::response_deserialization_fail(
                         item.http_code,
                     "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
                 )?;
 
                 // Map status from lastEvent using refund status mapping
-                let refund_status = RefundStatus::from(&payment.last_event);
+                let refund_status = map_worldpayxml_refund_status(
+                    &payment.last_event,
+                    router_data.request.refund_status,
+                    item.http_code,
+                )?;
 
                 // Check if refund failed and extract error details from ISO8583ReturnCode
                 if refund_status == RefundStatus::Failure {
@@ -2134,27 +2233,15 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlRsyncResponse, Self>>
                 })
             }
             responses::WorldpayxmlTransactionResponse::Webhook(webhook_response) => {
-                // Process JSON webhook response
-                let order_code = webhook_response
-                    .order_code
-                    .clone()
-                    .unwrap_or_else(|| "unknown".to_string());
+                // Process order-notification body
+                let order_code = webhook_response.order_code.clone();
 
-                let last_event_str = webhook_response
-                    .last_event
-                    .as_ref()
-                    .or(webhook_response.payment_status.as_ref())
-                    .ok_or(
-                        crate::utils::response_deserialization_fail(
-                            item.http_code,
-                        "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
-                    )?;
-
-                // Parse string to enum
-                let last_event = parse_last_event(last_event_str, item.http_code)?;
-
-                // Map status from lastEvent using refund status mapping
-                let refund_status = RefundStatus::from(&last_event);
+                // Map status from PaymentStatus using refund status mapping
+                let refund_status = map_worldpayxml_refund_status(
+                    &webhook_response.payment_status,
+                    router_data.request.refund_status,
+                    item.http_code,
+                )?;
 
                 // Build success response
                 let refunds_response_data = RefundsResponseData {
@@ -2250,7 +2337,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlVoidPCResponse, Self>>
 
         // Extract ok response
         let ok_response = response.reply.ok.as_ref().ok_or(
-            crate::utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
+            utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
         )?;
 
         // Extract order_code from ok element — WorldpayXML may return it as:
