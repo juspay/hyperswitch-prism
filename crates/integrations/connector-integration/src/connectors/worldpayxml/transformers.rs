@@ -459,6 +459,74 @@ struct WorldpayxmlChallengeJwtPayload {
 }
 
 #[derive(Debug, Serialize)]
+pub(crate) struct WorldpayxmlDdcJwt {
+    pub jti: String,
+    pub iat: u64,
+    pub iss: Secret<String>,
+    #[serde(rename = "OrgUnitId")]
+    pub org_unit_id: Secret<String>,
+}
+
+/// Device-data-collection page: a hidden iframe posts Bin+JWT to Cardinal Collect, the
+/// postMessage listener relays the SessionId back to the payment's redirect-complete
+/// endpoint. Mirrors the page hyperswitch renders for its native worldpayxml DDC flow;
+/// the relative-path form action works because hyperswitch serves this page on the
+/// payment's redirect path.
+pub(crate) fn build_worldpayxml_ddc_page(collect_url: &str, bin: &str, jwt: &str) -> String {
+    format!(
+        r#"<!DOCTYPE html>
+<html>
+<head><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;">
+<h3 style="text-align: center;">Please wait while we perform Device Data Collection ...</h3>
+<iframe id="ddcFrame" height="1" width="1" style="display: none;"></iframe>
+<script>
+    window.onload = function() {{
+        var iframe = document.getElementById('ddcFrame');
+        var iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+        var formHtml = '<form id="collectionForm" method="POST" action="{collect_url}">' +
+            '<input type="hidden" name="Bin" value="{bin}" />' +
+            '<input type="hidden" name="JWT" value="{jwt}" />' +
+            '</form>';
+        iframeDoc.open();
+        iframeDoc.write(formHtml);
+        iframeDoc.close();
+        iframeDoc.getElementById('collectionForm').submit();
+    }};
+    window.addEventListener("message", function(event) {{
+        var sessionId = null;
+        var actionCode = "FAILURE";
+        try {{
+            var data = JSON.parse(event.data);
+            sessionId = data.Payload.SessionId;
+            actionCode = data.Payload.ActionCode;
+        }} catch (e) {{}}
+        var responseForm = document.createElement('form');
+        responseForm.action = window.location.pathname.replace(
+            new RegExp("payments/redirect/([^/]+)/([^/]+)/[^/]+"),
+            "payments/$1/$2/redirect/complete/worldpayxml"
+        );
+        responseForm.method = 'POST';
+        var item1 = document.createElement('input');
+        item1.type = 'hidden';
+        item1.name = 'SessionId';
+        item1.value = sessionId;
+        responseForm.appendChild(item1);
+        var item2 = document.createElement('input');
+        item2.type = 'hidden';
+        item2.name = 'ActionCode';
+        item2.value = actionCode;
+        responseForm.appendChild(item2);
+        document.body.appendChild(responseForm);
+        responseForm.submit();
+    }}, false);
+</script>
+</body>
+</html>"#
+    )
+}
+
+#[derive(Debug, Serialize)]
 struct WorldpayxmlChallengeJwt {
     jti: String,
     iat: u64,
@@ -473,7 +541,7 @@ struct WorldpayxmlChallengeJwt {
     objectify_payload: bool,
 }
 
-fn sign_worldpayxml_jwt<C: Serialize>(
+pub(crate) fn sign_worldpayxml_jwt<C: Serialize>(
     claims: &C,
     jwt_mac_key: &Secret<String>,
     http_code: u16,
