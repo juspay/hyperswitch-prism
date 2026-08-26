@@ -902,6 +902,7 @@ enum Connector {
   BOOST = 136;
   CITIGATE = 137;
   ILIXIUM = 138;
+  TAP = 139;
 }
 
 // Payment method types
@@ -5703,6 +5704,16 @@ message IlixiumConfig {
   optional string base_url = 50;
 }
 
+message TapConfig {
+  // Secret key - sent as `Authorization: Bearer <api_key>`
+  SecretString api_key = 1;
+  // MerchantId - sent in the request body as merchant.id
+  SecretString key1 = 2;
+  // Public key - used for RSA card encryption (follow-up)
+  SecretString api_secret = 3;
+  optional string base_url = 50;
+}
+
 message MonerisConfig {
   SecretString client_secret = 1;
   SecretString merchant_id = 2;
@@ -6032,6 +6043,8 @@ message ConnectorSpecificConfig {
     MonerisConfig moneris = 147;
     // ILIXIUM = 138
     IlixiumConfig ilixium = 148;
+    // TAP = 139
+    TapConfig tap = 149;
   }
 }
 
