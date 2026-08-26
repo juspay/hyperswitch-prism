@@ -135,6 +135,8 @@ message CompositeAuthorizeRequest {
   // Currency conversion quote and customer decision supplied for
   // authorization.
   optional CurrencyConversionData currency_conversion_data = 58;
+  // Connector token from a PaymentMethodService/Tokenize pre-step, carried alongside payment_method.
+  optional SecretString payment_method_token = 59;
 }
 
 // Status of the composite authorize flow — indicates whether the flow is complete or needs a redirect.
@@ -784,6 +786,8 @@ message CompositeVerifyRedirectResponseRequest {
   // Currency conversion quote and customer decision supplied for
   // authorization after redirect verification.
   optional CurrencyConversionData currency_conversion_data = 54;
+  // Connector token from a PaymentMethodService/Tokenize pre-step, carried alongside payment_method.
+  optional SecretString payment_method_token = 55;
 }
 
 // Response message for composite verify redirect response flow.
