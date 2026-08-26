@@ -171,6 +171,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
+        // Ports the HS Direct empty-body guard
+        // (`crates/hyperswitch_connectors/src/connectors/nmi.rs:1049-1051`): NMI and
+        // intermediate proxies issue empty-bodied probe requests to validate a webhook
+        // endpoint, which must be acknowledged rather than treated as a decode failure.
+        if request.body.is_empty() {
+            return Ok(EventType::IncomingWebhookEventUnspecified);
+        }
+
         let event_type_body: transformers::NmiWebhookEventBody =
             serde_json::from_slice(&request.body)
                 .change_context(WebhookError::WebhookResourceObjectNotFound)
@@ -220,6 +228,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     operation: "nmi credit webhooks",
                 }))
             }
+            // An unmodelled `action_type` (`validate`, `return`, `settle`, …) describes no
+            // payment or refund resource this reference can point at, so the reference is
+            // absent rather than an error — the UCS contract for this RPC is
+            // `reference ... Absent for non-resource events`. Matches the established repo
+            // pattern at connectors/adyen.rs:917-918 and connectors/truelayer.rs:809-810.
+            // Returning `Ok(None)` rather than HS's `WebhooksNotImplemented` is also what
+            // stops NMI's 20-retries-over-3-days storm on the `transaction.validate.*`
+            // events our own SetupMandate (`type=validate`) generates.
+            transformers::NmiActionType::Unknown => Ok(None),
         }
     }
 
@@ -314,6 +331,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 transformers::NmiWebhookSyncResponse::from(&webhook_body),
             )),
             transformers::NmiActionType::Refund => Ok(Box::new(webhook_body)),
+            // Mirrors HS Direct `crates/hyperswitch_connectors/src/connectors/nmi.rs:1077`
+            // (`NmiActionType::Unknown => Err(WebhooksNotImplemented)`). This signature has
+            // no `Option`, so an error is the only faithful mapping for an action whose
+            // resource shape we cannot construct.
+            transformers::NmiActionType::Unknown => {
+                Err(error_stack::report!(WebhookError::WebhooksNotImplemented {
+                    operation: "nmi webhooks for an unrecognised action_type",
+                }))
+            }
         }
     }
 

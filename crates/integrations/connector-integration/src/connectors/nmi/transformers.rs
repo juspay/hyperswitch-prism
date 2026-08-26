@@ -1,4 +1,5 @@
 use crate::types::ResponseRouterData;
+use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine};
 use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector};
 use domain_types::{
@@ -12,10 +13,10 @@ use domain_types::{
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
-    errors::{ConnectorError, IntegrationError},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{
-        BankDebitData, GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes,
-        RawCardNumber, WalletData,
+        ApplePayPaymentData, ApplePayWalletData, BankDebitData, GpayTokenizationData,
+        PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
     },
     router_data::{ConnectorSpecificConfig, FlowStatus},
     router_data_v2::RouterDataV2,
@@ -140,6 +141,152 @@ pub enum NmiPaymentMethod<T: PaymentMethodDataTypes> {
     Ach(Box<AchData>),
     GooglePay(Box<GooglePayData>),
     GooglePayDecrypt(Box<GooglePayDecryptedData>),
+    /// Apple Pay, in whichever of the two Direct Post shapes
+    /// [`build_apple_pay_payment_data`] produced. Mirrors the Hyperswitch Direct
+    /// `PaymentMethod::ApplePayPayment(ApplePayPaymentData)` single variant
+    /// (`crates/hyperswitch_connectors/src/connectors/nmi/transformers.rs:654`) so the
+    /// encrypted/decrypted split lives in exactly one place and both Authorize and
+    /// SetupMandate consume the same value.
+    ApplePay(Box<NmiApplePayPaymentData>),
+}
+
+// ===== APPLE PAY DATA =====
+
+/// Apple Pay, gateway-decrypted variant (NMI Direct Post "Variant A").
+///
+/// The PassKit `payment.token.paymentData` blob is forwarded to NMI untouched in
+/// `applepay_payment_data` — NMI holds the Apple Pay payment-processing certificate and
+/// decrypts it itself. NMI's Direct Post documentation requires the value hex-encoded, and
+/// explicitly forbids sending `ccnumber`/`ccexp`/`cvv` alongside it (they are extracted from
+/// the token), which is why this struct carries the token and nothing else.
+#[derive(Debug, Serialize)]
+pub struct ApplePayData {
+    applepay_payment_data: Secret<String>,
+}
+
+/// Apple Pay, merchant-decrypted variant (NMI Direct Post "Variant B").
+///
+/// The PassKit token was decrypted upstream, so the device PAN and the network cryptogram
+/// travel as discrete form fields, flagged to NMI by `decrypted_applepay_data`. Mirrors the
+/// existing [`GooglePayDecryptedData`] twin field-for-field; `cavv` is non-optional here
+/// because Apple Pay always yields an `onlinePaymentCryptogram`.
+#[derive(Debug, Serialize)]
+pub struct ApplePayDecryptedData {
+    decrypted_applepay_data: DecryptedDataIndicator,
+    ccnumber: Secret<String>,
+    ccexp: Secret<String>,
+    cavv: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    eci: Option<String>,
+}
+
+/// The two mutually exclusive Apple Pay payloads NMI's `transact.php` accepts.
+///
+/// Deliberately flow-agnostic and serialized untagged, so the flow request enums
+/// (`NmiPaymentMethod` for Authorize, `NmiSetupMandatePaymentMethod` for SetupMandate) each
+/// hold it behind a single variant and neither re-implements the encrypted/decrypted split.
+/// Only [`build_apple_pay_payment_data`] knows the encoding rules. Mirrors the Hyperswitch
+/// Direct `ApplePayPaymentData` untagged enum
+/// (`crates/hyperswitch_connectors/src/connectors/nmi/transformers.rs:719-724`), which is
+/// likewise shared by that connector's Authorize and Validate/SetupMandate requests.
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum NmiApplePayPaymentData {
+    /// Gateway-decrypted: the hex-encoded PassKit token.
+    Encrypted(ApplePayData),
+    /// Merchant-decrypted: DPAN + expiry + cryptogram + ECI.
+    Decrypted(ApplePayDecryptedData),
+}
+
+/// Builds the NMI Apple Pay form fields from the caller's Apple Pay wallet data.
+///
+/// The single source of truth for the Apple Pay wire shape: every flow that accepts Apple Pay
+/// (Authorize `type=sale|auth`, SetupMandate `type=validate`) calls this and wraps the result,
+/// so the base64→hex conversion and the expiry/cryptogram extraction cannot drift between them.
+///
+/// Parity with the Hyperswitch Direct NMI integration
+/// (`crates/hyperswitch_connectors/src/connectors/nmi/transformers.rs:1015-1076`), which is
+/// likewise shared by its Authorize (`:834-838`) and Validate/SetupMandate (`:1115-1122`) paths:
+/// the decrypted branch emits `decrypted_applepay_data=1` plus `ccnumber`/`ccexp`/`cavv`/`eci`,
+/// and the encrypted branch base64-decodes the PassKit token and re-encodes it as hex, which
+/// is the encoding Direct Post requires (the v5 REST API takes base64 — this connector talks
+/// Direct Post).
+fn build_apple_pay_payment_data(
+    apple_pay_data: &ApplePayWalletData,
+) -> Result<NmiApplePayPaymentData, error_stack::Report<IntegrationError>> {
+    match &apple_pay_data.payment_data {
+        ApplePayPaymentData::Decrypted(decrypted_data) => {
+            let ccexp = decrypted_data
+                .get_expiry_date_as_mmyy()
+                .change_context(IntegrationError::InvalidDataFormat {
+                    field_name: "payment_method.apple_pay.payment_data.decrypted_data.application_expiration_year",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "NMI needs the decrypted Apple Pay expiry as MMYY; the supplied application_expiration_month/application_expiration_year could not be reduced to that form."
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                })
+                .attach_printable(
+                    "NMI Apple Pay (merchant-decrypted): failed to derive ccexp from the decrypted Apple Pay expiry",
+                )?;
+
+            Ok(NmiApplePayPaymentData::Decrypted(ApplePayDecryptedData {
+                decrypted_applepay_data: DecryptedDataIndicator::Decrypted,
+                ccnumber: Secret::new(
+                    decrypted_data
+                        .application_primary_account_number
+                        .get_card_no(),
+                ),
+                ccexp,
+                cavv: decrypted_data
+                    .payment_data
+                    .online_payment_cryptogram
+                    .clone(),
+                eci: decrypted_data.payment_data.eci_indicator.clone(),
+            }))
+        }
+        ApplePayPaymentData::Encrypted(encrypted_data) => {
+            if encrypted_data.is_empty() {
+                return Err(error_stack::report!(
+                    IntegrationError::MissingRequiredField {
+                        field_name: "payment_method.apple_pay.payment_data.encrypted_data",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "NMI requires the base64-encoded Apple Pay PKPaymentToken paymentData for the gateway-decrypted flow; an empty token would reach NMI as an empty applepay_payment_data."
+                                    .to_string(),
+                            ),
+                            ..Default::default()
+                        },
+                    }
+                ));
+            }
+
+            // NMI Direct Post: "The value in payment.token.paymentData is a binary (NSData)
+            // object, so you must encode it as a hexadecimal string before it can be passed
+            // to the Gateway." The wallet SDK hands it to us base64-encoded, so decode first.
+            let decoded_apple_pay_data = BASE64_STANDARD
+                .decode(encrypted_data)
+                .change_context(IntegrationError::InvalidWalletToken {
+                    wallet_name: "Apple Pay".to_string(),
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "NMI expects payment_method.apple_pay.payment_data.encrypted_data to be a base64-encoded Apple Pay PKPaymentToken paymentData blob, which NMI receives hex-encoded."
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                })
+                .attach_printable(
+                    "NMI Apple Pay (gateway-decrypted): encrypted Apple Pay token is not valid base64",
+                )?;
+
+            Ok(NmiApplePayPaymentData::Encrypted(ApplePayData {
+                applepay_payment_data: Secret::new(hex::encode(decoded_apple_pay_data)),
+            }))
+        }
+    }
 }
 
 // ===== GOOGLE PAY DATA =====
@@ -159,6 +306,10 @@ pub struct GooglePayDecryptedData {
     eci: Option<String>,
 }
 
+/// NMI's flag telling `transact.php` that the wallet payload was decrypted upstream, i.e.
+/// that `ccnumber`/`ccexp`/`cavv`/`eci` carry the decrypted token rather than the encrypted
+/// blob. Serialised as the literal `1` — the value the Hyperswitch Direct NMI integration
+/// sends for both `decrypted_googlepay_data` and `decrypted_applepay_data`.
 #[derive(Debug, Serialize)]
 pub enum DecryptedDataIndicator {
     #[serde(rename = "1")]
@@ -502,6 +653,26 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             },
                         ),
                     }
+                }
+                PaymentMethodData::Wallet(WalletData::ApplePay(apple_pay_data)) => {
+                    // NMI accepts `type=auth` as well as `type=sale` for Apple Pay on
+                    // `transact.php`. Hyperswitch Direct derives the transaction type from the
+                    // capture method once, for every payment method
+                    // (`crates/hyperswitch_connectors/src/connectors/nmi/transformers.rs:736-739`),
+                    // so both Apple Pay variants honour `is_auto_capture()` here rather than
+                    // being pinned to `sale`.
+                    let transaction_type = if router_data.request.is_auto_capture() {
+                        TransactionType::Sale
+                    } else {
+                        TransactionType::Auth
+                    };
+
+                    (
+                        NmiPaymentMethod::ApplePay(Box::new(build_apple_pay_payment_data(
+                            apple_pay_data,
+                        )?)),
+                        transaction_type,
+                    )
                 }
                 _ => {
                     let txn_type = if router_data.request.is_auto_capture() {
@@ -1626,12 +1797,18 @@ pub struct NmiSetupMandateRequest<
     shipping_details: NmiShippingDetails,
 }
 
-/// Payment method for SetupMandate - supports Card and ACH
+/// Payment method for SetupMandate - supports Card, ACH and Apple Pay
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum NmiSetupMandatePaymentMethod<T: PaymentMethodDataTypes> {
     Card(NmiSetupMandateCard<T>),
     Ach(NmiSetupMandateAch),
+    /// Apple Pay, produced by the same [`build_apple_pay_payment_data`] the Authorize flow
+    /// uses, so a vaulted Apple Pay credential is described to NMI with exactly the fields
+    /// an Apple Pay sale would carry. Matches the Hyperswitch Direct
+    /// `NmiValidatePaymentData::ApplePayPayment(Box<ApplePayPaymentData>)`
+    /// (`crates/hyperswitch_connectors/src/connectors/nmi/transformers.rs:565`).
+    ApplePay(Box<NmiApplePayPaymentData>),
 }
 
 /// Card payment method for SetupMandate
@@ -1743,11 +1920,28 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     account_type: *bank_type,
                 })
             }
+            // Apple Pay reuses the Authorize helper verbatim: `type=validate` +
+            // `customer_vault=add_customer` stores the Apple Pay credential in NMI's Customer
+            // Vault and returns a `customer_vault_id`, which RepeatPayment later replays as
+            // `customer_vault_id` on a `type=sale`. Hyperswitch Direct wires Apple Pay into its
+            // Validate request the same way
+            // (`crates/hyperswitch_connectors/src/connectors/nmi/transformers.rs:1115-1122`).
+            PaymentMethodData::Wallet(WalletData::ApplePay(apple_pay_data)) => {
+                NmiSetupMandatePaymentMethod::ApplePay(Box::new(build_apple_pay_payment_data(
+                    apple_pay_data,
+                )?))
+            }
             _ => {
                 return Err(error_stack::report!(IntegrationError::NotSupported {
                     message: get_unimplemented_payment_method_error_message("NMI SetupMandate"),
                     connector: "NMI",
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "NMI SetupMandate (Customer Vault `type=validate`) accepts Card, ACH bank debit and Apple Pay wallet payment methods only."
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
                 }))
             }
         };
@@ -2104,6 +2298,16 @@ pub struct NmiActionBody {
     pub action_type: NmiActionType,
 }
 
+/// `event_body.action.action_type` on an NMI webhook.
+///
+/// NMI's normative OpenAPI enum for this field is 8 values — `auth`, `capture`, `sale`,
+/// `void`, `refund`, `credit`, `return`, `validate` — plus 3 further values observed only
+/// on check-status events: `settle`, `check_return`, `check_late_return`. This enum models
+/// only the 6 actions UCS acts on, so every other value MUST absorb into [`Self::Unknown`]
+/// rather than failing deserialization and turning an unmodelled action into an opaque
+/// `WebhookResourceObjectNotFound`. Mirrors the HS Direct connector, which carries the same
+/// `#[serde(other)] Unknown`
+/// (`hyperswitch/crates/hyperswitch_connectors/src/connectors/nmi/transformers.rs:1775-1776`).
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum NmiActionType {
@@ -2113,6 +2317,8 @@ pub enum NmiActionType {
     Refund,
     Sale,
     Void,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Deserialize)]
@@ -2120,6 +2326,17 @@ pub struct NmiWebhookEventBody {
     pub event_type: NmiWebhookEventType,
 }
 
+/// `event_type` on an NMI webhook.
+///
+/// NMI documents 36 gateway `event_type` values across 6 families. This enum models the 15
+/// transaction events UCS acts on; the other 21 — `transaction.credit.*`,
+/// `transaction.validate.*`, `transaction.check.status.*`, `recurring.*`,
+/// `settlement.batch.*`, `chargeback.batch.complete` and `acu.summary.*` — MUST deserialize
+/// to [`Self::Unknown`] and be acknowledged rather than rejected: NMI retries a non-200
+/// delivery 20 times over 3 days (<https://docs.nmi.com/reference/retry-logic>), so a single
+/// unmodelled event class would otherwise produce a three-day retry storm. Mirrors the HS
+/// Direct connector's `#[serde(other)] Unknown`
+/// (`hyperswitch/crates/hyperswitch_connectors/src/connectors/nmi/transformers.rs:1816-1817`).
 #[derive(Debug, Deserialize, Serialize)]
 pub enum NmiWebhookEventType {
     #[serde(rename = "transaction.sale.success")]
@@ -2152,6 +2369,8 @@ pub enum NmiWebhookEventType {
     CaptureFailure,
     #[serde(rename = "transaction.capture.unknown")]
     CaptureUnknown,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -2216,6 +2435,14 @@ pub(crate) fn get_nmi_webhook_event(
         | NmiWebhookEventType::AuthUnknown
         | NmiWebhookEventType::VoidUnknown
         | NmiWebhookEventType::CaptureUnknown => EventType::IncomingWebhookEventUnspecified,
+        NmiWebhookEventType::Unknown => {
+            tracing::warn!(
+                connector = "nmi",
+                flow = "Webhooks",
+                "Unrecognised NMI webhook event_type received; acknowledging without processing"
+            );
+            EventType::IncomingWebhookEventUnspecified
+        }
     }
 }
 
@@ -2242,4 +2469,571 @@ pub(crate) fn parse_nmi_webhook_signature_header(header: &str) -> Option<(&str, 
     let after_t = header.get(t_idx + 2..)?;
     let s_idx = after_t.rfind(",s=")?;
     Some((after_t.get(..s_idx)?, after_t.get(s_idx + 3..)?))
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+#[allow(clippy::expect_used)]
+#[allow(clippy::panic)]
+mod tests {
+    use super::*;
+    use domain_types::payment_method_data::{
+        ApplePayCryptogramData, ApplePayDecryptedData as DomainApplePayDecryptedData,
+        ApplepayPaymentMethod,
+    };
+
+    /// The base64 form of the 4-byte payload `0xde 0xad 0xbe 0xef`, i.e. what an Apple Pay SDK
+    /// hands us; NMI's Direct Post must receive it hex-encoded as `deadbeef`.
+    const SAMPLE_TOKEN_BASE64: &str = "3q2+7w==";
+    const SAMPLE_TOKEN_HEX: &str = "deadbeef";
+
+    fn apple_pay_payment_method() -> ApplepayPaymentMethod {
+        ApplepayPaymentMethod {
+            display_name: "Visa 1111".to_string(),
+            network: "Visa".to_string(),
+            pm_type: "debit".to_string(),
+        }
+    }
+
+    fn encrypted_wallet_data(token: &str) -> ApplePayWalletData {
+        ApplePayWalletData {
+            payment_data: ApplePayPaymentData::Encrypted(token.to_string()),
+            payment_method: apple_pay_payment_method(),
+            transaction_identifier: "txn_1".to_string(),
+        }
+    }
+
+    fn decrypted_wallet_data(eci: Option<&str>) -> ApplePayWalletData {
+        ApplePayWalletData {
+            payment_data: ApplePayPaymentData::Decrypted(DomainApplePayDecryptedData {
+                application_primary_account_number: "4111111111111111".parse().expect("card"),
+                application_expiration_month: Secret::new("03".to_string()),
+                application_expiration_year: Secret::new("2030".to_string()),
+                payment_data: ApplePayCryptogramData {
+                    online_payment_cryptogram: Secret::new("AAAA".to_string()),
+                    eci_indicator: eci.map(str::to_string),
+                },
+            }),
+            payment_method: apple_pay_payment_method(),
+            transaction_identifier: "txn_1".to_string(),
+        }
+    }
+
+    #[test]
+    fn encrypted_apple_pay_token_is_base64_decoded_then_hex_encoded() {
+        let built = build_apple_pay_payment_data(&encrypted_wallet_data(SAMPLE_TOKEN_BASE64))
+            .expect("encrypted apple pay token should build");
+
+        assert_eq!(
+            serde_urlencoded::to_string(&built).expect("serialize"),
+            format!("applepay_payment_data={SAMPLE_TOKEN_HEX}")
+        );
+    }
+
+    #[test]
+    fn decrypted_apple_pay_emits_the_flag_pan_expiry_cryptogram_and_eci() {
+        let built = build_apple_pay_payment_data(&decrypted_wallet_data(Some("05")))
+            .expect("decrypted apple pay data should build");
+
+        assert_eq!(
+            serde_urlencoded::to_string(&built).expect("serialize"),
+            "decrypted_applepay_data=1&ccnumber=4111111111111111&ccexp=0330&cavv=AAAA&eci=05"
+        );
+    }
+
+    #[test]
+    fn decrypted_apple_pay_omits_eci_when_absent() {
+        let built = build_apple_pay_payment_data(&decrypted_wallet_data(None))
+            .expect("decrypted apple pay data should build");
+
+        let encoded = serde_urlencoded::to_string(&built).expect("serialize");
+        assert!(
+            !encoded.contains("eci"),
+            "an absent eci must be omitted, not sent empty: {encoded}"
+        );
+    }
+
+    #[test]
+    fn empty_encrypted_apple_pay_token_is_rejected() {
+        let error = build_apple_pay_payment_data(&encrypted_wallet_data(""))
+            .expect_err("an empty token must not reach NMI");
+
+        assert!(
+            matches!(
+                error.current_context(),
+                IntegrationError::MissingRequiredField {
+                    field_name: "payment_method.apple_pay.payment_data.encrypted_data",
+                    ..
+                }
+            ),
+            "unexpected error: {error:?}"
+        );
+    }
+
+    #[test]
+    fn non_base64_encrypted_apple_pay_token_is_rejected() {
+        let error = build_apple_pay_payment_data(&encrypted_wallet_data("not base64 !!"))
+            .expect_err("a non-base64 token must not reach NMI");
+
+        assert!(
+            matches!(
+                error.current_context(),
+                IntegrationError::InvalidWalletToken { wallet_name, .. } if wallet_name == "Apple Pay"
+            ),
+            "unexpected error: {error:?}"
+        );
+    }
+
+    /// The anti-drift guarantee this change exists for: Authorize and SetupMandate wrap the very
+    /// same [`NmiApplePayPaymentData`], so the Apple Pay form fields NMI receives are identical
+    /// on both flows and cannot diverge without this test failing.
+    #[test]
+    fn authorize_and_setup_mandate_emit_identical_apple_pay_fields() {
+        for wallet_data in [
+            decrypted_wallet_data(Some("05")),
+            encrypted_wallet_data(SAMPLE_TOKEN_BASE64),
+        ] {
+            let authorize =
+                NmiPaymentMethod::<domain_types::payment_method_data::DefaultPCIHolder>::ApplePay(
+                    Box::new(
+                        build_apple_pay_payment_data(&wallet_data).expect("authorize apple pay"),
+                    ),
+                );
+            let setup_mandate = NmiSetupMandatePaymentMethod::<
+                domain_types::payment_method_data::DefaultPCIHolder,
+            >::ApplePay(Box::new(
+                build_apple_pay_payment_data(&wallet_data).expect("setup mandate apple pay"),
+            ));
+
+            assert_eq!(
+                serde_urlencoded::to_string(&authorize).expect("serialize authorize"),
+                serde_urlencoded::to_string(&setup_mandate).expect("serialize setup mandate"),
+            );
+        }
+    }
+
+    // ===== INCOMING WEBHOOK TESTS =====
+
+    use domain_types::connector_types::EventType;
+
+    /// Deserializes an NMI webhook body and runs it through the event-type mapping, i.e.
+    /// exactly what `IncomingWebhook::get_event_type` does.
+    fn parse_event_type(body: &str) -> EventType {
+        let event_body: NmiWebhookEventBody = serde_json::from_str(body)
+            .unwrap_or_else(|error| panic!("event body should deserialize: {error} — {body}"));
+        get_nmi_webhook_event(event_body.event_type)
+    }
+
+    fn parse_event_type_variant(event_type: &str) -> NmiWebhookEventType {
+        let body = format!(r#"{{"event_type":"{event_type}"}}"#);
+        serde_json::from_str::<NmiWebhookEventBody>(&body)
+            .unwrap_or_else(|error| panic!("event_type {event_type} should deserialize: {error}"))
+            .event_type
+    }
+
+    fn parse_action_type(action_type: &str) -> NmiActionType {
+        let body = format!(r#"{{"action_type":"{action_type}"}}"#);
+        serde_json::from_str::<NmiActionBody>(&body)
+            .unwrap_or_else(|error| panic!("action_type {action_type} should deserialize: {error}"))
+            .action_type
+    }
+
+    /// Every `event_body` field an NMI webhook exposes that correlates *at all* with the
+    /// payment having originated in a digital wallet. There are exactly four, and NMI's
+    /// published schema has no fifth: no `payment_method`, no `wallet` node, no
+    /// `wallet_type`/`token_type`, and a `transaction_type` whose enum is only
+    /// `cc | ck | cs` (<https://docs.nmi.com/reference/create-sale-v5>, `event_body` /
+    /// `CardDetails` / `TransactionAction` schemas).
+    ///
+    /// None of the four is a wallet *discriminator*:
+    /// * `cavv` / `eci` / `cardholder_auth` — NMI's own request schema calls these the
+    ///   *"repurposed 3-D Secure"* fields that a decrypted wallet cryptogram is submitted
+    ///   in (`CardholderAuth` `oneOf` variant "Decrypted wallet (Apple Pay / Google Pay)"),
+    ///   so a 3DS-authenticated raw card populates them identically.
+    /// * `network_token_used` / `network_token_cryptogram_created` — also set for a plain
+    ///   PAN tokenised via the Direct Post `network_tokenize=1` request flag, and identical
+    ///   for Apple Pay and Google Pay.
+    struct WalletProvenance {
+        network_tokenised: bool,
+        cavv: &'static str,
+        eci: &'static str,
+        cardholder_auth: &'static str,
+    }
+
+    /// Raw keyed PAN, no 3DS — the control.
+    const RAW_CARD: WalletProvenance = WalletProvenance {
+        network_tokenised: false,
+        cavv: "",
+        eci: "",
+        cardholder_auth: "",
+    };
+
+    /// Apple Pay. NMI decrypts the PassKit token to a DPAN, so the settled transaction is a
+    /// network-tokenised keyed (`entry_mode` 4) e-commerce sale.
+    const APPLE_PAY: WalletProvenance = WalletProvenance {
+        network_tokenised: true,
+        cavv: "AAABBIhoAAAAAAAAAAAAAAAAAAA=",
+        eci: "05",
+        cardholder_auth: "verified",
+    };
+
+    /// Google Pay submitted as `googlepay_payment_data=<base64 token>` (UCS
+    /// `NmiPaymentMethod::GooglePay`, transformers.rs:646-655). NMI decrypts the token
+    /// server-side to a DPAN + cryptogram, so the settled transaction is an ordinary `cc`.
+    const GOOGLE_PAY_TOKEN: WalletProvenance = WalletProvenance {
+        network_tokenised: true,
+        cavv: "AgAAAAAABk4DWZ4C28yUQAAAAAA=",
+        eci: "05",
+        cardholder_auth: "verified",
+    };
+
+    /// Google Pay submitted as `decrypted_googlepay_data=1` + DPAN/cryptogram (UCS
+    /// `NmiPaymentMethod::GooglePayDecrypt`, transformers.rs:629-643). Deliberately given a
+    /// *different* cryptogram and ECI from [`GOOGLE_PAY_TOKEN`] so the assertions below
+    /// prove the parsed output is invariant to these fields rather than proving two equal
+    /// inputs are equal.
+    const GOOGLE_PAY_DECRYPTED: WalletProvenance = WalletProvenance {
+        network_tokenised: true,
+        cavv: "3q2+7wAAAAAAAAAAAAAAAAAAAAA=",
+        eci: "07",
+        cardholder_auth: "attempted",
+    };
+
+    /// A full NMI `transaction.sale.success` webhook in the shape NMI actually delivers,
+    /// including the many `event_body` keys the connector deliberately does not model.
+    fn sale_webhook(provenance: &WalletProvenance) -> String {
+        let WalletProvenance {
+            network_tokenised,
+            cavv,
+            eci,
+            cardholder_auth,
+        } = provenance;
+        format!(
+            r#"{{
+                "event_type": "transaction.sale.success",
+                "event_body": {{
+                    "merchant": {{"id": "pmle-1072470", "name": "Test Merchant"}},
+                    "features": {{"is_test_mode": true}},
+                    "transaction_id": "10345678901",
+                    "transaction_type": "cc",
+                    "condition": "pendingsettlement",
+                    "processor_id": "ccprocessora",
+                    "order_id": "pay_nmi_wallet_001",
+                    "order_description": "Test order",
+                    "currency": "USD",
+                    "requested_amount": "10.00",
+                    "authorization_code": "123456",
+                    "merchant_defined_fields": {{}},
+                    "card": {{
+                        "cc_number": "4xxxxxxxxxxx1111",
+                        "cc_exp": "0330",
+                        "cc_type": "Visa",
+                        "cc_bin": "411111",
+                        "entry_mode": "4",
+                        "cavv": "{cavv}",
+                        "cavv_result": "",
+                        "eci": "{eci}",
+                        "cardholder_auth": "{cardholder_auth}",
+                        "feature_token": ""
+                    }},
+                    "action": {{
+                        "action_type": "sale",
+                        "success": "1",
+                        "amount": "10.00",
+                        "date": "20260803040000",
+                        "source": "api",
+                        "api_method": "direct_post",
+                        "network_token_used": {network_tokenised},
+                        "network_token_cryptogram_created": {network_tokenised}
+                    }}
+                }}
+            }}"#
+        )
+    }
+
+    /// Everything `IncomingWebhook` reads out of an NMI webhook body, plus the resource
+    /// object it hands downstream. Two payloads with equal projections are, as far as the
+    /// whole webhook surface is concerned, the same event.
+    // `EventType` is `PartialEq` but not `Eq`, so this cannot derive `Eq`.
+    #[derive(Debug, PartialEq)]
+    struct WebhookProjection {
+        event_type: EventType,
+        /// From `NmiWebhookObjectReference` — what `get_webhook_event_reference` resolves.
+        reference_order_id: String,
+        reference_action: String,
+        /// From `NmiWebhookBody` — what `process_payment_webhook` / `process_refund_webhook`
+        /// and `get_webhook_resource_object` read.
+        transaction_id: String,
+        condition: String,
+        /// The serialized `{"transaction":{...}}` resource object, byte for byte.
+        resource_object: String,
+    }
+
+    fn project_webhook(body: &str) -> WebhookProjection {
+        let reference: NmiWebhookObjectReference = serde_json::from_str(body)
+            .unwrap_or_else(|error| panic!("object reference should deserialize: {error}"));
+        let webhook_body: NmiWebhookBody = serde_json::from_str(body)
+            .unwrap_or_else(|error| panic!("webhook body should deserialize: {error}"));
+
+        WebhookProjection {
+            event_type: parse_event_type(body),
+            reference_order_id: reference.event_body.order_id,
+            reference_action: serde_json::to_string(&reference.event_body.action)
+                .expect("serialize reference action"),
+            transaction_id: webhook_body.event_body.transaction_id.clone(),
+            condition: webhook_body.event_body.condition.clone(),
+            resource_object: serde_json::to_string(&NmiWebhookSyncResponse::from(&webhook_body))
+                .expect("serialize resource object"),
+        }
+    }
+
+    /// Regression test for the gap this change closes: before `#[serde(other)] Unknown`,
+    /// each of these hard-failed at `serde_json::from_slice` with `unknown variant`, so
+    /// `EventService/ParseEvent` returned a gRPC error and NMI retried the delivery 20 times
+    /// over 3 days. `transaction.validate.*` is live traffic today — our own SetupMandate
+    /// (including the Apple Pay SetupMandate) submits `type=validate`.
+    #[test]
+    fn unmodelled_event_types_absorb_into_unknown_and_are_acknowledged() {
+        for event_type in [
+            "transaction.credit.success",
+            "transaction.validate.success",
+            "chargeback.batch.complete",
+            "settlement.batch.complete",
+            "transaction.check.status.settle",
+        ] {
+            let parsed = parse_event_type_variant(event_type);
+            assert!(
+                matches!(parsed, NmiWebhookEventType::Unknown),
+                "{event_type} should absorb into NmiWebhookEventType::Unknown"
+            );
+            assert_eq!(
+                get_nmi_webhook_event(parsed),
+                EventType::IncomingWebhookEventUnspecified,
+                "{event_type} should be acknowledged as Unspecified"
+            );
+        }
+    }
+
+    /// Guards the 15 modelled `event_type` strings against the new `#[serde(other)]` arm:
+    /// each must still deserialize to its own variant (never `Unknown`) and map to its exact
+    /// event type, so a modelled event can never be silently swallowed.
+    #[test]
+    fn modelled_event_types_are_not_swallowed_by_the_serde_other_arm() {
+        for (event_type, expected) in [
+            ("transaction.sale.success", EventType::PaymentIntentSuccess),
+            ("transaction.sale.failure", EventType::PaymentIntentFailure),
+            (
+                "transaction.sale.unknown",
+                EventType::IncomingWebhookEventUnspecified,
+            ),
+            (
+                "transaction.auth.success",
+                EventType::PaymentIntentAuthorizationSuccess,
+            ),
+            (
+                "transaction.auth.failure",
+                EventType::PaymentIntentAuthorizationFailure,
+            ),
+            (
+                "transaction.auth.unknown",
+                EventType::IncomingWebhookEventUnspecified,
+            ),
+            (
+                "transaction.capture.success",
+                EventType::PaymentIntentCaptureSuccess,
+            ),
+            (
+                "transaction.capture.failure",
+                EventType::PaymentIntentCaptureFailure,
+            ),
+            (
+                "transaction.capture.unknown",
+                EventType::IncomingWebhookEventUnspecified,
+            ),
+            (
+                "transaction.void.success",
+                EventType::PaymentIntentCancelled,
+            ),
+            (
+                "transaction.void.failure",
+                EventType::PaymentIntentCancelFailure,
+            ),
+            (
+                "transaction.void.unknown",
+                EventType::IncomingWebhookEventUnspecified,
+            ),
+            ("transaction.refund.success", EventType::RefundSuccess),
+            ("transaction.refund.failure", EventType::RefundFailure),
+            (
+                "transaction.refund.unknown",
+                EventType::IncomingWebhookEventUnspecified,
+            ),
+        ] {
+            let parsed = parse_event_type_variant(event_type);
+            assert!(
+                !matches!(parsed, NmiWebhookEventType::Unknown),
+                "{event_type} is modelled and must not fall into the serde(other) arm"
+            );
+            assert_eq!(
+                get_nmi_webhook_event(parsed),
+                expected,
+                "unexpected event type mapping for {event_type}"
+            );
+        }
+    }
+
+    /// `validate`, `return` and `settle` are documented NMI `action.action_type` values that
+    /// UCS does not act on; they must absorb into `Unknown` instead of aborting the whole
+    /// webhook parse, while the six modelled actions keep their own variants.
+    #[test]
+    fn unmodelled_action_types_absorb_into_unknown() {
+        for action_type in ["validate", "return", "settle"] {
+            assert!(
+                matches!(parse_action_type(action_type), NmiActionType::Unknown),
+                "{action_type} should absorb into NmiActionType::Unknown"
+            );
+        }
+
+        assert!(matches!(parse_action_type("sale"), NmiActionType::Sale));
+        assert!(matches!(parse_action_type("auth"), NmiActionType::Auth));
+        assert!(matches!(
+            parse_action_type("capture"),
+            NmiActionType::Capture
+        ));
+        assert!(matches!(parse_action_type("void"), NmiActionType::Void));
+        assert!(matches!(parse_action_type("refund"), NmiActionType::Refund));
+        assert!(matches!(parse_action_type("credit"), NmiActionType::Credit));
+    }
+
+    /// THE determination behind "NMI Webhooks / Wallet-ApplePay", asserted rather than
+    /// asserted-in-prose: NMI's webhook payload carries no wallet discriminator, so an Apple
+    /// Pay-originated sale is indistinguishable from a raw keyed-card sale at every field the
+    /// webhook path reads (`event_type`, `order_id`, `transaction_id`, `condition`,
+    /// `action.action_type`). This is why **no Apple Pay-specific webhook code exists in this
+    /// connector** — any such branch would be unreachable dead code.
+    #[test]
+    fn apple_pay_and_raw_card_webhooks_parse_identically() {
+        // Apple Pay: NMI decrypts the PassKit token to a DPAN, so the transaction is reported
+        // as a network-tokenised Visa keyed (`entry_mode` 4) e-commerce sale.
+        let apple_pay_webhook = sale_webhook(&APPLE_PAY);
+        // Raw keyed card: same entry mode, no network token.
+        let raw_card_webhook = sale_webhook(&RAW_CARD);
+
+        assert_eq!(
+            parse_event_type(&apple_pay_webhook),
+            parse_event_type(&raw_card_webhook),
+            "Apple Pay and raw card must yield the same webhook event type"
+        );
+
+        let apple_pay_body: NmiWebhookBody = serde_json::from_str(&apple_pay_webhook)
+            .expect("apple pay webhook body should deserialize");
+        let raw_card_body: NmiWebhookBody = serde_json::from_str(&raw_card_webhook)
+            .expect("raw card webhook body should deserialize");
+
+        assert_eq!(
+            apple_pay_body.event_body.order_id,
+            raw_card_body.event_body.order_id
+        );
+        assert_eq!(
+            apple_pay_body.event_body.transaction_id,
+            raw_card_body.event_body.transaction_id
+        );
+        assert_eq!(
+            apple_pay_body.event_body.condition,
+            raw_card_body.event_body.condition
+        );
+        assert_eq!(
+            serde_json::to_value(&apple_pay_body.event_body.action)
+                .expect("serialize apple pay action"),
+            serde_json::to_value(&raw_card_body.event_body.action)
+                .expect("serialize raw card action"),
+            "action_type must be identical — NMI reports both as a plain `sale`"
+        );
+    }
+
+    /// The Google Pay counterpart of the assertion above, and the reason this connector has
+    /// no Google Pay-specific webhook code.
+    ///
+    /// Google Pay reaches NMI two ways, both implemented in Authorize: the raw token
+    /// (`googlepay_payment_data`) and the merchant-decrypted path
+    /// (`decrypted_googlepay_data=1` + DPAN/cryptogram). NMI resolves both to a DPAN and
+    /// reports the result as an ordinary `transaction_type: "cc"` sale, so the delivered
+    /// webhook is indistinguishable from a raw-card one at every field the connector reads.
+    ///
+    /// The three payloads here differ in *all four* wallet-adjacent fields NMI exposes (see
+    /// [`WalletProvenance`]) and still project identically. If NMI ever adds a real wallet
+    /// discriminator this test keeps passing — it asserts the current schema's consequence,
+    /// not the absence of a future field — but any attempt to *branch* the parser on the
+    /// fields that exist today would be dead code, which is what this pins down.
+    #[test]
+    fn google_pay_and_raw_card_webhooks_parse_identically() {
+        let raw_card = project_webhook(&sale_webhook(&RAW_CARD));
+        let google_pay_token = project_webhook(&sale_webhook(&GOOGLE_PAY_TOKEN));
+        let google_pay_decrypted = project_webhook(&sale_webhook(&GOOGLE_PAY_DECRYPTED));
+
+        assert_eq!(
+            google_pay_token, raw_card,
+            "a `googlepay_payment_data` sale must project identically to a raw-card sale"
+        );
+        assert_eq!(
+            google_pay_decrypted, raw_card,
+            "a `decrypted_googlepay_data` sale must project identically to a raw-card sale"
+        );
+        // Explicit rather than transitive: the two Google Pay provenances carry different
+        // cryptograms and ECIs, so this states that the connector output does not depend on
+        // which Google Pay path Authorize took.
+        assert_eq!(
+            google_pay_token, google_pay_decrypted,
+            "both Google Pay provenances must project identically to each other"
+        );
+
+        // Guard the premise: the payloads really are different on the wire, so the equality
+        // above is a property of the parser and not of three identical inputs.
+        assert_ne!(
+            sale_webhook(&GOOGLE_PAY_TOKEN),
+            sale_webhook(&RAW_CARD),
+            "the Google Pay and raw-card payloads must differ before parsing"
+        );
+        assert_ne!(
+            sale_webhook(&GOOGLE_PAY_TOKEN),
+            sale_webhook(&GOOGLE_PAY_DECRYPTED),
+            "the two Google Pay payloads must differ before parsing"
+        );
+
+        assert_eq!(raw_card.event_type, EventType::PaymentIntentSuccess);
+        assert_eq!(raw_card.reference_order_id, "pay_nmi_wallet_001");
+    }
+
+    /// The payment-action resource object must be byte-identical to the PSync envelope HS
+    /// Direct emits, since downstream reuses the PSync parser on it.
+    #[test]
+    fn webhook_sync_response_serialises_to_the_psync_transaction_envelope() {
+        let webhook_body: NmiWebhookBody = serde_json::from_str(&sale_webhook(&APPLE_PAY))
+            .expect("webhook body should deserialize");
+
+        assert_eq!(
+            serde_json::to_string(&NmiWebhookSyncResponse::from(&webhook_body))
+                .expect("serialize webhook sync response"),
+            r#"{"transaction":{"transaction_id":"10345678901","condition":"pendingsettlement"}}"#
+        );
+    }
+
+    #[test]
+    fn webhook_signature_header_is_split_on_the_last_comma_s() {
+        assert_eq!(
+            parse_nmi_webhook_signature_header("t=1785000000,s=0a1b2c3d"),
+            Some(("1785000000", "0a1b2c3d"))
+        );
+
+        // HS Direct uses the greedy regex `r"t=(.*),s=(.*)"`, so a nonce that itself contains
+        // `,s=` is split on the LAST occurrence. Reproduced deliberately — a naive
+        // `split_once(",s=")` would diverge from the Direct gateway here.
+        assert_eq!(
+            parse_nmi_webhook_signature_header("t=1785000000,s=notthesignature,s=0a1b2c3d"),
+            Some(("1785000000,s=notthesignature", "0a1b2c3d"))
+        );
+
+        assert_eq!(parse_nmi_webhook_signature_header("t=1785000000"), None);
+        assert_eq!(parse_nmi_webhook_signature_header("malformed"), None);
+    }
 }
