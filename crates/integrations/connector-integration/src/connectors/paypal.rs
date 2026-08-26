@@ -21,11 +21,11 @@ use domain_types::{
     connector_types::{
         ClientAuthenticationTokenRequestData, EventContext, PaymentCreateOrderData,
         PaymentCreateOrderResponse, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsPostAuthenticateData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        RequestDetails, ServerAuthenticationTokenRequestData,
-        ServerAuthenticationTokenResponseData, SetupMandateRequestData,
-        VerifyWebhookSourceFlowData,
+        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, RepeatPaymentData, RequestDetails,
+        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+        SetupMandateRequestData, VerifyWebhookSourceFlowData,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, WalletData},
@@ -49,11 +49,12 @@ use crate::{
     connectors::paypal::transformers::{
         self as paypal, auth_headers, constants as paypal_constants, PaypalAuthResponse,
         PaypalAuthUpdateRequest, PaypalAuthUpdateResponse, PaypalCaptureResponse,
-        PaypalClientAuthTokenRequest, PaypalClientAuthTokenResponse, PaypalOrderCreateRequest,
-        PaypalOrderCreateResponse, PaypalPaymentsCancelResponse, PaypalPaymentsCaptureRequest,
-        PaypalPaymentsRequest, PaypalRefundRequest, PaypalRepeatPaymentRequest,
-        PaypalRepeatPaymentResponse, PaypalSetupMandatesResponse, PaypalSyncResponse,
-        PaypalZeroMandateRequest, RefundResponse, RefundSyncResponse,
+        PaypalClientAuthTokenRequest, PaypalClientAuthTokenResponse, PaypalIncrementalAuthRequest,
+        PaypalIncrementalAuthResponse, PaypalOrderCreateRequest, PaypalOrderCreateResponse,
+        PaypalPaymentsCancelResponse, PaypalPaymentsCaptureRequest, PaypalPaymentsRequest,
+        PaypalRefundRequest, PaypalRepeatPaymentRequest, PaypalRepeatPaymentResponse,
+        PaypalSetupMandatesResponse, PaypalSyncResponse, PaypalZeroMandateRequest, RefundResponse,
+        RefundSyncResponse,
     },
     finalize_connector_response,
     types::ResponseRouterData,
@@ -105,6 +106,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Paypal<T>
+{
+}
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentIncrementalAuthorization for Paypal<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -462,6 +467,12 @@ macros::create_all_prerequisites!(
             flow: Void,
             response_body: PaypalPaymentsCancelResponse,
             router_data: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ),
+        (
+            flow: IncrementalAuthorization,
+            request_body: PaypalIncrementalAuthRequest,
+            response_body: PaypalIncrementalAuthResponse,
+            router_data: RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
         ),
         (
             flow: ServerAuthenticationToken,
@@ -1036,6 +1047,127 @@ macros::macro_connector_implementation!(
                 "{}v2/payments/authorizations/{}/void",
                 self.connector_base_url_payments(req),
                 authorize_id,
+            ))
+        }
+    }
+);
+
+// IncrementalAuthorization — POST /v2/payments/authorizations/{id}/reauthorize.
+//
+// PayPal has no dedicated incremental-authorization API; "Reauthorize Authorized Payment" is the
+// operation this flow maps onto. It targets the authorization id that the original Authorize call
+// handed back in `connector_feature_data`, and mints a NEW authorization id in the response.
+// Both HTTP 201 (created) and HTTP 200 (idempotent replay of the same `PayPal-Request-Id`) are
+// success and carry the same `authorization-2` schema.
+//
+// The endpoint is funding-source agnostic, so this block is deliberately free of any
+// payment-method branch: the path selector is an authorization id (not an order or a funding
+// instrument), the request body accepts only `amount`, and `authorization-2` carries no
+// funding-instrument block. PayPal's own operation description is in fact written for the wallet
+// case — "Reauthorizes an authorized PayPal account payment, by ID." Card and
+// Wallet(PayPal) — both `PaypalRedirect` and `PaypalSdk` — therefore share this code verbatim;
+// they differ only in which Authorize leg mints the authorization id (see
+// `extract_incremental_authorization_id`).
+// Doc: https://developer.paypal.com/docs/api/payments/v2/#authorizations_reauthorize
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Paypal,
+    curl_request: Json(PaypalIncrementalAuthRequest),
+    curl_response: PaypalIncrementalAuthResponse,
+    flow_name: IncrementalAuthorization,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsIncrementalAuthorizationData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            let access_token = req.resource_common_data
+                .access_token
+                .clone()
+                .ok_or_else(|| report!(IntegrationError::FailedToObtainAuthType {
+                    context: paypal::paypal_err_ctx(
+                        "PayPal authorizes every Payments v2 call with an OAuth 2.0 bearer token; \
+                         no access token was present on the IncrementalAuthorization request",
+                        "Call MerchantAuthenticationService/CreateServerAuthenticationToken first \
+                         and pass the result in `state.access_token`",
+                    ),
+                }))
+                .attach_printable("Missing access_token for PayPal reauthorize")?;
+            let connector_metadata = req.resource_common_data.connector_feature_data
+                .as_ref()
+                .map(|secret| secret.clone().expose());
+            self.build_headers(
+                &access_token.access_token.expose(),
+                &req.resource_common_data.connector_request_reference_id,
+                &req.connector_config,
+                connector_metadata.as_ref(),
+            )
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let connector_metadata_value = req
+                .request
+                .connector_feature_data
+                .clone()
+                .map(|secret| secret.expose())
+                .ok_or_else(|| report!(IntegrationError::MissingRequiredField {
+                    field_name: "connector_feature_data",
+                    context: paypal::paypal_err_ctx(
+                        "PayPal reauthorize is addressed by the authorization id minted by the \
+                         original Authorize call, which UCS returns to the caller inside \
+                         `connector_feature_data`",
+                        "Echo the `connector_feature_data` from the Authorize response back on the \
+                         IncrementalAuthorization request",
+                    ),
+                }))
+                .attach_printable(
+                    "connector_feature_data absent on PayPal IncrementalAuthorization request",
+                )?;
+
+            let paypal_meta: paypal::PaypalMeta = serde_json::from_value(connector_metadata_value)
+                .change_context(IntegrationError::InvalidDataFormat {
+                    field_name: "connector_feature_data",
+                    context: paypal::paypal_err_ctx(
+                        "`connector_feature_data` could not be parsed as the PayPal connector \
+                         metadata object that the Authorize response emits",
+                        "Pass the `connector_feature_data` value through unmodified instead of \
+                         reconstructing it",
+                    ),
+                })
+                .attach_printable("Failed to deserialize PaypalMeta from connector_feature_data")?;
+
+            let incremental_authorization_id = paypal_meta
+                .incremental_authorization_id
+                .ok_or_else(|| report!(IntegrationError::MissingRequiredField {
+                    field_name: "connector_feature_data.incremental_authorization_id",
+                    context: paypal::paypal_err_ctx(
+                        "PayPal only populates an incremental authorization id when the original \
+                         payment was created with intent AUTHORIZE and \
+                         `request_incremental_authorization` set; there is nothing to reauthorize \
+                         without it",
+                        "Authorize with `capture_method: MANUAL` and \
+                         `request_incremental_authorization: true`, then reuse the resulting \
+                         `connector_feature_data`",
+                    ),
+                }))
+                .attach_printable(
+                    "PaypalMeta.incremental_authorization_id missing — cannot build reauthorize URL",
+                )?;
+
+            Ok(format!(
+                "{}{}/{}/{}",
+                self.connector_base_url_payments(req),
+                paypal_constants::AUTHORIZATIONS_PATH,
+                incremental_authorization_id,
+                paypal_constants::REAUTHORIZE_ACTION,
             ))
         }
     }
@@ -1732,6 +1864,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                 .or(Some(err_reason)),
             None => Some(response.message.to_owned()),
         };
+        // PayPal's non-2xx envelope always carries a top-level `name` (e.g. UNPROCESSABLE_ENTITY)
+        // and `message`, and usually a more specific `details[].issue`
+        // (e.g. REAUTHORIZATION_TOO_SOON). Prefer the issue, fall back to the envelope's own
+        // name/message, and only report the NO_ERROR_* placeholders if PayPal really sent neither.
+        let error_name = response.name.clone();
+        let error_message = response.message.clone();
         let errors_list = response.details.unwrap_or_default();
         let option_error_code_message = utils::get_error_code_error_message_based_on_priority(
             self.clone(),
@@ -1746,9 +1884,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             code: option_error_code_message
                 .clone()
                 .map(|error_code_message| error_code_message.error_code)
+                .or(error_name)
                 .unwrap_or(NO_ERROR_CODE.to_string()),
             message: option_error_code_message
                 .map(|error_code_message| error_code_message.error_message)
+                .or(Some(error_message))
                 .unwrap_or(NO_ERROR_MESSAGE.to_string()),
             reason,
             attempt_status: None,
@@ -1783,7 +1923,6 @@ macros::macro_connector_flow_status_impls!(
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     not_implemented: [
-        IncrementalAuthorization,
         Accept,
         SubmitEvidence,
         DefendDispute,

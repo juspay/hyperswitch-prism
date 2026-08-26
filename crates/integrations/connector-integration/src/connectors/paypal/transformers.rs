@@ -13,13 +13,14 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, ClientAuthenticationToken, CreateOrder, PSync, PostAuthenticate,
-        RepeatPayment, VerifyWebhookSource,
+        Authorize, Capture, ClientAuthenticationToken, CreateOrder, IncrementalAuthorization,
+        PSync, PostAuthenticate, RepeatPayment, VerifyWebhookSource,
     },
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData, MandateReference,
         PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsPostAuthenticateData, PaymentsResponseData, PaymentsSyncData,
+        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+        PaymentsResponseData, PaymentsSyncData,
         PaypalClientAuthenticationResponse as PaypalClientAuthenticationResponseDomain,
         PaypalFlow as PaypalFlowDomain, PaypalTransactionInfo as PaypalTransactionInfoDomain,
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
@@ -84,6 +85,34 @@ pub mod constants {
     pub const DEFAULT_NOTIFICATION_LANGUAGE: &str = "en-US";
     pub const DEFAULT_PARTNER_ATTRIBUTION_ID: &str = "HyperSwitchPPCP_SP";
     pub const DEFAULT_LEGACY_PARTNER_ATTRIBUTION_ID: &str = "HyperSwitchlegacy_Ecom";
+
+    /// Path prefix of the PayPal Payments v2 authorization resource.
+    /// Doc: <https://developer.paypal.com/docs/api/payments/v2/#authorizations_get>
+    pub const AUTHORIZATIONS_PATH: &str = "v2/payments/authorizations";
+
+    /// Sub-resource action that reauthorizes an already authorized payment. PayPal offers no
+    /// dedicated incremental-authorization API; `reauthorize` is the operation Hyperswitch's
+    /// `IncrementalAuthorization` flow maps onto.
+    /// Doc: <https://developer.paypal.com/docs/api/payments/v2/#authorizations_reauthorize>
+    pub const REAUTHORIZE_ACTION: &str = "reauthorize";
+}
+
+/// Documentation surfaced on every `IntegrationError` this connector raises, so a caller who hits
+/// a validation failure has a direct pointer to the PayPal reference for the field in question.
+pub const PAYPAL_INTEGRATION_DOC_URL: &str = "https://developer.paypal.com/docs/api/payments/v2/";
+
+/// Single construction point for [`domain_types::errors::IntegrationErrorContext`] in the PayPal
+/// connector. Every error site passes a concrete `additional_context` (what is missing and why
+/// PayPal needs it) and a concrete `suggested_action` (what the caller should change).
+pub(crate) fn paypal_err_ctx(
+    additional_context: impl Into<String>,
+    suggested_action: impl Into<String>,
+) -> domain_types::errors::IntegrationErrorContext {
+    domain_types::errors::IntegrationErrorContext {
+        additional_context: Some(additional_context.into()),
+        suggested_action: Some(suggested_action.into()),
+        doc_url: Some(PAYPAL_INTEGRATION_DOC_URL.to_string()),
+    }
 }
 
 const ORDER_QUANTITY: u16 = 1;
@@ -1876,55 +1905,235 @@ impl<F, T> TryFrom<ResponseRouterData<PaypalAuthUpdateResponse, Self>>
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+// ----------------------------------------------------------------------------
+// IncrementalAuthorization — POST /v2/payments/authorizations/{id}/reauthorize
+//
+// PayPal exposes no dedicated incremental-authorization API. The closest operation, and the one
+// Hyperswitch's `IncrementalAuthorization` flow maps onto, is "Reauthorize Authorized Payment":
+// it refreshes the 3-day honor period on an existing authorization and, where the network and
+// geography permit, changes the held amount. It mints a NEW authorization id.
+// Doc: <https://developer.paypal.com/docs/api/payments/v2/#authorizations_reauthorize>
+// ----------------------------------------------------------------------------
+
+/// Status of a PayPal authorization resource (`authorization-2.status`), as returned by the
+/// reauthorize endpoint.
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, strum::Display)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+// `serde(rename_all)` governs the wire format only; `strum` needs its own casing directive or
+// `Display` would log `PartiallyCaptured` where PayPal sent `PARTIALLY_CAPTURED`.
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum PaypalIncrementalStatus {
-    CREATED,
-    CAPTURED,
-    DENIED,
-    PARTIALLYCAPTURED,
-    VOIDED,
-    PENDING,
+    /// Funds are held under the newly minted authorization — the success terminal state for a
+    /// reauthorization.
+    Created,
+    Captured,
+    PartiallyCaptured,
+    Denied,
+    Pending,
+    Voided,
+    Expired,
+    /// PayPal's published OpenAPI enum and its integration guides disagree on the exact variant
+    /// list for this field, so an unrecognised value must not fail deserialization of an
+    /// otherwise successful reauthorization. Mapped to `AuthorizationStatus::Unresolved`.
+    #[serde(other)]
+    Unknown,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PaypalNetworkTransactionReference {
     id: String,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PaypalIncrementalAuthStatusDetails {
+    /// PayPal only populates a reason when it has one to give (risk hold / manual review), so it
+    /// is absent on a plain `PENDING`.
     reason: Option<PaypalStatusPendingReason>,
 }
 
-#[derive(Debug, Deserialize, Serialize, strum::Display)]
+#[derive(Debug, Clone, Deserialize, Serialize, strum::Display)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PaypalStatusPendingReason {
-    PENDINGREVIEW,
-    DECLINEDBYRISKFRAUDFILTERS,
+    PendingReview,
+    DeclinedByRiskFraudFilters,
+    /// PayPal documents only the two reasons above but does not declare the enum closed; an
+    /// unrecognised reason is diagnostic-only and must never fail the response mapping.
+    #[serde(other)]
+    Unknown,
 }
 
 impl From<PaypalIncrementalStatus> for common_enums::AuthorizationStatus {
     fn from(item: PaypalIncrementalStatus) -> Self {
+        // Exhaustive on purpose — no wildcard arm, so a newly added PayPal status is a compile
+        // error here rather than a silently mis-mapped authorization.
         match item {
-            PaypalIncrementalStatus::CREATED
-            | PaypalIncrementalStatus::CAPTURED
-            | PaypalIncrementalStatus::PARTIALLYCAPTURED => Self::Success,
-            PaypalIncrementalStatus::PENDING => Self::Processing,
-            PaypalIncrementalStatus::DENIED | PaypalIncrementalStatus::VOIDED => Self::Failure,
+            // `CREATED` is the normal outcome of a reauthorization; `CAPTURED` /
+            // `PARTIALLY_CAPTURED` mean the (re)authorized funds have since been drawn down, which
+            // is still a successfully held authorization from this flow's point of view.
+            PaypalIncrementalStatus::Created
+            | PaypalIncrementalStatus::Captured
+            | PaypalIncrementalStatus::PartiallyCaptured => Self::Success,
+            PaypalIncrementalStatus::Pending => Self::Processing,
+            PaypalIncrementalStatus::Denied
+            | PaypalIncrementalStatus::Voided
+            | PaypalIncrementalStatus::Expired => Self::Failure,
+            PaypalIncrementalStatus::Unknown => {
+                tracing::warn!(
+                    connector = "paypal",
+                    flow = "incremental_authorization",
+                    "PayPal returned an authorization status outside the documented enum; \
+                     reporting the authorization as Unresolved so it is reconciled rather than \
+                     wrongly settled or wrongly failed"
+                );
+                Self::Unresolved
+            }
         }
     }
 }
 
-impl From<PaypalIncrementalStatus> for common_enums::AttemptStatus {
-    fn from(item: PaypalIncrementalStatus) -> Self {
-        match item {
-            PaypalIncrementalStatus::CREATED
-            | PaypalIncrementalStatus::CAPTURED
-            | PaypalIncrementalStatus::PARTIALLYCAPTURED => Self::Authorized,
-            PaypalIncrementalStatus::PENDING => Self::Pending,
-            PaypalIncrementalStatus::DENIED | PaypalIncrementalStatus::VOIDED => Self::Failure,
+/// Request body for `POST /v2/payments/authorizations/{authorization_id}/reauthorize`.
+///
+/// PayPal documents `amount` as the only accepted request parameter on this endpoint — no
+/// `invoice_id`, `final_capture`, `soft_descriptor` or `payment_instruction`. The body itself is
+/// optional (omitting it reauthorizes the original amount unchanged), but UCS always carries an
+/// explicit target amount on `PaymentsIncrementalAuthorizationData`, so it is always sent and the
+/// field is therefore not optional.
+#[derive(Debug, Clone, Serialize)]
+pub struct PaypalIncrementalAuthRequest {
+    amount: OrderAmount,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        PaypalRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for PaypalIncrementalAuthRequest
+{
+    type Error = Report<IntegrationError>;
+    fn try_from(
+        item: PaypalRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let request = &item.router_data.request;
+        // PayPal money values are currency-scaled decimal strings ("10.99"), never minor units,
+        // so reuse the connector's configured StringMajorUnit converter.
+        let value = item
+            .connector
+            .amount_converter
+            .convert(request.minor_amount, request.currency)
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: paypal_err_ctx(
+                    "PayPal expects the reauthorization amount as a currency-scaled decimal \
+                     string (for example \"10.99\"); converting the requested minor amount to \
+                     that representation failed",
+                    "Check that `amount.minor_amount` and `amount.currency` form a valid amount \
+                     for the currency",
+                ),
+            })
+            .attach_printable(
+                "Failed to convert minor_amount to StringMajorUnit for PayPal reauthorize",
+            )?;
+        Ok(Self {
+            amount: OrderAmount {
+                // PayPal rejects a reauthorization whose currency differs from the original
+                // authorization with issue `AUTH_CURRENCY_MISMATCH`.
+                currency_code: request.currency,
+                value,
+            },
+        })
+    }
+}
+
+/// Response body of `POST /v2/payments/authorizations/{authorization_id}/reauthorize`
+/// (schema `authorization-2`). HTTP 201 is the normal success; HTTP 200 is returned on an
+/// idempotent replay of a previously seen `PayPal-Request-Id` and carries the same schema.
+///
+/// Only `id` and `status` are guaranteed: with the default `Prefer: return=minimal` PayPal
+/// returns just `id`, `status` and `links`. This connector sends `Prefer: return=representation`
+/// (see `build_headers`), which is what populates the optional blocks below — but the header is a
+/// preference, not a contract, so every one of them stays optional.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct PaypalIncrementalAuthResponse {
+    /// The **new** PayPal-generated authorization id produced by the reauthorization. The previous
+    /// authorization id is superseded and must not be reused for capture or void.
+    id: String,
+    status: PaypalIncrementalStatus,
+    /// Present only when PayPal has a reason to report alongside the status — in practice when
+    /// `status` is `PENDING` because the authorization is risk-held or queued for manual review.
+    status_details: Option<PaypalIncrementalAuthStatusDetails>,
+    /// The reauthorized amount. Omitted under `Prefer: return=minimal`.
+    amount: Option<OrderAmount>,
+    /// Merchant invoice number carried over from the original authorization; absent when the
+    /// original order carried none, and under `Prefer: return=minimal`.
+    invoice_id: Option<String>,
+    /// Merchant free-form identifier; absent when it was not set on the original order, and under
+    /// `Prefer: return=minimal`.
+    custom_id: Option<String>,
+    /// Card-network transaction reference. PayPal only returns it for card-funded authorizations
+    /// where the network supplied one, so it is absent for PayPal-wallet-funded authorizations.
+    network_transaction_reference: Option<PaypalNetworkTransactionReference>,
+    /// HATEOAS links for the new authorization (`self`, `capture`, `void`, `reauthorize`).
+    /// Modelled as optional because PayPal omits the block entirely on some minimal
+    /// representations rather than returning an empty array.
+    links: Option<Vec<PaypalLinks>>,
+}
+
+impl TryFrom<ResponseRouterData<PaypalIncrementalAuthResponse, Self>>
+    for RouterDataV2<
+        IncrementalAuthorization,
+        PaymentFlowData,
+        PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData,
+    >
+{
+    type Error = Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<PaypalIncrementalAuthResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+
+        // Diagnostic only: PayPal explains a held authorization through `status_details.reason`,
+        // which has no representation on `IncrementalAuthorizationResponse`. Log it rather than
+        // dropping it silently, and never fail an otherwise valid response on account of it.
+        if let Some(reason) = response
+            .status_details
+            .as_ref()
+            .and_then(|details| details.reason.as_ref())
+        {
+            tracing::warn!(
+                connector = "paypal",
+                flow = "incremental_authorization",
+                paypal_status = %response.status,
+                paypal_status_reason = %reason,
+                "PayPal reported a status reason on the reauthorized authorization"
+            );
         }
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
+                status: common_enums::AuthorizationStatus::from(response.status),
+                // The reauthorization mints a new authorization id; surfacing it lets the caller
+                // address the subsequent capture/void at the authorization that actually holds
+                // the funds.
+                connector_authorization_id: Some(response.id),
+                status_code: item.http_code,
+            }),
+            ..item.router_data
+        })
     }
 }
 
@@ -2322,6 +2531,28 @@ fn get_id_based_on_intent(
     })
 }
 
+/// Pulls the authorization id that `IncrementalAuthorization` later reauthorizes out of an
+/// `intent: AUTHORIZE` order response.
+///
+/// This is funding-source agnostic — every funding source converges on
+/// `purchase_units[].payments.authorizations[0].id`. What differs is which Authorize leg produces
+/// the response this runs against:
+///
+/// * **Card** — the create-order call itself (`POST /v2/checkout/orders` with
+///   `payment_source.card`) already carries the authorization, so the id is available on the first
+///   Authorize.
+/// * **Wallet — `PaypalRedirect`** — create-order returns `PAYER_ACTION_REQUIRED` with no
+///   `payments` block at all, so it deserializes as [`PaypalRedirectResponse`] and correctly yields
+///   no id. The authorization only exists after the buyer approves at PayPal and the caller issues
+///   a second Authorize carrying `connector_order_id`, which posts to
+///   `/v2/checkout/orders/{order_id}/authorize`; that response is a full order object and lands
+///   here.
+/// * **Wallet — `PaypalSdk`** — the JS SDK performs create-order plus approval client-side, so the
+///   single Authorize posts straight to `/v2/checkout/orders/{sdk_token}/authorize` and lands here
+///   on the first call.
+///
+/// Returns `None` rather than erroring: an order that legitimately has no authorization yet (the
+/// wallet redirect leg, or an `intent: CAPTURE` order) must not fail an otherwise valid response.
 fn extract_incremental_authorization_id(response: &PaypalOrdersResponse) -> Option<String> {
     for unit in &response.purchase_units {
         if let Some(authorizations) = &unit.payments.authorizations {
