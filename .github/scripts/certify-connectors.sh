@@ -91,8 +91,11 @@ run_connector() {
   local args=(--skip-setup --no-build --no-server --connector "${name}"
               --interface grpc --report)
 
+  # The caller captures this function's stdout, so the run's own output goes to
+  # stderr. Left on stdout it is captured too, and every line of it becomes a
+  # bogus failure target — while the real scenario detail vanishes from the log.
   UCS_RUN_TEST_REPORT_PATH="${report}" \
-    timeout --kill-after=30s "${ATTEMPT_TIMEOUT}" ./scripts/run-tests "${args[@]}"
+    timeout --kill-after=30s "${ATTEMPT_TIMEOUT}" ./scripts/run-tests "${args[@]}" >&2
   local rc=$?
 
   local rows=""
@@ -151,8 +154,14 @@ run_scenario() {
 prepare_base() {
   [[ "${BASE_PREPARED}" == "true" ]] && return 0
   echo "::group::Preparing merge base ${BASE_SHA} for arbitration"
+  # The workflow checks out at depth 1, so the merge base is normally absent.
+  # Fetching just that commit is enough to check out sources from it, and far
+  # cheaper than deepening the whole history for every run.
   if ! git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
-    echo "::warning::Merge base ${BASE_SHA} is not available in this checkout"
+    git fetch --no-tags --depth=1 origin "${BASE_SHA}" >/dev/null 2>&1 || true
+  fi
+  if ! git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
+    echo "::warning::Merge base ${BASE_SHA} could not be fetched into this checkout"
     echo "::endgroup::"
     return 1
   fi
