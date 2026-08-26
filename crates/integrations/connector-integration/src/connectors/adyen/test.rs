@@ -102,6 +102,7 @@ mod tests {
 },
                 request: PaymentsAuthorizeData {
                     payment_method_token: None,
+                    split_settlement: None,
                     customer_document_details: None,
                     payment_channel: None,
                     authentication_data: None,
@@ -314,6 +315,7 @@ mod tests {
 },
                 request: PaymentsAuthorizeData {
                     payment_method_token: None,
+                    split_settlement: None,
                     customer_document_details: None,
                     payment_channel: None,
                     authentication_data: None,

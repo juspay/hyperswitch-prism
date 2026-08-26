@@ -177,6 +177,7 @@ impl
 }
 
 impl ForeignFrom<&CompositeAuthorizeRequest> for CustomerServiceCreateRequest {
+    #[allow(deprecated)]
     fn foreign_from(item: &CompositeAuthorizeRequest) -> Self {
         let customer = item.customer.as_ref();
         Self {
@@ -247,6 +248,7 @@ impl
         Option<&PaymentMethodAuthenticationServicePostAuthenticateResponse>,
     )> for PaymentServiceAuthorizeRequest
 {
+    #[allow(deprecated)]
     fn foreign_from(
         (
             item,
@@ -305,6 +307,7 @@ impl
 
         Self {
             payment_method_token: item.payment_method_token.clone(),
+            split_settlement: item.split_settlement.clone(),
             merchant_transaction_id: item.merchant_transaction_id.clone(),
             amount: item.amount,
             order_tax_amount: item.order_tax_amount,
@@ -380,6 +383,7 @@ impl
         Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
     )> for PaymentServiceGetRequest
 {
+    #[allow(deprecated)]
     fn foreign_from(
         (item, access_token_response): (
             &CompositeGetRequest,
@@ -471,6 +475,7 @@ impl
         });
 
         Self {
+            split_settlement_refund: item.split_settlement_refund.clone(),
             merchant_refund_id: item.merchant_refund_id.clone(),
             connector_transaction_id: item.connector_transaction_id.clone(),
             payment_amount: item.payment_amount,
@@ -580,6 +585,7 @@ impl
         Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
     )> for PaymentServiceVoidRequest
 {
+    #[allow(deprecated)]
     fn foreign_from(
         (item, access_token_response): (
             &CompositeVoidRequest,
@@ -778,6 +784,7 @@ impl
         Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
     )> for PaymentServiceCaptureRequest
 {
+    #[allow(deprecated)]
     fn foreign_from(
         (item, access_token_response): (
             &CompositeCaptureRequest,
@@ -802,6 +809,7 @@ impl
         });
 
         Self {
+            split_settlement: item.split_settlement.clone(),
             merchant_capture_id: item.merchant_capture_id.clone(),
             connector_transaction_id: item.connector_transaction_id.clone(),
             amount_to_capture: item.amount_to_capture,
@@ -1017,6 +1025,7 @@ impl
 }
 
 impl ForeignFrom<&CompositePaymentMethodGetRequest> for PaymentMethodServiceTokenizeRequest {
+    #[allow(deprecated)]
     fn foreign_from(item: &CompositePaymentMethodGetRequest) -> Self {
         Self {
             merchant_payment_method_id: item.merchant_payment_method_id.clone(),
@@ -1136,6 +1145,7 @@ impl
         Option<&MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse>,
     )> for PaymentServiceAuthorizeRequest
 {
+    #[allow(deprecated)]
     fn foreign_from(
         (request, _verify_response, access_token_response, session_token_response): (
             &CompositeVerifyRedirectResponseRequest,
@@ -1164,6 +1174,7 @@ impl
 
         Self {
             payment_method_token: request.payment_method_token.clone(),
+            split_settlement: request.split_settlement.clone(),
             merchant_transaction_id: request.merchant_transaction_id.clone(),
             merchant_order_id: request.merchant_order_id.clone(),
             amount: request.amount,

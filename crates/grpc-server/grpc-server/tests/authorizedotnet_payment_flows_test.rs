@@ -414,6 +414,7 @@ fn create_payment_capture_request(transaction_id: &str) -> PaymentServiceCapture
     let request_ref_id = generate_unique_request_ref_id("capture");
 
     PaymentServiceCaptureRequest {
+        split_settlement: None,
         merchant_capture_id: Some(request_ref_id),
         connector_transaction_id: transaction_id.to_string(),
         amount_to_capture: Some(grpc_api_types::payments::Money {
@@ -466,6 +467,7 @@ fn create_refund_request(transaction_id: &str) -> PaymentServiceRefundRequest {
     let refund_metadata_json = serde_json::to_string(&refund_metadata_map).unwrap();
 
     PaymentServiceRefundRequest {
+        split_settlement_refund: None,
         merchant_refund_id: Some(generate_unique_request_ref_id("refund")),
         connector_transaction_id: transaction_id.to_string(),
         payment_amount: TEST_AMOUNT,
