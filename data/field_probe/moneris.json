@@ -137,7 +137,7 @@
             "via": "HyperSwitch",
             "x-merchant-id": "probe_merchant"
           },
-          "body": "{\"idempotencyKey\":\"auth_probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"amount\":1000},\"paymentMethod\":{\"paymentMethodSource\":\"CARD\",\"card\":{\"cardNumber\":\"4111111111111111\",\"expiryMonth\":3,\"expiryYear\":2030,\"cardSecurityCode\":\"737\"},\"storePaymentMethod\":\"DO_NOT_STORE\"},\"automaticCapture\":true}"
+          "body": "{\"idempotencyKey\":\"auth_probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"amount\":1000},\"paymentMethod\":{\"paymentMethodSource\":\"CARD\",\"card\":{\"cardNumber\":\"4111111111111111\",\"expiryMonth\":3,\"expiryYear\":2030,\"cardSecurityCode\":\"737\"},\"storePaymentMethod\":\"DO_NOT_STORE\"},\"automaticCapture\":true,\"ecommerceIndicator\":\"SSL_MERCHANT\"}"
         }
       },
       "CashappQr": {
@@ -701,7 +701,7 @@
             "via": "HyperSwitch",
             "x-merchant-id": "probe_merchant"
           },
-          "body": "{\"idempotencyKey\":\"auth_probe_proxy_txn_001\",\"amount\":{\"currency\":\"USD\",\"amount\":1000},\"paymentMethod\":{\"paymentMethodSource\":\"CARD\",\"card\":{\"cardNumber\":\"{{$card_number}}\",\"expiryMonth\":3,\"expiryYear\":2030,\"cardSecurityCode\":\"{{$card_cvc}}\"},\"storePaymentMethod\":\"DO_NOT_STORE\"},\"automaticCapture\":true}"
+          "body": "{\"idempotencyKey\":\"auth_probe_proxy_txn_001\",\"amount\":{\"currency\":\"USD\",\"amount\":1000},\"paymentMethod\":{\"paymentMethodSource\":\"CARD\",\"card\":{\"cardNumber\":\"{{$card_number}}\",\"expiryMonth\":3,\"expiryYear\":2030,\"cardSecurityCode\":\"{{$card_cvc}}\"},\"storePaymentMethod\":\"DO_NOT_STORE\"},\"automaticCapture\":true,\"ecommerceIndicator\":\"SSL_MERCHANT\"}"
         }
       }
     },
