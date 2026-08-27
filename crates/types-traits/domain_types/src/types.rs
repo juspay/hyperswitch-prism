@@ -3456,6 +3456,8 @@ pub struct AuthorizationRequest {
         Option<grpc_payment_types::PartnerMerchantIdentifierDetails>,
     /// Dynamic currency conversion decision and quote supplied for authorization.
     pub currency_conversion_data: Option<grpc_payment_types::CurrencyConversionData>,
+    pub is_account_funded_transaction: Option<bool>,
+    pub recipient_details: Option<grpc_payment_types::RecipientDetails>,
 }
 
 /// Intermediate setup recurring request that accepts both CardDetails and ProxyCardDetails.
@@ -3495,6 +3497,8 @@ pub struct SetupRecurringRequest {
     pub mit_category: Option<common_enums::MitCategory>,
     pub partner_merchant_identifier_details:
         Option<grpc_payment_types::PartnerMerchantIdentifierDetails>,
+    pub is_account_funded_transaction: Option<bool>,
+    pub recipient_details: Option<grpc_payment_types::RecipientDetails>,
 }
 
 /// ============================================================================
@@ -3562,6 +3566,8 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
             split_settlement: req.split_settlement,
             partner_merchant_identifier_details: req.partner_merchant_identifier_details,
             currency_conversion_data: req.currency_conversion_data,
+            is_account_funded_transaction: req.is_account_funded_transaction,
+            recipient_details: req.recipient_details,
         }
     }
 }
@@ -3633,6 +3639,8 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             split_settlement: None,
             partner_merchant_identifier_details: None,
             currency_conversion_data: None,
+            is_account_funded_transaction: None,
+            recipient_details: None,
         }
     }
 }
@@ -3679,6 +3687,8 @@ impl From<grpc_payment_types::PaymentServiceSetupRecurringRequest> for SetupRecu
             l2_l3_data: req.l2_l3_data,
             mit_category,
             partner_merchant_identifier_details: req.partner_merchant_identifier_details,
+            is_account_funded_transaction: req.is_account_funded_transaction,
+            recipient_details: req.recipient_details,
         }
     }
 }
@@ -3729,6 +3739,8 @@ impl From<grpc_payment_types::PaymentServiceProxySetupRecurringRequest> for Setu
             l2_l3_data: None,
             mit_category: None,
             partner_merchant_identifier_details: None,
+            is_account_funded_transaction: None,
+            recipient_details: None,
         }
     }
 }
@@ -4719,6 +4731,11 @@ impl<
                 .currency_conversion_data
                 .map(connector_types::CurrencyConversionData::foreign_try_from)
                 .transpose()?,
+            is_account_funded_transaction: value.is_account_funded_transaction,
+            recipient_details: value
+                .recipient_details
+                .map(connector_types::RecipientDetails::foreign_try_from)
+                .transpose()?,
         })
     }
 }
@@ -4872,6 +4889,11 @@ impl<
             partner_merchant_identifier_details: value
                 .partner_merchant_identifier_details
                 .map(connector_types::PartnerMerchantIdentifierDetails::foreign_try_from)
+                .transpose()?,
+            is_account_funded_transaction: value.is_account_funded_transaction,
+            recipient_details: value
+                .recipient_details
+                .map(connector_types::RecipientDetails::foreign_try_from)
                 .transpose()?,
         })
     }
@@ -5248,6 +5270,11 @@ impl ForeignTryFrom<grpc_api_types::payments::Address> for AddressDetails {
             Some(CountryAlpha2::foreign_try_from(country_code)?)
         };
 
+        let date_of_birth = value
+            .date_of_birth
+            .map(|s| Secret::<time::Date>::foreign_try_from(s.expose()))
+            .transpose()?;
+
         Ok(Self {
             country,
             city: value.city,
@@ -5259,6 +5286,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Address> for AddressDetails {
             first_name: value.first_name,
             last_name: value.last_name,
             origin_zip: None,
+            date_of_birth,
         })
     }
 }
@@ -12256,6 +12284,11 @@ impl<
                 .partner_merchant_identifier_details
                 .map(connector_types::PartnerMerchantIdentifierDetails::foreign_try_from)
                 .transpose()?,
+            is_account_funded_transaction: value.is_account_funded_transaction,
+            recipient_details: value
+                .recipient_details
+                .map(connector_types::RecipientDetails::foreign_try_from)
+                .transpose()?,
         })
     }
 }
@@ -13625,6 +13658,135 @@ impl ForeignTryFrom<String> for Secret<time::Date> {
             }
         })?;
         Ok(Self::new(date))
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payments::RecipientBankAccount>
+    for connector_types::RecipientBankAccount
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: grpc_api_types::payments::RecipientBankAccount,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let missing = |field| {
+            report!(IntegrationError::InvalidDataFormat {
+                field_name: field,
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!("Missing required field: {}", field)),
+                    ..Default::default()
+                },
+            })
+        };
+        use grpc_api_types::payments::recipient_bank_account::BankAccountType;
+        match value.bank_account_type {
+            Some(BankAccountType::Iban(v)) => Ok(Self::Iban {
+                iban: v
+                    .iban
+                    .ok_or_else(|| missing("recipient_bank_account.iban"))?,
+            }),
+            Some(BankAccountType::RoutingNumber(v)) => Ok(Self::RoutingNumber {
+                account_number: v
+                    .account_number
+                    .ok_or_else(|| missing("recipient_bank_account.account_number"))?,
+                routing_number: v
+                    .routing_number
+                    .ok_or_else(|| missing("recipient_bank_account.routing_number"))?,
+            }),
+            Some(BankAccountType::Bic(v)) => Ok(Self::Bic {
+                account_number: v
+                    .account_number
+                    .ok_or_else(|| missing("recipient_bank_account.account_number"))?,
+                bic: v.bic.ok_or_else(|| missing("recipient_bank_account.bic"))?,
+            }),
+            Some(BankAccountType::AccountNumber(v)) => Ok(Self::AccountNumber {
+                account_number: v
+                    .account_number
+                    .ok_or_else(|| missing("recipient_bank_account.account_number"))?,
+            }),
+            Some(BankAccountType::TruncatedPan(v)) => Ok(Self::TruncatedPan {
+                card_isin: v
+                    .card_isin
+                    .ok_or_else(|| missing("recipient_bank_account.card_isin"))?,
+                last4: v
+                    .last4
+                    .ok_or_else(|| missing("recipient_bank_account.last4"))?,
+            }),
+            None => Err(report!(IntegrationError::InvalidDataFormat {
+                field_name: "recipient_bank_account.bank_account_type",
+                context: IntegrationErrorContext {
+                    additional_context: Some("Missing bank account type".to_string()),
+                    ..Default::default()
+                },
+            })),
+        }
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payments::RecipientAccount>
+    for connector_types::RecipientAccount
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: grpc_api_types::payments::RecipientAccount,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        use grpc_api_types::payments::recipient_account::AccountType;
+        match value.account_type {
+            Some(AccountType::BankAccount(ba)) => Ok(Self::BankAccount(
+                connector_types::RecipientBankAccount::foreign_try_from(ba)?,
+            )),
+            Some(AccountType::CardNumber(cn)) => Ok(Self::Card { card_number: cn }),
+            Some(AccountType::WalletId(wi)) => Ok(Self::Wallet { wallet_id: wi }),
+            Some(AccountType::Email(em)) => {
+                let email = Email::try_from(em.expose()).map_err(|_| {
+                    report!(IntegrationError::InvalidDataFormat {
+                        field_name: "recipient_account.email",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Invalid email format".to_string()),
+                            ..Default::default()
+                        },
+                    })
+                })?;
+                Ok(Self::Email { email })
+            }
+            Some(AccountType::PhoneNumber(pn)) => Ok(Self::Phone { phone_number: pn }),
+            Some(AccountType::SocialNetworkId(sn)) => Ok(Self::SocialNetwork {
+                social_network_id: sn,
+            }),
+            None => Err(report!(IntegrationError::InvalidDataFormat {
+                field_name: "recipient_account.account_type",
+                context: IntegrationErrorContext {
+                    additional_context: Some("Missing recipient account type".to_string()),
+                    ..Default::default()
+                },
+            })),
+        }
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payments::RecipientDetails>
+    for connector_types::RecipientDetails
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: grpc_api_types::payments::RecipientDetails,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let address = value
+            .address
+            .map(AddressDetails::foreign_try_from)
+            .transpose()?;
+        let account = value
+            .account
+            .map(connector_types::RecipientAccount::foreign_try_from)
+            .transpose()?;
+        Ok(Self {
+            account,
+            phone_number: value.phone_number,
+            tax_id: value.tax_id,
+            address,
+        })
     }
 }
 
@@ -15194,6 +15356,11 @@ impl<
             partner_merchant_identifier_details: value
                 .partner_merchant_identifier_details
                 .map(connector_types::PartnerMerchantIdentifierDetails::foreign_try_from)
+                .transpose()?,
+            is_account_funded_transaction: value.is_account_funded_transaction,
+            recipient_details: value
+                .recipient_details
+                .map(connector_types::RecipientDetails::foreign_try_from)
                 .transpose()?,
         })
     }
@@ -19422,6 +19589,8 @@ pub fn tokenized_authorize_to_base(
         domain_data: None,
         partner_merchant_identifier_details: None,
         currency_conversion_data: None,
+        is_account_funded_transaction: None,
+        recipient_details: None,
     }
 }
 
@@ -19500,6 +19669,8 @@ pub fn tokenized_setup_recurring_to_base(
         shipping_cost: None,
         mit_category: None,
         partner_merchant_identifier_details: None,
+        is_account_funded_transaction: None,
+        recipient_details: None,
     }
 }
 
@@ -19602,6 +19773,8 @@ pub fn proxied_authorize_to_base(
         domain_data: None,
         partner_merchant_identifier_details: None,
         currency_conversion_data: None,
+        is_account_funded_transaction: None,
+        recipient_details: None,
     })
 }
 
@@ -19717,6 +19890,8 @@ pub fn proxied_setup_recurring_to_base(
         shipping_cost: None,
         mit_category: None,
         partner_merchant_identifier_details: None,
+        is_account_funded_transaction: None,
+        recipient_details: None,
     })
 }
 

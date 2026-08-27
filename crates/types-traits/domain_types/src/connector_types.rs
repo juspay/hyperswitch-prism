@@ -1736,6 +1736,10 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     /// Dynamic currency conversion decision and quote supplied for authorization.
     /// Connectors that support DCC can consume this when building their request.
     pub currency_conversion_data: Option<CurrencyConversionData>,
+    /// Indicates whether this payment is an account funded transaction (AFT).
+    pub is_account_funded_transaction: Option<bool>,
+    /// Details about the recipient of funds for account-funded transactions.
+    pub recipient_details: Option<RecipientDetails>,
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {
@@ -3610,6 +3614,10 @@ pub struct SetupMandateRequestData<T: PaymentMethodDataTypes> {
     pub authentication_data: Option<router_request_types::AuthenticationData>,
     /// Partner / merchant application identifiers (e.g. Checkout metadata udf5).
     pub partner_merchant_identifier_details: Option<PartnerMerchantIdentifierDetails>,
+    /// Indicates whether this payment is an account funded transaction (AFT).
+    pub is_account_funded_transaction: Option<bool>,
+    /// Details about the recipient of funds for account-funded transactions.
+    pub recipient_details: Option<RecipientDetails>,
 }
 
 impl<T: PaymentMethodDataTypes> SetupMandateRequestData<T> {
@@ -3713,6 +3721,10 @@ pub struct RepeatPaymentData<T: PaymentMethodDataTypes> {
     pub additional_payment_data: Option<AdditionalPaymentData>,
     /// Partner / merchant application identifiers (e.g. Adyen applicationInfo).
     pub partner_merchant_identifier_details: Option<PartnerMerchantIdentifierDetails>,
+    /// Indicates whether this payment is an account funded transaction (AFT).
+    pub is_account_funded_transaction: Option<bool>,
+    /// Details about the recipient of funds for account-funded transactions.
+    pub recipient_details: Option<RecipientDetails>,
 }
 
 impl<T: PaymentMethodDataTypes> RepeatPaymentData<T> {
@@ -5818,4 +5830,53 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Santander(_) => Ok(Self::Payout(PayoutConnectorEnum::Santander)),
         }
     }
+}
+
+// ============================================================================
+// RECIPIENT / ACCOUNT-FUNDED TRANSACTION TYPES
+// ============================================================================
+
+/// A bank account that receives funds — discriminated by the identifying scheme.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "bank_account_type", rename_all = "snake_case")]
+pub enum RecipientBankAccount {
+    Iban {
+        iban: Secret<String>,
+    },
+    RoutingNumber {
+        account_number: Secret<String>,
+        routing_number: Secret<String>,
+    },
+    Bic {
+        account_number: Secret<String>,
+        bic: Secret<String>,
+    },
+    AccountNumber {
+        account_number: Secret<String>,
+    },
+    TruncatedPan {
+        card_isin: Secret<String>,
+        last4: Secret<String>,
+    },
+}
+
+/// The account that receives the funds in an account-funded transaction.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum RecipientAccount {
+    BankAccount(RecipientBankAccount),
+    Card { card_number: Secret<String> },
+    Wallet { wallet_id: Secret<String> },
+    Email { email: Email },
+    Phone { phone_number: Secret<String> },
+    SocialNetwork { social_network_id: Secret<String> },
+}
+
+/// Details about the recipient of funds in an account-funded transaction.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RecipientDetails {
+    pub account: Option<RecipientAccount>,
+    pub phone_number: Option<Secret<String>>,
+    pub tax_id: Option<Secret<String>>,
+    pub address: Option<AddressDetails>,
 }

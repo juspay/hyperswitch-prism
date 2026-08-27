@@ -188,6 +188,8 @@ pub struct AddressDetails {
     pub last_name: Option<Secret<String>>,
 
     pub origin_zip: Option<Secret<String>>,
+
+    pub date_of_birth: Option<Secret<time::Date>>,
 }
 
 impl AddressDetails {
@@ -234,6 +236,7 @@ impl AddressDetails {
                 zip: self.zip.or(other.zip.clone()),
                 state: self.state.or(other.state.clone()),
                 origin_zip: self.origin_zip.clone().or(other.origin_zip.clone()),
+                date_of_birth: self.date_of_birth.or(other.date_of_birth.clone()),
             }
         } else {
             self

@@ -174,7 +174,8 @@ mod tests {
                     redirect_response: None,
                     threeds_method_comp_ind: None,
                     tokenization: None,
-
+                    is_account_funded_transaction: None,
+                    recipient_details: None,
                     mit_category: None,
                     payment_channel: None,
                     domain_data: None,
@@ -366,7 +367,8 @@ mod tests {
                     redirect_response: None,
                     threeds_method_comp_ind: None,
                     tokenization: None,
-
+                    is_account_funded_transaction: None,
+                    recipient_details: None,
                     mit_category: None,
                     payment_channel: None,
                     domain_data: None,
@@ -536,7 +538,8 @@ mod tests {
                     redirect_response: None,
                     threeds_method_comp_ind: None,
                     tokenization: None,
-
+                    is_account_funded_transaction: None,
+                    recipient_details: None,
                     mit_category: None,
                     payment_channel: None,
                     domain_data: None,
