@@ -128,11 +128,17 @@ jobs:
         id: connector-names
         if: steps.filter.outputs.connector == 'true'
         shell: bash
+        # Expressions reach bash through the environment, never spliced into the
+        # script: connector_files carries attacker-chosen file names on a fork PR,
+        # and one apostrophe in a path would end the quoting and run the rest.
+        env:
+          CONNECTOR_FILES: ${{ steps.filter.outputs.connector_files }}
+          BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
           alpha=crates/internal/integration-tests/src/connector_specs/alpha_connectors.json
-          base_ref="${{ github.event.pull_request.base.sha || github.event.before }}"
+          base_ref="${BASE_REF}"
 
-          touched=$(echo '${{ steps.filter.outputs.connector_files }}' | \
+          touched=$(echo "${CONNECTOR_FILES}" | \
             jq -r '.[]' | \
             grep -oE '(connectors|connector_specs)/[^/]+' | \
             sed 's|^connectors/||;s|^connector_specs/||;s|\.rs$||' | \
@@ -156,10 +162,13 @@ jobs:
         id: new-connectors
         if: steps.connector-names.outputs.list != ''
         shell: bash
+        env:
+          CHANGED_LIST: ${{ steps.connector-names.outputs.list }}
+          BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
-          base_ref="${{ github.event.pull_request.base.sha || github.event.before }}"
+          base_ref="${BASE_REF}"
           new_list=""
-          IFS=',' read -ra CONNECTORS <<< "${{ steps.connector-names.outputs.list }}"
+          IFS=',' read -ra CONNECTORS <<< "${CHANGED_LIST}"
           for c in "${CONNECTORS[@]}"; do
             spec_dir="crates/internal/integration-tests/src/connector_specs/$c"
             # A connector is "new" in this PR if its spec directory does not
